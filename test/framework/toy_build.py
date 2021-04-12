@@ -130,11 +130,11 @@ class ToyBuildTest(EnhancedTestCase):
         # make sure installation log file and easyconfig file are copied to install dir
         software_path = os.path.join(installpath, 'software', 'toy', full_version)
         install_log_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-%s*.log' % version)
-        self.assertTrue(len(glob.glob(install_log_path_pattern)) == 1, "Found 1 file at %s" % install_log_path_pattern)
+        self.assertTrue(len(glob.glob(install_log_path_pattern)) >= 1, "Found 1 file at %s" % install_log_path_pattern)
 
         # make sure test report is available
         test_report_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-%s*test_report.md' % version)
-        self.assertTrue(len(glob.glob(test_report_path_pattern)) == 1, "Found 1 file at %s" % test_report_path_pattern)
+        self.assertTrue(len(glob.glob(test_report_path_pattern)) >= 1, "Found 1 file at %s" % test_report_path_pattern)
 
         ec_file_path = os.path.join(software_path, 'easybuild', 'toy-%s.eb' % full_version)
         self.assertTrue(os.path.exists(ec_file_path))
@@ -144,7 +144,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
                        raise_error=False, test_report=None, versionsuffix='', testing=True,
-                       raise_systemexit=False):
+                       raise_systemexit=False, force=True):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -160,9 +160,10 @@ class ToyBuildTest(EnhancedTestCase):
             '--installpath=%s' % self.test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
-            '--force',
             '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
         ]
+        if force:
+            args.append('--force')
         if tmpdir is not None:
             args.append('--tmpdir=%s' % tmpdir)
         if test_report is not None:
@@ -574,13 +575,18 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_permissions_installdir(self):
         """Test --read-only-installdir and --group-write-installdir."""
+        # Avoid picking up the already prepared fake module
+        try:
+            del os.environ['MODULEPATH']
+        except KeyError:
+            pass
         # set umask hard to verify default reliably
         orig_umask = os.umask(0o022)
 
         toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         test_ec_txt = read_file(toy_ec)
         # take away read permissions, to check whether they are correctly restored by EasyBuild after installation
-        test_ec_txt += "\npostinstallcmds = ['chmod -R og-r %(installdir)s']"
+        test_ec_txt += "\npostinstallcmds += ['chmod -R og-r %(installdir)s']"
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
@@ -600,19 +606,28 @@ class ToyBuildTest(EnhancedTestCase):
         shutil.rmtree(self.test_installpath)
 
         # check whether --read-only-installdir works as intended
-        self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'])
-        installdir_perms = os.stat(toy_install_dir).st_mode & 0o777
-        self.assertEqual(installdir_perms, 0o555, "%s has read-only permissions" % toy_install_dir)
-        installdir_perms = os.stat(os.path.dirname(toy_install_dir)).st_mode & 0o777
-        self.assertEqual(installdir_perms, 0o755, "%s has default permissions" % os.path.dirname(toy_install_dir))
+        # Tested 5 times:
+        # 1. Non existing build -> Install and set read-only
+        # 2. Existing build with --rebuild -> Reinstall and set read-only
+        # 3. Existing build with --force -> Reinstall and set read-only
+        # 4-5: Same as 2-3 but with --skip
+        for extra_args in ([], ['--rebuild'], ['--force'], ['--skip', '--rebuild'], ['--skip', '--force']):
+            self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'] + extra_args, force=False)
 
-        # also log file copied into install dir should be read-only (not just the 'easybuild/' subdir itself)
-        log_path = glob.glob(os.path.join(toy_install_dir, 'easybuild', '*log'))[0]
-        log_perms = os.stat(log_path).st_mode & 0o777
-        self.assertEqual(log_perms, 0o444, "%s has read-only permissions" % log_path)
+            installdir_perms = os.stat(os.path.dirname(toy_install_dir)).st_mode & 0o777
+            self.assertEqual(installdir_perms, 0o755, "%s has default permissions" % os.path.dirname(toy_install_dir))
 
-        toy_bin_perms = os.stat(toy_bin).st_mode & 0o777
-        self.assertEqual(toy_bin_perms, 0o555, "%s has read-only permissions" % toy_bin_perms)
+            installdir_perms = os.stat(toy_install_dir).st_mode & 0o777
+            self.assertEqual(installdir_perms, 0o555, "%s has read-only permissions" % toy_install_dir)
+            toy_bin_perms = os.stat(toy_bin).st_mode & 0o777
+            self.assertEqual(toy_bin_perms, 0o555, "%s has read-only permissions" % toy_bin_perms)
+            toy_bin_perms = os.stat(os.path.join(toy_install_dir, 'README')).st_mode & 0o777
+            self.assertEqual(toy_bin_perms, 0o444, "%s has read-only permissions" % toy_bin_perms)
+
+            # also log file copied into install dir should be read-only (not just the 'easybuild/' subdir itself)
+            log_path = glob.glob(os.path.join(toy_install_dir, 'easybuild', '*log'))[0]
+            log_perms = os.stat(log_path).st_mode & 0o777
+            self.assertEqual(log_perms, 0o444, "%s has read-only permissions" % log_path)
 
         adjust_permissions(toy_install_dir, stat.S_IWUSR, add=True)
         shutil.rmtree(self.test_installpath)
