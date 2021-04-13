@@ -2358,36 +2358,50 @@ class ToyBuildTest(EnhancedTestCase):
         top_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         sys.path.insert(0, top_path)
 
-        def grab_gcc_rpath_wrapper_filter_arg():
-            """Helper function to grab filter argument from last RPATH wrapper for 'gcc'."""
+        def grab_gcc_rpath_wrapper_args():
+            """Helper function to grab arguments from last RPATH wrapper for 'gcc'."""
             rpath_wrappers_dir = glob.glob(os.path.join(os.getenv('TMPDIR'), '*', '*', 'rpath_wrappers'))[0]
             gcc_rpath_wrapper_txt = read_file(glob.glob(os.path.join(rpath_wrappers_dir, '*', 'gcc'))[0])
 
+            # First get the filter argument
             rpath_args_regex = re.compile(r"^rpath_args_out=.*rpath_args.py \$CMD '([^ ]*)'.*", re.M)
-            res = rpath_args_regex.search(gcc_rpath_wrapper_txt)
-            self.assertTrue(res, "Pattern '%s' found in: %s" % (rpath_args_regex.pattern, gcc_rpath_wrapper_txt))
+            res_filter = rpath_args_regex.search(gcc_rpath_wrapper_txt)
+            self.assertTrue(res_filter, "Pattern '%s' found in: %s" % (rpath_args_regex.pattern, gcc_rpath_wrapper_txt))
+
+            # Now get the include argument
+            rpath_args_regex = re.compile(r"^rpath_args_out=.*rpath_args.py \$CMD '.*' '([^ ]*)'.*", re.M)
+            res_include = rpath_args_regex.search(gcc_rpath_wrapper_txt)
+            self.assertTrue(res_include, "Pattern '%s' found in: %s" % (rpath_args_regex.pattern, gcc_rpath_wrapper_txt))
 
             shutil.rmtree(rpath_wrappers_dir)
 
-            return res.group(1)
+            return {'filter_paths': res_filter.group(1), 'include_paths': res_include.group(1)}
 
         args = ['--rpath', '--experimental']
         self.test_toy_build(extra_args=args, raise_error=True)
 
         # by default, /lib and /usr are included in RPATH filter,
         # together with temporary directory and build directory
-        rpath_filter_paths = grab_gcc_rpath_wrapper_filter_arg().split(',')
+        rpath_filter_paths = grab_gcc_rpath_wrapper_args()['filter_paths'].split(',')
         self.assertTrue('/lib.*' in rpath_filter_paths)
         self.assertTrue('/usr.*' in rpath_filter_paths)
         self.assertTrue(any(p.startswith(os.getenv('TMPDIR')) for p in rpath_filter_paths))
         self.assertTrue(any(p.startswith(self.test_buildpath) for p in rpath_filter_paths))
+
+        # Check that we can use --rpath-override-dirs
+        args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib:/opt/eessi/lib']
+        self.test_toy_build(extra_args=args, raise_error=True)
+        rpath_include_paths = grab_gcc_rpath_wrapper_args()['include_paths'].split(',')
+        # Make sure our directories appear in dirs to be included in the rpath (and in the right order)
+        self.assertEqual(rpath_include_paths[-2], '/opt/eessi/2021.03/lib')
+        self.assertEqual(rpath_include_paths[-1], '/opt/eessi/lib')
 
         # also test use of --rpath-filter
         args.extend(['--rpath-filter=/test.*,/foo/bar.*', '--disable-cleanup-tmpdir'])
         self.test_toy_build(extra_args=args, raise_error=True)
 
         # check whether rpath filter was set correctly
-        rpath_filter_paths = grab_gcc_rpath_wrapper_filter_arg().split(',')
+        rpath_filter_paths = grab_gcc_rpath_wrapper_args()['filter_paths'].split(',')
         self.assertTrue('/test.*' in rpath_filter_paths)
         self.assertTrue('/foo/bar.*' in rpath_filter_paths)
         self.assertTrue(any(p.startswith(os.getenv('TMPDIR')) for p in rpath_filter_paths))

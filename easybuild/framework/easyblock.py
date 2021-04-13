@@ -2144,6 +2144,22 @@ class EasyBlock(object):
             '$ORIGIN/../lib64',
         ]
 
+        if build_option('rpath_override_dirs') is not None:
+            # make sure we have a list
+            rpath_overrides = build_option('rpath_override_dirs')
+            if isinstance(rpath_overrides, string_type):
+                rpath_override_dirs = rpath_overrides.split(':')
+                _log.debug("Converted RPATH override directories ('%s') to a list of paths: %s" % (rpath_overrides,
+                                                                                                   rpath_override_dirs))
+                for path in rpath_override_dirs:
+                    if not os.path.isabs(path):
+                        raise EasyBuildError(
+                            "Path used in rpath_override_dirs is not an absolute path: %s", path)
+            else:
+                raise EasyBuildError("Value for rpath_override_dirs has invalid type (%s), should be string: %s",
+                                     type(rpath_overrides), rpath_overrides)
+            self.rpath_include_dirs.extend(rpath_override_dirs)
+
         if self.iter_idx > 0:
             # reset toolchain for iterative runs before preparing it again
             self.toolchain.reset()
