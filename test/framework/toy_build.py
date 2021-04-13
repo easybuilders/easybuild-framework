@@ -2371,7 +2371,8 @@ class ToyBuildTest(EnhancedTestCase):
             # Now get the include argument
             rpath_args_regex = re.compile(r"^rpath_args_out=.*rpath_args.py \$CMD '.*' '([^ ]*)'.*", re.M)
             res_include = rpath_args_regex.search(gcc_rpath_wrapper_txt)
-            self.assertTrue(res_include, "Pattern '%s' found in: %s" % (rpath_args_regex.pattern, gcc_rpath_wrapper_txt))
+            self.assertTrue(res_include, "Pattern '%s' found in: %s" % (rpath_args_regex.pattern,
+                                                                        gcc_rpath_wrapper_txt))
 
             shutil.rmtree(rpath_wrappers_dir)
 
