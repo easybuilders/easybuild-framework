@@ -612,7 +612,9 @@ class ToyBuildTest(EnhancedTestCase):
         # 3. Existing build with --force -> Reinstall and set read-only
         # 4-5: Same as 2-3 but with --skip
         for extra_args in ([], ['--rebuild'], ['--force'], ['--skip', '--rebuild'], ['--skip', '--force']):
+            self.mock_stdout(True)
             self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'] + extra_args, force=False)
+            self.mock_stdout(False)
 
             installdir_perms = os.stat(os.path.dirname(toy_install_dir)).st_mode & 0o777
             self.assertEqual(installdir_perms, 0o755, "%s has default permissions" % os.path.dirname(toy_install_dir))
