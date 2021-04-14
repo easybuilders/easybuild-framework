@@ -330,7 +330,19 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
             tweaks.pop(key)
 
     # add parameters or replace existing ones
+    special_values = ('True', 'False', 'None')
+    quoted_special_values = ['"%s"' % val for val in special_values] + ["'%s'" % val for val in special_values]
     for (key, val) in tweaks.items():
+        # if the value is True/False/None then take that
+        # if e.g. (literal) True is wanted, then it can be passed as "True"/'True'
+        if val in special_values:
+            str_val = val
+            val = eval(val)
+        elif val in quoted_special_values:
+            str_val = val
+            val = val.strip('"\'')
+        else:
+            str_val = quote_str(val)
 
         regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>.*)$" % key, re.M)
         _log.debug("Regexp pattern for replacing '%s': %s" % (key, regexp.pattern))
@@ -348,10 +360,10 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
                 diff = res.group('val') != val
 
             if diff:
-                ectxt = regexp.sub("%s = %s" % (res.group('key'), quote_str(val)), ectxt)
-                _log.info("Tweaked '%s' to '%s'" % (key, quote_str(val)))
+                ectxt = regexp.sub("%s = %s" % (res.group('key'), str_val), ectxt)
+                _log.info("Tweaked '%s' to '%s'" % (key, str_val))
         elif not is_easyconfig_parameter_default_value(key, val):
-            additions.append("%s = %s" % (key, quote_str(val)))
+            additions.append("%s = %s" % (key, str_val))
 
     if additions:
         _log.info("Adding additional parameters to tweaked easyconfig file: %s" % additions)
