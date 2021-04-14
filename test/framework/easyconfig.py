@@ -857,13 +857,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['start_dir'], specs['start_dir'])
         remove_file(res[1])
 
-        specs.update({
-            'foo': 'bar123'
-        })
-        self.assertErrorRegex(EasyBuildError, "Unknown easyconfig parameter: foo",
-                              obtain_ec_for, specs, [self.test_prefix], None)
-        del specs['foo']
-
         # should pick correct version, i.e. not newer than what's specified, if a choice needs to be made
         ver = '3.14'
         specs.update({'version': ver})
