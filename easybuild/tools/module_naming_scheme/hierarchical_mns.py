@@ -54,6 +54,8 @@ COMP_NAME_VERSION_TEMPLATES = {
     # required for use of iccifort toolchain
     'icc,ifort': ('intel', '%(icc)s'),
     'iccifort': ('intel', '%(iccifort)s'),
+    # required for use of intel-compilers toolchain (OneAPI compilers)
+    'intel-compilers': ('intel', '%(intel-compilers)s'),
     # required for use of ClangGCC toolchain
     'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
     # required for use of gcccuda toolchain, and for CUDA installed with GCC toolchain
