@@ -54,6 +54,7 @@ COMP_NAME_VERSION_TEMPLATES = {
     # required for use of iccifort toolchain
     'icc,ifort': ('intel', '%(icc)s'),
     'iccifort': ('intel', '%(iccifort)s'),
+    'intel-compilers': ('intel', '%(intel-compilers)s'),  # OneAPI compilers
     # required for use of ClangGCC toolchain
     'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
     # required for use of gcccuda toolchain, and for CUDA installed with GCC toolchain
@@ -61,6 +62,7 @@ COMP_NAME_VERSION_TEMPLATES = {
     # required for use of iccifortcuda toolchain
     'CUDA,icc,ifort': ('intel-CUDA', '%(icc)s-%(CUDA)s'),
     'CUDA,iccifort': ('intel-CUDA', '%(iccifort)s-%(CUDA)s'),
+    'CUDA,intel-compilers': ('intel-CUDA', '%(intel-compilers)s-%(CUDA)s'),  # OneAPI compilers
     # required for CUDA installed with iccifort toolchain
     # need to use 'intel' here because 'iccifort' toolchain maps to 'intel' (see above)
     'CUDA,intel': ('intel-CUDA', '%(intel)s-%(CUDA)s'),
