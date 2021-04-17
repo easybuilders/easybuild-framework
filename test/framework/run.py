@@ -38,6 +38,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from easybuild.base.fancylogger import setLogLevelDebug
@@ -46,13 +47,8 @@ import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
-from easybuild.tools.run import (
-    check_log_for_errors,
-    get_output_from_process,
-    run_cmd,
-    run_cmd_qa,
-    parse_log_for_error,
-)
+from easybuild.tools.run import check_log_for_errors, complete_cmd, get_output_from_process
+from easybuild.tools.run import parse_log_for_error, run_cmd, run_cmd_qa
 from easybuild.tools.config import ERROR, IGNORE, WARN
 
 
@@ -570,6 +566,49 @@ class RunTest(EnhancedTestCase):
             '',
         ])
         self.assertEqual(stdout, expected)
+
+    def test_run_cmd_async(self):
+        """Test asynchronously running of a shell command via run_cmd + complete_cmd."""
+
+        os.environ['TEST'] = 'test123'
+
+        cmd_info = run_cmd("sleep 2; echo $TEST", asynchronous=True)
+        proc = cmd_info[0]
+
+        # change value of $TEST to check that command is completed with correct environment
+        os.environ['TEST'] = 'some_other_value'
+
+        # initial poll should result in None, since it takes a while for the command to complete
+        ec = proc.poll()
+        self.assertEqual(ec, None)
+
+        while ec is None:
+            time.sleep(1)
+            ec = proc.poll()
+
+        out, ec = complete_cmd(*cmd_info, simple=False)
+        self.assertEqual(ec, 0)
+        self.assertEqual(out, 'test123\n')
+
+        # also test with a command that produces a lot of output,
+        # since that tends to lock up things unless we frequently grab some output...
+        cmd = "echo start; for i in $(seq 1 50); do sleep 0.1; for j in $(seq 1000); do echo foo; done; done; echo done"
+        cmd_info = run_cmd(cmd, asynchronous=True)
+        proc = cmd_info[0]
+
+        output = ''
+        ec = proc.poll()
+        self.assertEqual(ec, None)
+
+        while ec is None:
+            time.sleep(1)
+            output += get_output_from_process(proc)
+            ec = proc.poll()
+
+        out, ec = complete_cmd(*cmd_info, simple=False, output=output)
+        self.assertEqual(ec, 0)
+        self.assertTrue(out.startswith('start\n'))
+        self.assertTrue(out.endswith('\ndone\n'))
 
     def test_check_log_for_errors(self):
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
