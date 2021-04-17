@@ -256,6 +256,7 @@ BUILD_OPTIONS_CMDLINE = {
         'rebuild',
         'robot',
         'rpath',
+        'sanity_check_only',
         'search_paths',
         'sequential',
         'set_gid_bit',

@@ -1502,13 +1502,14 @@ class EasyBlock(object):
             'CMAKE_LIBRARY_PATH': ['lib64'],  # lib and lib32 are searched through the above
         }
 
-    def load_module(self, mod_paths=None, purge=True, extra_modules=None):
+    def load_module(self, mod_paths=None, purge=True, extra_modules=None, verbose=True):
         """
         Load module for this software package/version, after purging all currently loaded modules.
 
         :param mod_paths: list of (additional) module paths to take into account
         :param purge: boolean indicating whether or not to purge currently loaded modules first
         :param extra_modules: list of extra modules to load (these are loaded *before* loading the 'self' module)
+        :param verbose: print modules being loaded when trace mode is enabled
         """
         # self.full_mod_name might not be set (e.g. during unit tests)
         if self.full_mod_name is not None:
@@ -1530,6 +1531,9 @@ class EasyBlock(object):
             if self.mod_subdir and not self.toolchain.is_system_toolchain():
                 mods.insert(0, self.toolchain.det_short_module_name())
 
+            if verbose:
+                trace_msg("loading modules: %s..." % ', '.join(mods))
+
             # pass initial environment, to use it for resetting the environment before loading the modules
             self.modules_tool.load(mods, mod_paths=all_mod_paths, purge=purge, init_env=self.initial_environ)
 
@@ -1541,7 +1545,7 @@ class EasyBlock(object):
         else:
             self.log.warning("Not loading module, since self.full_mod_name is not set.")
 
-    def load_fake_module(self, purge=False, extra_modules=None):
+    def load_fake_module(self, purge=False, extra_modules=None, verbose=False):
         """
         Create and load fake module.
 
@@ -1556,7 +1560,7 @@ class EasyBlock(object):
 
         # load fake module
         self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir), priority=10000)
-        self.load_module(purge=purge, extra_modules=extra_modules)
+        self.load_module(purge=purge, extra_modules=extra_modules, verbose=verbose)
 
         return (fake_mod_path, env)
 
@@ -2817,12 +2821,16 @@ class EasyBlock(object):
 
         fake_mod_data = None
 
+        # skip loading of fake module when using --sanity-check-only, load real module instead
+        if build_option('sanity_check_only') and not extension:
+            self.load_module(extra_modules=extra_modules)
+
         # only load fake module for non-extensions, and not during dry run
-        if not (extension or self.dry_run):
+        elif not (extension or self.dry_run):
             try:
                 # unload all loaded modules before loading fake module
                 # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
-                fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
+                fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules, verbose=True)
             except EasyBuildError as err:
                 self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
@@ -3095,16 +3103,19 @@ class EasyBlock(object):
 
     def skip_step(self, step, skippable):
         """Dedice whether or not to skip the specified step."""
-        module_only = build_option('module_only')
-        force = build_option('force') or build_option('rebuild')
+
         skip = False
+        force = build_option('force') or build_option('rebuild')
+        module_only = build_option('module_only')
+        sanity_check_only = build_option('sanity_check_only')
+        skipsteps = self.cfg['skipsteps']
 
         # under --skip, sanity check is not skipped
         cli_skip = self.skip and step != SANITYCHECK_STEP
 
         # skip step if specified as individual (skippable) step, or if --skip is used
-        if skippable and (cli_skip or step in self.cfg['skipsteps']):
-            self.log.info("Skipping %s step (skip: %s, skipsteps: %s)", step, self.skip, self.cfg['skipsteps'])
+        if skippable and (cli_skip or step in skipsteps):
+            self.log.info("Skipping %s step (skip: %s, skipsteps: %s)", step, self.skip, skipsteps)
             skip = True
 
         # skip step when only generating module file
@@ -3119,9 +3130,14 @@ class EasyBlock(object):
             self.log.info("Skipping %s step because of forced module-only mode", step)
             skip = True
 
+        elif sanity_check_only and step != SANITYCHECK_STEP:
+            self.log.info("Skipping %s step because of sanity-check-only mode", step)
+            skip = True
+
         else:
-            self.log.debug("Not skipping %s step (skippable: %s, skip: %s, skipsteps: %s, module_only: %s, force: %s",
-                           step, skippable, self.skip, self.cfg['skipsteps'], module_only, force)
+            msg = "Not skipping %s step (skippable: %s, skip: %s, skipsteps: %s, module_only: %s, force: %s, "
+            msg += "sanity_check_only: %s"
+            self.log.debug(msg, step, skippable, self.skip, skipsteps, module_only, force, sanity_check_only)
 
         return skip
 

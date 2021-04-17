@@ -5736,6 +5736,65 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(os.path.join(tmp_logdir, tmp_logs[0]))
         self.assertTrue("COMPLETED: Installation ended successfully" in logtxt)
 
+    def test_sanity_check_only(self):
+        """Test use of --sanity-check-only."""
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.ec')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "\nsanity_check_commands = ['toy']"
+        write_file(test_ec, test_ec_txt)
+
+        # sanity check fails if software was not installed yet
+        outtxt, error_thrown = self.eb_main([test_ec, '--sanity-check-only'], do_build=True, return_error=True)
+        self.assertTrue("Sanity check failed: no file found at \\'bin/yot\\' or \\'bin/toy\\'" in str(error_thrown))
+
+        # actually install, then try --sanity-check-only again;
+        # need to use --force to install toy because module already exists (but installation doesn't)
+        self.eb_main([test_ec, '--force'], do_build=True, raise_error=True)
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main([test_ec, '--sanity-check-only', '--trace'], do_build=True, raise_error=True, testing=False)
+        stdout = self.get_stdout().strip()
+        stderr = self.get_stderr().strip()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        self.assertFalse(stderr)
+        skipped = [
+            "fetching files",
+            "creating build dir, resetting environment",
+            "unpacking",
+            "patching",
+            "preparing",
+            "configuring",
+            "building",
+            "testing",
+            "installing",
+            "taking care of extensions",
+            "restore after iterating",
+            "postprocessing",
+            "cleaning up",
+            "creating module",
+            "permissions",
+            "packaging"
+        ]
+        for skip in skipped:
+            self.assertTrue("== %s [skipped]" % skip)
+
+        self.assertTrue("== sanity checking..." in stdout)
+        self.assertTrue("COMPLETED: Installation ended successfully" in stdout)
+        msgs = [
+            "file 'bin/yot' or 'bin/toy' found: OK",
+            "(non-empty) directory 'bin' found: OK",
+            "loading modules: toy/0.0...",
+            "result for command 'toy': OK",
+        ]
+        for msg in msgs:
+            self.assertTrue("  >> %s" % msg in stdout)
+
     def test_fake_vsc_include(self):
         """Test whether fake 'vsc' namespace is triggered for modules included via --include-*."""
 
