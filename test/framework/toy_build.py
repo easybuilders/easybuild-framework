@@ -2494,6 +2494,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r"== sanity checking\.\.\.",
                 r"  >> file 'bin/yot' or 'bin/toy' found: OK",
                 r"  >> \(non-empty\) directory 'bin' found: OK",
+                r"  >> loading modules: toy/0.0\.\.\.",
                 r"  >> running command 'toy' \.\.\.",
                 r"  >> result for command 'toy': OK",
             ]) + r'$',
