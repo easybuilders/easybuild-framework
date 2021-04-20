@@ -2269,49 +2269,51 @@ class EasyBlock(object):
         # get class instances for all extensions
         self.ext_instances = []
         for ext in self.exts:
-            self.log.debug("Creating class instance for extension %s...", ext['name'])
+            ext_name = ext['name']
+            self.log.debug("Creating class instance for extension %s...", ext_name)
 
             cls, inst = None, None
-            class_name = encode_class_name(ext['name'])
+            class_name = encode_class_name(ext_name)
             mod_path = get_module_path(class_name, generic=False)
 
             # try instantiating extension-specific class
             try:
                 # no error when importing class fails, in case we run into an existing easyblock
                 # with a similar name (e.g., Perl Extension 'GO' vs 'Go' for which 'EB_Go' is available)
-                cls = get_easyblock_class(None, name=ext['name'], error_on_failed_import=False,
+                cls = get_easyblock_class(None, name=ext_name, error_on_failed_import=False,
                                           error_on_missing_easyblock=False)
-                self.log.debug("Obtained class %s for extension %s", cls, ext['name'])
+                self.log.debug("Obtained class %s for extension %s", cls, ext_name)
                 if cls is not None:
                     inst = cls(self, ext)
             except (ImportError, NameError) as err:
-                self.log.debug("Failed to use extension-specific class for extension %s: %s", ext['name'], err)
+                self.log.debug("Failed to use extension-specific class for extension %s: %s", ext_name, err)
 
             # alternative attempt: use class specified in class map (if any)
-            if inst is None and ext['name'] in exts_classmap:
-
-                class_name = exts_classmap[ext['name']]
+            if inst is None and ext_name in exts_classmap:
+                class_name = exts_classmap[ext_name]
                 mod_path = get_module_path(class_name)
                 try:
                     cls = get_class_for(mod_path, class_name)
+                    self.log.debug("Obtained class %s for extension %s from exts_classmap", cls, ext_name)
                     inst = cls(self, ext)
-                except (ImportError, NameError) as err:
-                    raise EasyBuildError("Failed to load specified class %s for extension %s: %s",
-                                         class_name, ext['name'], err)
+                except Exception as err:
+                    raise EasyBuildError("Failed to load specified class %s (from %s) specified via exts_classmap "
+                                         "for extension %s: %s",
+                                         class_name, mod_path, ext_name, err)
 
             # fallback attempt: use default class
             if inst is None:
                 try:
                     cls = get_class_for(default_class_modpath, default_class)
-                    self.log.debug("Obtained class %s for installing extension %s", cls, ext['name'])
+                    self.log.debug("Obtained class %s for installing extension %s", cls, ext_name)
                     inst = cls(self, ext)
                     self.log.debug("Installing extension %s with default class %s (from %s)",
-                                   ext['name'], default_class, default_class_modpath)
+                                   ext_name, default_class, default_class_modpath)
                 except (ImportError, NameError) as err:
                     raise EasyBuildError("Also failed to use default class %s from %s for extension %s: %s, giving up",
-                                         default_class, default_class_modpath, ext['name'], err)
+                                         default_class, default_class_modpath, ext_name, err)
             else:
-                self.log.debug("Installing extension %s with class %s (from %s)", ext['name'], class_name, mod_path)
+                self.log.debug("Installing extension %s with class %s (from %s)", ext_name, class_name, mod_path)
 
             self.ext_instances.append(inst)
 
