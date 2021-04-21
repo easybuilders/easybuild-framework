@@ -40,7 +40,7 @@ from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, raise_nosupport
 from easybuild.tools.filetools import change_dir
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import complete_cmd, get_output_from_process, run_cmd
 from easybuild.tools.py2vs3 import string_type
 
 
@@ -138,6 +138,12 @@ class Extension(object):
                                key, name, version, value)
 
         self.sanity_check_fail_msgs = []
+        self.async_cmd_info = None
+        self.async_cmd_output = None
+        self.async_cmd_check_cnt = None
+        # initial read size should be relatively small,
+        # to avoid hanging for a long time until desired output is available in async_cmd_check
+        self.async_cmd_read_size = 1024
 
     @property
     def name(self):
@@ -159,7 +165,7 @@ class Extension(object):
         """
         pass
 
-    def run(self):
+    def run(self, *args, **kwargs):
         """
         Actual installation of a extension.
         """
@@ -170,6 +176,47 @@ class Extension(object):
         Stuff to do after installing a extension.
         """
         pass
+
+    def async_cmd_start(self, cmd, inp=None):
+        """
+        Start installation asynchronously using specified command.
+        """
+        self.async_cmd_output = ''
+        self.async_cmd_check_cnt = 0
+        self.async_cmd_info = run_cmd(cmd, log_all=True, simple=False, inp=inp, regexp=False, asynchronous=True)
+
+    def async_cmd_check(self):
+        """
+        Check progress of installation command that was started asynchronously.
+
+        :return: True if command completed, False otherwise
+        """
+        if self.async_cmd_info is None:
+            raise EasyBuildError("No installation command running asynchronously for %s", self.name)
+        else:
+            self.log.debug("Checking on installation of extension %s...", self.name)
+            proc = self.async_cmd_info[0]
+            # use small read size, to avoid waiting for a long time until sufficient output is produced
+            self.async_cmd_output += get_output_from_process(proc, read_size=self.async_cmd_read_size)
+            ec = proc.poll()
+            if ec is None:
+                res = False
+                self.async_cmd_check_cnt += 1
+                # increase read size after sufficient checks,
+                # to avoid that installation hangs due to output buffer filling up...
+                if self.async_cmd_check_cnt % 10 == 0 and self.async_cmd_read_size < (1024 ** 2):
+                    self.async_cmd_read_size *= 2
+            else:
+                self.log.debug("Completing installation of extension %s...", self.name)
+                self.async_cmd_output, _ = complete_cmd(*self.async_cmd_info, output=self.async_cmd_output)
+                res = True
+
+        return res
+
+    @property
+    def required_deps(self):
+        """Return list of required dependencies for this extension."""
+        raise NotImplementedError("Don't know how to determine required dependencies for %s" % self.name)
 
     @property
     def toolchain(self):

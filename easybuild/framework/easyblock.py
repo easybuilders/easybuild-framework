@@ -1620,6 +1620,166 @@ class EasyBlock(object):
 
         self.ext_instances = res
 
+    def install_extensions(self, install=True, parallel=False):
+        """
+        Install extensions.
+
+        :param install: actually install extensions, don't just prepare environment for installing
+        :param parallel: install extensions in parallel
+
+        """
+        self.log.debug("List of loaded modules: %s", self.modules_tool.list())
+
+        if parallel:
+            self.install_extensions_parallel(install=install)
+        else:
+            self.install_extensions_sequential(install=install)
+
+    def install_extensions_sequential(self, install=True):
+        """
+        Install extensions sequentially.
+
+        :param install: actually install extensions, don't just prepare environment for installing
+        """
+        self.log.info("Installing extensions sequentially...")
+
+        exts_cnt = len(self.ext_instances)
+        for idx, ext in enumerate(self.ext_instances):
+
+            self.log.debug("Starting extension %s" % ext.name)
+
+            # always go back to original work dir to avoid running stuff from a dir that no longer exists
+            change_dir(self.orig_workdir)
+
+            tup = (ext.name, ext.version or '', idx + 1, exts_cnt)
+            print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent, log=self.log)
+
+            if self.dry_run:
+                tup = (ext.name, ext.version, ext.__class__.__name__)
+                msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
+                self.dry_run_msg(msg)
+
+            self.log.debug("List of loaded modules: %s", self.modules_tool.list())
+
+            # prepare toolchain build environment, but only when not doing a dry run
+            # since in that case the build environment is the same as for the parent
+            if self.dry_run:
+                self.dry_run_msg("defining build environment based on toolchain (options) and dependencies...")
+            else:
+                # don't reload modules for toolchain, there is no need since they will be loaded already;
+                # the (fake) module for the parent software gets loaded before installing extensions
+                ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                                      rpath_filter_dirs=self.rpath_filter_dirs)
+
+            # real work
+            if install:
+                ext.prerun()
+                txt = ext.run()
+                if txt:
+                    self.module_extra_extensions += txt
+                ext.postrun()
+
+    def install_extensions_parallel(self, install=True):
+        """
+        Install extensions in parallel.
+
+        :param install: actually install extensions, don't just prepare environment for installing
+        """
+        self.log.info("Installing extensions in parallel...")
+
+        running_exts = []
+        installed_ext_names = []
+
+        all_ext_names = [x['name'] for x in self.exts_all]
+        self.log.debug("List of names of all extensions: %s", all_ext_names)
+
+        # take into account that some extensions may be installed already
+        to_install_ext_names = [x.name for x in self.ext_instances]
+        installed_ext_names = [n for n in all_ext_names if n not in to_install_ext_names]
+
+        exts_cnt = len(all_ext_names)
+        exts_queue = self.ext_instances[:]
+
+        iter_id = 0
+        while exts_queue or running_exts:
+
+            iter_id += 1
+
+            # always go back to original work dir to avoid running stuff from a dir that no longer exists
+            change_dir(self.orig_workdir)
+
+            # check for extension installations that have completed
+            if running_exts:
+                self.log.info("Checking for completed extension installations (%d running)...", len(running_exts))
+                for ext in running_exts[:]:
+                    if self.dry_run or ext.async_cmd_check():
+                        self.log.info("Installation of %s completed!", ext.name)
+                        ext.postrun()
+                        running_exts.remove(ext)
+                        installed_ext_names.append(ext.name)
+                    else:
+                        self.log.debug("Installation of %s is still running...", ext.name)
+
+            # print progress info every now and then
+            if iter_id % 1 == 0:
+                msg = "%d out of %d extensions installed (%d queued, %d running: %s)"
+                installed_cnt, queued_cnt, running_cnt = len(installed_ext_names), len(exts_queue), len(running_exts)
+                if running_cnt <= 3:
+                    running_ext_names = ', '.join(x.name for x in running_exts)
+                else:
+                    running_ext_names = ', '.join(x.name for x in running_exts[:3]) + ", ..."
+                print_msg(msg % (installed_cnt, exts_cnt, queued_cnt, running_cnt, running_ext_names), log=self.log)
+
+            # try to start as many extension installations as we can, taking into account number of available cores,
+            # but only consider first 100 extensions still in the queue
+            max_iter = min(100, len(exts_queue))
+
+            for _ in range(max_iter):
+
+                if not (exts_queue and len(running_exts) < self.cfg['parallel']):
+                    break
+
+                # check whether extension at top of the queue is ready to install
+                ext = exts_queue.pop(0)
+
+                pending_deps = [x for x in ext.required_deps if x not in installed_ext_names]
+
+                if self.dry_run:
+                    tup = (ext.name, ext.version, ext.__class__.__name__)
+                    msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
+                    self.dry_run_msg(msg)
+                    running_exts.append(ext)
+
+                # if some of the required dependencies are not installed yet, requeue this extension
+                elif pending_deps:
+
+                    # make sure all required dependencies are actually going to be installed,
+                    # to avoid getting stuck in an infinite loop!
+                    missing_deps = [x for x in ext.required_deps if x not in all_ext_names]
+                    if missing_deps:
+                        raise EasyBuildError("Missing required dependencies for %s are not going to be installed: %s",
+                                             ext.name, ', '.join(missing_deps))
+                    else:
+                        self.log.info("Required dependencies missing for extension %s (%s), adding it back to queue...",
+                                      ext.name, ', '.join(pending_deps))
+                        # purposely adding extension back in the queue at Nth place rather than at the end,
+                        # since we assume that the required dependencies will be installed soon...
+                        exts_queue.insert(max_iter, ext)
+
+                else:
+                    tup = (ext.name, ext.version or '')
+                    print_msg("starting installation of extension %s %s..." % tup, silent=self.silent, log=self.log)
+
+                    # don't reload modules for toolchain, there is no need since they will be loaded already;
+                    # the (fake) module for the parent software gets loaded before installing extensions
+                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                                          rpath_filter_dirs=self.rpath_filter_dirs)
+                    if install:
+                        ext.prerun()
+                        ext.run(asynchronous=True)
+                        running_exts.append(ext)
+                        self.log.debug("Started installation of extension %s in the background...", ext.name)
+
     #
     # MISCELLANEOUS UTILITY FUNCTIONS
     #
@@ -2318,41 +2478,7 @@ class EasyBlock(object):
         if self.skip:
             self.skip_extensions()
 
-        exts_cnt = len(self.ext_instances)
-        for idx, ext in enumerate(self.ext_instances):
-
-            self.log.debug("Starting extension %s" % ext.name)
-
-            # always go back to original work dir to avoid running stuff from a dir that no longer exists
-            change_dir(self.orig_workdir)
-
-            tup = (ext.name, ext.version or '', idx + 1, exts_cnt)
-            print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
-
-            if self.dry_run:
-                tup = (ext.name, ext.version, cls.__name__)
-                msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
-                self.dry_run_msg(msg)
-
-            self.log.debug("List of loaded modules: %s", self.modules_tool.list())
-
-            # prepare toolchain build environment, but only when not doing a dry run
-            # since in that case the build environment is the same as for the parent
-            if self.dry_run:
-                self.dry_run_msg("defining build environment based on toolchain (options) and dependencies...")
-            else:
-                # don't reload modules for toolchain, there is no need since they will be loaded already;
-                # the (fake) module for the parent software gets loaded before installing extensions
-                ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                      rpath_filter_dirs=self.rpath_filter_dirs)
-
-            # real work
-            if install:
-                ext.prerun()
-                txt = ext.run()
-                if txt:
-                    self.module_extra_extensions += txt
-                ext.postrun()
+        self.install_extensions(install=install)
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
