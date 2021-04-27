@@ -58,7 +58,8 @@ from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
-from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, GENERIC_EASYBLOCK_PKG, build_option, install_path
+from easybuild.tools.config import (DEFAULT_WAIT_ON_LOCK_INTERVAL, GENERIC_EASYBLOCK_PKG, build_option, install_path,
+                                    IGNORE, WARN, ERROR)
 from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
 
@@ -450,15 +451,23 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     return base_dir
 
 
-def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=True):
+def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=None, on_error=WARN):
     """
     Return (first) path in $PATH for specified command, or None if command is not found
 
     :param retain_all: returns *all* locations to the specified command in $PATH, not just the first one
     :param check_perms: check whether candidate path has read/exec permissions before accepting it as a match
     :param log_ok: Log an info message where the command has been found (if any)
-    :param log_error: Log a warning message when command hasn't been found
+    :param on_error: What to do if the command was not found. Possible values: IGNORE, WARN, ERROR
     """
+    if log_error is not None:
+        _log.deprecated("'log_error' named argument in which function has been replaced by 'on_error'", '5.0')
+        # If set, make sure on_error is at least WARN
+        if log_error and on_error == IGNORE:
+            on_error = WARN
+    if on_error not in (IGNORE, WARN, ERROR):
+        raise EasyBuildError("Invalid value for 'on_error': %s", on_error)
+
     if retain_all:
         res = []
     else:
@@ -482,8 +491,12 @@ def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=True):
                 res = cmd_path
                 break
 
-    if not res and log_error:
-        _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
+    if not res and on_error != IGNORE:
+        msg = "Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths)
+        if on_error == WARN:
+            _log.warning(msg)
+        else:
+            raise EasyBuildError(msg)
     return res
 
 
