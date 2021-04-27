@@ -84,6 +84,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # We can't inherit the 'start_dir' value from the parent (which will be set, and will most likely be wrong).
             # It should be specified for the extension specifically, or be empty (so it is auto-derived).
             self.cfg['start_dir'] = self.ext.get('options', {}).get('start_dir', None)
+            self.cfg['postinstallcmds'] = self.ext.get('options', {}).get('postinstallcmds', None)
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
