@@ -1645,7 +1645,6 @@ class ToyBuildTest(EnhancedTestCase):
         os.remove(toy_core_mod)
         os.remove(toy_mod)
 
-
         # test installing (only) additional module in Lua syntax (if Lmod is available)
         lmod_abspath = os.environ.get('LMOD_CMD') or which('lmod')
         if lmod_abspath is not None:
