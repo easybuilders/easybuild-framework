@@ -3508,7 +3508,7 @@ def build_and_install_one(ecdict, init_env):
         except EasyBuildError as error:
             if build_option('module_only'):
                 application_log = None
-                _log.debug("Using --module-only so can recover from error: %s", new_log_dir)
+                _log.debug("Using --module-only so can recover from error: %s", error)
             else:
                 raise error
 
