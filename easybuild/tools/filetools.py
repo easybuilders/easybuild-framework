@@ -451,20 +451,26 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     return base_dir
 
 
-def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=None, on_error=WARN):
+def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=None, on_error=None):
     """
     Return (first) path in $PATH for specified command, or None if command is not found
 
     :param retain_all: returns *all* locations to the specified command in $PATH, not just the first one
     :param check_perms: check whether candidate path has read/exec permissions before accepting it as a match
     :param log_ok: Log an info message where the command has been found (if any)
-    :param on_error: What to do if the command was not found. Possible values: IGNORE, WARN, ERROR
+    :param on_error: What to do if the command was not found, default: WARN. Possible values: IGNORE, WARN, ERROR
     """
     if log_error is not None:
         _log.deprecated("'log_error' named argument in which function has been replaced by 'on_error'", '5.0')
         # If set, make sure on_error is at least WARN
         if log_error and on_error == IGNORE:
             on_error = WARN
+        elif not log_error and on_error is None:  # If set to False, use IGNORE unless on_error is also set
+            on_error = IGNORE
+    # Set default
+    # TODO: After removal of log_error from the parameters, on_error=WARN can be used instead of this
+    if on_error is None:
+        on_error = WARN
     if on_error not in (IGNORE, WARN, ERROR):
         raise EasyBuildError("Invalid value for 'on_error': %s", on_error)
 
