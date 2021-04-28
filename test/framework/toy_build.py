@@ -36,7 +36,6 @@ import os
 import re
 import shutil
 import signal
-import subprocess
 import stat
 import sys
 import tempfile
@@ -1628,7 +1627,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # Test we can create a module even for an installation where we don't have write permissions
         os.remove(toy_core_mod)
-        subprocess.call(['chmod', '-R', '-w', prefix])
+        adjust_permissions(prefix,  stat.S_IRUSR)
         self.assertFalse(os.path.exists(toy_core_mod))
         self.eb_main(args, do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_core_mod))
