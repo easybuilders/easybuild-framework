@@ -1627,7 +1627,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # Test we can create a module even for an installation where we don't have write permissions
         os.remove(toy_core_mod)
-        adjust_permissions(prefix,  stat.S_IRUSR)
+        # remove the write permissions on the installation
+        adjust_permissions(prefix, stat.S_IRUSR | stat.S_IXUSR, relative=False)
         self.assertFalse(os.path.exists(toy_core_mod))
         self.eb_main(args, do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_core_mod))
