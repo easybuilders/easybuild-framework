@@ -2994,7 +2994,13 @@ class EasyBlock(object):
             self.module_generator.create_symlinks(mod_symlink_paths, fake=fake)
 
             if ActiveMNS().mns.det_make_devel_module() and not fake and build_option('generate_devel_module'):
-                self.make_devel_module()
+                try:
+                    self.make_devel_module()
+                except EasyBuildError as error:
+                    if build_option('module_only'):
+                        self.log.info("Using --module-only so can recover from error: %s", error)
+                    else:
+                        raise error
             else:
                 self.log.info("Skipping devel module...")
 
@@ -3449,14 +3455,20 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
-            # move the reproducability files to the final log directory
-            archive_reprod_dir = os.path.join(new_log_dir, REPROD)
-            if os.path.exists(archive_reprod_dir):
-                backup_dir = find_backup_name_candidate(archive_reprod_dir)
-                move_file(archive_reprod_dir, backup_dir)
-                _log.info("Existing reproducability directory %s backed up to %s", archive_reprod_dir, backup_dir)
-            move_file(reprod_dir, archive_reprod_dir)
-            _log.info("Wrote files for reproducability to %s", archive_reprod_dir)
+            try:
+                # move the reproducability files to the final log directory
+                archive_reprod_dir = os.path.join(new_log_dir, REPROD)
+                if os.path.exists(archive_reprod_dir):
+                    backup_dir = find_backup_name_candidate(archive_reprod_dir)
+                    move_file(archive_reprod_dir, backup_dir)
+                    _log.info("Existing reproducability directory %s backed up to %s", archive_reprod_dir, backup_dir)
+                move_file(reprod_dir, archive_reprod_dir)
+                _log.info("Wrote files for reproducability to %s", archive_reprod_dir)
+            except EasyBuildError as error:
+                if build_option('module_only'):
+                    _log.info("Using --module-only so can recover from error: %s", error)
+                else:
+                    raise error
 
             try:
                 # upload easyconfig (and patch files) to central repository
@@ -3476,22 +3488,29 @@ def build_and_install_one(ecdict, init_env):
         # cleanup logs
         app.close_log()
         log_fn = os.path.basename(get_log_filename(app.name, app.version))
-        application_log = os.path.join(new_log_dir, log_fn)
-        move_logs(app.logfile, application_log)
+        try:
+            application_log = os.path.join(new_log_dir, log_fn)
+            move_logs(app.logfile, application_log)
 
-        newspec = os.path.join(new_log_dir, app.cfg.filename())
-        copy_file(spec, newspec)
-        _log.debug("Copied easyconfig file %s to %s", spec, newspec)
+            newspec = os.path.join(new_log_dir, app.cfg.filename())
+            copy_file(spec, newspec)
+            _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
-        # copy patches
-        for patch in app.patches:
-            target = os.path.join(new_log_dir, os.path.basename(patch['path']))
-            copy_file(patch['path'], target)
-            _log.debug("Copied patch %s to %s", patch['path'], target)
+            # copy patches
+            for patch in app.patches:
+                target = os.path.join(new_log_dir, os.path.basename(patch['path']))
+                copy_file(patch['path'], target)
+                _log.debug("Copied patch %s to %s", patch['path'], target)
 
-        if build_option('read_only_installdir'):
-            # take away user write permissions (again)
-            adjust_permissions(new_log_dir, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False, recursive=True)
+            if build_option('read_only_installdir'):
+                # take away user write permissions (again)
+                adjust_permissions(new_log_dir, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False, recursive=True)
+        except EasyBuildError as error:
+            if build_option('module_only'):
+                application_log = None
+                _log.debug("Using --module-only so can recover from error: %s", error)
+            else:
+                raise error
 
     end_timestamp = datetime.now()
 

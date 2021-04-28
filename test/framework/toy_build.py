@@ -1625,8 +1625,25 @@ class ToyBuildTest(EnhancedTestCase):
         modtxt = read_file(toy_core_mod)
         self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
 
-        os.remove(toy_mod)
+        # Test we can create a module even for an installation where we don't have write permissions
         os.remove(toy_core_mod)
+        # remove the write permissions on the installation
+        adjust_permissions(prefix, stat.S_IRUSR | stat.S_IXUSR, relative=False)
+        self.assertFalse(os.path.exists(toy_core_mod))
+        self.eb_main(args, do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_core_mod))
+        # existing install is reused
+        modtxt2 = read_file(toy_core_mod)
+        self.assertTrue(re.search("set root %s" % prefix, modtxt2))
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 3)
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
+
+        # make sure load statements for dependencies are included
+        modtxt = read_file(toy_core_mod)
+        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
+
+        os.remove(toy_core_mod)
+        os.remove(toy_mod)
 
         # test installing (only) additional module in Lua syntax (if Lmod is available)
         lmod_abspath = os.environ.get('LMOD_CMD') or which('lmod')
