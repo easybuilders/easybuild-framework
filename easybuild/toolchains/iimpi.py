@@ -32,32 +32,59 @@ from distutils.version import LooseVersion
 import re
 
 from easybuild.toolchains.iccifort import IccIfort
+from easybuild.toolchains.intel_compilers import IntelCompilers
 from easybuild.toolchains.mpi.intelmpi import IntelMPI
 
 
-class Iimpi(IccIfort, IntelMPI):
+class Iimpi(IntelCompilers, IccIfort, IntelMPI):
     """
     Compiler toolchain with Intel compilers (icc/ifort), Intel MPI.
     """
     NAME = 'iimpi'
-    SUBTOOLCHAIN = IccIfort.NAME
+    SUBTOOLCHAIN = None
+
+    def __init__(self, *args, **kwargs):
+        """Constructor for Iimpi toolchain class."""
+
+        super(Iimpi, self).__init__(*args, **kwargs)
+
+        # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
+        if re.match('^[0-9]', self.version):
+            # need to transform a version like '2016a' with something that is safe to compare with '8.0', '2016.01'
+            # comparing subversions that include letters causes TypeErrors in Python 3
+            # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June)
+            # (good enough for this purpose)
+            self.iimpi_ver = LooseVersion(self.version.replace('a', '.01').replace('b', '.07'))
+            if self.iimpi_ver >= LooseVersion('2020.12'):
+                self.SUBTOOLCHAIN = IntelCompilers.NAME
+                self.COMPILER_MODULE_NAME = IntelCompilers.COMPILER_MODULE_NAME
+            else:
+                self.SUBTOOLCHAIN = IccIfort.NAME
+                self.COMPILER_MODULE_NAME = IccIfort.COMPILER_MODULE_NAME
+        else:
+            self.iimpi_ver = self.version
 
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
-        # need to transform a version like '2016a' with something that is safe to compare with '8.0', '2000', '2016.01'
-        # comparing subversions that include letters causes TypeErrors in Python 3
-        # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June) (good enough for this purpose)
-        version = self.version.replace('a', '.01').replace('b', '.07')
 
         deprecated = False
+
         # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
-        if re.match('^[0-9]', version):
-            iimpi_ver = LooseVersion(version)
+        if re.match('^[0-9]', str(self.iimpi_ver)):
             # iimpi toolchains older than iimpi/2016.01 are deprecated
             # iimpi 8.1.5 is an exception, since it used in intel/2016a (which is not deprecated yet)
-            if iimpi_ver < LooseVersion('8.0'):
+            if self.iimpi_ver < LooseVersion('8.0'):
                 deprecated = True
-            elif iimpi_ver > LooseVersion('2000') and iimpi_ver < LooseVersion('2016.01'):
+            elif self.iimpi_ver > LooseVersion('2000') and self.iimpi_ver < LooseVersion('2016.01'):
                 deprecated = True
 
         return deprecated
+
+    def is_dep_in_toolchain_module(self, *args, **kwargs):
+        """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
+        if re.match('^[0-9]', str(self.iimpi_ver)) and self.iimpi_ver < LooseVersion('2020.12'):
+            res = IccIfort.is_dep_in_toolchain_module(self, *args, **kwargs)
+        else:
+            res = super(Iimpi, self).is_dep_in_toolchain_module(*args, **kwargs)
+
+        return res
