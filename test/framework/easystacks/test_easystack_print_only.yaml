@@ -1,0 +1,16 @@
+robot: True
+dry-run: False
+force: True
+software:
+  SQLite:
+    toolchains:
+      foss-2018a:
+        versions:
+          3.8.10.2:
+            parallel: 12
+      gompi-2018a:
+        versions:
+          3.8.10.2:
+            parallel: 6
+            dry-run: False
+            from-pr: '1234xyz'

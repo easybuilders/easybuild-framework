@@ -225,12 +225,15 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         last_log = find_last_log(logfile) or '(none)'
         print_msg(last_log, log=_log, prefix=False)
 
-    # if easystack is provided with the command, commands with arguments from it will be executed
+    # check if user is using easystack
     if options.easystack:
-        # TODO add general_options (i.e. robot) to build options
-        orig_paths, general_options = parse_easystack(options.easystack)
-        if general_options:
-            raise EasyBuildError("Specifying general configuration options in easystack file is not supported yet.")
+        # if user provided labels, we need to pass them to parse_easystack()
+        if options.labels:
+            orig_paths, print_only = parse_easystack(options.easystack, options.labels)
+        else:
+            orig_paths, print_only = parse_easystack(options.easystack, False)
+        if print_only is True:
+            clean_exit(logfile, eb_tmpdir, testing, silent=True)
 
     # check whether packaging is supported when it's being used
     if options.package:
