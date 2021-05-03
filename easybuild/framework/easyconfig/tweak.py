@@ -331,14 +331,20 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
 
     # add parameters or replace existing ones
     special_values = {
-        'True': True, "'True'": 'True', '"True"': 'True',
-        'False': False, "'False'": 'False', '"False"': 'False',
-        'None': None, "'None'": 'None', '"None"': 'None',
+        # if the value is True/False/None then take that
+        'True': True,
+        'False': False,
+        'None': None,
+        # if e.g. (literal) True is wanted, then it can be passed as "True"/'True'
+        "'True'": 'True',
+        '"True"': 'True',
+        "'False'": 'False',
+        '"False"': 'False',
+        "'None'": 'None',
+        '"None"': 'None',
     }
     for (key, val) in tweaks.items():
-        # if the value is True/False/None then take that
-        # if e.g. (literal) True is wanted, then it can be passed as "True"/'True'
-        if val in special_values:
+        if isinstance(val, string_type) and val in special_values:
             str_val = val
             val = special_values[val]
         else:
