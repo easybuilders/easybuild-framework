@@ -3409,6 +3409,11 @@ def build_and_install_one(ecdict, init_env):
             reprod_dir_root = os.path.dirname(app.logfile)
             reprod_dir = reproduce_build(app, reprod_dir_root)
 
+            if os.path.exists(app.installdir) and build_option('read_only_installdir') and (
+                    build_option('rebuild') or build_option('force')):
+                # re-enable write permissions so we can install additional modules
+                adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=True)
+
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
         if not dry_run:
@@ -3443,7 +3448,7 @@ def build_and_install_one(ecdict, init_env):
             if build_option('read_only_installdir'):
                 # temporarily re-enable write permissions for copying log/easyconfig to install dir
                 if os.path.exists(new_log_dir):
-                    adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=False)
+                    adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=True)
                 else:
                     adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=False)
                     mkdir(new_log_dir, parents=True)
