@@ -230,3 +230,8 @@ def get_easyconfig_parameter_default(param):
     else:
         _log.debug("Returning default value for easyconfig parameter %s: %s" % (param, DEFAULT_CONFIG[param][0]))
         return DEFAULT_CONFIG[param][0]
+
+
+def is_easyconfig_parameter_default_value(param, value):
+    """Return True if the parameters is one of the default ones and the value equals its default value"""
+    return param in DEFAULT_CONFIG and get_easyconfig_parameter_default(param) == value

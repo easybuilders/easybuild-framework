@@ -631,6 +631,8 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'toolchain = {"name": "GCC", "version": "4.6.3"}',
             'patches = %s',
+            'parallel = 1',
+            'keepsymlinks = True',
         ]) % str(patches)
         self.prep()
 
@@ -647,7 +649,17 @@ class EasyConfigTest(EnhancedTestCase):
             'versionprefix': verpref,
             'versionsuffix': versuff,
             'toolchain_version': tcver,
-            'patches': new_patches
+            'patches': new_patches,
+            'keepsymlinks': 'True',  # Don't change this
+            # It should be possible to overwrite values with True/False/None as they often have special meaning
+            'runtest': 'False',
+            'hidden': 'True',
+            'parallel': 'None',  # Good example: parallel=None means "Auto detect"
+            # Adding new options (added only by easyblock) should also be possible
+            # and in case the string "True/False/None" is really wanted it is possible to quote it first
+            'test_none': '"False"',
+            'test_bool': '"True"',
+            'test_123': '"None"',
         }
         tweak_one(self.eb_file, tweaked_fn, tweaks)
 
@@ -657,6 +669,12 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['versionsuffix'], versuff)
         self.assertEqual(eb['toolchain']['version'], tcver)
         self.assertEqual(eb['patches'], new_patches)
+        self.assertTrue(eb['runtest'] is False)
+        self.assertTrue(eb['hidden'] is True)
+        self.assertTrue(eb['parallel'] is None)
+        self.assertEqual(eb['test_none'], 'False')
+        self.assertEqual(eb['test_bool'], 'True')
+        self.assertEqual(eb['test_123'], 'None')
 
         remove_file(tweaked_fn)
 
@@ -838,13 +856,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['toolchain'], {'name': tcname, 'version': tcver})
         self.assertEqual(ec['start_dir'], specs['start_dir'])
         remove_file(res[1])
-
-        specs.update({
-            'foo': 'bar123'
-        })
-        self.assertErrorRegex(EasyBuildError, "Unknown easyconfig parameter: foo",
-                              obtain_ec_for, specs, [self.test_prefix], None)
-        del specs['foo']
 
         # should pick correct version, i.e. not newer than what's specified, if a choice needs to be made
         ver = '3.14'
