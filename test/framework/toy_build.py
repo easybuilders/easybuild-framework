@@ -130,11 +130,13 @@ class ToyBuildTest(EnhancedTestCase):
         # make sure installation log file and easyconfig file are copied to install dir
         software_path = os.path.join(installpath, 'software', 'toy', full_version)
         install_log_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-%s*.log' % version)
-        self.assertTrue(len(glob.glob(install_log_path_pattern)) >= 1, "Found  at least 1 file at %s" % install_log_path_pattern)
+        self.assertTrue(len(glob.glob(install_log_path_pattern)) >= 1,
+                        "Found  at least 1 file at %s" % install_log_path_pattern)
 
         # make sure test report is available
         test_report_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-%s*test_report.md' % version)
-        self.assertTrue(len(glob.glob(test_report_path_pattern)) >= 1, "Found  at least 1 file at %s" % test_report_path_pattern)
+        self.assertTrue(len(glob.glob(test_report_path_pattern)) >= 1,
+                        "Found  at least 1 file at %s" % test_report_path_pattern)
 
         ec_file_path = os.path.join(software_path, 'easybuild', 'toy-%s.eb' % full_version)
         self.assertTrue(os.path.exists(ec_file_path))
