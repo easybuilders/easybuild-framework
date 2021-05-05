@@ -500,7 +500,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 ]
             else:
                 pattern_lines = [
-                    r'^\s*ARCH: (aarch64|ppc64le|x86_64) \(CPU architecture .*',
+                    r'^\s*ARCH: (aarch64|ppc64le|x86_64) \(CPU architecture .*\)',
                     r'^\s*EXTERNAL_MODULE:.*',
                     r'^\s*HOME:.*',
                     r'\s*OS_NAME: .*',
