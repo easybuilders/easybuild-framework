@@ -1032,8 +1032,8 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(ec['name'], specs['name'])
             os.remove(res[1])
 
-    def test_templating(self):
-        """ test easyconfig templating """
+    def test_templating_constants(self):
+        """Test use of template values and constants in an easyconfig file."""
         inp = {
             'name': 'PI',
             # purposely using minor version that starts with a 0, to check for correct version_minor value
@@ -1054,7 +1054,7 @@ class EasyConfigTest(EnhancedTestCase):
             'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_BZ2, "%(cmd)s")]',
             'sanity_check_paths = {',
             '   "files": ["bin/pi_%%(version_major)s_%%(version_minor)s", "lib/python%%(pyshortver)s/site-packages"],',
-            '   "dirs": ["libfoo.%%s" %% SHLIB_EXT, "lib/%%(arch)s"],',
+            '   "dirs": ["libfoo.%%s" %% SHLIB_EXT, "lib/%%(arch)s/" + SYS_PYTHON_VERSION, "include/" + ARCH],',
             '}',
             'dependencies = [',
             '   ("CUDA", "10.1.105"),'
@@ -1097,9 +1097,13 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['sanity_check_paths']['files'][0], 'bin/pi_3_04')
         self.assertEqual(eb['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
         self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
-        lib_arch_regex = re.compile('^lib/[a-z0-9_]+$')  # should match lib/x86_64, lib/aarch64, lib/ppc64le, etc.
+        # should match lib/x86_64/2.7.18, lib/aarch64/3.8.6, lib/ppc64le/3.9.2, etc.
+        lib_arch_regex = re.compile(r'^lib/[a-z0-9_]+/[23]\.[0-9]+\.[0-9]+$')
         dirs1 = eb['sanity_check_paths']['dirs'][1]
-        self.assertTrue(lib_arch_regex.match(dirs1), "Pattern '%s' matches '%s'" % (lib_arch_regex.pattern, dirs1))
+        self.assertTrue(lib_arch_regex.match(dirs1), "Pattern '%s' should match '%s'" % (lib_arch_regex.pattern, dirs1))
+        inc_regex = re.compile('^include/(aarch64|ppc64le|x86_64)$')
+        dirs2 = eb['sanity_check_paths']['dirs'][2]
+        self.assertTrue(inc_regex.match(dirs2), "Pattern '%s' should match '%s'" % (inc_regex, dirs2))
         self.assertEqual(eb['homepage'], "http://example.com/P/p/v3/")
         expected = ("CUDA: 10.1.105, 10, 1, 10.1; "
                     "Java: 1.7.80, 1, 7, 1.7; "
