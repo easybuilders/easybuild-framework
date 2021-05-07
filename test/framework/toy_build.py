@@ -1602,16 +1602,11 @@ class ToyBuildTest(EnhancedTestCase):
 
         os.remove(toy_mod)
 
-        # --module-only --rebuild should be equivalent with --module-only --force
-        self.eb_main(args + ['--rebuild'], do_build=True, raise_error=True)
-        self.assertTrue(os.path.exists(toy_mod))
-
-        # make sure load statements for dependencies are included in additional module file generated with --module-only
-        modtxt = read_file(toy_mod)
-        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
-        self.assertTrue(re.search('load.*GCC/6.4.0-2.28', modtxt), "load statement for GCC/6.4.0-2.28 found in module")
-
-        os.remove(toy_mod)
+        # --module-only --rebuild should run sanity check
+        rebuild_args = args + ['--rebuild']
+        err_msg = "Sanity check failed"
+        self.assertErrorRegex(EasyBuildError, err_msg, self.eb_main, rebuild_args, do_build=True, raise_error=True)
+        self.assertFalse(os.path.exists(toy_mod))
 
         # installing another module under a different naming scheme and using Lua module syntax works fine
 
