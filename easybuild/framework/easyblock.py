@@ -2149,6 +2149,8 @@ class EasyBlock(object):
             rpath_overrides = build_option('rpath_override_dirs')
             if isinstance(rpath_overrides, string_type):
                 rpath_override_dirs = rpath_overrides.split(':')
+                # Filter out any empty values
+                rpath_override_dirs = list(filter(None, rpath_override_dirs))
                 _log.debug("Converted RPATH override directories ('%s') to a list of paths: %s" % (rpath_overrides,
                                                                                                    rpath_override_dirs))
                 for path in rpath_override_dirs:

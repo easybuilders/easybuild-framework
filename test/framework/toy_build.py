@@ -2304,7 +2304,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt = test_ec_txt + '\nenhance_sanity_check = False'
         write_file(test_ec, test_ec_txt)
 
-        error_pattern = " Missing mandatory key 'dirs' in sanity_check_paths."
+        error_pattern = r" Missing mandatory key 'dirs' in sanity_check_paths."
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
                               extra_args=eb_args, raise_error=True, verbose=False)
 
@@ -2427,6 +2427,20 @@ class ToyBuildTest(EnhancedTestCase):
         # Make sure our directories appear in dirs to be included in the rpath (and in the right order)
         self.assertEqual(rpath_include_paths[-2], '/opt/eessi/2021.03/lib')
         self.assertEqual(rpath_include_paths[-1], '/opt/eessi/lib')
+
+        # Check that when we use --rpath-override-dirs empty values are filters
+        args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib::/opt/eessi/lib']
+        self.test_toy_build(extra_args=args, raise_error=True)
+        rpath_include_paths = grab_gcc_rpath_wrapper_args()['include_paths'].split(',')
+        # Make sure our directories appear in dirs to be included in the rpath (and in the right order)
+        self.assertEqual(rpath_include_paths[-2], '/opt/eessi/2021.03/lib')
+        self.assertEqual(rpath_include_paths[-1], '/opt/eessi/lib')
+
+        # Check that when we use --rpath-override-dirs we can only provide absolute paths
+        args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib:eessi/lib']
+        error_pattern = r"Path used in rpath_override_dirs is not an absolute path"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, extra_args=args, raise_error=True,
+                              verbose=False)
 
         # also test use of --rpath-filter
         args.extend(['--rpath-filter=/test.*,/foo/bar.*', '--disable-cleanup-tmpdir'])
