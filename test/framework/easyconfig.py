@@ -631,6 +631,8 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'toolchain = {"name": "GCC", "version": "4.6.3"}',
             'patches = %s',
+            'parallel = 1',
+            'keepsymlinks = True',
         ]) % str(patches)
         self.prep()
 
@@ -647,7 +649,17 @@ class EasyConfigTest(EnhancedTestCase):
             'versionprefix': verpref,
             'versionsuffix': versuff,
             'toolchain_version': tcver,
-            'patches': new_patches
+            'patches': new_patches,
+            'keepsymlinks': 'True',  # Don't change this
+            # It should be possible to overwrite values with True/False/None as they often have special meaning
+            'runtest': 'False',
+            'hidden': 'True',
+            'parallel': 'None',  # Good example: parallel=None means "Auto detect"
+            # Adding new options (added only by easyblock) should also be possible
+            # and in case the string "True/False/None" is really wanted it is possible to quote it first
+            'test_none': '"False"',
+            'test_bool': '"True"',
+            'test_123': '"None"',
         }
         tweak_one(self.eb_file, tweaked_fn, tweaks)
 
@@ -657,6 +669,12 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['versionsuffix'], versuff)
         self.assertEqual(eb['toolchain']['version'], tcver)
         self.assertEqual(eb['patches'], new_patches)
+        self.assertTrue(eb['runtest'] is False)
+        self.assertTrue(eb['hidden'] is True)
+        self.assertTrue(eb['parallel'] is None)
+        self.assertEqual(eb['test_none'], 'False')
+        self.assertEqual(eb['test_bool'], 'True')
+        self.assertEqual(eb['test_123'], 'None')
 
         remove_file(tweaked_fn)
 
@@ -839,13 +857,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['start_dir'], specs['start_dir'])
         remove_file(res[1])
 
-        specs.update({
-            'foo': 'bar123'
-        })
-        self.assertErrorRegex(EasyBuildError, "Unknown easyconfig parameter: foo",
-                              obtain_ec_for, specs, [self.test_prefix], None)
-        del specs['foo']
-
         # should pick correct version, i.e. not newer than what's specified, if a choice needs to be made
         ver = '3.14'
         specs.update({'version': ver})
@@ -1021,8 +1032,8 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(ec['name'], specs['name'])
             os.remove(res[1])
 
-    def test_templating(self):
-        """ test easyconfig templating """
+    def test_templating_constants(self):
+        """Test use of template values and constants in an easyconfig file."""
         inp = {
             'name': 'PI',
             # purposely using minor version that starts with a 0, to check for correct version_minor value
@@ -1043,7 +1054,7 @@ class EasyConfigTest(EnhancedTestCase):
             'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_BZ2, "%(cmd)s")]',
             'sanity_check_paths = {',
             '   "files": ["bin/pi_%%(version_major)s_%%(version_minor)s", "lib/python%%(pyshortver)s/site-packages"],',
-            '   "dirs": ["libfoo.%%s" %% SHLIB_EXT, "lib/%%(arch)s"],',
+            '   "dirs": ["libfoo.%%s" %% SHLIB_EXT, "lib/%%(arch)s/" + SYS_PYTHON_VERSION, "include/" + ARCH],',
             '}',
             'dependencies = [',
             '   ("CUDA", "10.1.105"),'
@@ -1086,9 +1097,13 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['sanity_check_paths']['files'][0], 'bin/pi_3_04')
         self.assertEqual(eb['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
         self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
-        lib_arch_regex = re.compile('^lib/[a-z0-9_]+$')  # should match lib/x86_64, lib/aarch64, lib/ppc64le, etc.
+        # should match lib/x86_64/2.7.18, lib/aarch64/3.8.6, lib/ppc64le/3.9.2, etc.
+        lib_arch_regex = re.compile(r'^lib/[a-z0-9_]+/[23]\.[0-9]+\.[0-9]+$')
         dirs1 = eb['sanity_check_paths']['dirs'][1]
-        self.assertTrue(lib_arch_regex.match(dirs1), "Pattern '%s' matches '%s'" % (lib_arch_regex.pattern, dirs1))
+        self.assertTrue(lib_arch_regex.match(dirs1), "Pattern '%s' should match '%s'" % (lib_arch_regex.pattern, dirs1))
+        inc_regex = re.compile('^include/(aarch64|ppc64le|x86_64)$')
+        dirs2 = eb['sanity_check_paths']['dirs'][2]
+        self.assertTrue(inc_regex.match(dirs2), "Pattern '%s' should match '%s'" % (inc_regex, dirs2))
         self.assertEqual(eb['homepage'], "http://example.com/P/p/v3/")
         expected = ("CUDA: 10.1.105, 10, 1, 10.1; "
                     "Java: 1.7.80, 1, 7, 1.7; "

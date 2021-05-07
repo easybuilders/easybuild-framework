@@ -492,12 +492,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             if fmt == 'rst':
                 pattern_lines = [
+                    r'^``ARCH``\s*``(aarch64|ppc64le|x86_64)``\s*CPU architecture .*',
+                    r'^``EXTERNAL_MODULE``.*',
                     r'^``HOME``.*',
                     r'``OS_NAME``.*',
                     r'``OS_PKG_IBVERBS_DEV``.*',
                 ]
             else:
                 pattern_lines = [
+                    r'^\s*ARCH: (aarch64|ppc64le|x86_64) \(CPU architecture .*\)',
+                    r'^\s*EXTERNAL_MODULE:.*',
                     r'^\s*HOME:.*',
                     r'\s*OS_NAME: .*',
                     r'\s*OS_PKG_IBVERBS_DEV: .*',
@@ -3405,9 +3409,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Construct test command for 'eb' with given options."""
 
         # make sure that location to 'easybuild.main' is included in $PYTHONPATH
-        pythonpath = os.getenv('PYTHONPATH')
         easybuild_loc = os.path.dirname(os.path.dirname(easybuild.main.__file__))
-        os.environ['PYTHONPATH'] = ':'.join([easybuild_loc, pythonpath])
+        try:
+            pythonpath = easybuild_loc + ':' + os.environ['PYTHONPATH']
+        except KeyError:
+            pythonpath = easybuild_loc
+        os.environ['PYTHONPATH'] = pythonpath
 
         return '; '.join([
             "cd %s" % self.test_prefix,
