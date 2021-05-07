@@ -2428,7 +2428,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(rpath_include_paths[-2], '/opt/eessi/2021.03/lib')
         self.assertEqual(rpath_include_paths[-1], '/opt/eessi/lib')
 
-        # Check that when we use --rpath-override-dirs empty values are filters
+        # Check that when we use --rpath-override-dirs empty values are filtered
         args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib::/opt/eessi/lib']
         self.test_toy_build(extra_args=args, raise_error=True)
         rpath_include_paths = grab_gcc_rpath_wrapper_args()['include_paths'].split(',')
@@ -2437,9 +2437,9 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(rpath_include_paths[-1], '/opt/eessi/lib')
 
         # Check that when we use --rpath-override-dirs we can only provide absolute paths
-        args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib:eessi/lib']
+        eb_args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib:eessi/lib']
         error_pattern = r"Path used in rpath_override_dirs is not an absolute path"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, extra_args=args, raise_error=True,
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, extra_args=eb_args, raise_error=True,
                               verbose=False)
 
         # also test use of --rpath-filter
