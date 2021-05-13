@@ -17,7 +17,8 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        python: [2.7, 3.6, 3.7, 3.8, 3.9]
+        # Don't run for Python 3.8, 3.9 , people should just use `pip install easybuild`
+        python: [2.7, 3.6, 3.7]
         modules_tool:
           # use variables defined by 'setup' job above, see also
           # https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#needs-context
