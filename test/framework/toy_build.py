@@ -2438,7 +2438,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # Check that when we use --rpath-override-dirs we can only provide absolute paths
         eb_args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib:eessi/lib']
-        error_pattern = r"Path used in rpath_override_dirs is not an absolute path"
+        error_pattern = r"Path used in rpath_override_dirs is not an absolute path: eessi/lib"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, extra_args=eb_args, raise_error=True,
                               verbose=False)
 
