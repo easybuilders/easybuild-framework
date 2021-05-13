@@ -2124,16 +2124,38 @@ class EasyBlock(object):
         if not self.build_in_installdir:
             self.rpath_filter_dirs.append(self.builddir)
 
+        self.rpath_include_dirs = []
+
+        # If we have override directories for RPATH, insert them first.
+        # This means they override all other options (including the installation itself).
+        if build_option('rpath_override_dirs') is not None:
+            # make sure we have a list
+            rpath_overrides = build_option('rpath_override_dirs')
+            if isinstance(rpath_overrides, string_type):
+                rpath_override_dirs = rpath_overrides.split(':')
+                # Filter out any empty values
+                rpath_override_dirs = list(filter(None, rpath_override_dirs))
+                _log.debug("Converted RPATH override directories ('%s') to a list of paths: %s" % (rpath_overrides,
+                                                                                                   rpath_override_dirs))
+                for path in rpath_override_dirs:
+                    if not os.path.isabs(path):
+                        raise EasyBuildError(
+                            "Path used in rpath_override_dirs is not an absolute path: %s", path)
+            else:
+                raise EasyBuildError("Value for rpath_override_dirs has invalid type (%s), should be string: %s",
+                                     type(rpath_overrides), rpath_overrides)
+            self.rpath_include_dirs.extend(rpath_override_dirs)
+
         # always include '<installdir>/lib', '<installdir>/lib64', $ORIGIN, $ORIGIN/../lib and $ORIGIN/../lib64
         # $ORIGIN will be resolved by the loader to be the full path to the executable or shared object
         # see also https://linux.die.net/man/8/ld-linux;
-        self.rpath_include_dirs = [
+        self.rpath_include_dirs.extend([
             os.path.join(self.installdir, 'lib'),
             os.path.join(self.installdir, 'lib64'),
             '$ORIGIN',
             '$ORIGIN/../lib',
             '$ORIGIN/../lib64',
-        ]
+        ])
 
         if self.iter_idx > 0:
             # reset toolchain for iterative runs before preparing it again
