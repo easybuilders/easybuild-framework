@@ -2124,8 +2124,10 @@ class EasyBlock(object):
         if not self.build_in_installdir:
             self.rpath_filter_dirs.append(self.builddir)
 
-        # If we have override directories for RPATH, insert them first. This means they override all other options
-        # (including the installation itself).
+        self.rpath_include_dirs = []
+
+        # If we have override directories for RPATH, insert them first.
+        # This means they override all other options (including the installation itself).
         if build_option('rpath_override_dirs') is not None:
             # make sure we have a list
             rpath_overrides = build_option('rpath_override_dirs')
