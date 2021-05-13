@@ -1685,11 +1685,10 @@ class EasyBlockTest(EnhancedTestCase):
 
         # purposely inject failing custom extension filter for last extension
         toy_ec = EasyConfig(toy_ec_fn)
-        toy_ec.enable_templating = False
-        exts_list = toy_ec['exts_list']
-        exts_list[-1][2]['exts_filter'] = ("thisshouldfail", '')
-        toy_ec['exts_list'] = exts_list
-        toy_ec.enable_templating = True
+        with toy_ec.disable_templating():
+            exts_list = toy_ec['exts_list']
+            exts_list[-1][2]['exts_filter'] = ("thisshouldfail", '')
+            toy_ec['exts_list'] = exts_list
 
         eb = EB_toy(toy_ec)
         eb.silent = True

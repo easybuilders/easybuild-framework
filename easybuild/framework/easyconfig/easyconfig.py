@@ -394,12 +394,9 @@ def disable_templating(ec):
             # Do what you want without templating
         # Templating set to previous value
     """
-    old_enable_templating = ec.enable_templating
-    ec.enable_templating = False
-    try:
-        yield old_enable_templating
-    finally:
-        ec.enable_templating = old_enable_templating
+    _log.deprecated("disable_templating(ec) was replaced by ec.disable_templating()", '5.0')
+    with ec.disable_templating() as old_value:
+        yield old_value
 
 
 class EasyConfig(object):
@@ -525,6 +522,22 @@ class EasyConfig(object):
 
         self.software_license = None
 
+    @contextmanager
+    def disable_templating(self):
+        """Temporarily disable templating on the given EasyConfig
+
+        Usage:
+            with ec.disable_templating():
+                # Do what you want without templating
+            # Templating set to previous value
+        """
+        old_enable_templating = self.enable_templating
+        self.enable_templating = False
+        try:
+            yield old_enable_templating
+        finally:
+            self.enable_templating = old_enable_templating
+
     def filename(self):
         """Determine correct filename for this easyconfig file."""
 
@@ -634,7 +647,7 @@ class EasyConfig(object):
         """
         # disable templating when setting easyconfig parameters
         # required to avoid problems with values that need more parsing to be done (e.g. dependencies)
-        with disable_templating(self):
+        with self.disable_templating():
             for key in sorted(params.keys()):
                 # validations are skipped, just set in the config
                 if key in self._config.keys():
@@ -686,7 +699,7 @@ class EasyConfig(object):
 
         # templating is disabled when parse_hook is called to allow for easy updating of mutable easyconfig parameters
         # (see also comment in resolve_template)
-        with disable_templating(self):
+        with self.disable_templating():
             # if any lists of dependency versions are specified over which we should iterate,
             # deal with them now, before calling parse hook, parsing of dependencies & iterative easyconfig parameters
             self.handle_multi_deps()
@@ -1148,7 +1161,7 @@ class EasyConfig(object):
         :param backup: create backup of existing file before overwriting it
         """
         # templated values should be dumped unresolved
-        with disable_templating(self):
+        with self.disable_templating():
             # build dict of default values
             default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
             default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
@@ -1639,7 +1652,7 @@ class EasyConfig(object):
 
         # step 1-3 work with easyconfig.templates constants
         # disable templating with creating dict with template values to avoid looping back to here via __getitem__
-        with disable_templating(self):
+        with self.disable_templating():
             if self.template_values is None:
                 # if no template values are set yet, initiate with a minimal set of template values;
                 # this is important for easyconfig that use %(version_minor)s to define 'toolchain',
@@ -1652,7 +1665,7 @@ class EasyConfig(object):
 
         # get updated set of template values, now with toolchain instance
         # (which is used to define the %(mpi_cmd_prefix)s template)
-        with disable_templating(self):
+        with self.disable_templating():
             template_values = template_constant_dict(self, ignore=ignore, toolchain=toolchain)
 
         # update the template_values dict
@@ -1696,7 +1709,7 @@ class EasyConfig(object):
         # see also comments in resolve_template
 
         # temporarily disable templating
-        with disable_templating(self):
+        with self.disable_templating():
             ref = self[key]
 
         return ref
@@ -1931,9 +1944,8 @@ def resolve_template(value, tmpl_dict):
         # self['x'] is a get, will return a reference to a templated version of self._config['x']
         # and the ['y] = z part will be against this new reference
         # you will need to do
-        # self.enable_templating = False
-        # self['x']['y'] = z
-        # self.enable_templating = True
+        # with self.disable_templating():
+        #     self['x']['y'] = z
         # or (direct but evil)
         # self._config['x']['y'] = z
         # it can not be intercepted with __setitem__ because the set is done at a deeper level

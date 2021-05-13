@@ -1704,59 +1704,50 @@ class EasyBlock(object):
             self.iter_idx += 1
 
         # disable templating in this function, since we're messing about with values in self.cfg
-        prev_enable_templating = self.cfg.enable_templating
-        self.cfg.enable_templating = False
+        with self.cfg.disable_templating():
 
-        # start iterative mode (only need to do this once)
-        if self.iter_idx == 0:
-            self.cfg.start_iterating()
+            # start iterative mode (only need to do this once)
+            if self.iter_idx == 0:
+                self.cfg.start_iterating()
 
-        # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
-        # set first element to be used, keep track of list in self.iter_opts
-        # only needs to be done during first iteration, since after that the options won't be lists anymore
-        if self.iter_idx == 0:
-            # keep track of list, supply first element as first option to handle
-            for opt in self.cfg.iterate_options:
-                self.iter_opts[opt] = self.cfg[opt]  # copy
-                self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
+            # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
+            # set first element to be used, keep track of list in self.iter_opts
+            # only needs to be done during first iteration, since after that the options won't be lists anymore
+            if self.iter_idx == 0:
+                # keep track of list, supply first element as first option to handle
+                for opt in self.cfg.iterate_options:
+                    self.iter_opts[opt] = self.cfg[opt]  # copy
+                    self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
 
-        if self.iter_opts:
-            print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
-            self.log.info("Current iteration index: %s", self.iter_idx)
+            if self.iter_opts:
+                print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
+                self.log.info("Current iteration index: %s", self.iter_idx)
 
-        # pop first element from all iterative easyconfig parameters as next value to use
-        for opt in self.iter_opts:
-            if len(self.iter_opts[opt]) > self.iter_idx:
-                self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
-            else:
-                self.cfg[opt] = ''  # empty list => empty option as next value
-            self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
+            # pop first element from all iterative easyconfig parameters as next value to use
+            for opt in self.iter_opts:
+                if len(self.iter_opts[opt]) > self.iter_idx:
+                    self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
+                else:
+                    self.cfg[opt] = ''  # empty list => empty option as next value
+                self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
 
-        # re-generate template values, which may be affected by changed parameters we're iterating over
-        self.cfg.generate_template_values()
-
-        # re-enable templating before self.cfg values are used
-        self.cfg.enable_templating = prev_enable_templating
+            # re-generate template values, which may be affected by changed parameters we're iterating over
+            self.cfg.generate_template_values()
 
     def post_iter_step(self):
         """Restore options that were iterated over"""
         # disable templating, since we're messing about with values in self.cfg
-        prev_enable_templating = self.cfg.enable_templating
-        self.cfg.enable_templating = False
+        with self.cfg.disable_templating():
+            for opt in self.iter_opts:
+                self.cfg[opt] = self.iter_opts[opt]
 
-        for opt in self.iter_opts:
-            self.cfg[opt] = self.iter_opts[opt]
+                # also need to take into account extensions, since those were iterated over as well
+                for ext in self.ext_instances:
+                    ext.cfg[opt] = self.iter_opts[opt]
 
-            # also need to take into account extensions, since those were iterated over as well
-            for ext in self.ext_instances:
-                ext.cfg[opt] = self.iter_opts[opt]
+                self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
 
-            self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
-
-        self.cfg.stop_iterating()
-
-        # re-enable templating before self.cfg values are used
-        self.cfg.enable_templating = prev_enable_templating
+            self.cfg.stop_iterating()
 
     def det_iter_cnt(self):
         """Determine iteration count based on configure/build/install options that may be lists."""
@@ -2269,49 +2260,51 @@ class EasyBlock(object):
         # get class instances for all extensions
         self.ext_instances = []
         for ext in self.exts:
-            self.log.debug("Creating class instance for extension %s...", ext['name'])
+            ext_name = ext['name']
+            self.log.debug("Creating class instance for extension %s...", ext_name)
 
             cls, inst = None, None
-            class_name = encode_class_name(ext['name'])
+            class_name = encode_class_name(ext_name)
             mod_path = get_module_path(class_name, generic=False)
 
             # try instantiating extension-specific class
             try:
                 # no error when importing class fails, in case we run into an existing easyblock
                 # with a similar name (e.g., Perl Extension 'GO' vs 'Go' for which 'EB_Go' is available)
-                cls = get_easyblock_class(None, name=ext['name'], error_on_failed_import=False,
+                cls = get_easyblock_class(None, name=ext_name, error_on_failed_import=False,
                                           error_on_missing_easyblock=False)
-                self.log.debug("Obtained class %s for extension %s", cls, ext['name'])
+                self.log.debug("Obtained class %s for extension %s", cls, ext_name)
                 if cls is not None:
                     inst = cls(self, ext)
             except (ImportError, NameError) as err:
-                self.log.debug("Failed to use extension-specific class for extension %s: %s", ext['name'], err)
+                self.log.debug("Failed to use extension-specific class for extension %s: %s", ext_name, err)
 
             # alternative attempt: use class specified in class map (if any)
-            if inst is None and ext['name'] in exts_classmap:
-
-                class_name = exts_classmap[ext['name']]
+            if inst is None and ext_name in exts_classmap:
+                class_name = exts_classmap[ext_name]
                 mod_path = get_module_path(class_name)
                 try:
                     cls = get_class_for(mod_path, class_name)
+                    self.log.debug("Obtained class %s for extension %s from exts_classmap", cls, ext_name)
                     inst = cls(self, ext)
-                except (ImportError, NameError) as err:
-                    raise EasyBuildError("Failed to load specified class %s for extension %s: %s",
-                                         class_name, ext['name'], err)
+                except Exception as err:
+                    raise EasyBuildError("Failed to load specified class %s (from %s) specified via exts_classmap "
+                                         "for extension %s: %s",
+                                         class_name, mod_path, ext_name, err)
 
             # fallback attempt: use default class
             if inst is None:
                 try:
                     cls = get_class_for(default_class_modpath, default_class)
-                    self.log.debug("Obtained class %s for installing extension %s", cls, ext['name'])
+                    self.log.debug("Obtained class %s for installing extension %s", cls, ext_name)
                     inst = cls(self, ext)
                     self.log.debug("Installing extension %s with default class %s (from %s)",
-                                   ext['name'], default_class, default_class_modpath)
+                                   ext_name, default_class, default_class_modpath)
                 except (ImportError, NameError) as err:
                     raise EasyBuildError("Also failed to use default class %s from %s for extension %s: %s, giving up",
-                                         default_class, default_class_modpath, ext['name'], err)
+                                         default_class, default_class_modpath, ext_name, err)
             else:
-                self.log.debug("Installing extension %s with class %s (from %s)", ext['name'], class_name, mod_path)
+                self.log.debug("Installing extension %s with class %s (from %s)", ext_name, class_name, mod_path)
 
             self.ext_instances.append(inst)
 
@@ -2992,7 +2985,13 @@ class EasyBlock(object):
             self.module_generator.create_symlinks(mod_symlink_paths, fake=fake)
 
             if ActiveMNS().mns.det_make_devel_module() and not fake and build_option('generate_devel_module'):
-                self.make_devel_module()
+                try:
+                    self.make_devel_module()
+                except EasyBuildError as error:
+                    if build_option('module_only'):
+                        self.log.info("Using --module-only so can recover from error: %s", error)
+                    else:
+                        raise error
             else:
                 self.log.info("Skipping devel module...")
 
@@ -3096,7 +3095,7 @@ class EasyBlock(object):
     def skip_step(self, step, skippable):
         """Dedice whether or not to skip the specified step."""
         module_only = build_option('module_only')
-        force = build_option('force') or build_option('rebuild')
+        force = build_option('force')
         skip = False
 
         # under --skip, sanity check is not skipped
@@ -3401,6 +3400,11 @@ def build_and_install_one(ecdict, init_env):
             reprod_dir_root = os.path.dirname(app.logfile)
             reprod_dir = reproduce_build(app, reprod_dir_root)
 
+            if os.path.exists(app.installdir) and build_option('read_only_installdir') and (
+                    build_option('rebuild') or build_option('force')):
+                # re-enable write permissions so we can install additional modules
+                adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=True)
+
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
         if not dry_run:
@@ -3435,7 +3439,7 @@ def build_and_install_one(ecdict, init_env):
             if build_option('read_only_installdir'):
                 # temporarily re-enable write permissions for copying log/easyconfig to install dir
                 if os.path.exists(new_log_dir):
-                    adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=False)
+                    adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=True)
                 else:
                     adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=False)
                     mkdir(new_log_dir, parents=True)
@@ -3447,14 +3451,20 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
-            # move the reproducability files to the final log directory
-            archive_reprod_dir = os.path.join(new_log_dir, REPROD)
-            if os.path.exists(archive_reprod_dir):
-                backup_dir = find_backup_name_candidate(archive_reprod_dir)
-                move_file(archive_reprod_dir, backup_dir)
-                _log.info("Existing reproducability directory %s backed up to %s", archive_reprod_dir, backup_dir)
-            move_file(reprod_dir, archive_reprod_dir)
-            _log.info("Wrote files for reproducability to %s", archive_reprod_dir)
+            try:
+                # move the reproducability files to the final log directory
+                archive_reprod_dir = os.path.join(new_log_dir, REPROD)
+                if os.path.exists(archive_reprod_dir):
+                    backup_dir = find_backup_name_candidate(archive_reprod_dir)
+                    move_file(archive_reprod_dir, backup_dir)
+                    _log.info("Existing reproducability directory %s backed up to %s", archive_reprod_dir, backup_dir)
+                move_file(reprod_dir, archive_reprod_dir)
+                _log.info("Wrote files for reproducability to %s", archive_reprod_dir)
+            except EasyBuildError as error:
+                if build_option('module_only'):
+                    _log.info("Using --module-only so can recover from error: %s", error)
+                else:
+                    raise error
 
             try:
                 # upload easyconfig (and patch files) to central repository
@@ -3474,22 +3484,29 @@ def build_and_install_one(ecdict, init_env):
         # cleanup logs
         app.close_log()
         log_fn = os.path.basename(get_log_filename(app.name, app.version))
-        application_log = os.path.join(new_log_dir, log_fn)
-        move_logs(app.logfile, application_log)
+        try:
+            application_log = os.path.join(new_log_dir, log_fn)
+            move_logs(app.logfile, application_log)
 
-        newspec = os.path.join(new_log_dir, app.cfg.filename())
-        copy_file(spec, newspec)
-        _log.debug("Copied easyconfig file %s to %s", spec, newspec)
+            newspec = os.path.join(new_log_dir, app.cfg.filename())
+            copy_file(spec, newspec)
+            _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
-        # copy patches
-        for patch in app.patches:
-            target = os.path.join(new_log_dir, os.path.basename(patch['path']))
-            copy_file(patch['path'], target)
-            _log.debug("Copied patch %s to %s", patch['path'], target)
+            # copy patches
+            for patch in app.patches:
+                target = os.path.join(new_log_dir, os.path.basename(patch['path']))
+                copy_file(patch['path'], target)
+                _log.debug("Copied patch %s to %s", patch['path'], target)
 
-        if build_option('read_only_installdir'):
-            # take away user write permissions (again)
-            adjust_permissions(new_log_dir, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False, recursive=True)
+            if build_option('read_only_installdir'):
+                # take away user write permissions (again)
+                adjust_permissions(new_log_dir, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False, recursive=True)
+        except EasyBuildError as error:
+            if build_option('module_only'):
+                application_log = None
+                _log.debug("Using --module-only so can recover from error: %s", error)
+            else:
+                raise error
 
     end_timestamp = datetime.now()
 
