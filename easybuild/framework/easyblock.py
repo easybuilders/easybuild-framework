@@ -1704,59 +1704,50 @@ class EasyBlock(object):
             self.iter_idx += 1
 
         # disable templating in this function, since we're messing about with values in self.cfg
-        prev_enable_templating = self.cfg.enable_templating
-        self.cfg.enable_templating = False
+        with self.cfg.disable_templating():
 
-        # start iterative mode (only need to do this once)
-        if self.iter_idx == 0:
-            self.cfg.start_iterating()
+            # start iterative mode (only need to do this once)
+            if self.iter_idx == 0:
+                self.cfg.start_iterating()
 
-        # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
-        # set first element to be used, keep track of list in self.iter_opts
-        # only needs to be done during first iteration, since after that the options won't be lists anymore
-        if self.iter_idx == 0:
-            # keep track of list, supply first element as first option to handle
-            for opt in self.cfg.iterate_options:
-                self.iter_opts[opt] = self.cfg[opt]  # copy
-                self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
+            # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
+            # set first element to be used, keep track of list in self.iter_opts
+            # only needs to be done during first iteration, since after that the options won't be lists anymore
+            if self.iter_idx == 0:
+                # keep track of list, supply first element as first option to handle
+                for opt in self.cfg.iterate_options:
+                    self.iter_opts[opt] = self.cfg[opt]  # copy
+                    self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
 
-        if self.iter_opts:
-            print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
-            self.log.info("Current iteration index: %s", self.iter_idx)
+            if self.iter_opts:
+                print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
+                self.log.info("Current iteration index: %s", self.iter_idx)
 
-        # pop first element from all iterative easyconfig parameters as next value to use
-        for opt in self.iter_opts:
-            if len(self.iter_opts[opt]) > self.iter_idx:
-                self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
-            else:
-                self.cfg[opt] = ''  # empty list => empty option as next value
-            self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
+            # pop first element from all iterative easyconfig parameters as next value to use
+            for opt in self.iter_opts:
+                if len(self.iter_opts[opt]) > self.iter_idx:
+                    self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
+                else:
+                    self.cfg[opt] = ''  # empty list => empty option as next value
+                self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
 
-        # re-generate template values, which may be affected by changed parameters we're iterating over
-        self.cfg.generate_template_values()
-
-        # re-enable templating before self.cfg values are used
-        self.cfg.enable_templating = prev_enable_templating
+            # re-generate template values, which may be affected by changed parameters we're iterating over
+            self.cfg.generate_template_values()
 
     def post_iter_step(self):
         """Restore options that were iterated over"""
         # disable templating, since we're messing about with values in self.cfg
-        prev_enable_templating = self.cfg.enable_templating
-        self.cfg.enable_templating = False
+        with self.cfg.disable_templating():
+            for opt in self.iter_opts:
+                self.cfg[opt] = self.iter_opts[opt]
 
-        for opt in self.iter_opts:
-            self.cfg[opt] = self.iter_opts[opt]
+                # also need to take into account extensions, since those were iterated over as well
+                for ext in self.ext_instances:
+                    ext.cfg[opt] = self.iter_opts[opt]
 
-            # also need to take into account extensions, since those were iterated over as well
-            for ext in self.ext_instances:
-                ext.cfg[opt] = self.iter_opts[opt]
+                self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
 
-            self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
-
-        self.cfg.stop_iterating()
-
-        # re-enable templating before self.cfg values are used
-        self.cfg.enable_templating = prev_enable_templating
+            self.cfg.stop_iterating()
 
     def det_iter_cnt(self):
         """Determine iteration count based on configure/build/install options that may be lists."""

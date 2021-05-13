@@ -680,10 +680,9 @@ class EasyConfigTest(EnhancedTestCase):
 
         eb = EasyConfig(self.eb_file)
         # eb['toolchain']['version'] = tcver does not work as expected with templating enabled
-        eb.enable_templating = False
-        eb['version'] = ver
-        eb['toolchain']['version'] = tcver
-        eb.enable_templating = True
+        with eb.disable_templating():
+            eb['version'] = ver
+            eb['toolchain']['version'] = tcver
         eb.dump(self.eb_file)
 
         tweaks = {
@@ -1081,12 +1080,9 @@ class EasyConfigTest(EnhancedTestCase):
         eb.validate()
 
         # temporarily disable templating, just so we can check later whether it's *still* disabled
-        eb.enable_templating = False
-
-        eb.generate_template_values()
-
-        self.assertFalse(eb.enable_templating)
-        eb.enable_templating = True
+        with eb.disable_templating():
+            eb.generate_template_values()
+            self.assertFalse(eb.enable_templating)
 
         self.assertEqual(eb['description'], "test easyconfig PI")
         self.assertEqual(eb['sources'][0], 'PI-3.04.tar.gz')
