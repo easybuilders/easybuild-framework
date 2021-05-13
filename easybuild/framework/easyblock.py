@@ -2133,17 +2133,8 @@ class EasyBlock(object):
         if not self.build_in_installdir:
             self.rpath_filter_dirs.append(self.builddir)
 
-        # always include '<installdir>/lib', '<installdir>/lib64', $ORIGIN, $ORIGIN/../lib and $ORIGIN/../lib64
-        # $ORIGIN will be resolved by the loader to be the full path to the executable or shared object
-        # see also https://linux.die.net/man/8/ld-linux;
-        self.rpath_include_dirs = [
-            os.path.join(self.installdir, 'lib'),
-            os.path.join(self.installdir, 'lib64'),
-            '$ORIGIN',
-            '$ORIGIN/../lib',
-            '$ORIGIN/../lib64',
-        ]
-
+        # If we have override directories for RPATH, insert them first. This means they override all other options
+        # (including the installation itself).
         if build_option('rpath_override_dirs') is not None:
             # make sure we have a list
             rpath_overrides = build_option('rpath_override_dirs')
@@ -2161,6 +2152,17 @@ class EasyBlock(object):
                 raise EasyBuildError("Value for rpath_override_dirs has invalid type (%s), should be string: %s",
                                      type(rpath_overrides), rpath_overrides)
             self.rpath_include_dirs.extend(rpath_override_dirs)
+
+        # always include '<installdir>/lib', '<installdir>/lib64', $ORIGIN, $ORIGIN/../lib and $ORIGIN/../lib64
+        # $ORIGIN will be resolved by the loader to be the full path to the executable or shared object
+        # see also https://linux.die.net/man/8/ld-linux;
+        self.rpath_include_dirs.extend([
+            os.path.join(self.installdir, 'lib'),
+            os.path.join(self.installdir, 'lib64'),
+            '$ORIGIN',
+            '$ORIGIN/../lib',
+            '$ORIGIN/../lib64',
+        ])
 
         if self.iter_idx > 0:
             # reset toolchain for iterative runs before preparing it again

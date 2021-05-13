@@ -2425,16 +2425,16 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(extra_args=args, raise_error=True)
         rpath_include_paths = grab_gcc_rpath_wrapper_args()['include_paths'].split(',')
         # Make sure our directories appear in dirs to be included in the rpath (and in the right order)
-        self.assertEqual(rpath_include_paths[-2], '/opt/eessi/2021.03/lib')
-        self.assertEqual(rpath_include_paths[-1], '/opt/eessi/lib')
+        self.assertEqual(rpath_include_paths[0], '/opt/eessi/2021.03/lib')
+        self.assertEqual(rpath_include_paths[1], '/opt/eessi/lib')
 
         # Check that when we use --rpath-override-dirs empty values are filtered
         args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib::/opt/eessi/lib']
         self.test_toy_build(extra_args=args, raise_error=True)
         rpath_include_paths = grab_gcc_rpath_wrapper_args()['include_paths'].split(',')
         # Make sure our directories appear in dirs to be included in the rpath (and in the right order)
-        self.assertEqual(rpath_include_paths[-2], '/opt/eessi/2021.03/lib')
-        self.assertEqual(rpath_include_paths[-1], '/opt/eessi/lib')
+        self.assertEqual(rpath_include_paths[0], '/opt/eessi/2021.03/lib')
+        self.assertEqual(rpath_include_paths[1], '/opt/eessi/lib')
 
         # Check that when we use --rpath-override-dirs we can only provide absolute paths
         eb_args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib:eessi/lib']
