@@ -92,7 +92,7 @@ from easybuild.tools.modules import get_software_root_env_var_name, get_software
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.systemtools import det_parallelism, use_group
+from easybuild.tools.systemtools import det_parallelism, get_shared_lib_ext, use_group
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -2552,7 +2552,9 @@ class EasyBlock(object):
 
                     out, ec = run_cmd("file %s" % path, simple=False, trace=False)
                     if ec:
-                        fails.append("Failed to run 'file %s': %s" % (path, out))
+                        fail_msg = "Failed to run 'file %s': %s" % (path, out)
+                        self.log.warning(fail_msg)
+                        fails.append(fail_msg)
 
                     # only run ldd/readelf on dynamically linked executables/libraries
                     # example output:
@@ -2591,6 +2593,62 @@ class EasyBlock(object):
                 self.log.debug("Not sanity checking files in non-existing directory %s", dirpath)
 
         env.restore_env_vars(orig_env)
+
+        return fails
+
+    def sanity_check_libs(self, subdirs=None):
+        """
+        Check whether specific libraries are (not) linked into installed binaries/libraries.
+        """
+
+        fails = []
+
+        # libraries that *must* be linked in every installed binary/library
+        required_libs = []
+        # libraries that can *not* be linked in any installed binary/library
+        banned_libs = ['openblas']
+
+        shlib_ext = get_shared_lib_ext()
+        required_lib_regexs = [(x, re.compile(r'/lib%s\.%s' % (x, shlib_ext))) for x in required_libs]
+        banned_lib_regexs = [(x, re.compile(r'/lib%s\.%s' % (x, shlib_ext))) for x in banned_libs]
+
+        if subdirs is None:
+            subdirs = ['bin', 'lib', 'lib64']
+
+        for dirpath in [os.path.join(self.installdir, d) for d in subdirs]:
+            if os.path.exists(dirpath):
+                self.log.debug("Checking required/banned libraries in %s", dirpath)
+
+                for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
+                    self.log.debug("Checking required/banned libraries for %s", path)
+
+                    out, ec = run_cmd("file %s" % path, simple=False, trace=False)
+                    if ec:
+                        fail_msg = "Failed to run 'file %s': %s" % (path, out)
+                        self.log.warning(fail_msg)
+                        fails.append(fail_msg)
+
+                    # only run ldd/readelf on dynamically linked executables/libraries
+                    if "dynamically linked" in out:
+                        # determine dynamically linked libraries for this file via 'ldd'
+                        # example output line:
+                        #     libopenblas.so.0 => /software/OpenBLAS/0.3.15-GCC-10.3.0/lib/libopenblas.so.0 (0x00...0)
+                        out, ec = run_cmd("ldd %s" % path, simple=False, trace=False)
+                        if ec:
+                            fail_msg = "Failed to run 'ldd %s': %s" % (path, out)
+                            self.log.warning(fail_msg)
+                            fails.append(fail_msg)
+                        else:
+                            for req_lib, regex in required_lib_regexs:
+                                if not regex.search(out):
+                                    fail_msg = "Required library '%s' not found for %s" % (req_lib, path)
+                                    self.log.warning(fail_msg)
+                                    fails.append(fail_msg)
+                            for banned_lib, regex in banned_lib_regexs:
+                                if regex.search(out):
+                                    fail_msg = "Banned library '%s' found for %s" % (banned_lib, path)
+                                    self.log.warning(fail_msg)
+                                    fails.append(fail_msg)
 
         return fails
 
@@ -2879,6 +2937,11 @@ class EasyBlock(object):
                 self.sanity_check_fail_msgs.extend(rpath_fails)
         else:
             self.log.debug("Skiping RPATH sanity check")
+
+        lib_fails = self.sanity_check_libs()
+        if lib_fails:
+            self.log.warning("Check for required/banned libraries failed!")
+            self.sanity_check_fail_msgs.extend(lib_fails)
 
         # pass or fail
         if self.sanity_check_fail_msgs:
