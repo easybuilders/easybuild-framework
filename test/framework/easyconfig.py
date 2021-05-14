@@ -3081,26 +3081,29 @@ class EasyConfigTest(EnhancedTestCase):
             "    'arch=fooarch': '1.8.0-foo',",
             "  })",
             "]",
+            "builddependencies = [",
+            "  ('CMake', '3.18.4'),",
+            "]",
         ])
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, toy_ec_txt)
 
-        # only perform shallow/quick parse (as is done in list_software function)
-        ec = EasyConfigParser(filename=test_ec).get_config_dict()
-
         expected = {
+            'bitbucket_account': 'toy',
+            'github_account': 'toy',
             'javamajver': '1',
             'javaminver': '8',
             'javashortver': '1.8',
             'javaver': '1.8.0_221',
-            'module_name': None,
+            'module_name': 'toy/0.01-deps',
             'name': 'toy',
             'namelower': 'toy',
             'nameletter': 't',
             'toolchain_name': 'system',
             'toolchain_version': 'system',
             'nameletterlower': 't',
+            'parallel': None,
             'pymajver': '3',
             'pyminver': '7',
             'pyshortver': '3.7',
@@ -3109,9 +3112,38 @@ class EasyConfigTest(EnhancedTestCase):
             'version_major': '0',
             'version_major_minor': '0.01',
             'version_minor': '01',
+            'versionprefix': '',
             'versionsuffix': '-deps',
         }
+
+        # proper EasyConfig instance
+        ec = EasyConfig(test_ec)
+
+        # CMake should *not* be included, since it's a build-only dependency
+        dep_names = [x['name'] for x in ec['dependencies']]
+        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
         res = template_constant_dict(ec)
+        dep_names = [x['name'] for x in ec['dependencies']]
+        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
+
+        self.assertTrue('arch' in res)
+        arch = res.pop('arch')
+        self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
+
+        self.assertEqual(res, expected)
+
+        # only perform shallow/quick parse (as is done in list_software function)
+        ec = EasyConfigParser(filename=test_ec).get_config_dict()
+
+        expected['module_name'] = None
+        for key in ('bitbucket_account', 'github_account', 'parallel', 'versionprefix'):
+            del expected[key]
+
+        dep_names = [x[0] for x in ec['dependencies']]
+        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
+        res = template_constant_dict(ec)
+        dep_names = [x[0] for x in ec['dependencies']]
+        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
 
         self.assertTrue('arch' in res)
         arch = res.pop('arch')
