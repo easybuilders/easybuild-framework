@@ -405,7 +405,7 @@ class Toolchain(object):
 
     def get_software_version(self, names, required=True):
         """Try to get the software version for all names"""
-        return self._get_software_multiple(names, self._get_software_version, required)
+        return self._get_software_multiple(names, self._get_software_version, required=required)
 
     def _get_software_multiple(self, names, function, required=True):
         """Execute function of each of names"""
