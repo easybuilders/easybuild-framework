@@ -1422,6 +1422,26 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(modules.get_software_root('foobar'), '/foo/bar')
         self.assertEqual(modules.get_software_version('toy'), '1.2.3')
 
+    def test_get_software_version(self):
+        """Test that get_software_version works"""
+        os.environ['EBROOTTOY'] = '/foo/bar'
+        os.environ['EBVERSIONTOY'] = '1.2.3'
+        os.environ['EBROOTFOOBAR'] = '/foo/bar'
+        os.environ['EBVERSIONFOOBAR'] = '4.5'
+        tc = self.get_toolchain('GCC', version='6.4.0-2.28')
+        self.assertEqual(tc.get_software_version('toy'), ['1.2.3'])
+        self.assertEqual(tc.get_software_version(['toy']), ['1.2.3'])
+        self.assertEqual(tc.get_software_version(['toy', 'foobar']), ['1.2.3', '4.5'])
+        # Non existing modules raise an error
+        self.assertErrorRegex(EasyBuildError, 'non-existing was not found',
+                              tc.get_software_version, 'non-existing')
+        self.assertErrorRegex(EasyBuildError, 'non-existing was not found',
+                              tc.get_software_version, ['toy', 'non-existing', 'foobar'])
+        # Can use required=False to avoid
+        self.assertEqual(tc.get_software_version('non-existing', required=False), [None])
+        self.assertEqual(tc.get_software_version(['toy', 'non-existing', 'foobar'], required=False),
+                         ['1.2.3', None, '4.5'])
+
     def test_old_new_iccifort(self):
         """Test whether preparing for old/new Intel compilers works correctly."""
         self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='2018.1.163')

@@ -281,6 +281,7 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
 
     # read remaining data (all of it)
     output = get_output_from_process(proc)
+    proc.stdout.close()
     if cmd_log:
         cmd_log.write(output)
         cmd_log.close()

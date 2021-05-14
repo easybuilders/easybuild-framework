@@ -403,33 +403,35 @@ class Toolchain(object):
         """Try to get the software root for all names"""
         return self._get_software_multiple(names, self._get_software_root)
 
-    def get_software_version(self, names):
+    def get_software_version(self, names, required=True):
         """Try to get the software version for all names"""
-        return self._get_software_multiple(names, self._get_software_version)
+        return self._get_software_multiple(names, self._get_software_version, required=required)
 
-    def _get_software_multiple(self, names, function):
+    def _get_software_multiple(self, names, function, required=True):
         """Execute function of each of names"""
         if isinstance(names, (str,)):
             names = [names]
         res = []
         for name in names:
-            res.append(function(name))
+            res.append(function(name, required=required))
         return res
 
-    def _get_software_root(self, name):
+    def _get_software_root(self, name, required=True):
         """Try to get the software root for name"""
         root = get_software_root(name)
         if root is None:
-            raise EasyBuildError("get_software_root software root for %s was not found in environment", name)
+            if required:
+                raise EasyBuildError("get_software_root software root for %s was not found in environment", name)
         else:
             self.log.debug("get_software_root software root %s for %s was found in environment", root, name)
         return root
 
-    def _get_software_version(self, name):
+    def _get_software_version(self, name, required=True):
         """Try to get the software version for name"""
         version = get_software_version(name)
         if version is None:
-            raise EasyBuildError("get_software_version software version for %s was not found in environment", name)
+            if required:
+                raise EasyBuildError("get_software_version software version for %s was not found in environment", name)
         else:
             self.log.debug("get_software_version software version %s for %s was found in environment", version, name)
 

@@ -3409,12 +3409,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Construct test command for 'eb' with given options."""
 
         # make sure that location to 'easybuild.main' is included in $PYTHONPATH
+        pythonpath = os.getenv('PYTHONPATH')
+        pythonpath = [pythonpath] if pythonpath else []
         easybuild_loc = os.path.dirname(os.path.dirname(easybuild.main.__file__))
-        try:
-            pythonpath = easybuild_loc + ':' + os.environ['PYTHONPATH']
-        except KeyError:
-            pythonpath = easybuild_loc
-        os.environ['PYTHONPATH'] = pythonpath
+        os.environ['PYTHONPATH'] = ':'.join([easybuild_loc] + pythonpath)
 
         return '; '.join([
             "cd %s" % self.test_prefix,
