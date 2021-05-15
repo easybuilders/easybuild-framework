@@ -57,6 +57,7 @@ from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
 from easybuild.tools.py2vs3 import reload, string_type
 from easybuild.tools.run import run_cmd
+from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 
@@ -3238,7 +3239,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.test_toy_build(ec_file=test_ec, raise_error=True)
 
-    def test_test_toy_build_lib64_lib_symlink(self):
+    def test_toy_build_lib64_lib_symlink(self):
         """Check whether lib64 symlink to lib subdirectory is created."""
         # this is done to ensure that <installdir>/lib64 is considered before /lib64 by GCC linker,
         # see https://github.com/easybuilders/easybuild-easyconfigs/issues/5776
@@ -3273,7 +3274,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.isdir(lib_path))
         self.assertFalse(os.path.islink(lib_path))
 
-    def test_test_toy_build_lib_lib64_symlink(self):
+    def test_toy_build_lib_lib64_symlink(self):
         """Check whether lib64 symlink to lib subdirectory is created."""
 
         test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
@@ -3315,6 +3316,77 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertFalse('lib' in os.listdir(toy_installdir))
         self.assertTrue(os.path.isdir(lib64_path))
         self.assertFalse(os.path.islink(lib64_path))
+
+    def test_toy_build_sanity_check_linked_libs(self):
+        """Test sanity checks for banned/requires libraries."""
+
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        libtoy_ec = os.path.join(test_ecs, 'l', 'libtoy', 'libtoy-0.0.eb')
+
+        libtoy_modfile_path = os.path.join(self.test_installpath, 'modules', 'all', 'libtoy', '0.0')
+        if get_module_syntax() == 'Lua':
+            libtoy_modfile_path += '.lua'
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        shlib_ext = get_shared_lib_ext()
+
+        libtoy_fn = 'libtoy.%s' % shlib_ext
+        error_msg = "Check for banned/required shared libraries failed for"
+
+        # default check is done via EB_libtoy easyblock, which specifies several banned/required libraries
+        self.test_toy_build(ec_file=libtoy_ec, raise_error=True, verbose=False, verify=False)
+        remove_file(libtoy_modfile_path)
+
+        # we can make the check fail by defining environment variables picked up by the EB_libtoy easyblock
+        os.environ['EB_LIBTOY_BANNED_SHARED_LIBS'] = 'libtoy'
+        self.assertErrorRegex(EasyBuildError, error_msg, self.test_toy_build, force=False,
+                              ec_file=libtoy_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
+        del os.environ['EB_LIBTOY_BANNED_SHARED_LIBS']
+
+        os.environ['EB_LIBTOY_REQUIRED_SHARED_LIBS'] = 'thisisnottheremostlikely'
+        self.assertErrorRegex(EasyBuildError, error_msg, self.test_toy_build, force=False,
+                              ec_file=libtoy_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
+        del os.environ['EB_LIBTOY_REQUIRED_SHARED_LIBS']
+
+        # make sure default check passes (so we know better what triggered a failing test)
+        self.test_toy_build(ec_file=libtoy_ec, extra_args=['--module-only'], force=False,
+                            raise_error=True, verbose=False, verify=False)
+        remove_file(libtoy_modfile_path)
+
+        # check specifying banned/required libraries via EasyBuild configuration option
+        args = ['--banned-linked-shared-libs=%s,foobarbaz' % libtoy_fn, '--module-only']
+        self.assertErrorRegex(EasyBuildError, error_msg, self.test_toy_build, force=False,
+                              ec_file=libtoy_ec, extra_args=args, raise_error=True, verbose=False)
+
+        args = ['--required-linked-shared=libs=foobarbazisnotthereforsure', '--module-only']
+        self.assertErrorRegex(EasyBuildError, error_msg, self.test_toy_build, force=False,
+                              ec_file=libtoy_ec, extra_args=args, raise_error=True, verbose=False)
+
+        # check specifying banned/required libraries via easyconfig parameter
+        test_ec_txt = read_file(libtoy_ec)
+        test_ec_txt += "\nbanned_linked_shared_libs = ['toy']"
+        write_file(test_ec, test_ec_txt)
+        self.assertErrorRegex(EasyBuildError, error_msg, self.test_toy_build, force=False,
+                              ec_file=test_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
+
+        test_ec_txt = read_file(libtoy_ec)
+        test_ec_txt += "\nrequired_linked_shared_libs = ['thereisnosuchlibraryyoudummy']"
+        write_file(test_ec, test_ec_txt)
+        self.assertErrorRegex(EasyBuildError, error_msg, self.test_toy_build, force=False,
+                              ec_file=test_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
+
+        # one last time: supercombo (with patterns that should pass the check)
+        test_ec_txt = read_file(libtoy_ec)
+        test_ec_txt += "\nbanned_linked_shared_libs = ['yeahthisisjustatest', '/usr/lib/libssl.so']"
+        test_ec_txt += "\nrequired_linked_shared_libs = ['%s']" % libtoy_fn
+        write_file(test_ec, test_ec_txt)
+        args = [
+            '--banned-linked-shared-libs=the_forbidden_library',
+            '--required-linked-shared-libs=toy,%s' % libtoy_fn,
+        ]
+        self.test_toy_build(ec_file=libtoy_ec, extra_args=['--module-only'], force=False,
+                            raise_error=True, verbose=False, verify=False)
 
 
 def suite():

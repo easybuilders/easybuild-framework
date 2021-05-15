@@ -92,7 +92,7 @@ from easybuild.tools.modules import get_software_root_env_var_name, get_software
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.systemtools import det_parallelism, get_shared_lib_ext, use_group
+from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_shared_lib_ext, use_group
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -2637,8 +2637,6 @@ class EasyBlock(object):
         """
         self.log.info("Checking for banned/required linked shared libraries...")
 
-        res = []
-
         # list of libraries that can *not* be linked in any installed binary/library
         banned_libs = build_option('banned_linked_shared_libs') or []
         banned_libs.extend(self.toolchain.banned_linked_shared_libs)
@@ -2671,22 +2669,22 @@ class EasyBlock(object):
                 regex = re.compile(re.escape(lib))
             # full filename for library ('libexample.so')
             elif lib.startswith('lib'):
-                regex = re.compile('/' + re.escape(lib))
+                regex = re.compile(r'(/|\s)' + re.escape(lib))
             # pure library name, without 'lib' prefix or extension ('example')
             else:
-                regex = re.compile(r'/lib%s\.%s' % (lib, shlib_ext))
+                regex = re.compile(r'(/|\s)lib%s\.%s' % (lib, shlib_ext))
 
             return regex
 
-        banned_lib_regexs = [(x, regex_for_lib(x)) for x in banned_libs]
+        banned_lib_regexs = [regex_for_lib(x) for x in banned_libs]
         if banned_lib_regexs:
             self.log.debug("Regular expressions to check for banned libraries: %s",
-                           '\n'.join("'%s'" % regex.pattern for (_, regex) in banned_lib_regexs))
+                           '\n'.join("'%s'" % regex.pattern for regex in banned_lib_regexs))
 
-        required_lib_regexs = [(x, regex_for_lib(x)) for x in required_libs]
+        required_lib_regexs = [regex_for_lib(x) for x in required_libs]
         if required_lib_regexs:
             self.log.debug("Regular expressions to check for required libraries: %s",
-                           '\n'.join("'%s'" % regex.pattern for (_, regex) in required_lib_regexs))
+                           '\n'.join("'%s'" % regex.pattern for regex in required_lib_regexs))
 
         if subdirs is None:
             subdirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs
@@ -2699,6 +2697,8 @@ class EasyBlock(object):
             self.log.info("Using default subdirectories to check for banned/required linked shared libraries: %s",
                           subdirs)
 
+        failed_paths = []
+
         for dirpath in [os.path.join(self.installdir, d) for d in subdirs]:
             if os.path.exists(dirpath):
                 self.log.debug("Checking banned/required linked shared libraries in %s", dirpath)
@@ -2706,47 +2706,18 @@ class EasyBlock(object):
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
                     self.log.debug("Checking banned/required linked shared libraries for %s", path)
 
-                    fail_msgs = []
-                    dyn_linked = False
-
-                    out, ec = run_cmd("file %s" % path, simple=False, trace=False)
-                    if ec:
-                        fail_msgs.append("Failed to run 'file %s': %s" % (path, out))
-
-                    # only run ldd/readelf on dynamically linked executables/libraries
-                    if "dynamically linked" in out:
-                        dyn_linked = True
-                        # determine dynamically linked libraries for this file via 'ldd'
-                        # example output line:
-                        #     libopenblas.so.0 => /software/OpenBLAS/0.3.15-GCC-10.3.0/lib/libopenblas.so.0 (0x00...0)
-                        out, ec = run_cmd("ldd %s" % path, simple=False, trace=False)
-                        if ec:
-                            fail_msgs.append("Failed to run 'ldd %s': %s" % (path, out))
-                        else:
-                            missing_required_libs = []
-                            for req_lib, regex in required_lib_regexs:
-                                if not regex.search(out):
-                                    missing_required_libs.append(req_lib)
-                            if missing_required_libs:
-                                fail_msg = "Required linked shared libraries not found in %s: %s"
-                                fail_msgs.append(fail_msg % (path, ', '.join(missing_required_libs)))
-
-                            found_banned_libs = []
-                            for banned_lib, regex in banned_lib_regexs:
-                                if regex.search(out):
-                                    found_banned_libs.append(banned_lib)
-                            if found_banned_libs:
-                                fail_msg = "Banned linked shared libraries found in %s: %s"
-                                fail_msgs.append(fail_msg % (path, ', '.join(found_banned_libs)))
-
-                    if fail_msgs:
-                        res.extend(fail_msgs)
-                        for fail_msg in fail_msgs:
-                            self.log.warning(fail_msg)
-                    elif dyn_linked:
+                    libs_check = check_linked_shared_libs(path, banned_patterns=banned_lib_regexs,
+                                                          required_patterns=required_lib_regexs)
+                    if libs_check:
                         self.log.debug("Check for banned/required linked shared libraries passed for %s", path)
+                    else:
+                        failed_paths.append(path)
 
-        return res
+        fail_msg = None
+        if failed_paths:
+            fail_msg = "Check for banned/required shared libraries failed for %s" % ', '.join(failed_paths)
+
+        return fail_msg
 
     def _sanity_check_step_common(self, custom_paths, custom_commands):
         """
@@ -3039,7 +3010,7 @@ class EasyBlock(object):
         linked_shared_lib_fails = self.sanity_check_linked_shared_libs()
         if linked_shared_lib_fails:
             self.log.warning("Check for required/banned linked shared libraries failed!")
-            self.sanity_check_fail_msgs.extend(linked_shared_lib_fails)
+            self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
 
         # pass or fail
         if self.sanity_check_fail_msgs:
