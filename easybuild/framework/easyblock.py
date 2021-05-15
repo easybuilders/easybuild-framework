@@ -3004,6 +3004,11 @@ class EasyBlock(object):
         if not extension:
             self._sanity_check_step_extensions()
 
+        linked_shared_lib_fails = self.sanity_check_linked_shared_libs()
+        if linked_shared_lib_fails:
+            self.log.warning("Check for required/banned linked shared libraries failed!")
+            self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
+
         # cleanup
         if fake_mod_data:
             self.clean_up_fake_module(fake_mod_data)
@@ -3015,11 +3020,6 @@ class EasyBlock(object):
                 self.sanity_check_fail_msgs.extend(rpath_fails)
         else:
             self.log.debug("Skiping RPATH sanity check")
-
-        linked_shared_lib_fails = self.sanity_check_linked_shared_libs()
-        if linked_shared_lib_fails:
-            self.log.warning("Check for required/banned linked shared libraries failed!")
-            self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
 
         # pass or fail
         if self.sanity_check_fail_msgs:
