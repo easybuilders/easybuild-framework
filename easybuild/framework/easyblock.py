@@ -2697,9 +2697,18 @@ class EasyBlock(object):
             self.log.info("Using default subdirectories to check for banned/required linked shared libraries: %s",
                           subdirs)
 
+        # filter to existing directories that are unique (after resolving symlinks)
+        dirpaths = []
+        for subdir in subdirs:
+            dirpath = os.path.join(self.installdir, subdir)
+            if os.path.exists(dirpath) and os.path.isdir(dirpath):
+                dirpath = os.path.realpath(dirpath)
+                if dirpath not in dirpaths:
+                    dirpaths.append(dirpath)
+
         failed_paths = []
 
-        for dirpath in [os.path.join(self.installdir, d) for d in subdirs]:
+        for dirpath in dirpaths:
             if os.path.exists(dirpath):
                 self.log.debug("Checking banned/required linked shared libraries in %s", dirpath)
 
