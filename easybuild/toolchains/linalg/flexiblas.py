@@ -55,7 +55,7 @@ def det_flexiblas_backend_libs():
     for flexiblas_lib in flexiblas_libs:
         # assumption here is that the name of FlexiBLAS library (like 'libflexiblas_openblas.so')
         # maps directly to name of the backend library ('libopenblas.so')
-        backend_lib = 'lib' + flexiblas_lib.lstrip('libflexiblas_')
+        backend_lib = 'lib' + flexiblas_lib.replace('libflexiblas_', '')
         backend_libs.append(backend_lib)
 
     return backend_libs
