@@ -3386,12 +3386,12 @@ class ToyBuildTest(EnhancedTestCase):
         # one last time: supercombo (with patterns that should pass the check)
         test_ec_txt = read_file(libtoy_ec)
         test_ec_txt += "\nbanned_linked_shared_libs = ['yeahthisisjustatest', '/usr/lib/libssl.so']"
-        test_ec_txt += "\nrequired_linked_shared_libs = ['%s']" % libtoy_fn
+        test_ec_txt += "\nrequired_linked_shared_libs = ['/lib']"
         test_ec_txt += "\nbin_lib_subdirs = ['', 'lib', 'lib64']"
         write_file(test_ec, test_ec_txt)
         args = [
             '--banned-linked-shared-libs=the_forbidden_library',
-            '--required-linked-shared-libs=toy,%s' % libtoy_fn,
+            '--required-linked-shared-libs=.*',
             '--module-only',
         ]
         self.test_toy_build(ec_file=test_ec, extra_args=args, force=False,

@@ -44,7 +44,7 @@ class EB_libtoy(EasyBlock):
         return os.getenv('EB_LIBTOY_BANNED_SHARED_LIBS', default).split(',')
 
     def required_linked_shared_libs(self):
-        default = '/libtoy,toy,libtoy.%s' % SHLIB_EXT
+        default = '/lib,.*'
         return os.getenv('EB_LIBTOY_REQUIRED_SHARED_LIBS', default).split(',')
 
     def configure_step(self, name=None):
