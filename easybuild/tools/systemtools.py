@@ -827,9 +827,11 @@ def check_linked_libs(path, patterns=None, anti_patterns=None):
     res = True
     for regex in regexs:
         if not regex.search(linked_libs_out):
+            _log.warning("Required pattern '%s' not found in linked libraries output for %s", regex.pattern, path)
             res = False
     for anti_regex in anti_regexs:
         if anti_regex.search(linked_libs_out):
+            _log.warning("Non-allowed pattern '%s' found in linked libraries output for %s", anti_regex.pattern, path)
             res = False
 
     return res
