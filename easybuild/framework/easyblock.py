@@ -2528,6 +2528,8 @@ class EasyBlock(object):
     def sanity_check_rpath(self, rpath_dirs=None):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
 
+        self.log.info("Checking RPATH linkage for binaries/libraries...")
+
         fails = []
 
         # hard reset $LD_LIBRARY_PATH before running RPATH sanity check
@@ -2633,6 +2635,7 @@ class EasyBlock(object):
         """
         Check whether specific shared libraries are (not) linked into installed binaries/libraries.
         """
+        self.log.info("Checking for banned/required linked shared libraries...")
 
         res = []
 
@@ -2650,7 +2653,13 @@ class EasyBlock(object):
 
         # early return if there are no banned/required libraries
         if not (banned_libs + required_libs):
+            self.log.info("No banned/required libraries specified")
             return []
+        else:
+            if banned_libs:
+                self.log.info("Banned libraries to check for: %s", ', '.join(banned_libs))
+            if required_libs:
+                self.log.info("Required libraries to check for: %s", ', '.join(banned_libs))
 
         shlib_ext = get_shared_lib_ext()
 
@@ -2670,17 +2679,24 @@ class EasyBlock(object):
             return regex
 
         banned_lib_regexs = [(x, regex_for_lib(x)) for x in banned_libs]
+        if banned_lib_regexs:
+            self.log.debug("Regular expressions to check for banned libraries: %s",
+                           '\n'.join("'%s'" % regex.pattern for (_, regex) in banned_lib_regexs))
+
         required_lib_regexs = [(x, regex_for_lib(x)) for x in required_libs]
+        if required_lib_regexs:
+            self.log.debug("Regular expressions to check for required libraries: %s",
+                           '\n'.join("'%s'" % regex.pattern for (_, regex) in required_lib_regexs))
 
         if subdirs is None:
             subdirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs
 
-        if not subdirs:
-            subdirs = DEFAULT_BIN_LIB_SUBDIRS
-            self.log.info("Using default subdirectories to check for banned/required linked shared libraries: %s",
+        if subdirs:
+            self.log.info("Using specified subdirectories to check for banned/required linked shared libraries: %s",
                           subdirs)
         else:
-            self.log.info("Using specified subdirectories to check for banned/required linked shared libraries: %s",
+            subdirs = DEFAULT_BIN_LIB_SUBDIRS
+            self.log.info("Using default subdirectories to check for banned/required linked shared libraries: %s",
                           subdirs)
 
         for dirpath in [os.path.join(self.installdir, d) for d in subdirs]:
