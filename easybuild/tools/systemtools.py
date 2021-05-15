@@ -828,12 +828,10 @@ def check_linked_shared_libs(path, required_patterns=None, banned_patterns=None)
     missing_required_patterns = []
     for regex in required_regexs:
         if not regex.search(linked_libs_out):
-            _log.warning("Required pattern '%s' not found in linked libraries output for %s", regex.pattern, path)
             missing_required_patterns.append(regex.pattern)
 
     for regex in banned_regexs:
         if regex.search(linked_libs_out):
-            _log.warning("Banned pattern '%s' found in linked libraries output for %s", regex.pattern, path)
             found_banned_patterns.append(regex.pattern)
 
     if missing_required_patterns:
