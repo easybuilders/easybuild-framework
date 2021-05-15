@@ -39,12 +39,10 @@ SHLIB_EXT = get_shared_lib_ext()
 class EB_libtoy(EasyBlock):
     """Support for building/installing libtoy."""
 
-    @property
     def banned_linked_shared_libs(self):
         default = '/thiswillnotbethere,libtoytoytoy.%s,toytoytoy' % SHLIB_EXT
         return os.getenv('EB_LIBTOY_BANNED_SHARED_LIBS', default).split(',')
 
-    @property
     def required_linked_shared_libs(self):
         default = '/libtoy,toy,libtoy.%s' % SHLIB_EXT
         return os.getenv('EB_LIBTOY_REQUIRED_SHARED_LIBS', default).split(',')

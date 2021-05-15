@@ -1141,7 +1141,6 @@ class Toolchain(object):
         """Return type of MPI library used in this toolchain, or 'None' if MPI is not supported."""
         return None
 
-    @property
     def banned_linked_shared_libs(self):
         """
         List of shared libraries (names, file names, paths) which are
@@ -1149,7 +1148,6 @@ class Toolchain(object):
         """
         return []
 
-    @property
     def required_linked_shared_libs(self):
         """
         List of shared libraries (names, file names, paths) which

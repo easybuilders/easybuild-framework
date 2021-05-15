@@ -2605,7 +2605,6 @@ class EasyBlock(object):
 
         return fails
 
-    @property
     def bin_lib_subdirs(self):
         """
         List of subdirectories for binaries and libraries for this software installation.
@@ -2613,7 +2612,6 @@ class EasyBlock(object):
         """
         return None
 
-    @property
     def banned_linked_shared_libs(self):
         """
         List of shared libraries which are not allowed to be linked in any installed binary/library.
@@ -2622,7 +2620,6 @@ class EasyBlock(object):
         """
         return []
 
-    @property
     def required_linked_shared_libs(self):
         """
         List of shared libraries which must be linked in all installed binaries/libraries.
@@ -2639,14 +2636,14 @@ class EasyBlock(object):
 
         # list of libraries that can *not* be linked in any installed binary/library
         banned_libs = build_option('banned_linked_shared_libs') or []
-        banned_libs.extend(self.toolchain.banned_linked_shared_libs)
-        banned_libs.extend(self.banned_linked_shared_libs)
+        banned_libs.extend(self.toolchain.banned_linked_shared_libs())
+        banned_libs.extend(self.banned_linked_shared_libs())
         banned_libs.extend(self.cfg['banned_linked_shared_libs'])
 
         # list of libraries that *must* be linked in every installed binary/library
         required_libs = build_option('required_linked_shared_libs') or []
-        required_libs.extend(self.toolchain.required_linked_shared_libs)
-        required_libs.extend(self.required_linked_shared_libs)
+        required_libs.extend(self.toolchain.required_linked_shared_libs())
+        required_libs.extend(self.required_linked_shared_libs())
         required_libs.extend(self.cfg['required_linked_shared_libs'])
 
         # early return if there are no banned/required libraries
@@ -2687,7 +2684,7 @@ class EasyBlock(object):
                            '\n'.join("'%s'" % regex.pattern for regex in required_lib_regexs))
 
         if subdirs is None:
-            subdirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs
+            subdirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
 
         if subdirs:
             self.log.info("Using specified subdirectories to check for banned/required linked shared libraries: %s",

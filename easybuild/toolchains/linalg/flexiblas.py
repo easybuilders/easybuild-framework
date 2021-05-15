@@ -73,13 +73,12 @@ class FlexiBLAS(LinAlg):
     LAPACK_IS_BLAS = True
     LAPACK_FAMILY = TC_CONSTANT_FLEXIBLAS
 
-    @property
     def banned_linked_shared_libs(self):
         """
         List of shared libraries (names, file names, paths) which are
         not allowed to be linked in any installed binary/library.
         """
-        banned_libs = super(FlexiBLAS, super).banned_linked_shared_libs
+        banned_libs = super(FlexiBLAS, super).banned_linked_shared_libs()
 
         # register backends are banned shared libraries,
         # to avoid that anything links to them directly (rather than to libflexiblas.so)
