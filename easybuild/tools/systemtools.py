@@ -772,25 +772,25 @@ def get_glibc_version():
     return glibc_ver
 
 
-def check_linked_libs(path, patterns=None, anti_patterns=None):
+def check_linked_shared_libs(path, required_patterns=None, banned_patterns=None):
     """
-    Check for (lack of) patterns in linked libraries for binary/library at specified path.
-    Uses 'ldd' on Linux and 'otool -L' on macOS to determine linked libraries.
+    Check for (lack of) patterns in linked shared libraries for binary/library at specified path.
+    Uses 'ldd' on Linux and 'otool -L' on macOS to determine linked shared libraries.
 
-    Returns True or False for dynamically linked binaries and libraries to indicate
+    Returns True or False for dynamically linked binaries and shared libraries to indicate
     whether all patterns match and antipatterns don't match.
 
     Returns None if given path is not a dynamically linked binary or library.
     """
-    if patterns is None:
-        regexs = []
+    if required_patterns is None:
+        required_regexs = []
     else:
-        regexs = [re.compile(p) if isinstance(p, string_type) else p for p in patterns]
+        required_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in required_patterns]
 
-    if anti_patterns is None:
-        anti_regexs = []
+    if banned_patterns is None:
+        banned_regexs = []
     else:
-        anti_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in anti_patterns]
+        banned_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in banned_patterns]
 
     # resolve symbolic links (unless they're broken)
     if os.path.islink(path) and os.path.exists(path):
@@ -824,17 +824,27 @@ def check_linked_libs(path, patterns=None, anti_patterns=None):
     else:
         raise EasyBuildError("Unknown OS type: %s", os_type)
 
-    res = True
-    for regex in regexs:
+    found_banned_patterns = []
+    missing_required_patterns = []
+    for regex in required_regexs:
         if not regex.search(linked_libs_out):
             _log.warning("Required pattern '%s' not found in linked libraries output for %s", regex.pattern, path)
-            res = False
-    for anti_regex in anti_regexs:
-        if anti_regex.search(linked_libs_out):
-            _log.warning("Non-allowed pattern '%s' found in linked libraries output for %s", anti_regex.pattern, path)
-            res = False
+            missing_required_patterns.append(regex.pattern)
 
-    return res
+    for regex in banned_regexs:
+        if regex.search(linked_libs_out):
+            _log.warning("Banned pattern '%s' found in linked libraries output for %s", regex.pattern, path)
+            found_banned_patterns.append(regex.pattern)
+
+    if missing_required_patterns:
+        patterns = ', '.join("'%s'" % p for p in missing_required_patterns)
+        _log.warning("Required patterns not found in linked libraries output for %s: %s", path, patterns)
+
+    if found_banned_patterns:
+        patterns = ', '.join("'%s'" % p for p in found_banned_patterns)
+        _log.warning("Banned patterns found in linked libraries output for %s: %s", path, patterns)
+
+    return not (found_banned_patterns or missing_required_patterns)
 
 
 def get_system_info():
