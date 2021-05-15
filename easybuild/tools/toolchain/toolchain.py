@@ -1130,16 +1130,32 @@ class Toolchain(object):
         raise NotImplementedError
 
     def blas_family(self):
-        "Return type of BLAS library used in this toolchain, or 'None' if BLAS is not supported."
+        """Return type of BLAS library used in this toolchain, or 'None' if BLAS is not supported."""
         return None
 
     def lapack_family(self):
-        "Return type of LAPACK library used in this toolchain, or 'None' if LAPACK is not supported."
+        """Return type of LAPACK library used in this toolchain, or 'None' if LAPACK is not supported."""
         return None
 
     def mpi_family(self):
-        "Return type of MPI library used in this toolchain, or 'None' if MPI is not supported."
+        """Return type of MPI library used in this toolchain, or 'None' if MPI is not supported."""
         return None
+
+    @property
+    def banned_linked_shared_libs(self):
+        """
+        List of shared libraries (names, file names, paths) which are
+        not allowed to be linked in any installed binary/library.
+        """
+        return []
+
+    @property
+    def required_linked_shared_libs(self):
+        """
+        List of shared libraries (names, file names, paths) which
+        must be linked in all installed binaries/libraries.
+        """
+        return []
 
     def cleanup(self):
         """Clean up after using this toolchain"""
