@@ -73,9 +73,6 @@ class FlexiBLAS(LinAlg):
     LAPACK_IS_BLAS = True
     LAPACK_FAMILY = TC_CONSTANT_FLEXIBLAS
 
-    def __init__(self, *args, **kwargs):
-        """Constructor for FlexiBLAS toolchain component."""
-
     @property
     def banned_linked_shared_libs(self):
         """
