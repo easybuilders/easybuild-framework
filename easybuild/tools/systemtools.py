@@ -772,6 +772,69 @@ def get_glibc_version():
     return glibc_ver
 
 
+def check_linked_libs(path, patterns=None, anti_patterns=None):
+    """
+    Check for (lack of) patterns in linked libraries for binary/library at specified path.
+    Uses 'ldd' on Linux and 'otool -L' on macOS to determine linked libraries.
+
+    Returns True or False for dynamically linked binaries and libraries to indicate
+    whether all patterns match and antipatterns don't match.
+
+    Returns None if given path is not a dynamically linked binary or library.
+    """
+    if patterns is None:
+        regexs = []
+    else:
+        regexs = [re.compile(p) if isinstance(p, string_type) else p for p in patterns]
+
+    if anti_patterns is None:
+        anti_regexs = []
+    else:
+        anti_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in anti_patterns]
+
+    # resolve symbolic links (unless they're broken)
+    if os.path.islink(path) and os.path.exists(path):
+        path = os.path.realpath(path)
+
+    file_cmd_out, _ = run_cmd("file %s" % path, simple=False, trace=False)
+
+    os_type = get_os_type()
+
+    # check whether specified path is a dynamically linked binary or a shared library
+    if os_type == LINUX:
+        # example output for dynamically linked binaries:
+        #   /usr/bin/ls: ELF 64-bit LSB executable, x86-64, ..., dynamically linked (uses shared libs), ...
+        # example output for shared libraries:
+        #   /lib64/libc-2.17.so: ELF 64-bit LSB shared object, x86-64, ..., dynamically linked (uses shared libs), ...
+        if "dynamically linked" in file_cmd_out:
+            linked_libs_out, _ = run_cmd("ldd %s" % path, simple=False, trace=False)
+        else:
+            return None
+
+    elif os_type == DARWIN:
+        # example output for dynamically linked binaries:
+        #   /bin/ls: Mach-O 64-bit executable x86_64
+        # example output for shared libraries:
+        #   /usr/lib/libz.dylib: Mach-O 64-bit dynamically linked shared library x86_64
+        bin_lib_regex = re.compile('(Mach-O .* executable)|(dynamically linked)', re.M)
+        if bin_lib_regex.search(file_cmd_out):
+            linked_libs_out, _ = run_cmd("otool -L %s" % path, simple=False, trace=False)
+        else:
+            return None
+    else:
+        raise EasyBuildError("Unknown OS type: %s", os_type)
+
+    res = True
+    for regex in regexs:
+        if not regex.search(linked_libs_out):
+            res = False
+    for anti_regex in anti_regexs:
+        if anti_regex.search(linked_libs_out):
+            res = False
+
+    return res
+
+
 def get_system_info():
     """Return a dictionary with system information."""
     python_version = '; '.join(sys.version.split('\n'))
