@@ -3376,16 +3376,25 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, self.test_toy_build, force=False,
                               ec_file=test_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
 
+        # check behaviour when alternate subdirectories are specified
+        test_ec_txt = read_file(libtoy_ec)
+        test_ec_txt += "\nbin_lib_subdirs = ['', 'lib', 'lib64']"
+        write_file(test_ec, test_ec_txt)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--module-only'], force=False,
+                            raise_error=True, verbose=False, verify=False)
+
         # one last time: supercombo (with patterns that should pass the check)
         test_ec_txt = read_file(libtoy_ec)
         test_ec_txt += "\nbanned_linked_shared_libs = ['yeahthisisjustatest', '/usr/lib/libssl.so']"
         test_ec_txt += "\nrequired_linked_shared_libs = ['%s']" % libtoy_fn
+        test_ec_txt += "\nbin_lib_subdirs = ['', 'lib', 'lib64']"
         write_file(test_ec, test_ec_txt)
         args = [
             '--banned-linked-shared-libs=the_forbidden_library',
             '--required-linked-shared-libs=toy,%s' % libtoy_fn,
+            '--module-only',
         ]
-        self.test_toy_build(ec_file=libtoy_ec, extra_args=['--module-only'], force=False,
+        self.test_toy_build(ec_file=test_ec, extra_args=args, force=False,
                             raise_error=True, verbose=False, verify=False)
 
 

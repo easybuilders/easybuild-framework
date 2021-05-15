@@ -2708,10 +2708,13 @@ class EasyBlock(object):
 
                     libs_check = check_linked_shared_libs(path, banned_patterns=banned_lib_regexs,
                                                           required_patterns=required_lib_regexs)
-                    if libs_check:
-                        self.log.debug("Check for banned/required linked shared libraries passed for %s", path)
-                    else:
-                        failed_paths.append(path)
+
+                    # None indicates the path is not a dynamically linked binary or shared library, so ignore it
+                    if libs_check is not None:
+                        if libs_check:
+                            self.log.debug("Check for banned/required linked shared libraries passed for %s", path)
+                        else:
+                            failed_paths.append(path)
 
         fail_msg = None
         if failed_paths:
