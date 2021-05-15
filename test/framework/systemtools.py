@@ -45,11 +45,12 @@ from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POW
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
-from easybuild.tools.systemtools import check_linked_shared_libs, check_os_dependency, check_python_version, pick_dep_version
+from easybuild.tools.systemtools import check_linked_shared_libs, check_os_dependency, check_python_version
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_arch_name, get_cpu_architecture
 from easybuild.tools.systemtools import get_cpu_family, get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
 from easybuild.tools.systemtools import get_gcc_version, get_glibc_version, get_os_type, get_os_name, get_os_version
 from easybuild.tools.systemtools import get_platform_name, get_shared_lib_ext, get_system_info, get_total_memory
+from easybuild.tools.systemtools import pick_dep_version
 
 
 PROC_CPUINFO_TXT = None
