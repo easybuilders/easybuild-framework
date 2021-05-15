@@ -800,7 +800,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 list_arg,
                 '--unittest-file=%s' % self.logfile,
             ]
-            self.eb_main(args, logfile=dummylogfn)
+            self.eb_main(args, logfile=dummylogfn, raise_error=True)
             logtxt = read_file(self.logfile)
 
             expected = '\n'.join([
@@ -814,6 +814,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|   \|-- EB_foofoo',
                 r'\|-- EB_GCC',
                 r'\|-- EB_HPL',
+                r'\|-- EB_libtoy',
                 r'\|-- EB_OpenBLAS',
                 r'\|-- EB_OpenMPI',
                 r'\|-- EB_ScaLAPACK',
@@ -936,7 +937,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for search_arg in ['-S', '--search-short']:
             args = [
                 search_arg,
-                'toy-0.0',
+                '^toy-0.0',
                 '-r',
                 test_easyconfigs_dir,
             ]
