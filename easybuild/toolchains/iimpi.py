@@ -57,15 +57,18 @@ class Iimpi(IccIfort, IntelCompilersToolchain, IntelMPI):
             # comparing subversions that include letters causes TypeErrors in Python 3
             # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June)
             # (good enough for this purpose)
-            self.iimpi_ver = LooseVersion(self.version.replace('a', '.01').replace('b', '.07'))
-            if self.iimpi_ver >= LooseVersion('2020.12'):
+            self.iimpi_ver = self.version.replace('a', '.01').replace('b', '.07')
+            if LooseVersion(self.iimpi_ver) >= LooseVersion('2020.12'):
+                self.oneapi_gen = True
                 self.SUBTOOLCHAIN = IntelCompilersToolchain.NAME
                 self.COMPILER_MODULE_NAME = IntelCompilersToolchain.COMPILER_MODULE_NAME
             else:
+                self.oneapi_gen = False
                 self.SUBTOOLCHAIN = IccIfort.NAME
                 self.COMPILER_MODULE_NAME = IccIfort.COMPILER_MODULE_NAME
         else:
             self.iimpi_ver = self.version
+            self.oneapi_gen = False
 
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
@@ -74,34 +77,35 @@ class Iimpi(IccIfort, IntelCompilersToolchain, IntelMPI):
 
         # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
         if re.match('^[0-9]', str(self.iimpi_ver)):
+            loosever = LooseVersion(self.iimpi_ver)
             # iimpi toolchains older than iimpi/2016.01 are deprecated
             # iimpi 8.1.5 is an exception, since it used in intel/2016a (which is not deprecated yet)
-            if self.iimpi_ver < LooseVersion('8.0'):
+            if loosever < LooseVersion('8.0'):
                 deprecated = True
-            elif self.iimpi_ver > LooseVersion('2000') and self.iimpi_ver < LooseVersion('2016.01'):
+            elif loosever > LooseVersion('2000') and loosever < LooseVersion('2016.01'):
                 deprecated = True
 
         return deprecated
 
     def is_dep_in_toolchain_module(self, *args, **kwargs):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
-        if re.match('^[0-9]', str(self.iimpi_ver)) and self.iimpi_ver < LooseVersion('2020.12'):
-            res = IccIfort.is_dep_in_toolchain_module(self, *args, **kwargs)
-        else:
+        if self.oneapi_gen:
             res = IntelCompilersToolchain.is_dep_in_toolchain_module(self, *args, **kwargs)
+        else:
+            res = IccIfort.is_dep_in_toolchain_module(self, *args, **kwargs)
 
         return res
 
     def _set_compiler_vars(self):
         """Intel compilers-specific adjustments after setting compiler variables."""
-        if re.match('^[0-9]', str(self.iimpi_ver)) and self.iimpi_ver < LooseVersion('2020.12'):
-            IccIfort._set_compiler_vars(self)
-        else:
+        if self.oneapi_gen:
             IntelCompilersToolchain._set_compiler_vars(self)
+        else:
+            IccIfort._set_compiler_vars(self)
 
     def set_variables(self):
         """Intel compilers-specific adjustments after setting compiler variables."""
-        if re.match('^[0-9]', str(self.iimpi_ver)) and self.iimpi_ver < LooseVersion('2020.12'):
-            IccIfort.set_variables(self)
-        else:
+        if self.oneapi_gen:
             IntelCompilersToolchain.set_variables(self)
+        else:
+            IccIfort.set_variables(self)
