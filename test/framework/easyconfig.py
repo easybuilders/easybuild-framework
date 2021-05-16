@@ -3337,6 +3337,12 @@ class EasyConfigTest(EnhancedTestCase):
                     for subtoolchain_name in subtoolchains[current_tc['name']]]
         self.assertEqual(versions, ['4.9.3', ''])
 
+        # test det_subtoolchain_version when two alternatives for subtoolchain are specified
+        current_tc = {'name': 'gompi', 'version': '2018b'}
+        cands = [{'name': 'GCC', 'version': '7.3.0-2.30'}]
+        subtc_version = det_subtoolchain_version(current_tc, ('GCCcore', 'GCC'), optional_toolchains, cands)
+        self.assertEqual(subtc_version, '7.3.0-2.30')
+
     def test_verify_easyconfig_filename(self):
         """Test verify_easyconfig_filename function"""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
