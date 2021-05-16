@@ -32,16 +32,19 @@ from distutils.version import LooseVersion
 import re
 
 from easybuild.toolchains.iccifort import IccIfort
-from easybuild.toolchains.intel_compilers import IntelCompilers
+from easybuild.toolchains.intel_compilers import IntelCompilersToolchain
 from easybuild.toolchains.mpi.intelmpi import IntelMPI
 
 
-class Iimpi(IntelCompilers, IccIfort, IntelMPI):
+class Iimpi(IccIfort, IntelCompilersToolchain, IntelMPI):
     """
     Compiler toolchain with Intel compilers (icc/ifort), Intel MPI.
     """
     NAME = 'iimpi'
-    SUBTOOLCHAIN = None
+    # compiler-only subtoolchain can't be determine statically
+    # since depends on toolchain version (see below),
+    # so register both here as possible alternatives (which is taken into account elsewhere)
+    SUBTOOLCHAIN = [(IntelCompilersToolchain.NAME, IccIfort.NAME)]
 
     def __init__(self, *args, **kwargs):
         """Constructor for Iimpi toolchain class."""
@@ -56,8 +59,8 @@ class Iimpi(IntelCompilers, IccIfort, IntelMPI):
             # (good enough for this purpose)
             self.iimpi_ver = LooseVersion(self.version.replace('a', '.01').replace('b', '.07'))
             if self.iimpi_ver >= LooseVersion('2020.12'):
-                self.SUBTOOLCHAIN = IntelCompilers.NAME
-                self.COMPILER_MODULE_NAME = IntelCompilers.COMPILER_MODULE_NAME
+                self.SUBTOOLCHAIN = IntelCompilersToolchain.NAME
+                self.COMPILER_MODULE_NAME = IntelCompilersToolchain.COMPILER_MODULE_NAME
             else:
                 self.SUBTOOLCHAIN = IccIfort.NAME
                 self.COMPILER_MODULE_NAME = IccIfort.COMPILER_MODULE_NAME
@@ -85,6 +88,20 @@ class Iimpi(IntelCompilers, IccIfort, IntelMPI):
         if re.match('^[0-9]', str(self.iimpi_ver)) and self.iimpi_ver < LooseVersion('2020.12'):
             res = IccIfort.is_dep_in_toolchain_module(self, *args, **kwargs)
         else:
-            res = super(Iimpi, self).is_dep_in_toolchain_module(*args, **kwargs)
+            res = IntelCompilersToolchain.is_dep_in_toolchain_module(self, *args, **kwargs)
 
         return res
+
+    def _set_compiler_vars(self):
+        """Intel compilers-specific adjustments after setting compiler variables."""
+        if re.match('^[0-9]', str(self.iimpi_ver)) and self.iimpi_ver < LooseVersion('2020.12'):
+            IccIfort._set_compiler_vars(self)
+        else:
+            IntelCompilersToolchain._set_compiler_vars(self)
+
+    def set_variables(self):
+        """Intel compilers-specific adjustments after setting compiler variables."""
+        if re.match('^[0-9]', str(self.iimpi_ver)) and self.iimpi_ver < LooseVersion('2020.12'):
+            IccIfort.set_variables(self)
+        else:
+            IntelCompilersToolchain.set_variables(self)
