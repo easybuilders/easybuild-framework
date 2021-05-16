@@ -2542,7 +2542,7 @@ class EasyBlock(object):
         readelf_rpath_regex = re.compile('(RPATH)', re.M)
 
         if rpath_dirs is None:
-            rpath_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs
+            rpath_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
 
         if not rpath_dirs:
             rpath_dirs = DEFAULT_BIN_LIB_SUBDIRS
