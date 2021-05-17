@@ -76,5 +76,6 @@ class FujitsuCompiler(Compiler):
     def _set_compiler_vars(self):
         super(FujitsuCompiler, self)._set_compiler_vars()
 
+        # enable clang compatibility mode
         self.variables.nappend('CFLAGS', ['Nclang'])
         self.variables.nappend('CXXFLAGS', ['Nclang'])

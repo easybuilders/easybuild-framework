@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for fompi compiler toolchain (includes Fujitsu Compiler and MPI).
+EasyBuild support for ffmpi compiler toolchain (includes Fujitsu Compiler, MPI and Scientific Libraries).
 
 :author: Miguel Dias Costa (National University of Singapore)
 """
@@ -32,7 +32,7 @@ from easybuild.toolchains.linalg.fujitsussl import FujitsuSSL
 from easybuild.toolchains.mpi.fujitsumpi import FujitsuMPI
 
 
-class ffmpi(FujitsuCompiler, FujitsuMPI, FujitsuSSL):
-    """Compiler toolchain with Fujitsu Compiler and MPI."""
+class Ffmpi(FujitsuCompiler, FujitsuMPI, FujitsuSSL):
+    """Compiler toolchain with Fujitsu Compiler, MPI and Scientific Libraries."""
     NAME = 'ffmpi'
     SUBTOOLCHAIN = FujitsuCompiler.NAME

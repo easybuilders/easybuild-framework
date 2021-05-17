@@ -27,11 +27,11 @@ Fujitsu toolchain: Fujitsu compilers and MPI + Fujitsu SSL2 and Fujitsu FFTW
 
 :author: Miguel Dias Costa (National University of Singapore)
 """
-from easybuild.toolchains.ffmpi import ffmpi
+from easybuild.toolchains.ffmpi import Ffmpi
 from easybuild.toolchains.fft.fujitsufftw import FujitsuFFTW
 
 
-class Fujitsu(ffmpi, FujitsuFFTW):
+class Fujitsu(Ffmpi, FujitsuFFTW):
     """Compiler toolchain for Fujitsu."""
     NAME = 'Fujitsu'
-    SUBTOOLCHAIN = ffmpi.NAME
+    SUBTOOLCHAIN = Ffmpi.NAME

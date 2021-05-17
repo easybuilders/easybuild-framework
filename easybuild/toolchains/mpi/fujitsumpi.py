@@ -47,10 +47,6 @@ class FujitsuMPI(Mpi):
 
     MPI_LINK_INFO_OPTION = '-showme:link'
 
-    def __init__(self, *args, **kwargs):
-        """Toolchain constructor"""
-        super(FujitsuMPI, self).__init__(*args, **kwargs)
-
     def _set_mpi_compiler_variables(self):
         """Define MPI wrapper commands and add OMPI_* variables to set."""
         self.MPI_COMPILER_MPICC = 'mpi' + FujitsuCompiler.COMPILER_CC

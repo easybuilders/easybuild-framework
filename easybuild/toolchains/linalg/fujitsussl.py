@@ -66,7 +66,7 @@ class FujitsuSSL(LinAlg):
         if name == 'lang':
             # Fujitsu-provided  module
             env_var = 'FJSVXTCLANGA'
-            root = os.getenv(env_var, None)
+            root = os.getenv(env_var)
             if root is None:
                 raise EasyBuildError("Failed to determine install prefix for %s via $%s", name, env_var)
             else:
