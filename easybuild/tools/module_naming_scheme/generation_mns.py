@@ -28,6 +28,8 @@ Implementation of a different generation specific module naming scheme using rel
 """
 
 import os
+import json
+from pkgutil import get_data
 
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 # from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -37,6 +39,8 @@ DUMMY_TOOLCHAIN_VERSION = 'dummy'
 
 SYSTEM_TOOLCHAIN_NAME = 'system'
 
+# Lookup table for toolchain versions and generations
+GENERATION_LOOKUP = json.loads(get_data(__package__, 'generation_lookup_table.json'))
 
 class GenerationModuleNamingScheme(ModuleNamingScheme):
     """Class implementing the categorized module naming scheme."""
@@ -69,47 +73,18 @@ class GenerationModuleNamingScheme(ModuleNamingScheme):
         release = 'releases'
         release_date = ''
 
-        if ec['toolchain']['name'] == 'foss':
-            release_date = ec['toolchain']['version']
-        elif ec['toolchain']['name'] == 'GCCcore':
-            # please add a new GCCcore version
-            # if you want to use a new toolchain version.
-            if ec['toolchain']['version'] == '7.3.0':
-                release_date = '2018b'
-            elif ec['toolchain']['version'] == '6.3.0':
-                release_date = '2017a'
-            elif ec['toolchain']['version'] == '5.4.0':
-                release_date = '2016b'
-            elif ec['toolchain']['version'] == '4.9.3':
-                release_date = '2016a'
-            elif ec['toolchain']['version'] == '8.3.0':
-                release_date = '2019b'
-            elif ec['toolchain']['version'] == '10.2.0':
-                release_date = '2020b'
-        elif ec['toolchain']['name'] == 'GCC':
-            # please add a new GCC version
-            # if you want to use a new toolchain version.
-            if ec['toolchain']['version'] == '7.3.0-2.30':
-                release_date = '2018b'
-            elif ec['toolchain']['version'] == '6.3.0-2.27':
-                release_date = '2017a'
-            elif ec['toolchain']['version'] == '5.4.0-2.26':
-                release_date = '2016b'
-            elif ec['toolchain']['version'] == '4.9.3-2.25':
-                release_date = '2016a'
-            elif ec['toolchain']['version'] == '8.3.0-2.32':
-                release_date = '2019b'
-            elif ec['toolchain']['version'] == '10.2.0':
-                release_date = '2020b'
-        elif ec['toolchain']['name'] == 'gompi':
-            release_date = ec['toolchain']['version']
-        elif ec['toolchain']['name'] == 'fosscuda':
-            release_date = ec['toolchain']['version']
-        elif ec['toolchain']['name'] in [DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME]:
-            release_date = ''
+        if ec['toolchain']['name'] in [DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME]:
             release = 'General'
-        else:
-            release_date = "NOTFOUND"
 
-        subdir = os.path.join(release, release_date)
+        elif ec['toolchain']['version'] in GENERATION_LOOKUP['releases']:
+            release_date = ec['toolchain']['version']
+
+        elif ec['toolchain']['name'] in GENERATION_LOOKUP:
+            release_date = GENERATION_LOOKUP[ec['toolchain']['name']].get(ec['toolchain']['version'], 'NOTFOUND')
+
+        else:
+            release_date = 'NOTFOUND'
+
+        subdir = os.path.join(release, release_date).rstrip('/')
+
         return subdir

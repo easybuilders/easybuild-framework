@@ -1367,6 +1367,62 @@ class ModuleGeneratorTest(EnhancedTestCase):
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
 
+    def test_generation_mns(self):
+        """Test generation module naming scheme."""
+
+        moduleclasses = ['base', 'compiler', 'mpi', 'numlib', 'system', 'toolchain']
+        ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        all_stops = [x[0] for x in EasyBlock.get_steps()]
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [ecs_dir],
+            'valid_stops': all_stops,
+            'validate': False,
+            'valid_module_classes': moduleclasses,
+        }
+
+        def test_ec(ecfile, short_modname, mod_subdir, modpath_exts, user_modpath_exts, init_modpaths):
+            """Test whether active module naming scheme returns expected values."""
+            ec = EasyConfig(glob.glob(os.path.join(ecs_dir, '*', '*', ecfile))[0])
+            self.assertEqual(ActiveMNS().det_full_module_name(ec), os.path.join(mod_subdir, short_modname))
+            self.assertEqual(ActiveMNS().det_short_module_name(ec), short_modname)
+            self.assertEqual(ActiveMNS().det_module_subdir(ec), mod_subdir)
+            self.assertEqual(ActiveMNS().det_modpath_extensions(ec), modpath_exts)
+            self.assertEqual(ActiveMNS().det_user_modpath_extensions(ec), user_modpath_exts)
+            self.assertEqual(ActiveMNS().det_init_modulepaths(ec), init_modpaths)
+
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'GenerationModuleNamingScheme'
+        init_config(build_options=build_options)
+
+        # format: easyconfig_file: (short_mod_name, mod_subdir, modpath_exts, user_modpath_exts, init_modpaths)
+        test_ecs = {
+            'GCCcore-4.9.3.eb': ('GCCcore/4.9.3', 'General', [], [], []),
+            'gcccuda-2018a.eb': ('gcccuda/2018a', 'General', [], [], []),
+            'binutils-2.25-GCCcore-4.9.3.eb': ('binutils/2.25', 'releases/2016a', [], [], []),
+            'GCC-6.4.0-2.28.eb': ('GCC/6.4.0-2.28', 'General', [], [], []),
+            'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb': ('OpenMPI/2.1.2', 'releases/2018a', [], [], []),
+            'gzip-1.5-foss-2018a.eb': ('gzip/1.5', 'releases/2018a', [], [], []),
+            'gzip-1.5-intel-2018a.eb': ('gzip/1.5', 'releases/2018a', [], [], []),
+            'foss-2018a.eb': ('foss/2018a', 'General', [], [], []),
+            'ifort-2016.1.150.eb': ('ifort/2016.1.150', 'General', [], [], []),
+            'iccifort-2019.4.243.eb': ('iccifort/2019.4.243', 'General', [], [], []),
+            'imkl-2019.4.243-iimpi-2019.08.eb': ('imkl/2019.4.243', 'releases/TBD', [], [], []),
+            'CUDA-9.1.85-GCC-6.4.0-2.28.eb': ('CUDA/9.1.85', 'releases/2018a', [], [], []),
+            'CUDA-5.5.22.eb': ('CUDA/5.5.22', 'General', [], [], []),
+            'CUDA-5.5.22-iccifort-2016.1.150-GCC-4.9.3-2.25.eb': ('CUDA/5.5.22', 'releases/TBD', [], [], []),
+            'CUDA-10.1.243-iccifort-2019.4.243.eb': ('CUDA/10.1.243', 'releases/NOTFOUND', [], [], []),
+            'impi-5.1.2.150-iccifortcuda-2016.1.150.eb': ('impi/5.1.2.150', 'releases/2016a', [], [], []),
+            'CrayCCE-5.1.29.eb': ('CrayCCE/5.1.29', 'General', [], [], []),
+            'HPL-2.1-CrayCCE-5.1.29.eb': ('HPL/2.1', 'releases/NOTFOUND', [], [], []),
+            'FFTW-3.3.7-gompi-2018a.eb': ('FFTW/3.3.7', 'releases/2018a', [], [], []),
+            'FFTW-3.3.7-gompic-2018a.eb': ('FFTW/3.3.7', 'releases/2018a', [], [], []),
+            'hwloc-1.8-gcccuda-2018a.eb': ('hwloc/1.8', 'releases/2018a', [], [], []),
+            'imkl-2019.4.243-iimpi-2019.08.eb': ('imkl/2019.4.243', 'releases/TBD', [], [], [])
+        }
+
+        for ecfile, mns_vals in test_ecs.items():
+            test_ec(ecfile, *mns_vals)
+
     def test_dependencies_for(self):
         """Test for dependencies_for function."""
         expected = [
