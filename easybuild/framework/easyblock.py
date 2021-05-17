@@ -92,13 +92,15 @@ from easybuild.tools.modules import get_software_root_env_var_name, get_software
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.systemtools import det_parallelism, use_group
+from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_shared_lib_ext, use_group
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
 EASYBUILD_SOURCES_URL = 'https://sources.easybuild.io'
+
+DEFAULT_BIN_LIB_SUBDIRS = ('bin', 'lib', 'lib64')
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANITYCHECK_STEP]
 
@@ -2526,6 +2528,8 @@ class EasyBlock(object):
     def sanity_check_rpath(self, rpath_dirs=None):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
 
+        self.log.info("Checking RPATH linkage for binaries/libraries...")
+
         fails = []
 
         # hard reset $LD_LIBRARY_PATH before running RPATH sanity check
@@ -2538,10 +2542,15 @@ class EasyBlock(object):
         readelf_rpath_regex = re.compile('(RPATH)', re.M)
 
         if rpath_dirs is None:
-            rpath_dirs = ['bin', 'lib', 'lib64']
-            self.log.info("Using default subdirs for binaries/libraries to verify RPATH linking: %s", rpath_dirs)
+            rpath_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
+
+        if not rpath_dirs:
+            rpath_dirs = DEFAULT_BIN_LIB_SUBDIRS
+            self.log.info("Using default subdirectories for binaries/libraries to verify RPATH linking: %s",
+                          rpath_dirs)
         else:
-            self.log.info("Using specified subdirs for binaries/libraries to verify RPATH linking: %s", rpath_dirs)
+            self.log.info("Using specified subdirectories for binaries/libraries to verify RPATH linking: %s",
+                          rpath_dirs)
 
         for dirpath in [os.path.join(self.installdir, d) for d in rpath_dirs]:
             if os.path.exists(dirpath):
@@ -2552,7 +2561,9 @@ class EasyBlock(object):
 
                     out, ec = run_cmd("file %s" % path, simple=False, trace=False)
                     if ec:
-                        fails.append("Failed to run 'file %s': %s" % (path, out))
+                        fail_msg = "Failed to run 'file %s': %s" % (path, out)
+                        self.log.warning(fail_msg)
+                        fails.append(fail_msg)
 
                     # only run ldd/readelf on dynamically linked executables/libraries
                     # example output:
@@ -2593,6 +2604,129 @@ class EasyBlock(object):
         env.restore_env_vars(orig_env)
 
         return fails
+
+    def bin_lib_subdirs(self):
+        """
+        List of subdirectories for binaries and libraries for this software installation.
+        This is used during the sanity check to check RPATH linking and banned/required linked shared libraries.
+        """
+        return None
+
+    def banned_linked_shared_libs(self):
+        """
+        List of shared libraries which are not allowed to be linked in any installed binary/library.
+        Supported values are pure library names without 'lib' prefix or extension ('example'),
+        file names ('libexample.so'), and full paths ('/usr/lib64/libexample.so').
+        """
+        return []
+
+    def required_linked_shared_libs(self):
+        """
+        List of shared libraries which must be linked in all installed binaries/libraries.
+        Supported values are pure library names without 'lib' prefix or extension ('example'),
+        file names ('libexample.so'), and full paths ('/usr/lib64/libexample.so').
+        """
+        return []
+
+    def sanity_check_linked_shared_libs(self, subdirs=None):
+        """
+        Check whether specific shared libraries are (not) linked into installed binaries/libraries.
+        """
+        self.log.info("Checking for banned/required linked shared libraries...")
+
+        # list of libraries that can *not* be linked in any installed binary/library
+        banned_libs = build_option('banned_linked_shared_libs') or []
+        banned_libs.extend(self.toolchain.banned_linked_shared_libs())
+        banned_libs.extend(self.banned_linked_shared_libs())
+        banned_libs.extend(self.cfg['banned_linked_shared_libs'])
+
+        # list of libraries that *must* be linked in every installed binary/library
+        required_libs = build_option('required_linked_shared_libs') or []
+        required_libs.extend(self.toolchain.required_linked_shared_libs())
+        required_libs.extend(self.required_linked_shared_libs())
+        required_libs.extend(self.cfg['required_linked_shared_libs'])
+
+        # early return if there are no banned/required libraries
+        if not (banned_libs + required_libs):
+            self.log.info("No banned/required libraries specified")
+            return []
+        else:
+            if banned_libs:
+                self.log.info("Banned libraries to check for: %s", ', '.join(banned_libs))
+            if required_libs:
+                self.log.info("Required libraries to check for: %s", ', '.join(banned_libs))
+
+        shlib_ext = get_shared_lib_ext()
+
+        # compose regular expressions for banned/required libraries
+        def regex_for_lib(lib):
+            """Compose regular expression for specified banned/required library."""
+            # absolute path to library ('/usr/lib64/libexample.so')
+            if os.path.isabs(lib):
+                regex = re.compile(re.escape(lib))
+            # full filename for library ('libexample.so')
+            elif lib.startswith('lib'):
+                regex = re.compile(r'(/|\s)' + re.escape(lib))
+            # pure library name, without 'lib' prefix or extension ('example')
+            else:
+                regex = re.compile(r'(/|\s)lib%s\.%s' % (lib, shlib_ext))
+
+            return regex
+
+        banned_lib_regexs = [regex_for_lib(x) for x in banned_libs]
+        if banned_lib_regexs:
+            self.log.debug("Regular expressions to check for banned libraries: %s",
+                           '\n'.join("'%s'" % regex.pattern for regex in banned_lib_regexs))
+
+        required_lib_regexs = [regex_for_lib(x) for x in required_libs]
+        if required_lib_regexs:
+            self.log.debug("Regular expressions to check for required libraries: %s",
+                           '\n'.join("'%s'" % regex.pattern for regex in required_lib_regexs))
+
+        if subdirs is None:
+            subdirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
+
+        if subdirs:
+            self.log.info("Using specified subdirectories to check for banned/required linked shared libraries: %s",
+                          subdirs)
+        else:
+            subdirs = DEFAULT_BIN_LIB_SUBDIRS
+            self.log.info("Using default subdirectories to check for banned/required linked shared libraries: %s",
+                          subdirs)
+
+        # filter to existing directories that are unique (after resolving symlinks)
+        dirpaths = []
+        for subdir in subdirs:
+            dirpath = os.path.join(self.installdir, subdir)
+            if os.path.exists(dirpath) and os.path.isdir(dirpath):
+                dirpath = os.path.realpath(dirpath)
+                if dirpath not in dirpaths:
+                    dirpaths.append(dirpath)
+
+        failed_paths = []
+
+        for dirpath in dirpaths:
+            if os.path.exists(dirpath):
+                self.log.debug("Checking banned/required linked shared libraries in %s", dirpath)
+
+                for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
+                    self.log.debug("Checking banned/required linked shared libraries for %s", path)
+
+                    libs_check = check_linked_shared_libs(path, banned_patterns=banned_lib_regexs,
+                                                          required_patterns=required_lib_regexs)
+
+                    # None indicates the path is not a dynamically linked binary or shared library, so ignore it
+                    if libs_check is not None:
+                        if libs_check:
+                            self.log.debug("Check for banned/required linked shared libraries passed for %s", path)
+                        else:
+                            failed_paths.append(path)
+
+        fail_msg = None
+        if failed_paths:
+            fail_msg = "Check for banned/required shared libraries failed for %s" % ', '.join(failed_paths)
+
+        return fail_msg
 
     def _sanity_check_step_common(self, custom_paths, custom_commands):
         """
@@ -2733,6 +2867,8 @@ class EasyBlock(object):
         else:
             self.dry_run_msg("  (none)")
 
+        self.sanity_check_linked_shared_libs()
+
         if self.toolchain.use_rpath:
             self.sanity_check_rpath()
         else:
@@ -2867,6 +3003,11 @@ class EasyBlock(object):
         # also run sanity check for extensions (unless we are an extension ourselves)
         if not extension:
             self._sanity_check_step_extensions()
+
+        linked_shared_lib_fails = self.sanity_check_linked_shared_libs()
+        if linked_shared_lib_fails:
+            self.log.warning("Check for required/banned linked shared libraries failed!")
+            self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
 
         # cleanup
         if fake_mod_data:

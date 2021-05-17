@@ -217,6 +217,8 @@ BUILD_OPTIONS_CMDLINE = {
         'regtest_output_dir',
         'rpath_filter',
         'rpath_override_dirs',
+        'banned_linked_shared_libs',
+        'required_linked_shared_libs',
         'silence_deprecation_warnings',
         'skip',
         'stop',

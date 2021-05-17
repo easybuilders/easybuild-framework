@@ -772,6 +772,79 @@ def get_glibc_version():
     return glibc_ver
 
 
+def check_linked_shared_libs(path, required_patterns=None, banned_patterns=None):
+    """
+    Check for (lack of) patterns in linked shared libraries for binary/library at specified path.
+    Uses 'ldd' on Linux and 'otool -L' on macOS to determine linked shared libraries.
+
+    Returns True or False for dynamically linked binaries and shared libraries to indicate
+    whether all patterns match and antipatterns don't match.
+
+    Returns None if given path is not a dynamically linked binary or library.
+    """
+    if required_patterns is None:
+        required_regexs = []
+    else:
+        required_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in required_patterns]
+
+    if banned_patterns is None:
+        banned_regexs = []
+    else:
+        banned_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in banned_patterns]
+
+    # resolve symbolic links (unless they're broken)
+    if os.path.islink(path) and os.path.exists(path):
+        path = os.path.realpath(path)
+
+    file_cmd_out, _ = run_cmd("file %s" % path, simple=False, trace=False)
+
+    os_type = get_os_type()
+
+    # check whether specified path is a dynamically linked binary or a shared library
+    if os_type == LINUX:
+        # example output for dynamically linked binaries:
+        #   /usr/bin/ls: ELF 64-bit LSB executable, x86-64, ..., dynamically linked (uses shared libs), ...
+        # example output for shared libraries:
+        #   /lib64/libc-2.17.so: ELF 64-bit LSB shared object, x86-64, ..., dynamically linked (uses shared libs), ...
+        if "dynamically linked" in file_cmd_out:
+            linked_libs_out, _ = run_cmd("ldd %s" % path, simple=False, trace=False)
+        else:
+            return None
+
+    elif os_type == DARWIN:
+        # example output for dynamically linked binaries:
+        #   /bin/ls: Mach-O 64-bit executable x86_64
+        # example output for shared libraries:
+        #   /usr/lib/libz.dylib: Mach-O 64-bit dynamically linked shared library x86_64
+        bin_lib_regex = re.compile('(Mach-O .* executable)|(dynamically linked)', re.M)
+        if bin_lib_regex.search(file_cmd_out):
+            linked_libs_out, _ = run_cmd("otool -L %s" % path, simple=False, trace=False)
+        else:
+            return None
+    else:
+        raise EasyBuildError("Unknown OS type: %s", os_type)
+
+    found_banned_patterns = []
+    missing_required_patterns = []
+    for regex in required_regexs:
+        if not regex.search(linked_libs_out):
+            missing_required_patterns.append(regex.pattern)
+
+    for regex in banned_regexs:
+        if regex.search(linked_libs_out):
+            found_banned_patterns.append(regex.pattern)
+
+    if missing_required_patterns:
+        patterns = ', '.join("'%s'" % p for p in missing_required_patterns)
+        _log.warning("Required patterns not found in linked libraries output for %s: %s", path, patterns)
+
+    if found_banned_patterns:
+        patterns = ', '.join("'%s'" % p for p in found_banned_patterns)
+        _log.warning("Banned patterns found in linked libraries output for %s: %s", path, patterns)
+
+    return not (found_banned_patterns or missing_required_patterns)
+
+
 def get_system_info():
     """Return a dictionary with system information."""
     python_version = '; '.join(sys.version.split('\n'))
