@@ -1042,10 +1042,15 @@ class SystemToolsTest(EnhancedTestCase):
         """Test locate_solib function (Linux only)."""
         if get_os_type() == LINUX:
             libname = 'libc.so.6'
-            obj = ctypes.cdll.LoadLibrary(libname)
-            libc_path = locate_solib(obj)
-            self.assertEqual(os.path.basename(libc_path), libname)
-            self.assertTrue(os.path.exists(libc_path), "%s should exist" % libname)
+            libc_obj = None
+            try:
+                libc_obj = ctypes.cdll.LoadLibrary(libname)
+            except OSError:
+                pass
+            if libc_obj:
+                libc_path = locate_solib(libc_obj)
+                self.assertEqual(os.path.basename(libc_path), libname)
+                self.assertTrue(os.path.exists(libc_path), "%s should exist" % libname)
 
 
 def suite():
