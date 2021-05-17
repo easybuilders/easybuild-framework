@@ -845,6 +845,34 @@ def check_linked_shared_libs(path, required_patterns=None, banned_patterns=None)
     return not (found_banned_patterns or missing_required_patterns)
 
 
+def locate_solib(libobj):
+    """
+    Return absolute path to loaded library using dlinfo
+    Based on https://stackoverflow.com/a/35683698
+    """
+    # early return if we're not on a Linux system
+    if get_os_type() != LINUX:
+        return None
+
+    class LINKMAP(ctypes.Structure):
+        _fields_ = [
+            ("l_addr", ctypes.c_void_p),
+            ("l_name", ctypes.c_char_p)
+        ]
+
+    libdl = ctypes.cdll.LoadLibrary(ctypes.util.find_library('dl'))
+
+    dlinfo = libdl.dlinfo
+    dlinfo.argtypes = ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p
+    dlinfo.restype = ctypes.c_int
+
+    libpointer = ctypes.c_void_p()
+    dlinfo(libobj._handle, 2, ctypes.byref(libpointer))
+    libpath = ctypes.cast(libpointer, ctypes.POINTER(LINKMAP)).contents.l_name
+
+    return libpath.decode('utf-8')
+
+
 def get_system_info():
     """Return a dictionary with system information."""
     python_version = '; '.join(sys.version.split('\n'))
