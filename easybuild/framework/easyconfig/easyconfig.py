@@ -220,7 +220,7 @@ def toolchain_hierarchy_cache(func):
     return cache_aware_func
 
 
-def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands, incl_capabilities=False):
+def det_subtoolchain_version(current_tc, subtoolchain_names, optional_toolchains, cands, incl_capabilities=False):
     """
     Returns unique version for subtoolchain, in tc dict.
     If there is no unique version:
@@ -229,30 +229,46 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
       optional toolchains or system toolchain without add_system_to_minimal_toolchains.
     * in all other cases, raises an exception.
     """
-    uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
     # init with "skipped"
     subtoolchain_version = None
 
-    # system toolchain: bottom of the hierarchy
-    if is_system_toolchain(subtoolchain_name):
-        add_system_to_minimal_toolchains = build_option('add_system_to_minimal_toolchains')
-        if not add_system_to_minimal_toolchains and build_option('add_dummy_to_minimal_toolchains'):
-            depr_msg = "Use --add-system-to-minimal-toolchains instead of --add-dummy-to-minimal-toolchains"
-            _log.deprecated(depr_msg, '5.0')
-            add_system_to_minimal_toolchains = True
+    # ensure we always have a tuple of alternative subtoolchain names, which makes things easier below
+    if isinstance(subtoolchain_names, string_type):
+        subtoolchain_names = (subtoolchain_names,)
 
-        if add_system_to_minimal_toolchains and not incl_capabilities:
-            subtoolchain_version = ''
-    elif len(uniq_subtc_versions) == 1:
-        subtoolchain_version = list(uniq_subtc_versions)[0]
-    elif len(uniq_subtc_versions) == 0:
-        if subtoolchain_name not in optional_toolchains:
+    system_subtoolchain = False
+
+    for subtoolchain_name in subtoolchain_names:
+
+        uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
+
+        # system toolchain: bottom of the hierarchy
+        if is_system_toolchain(subtoolchain_name):
+            add_system_to_minimal_toolchains = build_option('add_system_to_minimal_toolchains')
+            if not add_system_to_minimal_toolchains and build_option('add_dummy_to_minimal_toolchains'):
+                depr_msg = "Use --add-system-to-minimal-toolchains instead of --add-dummy-to-minimal-toolchains"
+                _log.deprecated(depr_msg, '5.0')
+                add_system_to_minimal_toolchains = True
+
+            system_subtoolchain = True
+
+            if add_system_to_minimal_toolchains and not incl_capabilities:
+                subtoolchain_version = ''
+        elif len(uniq_subtc_versions) == 1:
+            subtoolchain_version = list(uniq_subtc_versions)[0]
+        elif len(uniq_subtc_versions) > 1:
+            raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
+                                 subtoolchain_name, current_tc['name'], ', '.join(sorted(uniq_subtc_versions)))
+
+        if subtoolchain_version is not None:
+            break
+
+    if not system_subtoolchain and subtoolchain_version is None:
+        if not all(n in optional_toolchains for n in subtoolchain_names):
+            subtoolchain_names = ' or '.join(subtoolchain_names)
             # raise error if the subtoolchain considered now is not optional
             raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
-                                 subtoolchain_name, current_tc['name'])
-    else:
-        raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
-                             subtoolchain_name, current_tc['name'], ', '.join(sorted(uniq_subtc_versions)))
+                                 subtoolchain_names, current_tc['name'])
 
     return subtoolchain_version
 
@@ -356,11 +372,16 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
                     cands.append({'name': dep, 'version': current_tc_version})
 
         # only retain candidates that match subtoolchain names
-        cands = [c for c in cands if c['name'] in subtoolchain_names]
+        cands = [c for c in cands if any(c['name'] == x or c['name'] in x for x in subtoolchain_names)]
 
         for subtoolchain_name in subtoolchain_names:
             subtoolchain_version = det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands,
                                                             incl_capabilities=incl_capabilities)
+
+            # narrow down alternative subtoolchain names to a single one, based on the selected version
+            if isinstance(subtoolchain_name, tuple):
+                subtoolchain_name = [cand['name'] for cand in cands if cand['version'] == subtoolchain_version][0]
+
             # add to hierarchy and move to next
             if subtoolchain_version is not None and subtoolchain_name not in visited:
                 tc = {'name': subtoolchain_name, 'version': subtoolchain_version}
