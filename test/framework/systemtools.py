@@ -28,6 +28,7 @@ Unit tests for systemtools.py
 @author: Kenneth hoste (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
+import ctypes
 import re
 import os
 import sys
@@ -50,7 +51,7 @@ from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, g
 from easybuild.tools.systemtools import get_cpu_family, get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
 from easybuild.tools.systemtools import get_gcc_version, get_glibc_version, get_os_type, get_os_name, get_os_version
 from easybuild.tools.systemtools import get_platform_name, get_shared_lib_ext, get_system_info, get_total_memory
-from easybuild.tools.systemtools import pick_dep_version
+from easybuild.tools.systemtools import locate_solib, pick_dep_version
 
 
 PROC_CPUINFO_TXT = None
@@ -1036,6 +1037,15 @@ class SystemToolsTest(EnhancedTestCase):
             for path in (bin_ls_path, lib_path):
                 error_msg = "Check on linked libs should fail for %s with %s" % (path, pattern_named_args)
                 self.assertFalse(check_linked_shared_libs(path, **pattern_named_args), error_msg)
+
+    def test_locate_solib(self):
+        """Test locate_solib function (Linux only)."""
+        if get_os_type() == LINUX:
+            libname = 'libc.so.6'
+            obj = ctypes.cdll.LoadLibrary(libname)
+            libc_path = locate_solib(obj)
+            self.assertEqual(os.path.basename(libc_path), libname)
+            self.assertTrue(os.path.exists(libc_path), "%s should exist" % libname)
 
 
 def suite():
