@@ -1738,7 +1738,8 @@ class EasyConfigTest(EnhancedTestCase):
             'name = TEST',
             '[cray-netcdf-hdf5parallel/1.10.6]',
             'name = HDF5',
-            'version = 1.10.6',
+            # purpose omit version, to see whether fallback of
+            # resolving $CRAY_NETCDF_HDF5PARALLEL_VERSION at runtime is used
         ])
         write_file(metadata, metadatatxt)
         build_options = {
@@ -1758,7 +1759,7 @@ class EasyConfigTest(EnhancedTestCase):
         foobar_metadata = {
             'name': ['foobar'],  # probed from 'foobar' module
             'prefix': 'CRAY_FOOBAR_DIR',  # probed from 'foobar' module
-            'version': ['CRAY_FOOBAR_VERSION'],  # from [foobar/1.2.3] entry in metadata file
+            'version': ['1.2.3'],  # from [foobar/1.2.3] entry in metadata file
         }
         self.assertEqual(deps[3]['external_module_metadata'], foobar_metadata)
 
@@ -1772,7 +1773,7 @@ class EasyConfigTest(EnhancedTestCase):
         pi_metadata = {
             'name': ['PI'],  # from [pi/3.14] entry in metadata file
             'prefix': 'PI_ROOT',  # probed from 'pi/3.14' module
-            'version': ['PI_VERSION'],  # from [pi/3.14] entry in metadata file
+            'version': ['3.14.0'],  # from [pi/3.14] entry in metadata file
         }
         self.assertEqual(deps[5]['external_module_metadata'], pi_metadata)
 
