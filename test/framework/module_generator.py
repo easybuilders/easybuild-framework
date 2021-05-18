@@ -1326,6 +1326,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                   ['Toolchain/CrayCCE/5.1.29'],
                                   ['Toolchain/CrayCCE/5.1.29'],
                                   ['Core']),
+            'cpeGNU-21.04.eb': ('cpeGNU/21.04', 'Core',
+                                ['Toolchain/cpeGNU/21.04'],
+                                ['Toolchain/cpeGNU/21.04'],
+                                ['Core']),
             'HPL-2.1-CrayCCE-5.1.29.eb': ('HPL/2.1', 'Toolchain/CrayCCE/5.1.29', [], [], ['Core']),
         }
         for ecfile, mns_vals in test_ecs.items():
