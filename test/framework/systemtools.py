@@ -1066,6 +1066,7 @@ class SystemToolsTest(EnhancedTestCase):
             self.assertEqual(os.path.basename(lib_path), libname)
             self.assertTrue(os.path.exists(lib_path), "%s should exist" % libname)
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(SystemToolsTest, sys.argv[1:])
