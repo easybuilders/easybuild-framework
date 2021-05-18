@@ -1,5 +1,5 @@
 #
-# Copyright 2011-2020 Ghent University
+# Copyright 2011-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -580,6 +580,8 @@ def logToFile(filename, enable=True, filehandler=None, name=None, max_bytes=MAX_
         'maxBytes': max_bytes,
         'backupCount': backup_count,
     }
+    if sys.version_info[0] >= 3:
+        handleropts['encoding'] = 'utf-8'
     # logging to a file is going to create the file later on, so let's try to be helpful and create the path if needed
     directory = os.path.dirname(filename)
     if not os.path.exists(directory):

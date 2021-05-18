@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -57,15 +57,16 @@ class IntelFFTW(Fftw):
         bitsuff = '_lp64'
         if self.options.get('i8', None):
             bitsuff = '_ilp64'
-        compsuff = '_intel'
-        if get_software_root('icc') is None:
-            if get_software_root('PGI'):
-                compsuff = '_pgi'
-            elif get_software_root('GCC'):
-                compsuff = '_gnu'
-            else:
-                error_msg = "Not using Intel compilers, PGI nor GCC, don't know compiler suffix for FFTW libraries."
-                raise EasyBuildError(error_msg)
+
+        if get_software_root('icc') or get_software_root('intel-compilers'):
+            compsuff = '_intel'
+        elif get_software_root('PGI'):
+            compsuff = '_pgi'
+        elif get_software_root('GCC'):
+            compsuff = '_gnu'
+        else:
+            error_msg = "Not using Intel compilers, PGI nor GCC, don't know compiler suffix for FFTW libraries."
+            raise EasyBuildError(error_msg)
 
         interface_lib = "fftw3xc%s%s" % (compsuff, picsuff)
         fftw_libs = [interface_lib]

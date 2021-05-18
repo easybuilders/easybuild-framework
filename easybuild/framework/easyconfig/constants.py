@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -44,6 +44,7 @@ EXTERNAL_MODULE_MARKER = 'EXTERNAL_MODULE'
 
 # constants that can be used in easyconfig
 EASYCONFIG_CONSTANTS = {
+    'ARCH': (platform.uname()[4], "CPU architecture of current system (aarch64, x86_64, ppc64le, ...)"),
     'EXTERNAL_MODULE': (EXTERNAL_MODULE_MARKER, "External module marker"),
     'HOME': (os.path.expanduser('~'), "Home directory ($HOME)"),
     'OS_TYPE': (get_os_type(), "System type (e.g. 'Linux' or 'Darwin')"),

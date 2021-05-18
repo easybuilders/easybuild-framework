@@ -1,6 +1,6 @@
 #!/bin/bash
 ##
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,10 +33,18 @@
 # @author: Pieter De Baets (Ghent University)
 # @author: Jens Timmerman (Ghent University)
 
+keyboard_interrupt() {
+    echo "Keyboard interrupt!"
+    exit 1
+}
+
+trap keyboard_interrupt SIGINT
+
 # Python 2.6+ or 3.5+ required
 REQ_MIN_PY2VER=6
 REQ_MIN_PY3VER=5
 
+EASYBUILD_MAIN='easybuild.main'
 
 function verbose() {
     if [ ! -z ${EB_VERBOSE} ]; then echo ">> $1"; fi
@@ -52,6 +60,8 @@ for python_cmd in ${EB_PYTHON} ${EB_INSTALLPYTHON} 'python' 'python3' 'python2';
 
     verbose "Considering '$python_cmd'..."
 
+    # check whether python* command being considered is available
+    # (using 'command -v', since 'which' implies an extra dependency)
     command -v $python_cmd &> /dev/null
     if [ $? -eq 0 ]; then
 
@@ -63,10 +73,25 @@ for python_cmd in ${EB_PYTHON} ${EB_INSTALLPYTHON} 'python' 'python3' 'python2';
         if [ $pyver_maj -eq 2 ] && [ $pyver_min -ge $REQ_MIN_PY2VER ]; then
             verbose "'$python_cmd' version: $pyver, which matches Python 2 version requirement (>= 2.$REQ_MIN_PY2VER)"
             PYTHON=$python_cmd
-            break
         elif [ $pyver_maj -eq 3 ] && [ $pyver_min -ge $REQ_MIN_PY3VER ]; then
             verbose "'$python_cmd' version: $pyver, which matches Python 3 version requirement (>= 3.$REQ_MIN_PY3VER)"
             PYTHON=$python_cmd
+        fi
+
+        if [ ! -z $PYTHON ]; then
+            # check whether easybuild.main is available for selected python command
+            $PYTHON -c "import $EASYBUILD_MAIN" 2> /dev/null
+            if [ $? -eq 0 ]; then
+                verbose "'$python_cmd' is able to import '$EASYBUILD_MAIN', so retaining it"
+            else
+                # if easybuild.main is not available, don't use this python command, keep searching...
+                verbose "'$python_cmd' is NOT able to import '$EASYBUILD_MAIN', so NOT retaining it"
+                unset PYTHON
+            fi
+        fi
+
+        # break out of for loop if we've found a valid python command
+        if [ ! -z $PYTHON ]; then
             break
         fi
     else
@@ -97,5 +122,5 @@ fi
 
 export EB_SCRIPT_PATH=$0
 
-verbose "$PYTHON -m easybuild.main `echo \"$@\"`"
-$PYTHON -m easybuild.main "$@"
+verbose "$PYTHON -m $EASYBUILD_MAIN `echo \"$@\"`"
+$PYTHON -m $EASYBUILD_MAIN "$@"

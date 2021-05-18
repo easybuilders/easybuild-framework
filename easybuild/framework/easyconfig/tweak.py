@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -45,7 +45,7 @@ from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
-from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
+from easybuild.framework.easyconfig.default import is_easyconfig_parameter_default_value
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
@@ -324,13 +324,31 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
                     _log.debug("Overwriting %s with %s" % (key, fval))
                 ectxt = regexp.sub("%s = %s" % (res.group('key'), newval), ectxt)
                 _log.info("Tweaked %s list to '%s'" % (key, newval))
-            elif get_easyconfig_parameter_default(key) != val:
+            elif not is_easyconfig_parameter_default_value(key, val):
                 additions.append("%s = %s" % (key, val))
 
             tweaks.pop(key)
 
     # add parameters or replace existing ones
+    special_values = {
+        # if the value is True/False/None then take that
+        'True': True,
+        'False': False,
+        'None': None,
+        # if e.g. (literal) True is wanted, then it can be passed as "True"/'True'
+        "'True'": 'True',
+        '"True"': 'True',
+        "'False'": 'False',
+        '"False"': 'False',
+        "'None'": 'None',
+        '"None"': 'None',
+    }
     for (key, val) in tweaks.items():
+        if isinstance(val, string_type) and val in special_values:
+            str_val = val
+            val = special_values[val]
+        else:
+            str_val = quote_str(val)
 
         regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>.*)$" % key, re.M)
         _log.debug("Regexp pattern for replacing '%s': %s" % (key, regexp.pattern))
@@ -348,10 +366,10 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
                 diff = res.group('val') != val
 
             if diff:
-                ectxt = regexp.sub("%s = %s" % (res.group('key'), quote_str(val)), ectxt)
-                _log.info("Tweaked '%s' to '%s'" % (key, quote_str(val)))
-        elif get_easyconfig_parameter_default(key) != val:
-            additions.append("%s = %s" % (key, quote_str(val)))
+                ectxt = regexp.sub("%s = %s" % (res.group('key'), str_val), ectxt)
+                _log.info("Tweaked '%s' to '%s'" % (key, str_val))
+        elif not is_easyconfig_parameter_default_value(key, val):
+            additions.append("%s = %s" % (key, str_val))
 
     if additions:
         _log.info("Adding additional parameters to tweaked easyconfig file: %s" % additions)

@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -293,10 +293,9 @@ class Mpi(Toolchain):
             # for Intel MPI, try to determine impi version
             # this fails when it's done too early (before modules for toolchain/dependencies are loaded),
             # but it's safe to ignore this
-            try:
-                mpi_version = self.get_software_version(self.MPI_MODULE_NAME)[0]
-            except EasyBuildError as err:
-                self.log.debug("Ignoring error when trying to determine %s version: %s", self.MPI_MODULE_NAME, err)
+            mpi_version = self.get_software_version(self.MPI_MODULE_NAME, required=False)[0]
+            if not mpi_version:
+                self.log.debug("Ignoring error when trying to determine %s version", self.MPI_MODULE_NAME)
                 # impi version is required to determine correct MPI command template,
                 # so we have to return early if we couldn't determine the impi version...
                 return None

@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,6 +40,7 @@ class OpenBLAS(LinAlg):
     """
     BLAS_MODULE_NAME = ['OpenBLAS']
     BLAS_LIB = ['openblas']
+    BLAS_LIB_MT = ['openblas']
     BLAS_FAMILY = TC_CONSTANT_OPENBLAS
 
     LAPACK_MODULE_NAME = ['OpenBLAS']

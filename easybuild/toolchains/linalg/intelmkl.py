@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,6 +28,7 @@ Support for Intel MKL as toolchain linear algebra library.
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
+import os
 from distutils.version import LooseVersion
 
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
@@ -152,13 +153,18 @@ class IntelMKL(LinAlg):
                 raise EasyBuildError("_set_blas_variables: 32-bit libraries not supported yet for IMKL v%s (> v10.3)",
                                      found_version)
             else:
-                self.BLAS_LIB_DIR = ['mkl/lib/intel64']
-                if ver >= LooseVersion('10.3.4') and ver < LooseVersion('11.1'):
-                    self.BLAS_LIB_DIR.append('compiler/lib/intel64')
+                if ver >= LooseVersion('2021'):
+                    basedir = os.path.join('mkl', found_version)
                 else:
-                    self.BLAS_LIB_DIR.append('lib/intel64')
+                    basedir = 'mkl'
 
-            self.BLAS_INCLUDE_DIR = ['mkl/include']
+                self.BLAS_LIB_DIR = [os.path.join(basedir, 'lib', 'intel64')]
+                if ver >= LooseVersion('10.3.4') and ver < LooseVersion('11.1'):
+                    self.BLAS_LIB_DIR.append(os.path.join('compiler', 'lib', 'intel64'))
+                elif ver < LooseVersion('2021'):
+                    self.BLAS_LIB_DIR.append(os.path.join('lib', 'intel64'))
+
+            self.BLAS_INCLUDE_DIR = [os.path.join(basedir, 'include')]
 
         super(IntelMKL, self)._set_blas_variables()
 

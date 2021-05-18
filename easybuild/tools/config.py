@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -79,6 +79,8 @@ CONT_TYPES = [CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
 DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
 DEFAULT_BRANCH = 'develop'
+DEFAULT_ENV_FOR_SHEBANG = '/usr/bin/env'
+DEFAULT_ENVVAR_USERS_MODULES = 'HOME'
 DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
@@ -161,6 +163,7 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 # build options that have a perfectly matching command line option, listed by default value
 BUILD_OPTIONS_CMDLINE = {
     None: [
+        'accept_eula_for',
         'aggregate_regtest',
         'backup_modules',
         'container_config',
@@ -168,15 +171,19 @@ BUILD_OPTIONS_CMDLINE = {
         'container_image_name',
         'container_template_recipe',
         'container_tmpdir',
+        'cuda_cache_dir',
+        'cuda_cache_maxsize',
         'cuda_compute_capabilities',
         'download_timeout',
         'dump_test_report',
         'easyblock',
+        'envvars_user_modules',
         'extra_modules',
         'filter_deps',
         'filter_env_vars',
         'hide_deps',
         'hide_toolchains',
+        'http_header_fields_urlpat',
         'force_download',
         'from_pr',
         'git_working_dirs_path',
@@ -207,8 +214,11 @@ BUILD_OPTIONS_CMDLINE = {
         'pr_descr',
         'pr_target_repo',
         'pr_title',
-        'rpath_filter',
         'regtest_output_dir',
+        'rpath_filter',
+        'rpath_override_dirs',
+        'banned_linked_shared_libs',
+        'required_linked_shared_libs',
         'silence_deprecation_warnings',
         'skip',
         'stop',
@@ -271,6 +281,7 @@ BUILD_OPTIONS_CMDLINE = {
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
         'fixed_installdir_naming_scheme',
+        'lib_lib64_symlink',
         'lib64_fallback_sanity_check',
         'lib64_lib_symlink',
         'mpi_tests',
@@ -289,6 +300,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_BRANCH: [
         'pr_target_branch',
+    ],
+    DEFAULT_ENV_FOR_SHEBANG: [
+        'env_for_shebang',
     ],
     DEFAULT_INDEX_MAX_AGE: [
         'index_max_age',
@@ -495,6 +509,10 @@ def init_build_options(build_options=None, cmdline_options=None):
             _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
 
+        if not cmdline_options.accept_eula_for and cmdline_options.accept_eula:
+            _log.deprecated("Use accept-eula-for configuration setting rather than accept-eula.", '5.0')
+            cmdline_options.accept_eula_for = cmdline_options.accept_eula
+
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]
         active_build_options.update(dict([(key, getattr(cmdline_options, key)) for key in cmdline_build_option_names]))
         # other options which can be derived but have no perfectly matching cmdline option
@@ -528,6 +546,9 @@ def build_option(key, **kwargs):
     build_options = BuildOptions()
     if key in build_options:
         return build_options[key]
+    elif key == 'accept_eula':
+        _log.deprecated("Use accept_eula_for build option rather than accept_eula.", '5.0')
+        return build_options['accept_eula_for']
     elif 'default' in kwargs:
         return kwargs['default']
     else:

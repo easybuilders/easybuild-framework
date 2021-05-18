@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -82,6 +82,8 @@ DEFAULT_CONFIG = {
     'toolchainopts': [None, 'Extra options for compilers', TOOLCHAIN],
 
     # BUILD easyconfig parameters
+    'banned_linked_shared_libs': [[], "List of shared libraries (names, file names, or paths) which are not allowed "
+                                      "to be linked in any installed binary/library", BUILD],
     'bitbucket_account': ['%(namelower)s', "Bitbucket account name to be used to resolve template values in source"
                                            " URLs", BUILD],
     'buildopts': ['', 'Extra options passed to make step (default already has -j X)', BUILD],
@@ -110,8 +112,12 @@ DEFAULT_CONFIG = {
     'preinstallopts': ['', 'Extra prefix options for installation.', BUILD],
     'pretestopts': ['', 'Extra prefix options for test.', BUILD],
     'postinstallcmds': [[], 'Commands to run after the install step.', BUILD],
+    'required_linked_shared_libs': [[], "List of shared libraries (names, file names, or paths) which must be "
+                                        "linked in all installed binaries/libraries", BUILD],
     'runtest': [None, ('Indicates if a test should be run after make; should specify argument '
                        'after make (for e.g.,"test" for make test)'), BUILD],
+    'bin_lib_subdirs': [[], "List of subdirectories for binaries and libraries, which is used during sanity check "
+                            "to check RPATH linking and banned/required libraries", BUILD],
     'sanity_check_commands': [[], ("format: [(name, options)] e.g. [('gzip','-h')]. "
                                    "Using a non-tuple is equivalent to (name, '-h')"), BUILD],
     'sanity_check_paths': [{}, ("List of files and directories to check "
@@ -158,6 +164,7 @@ DEFAULT_CONFIG = {
     'moddependpaths': [None, "Absolute path(s) to prepend to MODULEPATH before loading dependencies", DEPENDENCIES],
 
     # LICENSE easyconfig parameters
+    'accept_eula': [False, "Accepted End User License Agreement (EULA) for this software", LICENSE],
     'group': [None, "Name of the user group for which the software should be available; "
                     "format: string or 2-tuple with group name + custom error for users outside group", LICENSE],
     'key': [None, 'Key for installing software', LICENSE],
@@ -193,6 +200,7 @@ DEFAULT_CONFIG = {
 
     # MODULES documentation easyconfig parameters
     #    (docurls is part of MANDATORY)
+    'citing': [None, "Free-form text that describes how the software should be cited in publications", MODULES],
     'docpaths': [None, "List of paths for documentation relative to installation directory", MODULES],
     'examples': [None, "Free-form text with examples on using the software", MODULES],
     'site_contacts': [None, "String/list of strings with site contacts for the software", MODULES],
@@ -228,3 +236,8 @@ def get_easyconfig_parameter_default(param):
     else:
         _log.debug("Returning default value for easyconfig parameter %s: %s" % (param, DEFAULT_CONFIG[param][0]))
         return DEFAULT_CONFIG[param][0]
+
+
+def is_easyconfig_parameter_default_value(param, value):
+    """Return True if the parameters is one of the default ones and the value equals its default value"""
+    return param in DEFAULT_CONFIG and get_easyconfig_parameter_default(param) == value

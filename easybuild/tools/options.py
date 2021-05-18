@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -60,7 +60,8 @@ from easybuild.tools import build_log, run  # build_log should always stay there
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
 from easybuild.tools.build_log import init_logging, log_start, print_msg, print_warning, raise_easybuilderror
 from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE, DEFAULT_ALLOW_LOADED_MODULES
-from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE
+from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_ENV_FOR_SHEBANG, DEFAULT_ENVVAR_USERS_MODULES
+from easybuild.tools.config import DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
 from easybuild.tools.config import DEFAULT_MINIMAL_BUILD_ENV, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL
@@ -333,6 +334,9 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
+            'accept-eula': ("Accept EULA for specified software [DEPRECATED, use --accept-eula-for instead!]",
+                            'strlist', 'store', []),
+            'accept-eula-for': ("Accept EULA for specified software", 'strlist', 'store', []),
             'add-dummy-to-minimal-toolchains': ("Include dummy toolchain in minimal toolchain searches "
                                                 "[DEPRECATED, use --add-system-to-minimal-toolchains instead!)",
                                                 None, 'store_true', False),
@@ -346,6 +350,9 @@ class EasyBuildOptions(GeneralOption):
                                                           None, 'store_true', False),
             'backup-modules': ("Back up an existing module file, if any. Only works when using --module-only",
                                None, 'store_true', None),  # default None to allow auto-enabling if not disabled
+            'banned-linked-shared-libs': ("Comma-separated list of shared libraries (names, file names, or paths) "
+                                          "which are not allowed to be linked in any installed binary/library",
+                                          'strlist', 'extend', None),
             'check-ebroot-env-vars': ("Action to take when defined $EBROOT* environment variables are found "
                                       "for which there is no matching loaded module; "
                                       "supported values: %s" % ', '.join(EBROOT_ENV_VAR_ACTIONS), None, 'store', WARN),
@@ -356,6 +363,11 @@ class EasyBuildOptions(GeneralOption):
             'consider-archived-easyconfigs': ("Also consider archived easyconfigs", None, 'store_true', False),
             'containerize': ("Generate container recipe/image", None, 'store_true', False, 'C'),
             'copy-ec': ("Copy specified easyconfig(s) to specified location", None, 'store_true', False),
+            'cuda-cache-dir': ("Path to CUDA cache dir to use if enabled. Defaults to a path inside the build dir.",
+                               str, 'store', None, {'metavar': "PATH"}),
+            'cuda-cache-maxsize': ("Maximum size of the CUDA cache (in MiB) used for JIT compilation of PTX code. "
+                                   "Leave value empty to let EasyBuild choose a value or '0' to disable the cache",
+                                   int, 'store_or_None', None),
             'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software; "
                                           "values should be specified as digits separated by a dot, "
                                           "for example: 3.5,5.0,7.2", 'strlist', 'extend', None),
@@ -373,6 +385,8 @@ class EasyBuildOptions(GeneralOption):
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'enforce-checksums': ("Enforce availability of checksums for all sources/patches, so they can be verified",
                                   None, 'store_true', False),
+            'env-for-shebang': ("Define the env command to use when fixing shebangs", None, 'store',
+                                DEFAULT_ENV_FOR_SHEBANG),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
@@ -398,9 +412,16 @@ class EasyBuildOptions(GeneralOption):
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
             'hide-toolchains': ("Comma separated list of toolchains that you want automatically hidden, "
                                 "(e.g. --hide-toolchains=GCCcore)", 'strlist', 'extend', None),
+            'http-header-fields-urlpat': ("Set extra HTTP header FIELDs when downloading files from URL PATterns. "
+                                          "To not log sensitive values, specify a file containing newline separated "
+                                          "FIELDs. e.g. \"^https://www.example.com::/path/to/headers.txt\" or "
+                                          "\"client[A-z0-9]*.example.com': ['Authorization: Basic token']\".",
+                                          None, 'append', None, {'metavar': '[URLPAT::][HEADER:]FILE|FIELD'}),
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
+            'lib-lib64-symlink': ("Automatically create symlinks for lib/ pointing to lib64/ if the former is missing",
+                                  None, 'store_true', True),
             'lib64-fallback-sanity-check': ("Fallback in sanity check to lib64/ equivalent for missing libraries",
                                             None, 'store_true', True),
             'lib64-lib-symlink': ("Automatically create symlinks for lib64/ pointing to lib/ if the former is missing",
@@ -432,8 +453,13 @@ class EasyBuildOptions(GeneralOption):
             'remove-ghost-install-dirs': ("Remove ghost installation directories when --force or --rebuild is used, "
                                           "rather than just warning about them",
                                           None, 'store_true', False),
+            'required-linked-shared-libs': ("Comma-separated list of shared libraries (names, file names, or paths) "
+                                            "which must be linked in all installed binaries/libraries",
+                                            'strlist', 'extend', None),
             'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', False),
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
+            'rpath-override-dirs': ("Path(s) to be prepended when linking with RPATH (string, colon-separated)",
+                                    None, 'store', None),
             'set-default-module': ("Set the generated module as default", None, 'store_true', False),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
             'silence-deprecation-warnings': ("Silence specified deprecation warnings", 'strlist', 'extend', None),
@@ -488,6 +514,9 @@ class EasyBuildOptions(GeneralOption):
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'containerpath': ("Location where container recipe & image will be stored", None, 'store',
                               mk_full_default_path('containerpath')),
+            'envvars-user-modules': ("List of environment variables that hold the base paths for which user-specific "
+                                     "modules will be installed relative to", 'strlist', 'store',
+                                     [DEFAULT_ENVVAR_USERS_MODULES]),
             'external-modules-metadata': ("List of (glob patterns for) paths to files specifying metadata "
                                           "for external modules (INI format)", 'strlist', 'store', None),
             'hooks': ("Location of Python module with hook implementations", 'str', 'store', None),
@@ -546,7 +575,8 @@ class EasyBuildOptions(GeneralOption):
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
             'subdir-software': ("Installpath subdir for software",
                                 None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
-            'subdir-user-modules': ("Base path of user-specific modules relative to their $HOME", None, 'store', None),
+            'subdir-user-modules': ("Base path of user-specific modules relative to --envvars-user-modules",
+                                    None, 'store', None),
             'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
             # this one is sort of an exception, it's something jobscripts can set,
             # has no real meaning for regular eb usage
@@ -618,6 +648,7 @@ class EasyBuildOptions(GeneralOption):
         descr = ("GitHub integration options", "Integration with GitHub")
 
         opts = OrderedDict({
+            'add-pr-labels': ("Try to add labels to PR based on files changed", int, 'store', None, {'metavar': 'PR#'}),
             'check-github': ("Check status of GitHub integration, and report back", None, 'store_true', False),
             'check-contrib': ("Runs checks to see whether the given easyconfigs are ready to be contributed back",
                               None, 'store_true', False),

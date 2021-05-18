@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -66,6 +66,7 @@ from easybuild.tools import config, run
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
+from easybuild.tools.config import DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
@@ -91,11 +92,15 @@ from easybuild.tools.modules import get_software_root_env_var_name, get_software
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.systemtools import det_parallelism, use_group
+from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_shared_lib_ext, use_group
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
+
+EASYBUILD_SOURCES_URL = 'https://sources.easybuild.io'
+
+DEFAULT_BIN_LIB_SUBDIRS = ('bin', 'lib', 'lib64')
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANITYCHECK_STEP]
 
@@ -756,7 +761,8 @@ class EasyBlock(object):
 
                     break  # no need to try other source paths
 
-            targetdir = os.path.join(srcpaths[0], self.name.lower()[0], self.name)
+            name_letter = self.name.lower()[0]
+            targetdir = os.path.join(srcpaths[0], name_letter, self.name)
 
             if foundfile:
                 if self.dry_run:
@@ -771,6 +777,9 @@ class EasyBlock(object):
                 else:
                     source_urls = []
                 source_urls.extend(self.cfg['source_urls'])
+
+                # add https://sources.easybuild.io as fallback source URL
+                source_urls.append(EASYBUILD_SOURCES_URL + '/' + os.path.join(name_letter, self.name))
 
                 mkdir(targetdir, parents=True)
 
@@ -1026,6 +1035,27 @@ class EasyBlock(object):
             # if not, create dir as usual
 
         mkdir(dir_name, parents=True)
+
+    def set_up_cuda_cache(self):
+        """Set up CUDA PTX cache."""
+
+        cuda_cache_maxsize = build_option('cuda_cache_maxsize')
+        if cuda_cache_maxsize is None:
+            cuda_cache_maxsize = 1 * 1024  # 1 GiB default value
+        else:
+            cuda_cache_maxsize = int(cuda_cache_maxsize)
+
+        if cuda_cache_maxsize == 0:
+            self.log.info("Disabling CUDA PTX cache since cache size was set to zero")
+            env.setvar('CUDA_CACHE_DISABLE', '1')
+        else:
+            cuda_cache_dir = build_option('cuda_cache_dir')
+            if not cuda_cache_dir:
+                cuda_cache_dir = os.path.join(self.builddir, 'eb-cuda-cache')
+            self.log.info("Enabling CUDA PTX cache of size %s MiB at %s", cuda_cache_maxsize, cuda_cache_dir)
+            env.setvar('CUDA_CACHE_DISABLE', '0')
+            env.setvar('CUDA_CACHE_PATH', cuda_cache_dir)
+            env.setvar('CUDA_CACHE_MAXSIZE', str(cuda_cache_maxsize * 1024 * 1024))
 
     #
     # MODULE UTILITY FUNCTIONS
@@ -1345,10 +1375,16 @@ class EasyBlock(object):
             # add user-specific module path; use statement will be guarded so no need to create the directories
             user_modpath = build_option('subdir_user_modules')
             if user_modpath:
+                user_envvars = build_option('envvars_user_modules') or [DEFAULT_ENVVAR_USERS_MODULES]
                 user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg)
                 self.log.debug("Including user module path extensions returned by naming scheme: %s", user_modpath_exts)
-                txt += self.module_generator.use(user_modpath_exts, prefix=self.module_generator.getenv_cmd('HOME'),
-                                                 guarded=True, user_modpath=user_modpath)
+                for user_envvar in user_envvars:
+                    self.log.debug("Requested environment variable $%s to host additional branch for modules",
+                                   user_envvar)
+                    default_value = user_envvar + "_NOT_DEFINED"
+                    getenv_txt = self.module_generator.getenv_cmd(user_envvar, default=default_value)
+                    txt += self.module_generator.use(user_modpath_exts, prefix=getenv_txt,
+                                                     guarded=True, user_modpath=user_modpath)
         else:
             self.log.debug("Not including module path extensions, as specified.")
         return txt
@@ -1636,6 +1672,31 @@ class EasyBlock(object):
         change_dir(self.start_dir)
         self.log.debug("Changed to real build directory %s (start_dir)", self.start_dir)
 
+    def check_accepted_eula(self, name=None, more_info=None):
+        """Check whether EULA for this software is accepted in current EasyBuild configuration."""
+
+        if name is None:
+            name = self.name
+
+        accepted_eulas = build_option('accept_eula_for') or []
+        if self.cfg['accept_eula'] or name in accepted_eulas or any(re.match(x, name) for x in accepted_eulas):
+            self.log.info("EULA for %s is accepted", name)
+        else:
+            error_lines = [
+                "The End User License Argreement (EULA) for %(name)s is currently not accepted!",
+            ]
+            if more_info:
+                error_lines.append("(see %s for more information)" % more_info)
+
+            error_lines.extend([
+                "You should either:",
+                "- add --accept-eula-for=%(name)s to the 'eb' command;",
+                "- update your EasyBuild configuration to always accept the EULA for %(name)s;",
+                "- add 'accept_eula = True' to the easyconfig file you are using;",
+                '',
+            ])
+            raise EasyBuildError('\n'.join(error_lines) % {'name': name})
+
     def handle_iterate_opts(self):
         """Handle options relevant during iterated part of build/install procedure."""
 
@@ -1645,59 +1706,50 @@ class EasyBlock(object):
             self.iter_idx += 1
 
         # disable templating in this function, since we're messing about with values in self.cfg
-        prev_enable_templating = self.cfg.enable_templating
-        self.cfg.enable_templating = False
+        with self.cfg.disable_templating():
 
-        # start iterative mode (only need to do this once)
-        if self.iter_idx == 0:
-            self.cfg.start_iterating()
+            # start iterative mode (only need to do this once)
+            if self.iter_idx == 0:
+                self.cfg.start_iterating()
 
-        # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
-        # set first element to be used, keep track of list in self.iter_opts
-        # only needs to be done during first iteration, since after that the options won't be lists anymore
-        if self.iter_idx == 0:
-            # keep track of list, supply first element as first option to handle
-            for opt in self.cfg.iterate_options:
-                self.iter_opts[opt] = self.cfg[opt]  # copy
-                self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
+            # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
+            # set first element to be used, keep track of list in self.iter_opts
+            # only needs to be done during first iteration, since after that the options won't be lists anymore
+            if self.iter_idx == 0:
+                # keep track of list, supply first element as first option to handle
+                for opt in self.cfg.iterate_options:
+                    self.iter_opts[opt] = self.cfg[opt]  # copy
+                    self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
 
-        if self.iter_opts:
-            print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
-            self.log.info("Current iteration index: %s", self.iter_idx)
+            if self.iter_opts:
+                print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
+                self.log.info("Current iteration index: %s", self.iter_idx)
 
-        # pop first element from all iterative easyconfig parameters as next value to use
-        for opt in self.iter_opts:
-            if len(self.iter_opts[opt]) > self.iter_idx:
-                self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
-            else:
-                self.cfg[opt] = ''  # empty list => empty option as next value
-            self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
+            # pop first element from all iterative easyconfig parameters as next value to use
+            for opt in self.iter_opts:
+                if len(self.iter_opts[opt]) > self.iter_idx:
+                    self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
+                else:
+                    self.cfg[opt] = ''  # empty list => empty option as next value
+                self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
 
-        # re-generate template values, which may be affected by changed parameters we're iterating over
-        self.cfg.generate_template_values()
-
-        # re-enable templating before self.cfg values are used
-        self.cfg.enable_templating = prev_enable_templating
+            # re-generate template values, which may be affected by changed parameters we're iterating over
+            self.cfg.generate_template_values()
 
     def post_iter_step(self):
         """Restore options that were iterated over"""
         # disable templating, since we're messing about with values in self.cfg
-        prev_enable_templating = self.cfg.enable_templating
-        self.cfg.enable_templating = False
+        with self.cfg.disable_templating():
+            for opt in self.iter_opts:
+                self.cfg[opt] = self.iter_opts[opt]
 
-        for opt in self.iter_opts:
-            self.cfg[opt] = self.iter_opts[opt]
+                # also need to take into account extensions, since those were iterated over as well
+                for ext in self.ext_instances:
+                    ext.cfg[opt] = self.iter_opts[opt]
 
-            # also need to take into account extensions, since those were iterated over as well
-            for ext in self.ext_instances:
-                ext.cfg[opt] = self.iter_opts[opt]
+                self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
 
-            self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
-
-        self.cfg.stop_iterating()
-
-        # re-enable templating before self.cfg values are used
-        self.cfg.enable_templating = prev_enable_templating
+            self.cfg.stop_iterating()
 
     def det_iter_cnt(self):
         """Determine iteration count based on configure/build/install options that may be lists."""
@@ -2074,16 +2126,38 @@ class EasyBlock(object):
         if not self.build_in_installdir:
             self.rpath_filter_dirs.append(self.builddir)
 
+        self.rpath_include_dirs = []
+
+        # If we have override directories for RPATH, insert them first.
+        # This means they override all other options (including the installation itself).
+        if build_option('rpath_override_dirs') is not None:
+            # make sure we have a list
+            rpath_overrides = build_option('rpath_override_dirs')
+            if isinstance(rpath_overrides, string_type):
+                rpath_override_dirs = rpath_overrides.split(':')
+                # Filter out any empty values
+                rpath_override_dirs = list(filter(None, rpath_override_dirs))
+                _log.debug("Converted RPATH override directories ('%s') to a list of paths: %s" % (rpath_overrides,
+                                                                                                   rpath_override_dirs))
+                for path in rpath_override_dirs:
+                    if not os.path.isabs(path):
+                        raise EasyBuildError(
+                            "Path used in rpath_override_dirs is not an absolute path: %s", path)
+            else:
+                raise EasyBuildError("Value for rpath_override_dirs has invalid type (%s), should be string: %s",
+                                     type(rpath_overrides), rpath_overrides)
+            self.rpath_include_dirs.extend(rpath_override_dirs)
+
         # always include '<installdir>/lib', '<installdir>/lib64', $ORIGIN, $ORIGIN/../lib and $ORIGIN/../lib64
         # $ORIGIN will be resolved by the loader to be the full path to the executable or shared object
         # see also https://linux.die.net/man/8/ld-linux;
-        self.rpath_include_dirs = [
+        self.rpath_include_dirs.extend([
             os.path.join(self.installdir, 'lib'),
             os.path.join(self.installdir, 'lib64'),
             '$ORIGIN',
             '$ORIGIN/../lib',
             '$ORIGIN/../lib64',
-        ]
+        ])
 
         if self.iter_idx > 0:
             # reset toolchain for iterative runs before preparing it again
@@ -2124,6 +2198,10 @@ class EasyBlock(object):
         if extra_modules:
             self.log.info("Loading extra modules: %s", extra_modules)
             self.modules_tool.load(extra_modules)
+
+        # Setup CUDA cache if required. If we don't do this, CUDA will use the $HOME for its cache files
+        if get_software_root('CUDA') or get_software_root('CUDAcore'):
+            self.set_up_cuda_cache()
 
         # guess directory to start configure/build/install process in, and move there
         if start_dir:
@@ -2206,49 +2284,51 @@ class EasyBlock(object):
         # get class instances for all extensions
         self.ext_instances = []
         for ext in self.exts:
-            self.log.debug("Creating class instance for extension %s...", ext['name'])
+            ext_name = ext['name']
+            self.log.debug("Creating class instance for extension %s...", ext_name)
 
             cls, inst = None, None
-            class_name = encode_class_name(ext['name'])
+            class_name = encode_class_name(ext_name)
             mod_path = get_module_path(class_name, generic=False)
 
             # try instantiating extension-specific class
             try:
                 # no error when importing class fails, in case we run into an existing easyblock
                 # with a similar name (e.g., Perl Extension 'GO' vs 'Go' for which 'EB_Go' is available)
-                cls = get_easyblock_class(None, name=ext['name'], error_on_failed_import=False,
+                cls = get_easyblock_class(None, name=ext_name, error_on_failed_import=False,
                                           error_on_missing_easyblock=False)
-                self.log.debug("Obtained class %s for extension %s", cls, ext['name'])
+                self.log.debug("Obtained class %s for extension %s", cls, ext_name)
                 if cls is not None:
                     inst = cls(self, ext)
             except (ImportError, NameError) as err:
-                self.log.debug("Failed to use extension-specific class for extension %s: %s", ext['name'], err)
+                self.log.debug("Failed to use extension-specific class for extension %s: %s", ext_name, err)
 
             # alternative attempt: use class specified in class map (if any)
-            if inst is None and ext['name'] in exts_classmap:
-
-                class_name = exts_classmap[ext['name']]
+            if inst is None and ext_name in exts_classmap:
+                class_name = exts_classmap[ext_name]
                 mod_path = get_module_path(class_name)
                 try:
                     cls = get_class_for(mod_path, class_name)
+                    self.log.debug("Obtained class %s for extension %s from exts_classmap", cls, ext_name)
                     inst = cls(self, ext)
-                except (ImportError, NameError) as err:
-                    raise EasyBuildError("Failed to load specified class %s for extension %s: %s",
-                                         class_name, ext['name'], err)
+                except Exception as err:
+                    raise EasyBuildError("Failed to load specified class %s (from %s) specified via exts_classmap "
+                                         "for extension %s: %s",
+                                         class_name, mod_path, ext_name, err)
 
             # fallback attempt: use default class
             if inst is None:
                 try:
                     cls = get_class_for(default_class_modpath, default_class)
-                    self.log.debug("Obtained class %s for installing extension %s", cls, ext['name'])
+                    self.log.debug("Obtained class %s for installing extension %s", cls, ext_name)
                     inst = cls(self, ext)
                     self.log.debug("Installing extension %s with default class %s (from %s)",
-                                   ext['name'], default_class, default_class_modpath)
+                                   ext_name, default_class, default_class_modpath)
                 except (ImportError, NameError) as err:
                     raise EasyBuildError("Also failed to use default class %s from %s for extension %s: %s, giving up",
-                                         default_class, default_class_modpath, ext['name'], err)
+                                         default_class, default_class_modpath, ext_name, err)
             else:
-                self.log.debug("Installing extension %s with class %s (from %s)", ext['name'], class_name, mod_path)
+                self.log.debug("Installing extension %s with class %s (from %s)", ext_name, class_name, mod_path)
 
             self.ext_instances.append(inst)
 
@@ -2329,7 +2409,7 @@ class EasyBlock(object):
                 if isinstance(fix_shebang_for, string_type):
                     fix_shebang_for = [fix_shebang_for]
 
-                shebang = '#!/usr/bin/env %s' % lang
+                shebang = '#!%s %s' % (build_option('env_for_shebang'), lang)
                 for glob_pattern in fix_shebang_for:
                     paths = glob.glob(os.path.join(self.installdir, glob_pattern))
                     self.log.info("Fixing '%s' shebang to '%s' for files that match '%s': %s",
@@ -2372,15 +2452,26 @@ class EasyBlock(object):
                 run_cmd(cmd, simple=True, log_ok=True, log_all=True)
 
         self.fix_shebang()
+
+        lib_dir = os.path.join(self.installdir, 'lib')
+        lib64_dir = os.path.join(self.installdir, 'lib64')
+
         # GCC linker searches system /lib64 path before the $LIBRARY_PATH paths.
         # However for each <dir> in $LIBRARY_PATH (where <dir> is often <prefix>/lib) it searches <dir>/../lib64 first.
         # So we create <prefix>/lib64 as a symlink to <prefix>/lib to make it prefer EB installed libraries.
         # See https://github.com/easybuilders/easybuild-easyconfigs/issues/5776
         if build_option('lib64_lib_symlink'):
-            lib_dir = os.path.join(self.installdir, 'lib')
-            lib64_dir = os.path.join(self.installdir, 'lib64')
             if os.path.exists(lib_dir) and not os.path.exists(lib64_dir):
-                symlink(lib_dir, lib64_dir)
+                # create *relative* 'lib64' symlink to 'lib';
+                # see https://github.com/easybuilders/easybuild-framework/issues/3564
+                symlink('lib', lib64_dir, use_abspath_source=False)
+
+        # symlink lib to lib64, which is helpful on OpenSUSE;
+        # see https://github.com/easybuilders/easybuild-framework/issues/3549
+        if build_option('lib_lib64_symlink'):
+            if os.path.exists(lib64_dir) and not os.path.exists(lib_dir):
+                # create *relative* 'lib' symlink to 'lib64';
+                symlink('lib64', lib_dir, use_abspath_source=False)
 
     def sanity_check_step(self, *args, **kwargs):
         """
@@ -2437,6 +2528,8 @@ class EasyBlock(object):
     def sanity_check_rpath(self, rpath_dirs=None):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
 
+        self.log.info("Checking RPATH linkage for binaries/libraries...")
+
         fails = []
 
         # hard reset $LD_LIBRARY_PATH before running RPATH sanity check
@@ -2449,10 +2542,15 @@ class EasyBlock(object):
         readelf_rpath_regex = re.compile('(RPATH)', re.M)
 
         if rpath_dirs is None:
-            rpath_dirs = ['bin', 'lib', 'lib64']
-            self.log.info("Using default subdirs for binaries/libraries to verify RPATH linking: %s", rpath_dirs)
+            rpath_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
+
+        if not rpath_dirs:
+            rpath_dirs = DEFAULT_BIN_LIB_SUBDIRS
+            self.log.info("Using default subdirectories for binaries/libraries to verify RPATH linking: %s",
+                          rpath_dirs)
         else:
-            self.log.info("Using specified subdirs for binaries/libraries to verify RPATH linking: %s", rpath_dirs)
+            self.log.info("Using specified subdirectories for binaries/libraries to verify RPATH linking: %s",
+                          rpath_dirs)
 
         for dirpath in [os.path.join(self.installdir, d) for d in rpath_dirs]:
             if os.path.exists(dirpath):
@@ -2463,7 +2561,9 @@ class EasyBlock(object):
 
                     out, ec = run_cmd("file %s" % path, simple=False, trace=False)
                     if ec:
-                        fails.append("Failed to run 'file %s': %s" % (path, out))
+                        fail_msg = "Failed to run 'file %s': %s" % (path, out)
+                        self.log.warning(fail_msg)
+                        fails.append(fail_msg)
 
                     # only run ldd/readelf on dynamically linked executables/libraries
                     # example output:
@@ -2504,6 +2604,129 @@ class EasyBlock(object):
         env.restore_env_vars(orig_env)
 
         return fails
+
+    def bin_lib_subdirs(self):
+        """
+        List of subdirectories for binaries and libraries for this software installation.
+        This is used during the sanity check to check RPATH linking and banned/required linked shared libraries.
+        """
+        return None
+
+    def banned_linked_shared_libs(self):
+        """
+        List of shared libraries which are not allowed to be linked in any installed binary/library.
+        Supported values are pure library names without 'lib' prefix or extension ('example'),
+        file names ('libexample.so'), and full paths ('/usr/lib64/libexample.so').
+        """
+        return []
+
+    def required_linked_shared_libs(self):
+        """
+        List of shared libraries which must be linked in all installed binaries/libraries.
+        Supported values are pure library names without 'lib' prefix or extension ('example'),
+        file names ('libexample.so'), and full paths ('/usr/lib64/libexample.so').
+        """
+        return []
+
+    def sanity_check_linked_shared_libs(self, subdirs=None):
+        """
+        Check whether specific shared libraries are (not) linked into installed binaries/libraries.
+        """
+        self.log.info("Checking for banned/required linked shared libraries...")
+
+        # list of libraries that can *not* be linked in any installed binary/library
+        banned_libs = build_option('banned_linked_shared_libs') or []
+        banned_libs.extend(self.toolchain.banned_linked_shared_libs())
+        banned_libs.extend(self.banned_linked_shared_libs())
+        banned_libs.extend(self.cfg['banned_linked_shared_libs'])
+
+        # list of libraries that *must* be linked in every installed binary/library
+        required_libs = build_option('required_linked_shared_libs') or []
+        required_libs.extend(self.toolchain.required_linked_shared_libs())
+        required_libs.extend(self.required_linked_shared_libs())
+        required_libs.extend(self.cfg['required_linked_shared_libs'])
+
+        # early return if there are no banned/required libraries
+        if not (banned_libs + required_libs):
+            self.log.info("No banned/required libraries specified")
+            return []
+        else:
+            if banned_libs:
+                self.log.info("Banned libraries to check for: %s", ', '.join(banned_libs))
+            if required_libs:
+                self.log.info("Required libraries to check for: %s", ', '.join(banned_libs))
+
+        shlib_ext = get_shared_lib_ext()
+
+        # compose regular expressions for banned/required libraries
+        def regex_for_lib(lib):
+            """Compose regular expression for specified banned/required library."""
+            # absolute path to library ('/usr/lib64/libexample.so')
+            if os.path.isabs(lib):
+                regex = re.compile(re.escape(lib))
+            # full filename for library ('libexample.so')
+            elif lib.startswith('lib'):
+                regex = re.compile(r'(/|\s)' + re.escape(lib))
+            # pure library name, without 'lib' prefix or extension ('example')
+            else:
+                regex = re.compile(r'(/|\s)lib%s\.%s' % (lib, shlib_ext))
+
+            return regex
+
+        banned_lib_regexs = [regex_for_lib(x) for x in banned_libs]
+        if banned_lib_regexs:
+            self.log.debug("Regular expressions to check for banned libraries: %s",
+                           '\n'.join("'%s'" % regex.pattern for regex in banned_lib_regexs))
+
+        required_lib_regexs = [regex_for_lib(x) for x in required_libs]
+        if required_lib_regexs:
+            self.log.debug("Regular expressions to check for required libraries: %s",
+                           '\n'.join("'%s'" % regex.pattern for regex in required_lib_regexs))
+
+        if subdirs is None:
+            subdirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
+
+        if subdirs:
+            self.log.info("Using specified subdirectories to check for banned/required linked shared libraries: %s",
+                          subdirs)
+        else:
+            subdirs = DEFAULT_BIN_LIB_SUBDIRS
+            self.log.info("Using default subdirectories to check for banned/required linked shared libraries: %s",
+                          subdirs)
+
+        # filter to existing directories that are unique (after resolving symlinks)
+        dirpaths = []
+        for subdir in subdirs:
+            dirpath = os.path.join(self.installdir, subdir)
+            if os.path.exists(dirpath) and os.path.isdir(dirpath):
+                dirpath = os.path.realpath(dirpath)
+                if dirpath not in dirpaths:
+                    dirpaths.append(dirpath)
+
+        failed_paths = []
+
+        for dirpath in dirpaths:
+            if os.path.exists(dirpath):
+                self.log.debug("Checking banned/required linked shared libraries in %s", dirpath)
+
+                for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
+                    self.log.debug("Checking banned/required linked shared libraries for %s", path)
+
+                    libs_check = check_linked_shared_libs(path, banned_patterns=banned_lib_regexs,
+                                                          required_patterns=required_lib_regexs)
+
+                    # None indicates the path is not a dynamically linked binary or shared library, so ignore it
+                    if libs_check is not None:
+                        if libs_check:
+                            self.log.debug("Check for banned/required linked shared libraries passed for %s", path)
+                        else:
+                            failed_paths.append(path)
+
+        fail_msg = None
+        if failed_paths:
+            fail_msg = "Check for banned/required shared libraries failed for %s" % ', '.join(failed_paths)
+
+        return fail_msg
 
     def _sanity_check_step_common(self, custom_paths, custom_commands):
         """
@@ -2644,6 +2867,8 @@ class EasyBlock(object):
         else:
             self.dry_run_msg("  (none)")
 
+        self.sanity_check_linked_shared_libs()
+
         if self.toolchain.use_rpath:
             self.sanity_check_rpath()
         else:
@@ -2778,6 +3003,11 @@ class EasyBlock(object):
         # also run sanity check for extensions (unless we are an extension ourselves)
         if not extension:
             self._sanity_check_step_extensions()
+
+        linked_shared_lib_fails = self.sanity_check_linked_shared_libs()
+        if linked_shared_lib_fails:
+            self.log.warning("Check for required/banned linked shared libraries failed!")
+            self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
 
         # cleanup
         if fake_mod_data:
@@ -2918,7 +3148,13 @@ class EasyBlock(object):
             self.module_generator.create_symlinks(mod_symlink_paths, fake=fake)
 
             if ActiveMNS().mns.det_make_devel_module() and not fake and build_option('generate_devel_module'):
-                self.make_devel_module()
+                try:
+                    self.make_devel_module()
+                except EasyBuildError as error:
+                    if build_option('module_only'):
+                        self.log.info("Using --module-only so can recover from error: %s", error)
+                    else:
+                        raise error
             else:
                 self.log.info("Skipping devel module...")
 
@@ -3019,10 +3255,10 @@ class EasyBlock(object):
             self.cfg.template_values[name[0]] = str(getattr(self, name[0], None))
         self.cfg.generate_template_values()
 
-    def _skip_step(self, step, skippable):
+    def skip_step(self, step, skippable):
         """Dedice whether or not to skip the specified step."""
         module_only = build_option('module_only')
-        force = build_option('force') or build_option('rebuild')
+        force = build_option('force')
         skip = False
 
         # under --skip, sanity check is not skipped
@@ -3218,7 +3454,7 @@ class EasyBlock(object):
 
         try:
             for (step_name, descr, step_methods, skippable) in steps:
-                if self._skip_step(step_name, skippable):
+                if self.skip_step(step_name, skippable):
                     print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
                     if self.dry_run:
@@ -3327,6 +3563,11 @@ def build_and_install_one(ecdict, init_env):
             reprod_dir_root = os.path.dirname(app.logfile)
             reprod_dir = reproduce_build(app, reprod_dir_root)
 
+            if os.path.exists(app.installdir) and build_option('read_only_installdir') and (
+                    build_option('rebuild') or build_option('force')):
+                # re-enable write permissions so we can install additional modules
+                adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=True)
+
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
         if not dry_run:
@@ -3361,7 +3602,7 @@ def build_and_install_one(ecdict, init_env):
             if build_option('read_only_installdir'):
                 # temporarily re-enable write permissions for copying log/easyconfig to install dir
                 if os.path.exists(new_log_dir):
-                    adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=False)
+                    adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=True)
                 else:
                     adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=False)
                     mkdir(new_log_dir, parents=True)
@@ -3373,14 +3614,20 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
-            # move the reproducability files to the final log directory
-            archive_reprod_dir = os.path.join(new_log_dir, REPROD)
-            if os.path.exists(archive_reprod_dir):
-                backup_dir = find_backup_name_candidate(archive_reprod_dir)
-                move_file(archive_reprod_dir, backup_dir)
-                _log.info("Existing reproducability directory %s backed up to %s", archive_reprod_dir, backup_dir)
-            move_file(reprod_dir, archive_reprod_dir)
-            _log.info("Wrote files for reproducability to %s", archive_reprod_dir)
+            try:
+                # move the reproducability files to the final log directory
+                archive_reprod_dir = os.path.join(new_log_dir, REPROD)
+                if os.path.exists(archive_reprod_dir):
+                    backup_dir = find_backup_name_candidate(archive_reprod_dir)
+                    move_file(archive_reprod_dir, backup_dir)
+                    _log.info("Existing reproducability directory %s backed up to %s", archive_reprod_dir, backup_dir)
+                move_file(reprod_dir, archive_reprod_dir)
+                _log.info("Wrote files for reproducability to %s", archive_reprod_dir)
+            except EasyBuildError as error:
+                if build_option('module_only'):
+                    _log.info("Using --module-only so can recover from error: %s", error)
+                else:
+                    raise error
 
             try:
                 # upload easyconfig (and patch files) to central repository
@@ -3400,22 +3647,29 @@ def build_and_install_one(ecdict, init_env):
         # cleanup logs
         app.close_log()
         log_fn = os.path.basename(get_log_filename(app.name, app.version))
-        application_log = os.path.join(new_log_dir, log_fn)
-        move_logs(app.logfile, application_log)
+        try:
+            application_log = os.path.join(new_log_dir, log_fn)
+            move_logs(app.logfile, application_log)
 
-        newspec = os.path.join(new_log_dir, app.cfg.filename())
-        copy_file(spec, newspec)
-        _log.debug("Copied easyconfig file %s to %s", spec, newspec)
+            newspec = os.path.join(new_log_dir, app.cfg.filename())
+            copy_file(spec, newspec)
+            _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
-        # copy patches
-        for patch in app.patches:
-            target = os.path.join(new_log_dir, os.path.basename(patch['path']))
-            copy_file(patch['path'], target)
-            _log.debug("Copied patch %s to %s", patch['path'], target)
+            # copy patches
+            for patch in app.patches:
+                target = os.path.join(new_log_dir, os.path.basename(patch['path']))
+                copy_file(patch['path'], target)
+                _log.debug("Copied patch %s to %s", patch['path'], target)
 
-        if build_option('read_only_installdir'):
-            # take away user write permissions (again)
-            adjust_permissions(new_log_dir, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False, recursive=True)
+            if build_option('read_only_installdir'):
+                # take away user write permissions (again)
+                adjust_permissions(new_log_dir, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False, recursive=True)
+        except EasyBuildError as error:
+            if build_option('module_only'):
+                application_log = None
+                _log.debug("Using --module-only so can recover from error: %s", error)
+            else:
+                raise error
 
     end_timestamp = datetime.now()
 

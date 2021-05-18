@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2020 Ghent University
+# Copyright 2015-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -70,7 +70,7 @@ class BuildLogTest(EnhancedTestCase):
         logToFile(tmplog, enable=False)
 
         log_re = re.compile(r"^fancyroot ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$", re.M)
-        logtxt = open(tmplog, 'r').read()
+        logtxt = read_file(tmplog, 'r')
         self.assertTrue(log_re.match(logtxt), "%s matches %s" % (log_re.pattern, logtxt))
 
         # test formatting of message
@@ -419,7 +419,7 @@ class BuildLogTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(logfile))
         self.assertEqual(os.path.dirname(logfile), tmpdir)
         self.assertTrue(isinstance(log, EasyBuildLog))
-        self.assertTrue(stdout.startswith("== temporary log file in case of crash"))
+        self.assertTrue(stdout.startswith("== Temporary log file in case of crash"))
 
         stop_logging(logfile)
 

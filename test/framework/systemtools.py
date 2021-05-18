@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,6 +28,7 @@ Unit tests for systemtools.py
 @author: Kenneth hoste (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
+import ctypes
 import re
 import os
 import sys
@@ -38,18 +39,19 @@ from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import adjust_permissions, read_file, which, write_file
+from easybuild.tools.filetools import adjust_permissions, read_file, symlink, which, write_file
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
-from easybuild.tools.systemtools import check_os_dependency, check_python_version, pick_dep_version
+from easybuild.tools.systemtools import check_linked_shared_libs, check_os_dependency, check_python_version
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_arch_name, get_cpu_architecture
 from easybuild.tools.systemtools import get_cpu_family, get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
 from easybuild.tools.systemtools import get_gcc_version, get_glibc_version, get_os_type, get_os_name, get_os_version
 from easybuild.tools.systemtools import get_platform_name, get_shared_lib_ext, get_system_info, get_total_memory
+from easybuild.tools.systemtools import locate_solib, pick_dep_version
 
 
 PROC_CPUINFO_TXT = None
@@ -916,6 +918,24 @@ class SystemToolsTest(EnhancedTestCase):
         error_pattern = "Unknown value type for version"
         self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, ('1.2.3', '4.5.6'))
 
+        # check support for using 'arch=*' as fallback key
+        dep_ver_dict = {
+            'arch=*': '1.2.3',
+            'arch=foo': '1.2.3-foo',
+            'arch=POWER': '1.2.3-ppc64le',
+        }
+        self.assertEqual(pick_dep_version(dep_ver_dict), '1.2.3-ppc64le')
+
+        del dep_ver_dict['arch=POWER']
+        self.assertEqual(pick_dep_version(dep_ver_dict), '1.2.3')
+
+        # check how faulty input is handled
+        self.assertErrorRegex(EasyBuildError, "Found empty dict as version!", pick_dep_version, {})
+        error_pattern = r"Unexpected keys in version: bar,foo \(only 'arch=' keys are supported\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, {'foo': '1.2', 'bar': '2.3'})
+        error_pattern = r"Unknown value type for version: .* \(1.23\), should be string value"
+        self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, 1.23)
+
     def test_check_os_dependency(self):
         """Test check_os_dependency."""
 
@@ -958,6 +978,79 @@ class SystemToolsTest(EnhancedTestCase):
         # still works fine if $LD_LIBRARY_PATH is set
         write_file(bash_profile, 'export LD_LIBRARY_PATH=%s' % self.test_prefix)
         self.assertTrue(check_os_dependency('bar'))
+
+    def test_check_linked_shared_libs(self):
+        """Test for check_linked_shared_libs function."""
+
+        txt_path = os.path.join(self.test_prefix, 'test.txt')
+        write_file(txt_path, "some text")
+
+        broken_symlink_path = os.path.join(self.test_prefix, 'broken_symlink')
+        symlink('/doesnotexist', broken_symlink_path, use_abspath_source=False)
+
+        # result is always None for anything other than dynamically linked binaries or shared libraries
+        self.assertEqual(check_linked_shared_libs(self.test_prefix), None)
+        self.assertEqual(check_linked_shared_libs(txt_path), None)
+        self.assertEqual(check_linked_shared_libs(broken_symlink_path), None)
+
+        bin_ls_path = which('ls')
+
+        os_type = get_os_type()
+        if os_type == LINUX:
+            out, _ = run_cmd("ldd %s" % bin_ls_path)
+        elif os_type == DARWIN:
+            out, _ = run_cmd("otool -L %s" % bin_ls_path)
+        else:
+            raise EasyBuildError("Unknown OS type: %s" % os_type)
+
+        shlib_ext = get_shared_lib_ext()
+        lib_path_regex = re.compile(r'(?P<lib_path>[^\s]*/lib[^ ]+\.%s[^ ]*)' % shlib_ext, re.M)
+        lib_path = lib_path_regex.search(out).group(1)
+
+        test_pattern_named_args = [
+            # if no patterns are specified, result is always True
+            {},
+            {'required_patterns': ['/lib', shlib_ext]},
+            {'banned_patterns': ['this_pattern_should_not_match']},
+            {'required_patterns': ['/lib', shlib_ext], 'banned_patterns': ['weirdstuff']},
+        ]
+        for pattern_named_args in test_pattern_named_args:
+            # result is always None for anything other than dynamically linked binaries or shared libraries
+            self.assertEqual(check_linked_shared_libs(self.test_prefix, **pattern_named_args), None)
+            self.assertEqual(check_linked_shared_libs(txt_path, **pattern_named_args), None)
+            self.assertEqual(check_linked_shared_libs(broken_symlink_path, **pattern_named_args), None)
+            for path in (bin_ls_path, lib_path):
+                error_msg = "Check on linked libs should pass for %s with %s" % (path, pattern_named_args)
+                self.assertTrue(check_linked_shared_libs(path, **pattern_named_args), error_msg)
+
+        # also test with input that should result in failing check
+        test_pattern_named_args = [
+            {'required_patterns': ['this_pattern_will_not_match']},
+            {'banned_patterns': ['/lib']},
+            {'required_patterns': ['weirdstuff'], 'banned_patterns': ['/lib', shlib_ext]},
+        ]
+        for pattern_named_args in test_pattern_named_args:
+            # result is always None for anything other than dynamically linked binaries or shared libraries
+            self.assertEqual(check_linked_shared_libs(self.test_prefix, **pattern_named_args), None)
+            self.assertEqual(check_linked_shared_libs(txt_path, **pattern_named_args), None)
+            self.assertEqual(check_linked_shared_libs(broken_symlink_path, **pattern_named_args), None)
+            for path in (bin_ls_path, lib_path):
+                error_msg = "Check on linked libs should fail for %s with %s" % (path, pattern_named_args)
+                self.assertFalse(check_linked_shared_libs(path, **pattern_named_args), error_msg)
+
+    def test_locate_solib(self):
+        """Test locate_solib function (Linux only)."""
+        if get_os_type() == LINUX:
+            libname = 'libc.so.6'
+            libc_obj = None
+            try:
+                libc_obj = ctypes.cdll.LoadLibrary(libname)
+            except OSError:
+                pass
+            if libc_obj:
+                libc_path = locate_solib(libc_obj)
+                self.assertEqual(os.path.basename(libc_path), libname)
+                self.assertTrue(os.path.exists(libc_path), "%s should exist" % libname)
 
 
 def suite():

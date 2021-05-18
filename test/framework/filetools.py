@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -45,6 +45,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import IGNORE, ERROR
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import std_urllib
 
@@ -95,6 +96,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.txz', "unxz test.txz --stdout | tar x"),
             ('test.iso', "7z x test.iso"),
             ('test.tar.Z', "tar xzf test.tar.Z"),
+            ('test.foo.bar.sh', "cp -a test.foo.bar.sh ."),
         ]
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
@@ -125,6 +127,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.txz', '.txz'),
             ('test.iso', '.iso'),
             ('test.tar.Z', '.tar.Z'),
+            ('test.foo.bar.sh', '.sh'),
         ]
         for (fn, expected_ext) in tests:
             cmd = ft.find_extension(fn)
@@ -211,8 +214,13 @@ class FileToolsTest(EnhancedTestCase):
         python = ft.which('python')
         self.assertTrue(python and os.path.exists(python) and os.path.isabs(python))
 
-        path = ft.which('i_really_do_not_expect_a_command_with_a_name_like_this_to_be_available')
+        invalid_cmd = 'i_really_do_not_expect_a_command_with_a_name_like_this_to_be_available'
+        path = ft.which(invalid_cmd)
         self.assertTrue(path is None)
+        path = ft.which(invalid_cmd, on_error=IGNORE)
+        self.assertTrue(path is None)
+        error_msg = "Could not find command '%s'" % invalid_cmd
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.which, invalid_cmd, on_error=ERROR)
 
         os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.environ['PATH'])
         # put a directory 'foo' in place (should be ignored by 'which')
@@ -601,11 +609,34 @@ class FileToolsTest(EnhancedTestCase):
     def test_read_write_file(self):
         """Test reading/writing files."""
 
+        # Test different "encodings"
+        ascii_file = os.path.join(self.test_prefix, 'ascii.txt')
+        txt = 'Hello World\nFoo bar'
+        ft.write_file(ascii_file, txt)
+        self.assertEqual(ft.read_file(ascii_file), txt)
+
+        binary_file = os.path.join(self.test_prefix, 'binary.txt')
+        txt = b'Hello World\x12\x00\x01\x02\x03\nFoo bar'
+        ft.write_file(binary_file, txt)
+        self.assertEqual(ft.read_file(binary_file, mode='rb'), txt)
+
+        utf8_file = os.path.join(self.test_prefix, 'utf8.txt')
+        txt = b'Hyphen: \xe2\x80\x93\nEuro sign: \xe2\x82\xac\na with dots: \xc3\xa4'
+        if sys.version_info[0] == 3:
+            txt_decoded = txt.decode('utf-8')
+        else:
+            txt_decoded = txt
+        # Must work as binary and string
+        ft.write_file(utf8_file, txt)
+        self.assertEqual(ft.read_file(utf8_file), txt_decoded)
+        ft.write_file(utf8_file, txt_decoded)
+        self.assertEqual(ft.read_file(utf8_file), txt_decoded)
+
+        # Test append
         fp = os.path.join(self.test_prefix, 'test.txt')
         txt = "test123"
         ft.write_file(fp, txt)
         self.assertEqual(ft.read_file(fp), txt)
-
         txt2 = '\n'.join(['test', '123'])
         ft.write_file(fp, txt2, append=True)
         self.assertEqual(ft.read_file(fp), txt + txt2)
@@ -680,6 +711,26 @@ class FileToolsTest(EnhancedTestCase):
         # test use of 'mode' in read_file
         self.assertEqual(ft.read_file(foo, mode='rb'), b'bar')
 
+    def test_write_file_obj(self):
+        """Test writing from a file-like object directly"""
+        # Write a text file
+        fp = os.path.join(self.test_prefix, 'test.txt')
+        fp_out = os.path.join(self.test_prefix, 'test_out.txt')
+        ft.write_file(fp, b'Hyphen: \xe2\x80\x93\nEuro sign: \xe2\x82\xac\na with dots: \xc3\xa4')
+
+        with ft.open_file(fp, 'rb') as fh:
+            ft.write_file(fp_out, fh)
+        self.assertEqual(ft.read_file(fp_out), ft.read_file(fp))
+
+        # Write a binary file
+        fp = os.path.join(self.test_prefix, 'test.bin')
+        fp_out = os.path.join(self.test_prefix, 'test_out.bin')
+        ft.write_file(fp, b'\x00\x01'+os.urandom(42)+b'\x02\x03')
+
+        with ft.open_file(fp, 'rb') as fh:
+            ft.write_file(fp_out, fh)
+        self.assertEqual(ft.read_file(fp_out, mode='rb'), ft.read_file(fp, mode='rb'))
+
     def test_is_binary(self):
         """Test is_binary function."""
 
@@ -712,9 +763,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_guess_patch_level(self):
         "Test guess_patch_level."""
         # create dummy toy.source file so guess_patch_level can work
-        f = open(os.path.join(self.test_buildpath, 'toy.source'), 'w')
-        f.write("This is toy.source")
-        f.close()
+        ft.write_file(os.path.join(self.test_buildpath, 'toy.source'), "This is toy.source")
 
         for patched_file, correct_patch_level in [
             ('toy.source', 0),
@@ -1209,6 +1258,15 @@ class FileToolsTest(EnhancedTestCase):
         error_pat = "Failed to patch .*/nosuchfile.txt: .*No such file or directory"
         path = os.path.join(self.test_prefix, 'nosuchfile.txt')
         self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, path, regex_subs)
+
+        # make sure apply_regex_substitutions can patch files that include UTF-8 characters
+        testtxt = b"foo \xe2\x80\x93 bar"  # This is an UTF-8 "-"
+        ft.write_file(testfile, testtxt)
+        ft.apply_regex_substitutions(testfile, [('foo', 'FOO')])
+        txt = ft.read_file(testfile)
+        if sys.version_info[0] == 3:
+            testtxt = testtxt.decode('utf-8')
+        self.assertEqual(txt, testtxt.replace('foo', 'FOO'))
 
         # make sure apply_regex_substitutions can patch files that include non-UTF-8 characters
         testtxt = b"foo \xe2 bar"
@@ -2013,7 +2071,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 83)
+            self.assertEqual(len(index), 84)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
@@ -2126,11 +2184,11 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(var_defs, [])
         self.assertEqual(len(hits), 5)
         self.assertTrue(all(os.path.exists(p) for p in hits))
-        self.assertTrue(hits[0].endswith('/hwloc-1.11.8-GCC-4.6.4.eb'))
-        self.assertTrue(hits[1].endswith('/hwloc-1.11.8-GCC-6.4.0-2.28.eb'))
-        self.assertTrue(hits[2].endswith('/hwloc-1.11.8-GCC-7.3.0-2.30.eb'))
-        self.assertTrue(hits[3].endswith('/hwloc-1.6.2-GCC-4.9.3-2.26.eb'))
-        self.assertTrue(hits[4].endswith('/hwloc-1.8-gcccuda-2018a.eb'))
+        self.assertTrue(hits[0].endswith('/hwloc-1.6.2-GCC-4.9.3-2.26.eb'))
+        self.assertTrue(hits[1].endswith('/hwloc-1.8-gcccuda-2018a.eb'))
+        self.assertTrue(hits[2].endswith('/hwloc-1.11.8-GCC-4.6.4.eb'))
+        self.assertTrue(hits[3].endswith('/hwloc-1.11.8-GCC-6.4.0-2.28.eb'))
+        self.assertTrue(hits[4].endswith('/hwloc-1.11.8-GCC-7.3.0-2.30.eb'))
 
         # also test case-sensitive searching
         var_defs, hits_bis = ft.search_file([test_ecs], 'HWLOC', silent=True, case_sensitive=True)
@@ -2144,9 +2202,12 @@ class FileToolsTest(EnhancedTestCase):
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.11.8-GCC-4.6.4.eb', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
-                                'hwloc-1.11.8-GCC-7.3.0-2.30.eb', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb',
-                                'hwloc-1.8-gcccuda-2018a.eb'])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.9.3-2.26.eb',
+                                'hwloc-1.8-gcccuda-2018a.eb',
+                                'hwloc-1.11.8-GCC-4.6.4.eb',
+                                'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+                                'hwloc-1.11.8-GCC-7.3.0-2.30.eb',
+                                ])
 
         # check specifying of ignored dirs
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, ignore_dirs=['hwloc'])
@@ -2155,28 +2216,34 @@ class FileToolsTest(EnhancedTestCase):
         # check short mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, short=True)
         self.assertEqual(var_defs, [('CFGS1', os.path.join(test_ecs, 'h', 'hwloc'))])
-        self.assertEqual(hits, ['$CFGS1/hwloc-1.11.8-GCC-4.6.4.eb', '$CFGS1/hwloc-1.11.8-GCC-6.4.0-2.28.eb',
-                                '$CFGS1/hwloc-1.11.8-GCC-7.3.0-2.30.eb', '$CFGS1/hwloc-1.6.2-GCC-4.9.3-2.26.eb',
-                                '$CFGS1/hwloc-1.8-gcccuda-2018a.eb'])
+        self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.9.3-2.26.eb',
+                                '$CFGS1/hwloc-1.8-gcccuda-2018a.eb',
+                                '$CFGS1/hwloc-1.11.8-GCC-4.6.4.eb',
+                                '$CFGS1/hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+                                '$CFGS1/hwloc-1.11.8-GCC-7.3.0-2.30.eb'
+                                ])
 
         # check terse mode (implies 'silent', overrides 'short')
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, short=True)
         self.assertEqual(var_defs, [])
         expected = [
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-4.6.4.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-7.3.0-2.30.eb'),
-            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb'),
-            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb'),
         ]
         self.assertEqual(hits, expected)
 
         # check combo of terse and filename-only
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.11.8-GCC-4.6.4.eb', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
-                                'hwloc-1.11.8-GCC-7.3.0-2.30.eb', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb',
-                                'hwloc-1.8-gcccuda-2018a.eb'])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.9.3-2.26.eb',
+                                'hwloc-1.8-gcccuda-2018a.eb',
+                                'hwloc-1.11.8-GCC-4.6.4.eb',
+                                'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+                                'hwloc-1.11.8-GCC-7.3.0-2.30.eb',
+                                ])
 
         # patterns that include special characters + (or ++) shouldn't cause trouble
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2966
@@ -2362,7 +2429,7 @@ class FileToolsTest(EnhancedTestCase):
         git_config = {
             'repo_name': 'testrepository',
             'url': 'https://github.com/easybuilders',
-            'tag': 'master',
+            'tag': 'main',
         }
         target_dir = os.path.join(self.test_prefix, 'target')
 
@@ -2475,7 +2542,7 @@ class FileToolsTest(EnhancedTestCase):
         expected = '\n'.join([
             r'  running command "git clone --recursive git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
-            r'  running command "git checkout 8456f86 && git submodule update"',
+            r'  running command "git checkout 8456f86 && git submodule update --init --recursive"',
             r"  \(in testrepository\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
@@ -2885,6 +2952,110 @@ class FileToolsTest(EnhancedTestCase):
         # no recursive search in current working dir (which would potentially be way too expensive)
         error_pattern = r"One or more files not found: 2\.txt \(search paths: \)"
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.locate_files, ['2.txt'], [])
+
+    def test_set_gid_sticky_bits(self):
+        """Test for set_gid_sticky_bits function."""
+        test_dir = os.path.join(self.test_prefix, 'test_dir')
+        test_subdir = os.path.join(test_dir, 'subdir')
+
+        ft.mkdir(test_subdir, parents=True)
+        dir_perms = os.lstat(test_dir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, 0)
+        self.assertEqual(dir_perms & stat.S_ISVTX, 0)
+        dir_perms = os.lstat(test_subdir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, 0)
+        self.assertEqual(dir_perms & stat.S_ISVTX, 0)
+
+        # by default, GID & sticky bits are not set
+        ft.set_gid_sticky_bits(test_dir)
+        dir_perms = os.lstat(test_dir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, 0)
+        self.assertEqual(dir_perms & stat.S_ISVTX, 0)
+
+        ft.set_gid_sticky_bits(test_dir, set_gid=True)
+        dir_perms = os.lstat(test_dir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
+        self.assertEqual(dir_perms & stat.S_ISVTX, 0)
+        ft.remove_dir(test_dir)
+        ft.mkdir(test_subdir, parents=True)
+
+        ft.set_gid_sticky_bits(test_dir, sticky=True)
+        dir_perms = os.lstat(test_dir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, 0)
+        self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+        ft.remove_dir(test_dir)
+        ft.mkdir(test_subdir, parents=True)
+
+        ft.set_gid_sticky_bits(test_dir, set_gid=True, sticky=True)
+        dir_perms = os.lstat(test_dir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
+        self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+        # no recursion by default
+        dir_perms = os.lstat(test_subdir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, 0)
+        self.assertEqual(dir_perms & stat.S_ISVTX, 0)
+
+        ft.remove_dir(test_dir)
+        ft.mkdir(test_subdir, parents=True)
+
+        ft.set_gid_sticky_bits(test_dir, set_gid=True, sticky=True, recursive=True)
+        dir_perms = os.lstat(test_dir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
+        self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+        dir_perms = os.lstat(test_subdir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
+        self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+
+        ft.remove_dir(test_dir)
+        ft.mkdir(test_subdir, parents=True)
+
+        # set_gid_sticky_bits honors relevant build options
+        init_config(build_options={'set_gid_bit': True, 'sticky_bit': True})
+        ft.set_gid_sticky_bits(test_dir, recursive=True)
+        dir_perms = os.lstat(test_dir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
+        self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+        dir_perms = os.lstat(test_subdir)[stat.ST_MODE]
+        self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
+        self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+
+    def test_create_unused_dir(self):
+        """Test create_unused_dir function."""
+        path = ft.create_unused_dir(self.test_prefix, 'folder')
+        self.assertEqual(path, os.path.join(self.test_prefix, 'folder'))
+        self.assertTrue(os.path.exists(path))
+
+        # Repeat with existing folder(s) should create new ones
+        for i in range(10):
+            path = ft.create_unused_dir(self.test_prefix, 'folder')
+            self.assertEqual(path, os.path.join(self.test_prefix, 'folder_%s' % i))
+            self.assertTrue(os.path.exists(path))
+
+        # Not influenced by similar folder
+        path = ft.create_unused_dir(self.test_prefix, 'folder2')
+        self.assertEqual(path, os.path.join(self.test_prefix, 'folder2'))
+        self.assertTrue(os.path.exists(path))
+        for i in range(10):
+            path = ft.create_unused_dir(self.test_prefix, 'folder2')
+            self.assertEqual(path, os.path.join(self.test_prefix, 'folder2_%s' % i))
+            self.assertTrue(os.path.exists(path))
+
+        # Fail cleanly if passed a readonly folder
+        readonly_dir = os.path.join(self.test_prefix, 'ro_folder')
+        ft.mkdir(readonly_dir)
+        old_perms = os.lstat(readonly_dir)[stat.ST_MODE]
+        ft.adjust_permissions(readonly_dir, stat.S_IREAD | stat.S_IEXEC, relative=False)
+        try:
+            self.assertErrorRegex(EasyBuildError, 'Failed to create directory',
+                                  ft.create_unused_dir, readonly_dir, 'new_folder')
+        finally:
+            ft.adjust_permissions(readonly_dir, old_perms, relative=False)
+
+        # Ignore files same as folders. So first just create a file with no contents
+        ft.write_file(os.path.join(self.test_prefix, 'file'), '')
+        path = ft.create_unused_dir(self.test_prefix, 'file')
+        self.assertEqual(path, os.path.join(self.test_prefix, 'file_0'))
+        self.assertTrue(os.path.exists(path))
 
 
 def suite():
