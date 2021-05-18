@@ -907,7 +907,7 @@ def find_library_path(lib_filename):
         else:
             raise EasyBuildError("Unknown host OS type: %s", os_type)
 
-        _log.info("Found absolute path to %s: %s" % (lib_filename, lib_abspath))
+        _log.info("Found absolute path to %s: %s", lib_filename, lib_abspath)
 
     return lib_abspath
 
