@@ -1464,8 +1464,15 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_generated_module_file_swap(self):
         """Test loading a generated module file that includes swap statements."""
+
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
             mod_ext = '.lua'
+
+            if not isinstance(self.modtool, Lmod):
+                # Lua module files are only supported by Lmod,
+                # so early exit if that's not the case in the test setup
+                return
+
         else:
             mod_ext = ''
 
