@@ -41,6 +41,12 @@ import termios
 from ctypes.util import find_library
 from socket import gethostname
 
+try:
+    # only needed on macOS, may not be available on Linux
+    import ctypes.macholib.dyld
+except ImportError:
+    pass
+
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
@@ -849,6 +855,8 @@ def locate_solib(libobj):
     """
     Return absolute path to loaded library using dlinfo
     Based on https://stackoverflow.com/a/35683698
+
+    :params libobj: ctypes CDLL object
     """
     # early return if we're not on a Linux system
     if get_os_type() != LINUX:
@@ -871,6 +879,37 @@ def locate_solib(libobj):
     libpath = ctypes.cast(libpointer, ctypes.POINTER(LINKMAP)).contents.l_name
 
     return libpath.decode('utf-8')
+
+
+def find_library_path(lib_filename):
+    """
+    Search library by file name in the system
+    Return absolute path to existing libraries
+
+    :params lib_filename: name of library file
+    """
+
+    lib_abspath = None
+    os_type = get_os_type()
+
+    try:
+        lib_obj = ctypes.cdll.LoadLibrary(lib_filename)
+    except OSError:
+        _log.info("Library '%s' not found in host system", lib_filename)
+    else:
+        # ctypes.util.find_library only accepts unversioned library names
+        if os_type == LINUX:
+            # find path to library with dlinfo
+            lib_abspath = locate_solib(lib_obj)
+        elif os_type == DARWIN:
+            # ctypes.macholib.dyld.dyld_find accepts file names and returns full path
+            lib_abspath = ctypes.macholib.dyld.dyld_find(lib_filename)
+        else:
+            raise EasyBuildError("Unknown host OS type: %s", os_type)
+
+        _log.info("Found absolute path to %s: %s", lib_filename, lib_abspath)
+
+    return lib_abspath
 
 
 def get_system_info():

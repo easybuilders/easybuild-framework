@@ -51,7 +51,7 @@ from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, g
 from easybuild.tools.systemtools import get_cpu_family, get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
 from easybuild.tools.systemtools import get_gcc_version, get_glibc_version, get_os_type, get_os_name, get_os_version
 from easybuild.tools.systemtools import get_platform_name, get_shared_lib_ext, get_system_info, get_total_memory
-from easybuild.tools.systemtools import locate_solib, pick_dep_version
+from easybuild.tools.systemtools import find_library_path, locate_solib, pick_dep_version
 
 
 PROC_CPUINFO_TXT = None
@@ -1051,6 +1051,20 @@ class SystemToolsTest(EnhancedTestCase):
                 libc_path = locate_solib(libc_obj)
                 self.assertEqual(os.path.basename(libc_path), libname)
                 self.assertTrue(os.path.exists(libc_path), "%s should exist" % libname)
+
+    def test_find_library_path(self):
+        """Test find_library_path function (Linux and Darwin only)."""
+        if get_os_type() == LINUX:
+            libname = 'libc.so.6'
+        elif get_os_type() == DARWIN:
+            libname = 'libSystem.dylib'
+        else:
+            libname = None
+
+        if libname:
+            lib_path = find_library_path(libname)
+            self.assertEqual(os.path.basename(lib_path), libname)
+            self.assertTrue(os.path.exists(lib_path), "%s should exist" % libname)
 
 
 def suite():
