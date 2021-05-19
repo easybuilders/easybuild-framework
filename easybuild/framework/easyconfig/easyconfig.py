@@ -672,7 +672,8 @@ class EasyConfig(object):
             for key in sorted(params.keys()):
                 # validations are skipped, just set in the config
                 if key in self._config.keys():
-                    self[key] = params[key]
+                    # don't pass mutable values like lists/dicts by reference, copy them
+                    self[key] = copy.deepcopy(params[key])
                     self.log.info("setting easyconfig parameter %s: value %s (type: %s)",
                                   key, self[key], type(self[key]))
                 else:

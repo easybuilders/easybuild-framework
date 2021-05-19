@@ -4314,6 +4314,32 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(os.path.basename(paths[3]), bat_patch_fn)
         self.assertTrue(os.path.samefile(target_path, cwd))
 
+    def test_pure_ec(self):
+        """
+        Test whether we can get a 'pure' view on the easyconfig file,
+        which correctly reflects what's defined in the easyconfig file.
+        """
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
+
+        ec_dict = toy_ec.parser.get_config_dict()
+        self.assertEqual(ec_dict.get('version'), '0.0')
+        self.assertEqual(ec_dict.get('sources'), ['%(name)s-%(version)s.tar.gz'])
+        self.assertEqual(ec_dict.get('exts_default_options'), None)
+        self.assertEqual(ec_dict.get('sanity_check_paths'), {'dirs': ['bin'], 'files': [('bin/yot', 'bin/toy')]})
+
+        # manipulating easyconfig parameter values should not affect the result of parser.get_config_dict()
+        with toy_ec.disable_templating():
+            toy_ec['version'] = '1.2.3'
+            toy_ec['sources'].append('test.tar.gz')
+            toy_ec['sanity_check_paths']['files'].append('bin/foobar.exe')
+
+        ec_dict_bis = toy_ec.parser.get_config_dict()
+        self.assertEqual(ec_dict_bis.get('version'), '0.0')
+        self.assertEqual(ec_dict_bis.get('sources'), ['%(name)s-%(version)s.tar.gz'])
+        self.assertEqual(ec_dict_bis.get('exts_default_options'), None)
+        self.assertEqual(ec_dict.get('sanity_check_paths'), {'dirs': ['bin'], 'files': [('bin/yot', 'bin/toy')]})
+
 
 def suite():
     """ returns all the testcases in this module """
