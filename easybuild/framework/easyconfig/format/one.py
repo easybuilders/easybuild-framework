@@ -30,6 +30,7 @@ This is the original pure python code, to be exec'ed rather then parsed
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
+import copy
 import os
 import pprint
 import re
@@ -129,7 +130,9 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         if spec_tc_version is not None and not spec_tc_version == tc_version:
             raise EasyBuildError('Requested toolchain version %s not available, only %s', spec_tc_version, tc_version)
 
-        return cfg
+        # avoid passing anything by reference, so next time get_config_dict is called
+        # we can be sure we return a dictionary that correctly reflects the contents of the easyconfig file
+        return copy.deepcopy(cfg)
 
     def parse(self, txt):
         """
