@@ -70,6 +70,12 @@ COMP_NAME_VERSION_TEMPLATES = {
     'xlc,xlf': ('xlcxlf', '%(xlc)s'),
 }
 
+# possible prefixes for Cray toolchain names
+# example: CrayGNU, CrayCCE, cpeGNU, cpeCCE, ...;
+# important for determining $MODULEPATH extensions in det_modpath_extensions,
+# cfr. https://github.com/easybuilders/easybuild-framework/issues/3575
+CRAY_TOOLCHAIN_NAME_PREFIXES = ('Cray', 'cpe')
+
 
 class HierarchicalMNS(ModuleNamingScheme):
     """Class implementing an example hierarchical module naming scheme."""
@@ -236,8 +242,9 @@ class HierarchicalMNS(ModuleNamingScheme):
                 paths.append(os.path.join(MPI, tc_comp_name, tc_comp_ver, ec['name'], fullver))
 
         # special case for Cray toolchains
-        elif modclass == MODULECLASS_TOOLCHAIN and tc_comp_info is None and ec.name.startswith('Cray'):
-            paths.append(os.path.join(TOOLCHAIN, ec.name, ec.version))
+        elif modclass == MODULECLASS_TOOLCHAIN and tc_comp_info is None:
+            if any(ec.name.startswith(x) for x in CRAY_TOOLCHAIN_NAME_PREFIXES):
+                paths.append(os.path.join(TOOLCHAIN, ec.name, ec.version))
 
         return paths
 
