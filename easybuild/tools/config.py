@@ -558,6 +558,18 @@ def build_option(key, **kwargs):
         raise EasyBuildError(error_msg)
 
 
+def update_build_option(key, value):
+    """
+    Update build option with specified name to given value.
+
+    WARNING: Use this with care, the build options are not expected to be changed during an EasyBuild session!
+    """
+    # BuildOptions() is a (singleton) frozen dict, so this is less straightforward that it seems...
+    build_options = BuildOptions()
+    build_options._FrozenDict__dict[key] = value
+    _log.warning("Build option '%s' was updated to: %s", key, build_option(key))
+
+
 def build_path():
     """
     Return the build path

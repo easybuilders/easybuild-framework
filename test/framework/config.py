@@ -40,7 +40,7 @@ import easybuild.tools.options as eboptions
 from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, build_path, get_build_log_path, get_log_filename, get_repositorypath
-from easybuild.tools.config import install_path, log_file_format, log_path, source_paths
+from easybuild.tools.config import install_path, log_file_format, log_path, source_paths, update_build_option
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, init_build_options
 from easybuild.tools.filetools import copy_dir, mkdir, write_file
@@ -676,6 +676,13 @@ class EasyBuildConfigTest(EnhancedTestCase):
         build_log_path = os.path.join(self.test_prefix, 'chicken')
         init_config(args=['--tmp-logdir=%s' % build_log_path])
         self.assertEqual(get_build_log_path(), build_log_path)
+
+    def test_update_build_option(self):
+        """Test updating of a build option."""
+        self.assertEqual(build_option('banned_linked_shared_libs'), None)
+
+        update_build_option('banned_linked_shared_libs', '/usr/lib64/libssl.so.1.1')
+        self.assertEqual(build_option('banned_linked_shared_libs'), '/usr/lib64/libssl.so.1.1')
 
 
 def suite():
