@@ -793,12 +793,13 @@ class ModuleGeneratorTcl(ModuleGenerator):
             cmd = '[if { [info exists %(envvar)s] } { concat $%(envvar)s } else { concat "%(default)s" } ]' % values
         return cmd
 
-    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None, multi_dep_mods=None):
+    def load_module(self, mod_name, recursive_unload=None, depends_on=False, unload_modules=None, multi_dep_mods=None):
         """
         Generate load statement for specified module.
 
         :param mod_name: name of module to generate load statement for
         :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
+                                 (if None: enable if recursive_mod_unload build option or depends_on is True)
         :param depends_on: use depends_on statements rather than (guarded) load statements
         :param unload_modules: name(s) of module to unload first
         :param multi_dep_mods: list of module names in multi_deps context, to use for guarding load statement
@@ -818,7 +819,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
         depends_on = load_template == self.LOAD_TEMPLATE_DEPENDS_ON
 
         cond_tmpl = None
-        if build_option('recursive_mod_unload') or recursive_unload or depends_on:
+
+        if recursive_unload is None:
+            recursive_unload = build_option('recursive_mod_unload') or depends_on
+
+        if recursive_unload:
             # wrapping the 'module load' statement with an 'is-loaded or mode == unload'
             # guard ensures recursive unloading while avoiding load storms;
             # when "module unload" is called on the module in which the
@@ -1217,12 +1222,13 @@ class ModuleGeneratorLua(ModuleGenerator):
             cmd = 'os.getenv("%s") or "%s"' % (envvar, default)
         return cmd
 
-    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None, multi_dep_mods=None):
+    def load_module(self, mod_name, recursive_unload=None, depends_on=False, unload_modules=None, multi_dep_mods=None):
         """
         Generate load statement for specified module.
 
         :param mod_name: name of module to generate load statement for
         :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
+                                 (if None: enable if recursive_mod_unload build option or depends_on is True)
         :param depends_on: use depends_on statements rather than (guarded) load statements
         :param unload_modules: name(s) of module to unload first
         :param multi_dep_mods: list of module names in multi_deps context, to use for guarding load statement
@@ -1243,7 +1249,11 @@ class ModuleGeneratorLua(ModuleGenerator):
         depends_on = load_template == self.LOAD_TEMPLATE_DEPENDS_ON
 
         cond_tmpl = None
-        if build_option('recursive_mod_unload') or recursive_unload or depends_on:
+
+        if recursive_unload is None:
+            recursive_unload = build_option('recursive_mod_unload') or depends_on
+
+        if recursive_unload:
             # wrapping the 'module load' statement with an 'is-loaded or mode == unload'
             # guard ensures recursive unloading while avoiding load storms;
             # when "module unload" is called on the module in which the

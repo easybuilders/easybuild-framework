@@ -1974,10 +1974,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.eb_main(args, do_build=True, verbose=True)
 
             toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
+
             if get_module_syntax() == 'Lua':
                 toy_module += '.lua'
+                is_loaded_regex = re.compile(r'if not \( isloaded\("gompi/2018a"\) \)', re.M)
+            else:
+                # Tcl syntax
+                is_loaded_regex = re.compile(r"if { !\[is-loaded gompi/2018a\] }", re.M)
+
             toy_module_txt = read_file(toy_module)
-            is_loaded_regex = re.compile(r"if { !\[is-loaded gompi/2018a\] }", re.M)
             self.assertFalse(is_loaded_regex.search(toy_module_txt), "Recursive unloading is used: %s" % toy_module_txt)
 
     def test_tmpdir(self):
