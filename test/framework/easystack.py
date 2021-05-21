@@ -33,8 +33,9 @@ import sys
 from unittest import TextTestRunner
 
 import easybuild.tools.build_log
-from easybuild.framework.easystack import parse_easystack
+from easybuild.framework.easystack import check_version, parse_easystack
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import write_file
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 
 
@@ -47,15 +48,23 @@ class EasyStackTest(EnhancedTestCase):
         """Set up test."""
         super(EasyStackTest, self).setUp()
         self.orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
+        # easystack files are an experimental feature
+        easybuild.tools.build_log.EXPERIMENTAL = True
 
     def tearDown(self):
         """Clean up after test."""
         easybuild.tools.build_log.EXPERIMENTAL = self.orig_experimental
         super(EasyStackTest, self).tearDown()
 
+    def test_parse_fail(self):
+        """Test for clean error when easystack file fails to parse."""
+        test_yml = os.path.join(self.test_prefix, 'test.yml')
+        write_file(test_yml, 'software: %s')
+        error_pattern = "Failed to parse .*/test.yml: while scanning for the next token"
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_yml)
+
     def test_easystack_wrong_structure(self):
         """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
-        easybuild.tools.build_log.EXPERIMENTAL = True
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
 
@@ -67,7 +76,6 @@ class EasyStackTest(EnhancedTestCase):
 
     def test_easystack_asterisk(self):
         """Test for --easystack <easystack.yaml> when yaml easystack contains asterisk (wildcard)"""
-        easybuild.tools.build_log.EXPERIMENTAL = True
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_asterisk.yaml')
 
@@ -77,14 +85,104 @@ class EasyStackTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, test_easystack)
 
     def test_easystack_labels(self):
-        """Test for --easystack <easystack.yaml> when yaml easystack contains exclude-labels / include-labels"""
-        easybuild.tools.build_log.EXPERIMENTAL = True
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_labels.yaml')
 
         error_msg = "EasyStack specifications of 'binutils' in .*/test_easystack_labels.yaml contain labels. "
         error_msg += "Labels aren't supported yet."
         self.assertErrorRegex(EasyBuildError, error_msg, parse_easystack, test_easystack)
+
+    def test_check_version(self):
+        """Test check_version function."""
+        check_version('1.2.3', None)
+        check_version('1.2', None)
+        check_version('3.50', None)
+        check_version('100', None)
+
+        context = "<some context>"
+        for version in (1.2, 100, None):
+            error_pattern = r"Value .* \(of type .*\) obtained for <some context> does not represent a valid version!"
+            self.assertErrorRegex(EasyBuildError, error_pattern, check_version, version, context)
+
+    def test_easystack_versions(self):
+        """Test handling of versions in easystack files."""
+
+        test_easystack = os.path.join(self.test_prefix, 'test.yml')
+        tmpl_easystack_txt = '\n'.join([
+            "software:",
+            "  foo:",
+            "    toolchains:",
+            "       SYSTEM:",
+            "           versions:",
+        ])
+
+        # normal versions, which are not treated special by YAML: no single quotes needed
+        versions = ('1.2.3', '1.2.30', '2021a', '1.2.3')
+        for version in versions:
+            write_file(test_easystack, tmpl_easystack_txt + ' ' + version)
+            ec_fns, _ = parse_easystack(test_easystack)
+            self.assertEqual(ec_fns, ['foo-%s.eb' % version])
+
+        # multiple versions as a list
+        test_easystack_txt = tmpl_easystack_txt + " [1.2.3, 3.2.1]"
+        write_file(test_easystack, test_easystack_txt)
+        ec_fns, _ = parse_easystack(test_easystack)
+        expected = ['foo-1.2.3.eb', 'foo-3.2.1.eb']
+        self.assertEqual(sorted(ec_fns), sorted(expected))
+
+        # multiple versions listed with more info
+        test_easystack_txt = '\n'.join([
+            tmpl_easystack_txt,
+            "             1.2.3:",
+            "             2021a:",
+            "             3.2.1:",
+            "                 versionsuffix: -foo",
+        ])
+        write_file(test_easystack, test_easystack_txt)
+        ec_fns, _ = parse_easystack(test_easystack)
+        expected = ['foo-1.2.3.eb', 'foo-2021a.eb', 'foo-3.2.1-foo.eb']
+        self.assertEqual(sorted(ec_fns), sorted(expected))
+
+        # versions that get interpreted by YAML as float or int, single quotes required
+        for version in ('1.2', '123', '3.50', '100', '2.44_01'):
+            error_pattern = r"Value .* \(of type .*\) obtained for foo \(with system toolchain\) "
+            error_pattern += r"does not represent a valid version\!"
+
+            write_file(test_easystack, tmpl_easystack_txt + ' ' + version)
+            self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+
+            # all is fine when wrapping the value in single quotes
+            write_file(test_easystack, tmpl_easystack_txt + " '" + version + "'")
+            ec_fns, _ = parse_easystack(test_easystack)
+            self.assertEqual(ec_fns, ['foo-%s.eb' % version])
+
+            # one rotten apple in the basket is enough
+            test_easystack_txt = tmpl_easystack_txt + " [1.2.3, %s, 3.2.1]" % version
+            write_file(test_easystack, test_easystack_txt)
+            self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+
+            test_easystack_txt = '\n'.join([
+                tmpl_easystack_txt,
+                "             1.2.3:",
+                "             %s:" % version,
+                "             3.2.1:",
+                "                 versionsuffix: -foo",
+            ])
+            write_file(test_easystack, test_easystack_txt)
+            self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+
+            # single quotes to the rescue!
+            test_easystack_txt = '\n'.join([
+                tmpl_easystack_txt,
+                "             1.2.3:",
+                "             '%s':" % version,
+                "             3.2.1:",
+                "                 versionsuffix: -foo",
+            ])
+            write_file(test_easystack, test_easystack_txt)
+            ec_fns, _ = parse_easystack(test_easystack)
+            expected = ['foo-1.2.3.eb', 'foo-%s.eb' % version, 'foo-3.2.1-foo.eb']
+            self.assertEqual(sorted(ec_fns), sorted(expected))
 
 
 def suite():

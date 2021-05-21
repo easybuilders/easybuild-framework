@@ -27,18 +27,38 @@ information obtained from provided file (easystack) with build specifications.
 
 :author: Denis Kristak (Inuits)
 :author: Pavel Grochal (Inuits)
+:author: Kenneth Hoste (HPC-UGent)
 """
-
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import only_if_module_is_available
 try:
     import yaml
 except ImportError:
     pass
 _log = fancylogger.getLogger('easystack', fname=False)
+
+
+def check_version(value, context):
+    """
+    Check whether specified value obtained from a YAML file in specified context represents a valid version.
+    The value must be a string value (not a float or an int).
+    """
+    if not isinstance(value, string_type):
+        error_msg = '\n'.join([
+            "Value %(value)s (of type %(type)s) obtained for %(context)s does not represent a valid version!",
+            "Make sure to wrap the value in single quotes (like '%(value)s') to avoid that it is interpreted "
+            "by the YAML parser as a non-string value.",
+        ])
+        format_info = {
+            'context': context,
+            'type': type(value),
+            'value': value,
+        }
+        raise EasyBuildError(error_msg % format_info)
 
 
 class EasyStack(object):
@@ -90,7 +110,12 @@ class EasyStackParser(object):
     def parse(filepath):
         """Parses YAML file and assigns obtained values to SW config instances as well as general config instance"""
         yaml_txt = read_file(filepath)
-        easystack_raw = yaml.safe_load(yaml_txt)
+
+        try:
+            easystack_raw = yaml.safe_load(yaml_txt)
+        except yaml.YAMLError as err:
+            raise EasyBuildError("Failed to parse %s: %s" % (filepath, err))
+
         easystack = EasyStack()
 
         try:
@@ -123,6 +148,8 @@ class EasyStackParser(object):
                         raise EasyBuildError("Incorrect toolchain specification for '%s' in %s, too many parts: %s",
                                              name, filepath, toolchain_parts)
 
+                check_version(toolchain_version, "software %s (with %s toolchain)" % (name, toolchain_name))
+
                 try:
                     # if version string containts asterisk or labels, raise error (asterisks not supported)
                     versions = toolchains[toolchain]['versions']
@@ -146,6 +173,7 @@ class EasyStackParser(object):
                 # ========================================================================
                 if isinstance(versions, dict):
                     for version in versions:
+                        check_version(version, "%s (with %s toolchain)" % (name, toolchain_name))
                         if versions[version] is not None:
                             version_spec = versions[version]
                             if 'versionsuffix' in version_spec:
@@ -172,35 +200,25 @@ class EasyStackParser(object):
                         easystack.software_list.append(sw)
                     continue
 
-                # is format read as a list of versions?
-                # ========================================================================
-                # versions:
-                #   [2.24, 2.51]
-                # ========================================================================
-                elif isinstance(versions, list):
-                    versions_list = versions
+                elif isinstance(versions, (list, tuple)):
+                    pass
 
-                # format = multiple lines without ':' (read as a string)?
-                # ========================================================================
+                # multiple lines without ':' is read as a single string; example:
                 # versions:
                 #   2.24
                 #   2.51
-                # ========================================================================
-                elif isinstance(versions, str):
-                    versions_list = str(versions).split()
+                elif isinstance(versions, string_type):
+                    versions = versions.split()
 
-                # format read as float (containing one version only)?
-                # ========================================================================
-                # versions:
-                #   2.24
-                # ========================================================================
-                elif isinstance(versions, float):
-                    versions_list = [str(versions)]
+                # single values like 2.24 should be wrapped in a list
+                else:
+                    versions = [versions]
 
-                # if no version is a dictionary, versionsuffix isn't specified
+                # if version is not a dictionary, versionsuffix is not specified
                 versionsuffix = ''
 
-                for version in versions_list:
+                for version in versions:
+                    check_version(version, "%s (with %s toolchain)" % (name, toolchain_name))
                     sw = SoftwareSpecs(
                         name=name, version=version, versionsuffix=versionsuffix,
                         toolchain_name=toolchain_name, toolchain_version=toolchain_version)
