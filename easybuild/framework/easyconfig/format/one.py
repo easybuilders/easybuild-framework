@@ -131,8 +131,14 @@ class FormatOneZero(EasyConfigFormatConfigObj):
             raise EasyBuildError('Requested toolchain version %s not available, only %s', spec_tc_version, tc_version)
 
         # avoid passing anything by reference, so next time get_config_dict is called
-        # we can be sure we return a dictionary that correctly reflects the contents of the easyconfig file
-        return copy.deepcopy(cfg)
+        # we can be sure we return a dictionary that correctly reflects the contents of the easyconfig file;
+        # we can't use copy.deepcopy() directly because in Python 2 copying the (irrelevant) __builtins__ key fails...
+        cfg_copy = {}
+        for key in cfg:
+            if key != '__builtins__':
+                cfg_copy[key] = copy.deepcopy(cfg[key])
+
+        return cfg_copy
 
     def parse(self, txt):
         """
