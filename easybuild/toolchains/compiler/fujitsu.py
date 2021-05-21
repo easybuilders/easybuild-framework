@@ -43,23 +43,30 @@ class FujitsuCompiler(Compiler):
     COMPILER_MODULE_NAME = ['lang']
     COMPILER_FAMILY = TC_CONSTANT_FUJITSU
 
-    COMPILER_CC = 'fcc'
-    COMPILER_CXX = 'FCC'
+    COMPILER_CC = 'fcc -Nclang'
+    COMPILER_CXX = 'FCC -Nclang'
     COMPILER_F77 = 'frt'
     COMPILER_F90 = 'frt'
     COMPILER_FC = 'frt'
 
     COMPILER_UNIQUE_OPTION_MAP = {
-        DEFAULT_OPT_LEVEL: 'Kfast',
+        DEFAULT_OPT_LEVEL: 'O2 -Kfast',
+        'lowopt': 'O1',
+        'noopt': 'O0',
+        'opt': 'O3 -Kfast',
         'optarch': '',  # Fujitsu compiler by default generates code for the arch it is running on
         'openmp': 'Kopenmp',
         'unroll': 'funroll-loops',
-        'strict': ['Kfp_precision'],
-        'precise': ['Kfp_precision'],
+        # apparently the -Kfp_precision flag doesn't work in clang mode, will need to look into these later
+        # also at strict vs precise and loose vs veryloose
+        'strict': ['Knoeval,nofast_matmul,nofp_contract,nofp_relaxed,noilfunc'],  # ['Kfp_precision'],
+        'precise': ['Knoeval,nofast_matmul,nofp_contract,nofp_relaxed,noilfunc'],  # ['Kfp_precision'],
         'defaultprec': [],
         'loose': ['Kfp_relaxed'],
         'veryloose': ['Kfp_relaxed'],
-        'vectorize': {False: 'KNOSVE', True: 'KSVE'},
+        # apparently the -K[NO]SVE flags don't work in clang mode
+        # SVE is enabled by default, -Knosimd seems to disable it
+        'vectorize': {False: 'Knosimd', True: ''},
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
@@ -77,5 +84,5 @@ class FujitsuCompiler(Compiler):
         super(FujitsuCompiler, self)._set_compiler_vars()
 
         # enable clang compatibility mode
-        self.variables.nappend('CFLAGS', ['Nclang'])
-        self.variables.nappend('CXXFLAGS', ['Nclang'])
+        # self.variables.nappend('CFLAGS', ['Nclang'])
+        # self.variables.nappend('CXXFLAGS', ['Nclang'])
