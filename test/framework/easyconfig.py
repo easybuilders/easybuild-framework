@@ -63,7 +63,7 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.framework.extension import resolve_exts_filter_template
 from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import module_classes
+from easybuild.tools.config import build_option, get_module_syntax, module_classes, update_build_option
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, read_file
@@ -4313,6 +4313,93 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(paths[2], 'test.patch')
         self.assertEqual(os.path.basename(paths[3]), bat_patch_fn)
         self.assertTrue(os.path.samefile(target_path, cwd))
+
+    def test_recursive_module_unload(self):
+        """Test use of recursive_module_unload easyconfig parameter."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        write_file(test_ec, test_ec_txt)
+
+        test_module = os.path.join(self.test_installpath, 'modules', 'all', 'foss', '2018a')
+        gcc_modname = 'GCC/6.4.0-2.28'
+        if get_module_syntax() == 'Lua':
+            test_module += '.lua'
+            guarded_load_pat = r'if not \( isloaded\("%(mod)s"\) \) then\n\s*load\("%(mod)s"\)'
+            recursive_unload_pat = r'if mode\(\) == "unload" or not \( isloaded\("%(mod)s"\) \) then\n'
+            recursive_unload_pat += r'\s*load\("%(mod)s"\)'
+        else:
+            guarded_load_pat = r'if { \!\[ is-loaded %(mod)s \] } {\n\s*module load %(mod)s'
+            recursive_unload_pat = r'if { \[ module-info mode remove \] \|\| \!\[ is-loaded %(mod)s \] } {\n'
+            recursive_unload_pat += r'\s*module load %(mod)s'
+
+        guarded_load_regex = re.compile(guarded_load_pat % {'mod': gcc_modname}, re.M)
+        recursive_unload_regex = re.compile(recursive_unload_pat % {'mod': gcc_modname}, re.M)
+
+        # by default, recursive module unloading is disabled everywhere
+        # (--recursive-module-unload configuration option is disabled,
+        # recursive_module_unload easyconfig parameter is None)
+        self.assertFalse(build_option('recursive_mod_unload'))
+        ec = EasyConfig(test_ec)
+        self.assertFalse(ec['recursive_module_unload'])
+        eb = EasyBlock(ec)
+        eb.builddir = self.test_prefix
+        eb.prepare_step()
+        eb.make_module_step()
+        modtxt = read_file(test_module)
+        fail_msg = "Pattern '%s' should be found in: %s" % (guarded_load_regex.pattern, modtxt)
+        self.assertTrue(guarded_load_regex.search(modtxt), fail_msg)
+        fail_msg = "Pattern '%s' should not be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+        self.assertFalse(recursive_unload_regex.search(modtxt), fail_msg)
+
+        remove_file(test_module)
+
+        # recursive_module_unload easyconfig parameter is honored
+        test_ec_bis = os.path.join(self.test_prefix, 'test_bis.eb')
+        test_ec_bis_txt = read_file(toy_ec) + '\nrecursive_module_unload = True'
+        write_file(test_ec_bis, test_ec_bis_txt)
+
+        ec_bis = EasyConfig(test_ec_bis)
+        self.assertTrue(ec_bis['recursive_module_unload'])
+        eb_bis = EasyBlock(ec_bis)
+        eb_bis.builddir = self.test_prefix
+        eb_bis.prepare_step()
+        eb_bis.make_module_step()
+        modtxt = read_file(test_module)
+        fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
+        self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
+        fail_msg = "Pattern '%s' should be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+        self.assertTrue(recursive_unload_regex.search(modtxt), fail_msg)
+
+        # recursive_mod_unload build option is honored
+        update_build_option('recursive_mod_unload', True)
+        eb = EasyBlock(ec)
+        eb.builddir = self.test_prefix
+        eb.prepare_step()
+        eb.make_module_step()
+        modtxt = read_file(test_module)
+        fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
+        self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
+        fail_msg = "Pattern '%s' should be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+        self.assertTrue(recursive_unload_regex.search(modtxt), fail_msg)
+
+        # disabling via easyconfig parameter works even when recursive_mod_unload build option is enabled
+        self.assertTrue(build_option('recursive_mod_unload'))
+        test_ec_bis = os.path.join(self.test_prefix, 'test_bis.eb')
+        test_ec_bis_txt = read_file(toy_ec) + '\nrecursive_module_unload = False'
+        write_file(test_ec_bis, test_ec_bis_txt)
+        ec_bis = EasyConfig(test_ec_bis)
+        self.assertEqual(ec_bis['recursive_module_unload'], False)
+        eb_bis = EasyBlock(ec_bis)
+        eb_bis.builddir = self.test_prefix
+        eb_bis.prepare_step()
+        eb_bis.make_module_step()
+        modtxt = read_file(test_module)
+        fail_msg = "Pattern '%s' should be found in: %s" % (guarded_load_regex.pattern, modtxt)
+        self.assertTrue(guarded_load_regex.search(modtxt), fail_msg)
+        fail_msg = "Pattern '%s' should not be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+        self.assertFalse(recursive_unload_regex.search(modtxt), fail_msg)
 
     def test_pure_ec(self):
         """
