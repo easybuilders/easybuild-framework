@@ -128,15 +128,13 @@ class EasyStackParser(object):
         for name in software:
             # ensure we have a string value (YAML parser returns type = dict
             # if levels under the current attribute are present)
-            check_value(toolchain, "software %s (with %s toolchain)" % (name, toolchain))
-            name = str(name)
+            check_value(name, "software name")
             try:
                 toolchains = software[name]['toolchains']
             except KeyError:
                 raise EasyBuildError("Toolchains for software '%s' are not defined in %s", name, filepath)
             for toolchain in toolchains:
-                check_value(toolchain, "software %s (with %s toolchain)" % (name, toolchain))
-                toolchain = str(toolchain)
+                check_value(toolchain, "software %s" % name)
 
                 if toolchain == 'SYSTEM':
                     toolchain_name, toolchain_version = 'system', ''
