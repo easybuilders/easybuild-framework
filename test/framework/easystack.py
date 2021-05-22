@@ -145,8 +145,7 @@ class EasyStackTest(EnhancedTestCase):
 
         # versions that get interpreted by YAML as float or int, single quotes required
         for version in ('1.2', '123', '3.50', '100', '2.44_01'):
-            error_pattern = r"Value .* \(of type .*\) obtained for foo \(with system toolchain\) "
-            error_pattern += r"does not represent a valid version\!"
+            error_pattern = r"Value .* \(of type .*\) obtained for foo \(with system toolchain\) is not valid\!"
 
             write_file(test_easystack, tmpl_easystack_txt + ' ' + version)
             self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
