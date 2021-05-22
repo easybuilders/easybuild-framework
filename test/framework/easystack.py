@@ -183,6 +183,19 @@ class EasyStackTest(EnhancedTestCase):
             expected = ['foo-1.2.3.eb', 'foo-%s.eb' % version, 'foo-3.2.1-foo.eb']
             self.assertEqual(sorted(ec_fns), sorted(expected))
 
+        # also check toolchain version that could be interpreted as a non-string value...
+        test_easystack_txt = '\n'.join([
+            'software:',
+            '  test:',
+            '    toolchains:',
+            '      intel-2021.03:',
+            "        versions: [1.2.3, '2.3']",
+        ])
+        write_file(test_easystack, test_easystack_txt)
+        ec_fns, _ = parse_easystack(test_easystack)
+        expected = ['test-1.2.3-intel-2021.03.eb', 'test-2.3-intel-2021.03.eb']
+        self.assertEqual(sorted(ec_fns), sorted(expected))
+
 
 def suite():
     """ returns all the testcases in this module """
