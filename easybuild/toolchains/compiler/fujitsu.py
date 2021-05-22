@@ -43,17 +43,19 @@ class FujitsuCompiler(Compiler):
     COMPILER_MODULE_NAME = ['lang']
     COMPILER_FAMILY = TC_CONSTANT_FUJITSU
 
+    # make sure fcc is always called in clang compatibility mode
     COMPILER_CC = 'fcc -Nclang'
     COMPILER_CXX = 'FCC -Nclang'
+
     COMPILER_F77 = 'frt'
     COMPILER_F90 = 'frt'
     COMPILER_FC = 'frt'
 
     COMPILER_UNIQUE_OPTION_MAP = {
-        DEFAULT_OPT_LEVEL: 'O2 -Kfast',
+        DEFAULT_OPT_LEVEL: 'O2',
         'lowopt': 'O1',
         'noopt': 'O0',
-        'opt': 'O3 -Kfast',
+        'opt': 'Kfast',  # -O3 -Keval,fast_matmul,fp_contract,fp_relaxed,fz,ilfunc,mfunc,omitfp,simd_packed_promotion
         'optarch': '',  # Fujitsu compiler by default generates code for the arch it is running on
         'openmp': 'Kopenmp',
         'unroll': 'funroll-loops',
@@ -83,6 +85,6 @@ class FujitsuCompiler(Compiler):
     def _set_compiler_vars(self):
         super(FujitsuCompiler, self)._set_compiler_vars()
 
-        # enable clang compatibility mode
+        # enable clang compatibility mode; moved to compiler constants to make sure it is always used
         # self.variables.nappend('CFLAGS', ['Nclang'])
         # self.variables.nappend('CXXFLAGS', ['Nclang'])
