@@ -42,14 +42,14 @@ except ImportError:
 _log = fancylogger.getLogger('easystack', fname=False)
 
 
-def check_version(value, context):
+def check_value(value, context):
     """
-    Check whether specified value obtained from a YAML file in specified context represents a valid version.
-    The value must be a string value (not a float or an int).
+    Check whether specified value obtained from a YAML file in specified context represents is valid.
+    The value must be a string (not a float or an int).
     """
     if not isinstance(value, string_type):
         error_msg = '\n'.join([
-            "Value %(value)s (of type %(type)s) obtained for %(context)s does not represent a valid version!",
+            "Value %(value)s (of type %(type)s) obtained for %(context)s is not valid!",
             "Make sure to wrap the value in single quotes (like '%(value)s') to avoid that it is interpreted "
             "by the YAML parser as a non-string value.",
         ])
@@ -128,12 +128,14 @@ class EasyStackParser(object):
         for name in software:
             # ensure we have a string value (YAML parser returns type = dict
             # if levels under the current attribute are present)
+            check_value(toolchain, "software %s (with %s toolchain)" % (name, toolchain))
             name = str(name)
             try:
                 toolchains = software[name]['toolchains']
             except KeyError:
                 raise EasyBuildError("Toolchains for software '%s' are not defined in %s", name, filepath)
             for toolchain in toolchains:
+                check_value(toolchain, "software %s (with %s toolchain)" % (name, toolchain))
                 toolchain = str(toolchain)
 
                 if toolchain == 'SYSTEM':
@@ -147,8 +149,6 @@ class EasyStackParser(object):
                     else:
                         raise EasyBuildError("Incorrect toolchain specification for '%s' in %s, too many parts: %s",
                                              name, filepath, toolchain_parts)
-
-                check_version(toolchain_version, "software %s (with %s toolchain)" % (name, toolchain_name))
 
                 try:
                     # if version string containts asterisk or labels, raise error (asterisks not supported)
@@ -167,13 +167,13 @@ class EasyStackParser(object):
                 # Example of yaml structure:
                 # ========================================================================
                 # versions:
-                #   2.25:
-                #   2.23:
+                #   '2.25':
+                #   '2.23':
                 #     versionsuffix: '-R-4.0.0'
                 # ========================================================================
                 if isinstance(versions, dict):
                     for version in versions:
-                        check_version(version, "%s (with %s toolchain)" % (name, toolchain_name))
+                        check_value(version, "%s (with %s toolchain)" % (name, toolchain_name))
                         if versions[version] is not None:
                             version_spec = versions[version]
                             if 'versionsuffix' in version_spec:
@@ -205,12 +205,12 @@ class EasyStackParser(object):
 
                 # multiple lines without ':' is read as a single string; example:
                 # versions:
-                #   2.24
-                #   2.51
+                #   '2.24'
+                #   '2.51'
                 elif isinstance(versions, string_type):
                     versions = versions.split()
 
-                # single values like 2.24 should be wrapped in a list
+                # single values like '2.24' should be wrapped in a list
                 else:
                     versions = [versions]
 
@@ -218,7 +218,7 @@ class EasyStackParser(object):
                 versionsuffix = ''
 
                 for version in versions:
-                    check_version(version, "%s (with %s toolchain)" % (name, toolchain_name))
+                    check_value(version, "%s (with %s toolchain)" % (name, toolchain_name))
                     sw = SoftwareSpecs(
                         name=name, version=version, versionsuffix=versionsuffix,
                         toolchain_name=toolchain_name, toolchain_version=toolchain_version)
