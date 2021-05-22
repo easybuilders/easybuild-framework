@@ -101,7 +101,7 @@ class EasyStackTest(EnhancedTestCase):
 
         context = "<some context>"
         for version in (1.2, 100, None):
-            error_pattern = r"Value .* \(of type .*\) obtained for <some context> does not represent a valid version!"
+            error_pattern = r"Value .* \(of type .*\) obtained for <some context> is not valid!"
             self.assertErrorRegex(EasyBuildError, error_pattern, check_value, version, context)
 
     def test_easystack_versions(self):
