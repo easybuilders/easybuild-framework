@@ -45,20 +45,28 @@ class FujitsuSSL(LinAlg):
     # via lang/tcsds module
     BLAS_MODULE_NAME = ['lang']
 
-    # no need to specify libraries, compiler driver takes care of linking the right libraries
+    # no need to specify libraries nor includes, only the compiler flags below
     BLAS_LIB = ['']
     BLAS_LIB_MT = ['']
+    BLAS_INCLUDE_DIR = ['']
     BLAS_FAMILY = TC_CONSTANT_FUJITSU_SSL
 
     LAPACK_MODULE_NAME = None
     LAPACK_IS_BLAS = True
+    LAPACK_LIB = ['']
+    LAPACK_LIB_MT = ['']
+    LAPACK_INCLUDE_DIR = ['']
     LAPACK_FAMILY = TC_CONSTANT_FUJITSU_SSL
 
     BLACS_MODULE_NAME = None
+    BLACS_LIB = ['']
+    BLACS_LIB_MT = ['']
+    BLACS_INCLUDE_DIR = ['']
 
     SCALAPACK_MODULE_NAME = BLAS_MODULE_NAME
     SCALAPACK_LIB = ['']
     SCALAPACK_LIB_MT = ['']
+    SCALAPACK_INCLUDE_DIR = ['']
     SCALAPACK_FAMILY = TC_CONSTANT_FUJITSU_SSL
 
     def _get_software_root(self, name):
