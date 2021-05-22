@@ -33,7 +33,7 @@ import sys
 from unittest import TextTestRunner
 
 import easybuild.tools.build_log
-from easybuild.framework.easystack import check_version, parse_easystack
+from easybuild.framework.easystack import check_value, parse_easystack
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
@@ -92,17 +92,17 @@ class EasyStackTest(EnhancedTestCase):
         error_msg += "Labels aren't supported yet."
         self.assertErrorRegex(EasyBuildError, error_msg, parse_easystack, test_easystack)
 
-    def test_check_version(self):
-        """Test check_version function."""
-        check_version('1.2.3', None)
-        check_version('1.2', None)
-        check_version('3.50', None)
-        check_version('100', None)
+    def test_check_value(self):
+        """Test check_value function."""
+        check_value('1.2.3', None)
+        check_value('1.2', None)
+        check_value('3.50', None)
+        check_value('100', None)
 
         context = "<some context>"
         for version in (1.2, 100, None):
-            error_pattern = r"Value .* \(of type .*\) obtained for <some context> does not represent a valid version!"
-            self.assertErrorRegex(EasyBuildError, error_pattern, check_version, version, context)
+            error_pattern = r"Value .* \(of type .*\) obtained for <some context> is not valid!"
+            self.assertErrorRegex(EasyBuildError, error_pattern, check_value, version, context)
 
     def test_easystack_versions(self):
         """Test handling of versions in easystack files."""
@@ -145,8 +145,7 @@ class EasyStackTest(EnhancedTestCase):
 
         # versions that get interpreted by YAML as float or int, single quotes required
         for version in ('1.2', '123', '3.50', '100', '2.44_01'):
-            error_pattern = r"Value .* \(of type .*\) obtained for foo \(with system toolchain\) "
-            error_pattern += r"does not represent a valid version\!"
+            error_pattern = r"Value .* \(of type .*\) obtained for foo \(with system toolchain\) is not valid\!"
 
             write_file(test_easystack, tmpl_easystack_txt + ' ' + version)
             self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
