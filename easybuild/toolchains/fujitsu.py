@@ -29,9 +29,11 @@ Fujitsu toolchain: Fujitsu compilers and MPI + Fujitsu SSL2 and Fujitsu FFTW
 """
 from easybuild.toolchains.ffmpi import Ffmpi
 from easybuild.toolchains.fft.fujitsufftw import FujitsuFFTW
+from easybuild.toolchains.linalg.fujitsussl import FujitsuSSL
 
 
-class Fujitsu(Ffmpi, FujitsuFFTW):
+class Fujitsu(Ffmpi, FujitsuFFTW, FujitsuSSL):
     """Compiler toolchain for Fujitsu."""
     NAME = 'Fujitsu'
     SUBTOOLCHAIN = Ffmpi.NAME
+    COMPILER_MODULE_NAME = []
