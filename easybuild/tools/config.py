@@ -248,6 +248,7 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_checksums',
         'ignore_index',
         'ignore_locks',
+        'imkl_dynamic_linking',
         'install_latest_eb_release',
         'logtostdout',
         'minimal_toolchains',

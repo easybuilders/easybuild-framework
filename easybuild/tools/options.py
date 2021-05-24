@@ -419,6 +419,7 @@ class EasyBuildOptions(GeneralOption):
                                           None, 'append', None, {'metavar': '[URLPAT::][HEADER:]FILE|FIELD'}),
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
+            'imkl-dynamic-linking': ("Link MKL dynamically instead of statically", None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
             'lib-lib64-symlink': ("Automatically create symlinks for lib/ pointing to lib64/ if the former is missing",
                                   None, 'store_true', True),
