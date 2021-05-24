@@ -29,7 +29,7 @@ Useful: http://www.yaml.org/spec/1.2/spec.html
 :author: Caroline De Brouwer (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-
+import copy
 import os
 import platform
 from distutils.version import LooseVersion
@@ -91,7 +91,9 @@ class FormatYeb(EasyConfigFormat):
         """
         Return parsed easyconfig as a dictionary, based on specified arguments.
         """
-        return self.parsed_yeb
+        # avoid passing anything by reference, so next time get_config_dict is called
+        # we can be sure we return a dictionary that correctly reflects the contents of the easyconfig file
+        return copy.deepcopy(self.parsed_yeb)
 
     @only_if_module_is_available('yaml')
     def parse(self, txt):

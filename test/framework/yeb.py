@@ -110,6 +110,21 @@ class YebTest(EnhancedTestCase):
 
                 self.assertEqual(yeb_val, eb_val)
 
+    def test_yeb_get_config_obj(self):
+        """Test get_config_dict method."""
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        test_yeb_easyconfigs = os.path.join(testdir, 'easyconfigs', 'yeb')
+        ec = EasyConfig(os.path.join(test_yeb_easyconfigs, 'toy-0.0.yeb'))
+        ecdict = ec.parser.get_config_dict()
+
+        # changes to this dict should not affect the return value of the next call to get_config_dict
+        fn = 'test.tar.gz'
+        ecdict['sources'].append(fn)
+
+        ecdict_bis = ec.parser.get_config_dict()
+        self.assertTrue(fn in ecdict['sources'])
+        self.assertFalse(fn in ecdict_bis['sources'])
+
     def test_is_yeb_format(self):
         """ Test is_yeb_format function """
         testdir = os.path.dirname(os.path.abspath(__file__))

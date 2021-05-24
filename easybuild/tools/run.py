@@ -128,7 +128,7 @@ def get_output_from_process(proc, read_size=None, asynchronous=False):
 
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            force_in_dry_run=False, verbose=True, shell=True, trace=True, stream_output=None):
+            force_in_dry_run=False, verbose=True, shell=True, trace=True, stream_output=None, asynchronous=False):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -144,6 +144,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param shell: allow commands to not run in a shell (especially useful for cmd lists)
     :param trace: print command being executed as part of trace output
     :param stream_output: enable streaming command output to stdout
+    :param asynchronous: run command asynchronously (returns subprocess.Popen instance if set to True)
     """
     cwd = os.getcwd()
 
@@ -228,10 +229,35 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
                                 stdin=subprocess.PIPE, close_fds=True, executable=exec_cmd)
     except OSError as err:
         raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
+
     if inp:
         proc.stdin.write(inp.encode())
     proc.stdin.close()
 
+    if asynchronous:
+        return (proc, cmd, cwd, start_time, cmd_log)
+    else:
+        return complete_cmd(proc, cmd, cwd, start_time, cmd_log, log_ok=log_ok, log_all=log_all, simple=simple,
+                            regexp=regexp, stream_output=stream_output, trace=trace)
+
+
+def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False, simple=False,
+                 regexp=True, stream_output=None, trace=True, output=''):
+    """
+    Complete running of command represented by passed subprocess.Popen instance.
+
+    :param proc: subprocess.Popen instance representing running command
+    :param cmd: command being run
+    :param owd: original working directory
+    :param start_time: start time of command (datetime instance)
+    :param cmd_log: log file to print command output to
+    :param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    :param log_all: always log command output and exit code
+    :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
+    :param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
+    :param stream_output: enable streaming command output to stdout
+    :param trace: print command being executed as part of trace output
+    """
     # use small read size when streaming output, to make it stream more fluently
     # read size should not be too small though, to avoid too much overhead
     if stream_output:
@@ -239,8 +265,9 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     else:
         read_size = 1024 * 8
 
+    stdouterr = output
+
     ec = proc.poll()
-    stdouterr = ''
     while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
@@ -254,6 +281,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     # read remaining data (all of it)
     output = get_output_from_process(proc)
+    proc.stdout.close()
     if cmd_log:
         cmd_log.write(output)
         cmd_log.close()
@@ -265,9 +293,9 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         trace_msg("command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))
 
     try:
-        os.chdir(cwd)
+        os.chdir(owd)
     except OSError as err:
-        raise EasyBuildError("Failed to return to %s after executing command: %s", cwd, err)
+        raise EasyBuildError("Failed to return to %s after executing command: %s", owd, err)
 
     return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
 

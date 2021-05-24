@@ -31,7 +31,6 @@ be used within an Easyconfig file.
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Kenneth Hoste (Ghent University)
 """
-import copy
 import re
 import platform
 
@@ -155,6 +154,19 @@ for ext in extensions:
         ('SOURCE_%s' % suffix, '%(name)s-%(version)s.' + ext, "Source .%s bundle" % ext),
         ('SOURCELOWER_%s' % suffix, '%(namelower)s-%(version)s.' + ext, "Source .%s bundle with lowercase name" % ext),
     ]
+for pyver in ('py2.py3', 'py2', 'py3'):
+    if pyver == 'py2.py3':
+        desc = 'Python 2 & Python 3'
+        name_infix = ''
+    else:
+        desc = 'Python ' + pyver[-1]
+        name_infix = pyver.upper() + '_'
+    TEMPLATE_CONSTANTS += [
+        ('SOURCE_%sWHL' % name_infix, '%%(name)s-%%(version)s-%s-none-any.whl' % pyver,
+         'Generic (non-compiled) %s wheel package' % desc),
+        ('SOURCELOWER_%sWHL' % name_infix, '%%(namelower)s-%%(version)s-%s-none-any.whl' % pyver,
+         'Generic (non-compiled) %s wheel package with lowercase name' % desc),
+    ]
 
 # TODO derived config templates
 # versionmajor, versionminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
@@ -229,10 +241,10 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
             raise EasyBuildError("Undefined name %s from TEMPLATE_NAMES_EASYCONFIG", name)
 
     # step 2: define *ver and *shortver templates
-    for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
+    if TEMPLATE_SOFTWARE_VERSIONS:
 
-        # copy to avoid changing original list below
-        deps = copy.copy(config.get('dependencies', []))
+        name_to_prefix = dict((name.lower(), pref) for name, pref in TEMPLATE_SOFTWARE_VERSIONS)
+        deps = config.get('dependencies', [])
 
         # also consider build dependencies for *ver and *shortver templates;
         # we need to be a bit careful here, because for iterative installations
@@ -249,15 +261,22 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
             # only consider build dependencies when we're actually in iterative mode!
             if 'builddependencies' in config.iterate_options:
                 if config.iterating:
-                    deps.extend(config.get('builddependencies', []))
+                    build_deps = config.get('builddependencies')
+                else:
+                    build_deps = None
             else:
-                deps.extend(config.get('builddependencies', []))
-
+                build_deps = config.get('builddependencies')
+            if build_deps:
+                # Don't use += to avoid changing original list
+                deps = deps + build_deps
             # include all toolchain deps (e.g. CUDAcore component in fosscuda);
             # access Toolchain instance via _toolchain to avoid triggering initialization of the toolchain!
-            if config._toolchain is not None:
-                if config._toolchain.tcdeps is not None:
+            if config._toolchain is not None and config._toolchain.tcdeps:
+                # If we didn't create a new list above do it here
+                if build_deps:
                     deps.extend(config._toolchain.tcdeps)
+                else:
+                    deps = deps + config._toolchain.tcdeps
 
         for dep in deps:
             if isinstance(dep, dict):
@@ -279,15 +298,16 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
             else:
                 raise EasyBuildError("Unexpected type for dependency: %s", dep)
 
-            if isinstance(dep_name, string_type) and dep_name.lower() == name.lower() and dep_version:
-                dep_version = pick_dep_version(dep_version)
-                template_values['%sver' % pref] = dep_version
-                dep_version_parts = dep_version.split('.')
-                template_values['%smajver' % pref] = dep_version_parts[0]
-                if len(dep_version_parts) > 1:
-                    template_values['%sminver' % pref] = dep_version_parts[1]
-                template_values['%sshortver' % pref] = '.'.join(dep_version_parts[:2])
-                break
+            if isinstance(dep_name, string_type) and dep_version:
+                pref = name_to_prefix.get(dep_name.lower())
+                if pref:
+                    dep_version = pick_dep_version(dep_version)
+                    template_values['%sver' % pref] = dep_version
+                    dep_version_parts = dep_version.split('.')
+                    template_values['%smajver' % pref] = dep_version_parts[0]
+                    if len(dep_version_parts) > 1:
+                        template_values['%sminver' % pref] = dep_version_parts[1]
+                    template_values['%sshortver' % pref] = '.'.join(dep_version_parts[:2])
 
     # step 3: add remaining from config
     for name in TEMPLATE_NAMES_CONFIG:

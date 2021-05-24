@@ -54,7 +54,7 @@ from easybuild.tools.run import run_cmd
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 81
+TEST_MODULES_COUNT = 82
 
 
 class ModulesTest(EnhancedTestCase):
@@ -1036,6 +1036,7 @@ class ModulesTest(EnhancedTestCase):
             load_err_msg = "Unable to locate a modulefile"
 
         # GCC/4.6.3 is *not* an available Core module
+        os.environ['LC_ALL'] = 'C'
         self.assertErrorRegex(EasyBuildError, load_err_msg, self.modtool.load, ['GCC/4.6.3'])
 
         # GCC/6.4.0-2.28 is one of the available Core modules
@@ -1142,24 +1143,98 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
         self.assertEqual(mod.MODULE_SHOW_CACHE, {})
 
-    def test_module_use(self):
-        """Test 'module use'."""
+    def test_module_use_unuse(self):
+        """Test 'module use' and 'module unuse'."""
         test_dir1 = os.path.join(self.test_prefix, 'one')
         test_dir2 = os.path.join(self.test_prefix, 'two')
         test_dir3 = os.path.join(self.test_prefix, 'three')
 
+        for subdir in ('one', 'two', 'three'):
+            modtxt = '\n'.join([
+                '#%Module',
+                "setenv TEST123 %s" % subdir,
+            ])
+            write_file(os.path.join(self.test_prefix, subdir, 'test'), modtxt)
+
         self.assertFalse(test_dir1 in os.environ.get('MODULEPATH', ''))
         self.modtool.use(test_dir1)
-        self.assertTrue(os.environ.get('MODULEPATH', '').startswith('%s:' % test_dir1))
+        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir1))
+        self.modtool.use(test_dir2)
+        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir2))
+        self.modtool.use(test_dir3)
+        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir3))
+
+        # make sure the right test module is loaded
+        self.modtool.load(['test'])
+        self.assertEqual(os.getenv('TEST123'), 'three')
+        self.modtool.unload(['test'])
+
+        self.modtool.unuse(test_dir3)
+        self.assertFalse(test_dir3 in os.environ.get('MODULEPATH', ''))
+
+        self.modtool.load(['test'])
+        self.assertEqual(os.getenv('TEST123'), 'two')
+        self.modtool.unload(['test'])
+
+        self.modtool.unuse(test_dir2)
+        self.assertFalse(test_dir2 in os.environ.get('MODULEPATH', ''))
+
+        self.modtool.load(['test'])
+        self.assertEqual(os.getenv('TEST123'), 'one')
+        self.modtool.unload(['test'])
+
+        self.modtool.unuse(test_dir1)
+        self.assertFalse(test_dir1 in os.environ.get('MODULEPATH', ''))
 
         # also test use with high priority
         self.modtool.use(test_dir2, priority=10000)
         self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir2))
 
-        # check whether prepend with priority actually works (only for Lmod)
+        self.modtool.load(['test'])
+        self.assertEqual(os.getenv('TEST123'), 'two')
+        self.modtool.unload(['test'])
+
+        # Tests for Lmod only
         if isinstance(self.modtool, Lmod):
+            # check whether prepend with priority actually works (priority is specific to Lmod)
+            self.modtool.use(test_dir1, priority=100)
             self.modtool.use(test_dir3)
-            self.assertTrue(os.environ['MODULEPATH'].startswith('%s:%s:' % (test_dir2, test_dir3)))
+            self.assertTrue(os.environ['MODULEPATH'].startswith('%s:%s:%s:' % (test_dir2, test_dir1, test_dir3)))
+            self.modtool.load(['test'])
+            self.assertEqual(os.getenv('TEST123'), 'two')
+            self.modtool.unload(['test'])
+
+            self.modtool.unuse(test_dir2)
+            self.modtool.load(['test'])
+            self.assertEqual(os.getenv('TEST123'), 'one')
+            self.modtool.unload(['test'])
+
+            self.modtool.unuse(test_dir1)
+            self.modtool.load(['test'])
+            self.assertEqual(os.getenv('TEST123'), 'three')
+            self.modtool.unload(['test'])
+
+            # Check load and unload for a single path when it is the only one
+            # Only for Lmod as we have some shortcuts for avoiding the module call there
+            old_module_path = os.environ['MODULEPATH']
+            del os.environ['MODULEPATH']
+            self.modtool.use(test_dir1)
+            self.assertEqual(os.environ['MODULEPATH'], test_dir1)
+            self.modtool.unuse(test_dir1)
+            self.assertFalse('MODULEPATH' in os.environ)
+            os.environ['MODULEPATH'] = old_module_path  # Restore
+
+            # Using an empty path still works (technically) (Lmod only, ignored by Tcl)
+            old_module_path = os.environ['MODULEPATH']
+            self.modtool.use('')
+            self.assertEqual(os.environ['MODULEPATH'], ':' + old_module_path)
+            self.modtool.unuse('')
+            self.assertEqual(os.environ['MODULEPATH'], old_module_path)
+            # Even works when the whole path is empty
+            os.environ['MODULEPATH'] = ''
+            self.modtool.unuse('')
+            self.assertFalse('MODULEPATH' in os.environ)
+            os.environ['MODULEPATH'] = old_module_path  # Restore
 
     def test_module_use_bash(self):
         """Test whether effect of 'module use' is preserved when a new bash session is started."""

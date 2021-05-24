@@ -676,6 +676,9 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
     """
     _log.debug("Cloning from %s", github_url)
 
+    if target_account is None:
+        raise EasyBuildError("target_account not specified in setup_repo_from!")
+
     # salt to use for names of remotes/branches that are created
     salt = ''.join(random.choice(ascii_letters) for _ in range(5))
 
@@ -688,10 +691,12 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
     # git fetch
     # can't use --depth to only fetch a shallow copy, since pushing to another repo from a shallow copy doesn't work
     print_msg("fetching branch '%s' from %s..." % (branch_name, github_url), silent=silent)
+    res = None
     try:
         res = origin.fetch()
     except GitCommandError as err:
         raise EasyBuildError("Failed to fetch branch '%s' from %s: %s", branch_name, github_url, err)
+
     if res:
         if res[0].flags & res[0].ERROR:
             raise EasyBuildError("Fetching branch '%s' from remote %s failed: %s", branch_name, origin, res[0].note)
@@ -807,6 +812,10 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         # if start branch is not specified, we're opening a new PR
         # account to use is determined by active EasyBuild configuration (--github-org or --github-user)
         target_account = build_option('github_org') or build_option('github_user')
+
+        if target_account is None:
+            raise EasyBuildError("--github-org or --github-user must be specified!")
+
         # if branch to start from is specified, we're updating an existing PR
         start_branch = build_option('pr_target_branch')
     else:
@@ -959,6 +968,8 @@ def push_branch_to_github(git_repo, target_account, target_repo, branch):
     :param target_repo: repository name
     :param branch: name of branch to push
     """
+    if target_account is None:
+        raise EasyBuildError("target_account not specified in push_branch_to_github!")
 
     # push to GitHub
     remote = create_remote(git_repo, target_account, target_repo)
@@ -1136,14 +1147,18 @@ def check_pr_eligible_to_merge(pr_data):
         if not test_report_found:
             res = not_eligible(msg_tmpl % "(no test reports found)")
 
-    # check for requested changes and approved review
+    # check for approved review
     approved_review_by = []
-    changes_requested_by = []
     for review in pr_data['reviews']:
         if review['state'] == 'APPROVED':
             approved_review_by.append(review['user']['login'])
+
+    # check for requested changes
+    changes_requested_by = []
+    for review in pr_data['reviews']:
         if review['state'] == 'CHANGES_REQUESTED':
-            changes_requested_by.append(review['user']['login'])
+            if review['user']['login'] not in approved_review_by + changes_requested_by:
+                changes_requested_by.append(review['user']['login'])
 
     msg_tmpl = "* no pending change requests: %s"
     if changes_requested_by:
@@ -1453,7 +1468,7 @@ def post_pr_labels(pr, labels):
         return True
 
 
-def add_pr_labels(pr, branch='develop'):
+def add_pr_labels(pr, branch=GITHUB_DEVELOP_BRANCH):
     """
     Try to determine and add labels to PR.
     :param pr: pull request number in easybuild-easyconfigs repo
@@ -1982,7 +1997,7 @@ def check_github():
     branch_name = 'test_branch_%s' % ''.join(random.choice(ascii_letters) for _ in range(5))
     try:
         git_repo = init_repo(git_working_dir, GITHUB_EASYCONFIGS_REPO, silent=not debug)
-        remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, GITHUB_BRANCH_MAIN,
+        remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, GITHUB_DEVELOP_BRANCH,
                                  silent=not debug, git_only=True)
         git_repo.create_head(branch_name)
         res = getattr(git_repo.remotes, remote_name).push(branch_name)
@@ -2001,6 +2016,8 @@ def check_github():
             ver, req_ver = git.__version__, '1.0'
             if LooseVersion(ver) < LooseVersion(req_ver):
                 check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (ver, req_ver)
+            elif "Could not read from remote repository" in push_err.msg:
+                check_res = "FAIL (GitHub SSH key missing? %s)" % push_err
             else:
                 check_res = "FAIL (unexpected exception: %s)" % push_err
         else:
@@ -2152,22 +2169,32 @@ def validate_github_token(token, github_user):
     * see if it conforms expectations (only [a-f]+[0-9] characters, length of 40)
     * see if it can be used for authenticated access
     """
-    sha_regex = re.compile('^[0-9a-f]{40}')
+    # cfr. https://github.blog/2021-04-05-behind-githubs-new-authentication-token-formats/
+    token_regex = re.compile('^ghp_[a-zA-Z0-9]{36}$')
+    token_regex_old_format = re.compile('^[0-9a-f]{40}$')
 
     # token should be 40 characters long, and only contain characters in [0-9a-f]
-    sanity_check = bool(sha_regex.match(token))
+    sanity_check = bool(token_regex.match(token))
     if sanity_check:
         _log.info("Sanity check on token passed")
     else:
-        _log.warning("Sanity check on token failed; token doesn't match pattern '%s'", sha_regex.pattern)
+        _log.warning("Sanity check on token failed; token doesn't match pattern '%s'", token_regex.pattern)
+        sanity_check = bool(token_regex_old_format.match(token))
+        if sanity_check:
+            _log.info("Sanity check on token (old format) passed")
+        else:
+            _log.warning("Sanity check on token failed; token doesn't match pattern '%s'",
+                         token_regex_old_format.pattern)
 
     # try and determine sha of latest commit in easybuilders/easybuild-easyconfigs repo through authenticated access
     sha = None
     try:
-        sha = fetch_latest_commit_sha(GITHUB_EASYCONFIGS_REPO, GITHUB_EB_MAIN, github_user=github_user, token=token)
+        sha = fetch_latest_commit_sha(GITHUB_EASYCONFIGS_REPO, GITHUB_EB_MAIN,
+                                      branch=GITHUB_DEVELOP_BRANCH, github_user=github_user, token=token)
     except Exception as err:
         _log.warning("An exception occurred when trying to use token for authenticated GitHub access: %s", err)
 
+    sha_regex = re.compile('^[0-9a-f]{40}$')
     token_test = bool(sha_regex.match(sha or ''))
     if token_test:
         _log.info("GitHub token can be used for authenticated GitHub access, validation passed")
@@ -2181,7 +2208,8 @@ def find_easybuild_easyconfig(github_user=None):
 
     :param github_user: name of GitHub user to use when querying GitHub
     """
-    dev_repo = download_repo(GITHUB_EASYCONFIGS_REPO, branch='develop', account=GITHUB_EB_MAIN, github_user=github_user)
+    dev_repo = download_repo(GITHUB_EASYCONFIGS_REPO, branch=GITHUB_DEVELOP_BRANCH,
+                             account=GITHUB_EB_MAIN, github_user=github_user)
     eb_parent_path = os.path.join(dev_repo, 'easybuild', 'easyconfigs', 'e', 'EasyBuild')
     files = os.listdir(eb_parent_path)
 

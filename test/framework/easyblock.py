@@ -34,7 +34,6 @@ import shutil
 import sys
 import tempfile
 from inspect import cleandoc
-from datetime import datetime
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -50,7 +49,6 @@ from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, re
 from easybuild.tools.filetools import verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
 from easybuild.tools.modules import reset_module_caches
-from easybuild.tools.utilities import time2str
 from easybuild.tools.version import get_git_revision, this_is_easybuild
 from easybuild.tools.py2vs3 import string_type
 
@@ -1679,16 +1677,18 @@ class EasyBlockTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
+        # Do this before loading the easyblock to check the non-translated output below
+        os.environ['LC_ALL'] = 'C'
+
         # this import only works here, since EB_toy is a test easyblock
         from easybuild.easyblocks.toy import EB_toy
 
         # purposely inject failing custom extension filter for last extension
         toy_ec = EasyConfig(toy_ec_fn)
-        toy_ec.enable_templating = False
-        exts_list = toy_ec['exts_list']
-        exts_list[-1][2]['exts_filter'] = ("thisshouldfail", '')
-        toy_ec['exts_list'] = exts_list
-        toy_ec.enable_templating = True
+        with toy_ec.disable_templating():
+            exts_list = toy_ec['exts_list']
+            exts_list[-1][2]['exts_filter'] = ("thisshouldfail", '')
+            toy_ec['exts_list'] = exts_list
 
         eb = EB_toy(toy_ec)
         eb.silent = True
@@ -1895,6 +1895,60 @@ class EasyBlockTest(EnhancedTestCase):
         loaded_modules = self.modtool.list()
         self.assertEqual(len(loaded_modules), 1)
         self.assertEqual(loaded_modules[0]['mod_name'], 'GCC/6.4.0-2.28')
+
+    def test_prepare_step_cuda_cache(self):
+        """Test handling cuda-cache-* options."""
+
+        init_config(build_options={'cuda_cache_maxsize': None})  # Automatic mode
+
+        test_ecs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        ec = process_easyconfig(toy_ec)[0]
+        eb = EasyBlock(ec['ec'])
+        eb.silent = True
+        eb.make_builddir()
+
+        eb.prepare_step(start_dir=False)
+        logtxt = read_file(eb.logfile)
+        self.assertNotIn('Disabling CUDA PTX cache', logtxt)
+        self.assertNotIn('Enabling CUDA PTX cache', logtxt)
+
+        # Now with CUDA
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ectxt = re.sub('^toolchain = .*', "toolchain = {'name': 'gcccuda', 'version': '2018a'}",
+                            read_file(toy_ec), flags=re.M)
+        write_file(test_ec, test_ectxt)
+        ec = process_easyconfig(test_ec)[0]
+        eb = EasyBlock(ec['ec'])
+        eb.silent = True
+        eb.make_builddir()
+
+        write_file(eb.logfile, '')
+        eb.prepare_step(start_dir=False)
+        logtxt = read_file(eb.logfile)
+        self.assertNotIn('Disabling CUDA PTX cache', logtxt)
+        self.assertIn('Enabling CUDA PTX cache', logtxt)
+        self.assertEqual(os.environ['CUDA_CACHE_DISABLE'], '0')
+
+        init_config(build_options={'cuda_cache_maxsize': 0})  # Disable
+        write_file(eb.logfile, '')
+        eb.prepare_step(start_dir=False)
+        logtxt = read_file(eb.logfile)
+        self.assertIn('Disabling CUDA PTX cache', logtxt)
+        self.assertNotIn('Enabling CUDA PTX cache', logtxt)
+        self.assertEqual(os.environ['CUDA_CACHE_DISABLE'], '1')
+
+        # Specified size and location
+        cuda_cache_dir = os.path.join(self.test_prefix, 'custom-cuda-cache')
+        init_config(build_options={'cuda_cache_maxsize': 1234, 'cuda_cache_dir': cuda_cache_dir})
+        write_file(eb.logfile, '')
+        eb.prepare_step(start_dir=False)
+        logtxt = read_file(eb.logfile)
+        self.assertNotIn('Disabling CUDA PTX cache', logtxt)
+        self.assertIn('Enabling CUDA PTX cache', logtxt)
+        self.assertEqual(os.environ['CUDA_CACHE_DISABLE'], '0')
+        self.assertEqual(os.environ['CUDA_CACHE_MAXSIZE'], str(1234 * 1024 * 1024))
+        self.assertEqual(os.environ['CUDA_CACHE_PATH'], cuda_cache_dir)
 
     def test_checksum_step(self):
         """Test checksum step"""
@@ -2107,34 +2161,6 @@ class EasyBlockTest(EnhancedTestCase):
         hpl = easyblocks['easybuild.easyblocks.hpl']
         self.assertEqual(hpl['class'], 'EB_HPL')
         self.assertTrue(hpl['loc'].endswith('sandbox/easybuild/easyblocks/h/hpl.py'))
-
-    def test_time2str(self):
-        """Test time2str function."""
-
-        start = datetime(2019, 7, 30, 5, 14, 23)
-
-        test_cases = [
-            (start, "0 sec"),
-            (datetime(2019, 7, 30, 5, 14, 37), "14 sec"),
-            (datetime(2019, 7, 30, 5, 15, 22), "59 sec"),
-            (datetime(2019, 7, 30, 5, 15, 23), "1 min 0 sec"),
-            (datetime(2019, 7, 30, 5, 16, 22), "1 min 59 sec"),
-            (datetime(2019, 7, 30, 5, 37, 26), "23 min 3 sec"),
-            (datetime(2019, 7, 30, 6, 14, 22), "59 min 59 sec"),
-            (datetime(2019, 7, 30, 6, 14, 23), "1 hour 0 min 0 sec"),
-            (datetime(2019, 7, 30, 6, 49, 14), "1 hour 34 min 51 sec"),
-            (datetime(2019, 7, 30, 7, 14, 23), "2 hours 0 min 0 sec"),
-            (datetime(2019, 7, 30, 8, 35, 59), "3 hours 21 min 36 sec"),
-            (datetime(2019, 7, 30, 16, 29, 24), "11 hours 15 min 1 sec"),
-            (datetime(2019, 7, 31, 5, 14, 22), "23 hours 59 min 59 sec"),
-            (datetime(2019, 7, 31, 5, 14, 23), "24 hours 0 min 0 sec"),
-            (datetime(2019, 8, 5, 20, 39, 44), "159 hours 25 min 21 sec"),
-        ]
-        for end, expected in test_cases:
-            self.assertEqual(time2str(end - start), expected)
-
-        error_pattern = "Incorrect value type provided to time2str, should be datetime.timedelta: <.* 'int'>"
-        self.assertErrorRegex(EasyBuildError, error_pattern, time2str, 123)
 
     def test_sanity_check_paths_verification(self):
         """Test verification of sanity_check_paths w.r.t. keys & values."""

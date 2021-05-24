@@ -49,8 +49,9 @@ import test.framework.easyblock as b
 import test.framework.easyconfig as e
 import test.framework.easyconfigparser as ep
 import test.framework.easyconfigformat as ef
-import test.framework.ebconfigobj as ebco
 import test.framework.easyconfigversion as ev
+import test.framework.easystack as es
+import test.framework.ebconfigobj as ebco
 import test.framework.environment as env
 import test.framework.docs as d
 import test.framework.filetools as f
@@ -77,6 +78,7 @@ import test.framework.toolchainvariables as tcv
 import test.framework.toy_build as t
 import test.framework.type_checking as et
 import test.framework.tweak as tw
+import test.framework.utilities_test as u
 import test.framework.variables as v
 import test.framework.yeb as y
 
@@ -118,7 +120,7 @@ log = fancylogger.getLogger()
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
 tests = [gen, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, lic, f_c,
-         tw, p, i, pkg, d, env, et, y, st, h, ct, lib]
+         tw, p, i, pkg, d, env, et, y, st, h, ct, lib, u, es]
 
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 res = unittest.TextTestRunner().run(SUITE)

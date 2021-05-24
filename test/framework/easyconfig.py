@@ -37,6 +37,7 @@ import shutil
 import stat
 import sys
 import tempfile
+import textwrap
 from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -62,7 +63,7 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.framework.extension import resolve_exts_filter_template
 from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import module_classes
+from easybuild.tools.config import build_option, get_module_syntax, module_classes, update_build_option
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, read_file
@@ -630,6 +631,8 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'toolchain = {"name": "GCC", "version": "4.6.3"}',
             'patches = %s',
+            'parallel = 1',
+            'keepsymlinks = True',
         ]) % str(patches)
         self.prep()
 
@@ -646,7 +649,17 @@ class EasyConfigTest(EnhancedTestCase):
             'versionprefix': verpref,
             'versionsuffix': versuff,
             'toolchain_version': tcver,
-            'patches': new_patches
+            'patches': new_patches,
+            'keepsymlinks': 'True',  # Don't change this
+            # It should be possible to overwrite values with True/False/None as they often have special meaning
+            'runtest': 'False',
+            'hidden': 'True',
+            'parallel': 'None',  # Good example: parallel=None means "Auto detect"
+            # Adding new options (added only by easyblock) should also be possible
+            # and in case the string "True/False/None" is really wanted it is possible to quote it first
+            'test_none': '"False"',
+            'test_bool': '"True"',
+            'test_123': '"None"',
         }
         tweak_one(self.eb_file, tweaked_fn, tweaks)
 
@@ -656,15 +669,20 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['versionsuffix'], versuff)
         self.assertEqual(eb['toolchain']['version'], tcver)
         self.assertEqual(eb['patches'], new_patches)
+        self.assertTrue(eb['runtest'] is False)
+        self.assertTrue(eb['hidden'] is True)
+        self.assertTrue(eb['parallel'] is None)
+        self.assertEqual(eb['test_none'], 'False')
+        self.assertEqual(eb['test_bool'], 'True')
+        self.assertEqual(eb['test_123'], 'None')
 
         remove_file(tweaked_fn)
 
         eb = EasyConfig(self.eb_file)
         # eb['toolchain']['version'] = tcver does not work as expected with templating enabled
-        eb.enable_templating = False
-        eb['version'] = ver
-        eb['toolchain']['version'] = tcver
-        eb.enable_templating = True
+        with eb.disable_templating():
+            eb['version'] = ver
+            eb['toolchain']['version'] = tcver
         eb.dump(self.eb_file)
 
         tweaks = {
@@ -837,13 +855,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['toolchain'], {'name': tcname, 'version': tcver})
         self.assertEqual(ec['start_dir'], specs['start_dir'])
         remove_file(res[1])
-
-        specs.update({
-            'foo': 'bar123'
-        })
-        self.assertErrorRegex(EasyBuildError, "Unknown easyconfig parameter: foo",
-                              obtain_ec_for, specs, [self.test_prefix], None)
-        del specs['foo']
 
         # should pick correct version, i.e. not newer than what's specified, if a choice needs to be made
         ver = '3.14'
@@ -1020,8 +1031,8 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(ec['name'], specs['name'])
             os.remove(res[1])
 
-    def test_templating(self):
-        """ test easyconfig templating """
+    def test_templating_constants(self):
+        """Test use of template values and constants in an easyconfig file."""
         inp = {
             'name': 'PI',
             # purposely using minor version that starts with a 0, to check for correct version_minor value
@@ -1042,7 +1053,7 @@ class EasyConfigTest(EnhancedTestCase):
             'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_BZ2, "%(cmd)s")]',
             'sanity_check_paths = {',
             '   "files": ["bin/pi_%%(version_major)s_%%(version_minor)s", "lib/python%%(pyshortver)s/site-packages"],',
-            '   "dirs": ["libfoo.%%s" %% SHLIB_EXT, "lib/%%(arch)s"],',
+            '   "dirs": ["libfoo.%%s" %% SHLIB_EXT, "lib/%%(arch)s/" + SYS_PYTHON_VERSION, "include/" + ARCH],',
             '}',
             'dependencies = [',
             '   ("CUDA", "10.1.105"),'
@@ -1069,12 +1080,9 @@ class EasyConfigTest(EnhancedTestCase):
         eb.validate()
 
         # temporarily disable templating, just so we can check later whether it's *still* disabled
-        eb.enable_templating = False
-
-        eb.generate_template_values()
-
-        self.assertFalse(eb.enable_templating)
-        eb.enable_templating = True
+        with eb.disable_templating():
+            eb.generate_template_values()
+            self.assertFalse(eb.enable_templating)
 
         self.assertEqual(eb['description'], "test easyconfig PI")
         self.assertEqual(eb['sources'][0], 'PI-3.04.tar.gz')
@@ -1085,9 +1093,13 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['sanity_check_paths']['files'][0], 'bin/pi_3_04')
         self.assertEqual(eb['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
         self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
-        lib_arch_regex = re.compile('^lib/[a-z0-9_]+$')  # should match lib/x86_64, lib/aarch64, lib/ppc64le, etc.
+        # should match lib/x86_64/2.7.18, lib/aarch64/3.8.6, lib/ppc64le/3.9.2, etc.
+        lib_arch_regex = re.compile(r'^lib/[a-z0-9_]+/[23]\.[0-9]+\.[0-9]+$')
         dirs1 = eb['sanity_check_paths']['dirs'][1]
-        self.assertTrue(lib_arch_regex.match(dirs1), "Pattern '%s' matches '%s'" % (lib_arch_regex.pattern, dirs1))
+        self.assertTrue(lib_arch_regex.match(dirs1), "Pattern '%s' should match '%s'" % (lib_arch_regex.pattern, dirs1))
+        inc_regex = re.compile('^include/(aarch64|ppc64le|x86_64)$')
+        dirs2 = eb['sanity_check_paths']['dirs'][2]
+        self.assertTrue(inc_regex.match(dirs2), "Pattern '%s' should match '%s'" % (inc_regex, dirs2))
         self.assertEqual(eb['homepage'], "http://example.com/P/p/v3/")
         expected = ("CUDA: 10.1.105, 10, 1, 10.1; "
                     "Java: 1.7.80, 1, 7, 1.7; "
@@ -1182,6 +1194,37 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertFalse('javaminver' in eb.template_values)
 
         self.assertEqual(eb['modloadmsg'], "Java: 11, 11, 11")
+
+    def test_python_whl_templating(self):
+        """test templating for Python wheels"""
+
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "Pi"
+            version = "3.14"
+            homepage = "https://example.com"
+            description = "test easyconfig"
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+            sources = [
+                SOURCE_WHL,
+                SOURCELOWER_WHL,
+                SOURCE_PY2_WHL,
+                SOURCELOWER_PY2_WHL,
+                SOURCE_PY3_WHL,
+                SOURCELOWER_PY3_WHL,
+            ]
+        """)
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        sources = ec['sources']
+
+        self.assertEqual(sources[0], 'Pi-3.14-py2.py3-none-any.whl')
+        self.assertEqual(sources[1], 'pi-3.14-py2.py3-none-any.whl')
+        self.assertEqual(sources[2], 'Pi-3.14-py2-none-any.whl')
+        self.assertEqual(sources[3], 'pi-3.14-py2-none-any.whl')
+        self.assertEqual(sources[4], 'Pi-3.14-py3-none-any.whl')
+        self.assertEqual(sources[5], 'pi-3.14-py3-none-any.whl')
 
     def test_templating_doc(self):
         """test templating documentation"""
@@ -1659,24 +1702,24 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(deps[3]['full_mod_name'], 'foobar/1.2.3')
         foobar_metadata = {
             'name': ['foobar'],
-            'prefix': '/software/foobar/2.3.4',
-            'version': ['2.3.4'],
+            'prefix': 'CRAY_FOOBAR_DIR',
+            'version': ['CRAY_FOOBAR_VERSION'],
         }
         self.assertEqual(deps[3]['external_module_metadata'], foobar_metadata)
 
         self.assertEqual(deps[5]['full_mod_name'], 'pi/3.14')
         pi_metadata = {
             'name': ['pi'],
-            'prefix': '/software/pi/3.14',
-            'version': ['3.14'],
+            'prefix': 'PI_ROOT',
+            'version': ['PI_VERSION'],
         }
         self.assertEqual(deps[5]['external_module_metadata'], pi_metadata)
 
         self.assertEqual(deps[7]['full_mod_name'], 'cray-netcdf-hdf5parallel/1.10.6')
         cray_netcdf_metadata = {
             'name': ['netcdf-hdf5parallel'],
-            'prefix': '/software/cray-netcdf-hdf5parallel/1.10.6',
-            'version': ['1.10.6'],
+            'prefix': 'CRAY_NETCDF_HDF5PARALLEL_PREFIX',
+            'version': ['CRAY_NETCDF_HDF5PARALLEL_VERSION'],
         }
         self.assertEqual(deps[7]['external_module_metadata'], cray_netcdf_metadata)
 
@@ -1695,7 +1738,8 @@ class EasyConfigTest(EnhancedTestCase):
             'name = TEST',
             '[cray-netcdf-hdf5parallel/1.10.6]',
             'name = HDF5',
-            'version = 1.10.6',
+            # purpose omit version, to see whether fallback of
+            # resolving $CRAY_NETCDF_HDF5PARALLEL_VERSION at runtime is used
         ])
         write_file(metadata, metadatatxt)
         build_options = {
@@ -1714,7 +1758,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(deps[3]['full_mod_name'], 'foobar/1.2.3')
         foobar_metadata = {
             'name': ['foobar'],  # probed from 'foobar' module
-            'prefix': '/software/foobar/2.3.4',  # probed from 'foobar' module
+            'prefix': 'CRAY_FOOBAR_DIR',  # probed from 'foobar' module
             'version': ['1.2.3'],  # from [foobar/1.2.3] entry in metadata file
         }
         self.assertEqual(deps[3]['external_module_metadata'], foobar_metadata)
@@ -1728,7 +1772,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(deps[5]['full_mod_name'], 'pi/3.14')
         pi_metadata = {
             'name': ['PI'],  # from [pi/3.14] entry in metadata file
-            'prefix': '/software/pi/3.14',  # probed from 'pi/3.14' module
+            'prefix': 'PI_ROOT',  # probed from 'pi/3.14' module
             'version': ['3.14.0'],  # from [pi/3.14] entry in metadata file
         }
         self.assertEqual(deps[5]['external_module_metadata'], pi_metadata)
@@ -1736,8 +1780,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(deps[7]['full_mod_name'], 'cray-netcdf-hdf5parallel/1.10.6')
         cray_netcdf_metadata = {
             'name': ['HDF5'],
-            'prefix': '/software/cray-netcdf-hdf5parallel/1.10.6',
-            'version': ['1.10.6'],
+            'prefix': 'CRAY_NETCDF_HDF5PARALLEL_PREFIX',
+            'version': ['CRAY_NETCDF_HDF5PARALLEL_VERSION'],
         }
         self.assertEqual(deps[7]['external_module_metadata'], cray_netcdf_metadata)
 
@@ -3038,26 +3082,29 @@ class EasyConfigTest(EnhancedTestCase):
             "    'arch=fooarch': '1.8.0-foo',",
             "  })",
             "]",
+            "builddependencies = [",
+            "  ('CMake', '3.18.4'),",
+            "]",
         ])
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, toy_ec_txt)
 
-        # only perform shallow/quick parse (as is done in list_software function)
-        ec = EasyConfigParser(filename=test_ec).get_config_dict()
-
         expected = {
+            'bitbucket_account': 'toy',
+            'github_account': 'toy',
             'javamajver': '1',
             'javaminver': '8',
             'javashortver': '1.8',
             'javaver': '1.8.0_221',
-            'module_name': None,
+            'module_name': 'toy/0.01-deps',
             'name': 'toy',
             'namelower': 'toy',
             'nameletter': 't',
             'toolchain_name': 'system',
             'toolchain_version': 'system',
             'nameletterlower': 't',
+            'parallel': None,
             'pymajver': '3',
             'pyminver': '7',
             'pyshortver': '3.7',
@@ -3066,9 +3113,38 @@ class EasyConfigTest(EnhancedTestCase):
             'version_major': '0',
             'version_major_minor': '0.01',
             'version_minor': '01',
+            'versionprefix': '',
             'versionsuffix': '-deps',
         }
+
+        # proper EasyConfig instance
+        ec = EasyConfig(test_ec)
+
+        # CMake should *not* be included, since it's a build-only dependency
+        dep_names = [x['name'] for x in ec['dependencies']]
+        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
         res = template_constant_dict(ec)
+        dep_names = [x['name'] for x in ec['dependencies']]
+        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
+
+        self.assertTrue('arch' in res)
+        arch = res.pop('arch')
+        self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
+
+        self.assertEqual(res, expected)
+
+        # only perform shallow/quick parse (as is done in list_software function)
+        ec = EasyConfigParser(filename=test_ec).get_config_dict()
+
+        expected['module_name'] = None
+        for key in ('bitbucket_account', 'github_account', 'parallel', 'versionprefix'):
+            del expected[key]
+
+        dep_names = [x[0] for x in ec['dependencies']]
+        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
+        res = template_constant_dict(ec)
+        dep_names = [x[0] for x in ec['dependencies']]
+        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
 
         self.assertTrue('arch' in res)
         arch = res.pop('arch')
@@ -3305,6 +3381,12 @@ class EasyConfigTest(EnhancedTestCase):
                     for subtoolchain_name in subtoolchains[current_tc['name']]]
         self.assertEqual(versions, ['4.9.3', ''])
 
+        # test det_subtoolchain_version when two alternatives for subtoolchain are specified
+        current_tc = {'name': 'gompi', 'version': '2018b'}
+        cands = [{'name': 'GCC', 'version': '7.3.0-2.30'}]
+        subtc_version = det_subtoolchain_version(current_tc, ('GCCcore', 'GCC'), optional_toolchains, cands)
+        self.assertEqual(subtc_version, '7.3.0-2.30')
+
     def test_verify_easyconfig_filename(self):
         """Test verify_easyconfig_filename function"""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -3374,6 +3456,11 @@ class EasyConfigTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
 
+        # Can't have EB_SCRIPT_PATH set (for some of) these tests
+        env_eb_script_path = os.getenv('EB_SCRIPT_PATH')
+        if env_eb_script_path:
+            del os.environ['EB_SCRIPT_PATH']
+
         # easyconfigs location can also be derived from location of 'eb'
         write_file(os.path.join(self.test_prefix, 'bin', 'eb'), "#!/bin/bash; echo 'This is a fake eb'")
         adjust_permissions(os.path.join(self.test_prefix, 'bin', 'eb'), stat.S_IXUSR)
@@ -3389,6 +3476,10 @@ class EasyConfigTest(EnhancedTestCase):
         os.environ['PATH'] = '%s:%s' % (altbin, orig_path)
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertTrue(os.path.samefile(test_ecs, res[-1]))
+
+        # Restore (temporarily) EB_SCRIPT_PATH value if set originally
+        if env_eb_script_path:
+            os.environ['EB_SCRIPT_PATH'] = env_eb_script_path
 
         # also locations in sys.path are considered
         os.environ['PATH'] = orig_path
@@ -3439,6 +3530,10 @@ class EasyConfigTest(EnhancedTestCase):
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertTrue(os.path.exists(res[0]))
         self.assertTrue(os.path.samefile(res[0], os.path.join(someprefix, 'easybuild', 'easyconfigs')))
+
+        # Finally restore EB_SCRIPT_PATH value if set
+        if env_eb_script_path:
+            os.environ['EB_SCRIPT_PATH'] = env_eb_script_path
 
     def test_is_generic_easyblock(self):
         """Test for is_generic_easyblock function."""
@@ -4218,6 +4313,119 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(paths[2], 'test.patch')
         self.assertEqual(os.path.basename(paths[3]), bat_patch_fn)
         self.assertTrue(os.path.samefile(target_path, cwd))
+
+    def test_recursive_module_unload(self):
+        """Test use of recursive_module_unload easyconfig parameter."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        write_file(test_ec, test_ec_txt)
+
+        test_module = os.path.join(self.test_installpath, 'modules', 'all', 'foss', '2018a')
+        gcc_modname = 'GCC/6.4.0-2.28'
+        if get_module_syntax() == 'Lua':
+            test_module += '.lua'
+            guarded_load_pat = r'if not \( isloaded\("%(mod)s"\) \) then\n\s*load\("%(mod)s"\)'
+            recursive_unload_pat = r'if mode\(\) == "unload" or not \( isloaded\("%(mod)s"\) \) then\n'
+            recursive_unload_pat += r'\s*load\("%(mod)s"\)'
+        else:
+            guarded_load_pat = r'if { \!\[ is-loaded %(mod)s \] } {\n\s*module load %(mod)s'
+            recursive_unload_pat = r'if { \[ module-info mode remove \] \|\| \!\[ is-loaded %(mod)s \] } {\n'
+            recursive_unload_pat += r'\s*module load %(mod)s'
+
+        guarded_load_regex = re.compile(guarded_load_pat % {'mod': gcc_modname}, re.M)
+        recursive_unload_regex = re.compile(recursive_unload_pat % {'mod': gcc_modname}, re.M)
+
+        # by default, recursive module unloading is disabled everywhere
+        # (--recursive-module-unload configuration option is disabled,
+        # recursive_module_unload easyconfig parameter is None)
+        self.assertFalse(build_option('recursive_mod_unload'))
+        ec = EasyConfig(test_ec)
+        self.assertFalse(ec['recursive_module_unload'])
+        eb = EasyBlock(ec)
+        eb.builddir = self.test_prefix
+        eb.prepare_step()
+        eb.make_module_step()
+        modtxt = read_file(test_module)
+        fail_msg = "Pattern '%s' should be found in: %s" % (guarded_load_regex.pattern, modtxt)
+        self.assertTrue(guarded_load_regex.search(modtxt), fail_msg)
+        fail_msg = "Pattern '%s' should not be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+        self.assertFalse(recursive_unload_regex.search(modtxt), fail_msg)
+
+        remove_file(test_module)
+
+        # recursive_module_unload easyconfig parameter is honored
+        test_ec_bis = os.path.join(self.test_prefix, 'test_bis.eb')
+        test_ec_bis_txt = read_file(toy_ec) + '\nrecursive_module_unload = True'
+        write_file(test_ec_bis, test_ec_bis_txt)
+
+        ec_bis = EasyConfig(test_ec_bis)
+        self.assertTrue(ec_bis['recursive_module_unload'])
+        eb_bis = EasyBlock(ec_bis)
+        eb_bis.builddir = self.test_prefix
+        eb_bis.prepare_step()
+        eb_bis.make_module_step()
+        modtxt = read_file(test_module)
+        fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
+        self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
+        fail_msg = "Pattern '%s' should be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+        self.assertTrue(recursive_unload_regex.search(modtxt), fail_msg)
+
+        # recursive_mod_unload build option is honored
+        update_build_option('recursive_mod_unload', True)
+        eb = EasyBlock(ec)
+        eb.builddir = self.test_prefix
+        eb.prepare_step()
+        eb.make_module_step()
+        modtxt = read_file(test_module)
+        fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
+        self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
+        fail_msg = "Pattern '%s' should be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+        self.assertTrue(recursive_unload_regex.search(modtxt), fail_msg)
+
+        # disabling via easyconfig parameter works even when recursive_mod_unload build option is enabled
+        self.assertTrue(build_option('recursive_mod_unload'))
+        test_ec_bis = os.path.join(self.test_prefix, 'test_bis.eb')
+        test_ec_bis_txt = read_file(toy_ec) + '\nrecursive_module_unload = False'
+        write_file(test_ec_bis, test_ec_bis_txt)
+        ec_bis = EasyConfig(test_ec_bis)
+        self.assertEqual(ec_bis['recursive_module_unload'], False)
+        eb_bis = EasyBlock(ec_bis)
+        eb_bis.builddir = self.test_prefix
+        eb_bis.prepare_step()
+        eb_bis.make_module_step()
+        modtxt = read_file(test_module)
+        fail_msg = "Pattern '%s' should be found in: %s" % (guarded_load_regex.pattern, modtxt)
+        self.assertTrue(guarded_load_regex.search(modtxt), fail_msg)
+        fail_msg = "Pattern '%s' should not be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+        self.assertFalse(recursive_unload_regex.search(modtxt), fail_msg)
+
+    def test_pure_ec(self):
+        """
+        Test whether we can get a 'pure' view on the easyconfig file,
+        which correctly reflects what's defined in the easyconfig file.
+        """
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
+
+        ec_dict = toy_ec.parser.get_config_dict()
+        self.assertEqual(ec_dict.get('version'), '0.0')
+        self.assertEqual(ec_dict.get('sources'), ['%(name)s-%(version)s.tar.gz'])
+        self.assertEqual(ec_dict.get('exts_default_options'), None)
+        self.assertEqual(ec_dict.get('sanity_check_paths'), {'dirs': ['bin'], 'files': [('bin/yot', 'bin/toy')]})
+
+        # manipulating easyconfig parameter values should not affect the result of parser.get_config_dict()
+        with toy_ec.disable_templating():
+            toy_ec['version'] = '1.2.3'
+            toy_ec['sources'].append('test.tar.gz')
+            toy_ec['sanity_check_paths']['files'].append('bin/foobar.exe')
+
+        ec_dict_bis = toy_ec.parser.get_config_dict()
+        self.assertEqual(ec_dict_bis.get('version'), '0.0')
+        self.assertEqual(ec_dict_bis.get('sources'), ['%(name)s-%(version)s.tar.gz'])
+        self.assertEqual(ec_dict_bis.get('exts_default_options'), None)
+        self.assertEqual(ec_dict.get('sanity_check_paths'), {'dirs': ['bin'], 'files': [('bin/yot', 'bin/toy')]})
 
 
 def suite():

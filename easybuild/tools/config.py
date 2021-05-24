@@ -79,6 +79,7 @@ CONT_TYPES = [CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
 DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
 DEFAULT_BRANCH = 'develop'
+DEFAULT_ENV_FOR_SHEBANG = '/usr/bin/env'
 DEFAULT_ENVVAR_USERS_MODULES = 'HOME'
 DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
 DEFAULT_JOB_BACKEND = 'GC3Pie'
@@ -162,7 +163,7 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 # build options that have a perfectly matching command line option, listed by default value
 BUILD_OPTIONS_CMDLINE = {
     None: [
-        'accept_eula',
+        'accept_eula_for',
         'aggregate_regtest',
         'backup_modules',
         'container_config',
@@ -170,6 +171,8 @@ BUILD_OPTIONS_CMDLINE = {
         'container_image_name',
         'container_template_recipe',
         'container_tmpdir',
+        'cuda_cache_dir',
+        'cuda_cache_maxsize',
         'cuda_compute_capabilities',
         'download_timeout',
         'dump_test_report',
@@ -211,8 +214,11 @@ BUILD_OPTIONS_CMDLINE = {
         'pr_descr',
         'pr_target_repo',
         'pr_title',
-        'rpath_filter',
         'regtest_output_dir',
+        'rpath_filter',
+        'rpath_override_dirs',
+        'banned_linked_shared_libs',
+        'required_linked_shared_libs',
         'silence_deprecation_warnings',
         'skip',
         'stop',
@@ -294,6 +300,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_BRANCH: [
         'pr_target_branch',
+    ],
+    DEFAULT_ENV_FOR_SHEBANG: [
+        'env_for_shebang',
     ],
     DEFAULT_INDEX_MAX_AGE: [
         'index_max_age',
@@ -500,6 +509,10 @@ def init_build_options(build_options=None, cmdline_options=None):
             _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
 
+        if not cmdline_options.accept_eula_for and cmdline_options.accept_eula:
+            _log.deprecated("Use accept-eula-for configuration setting rather than accept-eula.", '5.0')
+            cmdline_options.accept_eula_for = cmdline_options.accept_eula
+
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]
         active_build_options.update(dict([(key, getattr(cmdline_options, key)) for key in cmdline_build_option_names]))
         # other options which can be derived but have no perfectly matching cmdline option
@@ -533,6 +546,9 @@ def build_option(key, **kwargs):
     build_options = BuildOptions()
     if key in build_options:
         return build_options[key]
+    elif key == 'accept_eula':
+        _log.deprecated("Use accept_eula_for build option rather than accept_eula.", '5.0')
+        return build_options['accept_eula_for']
     elif 'default' in kwargs:
         return kwargs['default']
     else:
@@ -540,6 +556,18 @@ def build_option(key, **kwargs):
         error_msg += "Make sure you have set up the EasyBuild configuration using set_up_configuration() "
         error_msg += "(from easybuild.tools.options) in case you're not using EasyBuild via the 'eb' CLI."
         raise EasyBuildError(error_msg)
+
+
+def update_build_option(key, value):
+    """
+    Update build option with specified name to given value.
+
+    WARNING: Use this with care, the build options are not expected to be changed during an EasyBuild session!
+    """
+    # BuildOptions() is a (singleton) frozen dict, so this is less straightforward that it seems...
+    build_options = BuildOptions()
+    build_options._FrozenDict__dict[key] = value
+    _log.warning("Build option '%s' was updated to: %s", key, build_option(key))
 
 
 def build_path():

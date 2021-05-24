@@ -181,7 +181,7 @@ class ModulesTool(object):
             self.set_mod_paths(mod_paths)
 
         if env_cmd_path:
-            cmd_path = which(self.cmd, log_ok=False, log_error=False)
+            cmd_path = which(self.cmd, log_ok=False, on_error=IGNORE)
             # only use command path in environment variable if command in not available in $PATH
             if cmd_path is None:
                 self.cmd = env_cmd_path
@@ -1428,7 +1428,35 @@ class Lmod(ModulesTool):
         if priority:
             self.run_module(['use', '--priority', str(priority), path])
         else:
-            self.run_module(['use', path])
+            # LMod allows modifying MODULEPATH directly. So do that to avoid the costly module use
+            # unless priorities are in use already
+            if os.environ.get('__LMOD_Priority_MODULEPATH'):
+                self.run_module(['use', path])
+            else:
+                cur_mod_path = os.environ.get('MODULEPATH')
+                if cur_mod_path is None:
+                    new_mod_path = path
+                else:
+                    new_mod_path = [path] + [p for p in cur_mod_path.split(':') if p != path]
+                    new_mod_path = ':'.join(new_mod_path)
+                self.log.debug('Changing MODULEPATH from %s to %s' %
+                               ('<unset>' if cur_mod_path is None else cur_mod_path, new_mod_path))
+                os.environ['MODULEPATH'] = new_mod_path
+
+    def unuse(self, path):
+        """Remove a module path"""
+        # We can simply remove the path from MODULEPATH to avoid the costly module call
+        cur_mod_path = os.environ.get('MODULEPATH')
+        if cur_mod_path is not None:
+            # Removing the last entry unsets the variable
+            if cur_mod_path == path:
+                self.log.debug('Changing MODULEPATH from %s to <unset>' % cur_mod_path)
+                del os.environ['MODULEPATH']
+            else:
+                new_mod_path = ':'.join(p for p in cur_mod_path.split(':') if p != path)
+                if new_mod_path != cur_mod_path:
+                    self.log.debug('Changing MODULEPATH from %s to %s' % (cur_mod_path, new_mod_path))
+                    os.environ['MODULEPATH'] = new_mod_path
 
     def prepend_module_path(self, path, set_mod_paths=True, priority=None):
         """

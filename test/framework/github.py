@@ -547,6 +547,11 @@ class GithubTest(EnhancedTestCase):
 
         self.assertTrue(gh.validate_github_token(self.github_token, GITHUB_TEST_ACCOUNT))
 
+        # if a token in the old format is available, test with that too
+        token_old_format = os.getenv('TEST_GITHUB_TOKEN_OLD_FORMAT')
+        if token_old_format:
+            self.assertTrue(gh.validate_github_token(token_old_format, GITHUB_TEST_ACCOUNT))
+
     def test_find_easybuild_easyconfig(self):
         """Test for find_easybuild_easyconfig function"""
         if self.skip_github_tests:
@@ -657,7 +662,9 @@ class GithubTest(EnhancedTestCase):
             'number': '1234',
             'merged': False,
             'mergeable_state': 'unknown',
-            'reviews': [{'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}}],
+            'reviews': [{'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}},
+                        # to check that duplicates are filtered
+                        {'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}}],
         }
 
         test_result_warning_template = "* test suite passes: %s => not eligible for merging!"
@@ -721,9 +728,17 @@ class GithubTest(EnhancedTestCase):
         expected_warning += " => not eligible for merging!"
         run_check()
 
-        pr_data['reviews'] = [{'state': 'APPROVED', 'user': {'login': 'boegel'}}]
-        expected_stdout += "* no pending change requests: OK\n"
-        expected_stdout += "* approved review: OK (by boegel)\n"
+        # if PR is approved by a different user that requested changes and that request has not been dismissed,
+        # the PR is still not mergeable
+        pr_data['reviews'].append({'state': 'APPROVED', 'user': {'login': 'not_boegel'}})
+        expected_stdout_saved = expected_stdout
+        expected_stdout += "* approved review: OK (by not_boegel)\n"
+        run_check()
+
+        # if the user that requested changes approves the PR, it's mergeable
+        pr_data['reviews'].append({'state': 'APPROVED', 'user': {'login': 'boegel'}})
+        expected_stdout = expected_stdout_saved + "* no pending change requests: OK\n"
+        expected_stdout += "* approved review: OK (by not_boegel, boegel)\n"
         expected_warning = ''
         run_check()
 
