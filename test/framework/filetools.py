@@ -45,6 +45,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import IGNORE, ERROR
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import std_urllib
 
@@ -213,8 +214,13 @@ class FileToolsTest(EnhancedTestCase):
         python = ft.which('python')
         self.assertTrue(python and os.path.exists(python) and os.path.isabs(python))
 
-        path = ft.which('i_really_do_not_expect_a_command_with_a_name_like_this_to_be_available')
+        invalid_cmd = 'i_really_do_not_expect_a_command_with_a_name_like_this_to_be_available'
+        path = ft.which(invalid_cmd)
         self.assertTrue(path is None)
+        path = ft.which(invalid_cmd, on_error=IGNORE)
+        self.assertTrue(path is None)
+        error_msg = "Could not find command '%s'" % invalid_cmd
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.which, invalid_cmd, on_error=ERROR)
 
         os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.environ['PATH'])
         # put a directory 'foo' in place (should be ignored by 'which')
@@ -2065,7 +2071,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 83)
+            self.assertEqual(len(index), 85)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),

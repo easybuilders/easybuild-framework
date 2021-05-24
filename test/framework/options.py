@@ -42,7 +42,6 @@ import easybuild.tools.options
 import easybuild.tools.toolchain
 from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easystack import parse_easystack
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, robot_find_easyconfig
@@ -492,12 +491,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             if fmt == 'rst':
                 pattern_lines = [
+                    r'^``ARCH``\s*``(aarch64|ppc64le|x86_64)``\s*CPU architecture .*',
+                    r'^``EXTERNAL_MODULE``.*',
                     r'^``HOME``.*',
                     r'``OS_NAME``.*',
                     r'``OS_PKG_IBVERBS_DEV``.*',
                 ]
             else:
                 pattern_lines = [
+                    r'^\s*ARCH: (aarch64|ppc64le|x86_64) \(CPU architecture .*\)',
+                    r'^\s*EXTERNAL_MODULE:.*',
                     r'^\s*HOME:.*',
                     r'\s*OS_NAME: .*',
                     r'\s*OS_PKG_IBVERBS_DEV: .*',
@@ -796,7 +799,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 list_arg,
                 '--unittest-file=%s' % self.logfile,
             ]
-            self.eb_main(args, logfile=dummylogfn)
+            self.eb_main(args, logfile=dummylogfn, raise_error=True)
             logtxt = read_file(self.logfile)
 
             expected = '\n'.join([
@@ -810,6 +813,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|   \|-- EB_foofoo',
                 r'\|-- EB_GCC',
                 r'\|-- EB_HPL',
+                r'\|-- EB_libtoy',
                 r'\|-- EB_OpenBLAS',
                 r'\|-- EB_OpenMPI',
                 r'\|-- EB_ScaLAPACK',
@@ -932,7 +936,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for search_arg in ['-S', '--search-short']:
             args = [
                 search_arg,
-                'toy-0.0',
+                '^toy-0.0',
                 '-r',
                 test_easyconfigs_dir,
             ]
@@ -1969,10 +1973,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.eb_main(args, do_build=True, verbose=True)
 
             toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
+
             if get_module_syntax() == 'Lua':
                 toy_module += '.lua'
+                is_loaded_regex = re.compile(r'if not \( isloaded\("gompi/2018a"\) \)', re.M)
+            else:
+                # Tcl syntax
+                is_loaded_regex = re.compile(r"if { !\[is-loaded gompi/2018a\] }", re.M)
+
             toy_module_txt = read_file(toy_module)
-            is_loaded_regex = re.compile(r"if { !\[is-loaded gompi/2018a\] }", re.M)
             self.assertFalse(is_loaded_regex.search(toy_module_txt), "Recursive unloading is used: %s" % toy_module_txt)
 
     def test_tmpdir(self):
@@ -3140,6 +3149,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
 
+        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic
+        # to avoid that easyblocks picked up from other places cause trouble
+        testdir_sandbox = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
+        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
+            for path in sys.modules[pkg].__path__[:]:
+                if testdir_sandbox not in path:
+                    sys.modules[pkg].__path__.remove(path)
+
         # include extra test easyblocks
         foo_txt = '\n'.join([
             'from easybuild.framework.easyblock import EasyBlock',
@@ -3220,6 +3237,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
+
+        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic
+        # to avoid that easyblocks picked up from other places cause trouble
+        testdir_sandbox = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
+        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
+            for path in sys.modules[pkg].__path__[:]:
+                if testdir_sandbox not in path:
+                    sys.modules[pkg].__path__.remove(path)
 
         error_msg = "Failed to obtain class for FooBar easyblock"
         self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
@@ -3362,6 +3387,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
 
+        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic,
+        # to avoid that easyblocks picked up from other places cause trouble
+        testdir_sandbox = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
+        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
+            for path in sys.modules[pkg].__path__[:]:
+                if testdir_sandbox not in path:
+                    sys.modules[pkg].__path__.remove(path)
+
         # clear log
         write_file(self.logfile, '')
 
@@ -3406,8 +3439,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # make sure that location to 'easybuild.main' is included in $PYTHONPATH
         pythonpath = os.getenv('PYTHONPATH')
+        pythonpath = [pythonpath] if pythonpath else []
         easybuild_loc = os.path.dirname(os.path.dirname(easybuild.main.__file__))
-        os.environ['PYTHONPATH'] = ':'.join([easybuild_loc, pythonpath])
+        os.environ['PYTHONPATH'] = ':'.join([easybuild_loc] + pythonpath)
 
         return '; '.join([
             "cd %s" % self.test_prefix,
@@ -6056,39 +6090,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for pattern in patterns:
             regex = re.compile(pattern)
             self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
-
-    def test_easystack_wrong_structure(self):
-        """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
-        easybuild.tools.build_log.EXPERIMENTAL = True
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
-
-        expected_err = r"[\S\s]*An error occurred when interpreting the data for software Bioconductor:"
-        expected_err += r"( 'float' object is not subscriptable[\S\s]*"
-        expected_err += r"| 'float' object is unsubscriptable"
-        expected_err += r"| 'float' object has no attribute '__getitem__'[\S\s]*)"
-        self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
-
-    def test_easystack_asterisk(self):
-        """Test for --easystack <easystack.yaml> when yaml easystack contains asterisk (wildcard)"""
-        easybuild.tools.build_log.EXPERIMENTAL = True
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_asterisk.yaml')
-
-        expected_err = "EasyStack specifications of 'binutils' in .*/test_easystack_asterisk.yaml contain asterisk. "
-        expected_err += "Wildcard feature is not supported yet."
-
-        self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
-
-    def test_easystack_labels(self):
-        """Test for --easystack <easystack.yaml> when yaml easystack contains exclude-labels / include-labels"""
-        easybuild.tools.build_log.EXPERIMENTAL = True
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_labels.yaml')
-
-        error_msg = "EasyStack specifications of 'binutils' in .*/test_easystack_labels.yaml contain labels. "
-        error_msg += "Labels aren't supported yet."
-        self.assertErrorRegex(EasyBuildError, error_msg, parse_easystack, toy_easystack)
 
 
 def suite():

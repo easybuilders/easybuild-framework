@@ -9,9 +9,12 @@ keyrings.alt; python_version >= '2.7'
 gitdb==0.6.4; python_version < '2.7'
 gitdb; python_version >= '2.7'
 
+# GitPython 3.1.15 deprecates Python 3.5
+GitPython==3.1.14; python_version >= '3.0' and python_version < '3.6'
 # GitPython 2.1.9 no longer supports Python 2.6
 GitPython==2.1.8; python_version < '2.7'
-GitPython; python_version >= '2.7'
+GitPython; python_version >= '3.6' or (python_version <= '3.0' and python_version >= '2.7')
+
 
 # pydot (dep for python-graph-dot) 1.2.0 and more recent doesn't work with Python 2.6
 pydot==1.1.0; python_version < '2.7'
@@ -53,7 +56,7 @@ requests
 
 archspec; python_version >= '2.7'
 
-# cryptography 3.0 deprecates Python 2.7 (but v3.2.1 still works with Python 2.7);
 # cryptography is not needed at all for Python 2.6
+# cryptography 3.4.0 no longer supports Python 2.7
 cryptography==3.3.2; python_version == '2.7'
 cryptography; python_version >= '3.5'

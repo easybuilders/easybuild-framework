@@ -181,7 +181,7 @@ class ModulesTool(object):
             self.set_mod_paths(mod_paths)
 
         if env_cmd_path:
-            cmd_path = which(self.cmd, log_ok=False, log_error=False)
+            cmd_path = which(self.cmd, log_ok=False, on_error=IGNORE)
             # only use command path in environment variable if command in not available in $PATH
             if cmd_path is None:
                 self.cmd = env_cmd_path

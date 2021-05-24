@@ -350,6 +350,9 @@ class EasyBuildOptions(GeneralOption):
                                                           None, 'store_true', False),
             'backup-modules': ("Back up an existing module file, if any. Only works when using --module-only",
                                None, 'store_true', None),  # default None to allow auto-enabling if not disabled
+            'banned-linked-shared-libs': ("Comma-separated list of shared libraries (names, file names, or paths) "
+                                          "which are not allowed to be linked in any installed binary/library",
+                                          'strlist', 'extend', None),
             'check-ebroot-env-vars': ("Action to take when defined $EBROOT* environment variables are found "
                                       "for which there is no matching loaded module; "
                                       "supported values: %s" % ', '.join(EBROOT_ENV_VAR_ACTIONS), None, 'store', WARN),
@@ -450,8 +453,13 @@ class EasyBuildOptions(GeneralOption):
             'remove-ghost-install-dirs': ("Remove ghost installation directories when --force or --rebuild is used, "
                                           "rather than just warning about them",
                                           None, 'store_true', False),
+            'required-linked-shared-libs': ("Comma-separated list of shared libraries (names, file names, or paths) "
+                                            "which must be linked in all installed binaries/libraries",
+                                            'strlist', 'extend', None),
             'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', False),
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
+            'rpath-override-dirs': ("Path(s) to be prepended when linking with RPATH (string, colon-separated)",
+                                    None, 'store', None),
             'sanity-check-only': ("Only run sanity check (module is expected to be installed already",
                                   None, 'store_true', False),
             'set-default-module': ("Set the generated module as default", None, 'store_true', False),
@@ -569,7 +577,7 @@ class EasyBuildOptions(GeneralOption):
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
             'subdir-software': ("Installpath subdir for software",
                                 None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
-            'subdir-user-modules': ("Base path of user-specific modules relative to --envvar-user-modules",
+            'subdir-user-modules': ("Base path of user-specific modules relative to --envvars-user-modules",
                                     None, 'store', None),
             'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
             # this one is sort of an exception, it's something jobscripts can set,
