@@ -58,8 +58,8 @@ from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
-from easybuild.tools.config import (DEFAULT_WAIT_ON_LOCK_INTERVAL, GENERIC_EASYBLOCK_PKG, build_option, install_path,
-                                    IGNORE, WARN, ERROR)
+from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
+from easybuild.tools.config import build_option, install_path
 from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
 
@@ -1479,7 +1479,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb', on_missing_m
     """
     if on_missing_match is None:
         on_missing_match = build_option('strict')
-    allowed_values = (run.ERROR, run.WARN, run.IGNORE)
+    allowed_values = (ERROR, IGNORE, WARN)
     if on_missing_match not in allowed_values:
         raise EasyBuildError('Invalid value passed to on_missing_match: %s (allowed: %s)',
                              on_missing_match, ', '.join(allowed_values))
@@ -1535,9 +1535,9 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb', on_missing_m
                     _log.info('Applied the following substitutions to %s:\n%s', path, '\n'.join(replacement_msgs))
                 else:
                     msg = 'Nothing found to replace in %s' % path
-                    if on_missing_match == run.ERROR:
+                    if on_missing_match == ERROR:
                         raise EasyBuildError(msg)
-                    elif on_missing_match == run.WARN:
+                    elif on_missing_match == WARN:
                         _log.warning(msg)
                     else:
                         _log.info(msg)
