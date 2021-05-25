@@ -39,15 +39,18 @@ class Fftw(Fft):
     """FFTW FFT library"""
 
     FFT_MODULE_NAME = ['FFTW']
+    FFTW_API_VERSION = ''
 
     def _set_fftw_variables(self):
 
-        suffix = ''
-        version = self.get_software_version(self.FFT_MODULE_NAME)[0]
-        if LooseVersion(version) < LooseVersion('2') or LooseVersion(version) >= LooseVersion('4'):
-            raise EasyBuildError("_set_fft_variables: FFTW unsupported version %s (major should be 2 or 3)", version)
-        elif LooseVersion(version) > LooseVersion('2'):
-            suffix = '3'
+        suffix = self.FFTW_API_VERSION
+        if not suffix:
+            version = self.get_software_version(self.FFT_MODULE_NAME)[0]
+            if LooseVersion(version) < LooseVersion('2') or LooseVersion(version) >= LooseVersion('4'):
+                raise EasyBuildError("_set_fft_variables: FFTW unsupported version %s (major should be 2 or 3)",
+                                     version)
+            elif LooseVersion(version) > LooseVersion('2'):
+                suffix = '3'
 
         # order matters!
         fftw_libs = ["fftw%s" % suffix]
