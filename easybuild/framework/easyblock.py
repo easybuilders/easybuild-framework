@@ -2343,7 +2343,8 @@ class EasyBlock(object):
         self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
         # actually install extensions
-        self.log.info("Installing extensions")
+        if install:
+            self.log.info("Installing extensions")
 
         # we really need a default class
         if not self.cfg['exts_defaultclass'] and fake_mod_data:
