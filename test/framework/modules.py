@@ -531,14 +531,15 @@ class ModulesTest(EnhancedTestCase):
         os.environ['MODULEPATH'] = test2
         modtool.check_module_path()
         self.assertEqual(modtool.mod_paths, [mod_install_dir, test1, test2])
-        self.assertEqual(os.environ['MODULEPATH'], mod_install_dir + ':' + test1 + ':' + test2)
+        self.assertEqual(os.environ['MODULEPATH'], os.pathsep.join([mod_install_dir, test1, test2]))
 
         # check behaviour if non-existing directories are included in $MODULEPATH
         os.environ['MODULEPATH'] = '%s:/does/not/exist:%s' % (test3, test2)
         modtool.check_module_path()
         # non-existing dir is filtered from mod_paths, but stays in $MODULEPATH
         self.assertEqual(modtool.mod_paths, [mod_install_dir, test1, test3, test2])
-        self.assertEqual(os.environ['MODULEPATH'], ':'.join([mod_install_dir, test1, test3, '/does/not/exist', test2]))
+        self.assertEqual(os.environ['MODULEPATH'],
+                         os.pathsep.join([mod_install_dir, test1, test3, '/does/not/exist', test2]))
 
     def test_check_module_path_hmns(self):
         """Test behaviour of check_module_path with HierarchicalMNS."""
@@ -1238,16 +1239,17 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.add_module_path(test_dir1)
         self.assertEqual(os.environ['MODULEPATH'], test_dir1)
         self.modtool.add_module_path(test_dir2)
-        self.assertEqual(os.environ['MODULEPATH'], test_dir2 + ':' + test_dir1)
+        test_dir_2_and_1 = os.pathsep.join([test_dir2, test_dir1])
+        self.assertEqual(os.environ['MODULEPATH'], test_dir_2_and_1)
         # Adding the same path does not change the path
         self.modtool.add_module_path(test_dir1)
-        self.assertEqual(os.environ['MODULEPATH'], test_dir2 + ':' + test_dir1)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir_2_and_1)
         self.modtool.add_module_path(test_dir2)
-        self.assertEqual(os.environ['MODULEPATH'], test_dir2 + ':' + test_dir1)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir_2_and_1)
         # Even when a (meaningless) slash is added
         # This occurs when using an empty modules directory name
         self.modtool.add_module_path(os.path.join(test_dir1, ''))
-        self.assertEqual(os.environ['MODULEPATH'], test_dir2 + ':' + test_dir1)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir_2_and_1)
 
         # Similar tests for remove_module_path
         self.modtool.remove_module_path(test_dir2)
@@ -1264,7 +1266,7 @@ class ModulesTest(EnhancedTestCase):
         # Environment-Modules 4.x seems to resolve relative paths: /foo/../foo -> /foo
         # Hence we can only check the real paths
         def get_resolved_module_path():
-            return ':'.join(os.path.realpath(p) for p in os.environ['MODULEPATH'].split(':'))
+            return os.pathsep.join(os.path.realpath(p) for p in os.environ['MODULEPATH'].split(os.pathsep))
 
         test_dir1_relative = os.path.join(test_dir1, '..', os.path.basename(test_dir1))
         test_dir2_dot = os.path.join(os.path.dirname(test_dir2), '.', os.path.basename(test_dir2))
@@ -1273,18 +1275,18 @@ class ModulesTest(EnhancedTestCase):
         # Adding the same path, but in a different form may be possible, but may also be ignored, e.g. in EnvModules
         self.modtool.add_module_path(test_dir1)
         if get_resolved_module_path() != test_dir1:
-            self.assertEqual(get_resolved_module_path(), test_dir1 + ':' + test_dir1)
+            self.assertEqual(get_resolved_module_path(), os.pathsep.join([test_dir1, test_dir1]))
             self.modtool.remove_module_path(test_dir1)
             self.assertEqual(get_resolved_module_path(), test_dir1)
         self.modtool.add_module_path(test_dir2_dot)
-        self.assertEqual(get_resolved_module_path(), test_dir2 + ':' + test_dir1)
+        self.assertEqual(get_resolved_module_path(), test_dir_2_and_1)
         self.modtool.remove_module_path(test_dir2_dot)
         self.assertEqual(get_resolved_module_path(), test_dir1)
         # Force adding such a dot path which can be removed with either variant
-        os.environ['MODULEPATH'] = test_dir2_dot + ':' + test_dir1_relative
+        os.environ['MODULEPATH'] = os.pathsep.join([test_dir2_dot, test_dir1_relative])
         self.modtool.remove_module_path(test_dir2_dot)
         self.assertEqual(get_resolved_module_path(), test_dir1)
-        os.environ['MODULEPATH'] = test_dir2_dot + ':' + test_dir1_relative
+        os.environ['MODULEPATH'] = os.pathsep.join([test_dir2_dot, test_dir1_relative])
         self.modtool.remove_module_path(test_dir2)
         self.assertEqual(get_resolved_module_path(), test_dir1)
 
