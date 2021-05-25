@@ -321,7 +321,7 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_pr=False):
     # path where files touched in PR will be downloaded to
     pr_path = None
     if from_pr:
-        pr_path = os.path.join(tmpdir, "files_pr%s" % from_pr)
+        pr_path = os.path.join(tmpdir, "files_pr%s" % '_'.join(str(pr) for pr in from_pr))
 
     return tweaked_ecs_paths, pr_path
 
@@ -332,14 +332,20 @@ def det_easyconfig_paths(orig_paths):
     :param orig_paths: list of original easyconfig paths
     :return: list of paths to easyconfig files
     """
-    from_pr = build_option('from_pr')
+    try:
+        from_pr_list = [int(pr_nr) for pr_nr in build_option('from_pr')]
+    except ValueError:
+        raise EasyBuildError("Argument to --from-pr must be a comma separated list of PR #s.")
+
     robot_path = build_option('robot_path')
 
     # list of specified easyconfig files
     ec_files = orig_paths[:]
 
-    if from_pr is not None:
-        pr_files = fetch_easyconfigs_from_pr(from_pr)
+    if from_pr_list is not None:
+        pr_files = []
+        for pr in from_pr_list:
+            pr_files.extend(fetch_easyconfigs_from_pr(pr))
 
         if ec_files:
             # replace paths for specified easyconfigs that are touched in PR
@@ -725,6 +731,9 @@ def avail_easyblocks():
 def det_copy_ec_specs(orig_paths, from_pr):
     """Determine list of paths + target directory for --copy-ec."""
 
+    if from_pr is not None and not isinstance(from_pr, list):
+        from_pr = [from_pr]
+
     target_path, paths = None, []
 
     # if only one argument is specified, use current directory as target directory
@@ -746,8 +755,10 @@ def det_copy_ec_specs(orig_paths, from_pr):
         # to avoid potential trouble with already existing files in the working tmpdir
         # (note: we use a fixed subdirectory in the working tmpdir here rather than a unique random subdirectory,
         #  to ensure that the caching for fetch_files_from_pr works across calls for the same PR)
-        tmpdir = os.path.join(tempfile.gettempdir(), 'fetch_files_from_pr_%s' % from_pr)
-        pr_paths = fetch_files_from_pr(pr=from_pr, path=tmpdir)
+        tmpdir = os.path.join(tempfile.gettempdir(), 'fetch_files_from_pr_%s' % '_'.join(str(pr) for pr in from_pr))
+        pr_paths = []
+        for pr in from_pr:
+            pr_paths.extend(fetch_files_from_pr(pr=pr, path=tmpdir))
 
         # assume that files need to be copied to current working directory for now
         target_path = os.getcwd()
