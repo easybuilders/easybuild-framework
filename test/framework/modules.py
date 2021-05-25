@@ -1089,7 +1089,7 @@ class ModulesTest(EnhancedTestCase):
         """Test module caches and invalidate_module_caches_for function."""
         self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
 
-        # purposely extending $MODULEPATH with non-existing path, should be handled fine
+        # purposely extending $MODULEPATH with an empty path, should be handled fine
         nonpath = os.path.join(self.test_prefix, 'nosuchfileordirectory')
         mkdir(nonpath)
         self.modtool.use(nonpath)
