@@ -141,9 +141,11 @@ EXTRACT_CMDS = {
     '.tb2': "tar xjf %(filepath)s",
     '.tbz': "tar xjf %(filepath)s",
     '.tbz2': "tar xjf %(filepath)s",
-    # xzipped or xzipped tarball
-    '.tar.xz': "unxz %(filepath)s --stdout | tar x",
-    '.txz': "unxz %(filepath)s --stdout | tar x",
+    # xzipped or xzipped tarball;
+    # need to make sure that $TAPE is not set to avoid 'tar x' command failing,
+    # see https://github.com/easybuilders/easybuild-framework/issues/3652
+    '.tar.xz': "unset TAPE; unxz %(filepath)s --stdout | tar x",
+    '.txz': "unset TAPE; unxz %(filepath)s --stdout | tar x",
     '.xz': "unxz %(filepath)s",
     # tarball
     '.tar': "tar xf %(filepath)s",
