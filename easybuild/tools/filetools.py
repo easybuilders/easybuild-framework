@@ -58,8 +58,8 @@ from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
-from easybuild.tools.config import (DEFAULT_WAIT_ON_LOCK_INTERVAL, GENERIC_EASYBLOCK_PKG, build_option, install_path,
-                                    IGNORE, WARN, ERROR)
+from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
+from easybuild.tools.config import build_option, install_path
 from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
 
@@ -1474,14 +1474,24 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     return True
 
 
-def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
+def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb', on_missing_match=None):
     """
     Apply specified list of regex substitutions.
 
     :param paths: list of paths to files to patch (or just a single filepath)
     :param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
     :param backup: create backup of original file with specified suffix (no backup if value evaluates to False)
+    :param on_missing_match: Define what to do when no match was found in the file.
+                             Can be 'error' to raise an error, 'warn' to print a warning or 'ignore' to do nothing
+                             Defaults to the value of --strict
     """
+    if on_missing_match is None:
+        on_missing_match = build_option('strict')
+    allowed_values = (ERROR, IGNORE, WARN)
+    if on_missing_match not in allowed_values:
+        raise EasyBuildError('Invalid value passed to on_missing_match: %s (allowed: %s)',
+                             on_missing_match, ', '.join(allowed_values))
+
     if isinstance(paths, string_type):
         paths = [paths]
 
@@ -1495,9 +1505,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
     else:
         _log.info("Applying following regex substitutions to %s: %s", paths, regex_subs)
 
-        compiled_regex_subs = []
-        for regex, subtxt in regex_subs:
-            compiled_regex_subs.append((re.compile(regex), subtxt))
+        compiled_regex_subs = [(re.compile(regex), subtxt) for (regex, subtxt) in regex_subs]
 
         for path in paths:
             try:
@@ -1517,6 +1525,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
 
                 if backup:
                     copy_file(path, path + backup)
+                replacement_msgs = []
                 with open_file(path, 'w') as out_file:
                     lines = txt_utf8.split('\n')
                     del txt_utf8
@@ -1525,11 +1534,21 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
                             match = regex.search(line)
                             if match:
                                 origtxt = match.group(0)
-                                _log.info("Replacing line %d in %s: '%s' -> '%s'",
-                                          (line_id + 1), path, origtxt, subtxt)
+                                replacement_msgs.append("Replaced in line %d: '%s' -> '%s'" %
+                                                        (line_id + 1, origtxt, subtxt))
                                 line = regex.sub(subtxt, line)
                                 lines[line_id] = line
                     out_file.write('\n'.join(lines))
+                if replacement_msgs:
+                    _log.info('Applied the following substitutions to %s:\n%s', path, '\n'.join(replacement_msgs))
+                else:
+                    msg = 'Nothing found to replace in %s' % path
+                    if on_missing_match == ERROR:
+                        raise EasyBuildError(msg)
+                    elif on_missing_match == WARN:
+                        _log.warning(msg)
+                    else:
+                        _log.info(msg)
 
             except (IOError, OSError) as err:
                 raise EasyBuildError("Failed to patch %s: %s", path, err)

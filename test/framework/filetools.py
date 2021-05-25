@@ -42,7 +42,7 @@ import tempfile
 import time
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
-
+from easybuild.tools import run
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import IGNORE, ERROR
@@ -1219,6 +1219,7 @@ class FileToolsTest(EnhancedTestCase):
             (r"^(FC\s*=\s*).*$", r"\1${FC}"),
             (r"^(.FLAGS)\s*=\s*-O3\s-g(.*)$", r"\1 = -O2\2"),
         ]
+        regex_subs_copy = regex_subs[:]
         ft.apply_regex_substitutions(testfile, regex_subs)
 
         expected_testtxt = '\n'.join([
@@ -1229,6 +1230,8 @@ class FileToolsTest(EnhancedTestCase):
         ])
         new_testtxt = ft.read_file(testfile)
         self.assertEqual(new_testtxt, expected_testtxt)
+        # Must not have touched the list
+        self.assertEqual(regex_subs_copy, regex_subs)
 
         # backup file is created by default
         backup = testfile + '.orig.eb'
@@ -1261,9 +1264,29 @@ class FileToolsTest(EnhancedTestCase):
 
         # passing empty list of substitions is a no-op
         ft.write_file(testfile, testtxt)
-        ft.apply_regex_substitutions(testfile, [])
+        ft.apply_regex_substitutions(testfile, [], on_missing_match=run.IGNORE)
         new_testtxt = ft.read_file(testfile)
         self.assertEqual(new_testtxt, testtxt)
+
+        # Check handling of on_missing_match
+        ft.write_file(testfile, testtxt)
+        regex_subs_no_match = [('Not there', 'Not used')]
+        error_pat = 'Nothing found to replace in %s' % testfile
+        # Error
+        self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, testfile, regex_subs_no_match,
+                              on_missing_match=run.ERROR)
+
+        # Warn
+        with self.log_to_testlogfile():
+            ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.WARN)
+        logtxt = ft.read_file(self.logfile)
+        self.assertTrue('WARNING ' + error_pat in logtxt)
+
+        # Ignore
+        with self.log_to_testlogfile():
+            ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.IGNORE)
+        logtxt = ft.read_file(self.logfile)
+        self.assertTrue('INFO ' + error_pat in logtxt)
 
         # clean error on non-existing file
         error_pat = "Failed to patch .*/nosuchfile.txt: .*No such file or directory"

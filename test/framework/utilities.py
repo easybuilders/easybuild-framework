@@ -36,6 +36,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from contextlib import contextmanager
 
 from easybuild.base import fancylogger
 from easybuild.base.testing import TestCase
@@ -204,6 +205,16 @@ class EnhancedTestCase(TestCase):
         if 'EASYBUILD_DEPRECATED' in os.environ:
             del os.environ['EASYBUILD_DEPRECATED']
         eb_build_log.CURRENT_VERSION = self.orig_current_version
+
+    @contextmanager
+    def log_to_testlogfile(self):
+        """Context manager class to capture log output in self.logfile for the scope used. Clears the file first"""
+        open(self.logfile, 'w').close()  # Remove all contents
+        fancylogger.logToFile(self.logfile)
+        try:
+            yield self.logfile
+        finally:
+            fancylogger.logToFile(self.logfile, enable=False)
 
     def tearDown(self):
         """Clean up after running testcase."""
