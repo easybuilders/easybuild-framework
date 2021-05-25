@@ -1190,8 +1190,8 @@ class ToyBuildTest(EnhancedTestCase):
         archived_patch_file = os.path.join(repositorypath, 'toy', 'toy-0.0_fix-silly-typo-in-printf-statement.patch')
         self.assertTrue(os.path.isfile(archived_patch_file))
 
-    def test_toy_extension_patches(self):
-        """Test install toy that includes extensions with patches."""
+    def test_toy_extension_patches_postinstallcmds(self):
+        """Test install toy that includes extensions with patches and postinstallcmds."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec)
@@ -1210,12 +1210,24 @@ class ToyBuildTest(EnhancedTestCase):
             '           ("bar-0.0_fix-very-silly-typo-in-printf-statement.patch", 0),',  # patch with patch level
             '           ("test.txt", "."),',  # file to copy to build dir (not a real patch file)
             '       ],',
+            '       "postinstallcmds": ["touch %(installdir)s/created-via-postinstallcmds.txt"],',
             '   }),',
             ']',
         ])
         write_file(test_ec, test_ec_txt)
 
         self.test_toy_build(ec_file=test_ec)
+
+        installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+
+        # make sure that patches were actually applied (without them the message producded by 'bar' is different)
+        bar_bin = os.path.join(installdir, 'bin', 'bar')
+        out, _ = run_cmd(bar_bin)
+        self.assertEqual(out, "I'm a bar, and very very proud of it.\n")
+
+        # verify that post-install command for 'bar' extension was executed
+        fn = 'created-via-postinstallcmds.txt'
+        self.assertTrue(os.path.exists(os.path.join(installdir, fn)))
 
     def test_toy_extension_sources(self):
         """Test install toy that includes extensions with 'sources' spec (as single-item list)."""

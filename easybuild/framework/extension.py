@@ -105,9 +105,10 @@ class Extension(object):
 
         name, version = self.ext['name'], self.ext.get('version', None)
 
-        # parent sanity check paths/commands are not relevant for extension
+        # parent sanity check paths/commands and postinstallcmds are not relevant for extension
         self.cfg['sanity_check_commands'] = []
         self.cfg['sanity_check_paths'] = []
+        self.cfg['postinstallcmds'] = []
 
         # construct dict with template values that can be used
         self.cfg.template_values.update(template_constant_dict({'name': name, 'version': version}))
@@ -169,7 +170,7 @@ class Extension(object):
         """
         Stuff to do after installing a extension.
         """
-        pass
+        self.master.run_post_install_commands(commands=self.cfg.get('postinstallcmds', []))
 
     @property
     def toolchain(self):
