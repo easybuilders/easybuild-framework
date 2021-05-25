@@ -29,18 +29,22 @@ The basic concept is the same as for the Cray Programming Environment.
 
 :author: Miguel Dias Costa (National University of Singapore)
 """
+import os
+
+import easybuild.tools.environment as env
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler, DEFAULT_OPT_LEVEL
 
 TC_CONSTANT_FUJITSU = 'Fujitsu'
+TC_CONSTANT_MODULE_NAME = 'lang'
+TC_CONSTANT_MODULE_VAR = 'FJSVXTCLANGA'
 
 
 class FujitsuCompiler(Compiler):
     """Generic support for using Fujitsu compiler drivers."""
     TOOLCHAIN_FAMILY = TC_CONSTANT_FUJITSU
 
-    # compiler module name is lang (with version e.g. tcsds-1.2.31)
-    COMPILER_MODULE_NAME = ['lang']
+    COMPILER_MODULE_NAME = [TC_CONSTANT_MODULE_NAME]
     COMPILER_FAMILY = TC_CONSTANT_FUJITSU
 
     # make sure fcc is always called in clang compatibility mode
@@ -81,6 +85,14 @@ class FujitsuCompiler(Compiler):
     COMPILER_GENERIC_OPTION = {
         (systemtools.AARCH64, systemtools.ARM): '-mcpu=generic -mtune=generic',
     }
+
+    def prepare(self, *args, **kwargs):
+        super(FujitsuCompiler, self).prepare(*args, **kwargs)
+
+        # make sure the fujitsu module libraries are found (and added to rpath by wrapper)
+        libdir = os.path.join(os.getenv(TC_CONSTANT_MODULE_VAR), 'lib64')
+        self.log.debug("Adding %s to $LIBRARY_PATH" % libdir)
+        env.setvar('LIBRARY_PATH', os.pathsep.join([os.getenv('LIBRARY_PATH'), libdir]))
 
     def _set_compiler_vars(self):
         super(FujitsuCompiler, self)._set_compiler_vars()

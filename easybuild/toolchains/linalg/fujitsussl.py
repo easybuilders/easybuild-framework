@@ -29,11 +29,10 @@ Support for Fujitsu's SSL library, which provides BLAS/LAPACK support.
 """
 import os
 
-
+from easybuild.toolchains.compiler.fujitsu import TC_CONSTANT_MODULE_NAME, TC_CONSTANT_MODULE_VAR
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.constants import COMPILER_FLAGS
 from easybuild.tools.toolchain.linalg import LinAlg
-
 
 FUJITSU_SSL_MODULE_NAME = None
 TC_CONSTANT_FUJITSU_SSL = 'FujitsuSSL'
@@ -43,7 +42,7 @@ class FujitsuSSL(LinAlg):
     """Support for Fujitsu's SSL library, which provides BLAS/LAPACK support."""
     # BLAS/LAPACK support
     # via lang/tcsds module
-    BLAS_MODULE_NAME = ['lang']
+    BLAS_MODULE_NAME = [TC_CONSTANT_MODULE_NAME]
 
     # no need to specify libraries nor includes, only the compiler flags below
     BLAS_LIB = ['']
@@ -71,9 +70,8 @@ class FujitsuSSL(LinAlg):
 
     def _get_software_root(self, name):
         """Get install prefix for specified software name; special treatment for Fujitsu modules."""
-        if name == 'lang':
-            # Fujitsu-provided  module
-            env_var = 'FJSVXTCLANGA'
+        if name == TC_CONSTANT_MODULE_NAME:
+            env_var = TC_CONSTANT_MODULE_VAR
             root = os.getenv(env_var)
             if root is None:
                 raise EasyBuildError("Failed to determine install prefix for %s via $%s", name, env_var)
