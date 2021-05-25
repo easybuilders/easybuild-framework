@@ -113,8 +113,8 @@ class Extension(object):
         self.cfg.template_values.update(template_constant_dict({'name': name, 'version': version}))
 
         # Add install/builddir templates with values from master.
-        for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-            self.cfg.template_values[name[0]] = str(getattr(self.master, name[0], None))
+        for key in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+            self.cfg.template_values[key[0]] = str(getattr(self.master, key[0], None))
 
         # list of source/patch files: we use an empty list as default value like in EasyBlock
         self.src = resolve_template(self.ext.get('src', []), self.cfg.template_values)
