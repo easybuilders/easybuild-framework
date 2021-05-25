@@ -466,6 +466,7 @@ class EasyBuildOptions(GeneralOption):
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
             'silence-deprecation-warnings': ("Silence specified deprecation warnings", 'strlist', 'extend', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
+            'skip-extensions': ("Skip installation of extensions", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'skip-test-step': ("Skip running the test step (e.g. unit tests)", None, 'store_true', False),
             'generate-devel-module': ("Generate a develop module file, implies --force if disabled",

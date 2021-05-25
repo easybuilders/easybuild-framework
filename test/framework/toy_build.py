@@ -1730,6 +1730,12 @@ class ToyBuildTest(EnhancedTestCase):
                                   do_build=True, raise_error=True)
         self.assertFalse(os.path.exists(toy_mod))
 
+        # failing sanity check for barbar extension is ignored when using --module-only --skip-extensions
+        for extra_args in (['--module-only'], ['--module-only', '--rebuild']):
+            self.eb_main([test_ec, '--skip-extensions'] + extra_args, do_build=True, raise_error=True)
+            self.assertTrue(os.path.exists(toy_mod))
+            remove_file(toy_mod)
+
         # we can force module generation via --force (which skips sanity check entirely)
         self.eb_main([test_ec, '--module-only', '--force'], do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_mod))

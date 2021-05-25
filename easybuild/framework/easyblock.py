@@ -2899,9 +2899,12 @@ class EasyBlock(object):
         """Sanity check on extensions (if any)."""
         failed_exts = []
 
-        # class instances for extensions may not be initialized yet here,
-        # for example when using --module-only or --sanity-check-only
-        if not self.ext_instances:
+        if build_option('skip_extensions'):
+            self.log.info("Skipping sanity check for extensions since skip-extensions is enabled...")
+            return
+        elif not self.ext_instances:
+            # class instances for extensions may not be initialized yet here,
+            # for example when using --module-only or --sanity-check-only
             self.prepare_for_extensions()
             self.init_ext_instances()
 
@@ -3293,6 +3296,8 @@ class EasyBlock(object):
         force = build_option('force')
         module_only = build_option('module_only')
         sanity_check_only = build_option('sanity_check_only')
+        skip_extensions = build_option('skip_extensions')
+        skip_test_step = build_option('skip_test_step')
         skipsteps = self.cfg['skipsteps']
 
         # under --skip, sanity check is not skipped
@@ -3319,10 +3324,19 @@ class EasyBlock(object):
             self.log.info("Skipping %s step because of sanity-check-only mode", step)
             skip = True
 
+        elif skip_extensions and step == EXTENSIONS_STEP:
+            self.log.info("Skipping %s step as requested via skip-extensions", step)
+            skip = True
+
+        elif skip_test_step and step == TEST_STEP:
+            self.log.info("Skipping %s step as requested via skip-test-step", step)
+            skip = True
+
         else:
             msg = "Not skipping %s step (skippable: %s, skip: %s, skipsteps: %s, module_only: %s, force: %s, "
-            msg += "sanity_check_only: %s)"
-            self.log.debug(msg, step, skippable, self.skip, skipsteps, module_only, force, sanity_check_only)
+            msg += "sanity_check_only: %s, skip_extensions: %s, skip_test_step: %s)"
+            self.log.debug(msg, step, skippable, self.skip, skipsteps, module_only, force,
+                           sanity_check_only, skip_extensions, skip_test_step)
 
         return skip
 
@@ -3585,10 +3599,6 @@ def build_and_install_one(ecdict, init_env):
     if skip is not None:
         _log.debug("Skip set to %s" % skip)
         app.cfg['skip'] = skip
-
-    if build_option('skip_test_step'):
-        _log.debug('Adding test_step to skipped steps')
-        app.cfg.update('skipsteps', TEST_STEP, allow_duplicate=False)
 
     # build easyconfig
     errormsg = '(no error)'
