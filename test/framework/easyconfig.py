@@ -1666,7 +1666,6 @@ class EasyConfigTest(EnhancedTestCase):
         # by adding a couple of matching module files with some useful data in them
         # (use Tcl syntax, so it works with all varieties of module tools)
         mod_dir = os.path.join(self.test_prefix, 'modules')
-        self.modtool.use(mod_dir)
 
         pi_mod_txt = '\n'.join([
             "#%Module",
@@ -1690,6 +1689,8 @@ class EasyConfigTest(EnhancedTestCase):
             "setenv CRAY_FOOBAR_VERSION 2.3.4",
         ])
         write_file(os.path.join(mod_dir, 'foobar/2.3.4'), foobar_mod_txt)
+
+        self.modtool.use(mod_dir)
 
         ec = EasyConfig(toy_ec)
         deps = ec.dependencies()

@@ -531,14 +531,15 @@ class ModulesTest(EnhancedTestCase):
         os.environ['MODULEPATH'] = test2
         modtool.check_module_path()
         self.assertEqual(modtool.mod_paths, [mod_install_dir, test1, test2])
-        self.assertEqual(os.environ['MODULEPATH'], mod_install_dir + ':' + test1 + ':' + test2)
+        self.assertEqual(os.environ['MODULEPATH'], os.pathsep.join([mod_install_dir, test1, test2]))
 
         # check behaviour if non-existing directories are included in $MODULEPATH
         os.environ['MODULEPATH'] = '%s:/does/not/exist:%s' % (test3, test2)
         modtool.check_module_path()
         # non-existing dir is filtered from mod_paths, but stays in $MODULEPATH
         self.assertEqual(modtool.mod_paths, [mod_install_dir, test1, test3, test2])
-        self.assertEqual(os.environ['MODULEPATH'], ':'.join([mod_install_dir, test1, test3, '/does/not/exist', test2]))
+        self.assertEqual(os.environ['MODULEPATH'],
+                         os.pathsep.join([mod_install_dir, test1, test3, '/does/not/exist', test2]))
 
     def test_check_module_path_hmns(self):
         """Test behaviour of check_module_path with HierarchicalMNS."""
@@ -1090,8 +1091,9 @@ class ModulesTest(EnhancedTestCase):
         """Test module caches and invalidate_module_caches_for function."""
         self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
 
-        # purposely extending $MODULEPATH with non-existing path, should be handled fine
+        # purposely extending $MODULEPATH with an empty path, should be handled fine
         nonpath = os.path.join(self.test_prefix, 'nosuchfileordirectory')
+        mkdir(nonpath)
         self.modtool.use(nonpath)
         modulepaths = [p for p in os.environ.get('MODULEPATH', '').split(os.pathsep) if p]
         self.assertTrue(any([os.path.samefile(nonpath, mp) for mp in modulepaths]))
@@ -1164,6 +1166,11 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.use(test_dir3)
         self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir3))
 
+        # Adding an empty modulepath is not possible
+        modulepath = os.environ.get('MODULEPATH', '')
+        self.assertErrorRegex(EasyBuildError, "Cannot add empty path", self.modtool.use, '')
+        self.assertEqual(os.environ.get('MODULEPATH', ''), modulepath)
+
         # make sure the right test module is loaded
         self.modtool.load(['test'])
         self.assertEqual(os.getenv('TEST123'), 'three')
@@ -1224,17 +1231,67 @@ class ModulesTest(EnhancedTestCase):
             self.assertFalse('MODULEPATH' in os.environ)
             os.environ['MODULEPATH'] = old_module_path  # Restore
 
-            # Using an empty path still works (technically) (Lmod only, ignored by Tcl)
-            old_module_path = os.environ['MODULEPATH']
-            self.modtool.use('')
-            self.assertEqual(os.environ['MODULEPATH'], ':' + old_module_path)
-            self.modtool.unuse('')
-            self.assertEqual(os.environ['MODULEPATH'], old_module_path)
-            # Even works when the whole path is empty
-            os.environ['MODULEPATH'] = ''
-            self.modtool.unuse('')
-            self.assertFalse('MODULEPATH' in os.environ)
-            os.environ['MODULEPATH'] = old_module_path  # Restore
+    def test_add_and_remove_module_path(self):
+        """Test add_module_path and whether remove_module_path undoes changes of add_module_path"""
+        test_dir1 = tempfile.mkdtemp(suffix="_dir1")
+        test_dir2 = tempfile.mkdtemp(suffix="_dir2")
+        old_module_path = os.environ.get('MODULEPATH')
+        del os.environ['MODULEPATH']
+        self.modtool.add_module_path(test_dir1)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir1)
+        self.modtool.add_module_path(test_dir2)
+        test_dir_2_and_1 = os.pathsep.join([test_dir2, test_dir1])
+        self.assertEqual(os.environ['MODULEPATH'], test_dir_2_and_1)
+        # Adding the same path does not change the path
+        self.modtool.add_module_path(test_dir1)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir_2_and_1)
+        self.modtool.add_module_path(test_dir2)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir_2_and_1)
+        # Even when a (meaningless) slash is added
+        # This occurs when using an empty modules directory name
+        self.modtool.add_module_path(os.path.join(test_dir1, ''))
+        self.assertEqual(os.environ['MODULEPATH'], test_dir_2_and_1)
+
+        # Similar tests for remove_module_path
+        self.modtool.remove_module_path(test_dir2)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir1)
+        # Same again -> no-op
+        self.modtool.remove_module_path(test_dir2)
+        self.assertEqual(os.environ['MODULEPATH'], test_dir1)
+        # And with empty last part
+        self.modtool.remove_module_path(os.path.join(test_dir1, ''))
+        self.assertEqual(os.environ.get('MODULEPATH', ''), '')
+
+        # And with some more trickery
+        # Lmod seems to remove empty paths: /foo//bar/. -> /foo/bar
+        # Environment-Modules 4.x seems to resolve relative paths: /foo/../foo -> /foo
+        # Hence we can only check the real paths
+        def get_resolved_module_path():
+            return os.pathsep.join(os.path.realpath(p) for p in os.environ['MODULEPATH'].split(os.pathsep))
+
+        test_dir1_relative = os.path.join(test_dir1, '..', os.path.basename(test_dir1))
+        test_dir2_dot = os.path.join(os.path.dirname(test_dir2), '.', os.path.basename(test_dir2))
+        self.modtool.add_module_path(test_dir1_relative)
+        self.assertEqual(get_resolved_module_path(), test_dir1)
+        # Adding the same path, but in a different form may be possible, but may also be ignored, e.g. in EnvModules
+        self.modtool.add_module_path(test_dir1)
+        if get_resolved_module_path() != test_dir1:
+            self.assertEqual(get_resolved_module_path(), os.pathsep.join([test_dir1, test_dir1]))
+            self.modtool.remove_module_path(test_dir1)
+            self.assertEqual(get_resolved_module_path(), test_dir1)
+        self.modtool.add_module_path(test_dir2_dot)
+        self.assertEqual(get_resolved_module_path(), test_dir_2_and_1)
+        self.modtool.remove_module_path(test_dir2_dot)
+        self.assertEqual(get_resolved_module_path(), test_dir1)
+        # Force adding such a dot path which can be removed with either variant
+        os.environ['MODULEPATH'] = os.pathsep.join([test_dir2_dot, test_dir1_relative])
+        self.modtool.remove_module_path(test_dir2_dot)
+        self.assertEqual(get_resolved_module_path(), test_dir1)
+        os.environ['MODULEPATH'] = os.pathsep.join([test_dir2_dot, test_dir1_relative])
+        self.modtool.remove_module_path(test_dir2)
+        self.assertEqual(get_resolved_module_path(), test_dir1)
+
+        os.environ['MODULEPATH'] = old_module_path  # Restore
 
     def test_module_use_bash(self):
         """Test whether effect of 'module use' is preserved when a new bash session is started."""

@@ -636,7 +636,9 @@ class Toolchain(object):
             if self.init_modpaths:
                 mod_path_suffix = build_option('suffix_modules_path')
                 for modpath in self.init_modpaths:
-                    self.modules_tool.prepend_module_path(os.path.join(install_path('mod'), mod_path_suffix, modpath))
+                    modpath = os.path.join(install_path('mod'), mod_path_suffix, modpath)
+                    if os.path.exists(modpath):
+                        self.modules_tool.prepend_module_path(modpath)
 
             # load modules for all dependencies
             self.log.debug("Loading module for toolchain: %s", tc_mod)
