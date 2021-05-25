@@ -2436,20 +2436,33 @@ class EasyBlock(object):
                             contents = shebang + '\n' + contents
                             write_file(path, contents)
 
+    def run_post_install_commands(self, commands=None):
+        """
+        Run post install commands that are specified via 'postinstallcmds' easyconfig parameter.
+        """
+        if commands is None:
+            commands = self.cfg['postinstallcmds']
+
+        if commands:
+            self.log.debug("Specified post install commands: %s", commands)
+
+            # make sure we have a list of commands
+            if not isinstance(commands, (list, tuple)):
+                error_msg = "Invalid value for 'postinstallcmds', should be list or tuple of strings: %s"
+                raise EasyBuildError(error_msg, commands)
+
+            for cmd in commands:
+                if not isinstance(cmd, string_type):
+                    raise EasyBuildError("Invalid element in 'postinstallcmds', not a string: %s", cmd)
+                run_cmd(cmd, simple=True, log_ok=True, log_all=True)
+
     def post_install_step(self):
         """
         Do some postprocessing
         - run post install commands if any were specified
         """
 
-        if self.cfg['postinstallcmds'] is not None:
-            # make sure we have a list of commands
-            if not isinstance(self.cfg['postinstallcmds'], (list, tuple)):
-                raise EasyBuildError("Invalid value for 'postinstallcmds', should be list or tuple of strings.")
-            for cmd in self.cfg['postinstallcmds']:
-                if not isinstance(cmd, string_type):
-                    raise EasyBuildError("Invalid element in 'postinstallcmds', not a string: %s", cmd)
-                run_cmd(cmd, simple=True, log_ok=True, log_all=True)
+        self.run_post_install_commands()
 
         self.fix_shebang()
 
