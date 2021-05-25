@@ -1607,7 +1607,7 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
                 msg.extend(["  " + x for x in patch_paths])
             if deleted_paths:
                 msg.append("* %d deleted file(s)" % len(deleted_paths))
-                msg.append(["  " + x for x in deleted_paths])
+                msg.extend(["  " + x for x in deleted_paths])
 
             print_msg('\n'.join(msg), log=_log)
         else:
