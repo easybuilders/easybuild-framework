@@ -5777,12 +5777,21 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         test_ec = os.path.join(self.test_prefix, 'test.ec')
         test_ec_txt = read_file(toy_ec)
-        test_ec_txt += "\nsanity_check_commands = ['toy']"
+        test_ec_txt += '\n' + '\n'.join([
+            "sanity_check_commands = ['barbar', 'toy']",
+            "sanity_check_paths = {'files': ['bin/barbar', 'bin/toy'], 'dirs': ['bin']}",
+            "exts_list = [",
+            "    ('barbar', '0.0', {",
+            "        'start_dir': 'src',",
+            "    })",
+            "]",
+        ])
         write_file(test_ec, test_ec_txt)
 
         # sanity check fails if software was not installed yet
         outtxt, error_thrown = self.eb_main([test_ec, '--sanity-check-only'], do_build=True, return_error=True)
-        self.assertTrue("Sanity check failed: no file found at \\'bin/yot\\' or \\'bin/toy\\'" in str(error_thrown))
+        self.assertTrue("Sanity check failed: no file found at \\'bin/barbar\\'" in str(error_thrown))
+        self.assertTrue("no file found at \\'bin/toy\\'" in str(error_thrown))
 
         # actually install, then try --sanity-check-only again;
         # need to use --force to install toy because module already exists (but installation doesn't)
@@ -5821,13 +5830,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue("== sanity checking..." in stdout)
         self.assertTrue("COMPLETED: Installation ended successfully" in stdout)
         msgs = [
-            "file 'bin/yot' or 'bin/toy' found: OK",
+            "file 'bin/barbar' found: OK",
+            "file 'bin/toy' found: OK",
             "(non-empty) directory 'bin' found: OK",
             "loading modules: toy/0.0...",
             "result for command 'toy': OK",
         ]
         for msg in msgs:
-            self.assertTrue("  >> %s" % msg in stdout)
+            self.assertTrue("  >> %s" % msg in stdout, "'  >> %s' found in: %s" % (msg, stdout))
 
     def test_fake_vsc_include(self):
         """Test whether fake 'vsc' namespace is triggered for modules included via --include-*."""
