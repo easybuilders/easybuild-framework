@@ -2239,54 +2239,27 @@ class EasyBlock(object):
         """Install built software (abstract method)."""
         raise NotImplementedError
 
-    def extensions_step(self, fetch=False, install=True):
+    def init_ext_instances(self):
         """
-        After make install, run this.
-        - only if variable len(exts_list) > 0
-        - optionally: load module that was just created using temp module file
-        - find source for extensions, in 'extensions' (and 'packages' for legacy reasons)
-        - run extra_extensions
+        Create class instances for all extensions.
         """
-        if not self.cfg.get_ref('exts_list'):
-            self.log.debug("No extensions in exts_list")
-            return
 
-        # load fake module
-        fake_mod_data = None
-        if install and not self.dry_run:
-
-            # load modules for build dependencies as extra modules
-            build_dep_mods = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
-
-            fake_mod_data = self.load_fake_module(purge=True, extra_modules=build_dep_mods)
-
-        self.prepare_for_extensions()
-
-        if fetch:
-            self.exts = self.fetch_extension_sources()
-
-        self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
-
-        # actually install extensions
-        self.log.debug("Installing extensions")
-        exts_defaultclass = self.cfg['exts_defaultclass']
+        self.ext_instances = []
         exts_classmap = self.cfg['exts_classmap']
 
-        # we really need a default class
-        if not exts_defaultclass and fake_mod_data:
-            self.clean_up_fake_module(fake_mod_data)
-            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
+        if self.cfg['exts_list'] and not self.exts:
+            self.exts = self.fetch_extension_sources()
 
         # obtain name and module path for default extention class
+        exts_defaultclass = self.cfg['exts_defaultclass']
         if isinstance(exts_defaultclass, string_type):
             # proper way: derive module path from specified class name
             default_class = exts_defaultclass
             default_class_modpath = get_module_path(default_class, generic=True)
         else:
-            raise EasyBuildError("Improper default extension class specification, should be string.")
+            error_msg = "Improper default extension class specification, should be string: %s (%s)"
+            raise EasyBuildError(error_msg, exts_defaultclass, type(exts_defaultclass))
 
-        # get class instances for all extensions
-        self.ext_instances = []
         for ext in self.exts:
             ext_name = ext['name']
             self.log.debug("Creating class instance for extension %s...", ext_name)
@@ -2336,6 +2309,44 @@ class EasyBlock(object):
 
             self.ext_instances.append(inst)
 
+    def extensions_step(self, fetch=False, install=True):
+        """
+        After make install, run this.
+        - only if variable len(exts_list) > 0
+        - optionally: load module that was just created using temp module file
+        - find source for extensions, in 'extensions' (and 'packages' for legacy reasons)
+        - run extra_extensions
+        """
+        if not self.cfg.get_ref('exts_list'):
+            self.log.debug("No extensions in exts_list")
+            return
+
+        # load fake module
+        fake_mod_data = None
+        if install and not self.dry_run:
+
+            # load modules for build dependencies as extra modules
+            build_dep_mods = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
+
+            fake_mod_data = self.load_fake_module(purge=True, extra_modules=build_dep_mods)
+
+        self.prepare_for_extensions()
+
+        if fetch:
+            self.exts = self.fetch_extension_sources()
+
+        self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
+
+        # actually install extensions
+        self.log.info("Installing extensions")
+
+        # we really need a default class
+        if not self.cfg['exts_defaultclass'] and fake_mod_data:
+            self.clean_up_fake_module(fake_mod_data)
+            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
+
+        self.init_ext_instances()
+
         if self.skip:
             self.skip_extensions()
 
@@ -2351,7 +2362,7 @@ class EasyBlock(object):
             print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
 
             if self.dry_run:
-                tup = (ext.name, ext.version, cls.__name__)
+                tup = (ext.name, ext.version, ext.__class__.__name__)
                 msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
                 self.dry_run_msg(msg)
 
@@ -2881,6 +2892,13 @@ class EasyBlock(object):
     def _sanity_check_step_extensions(self):
         """Sanity check on extensions (if any)."""
         failed_exts = []
+
+        # class instances for extensions may not be initialized yet here,
+        # for example when using --module-only or --sanity-check-only
+        if not self.ext_instances:
+            self.prepare_for_extensions()
+            self.init_ext_instances()
+
         for ext in self.ext_instances:
             success, fail_msg = None, None
             res = ext.sanity_check_step()
