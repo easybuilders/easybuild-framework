@@ -2243,11 +2243,16 @@ class EasyBlock(object):
         """
         Create class instances for all extensions.
         """
+        exts_list = self.cfg.get_ref('exts_list')
+
+        # early exit if there are no extensions
+        if not exts_list:
+            return
 
         self.ext_instances = []
         exts_classmap = self.cfg['exts_classmap']
 
-        if self.cfg['exts_list'] and not self.exts:
+        if exts_list and not self.exts:
             self.exts = self.fetch_extension_sources()
 
         # obtain name and module path for default extention class
