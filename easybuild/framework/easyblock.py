@@ -1429,7 +1429,7 @@ class EasyBlock(object):
 
         # set environment variable that specifies list of extensions
         # We need only name and version, so don't resolve templates
-        exts_list = ','.join(['-'.join(ext[:2]) for ext in self.cfg.get_ref('exts_list')])
+        exts_list = self.make_extension_string(ext_sep=',', sort=False)
         env_var_name = convert_name(self.name, upper=True)
         lines.append(self.module_generator.set_environment('EBEXTSLIST%s' % env_var_name, exts_list))
 
@@ -1709,6 +1709,27 @@ class EasyBlock(object):
     #
     # EXTENSIONS UTILITY FUNCTIONS
     #
+
+    def _make_extension_list(self):
+        """
+        Return a list of extension names and their versions included in this installation
+
+        Each entry should be a (name, version) tuple or just (name, ) if no version exists
+        """
+        # We need only name and version, so don't resolve templates
+        # Each extension in exts_list is either a string or a list/tuple with name, version as first entries
+        return [(ext, ) if isinstance(ext, string_type) else ext[:2] for ext in self.cfg.get_ref('exts_list')]
+
+    def make_extension_string(self, name_version_sep='-', ext_sep=', ', sort=True):
+        """
+        Generate a string with a list of extensions.
+
+        The name and version are separated by name_version_sep and each extension is separated by ext_sep
+        """
+        exts_list = (name_version_sep.join(ext) for ext in self._make_extension_list())
+        if sort:
+            exts_list = sorted(exts_list, key=str.lower)
+        return ext_sep.join(exts_list)
 
     def prepare_for_extensions(self):
         """
