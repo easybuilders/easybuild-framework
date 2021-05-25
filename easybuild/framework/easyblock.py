@@ -3321,7 +3321,7 @@ class EasyBlock(object):
 
         else:
             msg = "Not skipping %s step (skippable: %s, skip: %s, skipsteps: %s, module_only: %s, force: %s, "
-            msg += "sanity_check_only: %s"
+            msg += "sanity_check_only: %s)"
             self.log.debug(msg, step, skippable, self.skip, skipsteps, module_only, force, sanity_check_only)
 
         return skip
