@@ -454,7 +454,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting CPU speed."""
         cpu_speed = get_cpu_speed()
         self.assertTrue(isinstance(cpu_speed, float) or cpu_speed is None)
-        self.assertTrue(cpu_speed > 0.0 or cpu_speed is None)
+        self.assertTrue(cpu_speed is None or cpu_speed > 0.0)
 
     def test_cpu_speed_linux(self):
         """Test getting CPU speed (mocked for Linux)."""
