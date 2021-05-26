@@ -29,6 +29,7 @@ Module with useful functions for getting system information
 @auther: Ward Poelmans (Ghent University)
 """
 import ctypes
+import errno
 import fcntl
 import grp  # @UnresolvedImport
 import os
@@ -160,24 +161,35 @@ class SystemToolsException(Exception):
 def sched_getaffinity():
     """Determine list of available cores for current process."""
     cpu_mask_t = ctypes.c_ulong
-    cpu_setsize = 1024
     n_cpu_bits = 8 * ctypes.sizeof(cpu_mask_t)
-    n_mask_bits = cpu_setsize // n_cpu_bits
-
-    class cpu_set_t(ctypes.Structure):
-        """Class that implements the cpu_set_t struct."""
-        _fields_ = [('bits', cpu_mask_t * n_mask_bits)]
 
     _libc_lib = find_library('c')
-    _libc = ctypes.cdll.LoadLibrary(_libc_lib)
+    _libc = ctypes.CDLL(_libc_lib, use_errno=True)
 
     pid = os.getpid()
-    cs = cpu_set_t()
-    ec = _libc.sched_getaffinity(os.getpid(), ctypes.sizeof(cpu_set_t), ctypes.pointer(cs))
-    if ec == 0:
-        _log.debug("sched_getaffinity for pid %s successful", pid)
-    else:
-        raise EasyBuildError("sched_getaffinity failed for pid %s ec %s", pid, ec)
+
+    cpu_setsize = 1024  # Max number of CPUs currently detectable
+    max_cpu_setsize = ctypes.c_ulong(-1).value // 4  # (INT_MAX / 2)
+    # Limit it to something reasonable but still big enough
+    max_cpu_setsize = min(max_cpu_setsize, 1e9)
+    while cpu_setsize < max_cpu_setsize:
+        n_mask_bits = cpu_setsize // n_cpu_bits
+
+        class cpu_set_t(ctypes.Structure):
+            """Class that implements the cpu_set_t struct."""
+            _fields_ = [('bits', cpu_mask_t * n_mask_bits)]
+
+        cs = cpu_set_t()
+        ec = _libc.sched_getaffinity(pid, ctypes.sizeof(cpu_set_t), ctypes.pointer(cs))
+        if ec == 0:
+            _log.debug("sched_getaffinity for pid %s successful", pid)
+            break
+        elif ctypes.get_errno() != errno.EINVAL:
+            raise EasyBuildError("sched_getaffinity failed for pid %s errno %s", pid, ctypes.get_errno())
+        cpu_setsize *= 2
+
+    if ec != 0:
+        raise EasyBuildError("sched_getaffinity failed finding a large enough cpuset for pid %s", pid)
 
     cpus = []
     for bitmask in cs.bits:
