@@ -5858,7 +5858,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(regex.search(error_msg), "Pattern '%s' should be found in: %s" % (regex.pattern, error_msg))
 
         # failing sanity check for extension can be bypassed via --skip-extensions
-        self.eb_main(args + ['--skip-extensions'], do_build=True, return_error=True)
+        outtxt = self.eb_main(args + ['--skip-extensions'], do_build=True, raise_error=True)
+        self.assertTrue("Sanity check for toy successful" in outtxt)
 
     def test_skip_extensions(self):
         """Test use of --skip-extensions."""
