@@ -169,7 +169,7 @@ def sched_getaffinity():
     pid = os.getpid()
 
     cpu_setsize = 1024  # Max number of CPUs currently detectable
-    max_cpu_setsize = ctypes.c_ulong(-1).value // 4  # (INT_MAX / 2)
+    max_cpu_setsize = cpu_mask_t(-1).value // 4  # (INT_MAX / 2)
     # Limit it to something reasonable but still big enough
     max_cpu_setsize = min(max_cpu_setsize, 1e9)
     while cpu_setsize < max_cpu_setsize:
