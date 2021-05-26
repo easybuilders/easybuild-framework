@@ -5806,6 +5806,93 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(os.path.join(tmp_logdir, tmp_logs[0]))
         self.assertTrue("COMPLETED: Installation ended successfully" in logtxt)
 
+    def test_sanity_check_only(self):
+        """Test use of --sanity-check-only."""
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.ec')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\n' + '\n'.join([
+            "sanity_check_commands = ['barbar', 'toy']",
+            "sanity_check_paths = {'files': ['bin/barbar', 'bin/toy'], 'dirs': ['bin']}",
+            "exts_list = [",
+            "    ('barbar', '0.0', {",
+            "        'start_dir': 'src',",
+            "        'exts_filter': ('ls -l lib/lib%(ext_name)s.a', ''),",
+            "    })",
+            "]",
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        # sanity check fails if software was not installed yet
+        outtxt, error_thrown = self.eb_main([test_ec, '--sanity-check-only'], do_build=True, return_error=True)
+        self.assertTrue("Sanity check failed" in str(error_thrown))
+
+        # actually install, then try --sanity-check-only again;
+        # need to use --force to install toy because module already exists (but installation doesn't)
+        self.eb_main([test_ec, '--force'], do_build=True, raise_error=True)
+
+        args = [test_ec, '--sanity-check-only']
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
+        stdout = self.get_stdout().strip()
+        stderr = self.get_stderr().strip()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        self.assertFalse(stderr)
+        skipped = [
+            "fetching files",
+            "creating build dir, resetting environment",
+            "unpacking",
+            "patching",
+            "preparing",
+            "configuring",
+            "building",
+            "testing",
+            "installing",
+            "taking care of extensions",
+            "restore after iterating",
+            "postprocessing",
+            "cleaning up",
+            "creating module",
+            "permissions",
+            "packaging"
+        ]
+        for skip in skipped:
+            self.assertTrue("== %s [skipped]" % skip)
+
+        self.assertTrue("== sanity checking..." in stdout)
+        self.assertTrue("COMPLETED: Installation ended successfully" in stdout)
+        msgs = [
+            "  >> file 'bin/barbar' found: OK",
+            "  >> file 'bin/toy' found: OK",
+            "  >> (non-empty) directory 'bin' found: OK",
+            "  >> loading modules: toy/0.0...",
+            "  >> result for command 'toy': OK",
+            "ls -l lib/libbarbar.a",  # sanity check for extension barbar (via exts_filter)
+        ]
+        for msg in msgs:
+            self.assertTrue(msg in stdout, "'%s' found in: %s" % (msg, stdout))
+
+        # check if sanity check for extension fails if a file provided by that extension,
+        # which is checked by the sanity check for that extension, is removed
+        libbarbar = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'lib', 'libbarbar.a')
+        remove_file(libbarbar)
+
+        outtxt, error_thrown = self.eb_main(args + ['--debug'], do_build=True, return_error=True)
+        error_msg = str(error_thrown)
+        error_patterns = [
+            r"Sanity check failed",
+            r'command "ls -l lib/libbarbar\.a" failed',
+        ]
+        for error_pattern in error_patterns:
+            regex = re.compile(error_pattern)
+            self.assertTrue(regex.search(error_msg), "Pattern '%s' should be found in: %s" % (regex.pattern, error_msg))
+
     def test_fake_vsc_include(self):
         """Test whether fake 'vsc' namespace is triggered for modules included via --include-*."""
 

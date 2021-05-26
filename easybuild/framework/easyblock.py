@@ -1504,13 +1504,14 @@ class EasyBlock(object):
             'CMAKE_LIBRARY_PATH': ['lib64'],  # lib and lib32 are searched through the above
         }
 
-    def load_module(self, mod_paths=None, purge=True, extra_modules=None):
+    def load_module(self, mod_paths=None, purge=True, extra_modules=None, verbose=True):
         """
         Load module for this software package/version, after purging all currently loaded modules.
 
         :param mod_paths: list of (additional) module paths to take into account
         :param purge: boolean indicating whether or not to purge currently loaded modules first
         :param extra_modules: list of extra modules to load (these are loaded *before* loading the 'self' module)
+        :param verbose: print modules being loaded when trace mode is enabled
         """
         # self.full_mod_name might not be set (e.g. during unit tests)
         if self.full_mod_name is not None:
@@ -1532,6 +1533,9 @@ class EasyBlock(object):
             if self.mod_subdir and not self.toolchain.is_system_toolchain():
                 mods.insert(0, self.toolchain.det_short_module_name())
 
+            if verbose:
+                trace_msg("loading modules: %s..." % ', '.join(mods))
+
             # pass initial environment, to use it for resetting the environment before loading the modules
             self.modules_tool.load(mods, mod_paths=all_mod_paths, purge=purge, init_env=self.initial_environ)
 
@@ -1543,7 +1547,7 @@ class EasyBlock(object):
         else:
             self.log.warning("Not loading module, since self.full_mod_name is not set.")
 
-    def load_fake_module(self, purge=False, extra_modules=None):
+    def load_fake_module(self, purge=False, extra_modules=None, verbose=False):
         """
         Create and load fake module.
 
@@ -1558,7 +1562,7 @@ class EasyBlock(object):
 
         # load fake module
         self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir), priority=10000)
-        self.load_module(purge=purge, extra_modules=extra_modules)
+        self.load_module(purge=purge, extra_modules=extra_modules, verbose=verbose)
 
         return (fake_mod_path, env)
 
@@ -2235,54 +2239,32 @@ class EasyBlock(object):
         """Install built software (abstract method)."""
         raise NotImplementedError
 
-    def extensions_step(self, fetch=False, install=True):
+    def init_ext_instances(self):
         """
-        After make install, run this.
-        - only if variable len(exts_list) > 0
-        - optionally: load module that was just created using temp module file
-        - find source for extensions, in 'extensions' (and 'packages' for legacy reasons)
-        - run extra_extensions
+        Create class instances for all extensions.
         """
-        if not self.cfg.get_ref('exts_list'):
-            self.log.debug("No extensions in exts_list")
+        exts_list = self.cfg.get_ref('exts_list')
+
+        # early exit if there are no extensions
+        if not exts_list:
             return
 
-        # load fake module
-        fake_mod_data = None
-        if install and not self.dry_run:
-
-            # load modules for build dependencies as extra modules
-            build_dep_mods = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
-
-            fake_mod_data = self.load_fake_module(purge=True, extra_modules=build_dep_mods)
-
-        self.prepare_for_extensions()
-
-        if fetch:
-            self.exts = self.fetch_extension_sources()
-
-        self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
-
-        # actually install extensions
-        self.log.debug("Installing extensions")
-        exts_defaultclass = self.cfg['exts_defaultclass']
+        self.ext_instances = []
         exts_classmap = self.cfg['exts_classmap']
 
-        # we really need a default class
-        if not exts_defaultclass and fake_mod_data:
-            self.clean_up_fake_module(fake_mod_data)
-            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
+        if exts_list and not self.exts:
+            self.exts = self.fetch_extension_sources()
 
         # obtain name and module path for default extention class
+        exts_defaultclass = self.cfg['exts_defaultclass']
         if isinstance(exts_defaultclass, string_type):
             # proper way: derive module path from specified class name
             default_class = exts_defaultclass
             default_class_modpath = get_module_path(default_class, generic=True)
         else:
-            raise EasyBuildError("Improper default extension class specification, should be string.")
+            error_msg = "Improper default extension class specification, should be string: %s (%s)"
+            raise EasyBuildError(error_msg, exts_defaultclass, type(exts_defaultclass))
 
-        # get class instances for all extensions
-        self.ext_instances = []
         for ext in self.exts:
             ext_name = ext['name']
             self.log.debug("Creating class instance for extension %s...", ext_name)
@@ -2332,6 +2314,45 @@ class EasyBlock(object):
 
             self.ext_instances.append(inst)
 
+    def extensions_step(self, fetch=False, install=True):
+        """
+        After make install, run this.
+        - only if variable len(exts_list) > 0
+        - optionally: load module that was just created using temp module file
+        - find source for extensions, in 'extensions' (and 'packages' for legacy reasons)
+        - run extra_extensions
+        """
+        if not self.cfg.get_ref('exts_list'):
+            self.log.debug("No extensions in exts_list")
+            return
+
+        # load fake module
+        fake_mod_data = None
+        if install and not self.dry_run:
+
+            # load modules for build dependencies as extra modules
+            build_dep_mods = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
+
+            fake_mod_data = self.load_fake_module(purge=True, extra_modules=build_dep_mods)
+
+        self.prepare_for_extensions()
+
+        if fetch:
+            self.exts = self.fetch_extension_sources()
+
+        self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
+
+        # actually install extensions
+        if install:
+            self.log.info("Installing extensions")
+
+        # we really need a default class
+        if not self.cfg['exts_defaultclass'] and fake_mod_data:
+            self.clean_up_fake_module(fake_mod_data)
+            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
+
+        self.init_ext_instances()
+
         if self.skip:
             self.skip_extensions()
 
@@ -2347,7 +2368,7 @@ class EasyBlock(object):
             print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
 
             if self.dry_run:
-                tup = (ext.name, ext.version, cls.__name__)
+                tup = (ext.name, ext.version, ext.__class__.__name__)
                 msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
                 self.dry_run_msg(msg)
 
@@ -2890,6 +2911,13 @@ class EasyBlock(object):
     def _sanity_check_step_extensions(self):
         """Sanity check on extensions (if any)."""
         failed_exts = []
+
+        # class instances for extensions may not be initialized yet here,
+        # for example when using --module-only or --sanity-check-only
+        if not self.ext_instances:
+            self.prepare_for_extensions()
+            self.init_ext_instances()
+
         for ext in self.ext_instances:
             success, fail_msg = None, None
             res = ext.sanity_check_step()
@@ -2981,12 +3009,16 @@ class EasyBlock(object):
 
         fake_mod_data = None
 
+        # skip loading of fake module when using --sanity-check-only, load real module instead
+        if build_option('sanity_check_only') and not extension:
+            self.load_module(extra_modules=extra_modules)
+
         # only load fake module for non-extensions, and not during dry run
-        if not (extension or self.dry_run):
+        elif not (extension or self.dry_run):
             try:
                 # unload all loaded modules before loading fake module
                 # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
-                fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
+                fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules, verbose=True)
             except EasyBuildError as err:
                 self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
@@ -3270,16 +3302,18 @@ class EasyBlock(object):
 
     def skip_step(self, step, skippable):
         """Dedice whether or not to skip the specified step."""
-        module_only = build_option('module_only')
-        force = build_option('force')
         skip = False
+        force = build_option('force')
+        module_only = build_option('module_only')
+        sanity_check_only = build_option('sanity_check_only')
+        skipsteps = self.cfg['skipsteps']
 
         # under --skip, sanity check is not skipped
         cli_skip = self.skip and step != SANITYCHECK_STEP
 
         # skip step if specified as individual (skippable) step, or if --skip is used
-        if skippable and (cli_skip or step in self.cfg['skipsteps']):
-            self.log.info("Skipping %s step (skip: %s, skipsteps: %s)", step, self.skip, self.cfg['skipsteps'])
+        if skippable and (cli_skip or step in skipsteps):
+            self.log.info("Skipping %s step (skip: %s, skipsteps: %s)", step, self.skip, skipsteps)
             skip = True
 
         # skip step when only generating module file
@@ -3294,9 +3328,14 @@ class EasyBlock(object):
             self.log.info("Skipping %s step because of forced module-only mode", step)
             skip = True
 
+        elif sanity_check_only and step != SANITYCHECK_STEP:
+            self.log.info("Skipping %s step because of sanity-check-only mode", step)
+            skip = True
+
         else:
-            self.log.debug("Not skipping %s step (skippable: %s, skip: %s, skipsteps: %s, module_only: %s, force: %s",
-                           step, skippable, self.skip, self.cfg['skipsteps'], module_only, force)
+            msg = "Not skipping %s step (skippable: %s, skip: %s, skipsteps: %s, module_only: %s, force: %s, "
+            msg += "sanity_check_only: %s)"
+            self.log.debug(msg, step, skippable, self.skip, skipsteps, module_only, force, sanity_check_only)
 
         return skip
 

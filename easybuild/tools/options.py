@@ -460,6 +460,8 @@ class EasyBuildOptions(GeneralOption):
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
             'rpath-override-dirs': ("Path(s) to be prepended when linking with RPATH (string, colon-separated)",
                                     None, 'store', None),
+            'sanity-check-only': ("Only run sanity check (module is expected to be installed already",
+                                  None, 'store_true', False),
             'set-default-module': ("Set the generated module as default", None, 'store_true', False),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
             'silence-deprecation-warnings': ("Silence specified deprecation warnings", 'strlist', 'extend', None),
