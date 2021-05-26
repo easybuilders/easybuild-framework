@@ -1709,7 +1709,7 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ec_txt)
 
-        # clean up $MODULEPATH to only modules in test prefix dir are found
+        # clean up $MODULEPATH so only modules in test prefix dir are found
         self.reset_modulepath([os.path.join(self.test_installpath, 'modules', 'all')])
         self.assertEqual(self.modtool.available('toy'), [])
 
