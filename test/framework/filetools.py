@@ -97,6 +97,10 @@ class FileToolsTest(EnhancedTestCase):
             ('test.iso', "7z x test.iso"),
             ('test.tar.Z', "tar xzf test.tar.Z"),
             ('test.foo.bar.sh', "cp -a test.foo.bar.sh ."),
+            # check whether extension is stripped correct to determine name of target file
+            # cfr. https://github.com/easybuilders/easybuild-framework/pull/3705
+            ('testbz2.bz2', "bunzip2 -c testbz2.bz2 > testbz2"),
+            ('testgz.gz', "gunzip -c testgz.gz > testgz"),
         ]
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
@@ -935,7 +939,9 @@ class FileToolsTest(EnhancedTestCase):
         res = ft.back_up_file(fp2, strip_fn='.lua')
         self.assertFalse('.lua' in os.path.basename(res))
         # strip_fn should not remove the first a in 'a.lua'
-        self.assertTrue(res.startswith(fp + 'a.bak_'))
+        expected = os.path.basename(fp) + 'a.bak_'
+        res_fn = os.path.basename(res)
+        self.assertTrue(res_fn.startswith(expected), "'%s' should start with with '%s'" % (res_fn, expected))
 
     def test_move_logs(self):
         """Test move_logs function."""
