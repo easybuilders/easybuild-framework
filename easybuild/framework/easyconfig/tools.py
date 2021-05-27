@@ -344,8 +344,9 @@ def det_easyconfig_paths(orig_paths):
 
     if from_pr_list is not None:
         pr_files = []
+        tmpdir = tempfile.mkdtemp()
         for pr in from_pr_list:
-            pr_files.extend(fetch_easyconfigs_from_pr(pr))
+            pr_files.extend(fetch_easyconfigs_from_pr(pr, path=os.path.join(tmpdir, 'files_pr%s' % pr)))
 
         if ec_files:
             # replace paths for specified easyconfigs that are touched in PR
