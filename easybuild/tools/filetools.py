@@ -1320,7 +1320,7 @@ def extract_cmd(filepath, overwrite=False):
     """
     filename = os.path.basename(filepath)
     ext = find_extension(filename)
-    target = filename.rstrip(ext)
+    target = filename[:-len(ext)]
 
     cmd_tmpl = EXTRACT_CMDS[ext.lower()]
     if overwrite:
