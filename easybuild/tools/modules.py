@@ -400,7 +400,7 @@ class ModulesTool(object):
         :param set_mod_paths: (re)set self.mod_paths
         """
         path = normalize_path(path)
-        if path not in curr_module_paths(normalize=True):
+        if path not in curr_module_paths(clean=False, normalize=True):
             # add module path via 'module use' and make sure self.mod_paths is synced
             self.use(path)
             if set_mod_paths:
@@ -1634,8 +1634,8 @@ class Lmod(ModulesTool):
             if priority is None and self._has_module_paths_with_priority():
                 priority = self.HIGH_PRIORITY
             self.use(path, priority=priority)
-            modulepath = curr_module_paths(clean=False)
-            path_idx = modulepath.index(path)
+            modulepath = curr_module_paths(normalize=True, clean=False)
+            path_idx = modulepath.index(normalize_path(path))
             if path_idx != 0:
                 print_warning("Path '%s' could not be prepended to $MODULEPATH. "
                               "The following paths are still in front of it: %s\n"
