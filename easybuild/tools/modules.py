@@ -821,7 +821,7 @@ class ModulesTool:
         :param set_mod_paths: (re)set self.mod_paths
         """
         path = normalize_path(path)
-        if path not in curr_module_paths(normalize=True):
+        if path not in curr_module_paths(clean=False, normalize=True):
             # add module path via 'module use' and make sure self.mod_paths is synced
             self.use(path)
             if set_mod_paths:
