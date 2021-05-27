@@ -1461,19 +1461,19 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     # software name/version, toolchain name/version, extra patches, ...
     (try_to_generate, build_specs) = process_software_build_specs(options)
 
-    # map --from-pr strlist to list of ints
+    # map list of strings --from-pr value to list of integers
     try:
-        from_pr_list = [int(pr_nr) for pr_nr in eb_go.options.from_pr]
+        from_prs = [int(pr_nr) for pr_nr in eb_go.options.from_pr]
     except ValueError:
         raise EasyBuildError("Argument to --from-pr must be a comma separated list of PR #s.")
 
     # determine robot path
     # --try-X, --dep-graph, --search use robot path for searching, so enable it with path of installed easyconfigs
     tweaked_ecs = try_to_generate and build_specs
-    tweaked_ecs_paths, pr_path = alt_easyconfig_paths(tmpdir, tweaked_ecs=tweaked_ecs, from_pr=from_pr_list)
+    tweaked_ecs_paths, pr_paths = alt_easyconfig_paths(tmpdir, tweaked_ecs=tweaked_ecs, from_prs=from_prs)
     auto_robot = try_to_generate or options.check_conflicts or options.dep_graph or search_query
-    robot_path = det_robot_path(options.robot_paths, tweaked_ecs_paths, pr_path, auto_robot=auto_robot)
-    log.debug("Full robot path: %s" % robot_path)
+    robot_path = det_robot_path(options.robot_paths, tweaked_ecs_paths, pr_paths, auto_robot=auto_robot)
+    log.debug("Full robot path: %s", robot_path)
 
     if not robot_path:
         print_warning("Robot search path is empty!")
@@ -1486,7 +1486,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
         'build_specs': build_specs,
         'command_line': eb_cmd_line,
         'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
-        'pr_path': pr_path,
+        'pr_paths': pr_paths,
         'robot_path': robot_path,
         'silent': testing or new_update_opt,
         'try_to_generate': try_to_generate,
@@ -1543,7 +1543,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     sys.path.insert(0, new_fake_vsc_path)
 
     return eb_go, (build_specs, log, logfile, robot_path, search_query, tmpdir, try_to_generate,
-                   from_pr_list, tweaked_ecs_paths)
+                   from_prs, tweaked_ecs_paths)
 
 
 def process_software_build_specs(options):
