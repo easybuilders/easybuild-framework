@@ -926,7 +926,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.read_file(fp), new_txt)
 
         # check whether strip_fn works as expected
-        fp2 = fp + '.lua'
+        fp2 = fp + 'a.lua'
         ft.copy_file(fp, fp2)
         res = ft.back_up_file(fp2)
         self.assertTrue(fp2.endswith('.lua'))
@@ -934,6 +934,8 @@ class FileToolsTest(EnhancedTestCase):
 
         res = ft.back_up_file(fp2, strip_fn='.lua')
         self.assertFalse('.lua' in os.path.basename(res))
+        # strip_fn should not remove the first a in 'a.lua'
+        self.assertTrue(res.startswith(fp + 'a.bak_'))
 
     def test_move_logs(self):
         """Test move_logs function."""
