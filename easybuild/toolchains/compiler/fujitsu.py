@@ -31,7 +31,6 @@ The basic concept is the same as for the Cray Programming Environment.
 """
 import os
 
-import easybuild.tools.environment as env
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler, DEFAULT_OPT_LEVEL
 
@@ -86,14 +85,6 @@ class FujitsuCompiler(Compiler):
         (systemtools.AARCH64, systemtools.ARM): '-mcpu=generic -mtune=generic',
     }
 
-    def prepare(self, *args, **kwargs):
-        super(FujitsuCompiler, self).prepare(*args, **kwargs)
-
-        # make sure the fujitsu module libraries are found (and added to rpath by wrapper)
-        libdir = os.path.join(os.getenv(TC_CONSTANT_MODULE_VAR), 'lib64')
-        self.log.debug("Adding %s to $LIBRARY_PATH" % libdir)
-        env.setvar('LIBRARY_PATH', os.pathsep.join([os.getenv('LIBRARY_PATH'), libdir]))
-
     def _set_compiler_vars(self):
         super(FujitsuCompiler, self)._set_compiler_vars()
 
@@ -101,3 +92,8 @@ class FujitsuCompiler(Compiler):
         # moved to compiler constants to make sure it is always used
         # self.variables.nappend('CFLAGS', ['Nclang'])
         # self.variables.nappend('CXXFLAGS', ['Nclang'])
+
+        # make sure the fujitsu module libraries are found (and added to rpath by wrapper)
+        libdir = os.path.join(os.getenv(TC_CONSTANT_MODULE_VAR), 'lib64')
+        self.log.debug("Adding %s to $LDFLAGS" % libdir)
+        self.variables.nappend('LDFLAGS', [libdir])

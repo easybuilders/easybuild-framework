@@ -68,7 +68,7 @@ class FujitsuSSL(LinAlg):
     SCALAPACK_INCLUDE_DIR = ['']
     SCALAPACK_FAMILY = TC_CONSTANT_FUJITSU_SSL
 
-    def _get_software_root(self, name):
+    def _get_software_root(self, name, required=True):
         """Get install prefix for specified software name; special treatment for Fujitsu modules."""
         if name == TC_CONSTANT_MODULE_NAME:
             env_var = TC_CONSTANT_MODULE_VAR
@@ -78,7 +78,7 @@ class FujitsuSSL(LinAlg):
             else:
                 self.log.debug("Obtained install prefix for %s via $%s: %s", name, env_var, root)
         else:
-            root = super(FujitsuSSL, self)._get_software_root(name)
+            root = super(FujitsuSSL, self)._get_software_root(name, required=required)
 
         return root
 
