@@ -2005,8 +2005,8 @@ def back_up_file(src_file, backup_extension='bak', hidden=False, strip_fn=None):
         fn_suffix = '.%s' % backup_extension
 
     src_dir, src_fn = os.path.split(src_file)
-    if strip_fn:
-        src_fn = src_fn.rstrip(strip_fn)
+    if strip_fn and src_fn.endswith(strip_fn):
+        src_fn = src_fn[:-len(strip_fn)]
 
     backup_fp = find_backup_name_candidate(os.path.join(src_dir, fn_prefix + src_fn + fn_suffix))
 
