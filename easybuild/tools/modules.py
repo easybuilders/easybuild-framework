@@ -1780,10 +1780,10 @@ def curr_module_paths(normalize=False, clean=True):
     """
     if clean:
         # avoid empty or nonexistent paths, which don't make any sense
-        module_paths = (p for p in os.environ.get('MODULEPATH', '').split(':') if p and os.path.exists(p))
+        module_paths = (p for p in os.environ.get('MODULEPATH', '').split(os.pathsep) if p and os.path.exists(p))
     else:
         modulepath = os.environ.get('MODULEPATH')
-        module_paths = [] if modulepath is None else modulepath.split(':')
+        module_paths = [] if modulepath is None else modulepath.split(os.pathsep)
     if normalize:
         module_paths = (normalize_path(p) for p in module_paths)
     return list(module_paths)
@@ -1793,7 +1793,7 @@ def mk_module_path(paths):
     """
     Create a string representing the list of module paths.
     """
-    return ':'.join(paths)
+    return os.pathsep.join(paths)
 
 
 def avail_modules_tools():

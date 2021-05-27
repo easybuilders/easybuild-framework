@@ -500,12 +500,12 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(curr_module_paths(), [])
         self.assertEqual(curr_module_paths(clean=False), [''])
 
-        os.environ['MODULEPATH'] = '%s:%s:%s' % (test1, test2, test3)
+        os.environ['MODULEPATH'] = os.pathsep.join([test1, test2, test3])
         self.assertEqual(curr_module_paths(), [test1, test2, test3])
         self.assertEqual(curr_module_paths(clean=False), [test1, test2, test3])
 
         # empty entries and non-existing directories are filtered out
-        os.environ['MODULEPATH'] = '/doesnotexist:%s::%s:' % (test2, test1)
+        os.environ['MODULEPATH'] = os.pathsep.join(['/doesnotexist', test2, '', test1, ''])
         self.assertEqual(curr_module_paths(), [test2, test1])
         # Disabling the clean returns them
         self.assertEqual(curr_module_paths(clean=False), ['/doesnotexist', test2, '', test1, ''])
@@ -545,7 +545,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(os.environ['MODULEPATH'], os.pathsep.join([mod_install_dir, test1, test2]))
 
         # check behaviour if non-existing directories are included in $MODULEPATH
-        os.environ['MODULEPATH'] = '%s:/does/not/exist:%s' % (test3, test2)
+        os.environ['MODULEPATH'] = os.pathsep.join([test3, '/does/not/exist', test2])
         modtool.check_module_path()
         # non-existing dir is filtered from mod_paths, but stays in $MODULEPATH
         self.assertEqual(modtool.mod_paths, [mod_install_dir, test1, test3, test2])
@@ -570,11 +570,11 @@ class ModulesTest(EnhancedTestCase):
         doesnotexist = os.path.join(self.test_prefix, 'doesnotexist')
         self.assertNotExists(doesnotexist)
 
-        os.environ['MODULEPATH'] = '%s:%s' % (core_mod_dir, doesnotexist)
+        os.environ['MODULEPATH'] = os.pathsep.join([core_mod_dir, doesnotexist])
         modtool = modules_tool()
 
         self.assertEqual(modtool.mod_paths, [os.path.dirname(core_mod_dir), core_mod_dir])
-        self.assertEqual(os.environ['MODULEPATH'], '%s:%s:%s' % (top_mod_dir, core_mod_dir, doesnotexist))
+        self.assertEqual(os.environ['MODULEPATH'], os.pathsep.join([top_mod_dir, core_mod_dir, doesnotexist]))
 
         # hack prepend_module_path to make sure it's not called again if check_module_path is called again;
         # prepend_module_path is fairly expensive, so should be avoided,
@@ -588,7 +588,7 @@ class ModulesTest(EnhancedTestCase):
         modtool.check_module_path()
 
         self.assertEqual(modtool.mod_paths, [os.path.dirname(core_mod_dir), core_mod_dir])
-        self.assertEqual(os.environ['MODULEPATH'], '%s:%s:%s' % (top_mod_dir, core_mod_dir, doesnotexist))
+        self.assertEqual(os.environ['MODULEPATH'], os.pathsep.join([top_mod_dir, core_mod_dir, doesnotexist]))
 
     def test_prepend_module_path(self):
         """Test prepend_module_path method."""
@@ -744,7 +744,11 @@ class ModulesTest(EnhancedTestCase):
         """Test whether modules tool can deal with a broken $MODULEPATH."""
         test_modules_path = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
         modules_test_installpath = os.path.join(self.test_installpath, 'modules', 'all')
-        os.environ['MODULEPATH'] = '/some/non-existing/path:/this/doesnt/exists/anywhere:%s' % test_modules_path
+        os.environ['MODULEPATH'] = os.pathsep.join([
+            '/some/non-existing/path',
+            '/this/doesnt/exists/anywhere',
+            test_modules_path
+        ])
         init_config()
         # purposely *not* using self.modtool here;
         # need to check whether creating new ModulesTool instance doesn't break when $MODULEPATH contains faulty paths
@@ -1107,10 +1111,11 @@ class ModulesTest(EnhancedTestCase):
 
     def test_mk_module_cache_key(self):
         """Test mk_module_cache_key method."""
-        os.environ['MODULEPATH'] = '%s:/tmp/test' % self.test_prefix
+        module_path = os.pathsep.join([self.test_prefix, '/tmp/test'])
+        os.environ['MODULEPATH'] = module_path
         res = self.modtool.mk_module_cache_key('thisisapartialkey')
         self.assertIsInstance(res, tuple)
-        self.assertEqual(res, ('MODULEPATH=%s:/tmp/test' % self.test_prefix, self.modtool.COMMAND, 'thisisapartialkey'))
+        self.assertEqual(res, ('MODULEPATH=%s' % module_path, self.modtool.COMMAND, 'thisisapartialkey'))
 
         del os.environ['MODULEPATH']
         res = self.modtool.mk_module_cache_key('thisisapartialkey')
@@ -1189,11 +1194,11 @@ class ModulesTest(EnhancedTestCase):
 
         self.assertNotIn(test_dir1, os.environ.get('MODULEPATH', ''))
         self.modtool.use(test_dir1)
-        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir1))
+        self.assertTrue(os.environ['MODULEPATH'].startswith(test_dir1 + os.pathsep))
         self.modtool.use(test_dir2)
-        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir2))
+        self.assertTrue(os.environ['MODULEPATH'].startswith(test_dir2 + os.pathsep))
         self.modtool.use(test_dir3)
-        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir3))
+        self.assertTrue(os.environ['MODULEPATH'].startswith(test_dir3 + os.pathsep))
 
         # Adding an empty modulepath is not possible
         modulepath = os.environ.get('MODULEPATH', '')
@@ -1224,7 +1229,7 @@ class ModulesTest(EnhancedTestCase):
 
         # also test use with high priority
         self.modtool.use(test_dir2, priority=10000)
-        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir2))
+        self.assertTrue(os.environ['MODULEPATH'].startswith(test_dir2 + os.pathsep))
 
         self.modtool.load(['test'])
         self.assertEqual(os.getenv('TEST123'), 'two')
@@ -1236,8 +1241,9 @@ class ModulesTest(EnhancedTestCase):
             old_module_path = os.environ['MODULEPATH']
             self.modtool._set_module_path(['/foo'])
             self.assertEqual(os.environ['MODULEPATH'], '/foo')
-            self.modtool._set_module_path(['/foo', '/bar'])
-            self.assertEqual(os.environ['MODULEPATH'], '/foo:/bar')
+            foo_and_bar_paths = ['/foo', '/bar']
+            self.modtool._set_module_path(foo_and_bar_paths)
+            self.assertEqual(os.environ['MODULEPATH'], os.pathsep.join(foo_and_bar_paths))
             self.modtool._set_module_path([''])
             self.assertEqual(os.environ['MODULEPATH'], '')
             self.modtool._set_module_path([])
@@ -1247,8 +1253,8 @@ class ModulesTest(EnhancedTestCase):
             # Same for generators
             self.modtool._set_module_path(i for i in ['/foo'])
             self.assertEqual(os.environ['MODULEPATH'], '/foo')
-            self.modtool._set_module_path(i for i in ['/foo', '/bar'])
-            self.assertEqual(os.environ['MODULEPATH'], '/foo:/bar')
+            self.modtool._set_module_path(i for i in foo_and_bar_paths)
+            self.assertEqual(os.environ['MODULEPATH'], os.pathsep.join(foo_and_bar_paths))
             self.modtool._set_module_path(i for i in [''])
             self.assertEqual(os.environ['MODULEPATH'], '')
             self.modtool._set_module_path(i for i in [])
@@ -1258,7 +1264,9 @@ class ModulesTest(EnhancedTestCase):
             # check whether prepend with priority actually works (priority is specific to Lmod)
             self.modtool.use(test_dir1, priority=100)
             self.modtool.use(test_dir3)
-            self.assertTrue(os.environ['MODULEPATH'].startswith('%s:%s:%s:' % (test_dir2, test_dir1, test_dir3)))
+            self.assertTrue(os.environ['MODULEPATH'].startswith(
+                os.pathsep.join([test_dir2, test_dir1, test_dir3])
+            ))
             self.modtool.load(['test'])
             self.assertEqual(os.getenv('TEST123'), 'two')
             self.modtool.unload(['test'])
@@ -1587,7 +1595,7 @@ class ModulesTest(EnhancedTestCase):
         write_file(modulecmd, modulecmd_txt)
         adjust_permissions(modulecmd, stat.S_IXUSR, add=True)
 
-        os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.getenv('PATH'))
+        os.environ['PATH'] = os.pathsep.join([self.test_prefix, os.getenv('PATH')])
 
         modtool = EnvironmentModulesC()
         modtool.run_module('load', 'test123')
