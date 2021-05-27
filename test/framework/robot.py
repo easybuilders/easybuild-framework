@@ -1065,8 +1065,8 @@ class RobotTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         # Create directories to store the tweaked easyconfigs
-        tweaked_ecs_paths, pr_path = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
-        robot_path = det_robot_path([test_easyconfigs], tweaked_ecs_paths, pr_path, auto_robot=True)
+        tweaked_ecs_paths, pr_paths = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
+        robot_path = det_robot_path([test_easyconfigs], tweaked_ecs_paths, pr_paths, auto_robot=True)
 
         init_config(build_options={
             'valid_module_classes': module_classes(),

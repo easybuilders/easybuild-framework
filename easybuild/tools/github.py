@@ -447,7 +447,15 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
 
     if path is None:
         if github_repo == GITHUB_EASYCONFIGS_REPO:
-            path = build_option('pr_path')
+            pr_paths = build_option('pr_paths')
+            if pr_paths:
+                # figure out directory for this specific PR (see also alt_easyconfig_paths)
+                cands = [p for p in pr_paths if p.endswith('files_pr%s' % pr)]
+                if len(cands) == 1:
+                    path = cands[0]
+                else:
+                    raise EasyBuildError("Failed to isolate path for PR #%s from list of PR paths: %s", pr, pr_paths)
+
         elif github_repo == GITHUB_EASYBLOCKS_REPO:
             path = os.path.join(tempfile.gettempdir(), 'ebs_pr%s' % pr)
         else:
