@@ -263,6 +263,7 @@ BUILD_OPTIONS_CMDLINE = {
         'search_paths',
         'sequential',
         'set_gid_bit',
+        'skip_extensions',
         'skip_test_cases',
         'skip_test_step',
         'generate_devel_module',

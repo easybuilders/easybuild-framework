@@ -5893,6 +5893,42 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(error_pattern)
             self.assertTrue(regex.search(error_msg), "Pattern '%s' should be found in: %s" % (regex.pattern, error_msg))
 
+        # failing sanity check for extension can be bypassed via --skip-extensions
+        outtxt = self.eb_main(args + ['--skip-extensions'], do_build=True, raise_error=True)
+        self.assertTrue("Sanity check for toy successful" in outtxt)
+
+    def test_skip_extensions(self):
+        """Test use of --skip-extensions."""
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        # add extension, which should be skipped
+        test_ec = os.path.join(self.test_prefix, 'test.ec')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\n' + '\n'.join([
+            "exts_list = [",
+            "    ('barbar', '0.0', {",
+            "        'start_dir': 'src',",
+            "        'exts_filter': ('ls -l lib/lib%(ext_name)s.a', ''),",
+            "    })",
+            "]",
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        args = [test_ec, '--force', '--skip-extensions']
+        self.eb_main(args, do_build=True, return_error=True)
+
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_mod += '.lua'
+
+        self.assertTrue(os.path.exists(toy_mod), "%s should exist" % toy_mod)
+
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        for path in (os.path.join('bin', 'barbar'), os.path.join('lib', 'libbarbar.a')):
+            path = os.path.join(toy_installdir, path)
+            self.assertFalse(os.path.exists(path), "Path %s should not exist" % path)
+
     def test_fake_vsc_include(self):
         """Test whether fake 'vsc' namespace is triggered for modules included via --include-*."""
 
