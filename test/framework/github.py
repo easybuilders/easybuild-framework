@@ -34,8 +34,10 @@ import random
 import re
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from time import gmtime
 from unittest import TextTestRunner
 
+import easybuild.tools.testing
 from easybuild.base.rest import RestClient
 from easybuild.framework.easyconfig.tools import categorize_files_by_type
 from easybuild.tools.build_log import EasyBuildError
@@ -45,7 +47,7 @@ from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_MERGEABLE_STATE_CLEAN
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import pick_default_branch
-from easybuild.tools.testing import post_pr_test_report, session_state
+from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
 
@@ -71,7 +73,7 @@ class GithubTest(EnhancedTestCase):
     for non authenticated users of 50"""
 
     def setUp(self):
-        """setup"""
+        """Test setup."""
         super(GithubTest, self).setUp()
 
         self.github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
@@ -84,6 +86,14 @@ class GithubTest(EnhancedTestCase):
         self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, username, None, token)
 
         self.skip_github_tests = self.github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
+
+        self.orig_testing_create_gist = easybuild.tools.testing.create_gist
+
+    def tearDown(self):
+        """Cleanup after running test."""
+        easybuild.tools.testing.create_gist = self.orig_testing_create_gist
+
+        super(GithubTest, self).tearDown()
 
     def test_pick_default_branch(self):
         """Test pick_default_branch function."""
@@ -1040,6 +1050,59 @@ class GithubTest(EnhancedTestCase):
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+    def test_create_test_report(self):
+        """Test create_test_report function."""
+        logfile = os.path.join(self.test_prefix, 'log.txt')
+        write_file(logfile, "Bazel failed with: error")
+        ecs_with_res = [
+            ({'spec': 'test.eb'}, {'success': True}),
+            ({'spec': 'fail.eb'}, {
+                'success': False,
+                'err': EasyBuildError("error: bazel"),
+                'traceback': "in bazel",
+                'log_file': logfile,
+            }),
+        ]
+        init_session_state = {
+            'easybuild_configuration': ['EASYBUILD_DEBUG=1'],
+            'environment': {'USER': 'test'},
+            'module_list': [{'mod_name': 'test'}],
+            'system_info': {'name': 'test'},
+            'time': gmtime(0),
+        }
+        res = create_test_report("just a test", ecs_with_res, init_session_state)
+        patterns = [
+            "**SUCCESS** _test.eb_",
+            "**FAIL (build issue)** _fail.eb_",
+            "01 Jan 1970 00:00:00",
+            "EASYBUILD_DEBUG=1",
+        ]
+        for pattern in patterns:
+            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['full']))
+
+        for pattern in patterns[:2]:
+            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['overview']))
+
+        # mock create_gist function, we don't want to actually create a gist every time we run this test...
+        def fake_create_gist(*args, **kwargs):
+            return 'https://gist.github.com/test'
+
+        easybuild.tools.testing.create_gist = fake_create_gist
+
+        res = create_test_report("just a test", ecs_with_res, init_session_state, pr_nrs=[123], gist_log=True)
+
+        patterns.insert(2, "https://gist.github.com/test")
+        patterns.extend([
+            "https://github.com/easybuilders/easybuild-easyconfigs/pull/123",
+        ])
+        for pattern in patterns:
+            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['full']))
+
+        for pattern in patterns[:3]:
+            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['overview']))
+
+        self.assertTrue("**SUCCESS** _test.eb_" in res['overview'])
 
 
 def suite():
