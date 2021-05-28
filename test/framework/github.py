@@ -565,8 +565,8 @@ class GithubTest(EnhancedTestCase):
 
     def test_find_patches(self):
         """ Test for find_software_name_for_patch """
-        testdir = os.path.dirname(os.path.abspath(__file__))
-        ec_path = os.path.join(testdir, 'easyconfigs')
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        ec_path = os.path.join(test_dir, 'easyconfigs')
         init_config(build_options={
             'allow_modules_tool_mismatch': True,
             'minimal_toolchains': True,
@@ -936,11 +936,11 @@ class GithubTest(EnhancedTestCase):
         # if only Python files are involved, result is easyblocks or framework repo;
         # all Python files are easyblocks => easyblocks repo, otherwise => framework repo;
         # files are opened and inspected here to discriminate between easyblocks & other Python files, so must exist!
-        github_py = os.path.join(testdir, 'github.py')
+        github_py = os.path.join(test_dir, 'github.py')
 
-        configuremake = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
+        configuremake = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
         self.assertTrue(os.path.exists(configuremake))
-        toy_eb = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
+        toy_eb = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
         self.assertTrue(os.path.exists(toy_eb))
 
         self.assertEqual(build_option('pr_target_repo'), None)
