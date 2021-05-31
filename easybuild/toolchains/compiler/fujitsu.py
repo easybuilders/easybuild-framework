@@ -47,9 +47,8 @@ class FujitsuCompiler(Compiler):
     COMPILER_MODULE_NAME = [TC_CONSTANT_MODULE_NAME]
     COMPILER_FAMILY = TC_CONSTANT_FUJITSU
 
-    # make sure fcc is always called in clang compatibility mode
-    COMPILER_CC = 'fcc -Nclang'
-    COMPILER_CXX = 'FCC -Nclang'
+    COMPILER_CC = 'fcc'
+    COMPILER_CXX = 'FCC'
 
     COMPILER_F77 = 'frt'
     COMPILER_F90 = 'frt'
@@ -98,9 +97,8 @@ class FujitsuCompiler(Compiler):
         super(FujitsuCompiler, self)._set_compiler_vars()
 
         # enable clang compatibility mode
-        # moved to compiler constants to make sure it is always used
-        # self.variables.nappend('CFLAGS', ['Nclang'])
-        # self.variables.nappend('CXXFLAGS', ['Nclang'])
+        self.variables.nappend('CFLAGS', ['Nclang'])
+        self.variables.nappend('CXXFLAGS', ['Nclang'])
 
         # also add fujitsu module library path to LDFLAGS
         libdir = os.path.join(os.getenv(TC_CONSTANT_MODULE_VAR), 'lib64')
