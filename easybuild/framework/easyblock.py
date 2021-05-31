@@ -3528,7 +3528,13 @@ class EasyBlock(object):
                     else:
                         print_msg("%s..." % descr, log=self.log, silent=self.silent)
                     self.current_step = step_name
+                    start_time = datetime.now()
                     self.run_step(step_name, step_methods)
+                    step_duration = datetime.now() - start_time
+                    if step_duration.total_seconds() >= 1:
+                        print_msg("... (took %s)", time2str(step_duration))
+                    elif self.logdebug or build_option('trace'):
+                        print_msg("... (took < 1 sec)")
 
         except StopException:
             pass
