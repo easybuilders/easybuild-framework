@@ -50,7 +50,6 @@ except ImportError:
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
 from easybuild.tools.filetools import is_readable, read_file, which
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
