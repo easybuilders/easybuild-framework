@@ -1032,17 +1032,9 @@ def check_python_version():
     python_ver = '%d.%d' % (python_maj_ver, python_min_ver)
     _log.info("Found Python version %s", python_ver)
 
-    silence_deprecation_warnings = build_option('silence_deprecation_warnings') or []
-
     if python_maj_ver == 2:
-        if python_min_ver < 6:
-            raise EasyBuildError("Python 2.6 or higher is required when using Python 2, found Python %s", python_ver)
-        elif python_min_ver == 6:
-            depr_msg = "Running EasyBuild with Python 2.6 is deprecated"
-            if 'Python26' in silence_deprecation_warnings:
-                _log.warning(depr_msg)
-            else:
-                _log.deprecated(depr_msg, '5.0')
+        if python_min_ver < 7:
+            raise EasyBuildError("Python 2.7 is required when using Python 2, found Python %s", python_ver)
         else:
             _log.info("Running EasyBuild with Python 2 (version %s)", python_ver)
 
