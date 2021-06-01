@@ -89,9 +89,11 @@ class FujitsuCompiler(Compiler):
         super(FujitsuCompiler, self).prepare(*args, **kwargs)
 
         # make sure the fujitsu module libraries are found (and added to rpath by wrapper)
+        library_path = os.getenv('LIBRARY_PATH', '')
         libdir = os.path.join(os.getenv(TC_CONSTANT_MODULE_VAR), 'lib64')
-        self.log.debug("Adding %s to $LIBRARY_PATH" % libdir)
-        env.setvar('LIBRARY_PATH', os.pathsep.join([os.getenv('LIBRARY_PATH', ''), libdir]))
+        if libdir not in library_path:
+            self.log.debug("Adding %s to $LIBRARY_PATH" % libdir)
+            env.setvar('LIBRARY_PATH', os.pathsep.join([library_path, libdir]))
 
     def _set_compiler_vars(self):
         super(FujitsuCompiler, self)._set_compiler_vars()
