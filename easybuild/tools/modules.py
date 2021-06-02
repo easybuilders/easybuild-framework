@@ -46,7 +46,7 @@ from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
-from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which, write_file
+from easybuild.tools.filetools import convert_name, mkdir, normalize_path, path_matches, read_file, which, write_file
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.py2vs3 import subprocess_popen_text
 from easybuild.tools.run import run_cmd
@@ -181,7 +181,7 @@ class ModulesTool(object):
             self.set_mod_paths(mod_paths)
 
         if env_cmd_path:
-            cmd_path = which(self.cmd, log_ok=False, log_error=False)
+            cmd_path = which(self.cmd, log_ok=False, on_error=IGNORE)
             # only use command path in environment variable if command in not available in $PATH
             if cmd_path is None:
                 self.cmd = env_cmd_path
@@ -362,8 +362,12 @@ class ModulesTool(object):
             self.log.info("Ignoring specified priority '%s' when running 'module use %s' (Lmod-specific)",
                           priority, path)
 
-        # make sure path exists before we add it
-        mkdir(path, parents=True)
+        if not path:
+            raise EasyBuildError("Cannot add empty path to $MODULEPATH")
+        if not os.path.exists(path):
+            self.log.deprecated("Path '%s' for module.use should exist" % path, '5.0')
+            # make sure path exists before we add it
+            mkdir(path, parents=True)
         self.run_module(['use', path])
 
     def unuse(self, path):
@@ -377,7 +381,8 @@ class ModulesTool(object):
         :param path: path to add to $MODULEPATH via 'use'
         :param set_mod_paths: (re)set self.mod_paths
         """
-        if path not in curr_module_paths():
+        path = normalize_path(path)
+        if path not in curr_module_paths(normalize=True):
             # add module path via 'module use' and make sure self.mod_paths is synced
             self.use(path)
             if set_mod_paths:
@@ -391,8 +396,14 @@ class ModulesTool(object):
         :param set_mod_paths: (re)set self.mod_paths
         """
         # remove module path via 'module unuse' and make sure self.mod_paths is synced
-        if path in curr_module_paths():
-            self.unuse(path)
+        path = normalize_path(path)
+        try:
+            # Unuse the path that is actually present in the environment
+            module_path = next(p for p in curr_module_paths() if normalize_path(p) == path)
+        except StopIteration:
+            pass
+        else:
+            self.unuse(module_path)
 
             if set_mod_paths:
                 self.set_mod_paths()
@@ -431,6 +442,7 @@ class ModulesTool(object):
             eb_modpath = os.path.join(install_path(typ='modules'), build_option('suffix_modules_path'))
 
             # make sure EasyBuild module path is in 1st place
+            mkdir(eb_modpath, parents=True)
             self.prepend_module_path(eb_modpath)
             self.log.info("Prepended list of module paths with path used by EasyBuild: %s" % eb_modpath)
 
@@ -665,7 +677,8 @@ class ModulesTool(object):
         # extend $MODULEPATH if needed
         for mod_path in mod_paths:
             full_mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'), mod_path)
-            self.prepend_module_path(full_mod_path)
+            if os.path.exists(full_mod_path):
+                self.prepend_module_path(full_mod_path)
 
         loaded_modules = self.loaded_modules()
         for mod in modules:
@@ -1286,8 +1299,14 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         # remove module path via 'module use' and make sure self.mod_paths is synced
         # modulecmd.tcl keeps track of how often a path was added via 'module use',
         # so we need to check to make sure it's really removed
-        while path in curr_module_paths():
-            self.unuse(path)
+        path = normalize_path(path)
+        while True:
+            try:
+                # Unuse the path that is actually present in the environment
+                module_path = next(p for p in curr_module_paths() if normalize_path(p) == path)
+            except StopIteration:
+                break
+            self.unuse(module_path)
         if set_mod_paths:
             self.set_mod_paths()
 
@@ -1422,8 +1441,12 @@ class Lmod(ModulesTool):
         :param path: path to add to $MODULEPATH
         :param priority: priority for this path in $MODULEPATH (Lmod-specific)
         """
-        # make sure path exists before we add it
-        mkdir(path, parents=True)
+        if not path:
+            raise EasyBuildError("Cannot add empty path to $MODULEPATH")
+        if not os.path.exists(path):
+            self.log.deprecated("Path '%s' for module.use should exist" % path, '5.0')
+            # make sure path exists before we add it
+            mkdir(path, parents=True)
 
         if priority:
             self.run_module(['use', '--priority', str(priority), path])
@@ -1433,11 +1456,12 @@ class Lmod(ModulesTool):
             if os.environ.get('__LMOD_Priority_MODULEPATH'):
                 self.run_module(['use', path])
             else:
+                path = normalize_path(path)
                 cur_mod_path = os.environ.get('MODULEPATH')
                 if cur_mod_path is None:
                     new_mod_path = path
                 else:
-                    new_mod_path = [path] + [p for p in cur_mod_path.split(':') if p != path]
+                    new_mod_path = [path] + [p for p in cur_mod_path.split(':') if normalize_path(p) != path]
                     new_mod_path = ':'.join(new_mod_path)
                 self.log.debug('Changing MODULEPATH from %s to %s' %
                                ('<unset>' if cur_mod_path is None else cur_mod_path, new_mod_path))
@@ -1453,7 +1477,8 @@ class Lmod(ModulesTool):
                 self.log.debug('Changing MODULEPATH from %s to <unset>' % cur_mod_path)
                 del os.environ['MODULEPATH']
             else:
-                new_mod_path = ':'.join(p for p in cur_mod_path.split(':') if p != path)
+                path = normalize_path(path)
+                new_mod_path = ':'.join(p for p in cur_mod_path.split(':') if normalize_path(p) != path)
                 if new_mod_path != cur_mod_path:
                     self.log.debug('Changing MODULEPATH from %s to %s' % (cur_mod_path, new_mod_path))
                     os.environ['MODULEPATH'] = new_mod_path
@@ -1603,12 +1628,17 @@ def get_software_version(name):
     return version
 
 
-def curr_module_paths():
+def curr_module_paths(normalize=False):
     """
     Return a list of current module paths.
+
+    :param normalize: Normalize the paths
     """
     # avoid empty or nonexistent paths, which don't make any sense
-    return [p for p in os.environ.get('MODULEPATH', '').split(':') if p and os.path.exists(p)]
+    module_paths = (p for p in os.environ.get('MODULEPATH', '').split(':') if p and os.path.exists(p))
+    if normalize:
+        module_paths = (normalize_path(p) for p in module_paths)
+    return list(module_paths)
 
 
 def mk_module_path(paths):

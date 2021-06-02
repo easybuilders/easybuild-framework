@@ -1677,16 +1677,18 @@ class EasyBlockTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
+        # Do this before loading the easyblock to check the non-translated output below
+        os.environ['LC_ALL'] = 'C'
+
         # this import only works here, since EB_toy is a test easyblock
         from easybuild.easyblocks.toy import EB_toy
 
         # purposely inject failing custom extension filter for last extension
         toy_ec = EasyConfig(toy_ec_fn)
-        toy_ec.enable_templating = False
-        exts_list = toy_ec['exts_list']
-        exts_list[-1][2]['exts_filter'] = ("thisshouldfail", '')
-        toy_ec['exts_list'] = exts_list
-        toy_ec.enable_templating = True
+        with toy_ec.disable_templating():
+            exts_list = toy_ec['exts_list']
+            exts_list[-1][2]['exts_filter'] = ("thisshouldfail", '')
+            toy_ec['exts_list'] = exts_list
 
         eb = EB_toy(toy_ec)
         eb.silent = True

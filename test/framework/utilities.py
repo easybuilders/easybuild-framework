@@ -36,6 +36,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from contextlib import contextmanager
 
 from easybuild.base import fancylogger
 from easybuild.base.testing import TestCase
@@ -146,7 +147,8 @@ class EnhancedTestCase(TestCase):
             pass
 
         # add sandbox to Python search path, update namespace packages
-        sys.path.append(os.path.join(testdir, 'sandbox'))
+        testdir_sandbox = os.path.join(testdir, 'sandbox')
+        sys.path.append(testdir_sandbox)
 
         # required to make sure the 'easybuild' dir in the sandbox is picked up;
         # this relates to the other 'reload' statements below
@@ -159,14 +161,14 @@ class EnhancedTestCase(TestCase):
         # remove any entries in Python search path that seem to provide easyblocks (except the sandbox)
         for path in sys.path[:]:
             if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
-                if not os.path.samefile(path, os.path.join(testdir, 'sandbox')):
+                if not os.path.samefile(path, testdir_sandbox):
                     sys.path.remove(path)
 
         # hard inject location to (generic) test easyblocks into Python search path
         # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in easybuild/easyblocks/__init__.py
-        easybuild.__path__.insert(0, os.path.join(testdir, 'sandbox', 'easybuild'))
+        easybuild.__path__.insert(0, os.path.join(testdir_sandbox, 'easybuild'))
         import easybuild.easyblocks
-        test_easyblocks_path = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks')
+        test_easyblocks_path = os.path.join(testdir_sandbox, 'easybuild', 'easyblocks')
         easybuild.easyblocks.__path__.insert(0, test_easyblocks_path)
         reload(easybuild.easyblocks)
 
@@ -174,6 +176,13 @@ class EnhancedTestCase(TestCase):
         test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
         easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
         reload(easybuild.easyblocks.generic)
+
+        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic
+        # to avoid that easyblocks picked up from other places cause trouble
+        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
+            for path in sys.modules[pkg].__path__[:]:
+                if testdir_sandbox not in path:
+                    sys.modules[pkg].__path__.remove(path)
 
         # save values of $PATH & $PYTHONPATH, so they can be restored later
         # this is important in case EasyBuild was installed as a module, since that module may be unloaded,
@@ -196,6 +205,16 @@ class EnhancedTestCase(TestCase):
         if 'EASYBUILD_DEPRECATED' in os.environ:
             del os.environ['EASYBUILD_DEPRECATED']
         eb_build_log.CURRENT_VERSION = self.orig_current_version
+
+    @contextmanager
+    def log_to_testlogfile(self):
+        """Context manager class to capture log output in self.logfile for the scope used. Clears the file first"""
+        open(self.logfile, 'w').close()  # Remove all contents
+        fancylogger.logToFile(self.logfile)
+        try:
+            yield self.logfile
+        finally:
+            fancylogger.logToFile(self.logfile, enable=False)
 
     def tearDown(self):
         """Clean up after running testcase."""

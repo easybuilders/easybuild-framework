@@ -1,0 +1,16 @@
+easyblock = 'Toolchain'
+
+name = 'cpeGNU'
+version = '21.04'
+
+homepage = 'https://pubs.cray.com'
+description = """Toolchain using Cray compiler wrapper with gcc module (CPE release: %(version)s)."""
+
+toolchain = SYSTEM
+
+dependencies = [
+   ('PrgEnv-gnu', EXTERNAL_MODULE),
+   ('cpe/%(version)s', EXTERNAL_MODULE),
+]
+
+moduleclass = 'toolchain'

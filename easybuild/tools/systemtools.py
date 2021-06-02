@@ -29,6 +29,7 @@ Module with useful functions for getting system information
 @auther: Ward Poelmans (Ghent University)
 """
 import ctypes
+import errno
 import fcntl
 import grp  # @UnresolvedImport
 import os
@@ -41,9 +42,14 @@ import termios
 from ctypes.util import find_library
 from socket import gethostname
 
+try:
+    # only needed on macOS, may not be available on Linux
+    import ctypes.macholib.dyld
+except ImportError:
+    pass
+
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
 from easybuild.tools.filetools import is_readable, read_file, which
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
@@ -154,24 +160,35 @@ class SystemToolsException(Exception):
 def sched_getaffinity():
     """Determine list of available cores for current process."""
     cpu_mask_t = ctypes.c_ulong
-    cpu_setsize = 1024
     n_cpu_bits = 8 * ctypes.sizeof(cpu_mask_t)
-    n_mask_bits = cpu_setsize // n_cpu_bits
-
-    class cpu_set_t(ctypes.Structure):
-        """Class that implements the cpu_set_t struct."""
-        _fields_ = [('bits', cpu_mask_t * n_mask_bits)]
 
     _libc_lib = find_library('c')
-    _libc = ctypes.cdll.LoadLibrary(_libc_lib)
+    _libc = ctypes.CDLL(_libc_lib, use_errno=True)
 
     pid = os.getpid()
-    cs = cpu_set_t()
-    ec = _libc.sched_getaffinity(os.getpid(), ctypes.sizeof(cpu_set_t), ctypes.pointer(cs))
-    if ec == 0:
-        _log.debug("sched_getaffinity for pid %s successful", pid)
-    else:
-        raise EasyBuildError("sched_getaffinity failed for pid %s ec %s", pid, ec)
+
+    cpu_setsize = 1024  # Max number of CPUs currently detectable
+    max_cpu_setsize = cpu_mask_t(-1).value // 4  # (INT_MAX / 2)
+    # Limit it to something reasonable but still big enough
+    max_cpu_setsize = min(max_cpu_setsize, 1e9)
+    while cpu_setsize < max_cpu_setsize:
+        n_mask_bits = cpu_setsize // n_cpu_bits
+
+        class cpu_set_t(ctypes.Structure):
+            """Class that implements the cpu_set_t struct."""
+            _fields_ = [('bits', cpu_mask_t * n_mask_bits)]
+
+        cs = cpu_set_t()
+        ec = _libc.sched_getaffinity(pid, ctypes.sizeof(cpu_set_t), ctypes.pointer(cs))
+        if ec == 0:
+            _log.debug("sched_getaffinity for pid %s successful", pid)
+            break
+        elif ctypes.get_errno() != errno.EINVAL:
+            raise EasyBuildError("sched_getaffinity failed for pid %s errno %s", pid, ctypes.get_errno())
+        cpu_setsize *= 2
+
+    if ec != 0:
+        raise EasyBuildError("sched_getaffinity failed finding a large enough cpuset for pid %s", pid)
 
     cpus = []
     for bitmask in cs.bits:
@@ -772,6 +789,140 @@ def get_glibc_version():
     return glibc_ver
 
 
+def check_linked_shared_libs(path, required_patterns=None, banned_patterns=None):
+    """
+    Check for (lack of) patterns in linked shared libraries for binary/library at specified path.
+    Uses 'ldd' on Linux and 'otool -L' on macOS to determine linked shared libraries.
+
+    Returns True or False for dynamically linked binaries and shared libraries to indicate
+    whether all patterns match and antipatterns don't match.
+
+    Returns None if given path is not a dynamically linked binary or library.
+    """
+    if required_patterns is None:
+        required_regexs = []
+    else:
+        required_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in required_patterns]
+
+    if banned_patterns is None:
+        banned_regexs = []
+    else:
+        banned_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in banned_patterns]
+
+    # resolve symbolic links (unless they're broken)
+    if os.path.islink(path) and os.path.exists(path):
+        path = os.path.realpath(path)
+
+    file_cmd_out, _ = run_cmd("file %s" % path, simple=False, trace=False)
+
+    os_type = get_os_type()
+
+    # check whether specified path is a dynamically linked binary or a shared library
+    if os_type == LINUX:
+        # example output for dynamically linked binaries:
+        #   /usr/bin/ls: ELF 64-bit LSB executable, x86-64, ..., dynamically linked (uses shared libs), ...
+        # example output for shared libraries:
+        #   /lib64/libc-2.17.so: ELF 64-bit LSB shared object, x86-64, ..., dynamically linked (uses shared libs), ...
+        if "dynamically linked" in file_cmd_out:
+            linked_libs_out, _ = run_cmd("ldd %s" % path, simple=False, trace=False)
+        else:
+            return None
+
+    elif os_type == DARWIN:
+        # example output for dynamically linked binaries:
+        #   /bin/ls: Mach-O 64-bit executable x86_64
+        # example output for shared libraries:
+        #   /usr/lib/libz.dylib: Mach-O 64-bit dynamically linked shared library x86_64
+        bin_lib_regex = re.compile('(Mach-O .* executable)|(dynamically linked)', re.M)
+        if bin_lib_regex.search(file_cmd_out):
+            linked_libs_out, _ = run_cmd("otool -L %s" % path, simple=False, trace=False)
+        else:
+            return None
+    else:
+        raise EasyBuildError("Unknown OS type: %s", os_type)
+
+    found_banned_patterns = []
+    missing_required_patterns = []
+    for regex in required_regexs:
+        if not regex.search(linked_libs_out):
+            missing_required_patterns.append(regex.pattern)
+
+    for regex in banned_regexs:
+        if regex.search(linked_libs_out):
+            found_banned_patterns.append(regex.pattern)
+
+    if missing_required_patterns:
+        patterns = ', '.join("'%s'" % p for p in missing_required_patterns)
+        _log.warning("Required patterns not found in linked libraries output for %s: %s", path, patterns)
+
+    if found_banned_patterns:
+        patterns = ', '.join("'%s'" % p for p in found_banned_patterns)
+        _log.warning("Banned patterns found in linked libraries output for %s: %s", path, patterns)
+
+    return not (found_banned_patterns or missing_required_patterns)
+
+
+def locate_solib(libobj):
+    """
+    Return absolute path to loaded library using dlinfo
+    Based on https://stackoverflow.com/a/35683698
+
+    :params libobj: ctypes CDLL object
+    """
+    # early return if we're not on a Linux system
+    if get_os_type() != LINUX:
+        return None
+
+    class LINKMAP(ctypes.Structure):
+        _fields_ = [
+            ("l_addr", ctypes.c_void_p),
+            ("l_name", ctypes.c_char_p)
+        ]
+
+    libdl = ctypes.cdll.LoadLibrary(ctypes.util.find_library('dl'))
+
+    dlinfo = libdl.dlinfo
+    dlinfo.argtypes = ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p
+    dlinfo.restype = ctypes.c_int
+
+    libpointer = ctypes.c_void_p()
+    dlinfo(libobj._handle, 2, ctypes.byref(libpointer))
+    libpath = ctypes.cast(libpointer, ctypes.POINTER(LINKMAP)).contents.l_name
+
+    return libpath.decode('utf-8')
+
+
+def find_library_path(lib_filename):
+    """
+    Search library by file name in the system
+    Return absolute path to existing libraries
+
+    :params lib_filename: name of library file
+    """
+
+    lib_abspath = None
+    os_type = get_os_type()
+
+    try:
+        lib_obj = ctypes.cdll.LoadLibrary(lib_filename)
+    except OSError:
+        _log.info("Library '%s' not found in host system", lib_filename)
+    else:
+        # ctypes.util.find_library only accepts unversioned library names
+        if os_type == LINUX:
+            # find path to library with dlinfo
+            lib_abspath = locate_solib(lib_obj)
+        elif os_type == DARWIN:
+            # ctypes.macholib.dyld.dyld_find accepts file names and returns full path
+            lib_abspath = ctypes.macholib.dyld.dyld_find(lib_filename)
+        else:
+            raise EasyBuildError("Unknown host OS type: %s", os_type)
+
+        _log.info("Found absolute path to %s: %s", lib_filename, lib_abspath)
+
+    return lib_abspath
+
+
 def get_system_info():
     """Return a dictionary with system information."""
     python_version = '; '.join(sys.version.split('\n'))
@@ -880,17 +1031,9 @@ def check_python_version():
     python_ver = '%d.%d' % (python_maj_ver, python_min_ver)
     _log.info("Found Python version %s", python_ver)
 
-    silence_deprecation_warnings = build_option('silence_deprecation_warnings') or []
-
     if python_maj_ver == 2:
-        if python_min_ver < 6:
-            raise EasyBuildError("Python 2.6 or higher is required when using Python 2, found Python %s", python_ver)
-        elif python_min_ver == 6:
-            depr_msg = "Running EasyBuild with Python 2.6 is deprecated"
-            if 'Python26' in silence_deprecation_warnings:
-                _log.warning(depr_msg)
-            else:
-                _log.deprecated(depr_msg, '5.0')
+        if python_min_ver < 7:
+            raise EasyBuildError("Python 2.7 is required when using Python 2, found Python %s", python_ver)
         else:
             _log.info("Running EasyBuild with Python 2 (version %s)", python_ver)
 

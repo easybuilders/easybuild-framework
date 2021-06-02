@@ -59,18 +59,19 @@ class LibSci(LinAlg):
     BLACS_MODULE_NAME = []
     SCALAPACK_MODULE_NAME = []
 
-    def _get_software_root(self, name):
+    def _get_software_root(self, name, required=True):
         """Get install prefix for specified software name; special treatment for Cray modules."""
         if name == 'cray-libsci':
             # Cray-provided LibSci module
             env_var = 'CRAY_LIBSCI_PREFIX_DIR'
             root = os.getenv(env_var, None)
             if root is None:
-                raise EasyBuildError("Failed to determine install prefix for %s via $%s", name, env_var)
+                if required:
+                    raise EasyBuildError("Failed to determine install prefix for %s via $%s", name, env_var)
             else:
                 self.log.debug("Obtained install prefix for %s via $%s: %s", name, env_var, root)
         else:
-            root = super(LibSci, self)._get_software_root(name)
+            root = super(LibSci, self)._get_software_root(name, required=required)
 
         return root
 

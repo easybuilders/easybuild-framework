@@ -447,7 +447,15 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
 
     if path is None:
         if github_repo == GITHUB_EASYCONFIGS_REPO:
-            path = build_option('pr_path')
+            pr_paths = build_option('pr_paths')
+            if pr_paths:
+                # figure out directory for this specific PR (see also alt_easyconfig_paths)
+                cands = [p for p in pr_paths if p.endswith('files_pr%s' % pr)]
+                if len(cands) == 1:
+                    path = cands[0]
+                else:
+                    raise EasyBuildError("Failed to isolate path for PR #%s from list of PR paths: %s", pr, pr_paths)
+
         elif github_repo == GITHUB_EASYBLOCKS_REPO:
             path = os.path.join(tempfile.gettempdir(), 'ebs_pr%s' % pr)
         else:
@@ -676,6 +684,9 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
     """
     _log.debug("Cloning from %s", github_url)
 
+    if target_account is None:
+        raise EasyBuildError("target_account not specified in setup_repo_from!")
+
     # salt to use for names of remotes/branches that are created
     salt = ''.join(random.choice(ascii_letters) for _ in range(5))
 
@@ -688,10 +699,12 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
     # git fetch
     # can't use --depth to only fetch a shallow copy, since pushing to another repo from a shallow copy doesn't work
     print_msg("fetching branch '%s' from %s..." % (branch_name, github_url), silent=silent)
+    res = None
     try:
         res = origin.fetch()
     except GitCommandError as err:
         raise EasyBuildError("Failed to fetch branch '%s' from %s: %s", branch_name, github_url, err)
+
     if res:
         if res[0].flags & res[0].ERROR:
             raise EasyBuildError("Fetching branch '%s' from remote %s failed: %s", branch_name, origin, res[0].note)
@@ -807,6 +820,10 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         # if start branch is not specified, we're opening a new PR
         # account to use is determined by active EasyBuild configuration (--github-org or --github-user)
         target_account = build_option('github_org') or build_option('github_user')
+
+        if target_account is None:
+            raise EasyBuildError("--github-org or --github-user must be specified!")
+
         # if branch to start from is specified, we're updating an existing PR
         start_branch = build_option('pr_target_branch')
     else:
@@ -959,6 +976,8 @@ def push_branch_to_github(git_repo, target_account, target_repo, branch):
     :param target_repo: repository name
     :param branch: name of branch to push
     """
+    if target_account is None:
+        raise EasyBuildError("target_account not specified in push_branch_to_github!")
 
     # push to GitHub
     remote = create_remote(git_repo, target_account, target_repo)
@@ -1370,6 +1389,7 @@ def merge_pr(pr):
 
     msg = "\n%s/%s PR #%s was submitted by %s, " % (pr_target_account, pr_target_repo, pr, pr_data['user']['login'])
     msg += "you are using GitHub account '%s'\n" % github_user
+    msg += "\nPR title: %s\n\n" % pr_data['title']
     print_msg(msg, prefix=False)
     if pr_data['user']['login'] == github_user:
         raise EasyBuildError("Please do not merge your own PRs!")
@@ -1596,7 +1616,7 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
                 msg.extend(["  " + x for x in patch_paths])
             if deleted_paths:
                 msg.append("* %d deleted file(s)" % len(deleted_paths))
-                msg.append(["  " + x for x in deleted_paths])
+                msg.extend(["  " + x for x in deleted_paths])
 
             print_msg('\n'.join(msg), log=_log)
         else:
@@ -2005,6 +2025,8 @@ def check_github():
             ver, req_ver = git.__version__, '1.0'
             if LooseVersion(ver) < LooseVersion(req_ver):
                 check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (ver, req_ver)
+            elif "Could not read from remote repository" in push_err.msg:
+                check_res = "FAIL (GitHub SSH key missing? %s)" % push_err
             else:
                 check_res = "FAIL (unexpected exception: %s)" % push_err
         else:

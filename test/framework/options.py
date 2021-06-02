@@ -42,7 +42,6 @@ import easybuild.tools.options
 import easybuild.tools.toolchain
 from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easystack import parse_easystack
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, robot_find_easyconfig
@@ -492,12 +491,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             if fmt == 'rst':
                 pattern_lines = [
+                    r'^``ARCH``\s*``(aarch64|ppc64le|x86_64)``\s*CPU architecture .*',
+                    r'^``EXTERNAL_MODULE``.*',
                     r'^``HOME``.*',
                     r'``OS_NAME``.*',
                     r'``OS_PKG_IBVERBS_DEV``.*',
                 ]
             else:
                 pattern_lines = [
+                    r'^\s*ARCH: (aarch64|ppc64le|x86_64) \(CPU architecture .*\)',
+                    r'^\s*EXTERNAL_MODULE:.*',
                     r'^\s*HOME:.*',
                     r'\s*OS_NAME: .*',
                     r'\s*OS_PKG_IBVERBS_DEV: .*',
@@ -796,7 +799,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 list_arg,
                 '--unittest-file=%s' % self.logfile,
             ]
-            self.eb_main(args, logfile=dummylogfn)
+            self.eb_main(args, logfile=dummylogfn, raise_error=True)
             logtxt = read_file(self.logfile)
 
             expected = '\n'.join([
@@ -810,6 +813,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|   \|-- EB_foofoo',
                 r'\|-- EB_GCC',
                 r'\|-- EB_HPL',
+                r'\|-- EB_libtoy',
                 r'\|-- EB_OpenBLAS',
                 r'\|-- EB_OpenMPI',
                 r'\|-- EB_ScaLAPACK',
@@ -821,6 +825,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r'\|   \|   \|-- EB_toytoy',
                 r'\|   \|-- Toy_Extension',
                 r'\|-- ModuleRC',
+                r'\|-- PythonBundle',
                 r'\|-- Toolchain',
                 r'Extension',
                 r'\|-- ExtensionEasyBlock',
@@ -932,7 +937,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for search_arg in ['-S', '--search-short']:
             args = [
                 search_arg,
-                'toy-0.0',
+                '^toy-0.0',
                 '-r',
                 test_easyconfigs_dir,
             ]
@@ -1723,8 +1728,45 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr6424')
-            regex = re.compile("Appended list of robot search paths with %s:" % pr_tmpdir, re.M)
+            regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_from_pr" % err)
+            shutil.rmtree(tmpdir)
+
+        # test with multiple prs
+        tmpdir = tempfile.mkdtemp()
+        args = [
+            # PRs for ReFrame 3.4.1 and 3.5.0
+            '--from-pr=12150,12366',
+            '--dry-run',
+            # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
+            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--unittest-file=%s' % self.logfile,
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
+            '--tmpdir=%s' % tmpdir,
+        ]
+        try:
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            modules = [
+                (tmpdir, 'ReFrame/3.4.1'),
+                (tmpdir, 'ReFrame/3.5.0'),
+            ]
+            for path_prefix, module in modules:
+                ec_fn = "%s.eb" % '-'.join(module.split('/'))
+                path = '.*%s' % os.path.dirname(path_prefix)
+                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
+                self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+            # make sure that *only* these modules are listed, no others
+            regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
+            self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
+
+            for pr in ('12150', '12366'):
+                pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr%s' % pr)
+                regex = re.compile(r"Extended list of robot search paths with .*%s.*:" % pr_tmpdir, re.M)
+                self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
             shutil.rmtree(tmpdir)
@@ -1969,10 +2011,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.eb_main(args, do_build=True, verbose=True)
 
             toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
+
             if get_module_syntax() == 'Lua':
                 toy_module += '.lua'
+                is_loaded_regex = re.compile(r'if not \( isloaded\("gompi/2018a"\) \)', re.M)
+            else:
+                # Tcl syntax
+                is_loaded_regex = re.compile(r"if { !\[is-loaded gompi/2018a\] }", re.M)
+
             toy_module_txt = read_file(toy_module)
-            is_loaded_regex = re.compile(r"if { !\[is-loaded gompi/2018a\] }", re.M)
             self.assertFalse(is_loaded_regex.search(toy_module_txt), "Recursive unloading is used: %s" % toy_module_txt)
 
     def test_tmpdir(self):
@@ -3140,6 +3187,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
 
+        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic
+        # to avoid that easyblocks picked up from other places cause trouble
+        testdir_sandbox = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
+        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
+            for path in sys.modules[pkg].__path__[:]:
+                if testdir_sandbox not in path:
+                    sys.modules[pkg].__path__.remove(path)
+
         # include extra test easyblocks
         foo_txt = '\n'.join([
             'from easybuild.framework.easyblock import EasyBlock',
@@ -3220,6 +3275,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
+
+        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic
+        # to avoid that easyblocks picked up from other places cause trouble
+        testdir_sandbox = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
+        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
+            for path in sys.modules[pkg].__path__[:]:
+                if testdir_sandbox not in path:
+                    sys.modules[pkg].__path__.remove(path)
 
         error_msg = "Failed to obtain class for FooBar easyblock"
         self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
@@ -3362,6 +3425,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
 
+        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic,
+        # to avoid that easyblocks picked up from other places cause trouble
+        testdir_sandbox = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
+        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
+            for path in sys.modules[pkg].__path__[:]:
+                if testdir_sandbox not in path:
+                    sys.modules[pkg].__path__.remove(path)
+
         # clear log
         write_file(self.logfile, '')
 
@@ -3406,8 +3477,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # make sure that location to 'easybuild.main' is included in $PYTHONPATH
         pythonpath = os.getenv('PYTHONPATH')
+        pythonpath = [pythonpath] if pythonpath else []
         easybuild_loc = os.path.dirname(os.path.dirname(easybuild.main.__file__))
-        os.environ['PYTHONPATH'] = ':'.join([easybuild_loc, pythonpath])
+        os.environ['PYTHONPATH'] = ':'.join([easybuild_loc] + pythonpath)
 
         return '; '.join([
             "cd %s" % self.test_prefix,
@@ -5736,6 +5808,129 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(os.path.join(tmp_logdir, tmp_logs[0]))
         self.assertTrue("COMPLETED: Installation ended successfully" in logtxt)
 
+    def test_sanity_check_only(self):
+        """Test use of --sanity-check-only."""
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.ec')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\n' + '\n'.join([
+            "sanity_check_commands = ['barbar', 'toy']",
+            "sanity_check_paths = {'files': ['bin/barbar', 'bin/toy'], 'dirs': ['bin']}",
+            "exts_list = [",
+            "    ('barbar', '0.0', {",
+            "        'start_dir': 'src',",
+            "        'exts_filter': ('ls -l lib/lib%(ext_name)s.a', ''),",
+            "    })",
+            "]",
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        # sanity check fails if software was not installed yet
+        outtxt, error_thrown = self.eb_main([test_ec, '--sanity-check-only'], do_build=True, return_error=True)
+        self.assertTrue("Sanity check failed" in str(error_thrown))
+
+        # actually install, then try --sanity-check-only again;
+        # need to use --force to install toy because module already exists (but installation doesn't)
+        self.eb_main([test_ec, '--force'], do_build=True, raise_error=True)
+
+        args = [test_ec, '--sanity-check-only']
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
+        stdout = self.get_stdout().strip()
+        stderr = self.get_stderr().strip()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        self.assertFalse(stderr)
+        skipped = [
+            "fetching files",
+            "creating build dir, resetting environment",
+            "unpacking",
+            "patching",
+            "preparing",
+            "configuring",
+            "building",
+            "testing",
+            "installing",
+            "taking care of extensions",
+            "restore after iterating",
+            "postprocessing",
+            "cleaning up",
+            "creating module",
+            "permissions",
+            "packaging"
+        ]
+        for skip in skipped:
+            self.assertTrue("== %s [skipped]" % skip)
+
+        self.assertTrue("== sanity checking..." in stdout)
+        self.assertTrue("COMPLETED: Installation ended successfully" in stdout)
+        msgs = [
+            "  >> file 'bin/barbar' found: OK",
+            "  >> file 'bin/toy' found: OK",
+            "  >> (non-empty) directory 'bin' found: OK",
+            "  >> loading modules: toy/0.0...",
+            "  >> result for command 'toy': OK",
+            "ls -l lib/libbarbar.a",  # sanity check for extension barbar (via exts_filter)
+        ]
+        for msg in msgs:
+            self.assertTrue(msg in stdout, "'%s' found in: %s" % (msg, stdout))
+
+        # check if sanity check for extension fails if a file provided by that extension,
+        # which is checked by the sanity check for that extension, is removed
+        libbarbar = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'lib', 'libbarbar.a')
+        remove_file(libbarbar)
+
+        outtxt, error_thrown = self.eb_main(args + ['--debug'], do_build=True, return_error=True)
+        error_msg = str(error_thrown)
+        error_patterns = [
+            r"Sanity check failed",
+            r'command "ls -l lib/libbarbar\.a" failed',
+        ]
+        for error_pattern in error_patterns:
+            regex = re.compile(error_pattern)
+            self.assertTrue(regex.search(error_msg), "Pattern '%s' should be found in: %s" % (regex.pattern, error_msg))
+
+        # failing sanity check for extension can be bypassed via --skip-extensions
+        outtxt = self.eb_main(args + ['--skip-extensions'], do_build=True, raise_error=True)
+        self.assertTrue("Sanity check for toy successful" in outtxt)
+
+    def test_skip_extensions(self):
+        """Test use of --skip-extensions."""
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        # add extension, which should be skipped
+        test_ec = os.path.join(self.test_prefix, 'test.ec')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\n' + '\n'.join([
+            "exts_list = [",
+            "    ('barbar', '0.0', {",
+            "        'start_dir': 'src',",
+            "        'exts_filter': ('ls -l lib/lib%(ext_name)s.a', ''),",
+            "    })",
+            "]",
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        args = [test_ec, '--force', '--skip-extensions']
+        self.eb_main(args, do_build=True, return_error=True)
+
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_mod += '.lua'
+
+        self.assertTrue(os.path.exists(toy_mod), "%s should exist" % toy_mod)
+
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        for path in (os.path.join('bin', 'barbar'), os.path.join('lib', 'libbarbar.a')):
+            path = os.path.join(toy_installdir, path)
+            self.assertFalse(os.path.exists(path), "Path %s should not exist" % path)
+
     def test_fake_vsc_include(self):
         """Test whether fake 'vsc' namespace is triggered for modules included via --include-*."""
 
@@ -5997,39 +6192,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for pattern in patterns:
             regex = re.compile(pattern)
             self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
-
-    def test_easystack_wrong_structure(self):
-        """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
-        easybuild.tools.build_log.EXPERIMENTAL = True
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
-
-        expected_err = r"[\S\s]*An error occurred when interpreting the data for software Bioconductor:"
-        expected_err += r"( 'float' object is not subscriptable[\S\s]*"
-        expected_err += r"| 'float' object is unsubscriptable"
-        expected_err += r"| 'float' object has no attribute '__getitem__'[\S\s]*)"
-        self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
-
-    def test_easystack_asterisk(self):
-        """Test for --easystack <easystack.yaml> when yaml easystack contains asterisk (wildcard)"""
-        easybuild.tools.build_log.EXPERIMENTAL = True
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_asterisk.yaml')
-
-        expected_err = "EasyStack specifications of 'binutils' in .*/test_easystack_asterisk.yaml contain asterisk. "
-        expected_err += "Wildcard feature is not supported yet."
-
-        self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, toy_easystack)
-
-    def test_easystack_labels(self):
-        """Test for --easystack <easystack.yaml> when yaml easystack contains exclude-labels / include-labels"""
-        easybuild.tools.build_log.EXPERIMENTAL = True
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_labels.yaml')
-
-        error_msg = "EasyStack specifications of 'binutils' in .*/test_easystack_labels.yaml contain labels. "
-        error_msg += "Labels aren't supported yet."
-        self.assertErrorRegex(EasyBuildError, error_msg, parse_easystack, toy_easystack)
 
 
 def suite():
