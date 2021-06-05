@@ -295,7 +295,7 @@ def post_pr_test_report(pr_nr, repo_type, test_report, msg, init_session_state, 
 
     if build_option('include_easyblocks_from_pr'):
         if repo_type == GITHUB_EASYCONFIGS_REPO:
-            easyblocks_pr_nrs = [int(pr_nr) for pr_nr in build_option('include_easyblocks_from_pr')]
+            easyblocks_pr_nrs = [int(eb_pr_nr) for eb_pr_nr in build_option('include_easyblocks_from_pr')]
             comment_lines.append("Using easyblocks from PR(s) %s" %
                                  ", ".join(["https://github.com/%s/%s/pull/%s" %
                                             (pr_target_account, GITHUB_EASYBLOCKS_REPO, easyblocks_pr_nr)
