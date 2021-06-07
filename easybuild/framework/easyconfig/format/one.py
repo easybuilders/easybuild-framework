@@ -135,10 +135,11 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         # we can't use copy.deepcopy() directly because in Python 2 copying the (irrelevant) __builtins__ key fails...
         cfg_copy = {}
         for key in cfg:
-            try:
-                cfg_copy[key] = copy.deepcopy(cfg[key])
-            except TypeError:
-                self.log.info("Contents of key '%s' can't be pickled: '%s'", key, cfg[key])
+            if key != '__builtins__':
+                try:
+                    cfg_copy[key] = copy.deepcopy(cfg[key])
+                except TypeError:
+                    self.log.info("Contents of key '%s' can't be pickled: '%s'", key, cfg[key])
 
         return cfg_copy
 
