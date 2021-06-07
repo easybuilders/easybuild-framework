@@ -151,7 +151,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
     test_report = []
     if pr_nrs is not None:
         repo = pr_target_repo or GITHUB_EASYCONFIGS_REPO
-        pr_urls = ["https://github.com/%s/%s/pull/%s" % (pr_target_account, repo, pr_nr) for pr_nr in pr_nrs]
+        pr_urls = ["https://github.com/%s/%s/pull/%s" % (pr_target_account, repo, x) for x in pr_nrs]
         test_report.extend([
             "Test report for %s" % ', '.join(pr_urls),
             "",
@@ -333,12 +333,12 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
     dump_path = build_option('dump_test_report')
 
     try:
-        pr_nrs = [int(pr_nr) for pr_nr in build_option('from_pr')]
+        pr_nrs = [int(x) for x in build_option('from_pr')]
     except ValueError:
         raise EasyBuildError("Argument to --from-pr must be a comma separated list of PR #s.")
 
     try:
-        easyblock_pr_nrs = [int(pr_nr) for pr_nr in build_option('include_easyblocks_from_pr')]
+        easyblock_pr_nrs = [int(x) for x in build_option('include_easyblocks_from_pr')]
     except ValueError:
         raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR #s.")
 
