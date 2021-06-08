@@ -248,6 +248,7 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_checksums',
         'ignore_index',
         'ignore_locks',
+        'ignore_test_failure',
         'install_latest_eb_release',
         'logtostdout',
         'minimal_toolchains',

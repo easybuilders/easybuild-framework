@@ -258,6 +258,8 @@ class EasyBlock(object):
         if group_name is not None:
             self.group = use_group(group_name)
 
+        self.ignore_test_failure = build_option('ignore_test_failure')
+
         # generate build/install directories
         self.gen_builddir()
         self.gen_installdir()
@@ -1814,6 +1816,16 @@ class EasyBlock(object):
             self.log.info("Removing existing module file %s", self.mod_filepath)
             remove_file(self.mod_filepath)
 
+    def report_test_failure(self, msgOrError):
+        """Report a failing test either via an exception or warning depending on ignore-test-failure
+
+        msgOrError - Failure description. Either a string or an EasyBuildError"""
+        if self.ignore_test_failure:
+            print_warning("Test failure ignored: " + str(msgOrError), log=self.log)
+        else:
+            exception = msgOrError if isinstance(msgOrError, EasyBuildError) else EasyBuildError(msgOrError)
+            raise exception
+
     #
     # STEP FUNCTIONS
     #
@@ -2228,6 +2240,13 @@ class EasyBlock(object):
             (out, _) = run_cmd(unit_test_cmd, log_all=True, simple=False)
 
             return out
+
+    def _test_step(self):
+        """Run the test_step and handles failures"""
+        try:
+            self.test_step()
+        except EasyBuildError as e:
+            self.report_test_failure(e)
 
     def stage_install_step(self):
         """
@@ -3439,7 +3458,7 @@ class EasyBlock(object):
         prepare_step_spec = (PREPARE_STEP, 'preparing', [lambda x: x.prepare_step], False)
         configure_step_spec = (CONFIGURE_STEP, 'configuring', [lambda x: x.configure_step], True)
         build_step_spec = (BUILD_STEP, 'building', [lambda x: x.build_step], True)
-        test_step_spec = (TEST_STEP, 'testing', [lambda x: x.test_step], True)
+        test_step_spec = (TEST_STEP, 'testing', [lambda x: x._test_step], True)
         extensions_step_spec = (EXTENSIONS_STEP, 'taking care of extensions', [lambda x: x.extensions_step], False)
 
         # part 1: pre-iteration + first iteration
