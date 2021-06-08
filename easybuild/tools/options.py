@@ -1464,7 +1464,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
 
     # map list of strings --from-pr value to list of integers
     try:
-        from_prs = [int(pr_nr) for pr_nr in eb_go.options.from_pr]
+        from_prs = [int(x) for x in eb_go.options.from_pr]
     except ValueError:
         raise EasyBuildError("Argument to --from-pr must be a comma separated list of PR #s.")
 
@@ -1500,7 +1500,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     # done here instead of in _postprocess_include because github integration requires build_options to be initialized
     if eb_go.options.include_easyblocks_from_pr:
         try:
-            easyblock_prs = [int(pr_nr) for pr_nr in eb_go.options.include_easyblocks_from_pr]
+            easyblock_prs = [int(x) for x in eb_go.options.include_easyblocks_from_pr]
         except ValueError:
             raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR #s.")
 

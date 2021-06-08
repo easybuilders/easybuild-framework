@@ -193,7 +193,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
                 descr = "(partial) EasyBuild log for failed build of %s" % ec['spec']
 
                 if pr_nrs is not None:
-                    descr += " (PR #%s)" % ', #'.join(str(pr_nr) for pr_nr in pr_nrs)
+                    descr += " (PR #%s)" % ', #'.join(str(x) for x in pr_nrs)
 
                 if easyblock_pr_nrs:
                     descr += "".join(" (easyblock PR #%s)" % nr for nr in easyblock_pr_nrs)
