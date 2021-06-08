@@ -3382,10 +3382,12 @@ class EasyBlock(object):
         run_hook(step, self.hooks, pre_step_hook=True, args=[self])
 
         for step_method in step_methods:
-            self.log.info("Running method %s part of step %s" % (extract_method_name(step_method), step))
+            # Remove leading underscore from e.g. "_test_step"
+            method_name = extract_method_name(step_method).lstrip('_')
+            self.log.info("Running method %s part of step %s" % (method_name, step))
 
             if self.dry_run:
-                self.dry_run_msg("[%s method]", step_method(self).__name__)
+                self.dry_run_msg("[%s method]", method_name)
 
                 # if an known possible error occurs, just report it and continue
                 try:
