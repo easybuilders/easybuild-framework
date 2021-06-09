@@ -120,7 +120,7 @@ def load_hooks(hooks_path):
 
 
 def verify_hooks(hooks):
-    """Check whether list of obtained hooks only includes known hooks."""
+    """Check whether obtained hooks only includes known hooks."""
     unknown_hooks = [key for key in sorted(hooks) if key not in KNOWN_HOOKS]
 
     if unknown_hooks:
@@ -169,10 +169,10 @@ def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
 
 def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None, msg=None):
     """
-    Run hook with specified label and return result of hook or None.
+    Run hook with specified label and return result of calling the hook or None.
 
     :param label: name of hook
-    :param hooks: list of defined hooks
+    :param hooks: dict of defined hooks
     :param pre_step_hook: indicates whether hook to run is a pre-step hook
     :param post_step_hook: indicates whether hook to run is a post-step hook
     :param args: arguments to pass to hook function

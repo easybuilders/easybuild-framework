@@ -144,7 +144,7 @@ class EasyBlock(object):
         # keep track of original working directory, so we can go back there
         self.orig_workdir = os.getcwd()
 
-        # list of pre- and post-step hooks
+        # dict of all hooks (mapping of name to function)
         self.hooks = load_hooks(build_option('hooks'))
 
         # list of patch/source files, along with checksums
