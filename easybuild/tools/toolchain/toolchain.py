@@ -927,7 +927,7 @@ class Toolchain(object):
 
         cache_path = which(cache_tool)
         if cache_path is None:
-            raise EasyBuildError("%s binary not found in $PATH, required by --use-compiler-cache", cache_tool)
+            raise EasyBuildError("%s binary not found in $PATH, required by --use-ccache", cache_tool)
         else:
             self.symlink_commands({cache_tool: (cache_path, compilers)})
 
