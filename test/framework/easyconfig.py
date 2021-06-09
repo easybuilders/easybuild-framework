@@ -4428,6 +4428,28 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec_dict_bis.get('exts_default_options'), None)
         self.assertEqual(ec_dict.get('sanity_check_paths'), {'dirs': ['bin'], 'files': [('bin/yot', 'bin/toy')]})
 
+    def test_easyconfig_import(self):
+        """
+        Test parsing of an easyconfig file that includes import statements.
+        """
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\n' + '\n'.join([
+            "import os",
+            "local_test = os.getenv('TEST_TOY')",
+            "sanity_check_commands = ['toy | grep %s' % local_test]",
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        os.environ['TEST_TOY'] = '123'
+
+        ec = EasyConfig(test_ec)
+
+        self.assertEqual(ec['sanity_check_commands'], ['toy | grep 123'])
+
 
 def suite():
     """ returns all the testcases in this module """
