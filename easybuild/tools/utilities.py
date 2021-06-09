@@ -302,10 +302,8 @@ def time2str(delta):
 
     delta_secs = delta.total_seconds()
 
-    hours = int(delta_secs / 3600)
-    delta_secs -= hours * 3600
-    mins = int(delta_secs / 60)
-    secs = int(delta_secs - mins * 60)
+    hours, remainder = divmod(delta_secs, 3600)
+    mins, secs = divmod(remainder, 60)
 
     res = []
     if hours:
