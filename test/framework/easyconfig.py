@@ -4450,6 +4450,19 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertEqual(ec['sanity_check_commands'], ['toy | grep 123'])
 
+        # inject weird stuff, like a class definition that creates a logger instance, to check clean error handling
+        test_ec_txt += '\n' + '\n'.join([
+            "import logging",
+            "class _TestClass(object):",
+            "    def __init__(self):",
+            "        self.log = logging.Logger('alogger')",
+            "local_test = _TestClass()",
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        error_pattern = r"Failed to copy '.*' easyconfig parameter"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+
 
 def suite():
     """ returns all the testcases in this module """

@@ -137,7 +137,12 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         for key in cfg:
             # skip special variables like __builtins__, and imported modules (like 'os')
             if key != '__builtins__' and "'module'" not in str(type(cfg[key])):
-                cfg_copy[key] = copy.deepcopy(cfg[key])
+                try:
+                    cfg_copy[key] = copy.deepcopy(cfg[key])
+                except Exception as err:
+                    raise EasyBuildError("Failed to copy '%s' easyconfig parameter: %s" % (key, err))
+            else:
+                self.log.debug("Not copying '%s' variable from parsed easyconfig", key)
 
         return cfg_copy
 
