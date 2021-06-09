@@ -36,4 +36,3 @@ class Fujitsu(Ffmpi, FujitsuFFTW, FujitsuSSL):
     """Compiler toolchain for Fujitsu."""
     NAME = 'Fujitsu'
     SUBTOOLCHAIN = Ffmpi.NAME
-    COMPILER_MODULE_NAME = []
