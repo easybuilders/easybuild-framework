@@ -135,11 +135,9 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         # we can't use copy.deepcopy() directly because in Python 2 copying the (irrelevant) __builtins__ key fails...
         cfg_copy = {}
         for key in cfg:
-            if key != '__builtins__':
-                try:
-                    cfg_copy[key] = copy.deepcopy(cfg[key])
-                except TypeError:
-                    self.log.info("Contents of key '%s' can't be pickled: '%s'", key, cfg[key])
+            # skip special variables like __builtins__, and imported modules (like 'os')
+            if key != '__builtins__' and "'module'" not in str(type(cfg[key])):
+                cfg_copy[key] = copy.deepcopy(cfg[key])
 
         return cfg_copy
 
