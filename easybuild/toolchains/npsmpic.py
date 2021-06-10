@@ -34,6 +34,7 @@ from easybuild.toolchains.nvhpc import NvhpcToolchain
 from easybuild.toolchains.mpi.psmpi import Psmpi
 from easybuild.toolchains.compiler.cuda import Cuda
 
+
 # Order matters!
 class Npsmpic(NvhpcToolchain, Cuda, Psmpi):
     """Compiler toolchain with NVHPC and ParaStationMPI, with CUDA as dependency."""
