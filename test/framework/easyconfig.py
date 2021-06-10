@@ -4450,13 +4450,15 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertEqual(ec['sanity_check_commands'], ['toy | grep 123'])
 
-        # inject weird stuff, like a class definition that creates a logger instance, to check clean error handling
+        # inject weird stuff, like a class definition that creates a logger instance
+        # and a local variable with a list of imported modules, to check clean error handling
         test_ec_txt += '\n' + '\n'.join([
             "import logging",
             "class _TestClass(object):",
             "    def __init__(self):",
             "        self.log = logging.Logger('alogger')",
             "local_test = _TestClass()",
+            "local_modules = [logging, os]",
         ])
         write_file(test_ec, test_ec_txt)
 
