@@ -24,7 +24,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for nompi compiler toolchain (includes NVHPC and ParaStationMPI, and CUDA as dependency).
+EasyBuild support for nompi compiler toolchain (includes NVHPC and OpenMPI, and CUDA as dependency).
 
 @author: Damian Alvarez (Forschungszentrum Juelich)
 """
@@ -33,6 +33,7 @@ from easybuild.toolchains.nvhpc import NvhpcToolchain
 # We pull in MPI and CUDA at once so this maps nicely to HMNS
 from easybuild.toolchains.mpi.openmpi import OpenMPI
 from easybuild.toolchains.compiler.cuda import Cuda
+
 
 # Order matters!
 class Ompi(NvhpcToolchain, Cuda, OpenMPI):
