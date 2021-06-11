@@ -575,8 +575,8 @@ class GithubTest(EnhancedTestCase):
 
     def test_find_patches(self):
         """ Test for find_software_name_for_patch """
-        testdir = os.path.dirname(os.path.abspath(__file__))
-        ec_path = os.path.join(testdir, 'easyconfigs')
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        ec_path = os.path.join(test_dir, 'easyconfigs')
         init_config(build_options={
             'allow_modules_tool_mismatch': True,
             'minimal_toolchains': True,
@@ -926,15 +926,19 @@ class GithubTest(EnhancedTestCase):
         # no files => return default target repo (None)
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([])), None)
 
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+
         # easyconfigs/patches (incl. files to delete) => easyconfigs repo
-        # this is solely based on filenames, actual files are not opened
+        # this is solely based on filenames, actual files are not opened, except for the patch file which must exist
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        toy_patch = os.path.join(test_dir, 'sandbox', 'sources', 'toy', toy_patch_fn)
         test_cases = [
             ['toy.eb'],
-            ['toy.patch'],
-            ['toy.eb', 'toy.patch'],
+            [toy_patch],
+            ['toy.eb', toy_patch],
             [':toy.eb'],  # deleting toy.eb
             ['one.eb', 'two.eb'],
-            ['one.eb', 'two.eb', 'toy.patch', ':todelete.eb'],
+            ['one.eb', 'two.eb', toy_patch, ':todelete.eb'],
         ]
         for test_case in test_cases:
             self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(test_case)), 'easybuild-easyconfigs')
@@ -942,12 +946,11 @@ class GithubTest(EnhancedTestCase):
         # if only Python files are involved, result is easyblocks or framework repo;
         # all Python files are easyblocks => easyblocks repo, otherwise => framework repo;
         # files are opened and inspected here to discriminate between easyblocks & other Python files, so must exist!
-        testdir = os.path.dirname(os.path.abspath(__file__))
-        github_py = os.path.join(testdir, 'github.py')
+        github_py = os.path.join(test_dir, 'github.py')
 
-        configuremake = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
+        configuremake = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
         self.assertTrue(os.path.exists(configuremake))
-        toy_eb = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
+        toy_eb = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
         self.assertTrue(os.path.exists(toy_eb))
 
         self.assertEqual(build_option('pr_target_repo'), None)
@@ -961,14 +964,14 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files)), 'easybuild-framework')
 
         # as soon as an easyconfig file or patch files is involved => result is easybuild-easyconfigs repo
-        for fn in ['toy.eb', 'toy.patch']:
+        for fn in ['toy.eb', toy_patch]:
             self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files + [fn])), 'easybuild-easyconfigs')
 
         # if --pr-target-repo is specified, we always get this value (no guessing anymore)
         init_config(build_options={'pr_target_repo': 'thisisjustatest'})
 
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([])), 'thisisjustatest')
-        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(['toy.eb', 'toy.patch'])), 'thisisjustatest')
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(['toy.eb', toy_patch])), 'thisisjustatest')
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files)), 'thisisjustatest')
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([configuremake])), 'thisisjustatest')
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([toy_eb])), 'thisisjustatest')

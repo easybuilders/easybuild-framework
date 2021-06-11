@@ -623,6 +623,14 @@ def categorize_files_by_type(paths):
         # file must exist in order to check whether it's a patch file
         elif os.path.isfile(path) and is_patch_file(path):
             res['patch_files'].append(path)
+        elif path.endswith('.patch'):
+            if not os.path.exists(path):
+                raise EasyBuildError('File %s does not exist, did you mistype the path?', path)
+            elif not os.path.isfile(path):
+                raise EasyBuildError('File %s is expected to be a regular file, but is a folder instead', path)
+            else:
+                raise EasyBuildError('%s is not detected as a valid patch file. Please verify its contents!',
+                                     path)
         else:
             # anything else is considered to be an easyconfig file
             res['easyconfigs'].append(path)
