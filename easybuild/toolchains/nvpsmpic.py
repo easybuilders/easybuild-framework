@@ -1,6 +1,6 @@
 ##
-# Copyright 2016-2016 Ghent University
-# Copyright 2016-2016 Forschungszentrum Juelich
+# Copyright 2016-2021 Ghent University
+# Copyright 2016-2021 Forschungszentrum Juelich
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,6 +27,7 @@
 EasyBuild support for npsmpi compiler toolchain (includes NVHPC and ParaStationMPI, and CUDA as dependency).
 
 @author: Damian Alvarez (Forschungszentrum Juelich)
+@author: Sebastian Achilles (Forschungszentrum Juelich)
 """
 
 from easybuild.toolchains.nvhpc import NvhpcToolchain
@@ -36,7 +37,7 @@ from easybuild.toolchains.compiler.cuda import Cuda
 
 
 # Order matters!
-class Npsmpic(NvhpcToolchain, Cuda, Psmpi):
+class NVpsmpic(NvhpcToolchain, Cuda, Psmpi):
     """Compiler toolchain with NVHPC and ParaStationMPI, with CUDA as dependency."""
-    NAME = 'npsmpic'
+    NAME = 'nvpsmpic'
     SUBTOOLCHAIN = NvhpcToolchain.NAME
