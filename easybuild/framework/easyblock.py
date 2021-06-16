@@ -107,7 +107,7 @@ MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANIT
 # string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
 PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 
-# Directory name in which to store reproducability files
+# Directory name in which to store reproducibility files
 REPROD = 'reprod'
 
 _log = fancylogger.getLogger('easyblock')
@@ -3589,7 +3589,7 @@ def build_and_install_one(ecdict, init_env):
     # load easyblock
     easyblock = build_option('easyblock')
     if easyblock:
-        # set the value in the dict so this is included in the reproducability dump of the easyconfig
+        # set the value in the dict so this is included in the reproducibility dump of the easyconfig
         ecdict['ec']['easyblock'] = easyblock
     else:
         easyblock = fetch_parameters_from_easyconfig(rawtxt, ['easyblock'])[0]
@@ -3621,7 +3621,7 @@ def build_and_install_one(ecdict, init_env):
         run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
 
         if not dry_run:
-            # create our reproducability files before carrying out the easyblock steps
+            # create our reproducibility files before carrying out the easyblock steps
             reprod_dir_root = os.path.dirname(app.logfile)
             reprod_dir = reproduce_build(app, reprod_dir_root)
 
@@ -3633,7 +3633,7 @@ def build_and_install_one(ecdict, init_env):
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
         if not dry_run:
-            # also add any extension easyblocks used during the build for reproducability
+            # also add any extension easyblocks used during the build for reproducibility
             if app.ext_instances:
                 copy_easyblocks_for_reprod(app.ext_instances, reprod_dir)
 
@@ -3677,14 +3677,14 @@ def build_and_install_one(ecdict, init_env):
             _log.info("Build stats: %s" % buildstats)
 
             try:
-                # move the reproducability files to the final log directory
+                # move the reproducibility files to the final log directory
                 archive_reprod_dir = os.path.join(new_log_dir, REPROD)
                 if os.path.exists(archive_reprod_dir):
                     backup_dir = find_backup_name_candidate(archive_reprod_dir)
                     move_file(archive_reprod_dir, backup_dir)
-                    _log.info("Existing reproducability directory %s backed up to %s", archive_reprod_dir, backup_dir)
+                    _log.info("Existing reproducibility directory %s backed up to %s", archive_reprod_dir, backup_dir)
                 move_file(reprod_dir, archive_reprod_dir)
-                _log.info("Wrote files for reproducability to %s", archive_reprod_dir)
+                _log.info("Wrote files for reproducibility to %s", archive_reprod_dir)
             except EasyBuildError as error:
                 if build_option('module_only'):
                     _log.info("Using --module-only so can recover from error: %s", error)
@@ -3803,12 +3803,12 @@ def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
 
 def reproduce_build(app, reprod_dir_root):
     """
-    Create reproducability files (processed easyconfig and easyblocks used) from class instance
+    Create reproducibility files (processed easyconfig and easyblocks used) from class instance
 
     :param app: easyblock class instance
     :param reprod_dir_root: root directory in which to create the 'reprod' directory
 
-    :return reprod_dir: directory containing reproducability files
+    :return reprod_dir: directory containing reproducibility files
     """
 
     ec_filename = app.cfg.filename()

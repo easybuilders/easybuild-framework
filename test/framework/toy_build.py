@@ -1972,8 +1972,8 @@ class ToyBuildTest(EnhancedTestCase):
         # this test doesn't check for anything specific to using minimal toolchains, only side-effects
         self.test_toy_build(extra_args=['--minimal-toolchains'])
 
-    def test_reproducability(self):
-        """Test toy build produces expected reproducability files"""
+    def test_reproducibility(self):
+        """Test toy build produces expected reproducibility files"""
 
         # We need hooks for a complete test
         hooks_filename = 'my_hooks.py'
@@ -2025,8 +2025,8 @@ class ToyBuildTest(EnhancedTestCase):
         reprod_hooks = os.path.join(reprod_dir, 'hooks', hooks_filename)
         self.assertTrue(os.path.exists(reprod_hooks))
 
-    def test_reproducability_ext_easyblocks(self):
-        """Test toy build produces expected reproducability files also when extensions are used"""
+    def test_reproducibility_ext_easyblocks(self):
+        """Test toy build produces expected reproducibility files also when extensions are used"""
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
