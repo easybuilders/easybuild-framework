@@ -854,6 +854,8 @@ def main():
     self_txt = open(__file__).read()
     if IS_PY3:
         self_txt = self_txt.encode('utf-8')
+    info("DEPRECATED: Use of the EasyBuild boostrap script is deprecated and may not work.")
+    info("Recommended install methods: https://docs.easybuild.io/en/latest/Installation.html\n").
     info("EasyBuild bootstrap script (version %s, MD5: %s)" % (EB_BOOTSTRAP_VERSION, md5(self_txt).hexdigest()))
     info("Found Python %s\n" % '; '.join(sys.version.split('\n')))
 
