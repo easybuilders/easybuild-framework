@@ -82,6 +82,8 @@ DEFAULT_CONFIG = {
     'toolchainopts': [None, 'Extra options for compilers', TOOLCHAIN],
 
     # BUILD easyconfig parameters
+    'banned_linked_shared_libs': [[], "List of shared libraries (names, file names, or paths) which are not allowed "
+                                      "to be linked in any installed binary/library", BUILD],
     'bitbucket_account': ['%(namelower)s', "Bitbucket account name to be used to resolve template values in source"
                                            " URLs", BUILD],
     'buildopts': ['', 'Extra options passed to make step (default already has -j X)', BUILD],
@@ -110,8 +112,12 @@ DEFAULT_CONFIG = {
     'preinstallopts': ['', 'Extra prefix options for installation.', BUILD],
     'pretestopts': ['', 'Extra prefix options for test.', BUILD],
     'postinstallcmds': [[], 'Commands to run after the install step.', BUILD],
+    'required_linked_shared_libs': [[], "List of shared libraries (names, file names, or paths) which must be "
+                                        "linked in all installed binaries/libraries", BUILD],
     'runtest': [None, ('Indicates if a test should be run after make; should specify argument '
                        'after make (for e.g.,"test" for make test)'), BUILD],
+    'bin_lib_subdirs': [[], "List of subdirectories for binaries and libraries, which is used during sanity check "
+                            "to check RPATH linking and banned/required libraries", BUILD],
     'sanity_check_commands': [[], ("format: [(name, options)] e.g. [('gzip','-h')]. "
                                    "Using a non-tuple is equivalent to (name, '-h')"), BUILD],
     'sanity_check_paths': [{}, ("List of files and directories to check "
@@ -191,7 +197,10 @@ DEFAULT_CONFIG = {
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
     'module_depends_on': [False, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
                           '(implies recursive unloading of modules).', MODULES],
-    'recursive_module_unload': [False, 'Recursive unload of all dependencies when unloading module', MODULES],
+    'recursive_module_unload': [None, "Recursive unload of all dependencies when unloading module "
+                                      "(True/False to hard enable/disable; None implies honoring "
+                                      "the --recursive-module-unload EasyBuild configuration setting",
+                                MODULES],
 
     # MODULES documentation easyconfig parameters
     #    (docurls is part of MANDATORY)
@@ -231,3 +240,8 @@ def get_easyconfig_parameter_default(param):
     else:
         _log.debug("Returning default value for easyconfig parameter %s: %s" % (param, DEFAULT_CONFIG[param][0]))
         return DEFAULT_CONFIG[param][0]
+
+
+def is_easyconfig_parameter_default_value(param, value):
+    """Return True if the parameters is one of the default ones and the value equals its default value"""
+    return param in DEFAULT_CONFIG and get_easyconfig_parameter_default(param) == value

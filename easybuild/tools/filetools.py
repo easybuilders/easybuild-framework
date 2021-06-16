@@ -58,7 +58,8 @@ from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
-from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, GENERIC_EASYBLOCK_PKG, build_option, install_path
+from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
+from easybuild.tools.config import build_option, install_path
 from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
 
@@ -140,9 +141,11 @@ EXTRACT_CMDS = {
     '.tb2': "tar xjf %(filepath)s",
     '.tbz': "tar xjf %(filepath)s",
     '.tbz2': "tar xjf %(filepath)s",
-    # xzipped or xzipped tarball
-    '.tar.xz': "unxz %(filepath)s --stdout | tar x",
-    '.txz': "unxz %(filepath)s --stdout | tar x",
+    # xzipped or xzipped tarball;
+    # need to make sure that $TAPE is not set to avoid 'tar x' command failing,
+    # see https://github.com/easybuilders/easybuild-framework/issues/3652
+    '.tar.xz': "unset TAPE; unxz %(filepath)s --stdout | tar x",
+    '.txz': "unset TAPE; unxz %(filepath)s --stdout | tar x",
     '.xz': "unxz %(filepath)s",
     # tarball
     '.tar': "tar xf %(filepath)s",
@@ -297,11 +300,19 @@ def symlink(source_path, symlink_path, use_abspath_source=True):
     if use_abspath_source:
         source_path = os.path.abspath(source_path)
 
-    try:
-        os.symlink(source_path, symlink_path)
-        _log.info("Symlinked %s to %s", source_path, symlink_path)
-    except OSError as err:
-        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
+    if os.path.exists(symlink_path):
+        abs_source_path = os.path.abspath(source_path)
+        symlink_target_path = os.path.abspath(os.readlink(symlink_path))
+        if abs_source_path != symlink_target_path:
+            raise EasyBuildError("Trying to symlink %s to %s, but the symlink already exists and points to %s.",
+                                 source_path, symlink_path, symlink_target_path)
+        _log.info("Skipping symlinking %s to %s, link already exists", source_path, symlink_path)
+    else:
+        try:
+            os.symlink(source_path, symlink_path)
+            _log.info("Symlinked %s to %s", source_path, symlink_path)
+        except OSError as err:
+            raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
 
 
 def remove_file(path):
@@ -450,15 +461,29 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     return base_dir
 
 
-def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=True):
+def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=None, on_error=None):
     """
     Return (first) path in $PATH for specified command, or None if command is not found
 
     :param retain_all: returns *all* locations to the specified command in $PATH, not just the first one
     :param check_perms: check whether candidate path has read/exec permissions before accepting it as a match
     :param log_ok: Log an info message where the command has been found (if any)
-    :param log_error: Log a warning message when command hasn't been found
+    :param on_error: What to do if the command was not found, default: WARN. Possible values: IGNORE, WARN, ERROR
     """
+    if log_error is not None:
+        _log.deprecated("'log_error' named argument in which function has been replaced by 'on_error'", '5.0')
+        # If set, make sure on_error is at least WARN
+        if log_error and on_error == IGNORE:
+            on_error = WARN
+        elif not log_error and on_error is None:  # If set to False, use IGNORE unless on_error is also set
+            on_error = IGNORE
+    # Set default
+    # TODO: After removal of log_error from the parameters, on_error=WARN can be used instead of this
+    if on_error is None:
+        on_error = WARN
+    if on_error not in (IGNORE, WARN, ERROR):
+        raise EasyBuildError("Invalid value for 'on_error': %s", on_error)
+
     if retain_all:
         res = []
     else:
@@ -482,8 +507,12 @@ def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=True):
                 res = cmd_path
                 break
 
-    if not res and log_error:
-        _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
+    if not res and on_error != IGNORE:
+        msg = "Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths)
+        if on_error == WARN:
+            _log.warning(msg)
+        else:
+            raise EasyBuildError(msg)
     return res
 
 
@@ -506,6 +535,24 @@ def det_common_path_prefix(paths):
         return prefix.rstrip(os.path.sep) or None
     else:
         return None
+
+
+def normalize_path(path):
+    """Normalize path removing empty and dot components.
+
+    Similar to os.path.normpath but does not resolve '..' which may return a wrong path when symlinks are used
+    """
+    # In POSIX 3 or more leading slashes are equivalent to 1
+    if path.startswith(os.path.sep):
+        if path.startswith(os.path.sep * 2) and not path.startswith(os.path.sep * 3):
+            start_slashes = os.path.sep * 2
+        else:
+            start_slashes = os.path.sep
+    else:
+        start_slashes = ''
+
+    filtered_comps = (comp for comp in path.split(os.path.sep) if comp and comp != '.')
+    return start_slashes + os.path.sep.join(filtered_comps)
 
 
 def is_alt_pypi_url(url):
@@ -1273,7 +1320,7 @@ def extract_cmd(filepath, overwrite=False):
     """
     filename = os.path.basename(filepath)
     ext = find_extension(filename)
-    target = filename.rstrip(ext)
+    target = filename[:-len(ext)]
 
     cmd_tmpl = EXTRACT_CMDS[ext.lower()]
     if overwrite:
@@ -1447,14 +1494,24 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     return True
 
 
-def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
+def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb', on_missing_match=None):
     """
     Apply specified list of regex substitutions.
 
     :param paths: list of paths to files to patch (or just a single filepath)
     :param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
     :param backup: create backup of original file with specified suffix (no backup if value evaluates to False)
+    :param on_missing_match: Define what to do when no match was found in the file.
+                             Can be 'error' to raise an error, 'warn' to print a warning or 'ignore' to do nothing
+                             Defaults to the value of --strict
     """
+    if on_missing_match is None:
+        on_missing_match = build_option('strict')
+    allowed_values = (ERROR, IGNORE, WARN)
+    if on_missing_match not in allowed_values:
+        raise EasyBuildError('Invalid value passed to on_missing_match: %s (allowed: %s)',
+                             on_missing_match, ', '.join(allowed_values))
+
     if isinstance(paths, string_type):
         paths = [paths]
 
@@ -1468,9 +1525,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
     else:
         _log.info("Applying following regex substitutions to %s: %s", paths, regex_subs)
 
-        compiled_regex_subs = []
-        for regex, subtxt in regex_subs:
-            compiled_regex_subs.append((re.compile(regex), subtxt))
+        compiled_regex_subs = [(re.compile(regex), subtxt) for (regex, subtxt) in regex_subs]
 
         for path in paths:
             try:
@@ -1490,6 +1545,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
 
                 if backup:
                     copy_file(path, path + backup)
+                replacement_msgs = []
                 with open_file(path, 'w') as out_file:
                     lines = txt_utf8.split('\n')
                     del txt_utf8
@@ -1498,11 +1554,21 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
                             match = regex.search(line)
                             if match:
                                 origtxt = match.group(0)
-                                _log.info("Replacing line %d in %s: '%s' -> '%s'",
-                                          (line_id + 1), path, origtxt, subtxt)
+                                replacement_msgs.append("Replaced in line %d: '%s' -> '%s'" %
+                                                        (line_id + 1, origtxt, subtxt))
                                 line = regex.sub(subtxt, line)
                                 lines[line_id] = line
                     out_file.write('\n'.join(lines))
+                if replacement_msgs:
+                    _log.info('Applied the following substitutions to %s:\n%s', path, '\n'.join(replacement_msgs))
+                else:
+                    msg = 'Nothing found to replace in %s' % path
+                    if on_missing_match == ERROR:
+                        raise EasyBuildError(msg)
+                    elif on_missing_match == WARN:
+                        _log.warning(msg)
+                    else:
+                        _log.info(msg)
 
             except (IOError, OSError) as err:
                 raise EasyBuildError("Failed to patch %s: %s", path, err)
@@ -1939,8 +2005,8 @@ def back_up_file(src_file, backup_extension='bak', hidden=False, strip_fn=None):
         fn_suffix = '.%s' % backup_extension
 
     src_dir, src_fn = os.path.split(src_file)
-    if strip_fn:
-        src_fn = src_fn.rstrip(strip_fn)
+    if strip_fn and src_fn.endswith(strip_fn):
+        src_fn = src_fn[:-len(strip_fn)]
 
     backup_fp = find_backup_name_candidate(os.path.join(src_dir, fn_prefix + src_fn + fn_suffix))
 

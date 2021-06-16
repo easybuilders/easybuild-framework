@@ -42,9 +42,10 @@ import tempfile
 import time
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
-
+from easybuild.tools import run
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import IGNORE, ERROR
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import std_urllib
 
@@ -91,11 +92,15 @@ class FileToolsTest(EnhancedTestCase):
             ('untar.gz', "gunzip -c untar.gz > untar"),
             ("/some/path/test.gz", "gunzip -c /some/path/test.gz > test"),
             ('test.xz', "unxz test.xz"),
-            ('test.tar.xz', "unxz test.tar.xz --stdout | tar x"),
-            ('test.txz', "unxz test.txz --stdout | tar x"),
+            ('test.tar.xz', "unset TAPE; unxz test.tar.xz --stdout | tar x"),
+            ('test.txz', "unset TAPE; unxz test.txz --stdout | tar x"),
             ('test.iso', "7z x test.iso"),
             ('test.tar.Z', "tar xzf test.tar.Z"),
             ('test.foo.bar.sh', "cp -a test.foo.bar.sh ."),
+            # check whether extension is stripped correct to determine name of target file
+            # cfr. https://github.com/easybuilders/easybuild-framework/pull/3705
+            ('testbz2.bz2', "bunzip2 -c testbz2.bz2 > testbz2"),
+            ('testgz.gz', "gunzip -c testgz.gz > testgz"),
         ]
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
@@ -213,8 +218,13 @@ class FileToolsTest(EnhancedTestCase):
         python = ft.which('python')
         self.assertTrue(python and os.path.exists(python) and os.path.isabs(python))
 
-        path = ft.which('i_really_do_not_expect_a_command_with_a_name_like_this_to_be_available')
+        invalid_cmd = 'i_really_do_not_expect_a_command_with_a_name_like_this_to_be_available'
+        path = ft.which(invalid_cmd)
         self.assertTrue(path is None)
+        path = ft.which(invalid_cmd, on_error=IGNORE)
+        self.assertTrue(path is None)
+        error_msg = "Could not find command '%s'" % invalid_cmd
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.which, invalid_cmd, on_error=ERROR)
 
         os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.environ['PATH'])
         # put a directory 'foo' in place (should be ignored by 'which')
@@ -350,6 +360,21 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.det_common_path_prefix(['foo', 'bar']), None)
         self.assertEqual(ft.det_common_path_prefix(['foo']), None)
         self.assertEqual(ft.det_common_path_prefix([]), None)
+
+    def test_normalize_path(self):
+        """Test normalize_path"""
+        self.assertEqual(ft.normalize_path(''), '')
+        self.assertEqual(ft.normalize_path('/'), '/')
+        self.assertEqual(ft.normalize_path('//'), '//')
+        self.assertEqual(ft.normalize_path('///'), '/')
+        self.assertEqual(ft.normalize_path('/foo/bar/baz'), '/foo/bar/baz')
+        self.assertEqual(ft.normalize_path('/foo//bar/././baz/'), '/foo/bar/baz')
+        self.assertEqual(ft.normalize_path('foo//bar/././baz/'), 'foo/bar/baz')
+        self.assertEqual(ft.normalize_path('//foo//bar/././baz/'), '//foo/bar/baz')
+        self.assertEqual(ft.normalize_path('///foo//bar/././baz/'), '/foo/bar/baz')
+        self.assertEqual(ft.normalize_path('////foo//bar/././baz/'), '/foo/bar/baz')
+        self.assertEqual(ft.normalize_path('/././foo//bar/././baz/'), '/foo/bar/baz')
+        self.assertEqual(ft.normalize_path('//././foo//bar/././baz/'), '//foo/bar/baz')
 
     def test_download_file(self):
         """Test download_file function."""
@@ -567,6 +592,17 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(link_dir))
 
         self.assertTrue(os.path.samefile(os.path.join(self.test_prefix, 'test', 'test.txt'), link))
+
+        # test symlink when it already exists and points to the same path
+        ft.symlink(test_file, link)
+
+        # test symlink when it already exists but points to a different path
+        test_file2 = os.path.join(link_dir, 'test2.txt')
+        ft.write_file(test_file, "test123")
+        self.assertErrorRegex(EasyBuildError,
+                              "Trying to symlink %s to %s, but the symlink already exists and points to %s." %
+                              (test_file2, link, test_file),
+                              ft.symlink, test_file2, link)
 
         # test resolve_path
         self.assertEqual(test_dir, ft.resolve_path(link_dir))
@@ -894,7 +930,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.read_file(fp), new_txt)
 
         # check whether strip_fn works as expected
-        fp2 = fp + '.lua'
+        fp2 = fp + 'a.lua'
         ft.copy_file(fp, fp2)
         res = ft.back_up_file(fp2)
         self.assertTrue(fp2.endswith('.lua'))
@@ -902,6 +938,10 @@ class FileToolsTest(EnhancedTestCase):
 
         res = ft.back_up_file(fp2, strip_fn='.lua')
         self.assertFalse('.lua' in os.path.basename(res))
+        # strip_fn should not remove the first a in 'a.lua'
+        expected = os.path.basename(fp) + 'a.bak_'
+        res_fn = os.path.basename(res)
+        self.assertTrue(res_fn.startswith(expected), "'%s' should start with with '%s'" % (res_fn, expected))
 
     def test_move_logs(self):
         """Test move_logs function."""
@@ -1202,6 +1242,7 @@ class FileToolsTest(EnhancedTestCase):
             (r"^(FC\s*=\s*).*$", r"\1${FC}"),
             (r"^(.FLAGS)\s*=\s*-O3\s-g(.*)$", r"\1 = -O2\2"),
         ]
+        regex_subs_copy = regex_subs[:]
         ft.apply_regex_substitutions(testfile, regex_subs)
 
         expected_testtxt = '\n'.join([
@@ -1212,6 +1253,8 @@ class FileToolsTest(EnhancedTestCase):
         ])
         new_testtxt = ft.read_file(testfile)
         self.assertEqual(new_testtxt, expected_testtxt)
+        # Must not have touched the list
+        self.assertEqual(regex_subs_copy, regex_subs)
 
         # backup file is created by default
         backup = testfile + '.orig.eb'
@@ -1244,9 +1287,29 @@ class FileToolsTest(EnhancedTestCase):
 
         # passing empty list of substitions is a no-op
         ft.write_file(testfile, testtxt)
-        ft.apply_regex_substitutions(testfile, [])
+        ft.apply_regex_substitutions(testfile, [], on_missing_match=run.IGNORE)
         new_testtxt = ft.read_file(testfile)
         self.assertEqual(new_testtxt, testtxt)
+
+        # Check handling of on_missing_match
+        ft.write_file(testfile, testtxt)
+        regex_subs_no_match = [('Not there', 'Not used')]
+        error_pat = 'Nothing found to replace in %s' % testfile
+        # Error
+        self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, testfile, regex_subs_no_match,
+                              on_missing_match=run.ERROR)
+
+        # Warn
+        with self.log_to_testlogfile():
+            ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.WARN)
+        logtxt = ft.read_file(self.logfile)
+        self.assertTrue('WARNING ' + error_pat in logtxt)
+
+        # Ignore
+        with self.log_to_testlogfile():
+            ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.IGNORE)
+        logtxt = ft.read_file(self.logfile)
+        self.assertTrue('INFO ' + error_pat in logtxt)
 
         # clean error on non-existing file
         error_pat = "Failed to patch .*/nosuchfile.txt: .*No such file or directory"
@@ -2065,7 +2128,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 83)
+            self.assertEqual(len(index), 85)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),

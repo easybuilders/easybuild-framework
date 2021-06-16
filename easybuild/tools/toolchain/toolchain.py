@@ -403,33 +403,35 @@ class Toolchain(object):
         """Try to get the software root for all names"""
         return self._get_software_multiple(names, self._get_software_root)
 
-    def get_software_version(self, names):
+    def get_software_version(self, names, required=True):
         """Try to get the software version for all names"""
-        return self._get_software_multiple(names, self._get_software_version)
+        return self._get_software_multiple(names, self._get_software_version, required=required)
 
-    def _get_software_multiple(self, names, function):
+    def _get_software_multiple(self, names, function, required=True):
         """Execute function of each of names"""
         if isinstance(names, (str,)):
             names = [names]
         res = []
         for name in names:
-            res.append(function(name))
+            res.append(function(name, required=required))
         return res
 
-    def _get_software_root(self, name):
+    def _get_software_root(self, name, required=True):
         """Try to get the software root for name"""
         root = get_software_root(name)
         if root is None:
-            raise EasyBuildError("get_software_root software root for %s was not found in environment", name)
+            if required:
+                raise EasyBuildError("get_software_root software root for %s was not found in environment", name)
         else:
             self.log.debug("get_software_root software root %s for %s was found in environment", root, name)
         return root
 
-    def _get_software_version(self, name):
+    def _get_software_version(self, name, required=True):
         """Try to get the software version for name"""
         version = get_software_version(name)
         if version is None:
-            raise EasyBuildError("get_software_version software version for %s was not found in environment", name)
+            if required:
+                raise EasyBuildError("get_software_version software version for %s was not found in environment", name)
         else:
             self.log.debug("get_software_version software version %s for %s was found in environment", version, name)
 
@@ -634,7 +636,9 @@ class Toolchain(object):
             if self.init_modpaths:
                 mod_path_suffix = build_option('suffix_modules_path')
                 for modpath in self.init_modpaths:
-                    self.modules_tool.prepend_module_path(os.path.join(install_path('mod'), mod_path_suffix, modpath))
+                    modpath = os.path.join(install_path('mod'), mod_path_suffix, modpath)
+                    if os.path.exists(modpath):
+                        self.modules_tool.prepend_module_path(modpath)
 
             # load modules for all dependencies
             self.log.debug("Loading module for toolchain: %s", tc_mod)
@@ -1130,16 +1134,30 @@ class Toolchain(object):
         raise NotImplementedError
 
     def blas_family(self):
-        "Return type of BLAS library used in this toolchain, or 'None' if BLAS is not supported."
+        """Return type of BLAS library used in this toolchain, or 'None' if BLAS is not supported."""
         return None
 
     def lapack_family(self):
-        "Return type of LAPACK library used in this toolchain, or 'None' if LAPACK is not supported."
+        """Return type of LAPACK library used in this toolchain, or 'None' if LAPACK is not supported."""
         return None
 
     def mpi_family(self):
-        "Return type of MPI library used in this toolchain, or 'None' if MPI is not supported."
+        """Return type of MPI library used in this toolchain, or 'None' if MPI is not supported."""
         return None
+
+    def banned_linked_shared_libs(self):
+        """
+        List of shared libraries (names, file names, paths) which are
+        not allowed to be linked in any installed binary/library.
+        """
+        return []
+
+    def required_linked_shared_libs(self):
+        """
+        List of shared libraries (names, file names, paths) which
+        must be linked in all installed binaries/libraries.
+        """
+        return []
 
     def cleanup(self):
         """Clean up after using this toolchain"""

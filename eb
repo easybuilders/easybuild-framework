@@ -33,6 +33,13 @@
 # @author: Pieter De Baets (Ghent University)
 # @author: Jens Timmerman (Ghent University)
 
+keyboard_interrupt() {
+    echo "Keyboard interrupt!"
+    exit 1
+}
+
+trap keyboard_interrupt SIGINT
+
 # Python 2.6+ or 3.5+ required
 REQ_MIN_PY2VER=6
 REQ_MIN_PY3VER=5
