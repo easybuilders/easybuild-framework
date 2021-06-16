@@ -34,18 +34,20 @@ import random
 import re
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from time import gmtime
 from unittest import TextTestRunner
 
+import easybuild.tools.testing
 from easybuild.base.rest import RestClient
 from easybuild.framework.easyconfig.tools import categorize_files_by_type
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option, module_classes
+from easybuild.tools.config import build_option, module_classes, update_build_option
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_MERGEABLE_STATE_CLEAN
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import pick_default_branch
-from easybuild.tools.testing import post_pr_test_report, session_state
+from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
 
@@ -71,7 +73,7 @@ class GithubTest(EnhancedTestCase):
     for non authenticated users of 50"""
 
     def setUp(self):
-        """setup"""
+        """Test setup."""
         super(GithubTest, self).setUp()
 
         self.github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
@@ -84,6 +86,14 @@ class GithubTest(EnhancedTestCase):
         self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, username, None, token)
 
         self.skip_github_tests = self.github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
+
+        self.orig_testing_create_gist = easybuild.tools.testing.create_gist
+
+    def tearDown(self):
+        """Cleanup after running test."""
+        easybuild.tools.testing.create_gist = self.orig_testing_create_gist
+
+        super(GithubTest, self).tearDown()
 
     def test_pick_default_branch(self):
         """Test pick_default_branch function."""
@@ -565,8 +575,8 @@ class GithubTest(EnhancedTestCase):
 
     def test_find_patches(self):
         """ Test for find_software_name_for_patch """
-        testdir = os.path.dirname(os.path.abspath(__file__))
-        ec_path = os.path.join(testdir, 'easyconfigs')
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        ec_path = os.path.join(test_dir, 'easyconfigs')
         init_config(build_options={
             'allow_modules_tool_mismatch': True,
             'minimal_toolchains': True,
@@ -916,15 +926,19 @@ class GithubTest(EnhancedTestCase):
         # no files => return default target repo (None)
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([])), None)
 
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+
         # easyconfigs/patches (incl. files to delete) => easyconfigs repo
-        # this is solely based on filenames, actual files are not opened
+        # this is solely based on filenames, actual files are not opened, except for the patch file which must exist
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        toy_patch = os.path.join(test_dir, 'sandbox', 'sources', 'toy', toy_patch_fn)
         test_cases = [
             ['toy.eb'],
-            ['toy.patch'],
-            ['toy.eb', 'toy.patch'],
+            [toy_patch],
+            ['toy.eb', toy_patch],
             [':toy.eb'],  # deleting toy.eb
             ['one.eb', 'two.eb'],
-            ['one.eb', 'two.eb', 'toy.patch', ':todelete.eb'],
+            ['one.eb', 'two.eb', toy_patch, ':todelete.eb'],
         ]
         for test_case in test_cases:
             self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(test_case)), 'easybuild-easyconfigs')
@@ -932,12 +946,11 @@ class GithubTest(EnhancedTestCase):
         # if only Python files are involved, result is easyblocks or framework repo;
         # all Python files are easyblocks => easyblocks repo, otherwise => framework repo;
         # files are opened and inspected here to discriminate between easyblocks & other Python files, so must exist!
-        testdir = os.path.dirname(os.path.abspath(__file__))
-        github_py = os.path.join(testdir, 'github.py')
+        github_py = os.path.join(test_dir, 'github.py')
 
-        configuremake = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
+        configuremake = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
         self.assertTrue(os.path.exists(configuremake))
-        toy_eb = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
+        toy_eb = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
         self.assertTrue(os.path.exists(toy_eb))
 
         self.assertEqual(build_option('pr_target_repo'), None)
@@ -951,14 +964,14 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files)), 'easybuild-framework')
 
         # as soon as an easyconfig file or patch files is involved => result is easybuild-easyconfigs repo
-        for fn in ['toy.eb', 'toy.patch']:
+        for fn in ['toy.eb', toy_patch]:
             self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files + [fn])), 'easybuild-easyconfigs')
 
         # if --pr-target-repo is specified, we always get this value (no guessing anymore)
         init_config(build_options={'pr_target_repo': 'thisisjustatest'})
 
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([])), 'thisisjustatest')
-        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(['toy.eb', 'toy.patch'])), 'thisisjustatest')
+        self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(['toy.eb', toy_patch])), 'thisisjustatest')
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files)), 'thisisjustatest')
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([configuremake])), 'thisisjustatest')
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([toy_eb])), 'thisisjustatest')
@@ -1040,6 +1053,80 @@ class GithubTest(EnhancedTestCase):
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        # also test combination of --from-pr and --include-easyblocks-from-pr
+        update_build_option('include_easyblocks_from_pr', ['6789'])
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        post_pr_test_report('1234', gh.GITHUB_EASYCONFIGS_REPO, test_report, "OK!", init_session_state, True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stderr, '')
+
+        patterns = [
+            r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
+            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+            r"Using easyblocks from PR\(s\) https://github.com/easybuilders/easybuild-easyblocks/pull/6789",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+    def test_create_test_report(self):
+        """Test create_test_report function."""
+        logfile = os.path.join(self.test_prefix, 'log.txt')
+        write_file(logfile, "Bazel failed with: error")
+        ecs_with_res = [
+            ({'spec': 'test.eb'}, {'success': True}),
+            ({'spec': 'fail.eb'}, {
+                'success': False,
+                'err': EasyBuildError("error: bazel"),
+                'traceback': "in bazel",
+                'log_file': logfile,
+            }),
+        ]
+        init_session_state = {
+            'easybuild_configuration': ['EASYBUILD_DEBUG=1'],
+            'environment': {'USER': 'test'},
+            'module_list': [{'mod_name': 'test'}],
+            'system_info': {'name': 'test'},
+            'time': gmtime(0),
+        }
+        res = create_test_report("just a test", ecs_with_res, init_session_state)
+        patterns = [
+            "**SUCCESS** _test.eb_",
+            "**FAIL (build issue)** _fail.eb_",
+            "01 Jan 1970 00:00:00",
+            "EASYBUILD_DEBUG=1",
+        ]
+        for pattern in patterns:
+            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['full']))
+
+        for pattern in patterns[:2]:
+            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['overview']))
+
+        # mock create_gist function, we don't want to actually create a gist every time we run this test...
+        def fake_create_gist(*args, **kwargs):
+            return 'https://gist.github.com/test'
+
+        easybuild.tools.testing.create_gist = fake_create_gist
+
+        res = create_test_report("just a test", ecs_with_res, init_session_state, pr_nrs=[123], gist_log=True)
+
+        patterns.insert(2, "https://gist.github.com/test")
+        patterns.extend([
+            "https://github.com/easybuilders/easybuild-easyconfigs/pull/123",
+        ])
+        for pattern in patterns:
+            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['full']))
+
+        for pattern in patterns[:3]:
+            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['overview']))
+
+        self.assertTrue("**SUCCESS** _test.eb_" in res['overview'])
 
 
 def suite():

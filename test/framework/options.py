@@ -1728,7 +1728,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr6424')
-            regex = re.compile("Appended list of robot search paths with %s:" % pr_tmpdir, re.M)
+            regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
@@ -1762,9 +1762,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
 
-            pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr12150_12366')
-            regex = re.compile("Appended list of robot search paths with %s:" % pr_tmpdir, re.M)
-            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+            for pr in ('12150', '12366'):
+                pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr%s' % pr)
+                regex = re.compile(r"Extended list of robot search paths with .*%s.*:" % pr_tmpdir, re.M)
+                self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
             shutil.rmtree(tmpdir)
@@ -1893,7 +1895,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 re.compile(r"^\*\*\* DRY RUN using 'EB_FFTW' easyblock", re.M),
                 re.compile(r"^== building and installing FFTW/3.3.8-gompi-2018b\.\.\.", re.M),
                 re.compile(r"^building... \[DRY RUN\]", re.M),
-                re.compile(r"^== COMPLETED: Installation ended successfully \(took .* sec\)", re.M),
+                re.compile(r"^== COMPLETED: Installation ended successfully \(took .* secs?\)", re.M),
             ]
 
             for msg_regex in msg_regexs:
@@ -3818,7 +3820,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         msg_regexs = [
             re.compile(r"the actual build \& install procedure that will be performed may diverge", re.M),
             re.compile(r"^\*\*\* DRY RUN using 'EB_toy' easyblock", re.M),
-            re.compile(r"^== COMPLETED: Installation ended successfully \(took .* sec\)", re.M),
+            re.compile(r"^== COMPLETED: Installation ended successfully \(took .* secs?\)", re.M),
             re.compile(r"^\(no ignored errors during dry run\)", re.M),
         ]
         ignoring_error_regex = re.compile(r"WARNING: ignoring error", re.M)
@@ -4802,7 +4804,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['toy-0.0.eb', '--force', '--stop=configure']
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
 
-        regex = re.compile(r"COMPLETED: Installation STOPPED successfully \(took .* sec\)", re.M)
+        regex = re.compile(r"COMPLETED: Installation STOPPED successfully \(took .* secs?\)", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
     def test_fetch(self):
@@ -4827,7 +4829,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         patterns = [
             r"^== fetching files\.\.\.$",
-            r"^== COMPLETED: Installation STOPPED successfully \(took .* sec\)$",
+            r"^== COMPLETED: Installation STOPPED successfully \(took .* secs?\)$",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)

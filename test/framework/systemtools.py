@@ -850,8 +850,8 @@ class SystemToolsTest(EnhancedTestCase):
         error_pattern = r"EasyBuild is not compatible \(yet\) with Python 4.0"
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
-        mock_python_ver(2, 5)
-        error_pattern = r"Python 2.6 or higher is required when using Python 2, found Python 2.5"
+        mock_python_ver(2, 6)
+        error_pattern = r"Python 2.7 is required when using Python 2, found Python 2.6"
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
         # no problems when running with a supported Python version
@@ -859,44 +859,18 @@ class SystemToolsTest(EnhancedTestCase):
             mock_python_ver(*pyver)
             self.assertEqual(check_python_version(), pyver)
 
-        mock_python_ver(2, 6)
-        # deprecation warning triggers an error in test environment
-        error_pattern = r"Running EasyBuild with Python 2.6 is deprecated"
-        self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
-
-        # we may trigger a deprecation warning below (when testing with Python 2.6)
-        py26_depr_warning = "\nWARNING: Deprecated functionality, will no longer work in v5.0: "
-        py26_depr_warning += "Running EasyBuild with Python 2.6 is deprecated"
-
-        self.allow_deprecated_behaviour()
-
-        # first test with mocked Python 2.6
-        self.mock_stderr(True)
-        check_python_version()
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-
-        # we should always get a deprecation warning here
-        self.assertTrue(stderr.startswith(py26_depr_warning))
-
-        # restore Python version info to check with Python version used to run tests
-        st.sys.version_info = self.orig_sys_version_info
-
         # shouldn't raise any errors, since Python version used to run tests should be supported;
         self.mock_stderr(True)
         (py_maj_ver, py_min_ver) = check_python_version()
         stderr = self.get_stderr()
         self.mock_stderr(False)
+        self.assertFalse(stderr)
 
         self.assertTrue(py_maj_ver in [2, 3])
         if py_maj_ver == 2:
-            self.assertTrue(py_min_ver in [6, 7])
+            self.assertTrue(py_min_ver == 7)
         else:
             self.assertTrue(py_min_ver >= 5)
-
-        # only deprecation warning when actually testing with Python 2.6
-        if sys.version_info[:2] == (2, 6):
-            self.assertTrue(stderr.startswith(py26_depr_warning))
 
     def test_pick_dep_version(self):
         """Test pick_dep_version function."""

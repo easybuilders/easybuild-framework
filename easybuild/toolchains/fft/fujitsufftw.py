@@ -33,5 +33,4 @@ from easybuild.toolchains.fft.fftw import Fftw
 class FujitsuFFTW(Fftw):
     """Fujitsu FFTW FFT library"""
 
-    FFT_MODULE_NAME = ['FFTW3-sve']
     FFTW_API_VERSION = '3'

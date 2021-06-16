@@ -346,7 +346,7 @@ BUILD_OPTIONS_OTHER = {
         'build_specs',
         'command_line',
         'external_modules_metadata',
-        'pr_path',
+        'pr_paths',
         'robot_path',
         'valid_module_classes',
         'valid_stops',
