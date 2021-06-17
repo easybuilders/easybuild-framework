@@ -30,7 +30,9 @@ The basic concept is the same as for the Cray Programming Environment.
 :author: Miguel Dias Costa (National University of Singapore)
 """
 import os
+import re
 
+import easybuild.tools.environment as env
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler, DEFAULT_OPT_LEVEL
 
@@ -46,9 +48,8 @@ class FujitsuCompiler(Compiler):
     COMPILER_MODULE_NAME = [TC_CONSTANT_MODULE_NAME]
     COMPILER_FAMILY = TC_CONSTANT_FUJITSU
 
-    # make sure fcc is always called in clang compatibility mode
-    COMPILER_CC = 'fcc -Nclang'
-    COMPILER_CXX = 'FCC -Nclang'
+    COMPILER_CC = 'fcc'
+    COMPILER_CXX = 'FCC'
 
     COMPILER_F77 = 'frt'
     COMPILER_F90 = 'frt'
@@ -85,15 +86,31 @@ class FujitsuCompiler(Compiler):
         (systemtools.AARCH64, systemtools.ARM): '-mcpu=generic -mtune=generic',
     }
 
+    def prepare(self, *args, **kwargs):
+        super(FujitsuCompiler, self).prepare(*args, **kwargs)
+
+        # fcc doesn't accept e.g. -std=c++11 or -std=gnu++11, only -std=c11 or -std=gnu11
+        pattern = r'-std=(gnu|c)\+\+(\d+)'
+        if re.search(pattern, self.vars['CFLAGS']):
+            self.log.debug("Found '-std=(gnu|c)++' in CFLAGS, fcc doesn't accept '++' here, removing it")
+            self.vars['CFLAGS'] = re.sub(pattern, r'-std=\1\2', self.vars['CFLAGS'])
+            self._setenv_variables()
+
+        # make sure the fujitsu module libraries are found (and added to rpath by wrapper)
+        library_path = os.getenv('LIBRARY_PATH', '')
+        libdir = os.path.join(os.getenv(TC_CONSTANT_MODULE_VAR), 'lib64')
+        if libdir not in library_path:
+            self.log.debug("Adding %s to $LIBRARY_PATH" % libdir)
+            env.setvar('LIBRARY_PATH', os.pathsep.join([library_path, libdir]))
+
     def _set_compiler_vars(self):
         super(FujitsuCompiler, self)._set_compiler_vars()
 
         # enable clang compatibility mode
-        # moved to compiler constants to make sure it is always used
-        # self.variables.nappend('CFLAGS', ['Nclang'])
-        # self.variables.nappend('CXXFLAGS', ['Nclang'])
+        self.variables.nappend('CFLAGS', ['Nclang'])
+        self.variables.nappend('CXXFLAGS', ['Nclang'])
 
-        # make sure the fujitsu module libraries are found (and added to rpath by wrapper)
+        # also add fujitsu module library path to LDFLAGS
         libdir = os.path.join(os.getenv(TC_CONSTANT_MODULE_VAR), 'lib64')
         self.log.debug("Adding %s to $LDFLAGS" % libdir)
         self.variables.nappend('LDFLAGS', [libdir])

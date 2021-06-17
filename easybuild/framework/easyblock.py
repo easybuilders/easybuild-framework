@@ -81,7 +81,7 @@ from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum,
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
-from easybuild.tools.hooks import load_hooks, run_hook
+from easybuild.tools.hooks import MODULE_WRITE, load_hooks, run_hook
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
@@ -144,7 +144,7 @@ class EasyBlock(object):
         # keep track of original working directory, so we can go back there
         self.orig_workdir = os.getcwd()
 
-        # list of pre- and post-step hooks
+        # dict of all hooks (mapping of name to function)
         self.hooks = load_hooks(build_option('hooks'))
 
         # list of patch/source files, along with checksums
@@ -3165,6 +3165,10 @@ class EasyBlock(object):
         txt += self.make_module_extra()
         txt += self.make_module_footer()
 
+        hook_txt = run_hook(MODULE_WRITE, self.hooks, args=[self, mod_filepath, txt])
+        if hook_txt is not None:
+            txt = hook_txt
+
         if self.dry_run:
             # only report generating actual module file during dry run, don't mention temporary module files
             if not fake:
@@ -3528,7 +3532,16 @@ class EasyBlock(object):
                     else:
                         print_msg("%s..." % descr, log=self.log, silent=self.silent)
                     self.current_step = step_name
-                    self.run_step(step_name, step_methods)
+                    start_time = datetime.now()
+                    try:
+                        self.run_step(step_name, step_methods)
+                    finally:
+                        if not self.dry_run:
+                            step_duration = datetime.now() - start_time
+                            if step_duration.total_seconds() >= 1:
+                                print_msg("... (took %s)", time2str(step_duration), log=self.log, silent=self.silent)
+                            elif self.logdebug or build_option('trace'):
+                                print_msg("... (took < 1 sec)", log=self.log, silent=self.silent)
 
         except StopException:
             pass

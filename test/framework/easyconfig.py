@@ -3267,10 +3267,11 @@ class EasyConfigTest(EnhancedTestCase):
         configuremake = os.path.join(easyblocks_dir, 'generic', 'configuremake.py')
         toy_easyblock = os.path.join(easyblocks_dir, 't', 'toy.py')
 
+        gzip_ec = os.path.join(test_ecs_dir, 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb')
         paths = [
             'bzip2-1.0.6.eb',
             toy_easyblock,
-            os.path.join(test_ecs_dir, 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb'),
+            gzip_ec,
             toy_patch,
             'foo',
             ':toy-0.0-deps.eb',
@@ -3279,13 +3280,30 @@ class EasyConfigTest(EnhancedTestCase):
         res = categorize_files_by_type(paths)
         expected = [
             'bzip2-1.0.6.eb',
-            os.path.join(test_ecs_dir, 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb'),
+            gzip_ec,
             'foo',
         ]
         self.assertEqual(res['easyconfigs'], expected)
         self.assertEqual(res['files_to_delete'], ['toy-0.0-deps.eb'])
         self.assertEqual(res['patch_files'], [toy_patch])
         self.assertEqual(res['py_files'], [toy_easyblock, configuremake])
+
+        # Error cases
+        tmpdir = tempfile.mkdtemp()
+        non_existing = os.path.join(tmpdir, 'does_not_exist.patch')
+        self.assertErrorRegex(EasyBuildError,
+                              "File %s does not exist" % non_existing,
+                              categorize_files_by_type, [non_existing])
+        patch_dir = os.path.join(tmpdir, 'folder.patch')
+        os.mkdir(patch_dir)
+        self.assertErrorRegex(EasyBuildError,
+                              "File %s is expected to be a regular file" % patch_dir,
+                              categorize_files_by_type, [patch_dir])
+        invalid_patch = os.path.join(tmpdir, 'invalid.patch')
+        copy_file(gzip_ec, invalid_patch)
+        self.assertErrorRegex(EasyBuildError,
+                              "%s is not detected as a valid patch file" % invalid_patch,
+                              categorize_files_by_type, [invalid_patch])
 
     def test_resolve_template(self):
         """Test resolve_template function."""
@@ -4427,6 +4445,43 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec_dict_bis.get('sources'), ['%(name)s-%(version)s.tar.gz'])
         self.assertEqual(ec_dict_bis.get('exts_default_options'), None)
         self.assertEqual(ec_dict.get('sanity_check_paths'), {'dirs': ['bin'], 'files': [('bin/yot', 'bin/toy')]})
+
+    def test_easyconfig_import(self):
+        """
+        Test parsing of an easyconfig file that includes import statements.
+        """
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\n' + '\n'.join([
+            "import os",
+            "local_test = os.getenv('TEST_TOY')",
+            "sanity_check_commands = ['toy | grep %s' % local_test]",
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        os.environ['TEST_TOY'] = '123'
+
+        ec = EasyConfig(test_ec)
+
+        self.assertEqual(ec['sanity_check_commands'], ['toy | grep 123'])
+
+        # inject weird stuff, like a class definition that creates a logger instance
+        # and a local variable with a list of imported modules, to check clean error handling
+        test_ec_txt += '\n' + '\n'.join([
+            "import logging",
+            "class _TestClass(object):",
+            "    def __init__(self):",
+            "        self.log = logging.Logger('alogger')",
+            "local_test = _TestClass()",
+            "local_modules = [logging, os]",
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        error_pattern = r"Failed to copy '.*' easyconfig parameter"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
 
 
 def suite():
