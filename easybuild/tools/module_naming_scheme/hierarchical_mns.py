@@ -130,6 +130,7 @@ class HierarchicalMNS(ModuleNamingScheme):
                     res = (tc_comp_name, tc_comp_ver)
                 else:
                     if len(tc_comps) == 1:
+                        tc_comp = tc_comps[0]
                         res = (tc_comp['name'], self.det_full_version(tc_comp))
                     else:
                         raise EasyBuildError("Unknown set of toolchain compilers, module naming scheme needs work: %s",
