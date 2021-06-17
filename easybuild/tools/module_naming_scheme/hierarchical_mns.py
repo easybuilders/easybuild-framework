@@ -117,26 +117,26 @@ class HierarchicalMNS(ModuleNamingScheme):
             # no compiler in toolchain, system toolchain
             res = None
         else:
-            comp_versions = dict([(comp['name'], self.det_full_version(comp)) for comp in tc_comps])
-            comp_names = comp_versions.keys()
-            key = ','.join(sorted(comp_names))
-            if key in COMP_NAME_VERSION_TEMPLATES:
-                tc_comp_name, tc_comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
-                tc_comp_ver = tc_comp_ver_tmpl % comp_versions
-                # make sure that icc/ifort versions match (unless not existing as separate modules)
-                if tc_comp_name == 'intel' and comp_versions.get('icc') != comp_versions.get('ifort'):
-                    raise EasyBuildError("Bumped into different versions for Intel compilers: %s", comp_versions)
-                res = (tc_comp_name, tc_comp_ver)
-            else:
-                if len(tc_comps) == 1:
-                    tc_comp = tc_comps[0]
-                    if tc_comp is None:
-                        res = None
-                    else:
-                        res = (tc_comp['name'], self.det_full_version(tc_comp))
+            if len(tc_comps) > 0 and tc_comps[0]:
+                comp_versions = dict([(comp['name'], self.det_full_version(comp)) for comp in tc_comps])
+                comp_names = comp_versions.keys()
+                key = ','.join(sorted(comp_names))
+                if key in COMP_NAME_VERSION_TEMPLATES:
+                    tc_comp_name, tc_comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
+                    tc_comp_ver = tc_comp_ver_tmpl % comp_versions
+                    # make sure that icc/ifort versions match (unless not existing as separate modules)
+                    if tc_comp_name == 'intel' and comp_versions.get('icc') != comp_versions.get('ifort'):
+                        raise EasyBuildError("Bumped into different versions for Intel compilers: %s", comp_versions)
+                    res = (tc_comp_name, tc_comp_ver)
                 else:
-                    raise EasyBuildError("Unknown set of toolchain compilers, module naming scheme needs work: %s",
-                                     comp_names)
+                    if len(tc_comps) == 1:
+                        res = (tc_comp['name'], self.det_full_version(tc_comp))
+                    else:
+                        raise EasyBuildError("Unknown set of toolchain compilers, module naming scheme needs work: %s",
+                                             comp_names)
+            else:
+                res = None
+
         return res
 
     def det_module_subdir(self, ec):
