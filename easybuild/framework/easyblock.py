@@ -48,6 +48,7 @@ import stat
 import tempfile
 import time
 import traceback
+import yaml
 from datetime import datetime
 from distutils.version import LooseVersion
 
@@ -328,15 +329,16 @@ class EasyBlock(object):
         Obtain checksum for given filename.
 
         :param checksums: a list or tuple of checksums (or None)
-        :param filename: name of the file to obtain checksum for (Deprecated)
+        :param filename: name of the file to obtain checksum for
         :param index: index of file in list
         """
-        # Filename has never been used; flag it as deprecated
-        if filename:
-            self.log.deprecated("Filename argument to get_checksum_for() is deprecated", '5.0')
-
         # if checksums are provided as a dict, lookup by source filename as key
-        if isinstance(checksums, (list, tuple)):
+        if isinstance(checksums, dict):
+            if filename is not None and filename in checksums:
+                return checksums[filename]
+            else:
+                return None
+        elif isinstance(checksums, (list, tuple)):
             if index is not None and index < len(checksums) and (index >= 0 or abs(index) <= len(checksums)):
                 return checksums[index]
             else:
@@ -344,7 +346,20 @@ class EasyBlock(object):
         elif checksums is None:
             return None
         else:
-            raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple or None.", type(checksums))
+            raise EasyBuildError("Invalid type for checksums (%s), should be dict, list, tuple or None.",
+                                 type(checksums))
+
+    def get_checksums(self):
+        # if checksum not specified in recipe, try to load checksums.yaml
+        if not self.cfg['checksums']:
+            path = self.obtain_file("checksums.yaml")
+            self.log.info("Loading checksums from file %s", path)
+            yaml_txt = read_file(path)
+            checksums = yaml.safe_load(yaml_txt)
+            self.log.info("Checksums loaded %s", str(checksums))
+            self.cfg['checksums'] = checksums
+
+        return self.cfg['checksums']
 
     def fetch_source(self, source, checksum=None, extension=False):
         """
@@ -410,7 +425,7 @@ class EasyBlock(object):
         if sources is None:
             sources = self.cfg['sources']
         if checksums is None:
-            checksums = self.cfg['checksums']
+            checksums = self.get_checksums()
 
         # Single source should be re-wrapped as a list, and checksums with it
         if isinstance(sources, dict):
@@ -423,7 +438,8 @@ class EasyBlock(object):
             if source is None:
                 raise EasyBuildError("Empty source in sources list at index %d", index)
 
-            src_spec = self.fetch_source(source, self.get_checksum_for(checksums=checksums, index=index))
+            src_spec = self.fetch_source(source,
+                                         self.get_checksum_for(checksums=checksums, filename=source, index=index))
             if src_spec:
                 self.src.append(src_spec)
             else:
@@ -474,7 +490,7 @@ class EasyBlock(object):
                 patchspec = {
                     'name': patch_file,
                     'path': path,
-                    'checksum': self.get_checksum_for(checksums, index=index),
+                    'checksum': self.get_checksum_for(checksums, filename=patch_file, index=index),
                 }
                 if suff:
                     if copy_file:
@@ -547,7 +563,7 @@ class EasyBlock(object):
                     ext_options = resolve_template(ext_options, template_values)
 
                     source_urls = ext_options.get('source_urls', [])
-                    checksums = ext_options.get('checksums', [])
+                    checksums = ext_options.get('checksums', self.get_checksums())
 
                     if ext_options.get('nosource', None):
                         self.log.debug("No sources for extension %s, as indicated by 'nosource'", ext_name)
@@ -609,7 +625,7 @@ class EasyBlock(object):
 
                         # verify checksum (if provided)
                         self.log.debug('Verifying checksums for extension source...')
-                        fn_checksum = self.get_checksum_for(checksums, index=0)
+                        fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
                         if verify_checksum(src_path, fn_checksum):
                             self.log.info('Checksum for extension source %s verified', src_fn)
                         elif build_option('ignore_checksums'):
@@ -638,7 +654,7 @@ class EasyBlock(object):
                                 patch = patch['path']
                                 patch_fn = os.path.basename(patch)
 
-                                checksum = self.get_checksum_for(checksums[1:], index=idx)
+                                checksum = self.get_checksum_for(checksums, filename=patch_fn, index=idx+1)
                                 if verify_checksum(patch, checksum):
                                     self.log.info('Checksum for extension patch %s verified', patch_fn)
                                 elif build_option('ignore_checksums'):
@@ -1901,7 +1917,7 @@ class EasyBlock(object):
 
         # fetch sources
         if self.cfg['sources']:
-            self.fetch_sources(self.cfg['sources'], checksums=self.cfg['checksums'])
+            self.fetch_sources(self.cfg['sources'], checksums=self.get_checksums())
         else:
             self.log.info('no sources provided')
 
@@ -1911,11 +1927,11 @@ class EasyBlock(object):
 
         # fetch patches
         if self.cfg['patches']:
-            if isinstance(self.cfg['checksums'], (list, tuple)):
+            if isinstance(self.get_checksums(), (list, tuple)):
                 # if checksums are provided as a list, first entries are assumed to be for sources
-                patches_checksums = self.cfg['checksums'][len(self.cfg['sources']):]
+                patches_checksums = self.get_checksums()[len(self.cfg['sources']):]
             else:
-                patches_checksums = self.cfg['checksums']
+                patches_checksums = self.get_checksums()
             self.fetch_patches(checksums=patches_checksums)
         else:
             self.log.info('no patches provided')
