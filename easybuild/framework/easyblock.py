@@ -352,12 +352,15 @@ class EasyBlock(object):
     def get_checksums(self):
         # if checksum not specified in recipe, try to load checksums.yaml
         if not self.cfg['checksums']:
-            path = self.obtain_file("checksums.yaml")
-            self.log.info("Loading checksums from file %s", path)
-            yaml_txt = read_file(path)
-            checksums = yaml.safe_load(yaml_txt)
-            self.log.info("Checksums loaded %s", str(checksums))
-            self.cfg['checksums'] = checksums
+            try:
+                path = self.obtain_file("checksums.yaml")
+                self.log.info("Loading checksums from file %s", path)
+                yaml_txt = read_file(path)
+                checksums = yaml.safe_load(yaml_txt)
+                self.cfg['checksums'] = checksums
+            # if the file can't be found, return self.cfg['checksums']
+            except EasyBuildError:
+                pass
 
         return self.cfg['checksums']
 
