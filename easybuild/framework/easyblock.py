@@ -48,7 +48,7 @@ import stat
 import tempfile
 import time
 import traceback
-import yaml
+import json
 from datetime import datetime
 from distutils.version import LooseVersion
 
@@ -152,7 +152,7 @@ class EasyBlock(object):
         self.patches = []
         self.src = []
         self.checksums = []
-        self.yaml_checksums = None
+        self.json_checksums = None
 
         # build/install directories
         self.builddir = None
@@ -350,18 +350,18 @@ class EasyBlock(object):
             raise EasyBuildError("Invalid type for checksums (%s), should be dict, list, tuple or None.",
                                  type(checksums))
 
-    def get_checksums_from_yaml(self):
-        if self.yaml_checksums is None:
+    def get_checksums_from_file(self):
+        if self.json_checksums is None:
             try:
-                path = self.obtain_file("checksums.yaml")
+                path = self.obtain_file("checksums.json")
                 self.log.info("Loading checksums from file %s", path)
-                yaml_txt = read_file(path)
-                self.yaml_checksums = yaml.safe_load(yaml_txt)
+                json_txt = read_file(path)
+                self.json_checksums = json.loads(json_txt)
             # if the file can't be found, return an empty dict
             except EasyBuildError:
-                self.yaml_checksums = {}
+                self.json_checksums = {}
 
-        return self.yaml_checksums
+        return self.json_checksums
 
     def fetch_source(self, source, checksum=None, extension=False):
         """
@@ -427,7 +427,7 @@ class EasyBlock(object):
         if sources is None:
             sources = self.cfg['sources']
         if checksums is None:
-            checksums = self.cfg['checksums'] or self.get_checksums_from_yaml()
+            checksums = self.cfg['checksums'] or self.get_checksums_from_file()
 
         # Single source should be re-wrapped as a list, and checksums with it
         if isinstance(sources, dict):
@@ -565,7 +565,7 @@ class EasyBlock(object):
                     ext_options = resolve_template(ext_options, template_values)
 
                     source_urls = ext_options.get('source_urls', [])
-                    checksums = ext_options.get('checksums', self.get_checksums_from_yaml())
+                    checksums = ext_options.get('checksums', self.get_checksums_from_file())
 
                     if ext_options.get('nosource', None):
                         self.log.debug("No sources for extension %s, as indicated by 'nosource'", ext_name)
@@ -1919,7 +1919,7 @@ class EasyBlock(object):
 
         # fetch sources
         if self.cfg['sources']:
-            self.fetch_sources(self.cfg['sources'], checksums=self.cfg['checksums'] or self.get_checksums_from_yaml())
+            self.fetch_sources(self.cfg['sources'], checksums=self.cfg['checksums'] or self.get_checksums_from_file())
         else:
             self.log.info('no sources provided')
 
@@ -1933,7 +1933,7 @@ class EasyBlock(object):
                 # if checksums are provided as a list, first entries are assumed to be for sources
                 patches_checksums = self.cfg['checksums'][len(self.cfg['sources']):]
             else:
-                patches_checksums = self.get_checksums_from_yaml()
+                patches_checksums = self.get_checksums_from_file()
             self.fetch_patches(checksums=patches_checksums)
         else:
             self.log.info('no patches provided')
