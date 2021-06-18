@@ -114,6 +114,7 @@ jobs:
           export PREFIX=/tmp/$USER/$GITHUB_SHA/eb_bootstrap
           export EASYBUILD_BOOTSTRAP_DEPRECATED=1
           python easybuild/scripts/bootstrap_eb.py $PREFIX
+          unset EASYBUILD_BOOTSTRAP_DEPRECATED
           # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
           unset PYTHONPATH
           # simple sanity check on bootstrapped EasyBuild module
