@@ -4002,7 +4002,7 @@ def inject_checksums_to_json(ecs, checksum_type):
             # don't do anything if the checksum already exist and is the same
             elif checksums[filename] != existing_checksums[filename]:
                 if build_option('force'):
-                    print_warning("Found existing checksums for %s, overwriting them (due to use of --force)..." % ec_fn)
+                    print_warning("Found existing checksums for %s, overwriting them (due to --force)..." % ec_fn)
                     existing_checksums[filename] = checksums[filename]
                 else:
                     raise EasyBuildError("Found existing checksum for %s, use --force to overwrite them" % filename)
