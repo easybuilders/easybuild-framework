@@ -149,20 +149,21 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
 
     # create a gist with a full test report
     test_report = []
-    if pr_nrs is not None:
+    pr_list = []
+    if pr_nrs:
         repo = pr_target_repo or GITHUB_EASYCONFIGS_REPO
         pr_urls = ["https://github.com/%s/%s/pull/%s" % (pr_target_account, repo, x) for x in pr_nrs]
-        test_report.extend([
-            "Test report for %s" % ', '.join(pr_urls),
-            "",
-        ])
+        pr_list.append("PR(s) %s" % ', '.join(pr_urls))
     if easyblock_pr_nrs:
         repo = pr_target_repo or GITHUB_EASYBLOCKS_REPO
+        easyblock_pr_urls = ["https://github.com/%s/%s/pull/%s" % (pr_target_account, repo, x)
+                             for x in easyblock_pr_nrs]
+        pr_list.append("easyblock PR(s) %s" % ', '.join(easyblock_pr_urls))
+    if pr_list:
         test_report.extend([
-            "Test report for https://github.com/%s/%s/pull/%s" % (pr_target_account, repo, nr)
-            for nr in easyblock_pr_nrs
+            "Test report for %s" % ', '.join(pr_list),
+            "",
         ])
-        test_report.append("")
     test_report.extend([
         "#### Test result",
         "%s" % msg,
@@ -192,11 +193,11 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
                 partial_log_txt = '\n'.join(logtxt.split('\n')[-500:])
                 descr = "(partial) EasyBuild log for failed build of %s" % ec['spec']
 
-                if pr_nrs is not None:
-                    descr += " (PR #%s)" % ', #'.join(str(x) for x in pr_nrs)
+                if pr_nrs:
+                    descr += " (PR(s) #%s)" % ', #'.join(str(x) for x in pr_nrs)
 
                 if easyblock_pr_nrs:
-                    descr += "".join(" (easyblock PR #%s)" % nr for nr in easyblock_pr_nrs)
+                    descr += " (easyblock PR(s) #%s)" % ', #'.join(str(x) for x in easyblock_pr_nrs)
 
                 fn = '%s_partial.log' % os.path.basename(ec['spec'])[:-3]
                 gist_url = create_gist(partial_log_txt, fn, descr=descr, github_user=github_user)
@@ -263,21 +264,32 @@ def upload_test_report_as_gist(test_report, descr=None, fn=None):
     return gist_url
 
 
-def post_pr_test_report(pr_nr, repo_type, test_report, msg, init_session_state, success):
+def post_pr_test_report(pr_nrs, repo_type, test_report, msg, init_session_state, success):
     """Post test report in a gist, and submit comment in easyconfigs or easyblocks PR."""
+
+    # make sure pr_nrs is a list of strings
+    if isinstance(pr_nrs, str):
+        pr_nrs = [pr_nrs]
+    elif isinstance(pr_nrs, int):
+        pr_nrs = [str(pr_nrs)]
+    else:
+        try:
+            pr_nrs = [str(x) for x in pr_nrs]
+        except ValueError:
+            raise EasyBuildError("Can't convert %s to a list of PR #s." % pr_nrs)
 
     github_user = build_option('github_user')
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo') or repo_type
 
     # create gist with test report
-    descr = "EasyBuild test report for %s/%s PR #%s" % (pr_target_account, pr_target_repo, pr_nr)
+    descr = "EasyBuild test report for %s/%s PR(s) #%s" % (pr_target_account, pr_target_repo, ', #'.join(pr_nrs))
     timestamp = strftime("%Y%M%d-UTC-%H-%M-%S", gmtime())
-    fn = 'easybuild_test_report_%s_%s_pr%s_%s.md' % (pr_nr, pr_target_account, pr_target_repo, timestamp)
+    fn = 'easybuild_test_report_%s_%s_pr%s_%s.md' % ('_'.join(pr_nrs), pr_target_account, pr_target_repo, timestamp)
     gist_url = upload_test_report_as_gist(test_report['full'], descr=descr, fn=fn)
 
     # post comment to report test result
-    system_info = init_session_state['system_info']
+    system_info = init_session_state['system_info'].copy()
 
     # also mention CPU architecture name, but only if it's known
     if system_info['cpu_arch_name'] != UNKNOWN:
@@ -315,9 +327,11 @@ def post_pr_test_report(pr_nr, repo_type, test_report, msg, init_session_state, 
     ])
     comment = '\n'.join(comment_lines)
 
-    post_comment_in_issue(pr_nr, comment, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
+    for pr_nr in pr_nrs:
+        post_comment_in_issue(pr_nr, comment, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
 
-    msg = "Test report uploaded to %s and mentioned in a comment in %s PR#%s" % (gist_url, pr_target_repo, pr_nr)
+    msg = "Test report uploaded to %s and mentioned in a comment in %s PR(s) #%s" % (gist_url, pr_target_repo,
+                                                                                     ', #'.join(pr_nrs))
     return msg
 
 
@@ -350,15 +364,13 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
         test_report = create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=pr_nrs, gist_log=True,
                                          easyblock_pr_nrs=easyblock_pr_nrs)
         if pr_nrs:
-            # upload test report to gist and issue a comment in the PR to notify
-            for pr_nr in pr_nrs:
-                txt = post_pr_test_report(pr_nr, GITHUB_EASYCONFIGS_REPO, test_report, msg, init_session_state,
-                                          success)
+            # upload test report to gist and issue a comment in the PR(s) to notify
+            txt = post_pr_test_report(pr_nrs, GITHUB_EASYCONFIGS_REPO, test_report, msg, init_session_state,
+                                      success)
         elif easyblock_pr_nrs:
-            # upload test report to gist and issue a comment in the easyblocks PR to notify
-            for easyblock_pr_nr in easyblock_pr_nrs:
-                txt = post_pr_test_report(easyblock_pr_nr, GITHUB_EASYBLOCKS_REPO, test_report, msg,
-                                          init_session_state, success)
+            # upload test report to gist and issue a comment in the easyblocks PR(s) to notify
+            txt = post_pr_test_report(easyblock_pr_nrs, GITHUB_EASYBLOCKS_REPO, test_report, msg,
+                                      init_session_state, success)
 
         else:
             # only upload test report as a gist
