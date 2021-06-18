@@ -33,6 +33,7 @@ Command line options for eb
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+:author: Maxime Boissonneault (Compute Canada)
 """
 import copy
 import glob
@@ -762,6 +763,8 @@ class EasyBuildOptions(GeneralOption):
                               int, 'store', DEFAULT_INDEX_MAX_AGE),
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
                                  'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
+            'inject-checksums-to-json': ("Inject checksums of specified type for sources/patches into checksums.json",
+                                        'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
             'local-var-naming-check': ("Mode to use when checking whether local variables follow the recommended "
                                        "naming scheme ('log': only log warnings (no printed messages); 'warn': print "
                                        "warnings; 'error': fail with an error)", 'choice', 'store',
@@ -1100,8 +1103,8 @@ class EasyBuildOptions(GeneralOption):
             self.options.ignore_osdeps = True
             self.options.modules_tool = None
 
-        # imply --disable-pre-create-installdir with --inject-checksums
-        if self.options.inject_checksums:
+        # imply --disable-pre-create-installdir with --inject-checksums or --inject-checksums-to-json
+        if self.options.inject_checksums or self.options.inject_checksums_to_json:
             self.options.pre_create_installdir = False
 
     def _postprocess_list_avail(self):

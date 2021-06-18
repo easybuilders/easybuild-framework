@@ -34,6 +34,7 @@ Main entry point for EasyBuild: build software from .eb input file
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Maxime Boissonneault (Compute Canada)
 """
 import copy
 import os
@@ -45,7 +46,7 @@ import traceback
 #  expect missing log output when this not the case!
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, stop_logging
 
-from easybuild.framework.easyblock import build_and_install_one, inject_checksums
+from easybuild.framework.easyblock import build_and_install_one, inject_checksums, inject_checksums_to_json
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easystack import parse_easystack
 from easybuild.framework.easyconfig.easyconfig import clean_up_easyconfigs
@@ -378,7 +379,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             sys.exit(31)  # exit -> 3x1t -> 31
 
     # read easyconfig files
-    easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums)
+    validate = not options.inject_checksums and not options.inject_checksums_to_json
+    easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=validate)
 
     # handle --check-contrib & --check-style options
     if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):
@@ -406,6 +408,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     keep_available_modules = forced or dry_run_mode or options.extended_dry_run or pr_options
     keep_available_modules = keep_available_modules or options.inject_checksums or options.sanity_check_only
+    keep_available_modules = keep_available_modules or options.inject_checksums_to_json
 
     # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
     if not keep_available_modules:
@@ -490,8 +493,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.inject_checksums:
         inject_checksums(ordered_ecs, options.inject_checksums)
 
+    elif options.inject_checksums_to_json:
+        inject_checksums_to_json(ordered_ecs, options.inject_checksums_to_json)
+
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]
+    stop_options += [options.inject_checksums_to_json]
     if any(no_ec_opts) or any(stop_options):
         clean_exit(logfile, eb_tmpdir, testing)
 

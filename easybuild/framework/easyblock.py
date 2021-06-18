@@ -3951,6 +3951,67 @@ class StopException(Exception):
     pass
 
 
+def inject_checksums_to_json(ecs, checksum_type):
+    """
+    Inject checksums of given type in corresponding json files
+
+    :param ecs: list of EasyConfig instances to calculate checksums and inject them into checksums.json
+    :param checksum_type: type of checksum to use
+    """
+    for ec in ecs:
+        ec_fn = os.path.basename(ec['spec'])
+        ec_dir = os.path.dirname(ec['spec'])
+        print_msg("injecting %s checksums for %s in checksums.json" % (checksum_type, ec['spec']), log=_log)
+
+        # get easyblock instance and make sure all sources/patches are available by running fetch_step
+        print_msg("fetching sources & patches for %s..." % ec_fn, log=_log)
+        app = get_easyblock_instance(ec)
+        app.update_config_template_run_step()
+        app.fetch_step(skip_checksums=True)
+
+        # compute & inject checksums for sources/patches
+        print_msg("computing %s checksums for sources & patches for %s..." % (checksum_type, ec_fn), log=_log)
+        checksums = {}
+        for entry in app.src + app.patches:
+            checksum = compute_checksum(entry['path'], checksum_type)
+            print_msg("* %s: %s" % (os.path.basename(entry['path']), checksum), log=_log)
+            checksums[os.path.basename(entry['path'])] = checksum
+
+        # compute & inject checksums for extension sources/patches
+        if app.exts:
+            print_msg("computing %s checksums for extensions for %s..." % (checksum_type, ec_fn), log=_log)
+
+            for ext in app.exts:
+                # compute checksums for extension sources & patches
+                if 'src' in ext:
+                    src_fn = os.path.basename(ext['src'])
+                    checksum = compute_checksum(ext['src'], checksum_type)
+                    print_msg(" * %s: %s" % (src_fn, checksum), log=_log)
+                    checksums[src_fn] = checksum
+                for ext_patch in ext.get('patches', []):
+                    patch_fn = os.path.basename(ext_patch['path'])
+                    checksum = compute_checksum(ext_patch['path'], checksum_type)
+                    print_msg(" * %s: %s" % (patch_fn, checksum), log=_log)
+                    checksums[patch_fn] = checksum
+
+        # actually inject new checksums or overwrite existing ones (if --force)
+        existing_checksums = app.get_checksums_from_json(always_read=True)
+        for filename in checksums:
+            if filename not in existing_checksums:
+                existing_checksums[filename] = checksums[filename]
+            # don't do anything if the checksum already exist and is the same
+            elif checksums[filename] != existing_checksums[filename]:
+                if build_option('force'):
+                    print_warning("Found existing checksums for %s, overwriting them (due to use of --force)..." % ec_fn)
+                    existing_checksums[filename] = checksums[filename]
+                else:
+                    raise EasyBuildError("Found existing checksum for %s, use --force to overwrite them" % filename)
+
+        # actually write the checksums
+        with open(os.path.join(ec_dir, 'checksums.json'), 'w') as outfile:
+            json.dump(existing_checksums, outfile, indent=2, sort_keys=True)
+
+
 def inject_checksums(ecs, checksum_type):
     """
     Inject checksums of given type in specified easyconfig files
