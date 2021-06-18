@@ -1031,6 +1031,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout().rstrip()
         self.mock_stdout(False)
         expected = '\n'.join([
+            ' * intel-compilers-2021.2.0.eb',
             ' * intel-2018a.eb',
             '',
             "Note: 1 matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them",
@@ -1043,6 +1044,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout().rstrip()
         self.mock_stdout(False)
         expected = '\n'.join([
+            ' * intel-compilers-2021.2.0.eb',
             ' * intel-2018a.eb',
             '',
             "Matching archived easyconfigs:",
