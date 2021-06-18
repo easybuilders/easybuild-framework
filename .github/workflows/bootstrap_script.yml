@@ -107,11 +107,12 @@ jobs:
           EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
           EB_BOOTSTRAP_SHA256SUM=$(sha256sum easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
           EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-          EB_BOOTSTRAP_EXPECTED="20210106.01 c2d93de0dd91123eb4f51cfc16d1f5efb80f1d238b3d6cd100994086887a1ae0"
+          EB_BOOTSTRAP_EXPECTED="20210618.01 e5d477d717c6d3648ba2027ab735713ba5804fbf52f4b4adcca0bc1379b44618"
           test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
 
           # test bootstrap script
           export PREFIX=/tmp/$USER/$GITHUB_SHA/eb_bootstrap
+          export EASYBUILD_BOOTSTRAP_DEPRECATED=1
           python easybuild/scripts/bootstrap_eb.py $PREFIX
           # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
           unset PYTHONPATH
