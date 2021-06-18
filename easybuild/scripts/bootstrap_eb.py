@@ -62,7 +62,7 @@ else:
     import urllib.request as std_urllib
 
 
-EB_BOOTSTRAP_VERSION = '20210106.01'
+EB_BOOTSTRAP_VERSION = '20210618.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -81,6 +81,9 @@ EASYBUILD_PACKAGES = (([] if IS_PY3 else [VSC_INSTALL, VSC_BASE]) +
                       ['easybuild-framework', 'easybuild-easyblocks', 'easybuild-easyconfigs'])
 
 STAGE1_SUBDIR = 'eb_stage1'
+
+# the EasyBuild bootstrap script is deprecated, and will only run if $EASYBUILD_BOOTSTRAP_DEPRECATED is defined
+EASYBUILD_BOOTSTRAP_DEPRECATED = os.environ.pop('EASYBUILD_BOOTSTRAP_DEPRECATED', None)
 
 # set print_debug to True for detailed progress info
 print_debug = os.environ.pop('EASYBUILD_BOOTSTRAP_DEBUG', False)
@@ -854,8 +857,17 @@ def main():
     self_txt = open(__file__).read()
     if IS_PY3:
         self_txt = self_txt.encode('utf-8')
-    info("DEPRECATED: Use of the EasyBuild boostrap script is deprecated and may not work.")
-    info("Recommended install methods: https://docs.easybuild.io/en/latest/Installation.html\n")
+
+    url = 'https://docs.easybuild.io/en/latest/Installation.html'
+    info("Use of the EasyBuild boostrap script is DEPRECATED (since June 2021).")
+    info("It is strongly recommended to use one of the installation methods outlined at %s instead!\n" % url)
+    if not EASYBUILD_BOOTSTRAP_DEPRECATED:
+        error("The EasyBuild bootstrap script will only run if $EASYBUILD_BOOTSTRAP_DEPRECATED is defined.")
+    else:
+        msg = "You have opted to continue with the EasyBuild bootstrap script by defining "
+        msg += "$EASYBUILD_BOOTSTRAP_DEPRECATED. Good luck!\n"
+        info(msg)
+
     info("EasyBuild bootstrap script (version %s, MD5: %s)" % (EB_BOOTSTRAP_VERSION, md5(self_txt).hexdigest()))
     info("Found Python %s\n" % '; '.join(sys.version.split('\n')))
 
