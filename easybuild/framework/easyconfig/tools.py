@@ -539,6 +539,12 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False
         if missing_labels:
             lines.extend(['', "This PR should be labelled with %s" % ', '.join(["'%s'" % ml for ml in missing_labels])])
 
+        if not pr_data['milestone']:
+            lines.extend(['', "This PR should be associated with a milestone"])
+        elif '.x' in pr_data['milestone']['title']:
+            lines.extend(['', "This PR is associated with a generic '.x' milestone, "
+                              "it should be associated to the next release milestone once merged"])
+
     return '\n'.join(lines)
 
 

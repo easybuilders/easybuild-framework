@@ -1183,7 +1183,10 @@ def check_pr_eligible_to_merge(pr_data):
     # check whether a milestone is set
     msg_tmpl = "* milestone is set: %s"
     if pr_data['milestone']:
-        print_msg(msg_tmpl % "OK (%s)" % pr_data['milestone']['title'], prefix=False)
+        milestone = pr_data['milestone']['title']
+        if '.x' in milestone:
+            milestone += ", please change to the next release milestone once the PR is merged"
+        print_msg(msg_tmpl % "OK (%s)" % milestone, prefix=False)
     else:
         res = not_eligible(msg_tmpl % 'no milestone found')
 
