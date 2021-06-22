@@ -486,7 +486,7 @@ def find_related_easyconfigs(path, ec):
     return sorted(res)
 
 
-def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False):
+def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False, max_ecs=None, filter_ecs=None):
     """
     Print multi-diff overview between specified easyconfigs or PR and specified branch.
     :param pr: pull request number in easybuild-easyconfigs repo to review
@@ -521,6 +521,10 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False
             pr_msg = "new PR"
         _log.debug("File in %s %s has these related easyconfigs: %s" % (pr_msg, ec['spec'], files))
         if files:
+            if filter_ecs is not None:
+                files = [x for x in files if filter_ecs.search(x)]
+            if max_ecs is not None:
+                files = files[:max_ecs]
             lines.append(multidiff(ec['spec'], files, colored=colored))
         else:
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
