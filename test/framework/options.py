@@ -2724,6 +2724,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_http_header_fields_urlpat(self):
         """Test use of --http-header-fields-urlpat."""
+        tmpdir = tempfile.mkdtemp()
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         ec_file = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb')
         common_args = [
@@ -2733,6 +2734,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--force',
             '--force-download',
             '--logtostdout',
+            '--sourcepath=%s' % tmpdir,
         ]
 
         # define header fields:values that should (not) show up in the logs, either
@@ -2828,6 +2830,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile), mentionfile % (testurlpatfile)]
         not_expected = [testdoval, testdonthdr, testdontval]
         run_and_assert(args, "case E", expected, not_expected)
+
+        # cleanup downloads
+        shutil.rmtree(tmpdir)
 
     def test_test_report_env_filter(self):
         """Test use of --test-report-env-filter."""
