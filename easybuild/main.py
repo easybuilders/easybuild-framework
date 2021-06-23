@@ -307,7 +307,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     if options.skip_test_step:
         if options.ignore_test_failure:
-            raise EasyBuildError("Found both ignore-test-failure and skip-test-step being set. "
+            raise EasyBuildError("Found both ignore-test-failure and skip-test-step enabled. "
                                  "Please use only one of them.")
         else:
             print_warning("Will not run the test step as requested via skip-test-step. "

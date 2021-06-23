@@ -1816,14 +1816,16 @@ class EasyBlock(object):
             self.log.info("Removing existing module file %s", self.mod_filepath)
             remove_file(self.mod_filepath)
 
-    def report_test_failure(self, msgOrError):
-        """Report a failing test either via an exception or warning depending on ignore-test-failure
+    def report_test_failure(self, msg_or_error):
+        """
+        Report a failing test either via an exception or warning depending on ignore-test-failure
 
-        msgOrError - Failure description. Either a string or an EasyBuildError"""
+        :param msg_or_error: failure description (string value or an EasyBuildError instance)
+        """
         if self.ignore_test_failure:
-            print_warning("Test failure ignored: " + str(msgOrError), log=self.log)
+            print_warning("Test failure ignored: " + str(msg_or_error), log=self.log)
         else:
-            exception = msgOrError if isinstance(msgOrError, EasyBuildError) else EasyBuildError(msgOrError)
+            exception = msg_or_error if isinstance(msg_or_error, EasyBuildError) else EasyBuildError(msg_or_error)
             raise exception
 
     #
@@ -2245,8 +2247,8 @@ class EasyBlock(object):
         """Run the test_step and handles failures"""
         try:
             self.test_step()
-        except EasyBuildError as e:
-            self.report_test_failure(e)
+        except EasyBuildError as err:
+            self.report_test_failure(err)
 
     def stage_install_step(self):
         """
@@ -3384,7 +3386,7 @@ class EasyBlock(object):
         for step_method in step_methods:
             # Remove leading underscore from e.g. "_test_step"
             method_name = extract_method_name(step_method).lstrip('_')
-            self.log.info("Running method %s part of step %s" % (method_name, step))
+            self.log.info("Running method %s part of step %s", method_name, step)
 
             if self.dry_run:
                 self.dry_run_msg("[%s method]", method_name)
