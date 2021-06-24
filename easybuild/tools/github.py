@@ -2025,7 +2025,7 @@ def check_github():
             ver, req_ver = git.__version__, '1.0'
             if LooseVersion(ver) < LooseVersion(req_ver):
                 check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (ver, req_ver)
-            elif "Could not read from remote repository" in push_err.msg:
+            elif "Could not read from remote repository" in str(push_err):
                 check_res = "FAIL (GitHub SSH key missing? %s)" % push_err
             else:
                 check_res = "FAIL (unexpected exception: %s)" % push_err
