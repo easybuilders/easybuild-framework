@@ -39,6 +39,7 @@ import signal
 import stat
 import sys
 import tempfile
+import textwrap
 from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
@@ -111,7 +112,7 @@ class ToyBuildTest(EnhancedTestCase):
         full_version = ''.join([versionprefix, version, versionsuffix])
 
         # check for success
-        success = re.compile(r"COMPLETED: Installation ended successfully \(took .* sec\)")
+        success = re.compile(r"COMPLETED: Installation ended successfully \(took .* secs?\)")
         self.assertTrue(success.search(outtxt), "COMPLETED message found in '%s" % outtxt)
 
         # if the module exists, it should be fine
@@ -2638,34 +2639,38 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_build_hooks(self):
         """Test use of --hooks."""
         hooks_file = os.path.join(self.test_prefix, 'my_hooks.py')
-        hooks_file_txt = '\n'.join([
-            "import os",
-            '',
-            "def start_hook():",
-            "   print('start hook triggered')",
-            '',
-            "def parse_hook(ec):",
-            "   print('%s %s' % (ec.name, ec.version))",
+        hooks_file_txt = textwrap.dedent("""
+            import os
+
+            def start_hook():
+               print('start hook triggered')
+
+            def parse_hook(ec):
+               print('%s %s' % (ec.name, ec.version))
             # print sources value to check that raw untemplated strings are exposed in parse_hook
-            "   print(ec['sources'])",
+               print(ec['sources'])
             # try appending to postinstallcmd to see whether the modification is actually picked up
             # (required templating to be disabled before parse_hook is called)
-            "   ec['postinstallcmds'].append('echo toy')",
-            "   print(ec['postinstallcmds'][-1])",
-            '',
-            "def pre_configure_hook(self):",
-            "    print('pre-configure: toy.source: %s' % os.path.exists('toy.source'))",
-            '',
-            "def post_configure_hook(self):",
-            "    print('post-configure: toy.source: %s' % os.path.exists('toy.source'))",
-            '',
-            "def post_install_hook(self):",
-            "    print('in post-install hook for %s v%s' % (self.name, self.version))",
-            "    print(', '.join(sorted(os.listdir(self.installdir))))",
-            '',
-            "def end_hook():",
-            "   print('end hook triggered, all done!')",
-        ])
+               ec['postinstallcmds'].append('echo toy')
+               print(ec['postinstallcmds'][-1])
+
+            def pre_configure_hook(self):
+                print('pre-configure: toy.source: %s' % os.path.exists('toy.source'))
+
+            def post_configure_hook(self):
+                print('post-configure: toy.source: %s' % os.path.exists('toy.source'))
+
+            def post_install_hook(self):
+                print('in post-install hook for %s v%s' % (self.name, self.version))
+                print(', '.join(sorted(os.listdir(self.installdir))))
+
+            def module_write_hook(self, module_path, module_txt):
+                print('in module-write hook hook for %s' % os.path.basename(module_path))
+                return module_txt.replace('Toy C program, 100% toy.', 'Not a toy anymore')
+
+            def end_hook():
+               print('end hook triggered, all done!')
+        """)
         write_file(hooks_file, hooks_file_txt)
 
         self.mock_stderr(True)
@@ -2676,25 +2681,43 @@ class ToyBuildTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.mock_stdout(False)
 
+        test_mod_path = os.path.join(self.test_installpath, 'modules', 'all')
+        toy_mod_file = os.path.join(test_mod_path, 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_mod_file += '.lua'
+
         self.assertEqual(stderr, '')
-        expected_output = '\n'.join([
-            "== Running start hook...",
-            "start hook triggered",
-            "== Running parse hook for toy-0.0.eb...",
-            "toy 0.0",
-            "['%(name)s-%(version)s.tar.gz']",
-            "echo toy",
-            "== Running pre-configure hook...",
-            "pre-configure: toy.source: True",
-            "== Running post-configure hook...",
-            "post-configure: toy.source: False",
-            "== Running post-install hook...",
-            "in post-install hook for toy v0.0",
-            "bin, lib",
-            "== Running end hook...",
-            "end hook triggered, all done!",
-        ])
+        # There are 4 modules written:
+        # Sanitycheck for extensions and main easyblock (1 each), main and devel module
+        expected_output = textwrap.dedent("""
+            == Running start hook...
+            start hook triggered
+            == Running parse hook for toy-0.0.eb...
+            toy 0.0
+            ['%(name)s-%(version)s.tar.gz']
+            echo toy
+            == Running pre-configure hook...
+            pre-configure: toy.source: True
+            == Running post-configure hook...
+            post-configure: toy.source: False
+            == Running post-install hook...
+            in post-install hook for toy v0.0
+            bin, lib
+            == Running module_write hook...
+            in module-write hook hook for {mod_name}
+            == Running module_write hook...
+            in module-write hook hook for {mod_name}
+            == Running module_write hook...
+            in module-write hook hook for {mod_name}
+            == Running module_write hook...
+            in module-write hook hook for {mod_name}
+            == Running end hook...
+            end hook triggered, all done!
+        """).strip().format(mod_name=os.path.basename(toy_mod_file))
         self.assertEqual(stdout.strip(), expected_output)
+
+        toy_mod = read_file(toy_mod_file)
+        self.assertIn('Not a toy anymore', toy_mod)
 
     def test_toy_multi_deps(self):
         """Test installation of toy easyconfig that uses multi_deps."""
