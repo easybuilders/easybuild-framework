@@ -24,7 +24,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for nompi compiler toolchain (includes NVHPC and OpenMPI, and CUDA as dependency).
+EasyBuild support for nvompic compiler toolchain (includes NVHPC and OpenMPI, and CUDA as dependency).
 
 @author: Damian Alvarez (Forschungszentrum Juelich)
 @author: Sebastian Achilles (Forschungszentrum Juelich)
