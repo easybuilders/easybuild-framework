@@ -26,8 +26,8 @@
 """
 EasyBuild support for npsmpi compiler toolchain (includes NVHPC and ParaStationMPI, and CUDA as dependency).
 
-@author: Damian Alvarez (Forschungszentrum Juelich)
-@author: Sebastian Achilles (Forschungszentrum Juelich)
+:author: Damian Alvarez (Forschungszentrum Juelich)
+:author: Sebastian Achilles (Forschungszentrum Juelich)
 """
 
 from easybuild.toolchains.nvhpc import NVHPCToolchain
