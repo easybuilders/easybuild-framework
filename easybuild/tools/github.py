@@ -1751,6 +1751,11 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     res = new_branch_github(paths, ecs, commit_msg=commit_msg)
     file_info, deleted_paths, _, branch_name, diff_stat, pr_target_repo = res
 
+    for ec in file_info['ecs']:
+        for patch in ec.asdict()['patches']:
+            if patch not in paths['patch_files']:
+                print_warning("%s, referenced by %s, is not included in this PR" % (patch, ec.filename()))
+
     new_pr_from_branch(branch_name, title=title, descr=descr, pr_target_repo=pr_target_repo,
                        pr_metadata=(file_info, deleted_paths, diff_stat), commit_msg=commit_msg)
 
