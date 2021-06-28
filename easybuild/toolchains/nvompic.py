@@ -30,14 +30,14 @@ EasyBuild support for nvompic compiler toolchain (includes NVHPC and OpenMPI, an
 @author: Sebastian Achilles (Forschungszentrum Juelich)
 """
 
-from easybuild.toolchains.nvhpc import NvhpcToolchain
+from easybuild.toolchains.nvhpc import NVHPCToolchain
 # We pull in MPI and CUDA at once so this maps nicely to HMNS
 from easybuild.toolchains.mpi.openmpi import OpenMPI
 from easybuild.toolchains.compiler.cuda import Cuda
 
 
 # Order matters!
-class NVompic(NvhpcToolchain, Cuda, OpenMPI):
+class NVompic(NVHPCToolchain, Cuda, OpenMPI):
     """Compiler toolchain with NVHPC and OpenMPI, with CUDA as dependency."""
     NAME = 'nvompic'
-    SUBTOOLCHAIN = NvhpcToolchain.NAME
+    SUBTOOLCHAIN = NVHPCToolchain.NAME
