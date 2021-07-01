@@ -258,6 +258,8 @@ class EasyBlock(object):
         if group_name is not None:
             self.group = use_group(group_name)
 
+        self.ignore_test_failure = build_option('ignore_test_failure')
+
         # generate build/install directories
         self.gen_builddir()
         self.gen_installdir()
@@ -1814,6 +1816,18 @@ class EasyBlock(object):
             self.log.info("Removing existing module file %s", self.mod_filepath)
             remove_file(self.mod_filepath)
 
+    def report_test_failure(self, msg_or_error):
+        """
+        Report a failing test either via an exception or warning depending on ignore-test-failure
+
+        :param msg_or_error: failure description (string value or an EasyBuildError instance)
+        """
+        if self.ignore_test_failure:
+            print_warning("Test failure ignored: " + str(msg_or_error), log=self.log)
+        else:
+            exception = msg_or_error if isinstance(msg_or_error, EasyBuildError) else EasyBuildError(msg_or_error)
+            raise exception
+
     #
     # STEP FUNCTIONS
     #
@@ -2228,6 +2242,13 @@ class EasyBlock(object):
             (out, _) = run_cmd(unit_test_cmd, log_all=True, simple=False)
 
             return out
+
+    def _test_step(self):
+        """Run the test_step and handles failures"""
+        try:
+            self.test_step()
+        except EasyBuildError as err:
+            self.report_test_failure(err)
 
     def stage_install_step(self):
         """
@@ -3367,10 +3388,12 @@ class EasyBlock(object):
         run_hook(step, self.hooks, pre_step_hook=True, args=[self])
 
         for step_method in step_methods:
-            self.log.info("Running method %s part of step %s" % (extract_method_name(step_method), step))
+            # Remove leading underscore from e.g. "_test_step"
+            method_name = extract_method_name(step_method).lstrip('_')
+            self.log.info("Running method %s part of step %s", method_name, step)
 
             if self.dry_run:
-                self.dry_run_msg("[%s method]", step_method(self).__name__)
+                self.dry_run_msg("[%s method]", method_name)
 
                 # if an known possible error occurs, just report it and continue
                 try:
@@ -3443,7 +3466,7 @@ class EasyBlock(object):
         prepare_step_spec = (PREPARE_STEP, 'preparing', [lambda x: x.prepare_step], False)
         configure_step_spec = (CONFIGURE_STEP, 'configuring', [lambda x: x.configure_step], True)
         build_step_spec = (BUILD_STEP, 'building', [lambda x: x.build_step], True)
-        test_step_spec = (TEST_STEP, 'testing', [lambda x: x.test_step], True)
+        test_step_spec = (TEST_STEP, 'testing', [lambda x: x._test_step], True)
         extensions_step_spec = (EXTENSIONS_STEP, 'taking care of extensions', [lambda x: x.extensions_step], False)
 
         # part 1: pre-iteration + first iteration

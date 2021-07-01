@@ -394,6 +394,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
         found = re.search(test_run_msg, outtxt)
         self.assertFalse(found, "Test execution command is NOT present, outtxt: %s" % outtxt)
 
+    def test_ignore_test_failure(self):
+        """Test ignore failing tests (--ignore-test-failure)."""
+
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        # This EC uses a `runtest` command which does not exist and hence will make the test step fail
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb')
+
+        args = [toy_ec, '--ignore-test-failure', '--force']
+
+        with self.mocked_stdout_stderr() as (_, stderr):
+            outtxt = self.eb_main(args, do_build=True)
+
+        msg = 'Test failure ignored'
+        self.assertTrue(re.search(msg, outtxt),
+                        "Ignored test failure message in log should be found, outtxt: %s" % outtxt)
+        self.assertTrue(re.search(msg, stderr.getvalue()),
+                        "Ignored test failure message in stderr should be found, stderr: %s" % stderr.getvalue())
+
+        # Passing skip and ignore options is disallowed
+        args.append('--skip-test-step')
+        error_pattern = 'Found both ignore-test-failure and skip-test-step enabled'
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
     def test_job(self):
         """Test submitting build as a job."""
 
