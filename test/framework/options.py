@@ -31,6 +31,7 @@ import glob
 import os
 import re
 import shutil
+import stat
 import sys
 import tempfile
 from distutils.version import LooseVersion
@@ -50,9 +51,9 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import change_dir, copy_dir, copy_file, download_file, is_patch_file, mkdir
-from easybuild.tools.filetools import parse_http_header_fields_urlpat, read_file, remove_dir, remove_file
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, copy_dir, copy_file, download_file
+from easybuild.tools.filetools import is_patch_file, mkdir, move_file, parse_http_header_fields_urlpat
+from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
@@ -1105,11 +1106,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
-    def mocked_main(self, args):
+    def mocked_main(self, args, **kwargs):
         """Run eb_main with mocked stdout/stderr."""
+        if not kwargs:
+            kwargs = {'raise_error': True}
+
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.eb_main(args, raise_error=True)
+        self.eb_main(args, **kwargs)
         stderr, stdout = self.get_stderr(), self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
@@ -5867,15 +5871,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [test_ec, '--sanity-check-only']
 
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        self.eb_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
-        stdout = self.get_stdout().strip()
-        stderr = self.get_stderr().strip()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        stdout = self.mocked_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
 
-        self.assertFalse(stderr)
         skipped = [
             "fetching files",
             "creating build dir, resetting environment",
@@ -5910,10 +5907,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for msg in msgs:
             self.assertTrue(msg in stdout, "'%s' found in: %s" % (msg, stdout))
 
+        ebroottoy = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+
         # check if sanity check for extension fails if a file provided by that extension,
-        # which is checked by the sanity check for that extension, is removed
-        libbarbar = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'lib', 'libbarbar.a')
-        remove_file(libbarbar)
+        # which is checked by the sanity check for that extension, is no longer there
+        libbarbar = os.path.join(ebroottoy, 'lib', 'libbarbar.a')
+        move_file(libbarbar, libbarbar + '.moved')
 
         outtxt, error_thrown = self.eb_main(args + ['--debug'], do_build=True, return_error=True)
         error_msg = str(error_thrown)
@@ -5928,6 +5927,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # failing sanity check for extension can be bypassed via --skip-extensions
         outtxt = self.eb_main(args + ['--skip-extensions'], do_build=True, raise_error=True)
         self.assertTrue("Sanity check for toy successful" in outtxt)
+
+        # restore fail, we want a passing sanity check for the next check
+        move_file(libbarbar + '.moved', libbarbar)
+
+        # check use of --sanity-check-only when installation directory is read-only;
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/3757
+        adjust_permissions(ebroottoy, stat.S_IWUSR, add=False, recursive=True)
+
+        stdout = self.mocked_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
 
     def test_skip_extensions(self):
         """Test use of --skip-extensions."""
