@@ -2073,6 +2073,21 @@ class EasyBlockTest(EnhancedTestCase):
         # no checksum issues
         self.assertEqual(eb.check_checksums(), [])
 
+        # checksums as dict for some files
+        eb.cfg['checksums'] = [
+            {
+                'toy-0.0.tar.gz': '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
+                'toy-0.1.tar.gz': '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234',
+            },
+            '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487',  # toy-*.patch
+            '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt
+        ]
+        self.assertEqual(eb.check_checksums(), [])
+
+        # sources can also have dict entries
+        eb.cfg['sources'] = [{'filename': 'toy-0.0.tar.gz', 'download_fileame': 'toy.tar.gz'}]
+        self.assertEqual(eb.check_checksums(), [])
+
     def test_this_is_easybuild(self):
         """Test 'this_is_easybuild' function (and get_git_revision function used by it)."""
         # make sure both return a non-Unicode string

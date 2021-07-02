@@ -2012,6 +2012,7 @@ class EasyBlock(object):
 
         for fn, checksum in zip(sources + patches, checksums):
             if isinstance(checksum, dict):
+                # sources entry may be a dictionary rather than just a string value with filename
                 if isinstance(fn, dict):
                     filename = fn['filename']
                 else:
