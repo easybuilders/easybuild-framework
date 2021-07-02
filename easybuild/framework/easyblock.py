@@ -3700,6 +3700,11 @@ def build_and_install_one(ecdict, init_env):
                 new_log_dir = os.path.join(app.builddir, config.log_path(ec=app.cfg))
             else:
                 new_log_dir = os.path.dirname(app.logfile)
+
+        # if we're only running the sanity check, we should not copy anything new to the installation directory
+        elif build_option('sanity_check_only'):
+            _log.info("Only running sanity check, so skipping build stats, easyconfigs archive, reprod files...")
+
         else:
             new_log_dir = os.path.join(app.installdir, config.log_path(ec=app.cfg))
             if build_option('read_only_installdir'):
@@ -3749,30 +3754,35 @@ def build_and_install_one(ecdict, init_env):
 
         # cleanup logs
         app.close_log()
-        log_fn = os.path.basename(get_log_filename(app.name, app.version))
-        try:
-            application_log = os.path.join(new_log_dir, log_fn)
-            move_logs(app.logfile, application_log)
 
-            newspec = os.path.join(new_log_dir, app.cfg.filename())
-            copy_file(spec, newspec)
-            _log.debug("Copied easyconfig file %s to %s", spec, newspec)
+        if build_option('sanity_check_only'):
+            _log.info("Only running sanity check, so not copying anything to software install directory...")
+        else:
+            log_fn = os.path.basename(get_log_filename(app.name, app.version))
+            try:
+                application_log = os.path.join(new_log_dir, log_fn)
+                move_logs(app.logfile, application_log)
 
-            # copy patches
-            for patch in app.patches:
-                target = os.path.join(new_log_dir, os.path.basename(patch['path']))
-                copy_file(patch['path'], target)
-                _log.debug("Copied patch %s to %s", patch['path'], target)
+                newspec = os.path.join(new_log_dir, app.cfg.filename())
+                copy_file(spec, newspec)
+                _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
-            if build_option('read_only_installdir'):
-                # take away user write permissions (again)
-                adjust_permissions(new_log_dir, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False, recursive=True)
-        except EasyBuildError as error:
-            if build_option('module_only'):
-                application_log = None
-                _log.debug("Using --module-only so can recover from error: %s", error)
-            else:
-                raise error
+                # copy patches
+                for patch in app.patches:
+                    target = os.path.join(new_log_dir, os.path.basename(patch['path']))
+                    copy_file(patch['path'], target)
+                    _log.debug("Copied patch %s to %s", patch['path'], target)
+
+                if build_option('read_only_installdir'):
+                    # take away user write permissions (again)
+                    perms = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
+                    adjust_permissions(new_log_dir, perms, add=False, recursive=True)
+            except EasyBuildError as error:
+                if build_option('module_only'):
+                    application_log = None
+                    _log.debug("Using --module-only so can recover from error: %s", error)
+                else:
+                    raise error
 
     end_timestamp = datetime.now()
 
