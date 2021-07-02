@@ -2026,7 +2026,12 @@ class EasyBlock(object):
 
         for fn, checksum in zip(sources + patches, checksums):
             if isinstance(checksum, dict):
-                checksum = checksum.get(fn)
+                # sources entry may be a dictionary rather than just a string value with filename
+                if isinstance(fn, dict):
+                    filename = fn['filename']
+                else:
+                    filename = fn
+                checksum = checksum.get(filename)
 
             # take into account that we may encounter a tuple of valid SHA256 checksums
             # (see https://github.com/easybuilders/easybuild-framework/pull/2958)
