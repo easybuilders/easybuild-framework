@@ -5933,7 +5933,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check use of --sanity-check-only when installation directory is read-only;
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/3757
-        adjust_permissions(ebroottoy, stat.S_IWUSR, add=False, recursive=True)
+        adjust_permissions(ebroottoy, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False, recursive=True)
 
         stdout = self.mocked_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
 

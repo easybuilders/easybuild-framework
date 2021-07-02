@@ -3696,7 +3696,7 @@ def build_and_install_one(ecdict, init_env):
             else:
                 new_log_dir = os.path.dirname(app.logfile)
 
-        # if we're only running the sanity check, we should copy anything new to the installation directory
+        # if we're only running the sanity check, we should not copy anything new to the installation directory
         elif build_option('sanity_check_only'):
             _log.info("Only running sanity check, so skipping build stats, easyconfigs archive, reprod files...")
 
