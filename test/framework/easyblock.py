@@ -1017,6 +1017,18 @@ class EasyBlockTest(EnhancedTestCase):
         ]
         self.assertEqual(ext_inst_class_names, expected)
 
+        # check what happen if we specify an easyblock that doesn't derive from Extension,
+        # and hence can't be used to install extensions...
+        test_ec = os.path.join(self.test_prefix, 'test_broken.eb')
+        test_ec_txt = test_ec_txt.replace('DummyExtension', 'ConfigureMake')
+        write_file(test_ec, test_ec_txt)
+        ec = process_easyconfig(test_ec)[0]
+        eb = get_easyblock_instance(ec)
+
+        eb.prepare_for_extensions()
+        error_pattern = "ConfigureMake easyblock can not be used to install extensions"
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.init_ext_instances)
+
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
 

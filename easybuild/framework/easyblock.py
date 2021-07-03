@@ -61,7 +61,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
-from easybuild.framework.extension import resolve_exts_filter_template
+from easybuild.framework.extension import Extension, resolve_exts_filter_template
 from easybuild.tools import config, run
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
@@ -2317,8 +2317,13 @@ class EasyBlock(object):
                 # with a similar name (e.g., Perl Extension 'GO' vs 'Go' for which 'EB_Go' is available)
                 cls = get_easyblock_class(easyblock, name=ext_name, error_on_failed_import=False,
                                           error_on_missing_easyblock=False)
+
                 self.log.debug("Obtained class %s for extension %s", cls, ext_name)
                 if cls is not None:
+                    # make sure that this easyblock can be used to install extensions
+                    if not issubclass(cls, Extension):
+                        raise EasyBuildError("%s easyblock can not be used to install extensions!", cls.__name__)
+
                     inst = cls(self, ext)
             except (ImportError, NameError) as err:
                 self.log.debug("Failed to use extension-specific class for extension %s: %s", ext_name, err)
