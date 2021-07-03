@@ -993,6 +993,30 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
+    def test_init_extensions(self):
+        """Test creating extension instances."""
+
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec_txt = read_file(toy_ec_file)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = toy_ec_txt.replace("('barbar', '0.0', {", "('barbar', '0.0', {'easyblock': 'DummyExtension',")
+        write_file(test_ec, test_ec_txt)
+        ec = process_easyconfig(test_ec)[0]
+        eb = get_easyblock_instance(ec)
+
+        eb.prepare_for_extensions()
+        eb.init_ext_instances()
+        ext_inst_class_names = [x.__class__.__name__ for x in eb.ext_instances]
+        expected = [
+            'Toy_Extension',  # 'ls' extension
+            'Toy_Extension',  # 'bar' extension
+            'DummyExtension',  # 'barbar' extension
+            'EB_toy',  # 'toy' extension
+        ]
+        self.assertEqual(ext_inst_class_names, expected)
+
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
 

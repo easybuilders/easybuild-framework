@@ -540,6 +540,10 @@ class EasyBlock(object):
                         'options': ext_options,
                     }
 
+                    # if a particular easyblock is specified, make sure it's used
+                    # (this is picked up by init_ext_instances)
+                    ext_src['easyblock'] = ext_options.get('easyblock', None)
+
                     # construct dictionary with template values;
                     # inherited from parent, except for name/version templates which are specific to this extension
                     template_values = copy.deepcopy(self.cfg.template_values)
@@ -2295,15 +2299,23 @@ class EasyBlock(object):
             ext_name = ext['name']
             self.log.debug("Creating class instance for extension %s...", ext_name)
 
-            cls, inst = None, None
-            class_name = encode_class_name(ext_name)
-            mod_path = get_module_path(class_name, generic=False)
+            # if a specific easyblock is specified for this extension, honor it;
+            # just passing this to get_easyblock_class is sufficient
+            easyblock = ext.get('easyblock', None)
+            if easyblock:
+                class_name = easyblock
+                mod_path = get_module_path(class_name)
+            else:
+                class_name = encode_class_name(ext_name)
+                mod_path = get_module_path(class_name, generic=False)
 
-            # try instantiating extension-specific class
+            cls, inst = None, None
+
+            # try instantiating extension-specific class, or honor specified easyblock
             try:
                 # no error when importing class fails, in case we run into an existing easyblock
                 # with a similar name (e.g., Perl Extension 'GO' vs 'Go' for which 'EB_Go' is available)
-                cls = get_easyblock_class(None, name=ext_name, error_on_failed_import=False,
+                cls = get_easyblock_class(easyblock, name=ext_name, error_on_failed_import=False,
                                           error_on_missing_easyblock=False)
                 self.log.debug("Obtained class %s for extension %s", cls, ext_name)
                 if cls is not None:
