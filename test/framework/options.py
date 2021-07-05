@@ -807,7 +807,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             os.remove(dummylogfn)
         sys.path[:] = orig_sys_path
 
-    def test_list_easyblocks(self):
+    # use test_000_* to ensure this test is run *first*,
+    # before any tests that pick up additional easyblocks (which are difficult to clean up)
+    def test_000_list_easyblocks(self):
         """Test listing easyblock hierarchy."""
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
