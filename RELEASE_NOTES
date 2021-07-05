@@ -13,20 +13,18 @@ update/bugfix release
   - enhance detection of patch files supplied to 'eb' command with better error messages (#3709)
   - add per-step timing information (#3716)
   - add module-write hook (#3728)
-  - add option to ignore failing test step (#3732)
-  - add toolchain definition for nvompic (#3735)
+  - add ignore-test-failure configuration option to ignore failing test step (#3732)
+  - add toolchain definition for nvompic (NVHPC + OpenMPI) (#3735)
   - warn about generic milestone in --review-pr and --merge-pr (#3751)
 - various bug fixes, including:
   - don't override COMPILER_MODULE_NAME, inherited from Ffmpi, in Fujitsu toolchain definition (#3721)
   - avoid overwritting pr_nr in post_pr_test_report for reports with --include-easyblocks-from-pr (#3724, #3726)
   - fix crash in get_config_dict when copying modules that were imported in easyconfig file (like 'import os') (#3729)
-  - parse C standard flags in CFLAGS for fujitsu compiler (#3731)
+  - parse C standard flags in CFLAGS for Fujitsu compiler (#3731)
   - fix error message for --use-ccache (#3733)
   - error out when passing a list to run_cmd* to avoid running wrong command unintended, unless shell=True is used (#3737)
   - minor fixes to output of test reports when using multiple PRs (#3741)
-  - fix typo reproducability -> reproducibility (#3743)
   - fix location for modules installed with intel-compilers toolchain in HierarchicalMNS by always checking toolchain compiler name against template map (#3745)
-  - use temporary download folder in test_http_header_fields_urlpat (#3755)
   - avoid checking msg attribute of GitCommandError (#3756)
   - consider sources provided as dict in EasyBlock.check_checksums_for (#3758)
   - don't make changes to software installation directory when using --sanity-check-only (#3761)
@@ -34,6 +32,7 @@ update/bugfix release
 - other changes:
   - make sure that tests requiring a github token have 'github' in the test name so that they can be easily filtered (#3730)
   - deprecate EasyBuild bootstrap script (#3742)
+  - use temporary download folder in test_http_header_fields_urlpat (#3755)
 
 
 v4.4.0 (June 2nd 2021)
