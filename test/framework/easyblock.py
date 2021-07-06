@@ -993,6 +993,42 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
+    def test_init_extensions(self):
+        """Test creating extension instances."""
+
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec_txt = read_file(toy_ec_file)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = toy_ec_txt.replace("('barbar', '0.0', {", "('barbar', '0.0', {'easyblock': 'DummyExtension',")
+        write_file(test_ec, test_ec_txt)
+        ec = process_easyconfig(test_ec)[0]
+        eb = get_easyblock_instance(ec)
+
+        eb.prepare_for_extensions()
+        eb.init_ext_instances()
+        ext_inst_class_names = [x.__class__.__name__ for x in eb.ext_instances]
+        expected = [
+            'Toy_Extension',  # 'ls' extension
+            'Toy_Extension',  # 'bar' extension
+            'DummyExtension',  # 'barbar' extension
+            'EB_toy',  # 'toy' extension
+        ]
+        self.assertEqual(ext_inst_class_names, expected)
+
+        # check what happen if we specify an easyblock that doesn't derive from Extension,
+        # and hence can't be used to install extensions...
+        test_ec = os.path.join(self.test_prefix, 'test_broken.eb')
+        test_ec_txt = test_ec_txt.replace('DummyExtension', 'ConfigureMake')
+        write_file(test_ec, test_ec_txt)
+        ec = process_easyconfig(test_ec)[0]
+        eb = get_easyblock_instance(ec)
+
+        eb.prepare_for_extensions()
+        error_pattern = "ConfigureMake easyblock can not be used to install extensions"
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.init_ext_instances)
+
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
 
@@ -2071,6 +2107,21 @@ class EasyBlockTest(EnhancedTestCase):
             '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt
         ]
         # no checksum issues
+        self.assertEqual(eb.check_checksums(), [])
+
+        # checksums as dict for some files
+        eb.cfg['checksums'] = [
+            {
+                'toy-0.0.tar.gz': '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
+                'toy-0.1.tar.gz': '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234',
+            },
+            '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487',  # toy-*.patch
+            '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt
+        ]
+        self.assertEqual(eb.check_checksums(), [])
+
+        # sources can also have dict entries
+        eb.cfg['sources'] = [{'filename': 'toy-0.0.tar.gz', 'download_fileame': 'toy.tar.gz'}]
         self.assertEqual(eb.check_checksums(), [])
 
     def test_this_is_easybuild(self):

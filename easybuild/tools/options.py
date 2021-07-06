@@ -418,6 +418,7 @@ class EasyBuildOptions(GeneralOption):
                                           "\"client[A-z0-9]*.example.com': ['Authorization: Basic token']\".",
                                           None, 'append', None, {'metavar': '[URLPAT::][HEADER:]FILE|FIELD'}),
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
+            'ignore-test-failure': ("Ignore a failing test step", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
             'lib-lib64-symlink': ("Automatically create symlinks for lib/ pointing to lib64/ if the former is missing",
@@ -1464,7 +1465,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
 
     # map list of strings --from-pr value to list of integers
     try:
-        from_prs = [int(pr_nr) for pr_nr in eb_go.options.from_pr]
+        from_prs = [int(x) for x in eb_go.options.from_pr]
     except ValueError:
         raise EasyBuildError("Argument to --from-pr must be a comma separated list of PR #s.")
 
@@ -1500,7 +1501,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     # done here instead of in _postprocess_include because github integration requires build_options to be initialized
     if eb_go.options.include_easyblocks_from_pr:
         try:
-            easyblock_prs = [int(pr_nr) for pr_nr in eb_go.options.include_easyblocks_from_pr]
+            easyblock_prs = [int(x) for x in eb_go.options.include_easyblocks_from_pr]
         except ValueError:
             raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR #s.")
 

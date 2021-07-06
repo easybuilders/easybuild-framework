@@ -1183,7 +1183,10 @@ def check_pr_eligible_to_merge(pr_data):
     # check whether a milestone is set
     msg_tmpl = "* milestone is set: %s"
     if pr_data['milestone']:
-        print_msg(msg_tmpl % "OK (%s)" % pr_data['milestone']['title'], prefix=False)
+        milestone = pr_data['milestone']['title']
+        if '.x' in milestone:
+            milestone += ", please change to the next release milestone once the PR is merged"
+        print_msg(msg_tmpl % "OK (%s)" % milestone, prefix=False)
     else:
         res = not_eligible(msg_tmpl % 'no milestone found')
 
@@ -1232,7 +1235,7 @@ def reasons_for_closing(pr_data):
 
     robot_paths = build_option('robot_path')
 
-    pr_files = [path for path in fetch_easyconfigs_from_pr(pr_data['number']) if path.endswith('.eb')]
+    pr_files = [p for p in fetch_easyconfigs_from_pr(pr_data['number']) if p.endswith('.eb')]
 
     obsoleted = []
     uses_archived_tc = []
@@ -1491,17 +1494,17 @@ def add_pr_labels(pr, branch=GITHUB_DEVELOP_BRANCH):
 
     download_repo_path = download_repo(branch=branch, path=tmpdir)
 
-    pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
+    pr_files = [p for p in fetch_easyconfigs_from_pr(pr) if p.endswith('.eb')]
 
     file_info = det_file_info(pr_files, download_repo_path)
 
     pr_target_account = build_option('pr_target_account')
     github_user = build_option('github_user')
     pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
-    pr_labels = [label['name'] for label in pr_data['labels']]
+    pr_labels = [x['name'] for x in pr_data['labels']]
 
     expected_labels = det_pr_labels(file_info, pr_target_repo)
-    missing_labels = [label for label in expected_labels if label not in pr_labels]
+    missing_labels = [x for x in expected_labels if x not in pr_labels]
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
@@ -2025,7 +2028,7 @@ def check_github():
             ver, req_ver = git.__version__, '1.0'
             if LooseVersion(ver) < LooseVersion(req_ver):
                 check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (ver, req_ver)
-            elif "Could not read from remote repository" in push_err.msg:
+            elif "Could not read from remote repository" in str(push_err):
                 check_res = "FAIL (GitHub SSH key missing? %s)" % push_err
             else:
                 check_res = "FAIL (unexpected exception: %s)" % push_err

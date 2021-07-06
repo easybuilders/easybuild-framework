@@ -31,6 +31,7 @@ import glob
 import os
 import re
 import shutil
+import stat
 import sys
 import tempfile
 from distutils.version import LooseVersion
@@ -50,9 +51,9 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import change_dir, copy_dir, copy_file, download_file, is_patch_file, mkdir
-from easybuild.tools.filetools import parse_http_header_fields_urlpat, read_file, remove_dir, remove_file
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, copy_dir, copy_file, download_file
+from easybuild.tools.filetools import is_patch_file, mkdir, move_file, parse_http_header_fields_urlpat
+from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
@@ -393,6 +394,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(found, "Message about test step being skipped is present, outtxt: %s" % outtxt)
         found = re.search(test_run_msg, outtxt)
         self.assertFalse(found, "Test execution command is NOT present, outtxt: %s" % outtxt)
+
+    def test_ignore_test_failure(self):
+        """Test ignore failing tests (--ignore-test-failure)."""
+
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        # This EC uses a `runtest` command which does not exist and hence will make the test step fail
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb')
+
+        args = [toy_ec, '--ignore-test-failure', '--force']
+
+        with self.mocked_stdout_stderr() as (_, stderr):
+            outtxt = self.eb_main(args, do_build=True)
+
+        msg = 'Test failure ignored'
+        self.assertTrue(re.search(msg, outtxt),
+                        "Ignored test failure message in log should be found, outtxt: %s" % outtxt)
+        self.assertTrue(re.search(msg, stderr.getvalue()),
+                        "Ignored test failure message in stderr should be found, stderr: %s" % stderr.getvalue())
+
+        # Passing skip and ignore options is disallowed
+        args.append('--skip-test-step')
+        error_pattern = 'Found both ignore-test-failure and skip-test-step enabled'
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
     def test_job(self):
         """Test submitting build as a job."""
@@ -783,7 +807,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             os.remove(dummylogfn)
         sys.path[:] = orig_sys_path
 
-    def test_list_easyblocks(self):
+    # use test_000_* to ensure this test is run *first*,
+    # before any tests that pick up additional easyblocks (which are difficult to clean up)
+    def test_000_list_easyblocks(self):
         """Test listing easyblock hierarchy."""
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -1031,6 +1057,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout().rstrip()
         self.mock_stdout(False)
         expected = '\n'.join([
+            ' * intel-compilers-2021.2.0.eb',
             ' * intel-2018a.eb',
             '',
             "Note: 1 matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them",
@@ -1043,6 +1070,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout().rstrip()
         self.mock_stdout(False)
         expected = '\n'.join([
+            ' * intel-compilers-2021.2.0.eb',
             ' * intel-2018a.eb',
             '',
             "Matching archived easyconfigs:",
@@ -1080,11 +1108,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
-    def mocked_main(self, args):
+    def mocked_main(self, args, **kwargs):
         """Run eb_main with mocked stdout/stderr."""
+        if not kwargs:
+            kwargs = {'raise_error': True}
+
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.eb_main(args, raise_error=True)
+        self.eb_main(args, **kwargs)
         stderr, stdout = self.get_stderr(), self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
@@ -1196,7 +1227,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_pattern = "One or more files to copy should be specified!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
-    def test_copy_ec_from_pr(self):
+    def test_github_copy_ec_from_pr(self):
         """Test combination of --copy-ec with --from-pr."""
         if self.github_token is None:
             print("Skipping test_copy_ec_from_pr, no GitHub token available?")
@@ -1684,7 +1715,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
 
-    def test_from_pr(self):
+    def test_github_from_pr(self):
         """Test fetching easyconfigs from a PR."""
         if self.github_token is None:
             print("Skipping test_from_pr, no GitHub token available?")
@@ -1771,7 +1802,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             print("Ignoring URLError '%s' in test_from_pr" % err)
             shutil.rmtree(tmpdir)
 
-    def test_from_pr_token_log(self):
+    def test_github_from_pr_token_log(self):
         """Check that --from-pr doesn't leak GitHub token in log."""
         if self.github_token is None:
             print("Skipping test_from_pr_token_log, no GitHub token available?")
@@ -1804,7 +1835,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
 
-    def test_from_pr_listed_ecs(self):
+    def test_github_from_pr_listed_ecs(self):
         """Test --from-pr in combination with specifying easyconfigs on the command line."""
         if self.github_token is None:
             print("Skipping test_from_pr, no GitHub token available?")
@@ -1859,7 +1890,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             print("Ignoring URLError '%s' in test_from_pr" % err)
             shutil.rmtree(tmpdir)
 
-    def test_from_pr_x(self):
+    def test_github_from_pr_x(self):
         """Test combination of --from-pr with --extended-dry-run."""
         if self.github_token is None:
             print("Skipping test_from_pr_x, no GitHub token available?")
@@ -1895,7 +1926,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 re.compile(r"^\*\*\* DRY RUN using 'EB_FFTW' easyblock", re.M),
                 re.compile(r"^== building and installing FFTW/3.3.8-gompi-2018b\.\.\.", re.M),
                 re.compile(r"^building... \[DRY RUN\]", re.M),
-                re.compile(r"^== COMPLETED: Installation ended successfully \(took .* sec\)", re.M),
+                re.compile(r"^== COMPLETED: Installation ended successfully \(took .* secs?\)", re.M),
             ]
 
             for msg_regex in msg_regexs:
@@ -2722,6 +2753,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_http_header_fields_urlpat(self):
         """Test use of --http-header-fields-urlpat."""
+        tmpdir = tempfile.mkdtemp()
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         ec_file = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb')
         common_args = [
@@ -2731,6 +2763,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--force',
             '--force-download',
             '--logtostdout',
+            '--sourcepath=%s' % tmpdir,
         ]
 
         # define header fields:values that should (not) show up in the logs, either
@@ -2826,6 +2859,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile), mentionfile % (testurlpatfile)]
         not_expected = [testdoval, testdonthdr, testdontval]
         run_and_assert(args, "case E", expected, not_expected)
+
+        # cleanup downloads
+        shutil.rmtree(tmpdir)
 
     def test_test_report_env_filter(self):
         """Test use of --test-report-env-filter."""
@@ -3318,7 +3354,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     # must be run after test for --list-easyblocks, hence the '_xxx_'
     # cleaning up the imported easyblocks is quite difficult...
-    def test_xxx_include_easyblocks_from_pr(self):
+    def test_github_xxx_include_easyblocks_from_pr(self):
         """Test --include-easyblocks-from-pr."""
         if self.github_token is None:
             print("Skipping test_preview_pr, no GitHub token available?")
@@ -3660,7 +3696,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tweaked_dir = os.path.join(tmpdir, tmpdir_files[0], 'tweaked_easyconfigs')
         self.assertTrue(os.path.exists(os.path.join(tweaked_dir, 'toy-1.0.eb')))
 
-    def test_preview_pr(self):
+    def test_github_preview_pr(self):
         """Test --preview-pr."""
         if self.github_token is None:
             print("Skipping test_preview_pr, no GitHub token available?")
@@ -3682,7 +3718,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(r"^Comparing bzip2-1.0.6\S* with bzip2-1.0.6")
         self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 
-    def test_review_pr(self):
+    def test_github_review_pr(self):
         """Test --review-pr."""
         if self.github_token is None:
             print("Skipping test_review_pr, no GitHub token available?")
@@ -3820,7 +3856,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         msg_regexs = [
             re.compile(r"the actual build \& install procedure that will be performed may diverge", re.M),
             re.compile(r"^\*\*\* DRY RUN using 'EB_toy' easyblock", re.M),
-            re.compile(r"^== COMPLETED: Installation ended successfully \(took .* sec\)", re.M),
+            re.compile(r"^== COMPLETED: Installation ended successfully \(took .* secs?\)", re.M),
             re.compile(r"^\(no ignored errors during dry run\)", re.M),
         ]
         ignoring_error_regex = re.compile(r"WARNING: ignoring error", re.M)
@@ -4004,7 +4040,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt)
 
-    def test_new_pr_from_branch(self):
+    def test_github_new_pr_from_branch(self):
         """Test --new-pr-from-branch."""
         if self.github_token is None:
             print("Skipping test_new_pr_from_branch, no GitHub token available?")
@@ -4073,7 +4109,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt)
 
-    def test_new_update_pr(self):
+    def test_github_new_update_pr(self):
         """Test use of --new-pr (dry run only)."""
         if self.github_token is None:
             print("Skipping test_new_update_pr, no GitHub token available?")
@@ -4283,7 +4319,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt, assert_true=False)
 
-    def test_sync_pr_with_develop(self):
+    def test_github_sync_pr_with_develop(self):
         """Test use of --sync-pr-with-develop (dry run only)."""
         if self.github_token is None:
             print("Skipping test_sync_pr_with_develop, no GitHub token available?")
@@ -4313,7 +4349,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(pattern)
         self.assertTrue(regex.match(txt), "Pattern '%s' doesn't match: %s" % (regex.pattern, txt))
 
-    def test_sync_branch_with_develop(self):
+    def test_github_sync_branch_with_develop(self):
         """Test use of --sync-branch-with-develop (dry run only)."""
         if self.github_token is None:
             print("Skipping test_sync_pr_with_develop, no GitHub token available?")
@@ -4343,7 +4379,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(pattern)
         self.assertTrue(regex.match(stdout), "Pattern '%s' doesn't match: %s" % (regex.pattern, stdout))
 
-    def test_new_pr_python(self):
+    def test_github_new_pr_python(self):
         """Check generated PR title for --new-pr on easyconfig that includes Python dependency."""
         if self.github_token is None:
             print("Skipping test_new_pr_python, no GitHub token available?")
@@ -4388,7 +4424,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(r"^\* title: \"\{tools\}\[system/system\] toy v0.0 w/ Python 2.7.15 \+ 3.7.2\"$", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
-    def test_new_pr_delete(self):
+    def test_github_new_pr_delete(self):
         """Test use of --new-pr to delete easyconfigs."""
 
         if self.github_token is None:
@@ -4413,7 +4449,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt)
 
-    def test_new_pr_dependencies(self):
+    def test_github_new_pr_dependencies(self):
         """Test use of --new-pr with automatic dependency lookup."""
 
         if self.github_token is None:
@@ -4461,7 +4497,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self._assert_regexs(regexs, txt)
 
-    def test_merge_pr(self):
+    def test_github_merge_pr(self):
         """
         Test use of --merge-pr (dry run)"""
         if self.github_token is None:
@@ -4566,7 +4602,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         self.assertTrue(expected_stdout in stdout)
 
-    def test_empty_pr(self):
+    def test_github_empty_pr(self):
         """Test use of --new-pr (dry run only) with no changes"""
         if self.github_token is None:
             print("Skipping test_empty_pr, no GitHub token available?")
@@ -4804,7 +4840,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['toy-0.0.eb', '--force', '--stop=configure']
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
 
-        regex = re.compile(r"COMPLETED: Installation STOPPED successfully \(took .* sec\)", re.M)
+        regex = re.compile(r"COMPLETED: Installation STOPPED successfully \(took .* secs?\)", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
     def test_fetch(self):
@@ -4829,7 +4865,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         patterns = [
             r"^== fetching files\.\.\.$",
-            r"^== COMPLETED: Installation STOPPED successfully \(took .* sec\)$",
+            r"^== COMPLETED: Installation STOPPED successfully \(took .* secs?\)$",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -5837,15 +5873,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [test_ec, '--sanity-check-only']
 
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        self.eb_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
-        stdout = self.get_stdout().strip()
-        stderr = self.get_stderr().strip()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        stdout = self.mocked_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
 
-        self.assertFalse(stderr)
         skipped = [
             "fetching files",
             "creating build dir, resetting environment",
@@ -5880,10 +5909,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for msg in msgs:
             self.assertTrue(msg in stdout, "'%s' found in: %s" % (msg, stdout))
 
+        ebroottoy = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+
         # check if sanity check for extension fails if a file provided by that extension,
-        # which is checked by the sanity check for that extension, is removed
-        libbarbar = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'lib', 'libbarbar.a')
-        remove_file(libbarbar)
+        # which is checked by the sanity check for that extension, is no longer there
+        libbarbar = os.path.join(ebroottoy, 'lib', 'libbarbar.a')
+        move_file(libbarbar, libbarbar + '.moved')
 
         outtxt, error_thrown = self.eb_main(args + ['--debug'], do_build=True, return_error=True)
         error_msg = str(error_thrown)
@@ -5898,6 +5929,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # failing sanity check for extension can be bypassed via --skip-extensions
         outtxt = self.eb_main(args + ['--skip-extensions'], do_build=True, raise_error=True)
         self.assertTrue("Sanity check for toy successful" in outtxt)
+
+        # restore fail, we want a passing sanity check for the next check
+        move_file(libbarbar + '.moved', libbarbar)
+
+        # check use of --sanity-check-only when installation directory is read-only;
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/3757
+        adjust_permissions(ebroottoy, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False, recursive=True)
+
+        stdout = self.mocked_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
 
     def test_skip_extensions(self):
         """Test use of --skip-extensions."""

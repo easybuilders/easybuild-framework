@@ -1699,7 +1699,7 @@ class ToolchainTest(EnhancedTestCase):
 
         ccache = which('ccache')
         if ccache is None:
-            msg = r"ccache binary not found in \$PATH, required by --use-compiler-cache"
+            msg = r"ccache binary not found in \$PATH, required by --use-ccache"
             self.assertErrorRegex(EasyBuildError, msg, self.eb_main, args, raise_error=True, do_build=True)
 
         # generate shell script to mock ccache/f90cache

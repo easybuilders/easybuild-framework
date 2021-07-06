@@ -61,7 +61,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
-from easybuild.framework.extension import resolve_exts_filter_template
+from easybuild.framework.extension import Extension, resolve_exts_filter_template
 from easybuild.tools import config, run
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
@@ -81,7 +81,7 @@ from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum,
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
-from easybuild.tools.hooks import load_hooks, run_hook
+from easybuild.tools.hooks import MODULE_WRITE, load_hooks, run_hook
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
@@ -107,7 +107,7 @@ MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANIT
 # string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
 PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 
-# Directory name in which to store reproducability files
+# Directory name in which to store reproducibility files
 REPROD = 'reprod'
 
 _log = fancylogger.getLogger('easyblock')
@@ -144,7 +144,7 @@ class EasyBlock(object):
         # keep track of original working directory, so we can go back there
         self.orig_workdir = os.getcwd()
 
-        # list of pre- and post-step hooks
+        # dict of all hooks (mapping of name to function)
         self.hooks = load_hooks(build_option('hooks'))
 
         # list of patch/source files, along with checksums
@@ -257,6 +257,8 @@ class EasyBlock(object):
         self.group = None
         if group_name is not None:
             self.group = use_group(group_name)
+
+        self.ignore_test_failure = build_option('ignore_test_failure')
 
         # generate build/install directories
         self.gen_builddir()
@@ -537,6 +539,10 @@ class EasyBlock(object):
                         'version': ext_version,
                         'options': ext_options,
                     }
+
+                    # if a particular easyblock is specified, make sure it's used
+                    # (this is picked up by init_ext_instances)
+                    ext_src['easyblock'] = ext_options.get('easyblock', None)
 
                     # construct dictionary with template values;
                     # inherited from parent, except for name/version templates which are specific to this extension
@@ -1814,6 +1820,18 @@ class EasyBlock(object):
             self.log.info("Removing existing module file %s", self.mod_filepath)
             remove_file(self.mod_filepath)
 
+    def report_test_failure(self, msg_or_error):
+        """
+        Report a failing test either via an exception or warning depending on ignore-test-failure
+
+        :param msg_or_error: failure description (string value or an EasyBuildError instance)
+        """
+        if self.ignore_test_failure:
+            print_warning("Test failure ignored: " + str(msg_or_error), log=self.log)
+        else:
+            exception = msg_or_error if isinstance(msg_or_error, EasyBuildError) else EasyBuildError(msg_or_error)
+            raise exception
+
     #
     # STEP FUNCTIONS
     #
@@ -2012,7 +2030,12 @@ class EasyBlock(object):
 
         for fn, checksum in zip(sources + patches, checksums):
             if isinstance(checksum, dict):
-                checksum = checksum.get(fn)
+                # sources entry may be a dictionary rather than just a string value with filename
+                if isinstance(fn, dict):
+                    filename = fn['filename']
+                else:
+                    filename = fn
+                checksum = checksum.get(filename)
 
             # take into account that we may encounter a tuple of valid SHA256 checksums
             # (see https://github.com/easybuilders/easybuild-framework/pull/2958)
@@ -2229,6 +2252,13 @@ class EasyBlock(object):
 
             return out
 
+    def _test_step(self):
+        """Run the test_step and handles failures"""
+        try:
+            self.test_step()
+        except EasyBuildError as err:
+            self.report_test_failure(err)
+
     def stage_install_step(self):
         """
         Install in a stage directory before actual installation.
@@ -2269,18 +2299,31 @@ class EasyBlock(object):
             ext_name = ext['name']
             self.log.debug("Creating class instance for extension %s...", ext_name)
 
-            cls, inst = None, None
-            class_name = encode_class_name(ext_name)
-            mod_path = get_module_path(class_name, generic=False)
+            # if a specific easyblock is specified for this extension, honor it;
+            # just passing this to get_easyblock_class is sufficient
+            easyblock = ext.get('easyblock', None)
+            if easyblock:
+                class_name = easyblock
+                mod_path = get_module_path(class_name)
+            else:
+                class_name = encode_class_name(ext_name)
+                mod_path = get_module_path(class_name, generic=False)
 
-            # try instantiating extension-specific class
+            cls, inst = None, None
+
+            # try instantiating extension-specific class, or honor specified easyblock
             try:
                 # no error when importing class fails, in case we run into an existing easyblock
                 # with a similar name (e.g., Perl Extension 'GO' vs 'Go' for which 'EB_Go' is available)
-                cls = get_easyblock_class(None, name=ext_name, error_on_failed_import=False,
+                cls = get_easyblock_class(easyblock, name=ext_name, error_on_failed_import=False,
                                           error_on_missing_easyblock=False)
+
                 self.log.debug("Obtained class %s for extension %s", cls, ext_name)
                 if cls is not None:
+                    # make sure that this easyblock can be used to install extensions
+                    if not issubclass(cls, Extension):
+                        raise EasyBuildError("%s easyblock can not be used to install extensions!", cls.__name__)
+
                     inst = cls(self, ext)
             except (ImportError, NameError) as err:
                 self.log.debug("Failed to use extension-specific class for extension %s: %s", ext_name, err)
@@ -3165,6 +3208,10 @@ class EasyBlock(object):
         txt += self.make_module_extra()
         txt += self.make_module_footer()
 
+        hook_txt = run_hook(MODULE_WRITE, self.hooks, args=[self, mod_filepath, txt])
+        if hook_txt is not None:
+            txt = hook_txt
+
         if self.dry_run:
             # only report generating actual module file during dry run, don't mention temporary module files
             if not fake:
@@ -3363,10 +3410,12 @@ class EasyBlock(object):
         run_hook(step, self.hooks, pre_step_hook=True, args=[self])
 
         for step_method in step_methods:
-            self.log.info("Running method %s part of step %s" % (extract_method_name(step_method), step))
+            # Remove leading underscore from e.g. "_test_step"
+            method_name = extract_method_name(step_method).lstrip('_')
+            self.log.info("Running method %s part of step %s", method_name, step)
 
             if self.dry_run:
-                self.dry_run_msg("[%s method]", step_method(self).__name__)
+                self.dry_run_msg("[%s method]", method_name)
 
                 # if an known possible error occurs, just report it and continue
                 try:
@@ -3439,7 +3488,7 @@ class EasyBlock(object):
         prepare_step_spec = (PREPARE_STEP, 'preparing', [lambda x: x.prepare_step], False)
         configure_step_spec = (CONFIGURE_STEP, 'configuring', [lambda x: x.configure_step], True)
         build_step_spec = (BUILD_STEP, 'building', [lambda x: x.build_step], True)
-        test_step_spec = (TEST_STEP, 'testing', [lambda x: x.test_step], True)
+        test_step_spec = (TEST_STEP, 'testing', [lambda x: x._test_step], True)
         extensions_step_spec = (EXTENSIONS_STEP, 'taking care of extensions', [lambda x: x.extensions_step], False)
 
         # part 1: pre-iteration + first iteration
@@ -3528,7 +3577,16 @@ class EasyBlock(object):
                     else:
                         print_msg("%s..." % descr, log=self.log, silent=self.silent)
                     self.current_step = step_name
-                    self.run_step(step_name, step_methods)
+                    start_time = datetime.now()
+                    try:
+                        self.run_step(step_name, step_methods)
+                    finally:
+                        if not self.dry_run:
+                            step_duration = datetime.now() - start_time
+                            if step_duration.total_seconds() >= 1:
+                                print_msg("... (took %s)", time2str(step_duration), log=self.log, silent=self.silent)
+                            elif self.logdebug or build_option('trace'):
+                                print_msg("... (took < 1 sec)", log=self.log, silent=self.silent)
 
         except StopException:
             pass
@@ -3589,7 +3647,7 @@ def build_and_install_one(ecdict, init_env):
     # load easyblock
     easyblock = build_option('easyblock')
     if easyblock:
-        # set the value in the dict so this is included in the reproducability dump of the easyconfig
+        # set the value in the dict so this is included in the reproducibility dump of the easyconfig
         ecdict['ec']['easyblock'] = easyblock
     else:
         easyblock = fetch_parameters_from_easyconfig(rawtxt, ['easyblock'])[0]
@@ -3621,7 +3679,7 @@ def build_and_install_one(ecdict, init_env):
         run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
 
         if not dry_run:
-            # create our reproducability files before carrying out the easyblock steps
+            # create our reproducibility files before carrying out the easyblock steps
             reprod_dir_root = os.path.dirname(app.logfile)
             reprod_dir = reproduce_build(app, reprod_dir_root)
 
@@ -3633,7 +3691,7 @@ def build_and_install_one(ecdict, init_env):
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
         if not dry_run:
-            # also add any extension easyblocks used during the build for reproducability
+            # also add any extension easyblocks used during the build for reproducibility
             if app.ext_instances:
                 copy_easyblocks_for_reprod(app.ext_instances, reprod_dir)
 
@@ -3659,6 +3717,11 @@ def build_and_install_one(ecdict, init_env):
                 new_log_dir = os.path.join(app.builddir, config.log_path(ec=app.cfg))
             else:
                 new_log_dir = os.path.dirname(app.logfile)
+
+        # if we're only running the sanity check, we should not copy anything new to the installation directory
+        elif build_option('sanity_check_only'):
+            _log.info("Only running sanity check, so skipping build stats, easyconfigs archive, reprod files...")
+
         else:
             new_log_dir = os.path.join(app.installdir, config.log_path(ec=app.cfg))
             if build_option('read_only_installdir'):
@@ -3677,14 +3740,14 @@ def build_and_install_one(ecdict, init_env):
             _log.info("Build stats: %s" % buildstats)
 
             try:
-                # move the reproducability files to the final log directory
+                # move the reproducibility files to the final log directory
                 archive_reprod_dir = os.path.join(new_log_dir, REPROD)
                 if os.path.exists(archive_reprod_dir):
                     backup_dir = find_backup_name_candidate(archive_reprod_dir)
                     move_file(archive_reprod_dir, backup_dir)
-                    _log.info("Existing reproducability directory %s backed up to %s", archive_reprod_dir, backup_dir)
+                    _log.info("Existing reproducibility directory %s backed up to %s", archive_reprod_dir, backup_dir)
                 move_file(reprod_dir, archive_reprod_dir)
-                _log.info("Wrote files for reproducability to %s", archive_reprod_dir)
+                _log.info("Wrote files for reproducibility to %s", archive_reprod_dir)
             except EasyBuildError as error:
                 if build_option('module_only'):
                     _log.info("Using --module-only so can recover from error: %s", error)
@@ -3708,30 +3771,35 @@ def build_and_install_one(ecdict, init_env):
 
         # cleanup logs
         app.close_log()
-        log_fn = os.path.basename(get_log_filename(app.name, app.version))
-        try:
-            application_log = os.path.join(new_log_dir, log_fn)
-            move_logs(app.logfile, application_log)
 
-            newspec = os.path.join(new_log_dir, app.cfg.filename())
-            copy_file(spec, newspec)
-            _log.debug("Copied easyconfig file %s to %s", spec, newspec)
+        if build_option('sanity_check_only'):
+            _log.info("Only running sanity check, so not copying anything to software install directory...")
+        else:
+            log_fn = os.path.basename(get_log_filename(app.name, app.version))
+            try:
+                application_log = os.path.join(new_log_dir, log_fn)
+                move_logs(app.logfile, application_log)
 
-            # copy patches
-            for patch in app.patches:
-                target = os.path.join(new_log_dir, os.path.basename(patch['path']))
-                copy_file(patch['path'], target)
-                _log.debug("Copied patch %s to %s", patch['path'], target)
+                newspec = os.path.join(new_log_dir, app.cfg.filename())
+                copy_file(spec, newspec)
+                _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
-            if build_option('read_only_installdir'):
-                # take away user write permissions (again)
-                adjust_permissions(new_log_dir, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False, recursive=True)
-        except EasyBuildError as error:
-            if build_option('module_only'):
-                application_log = None
-                _log.debug("Using --module-only so can recover from error: %s", error)
-            else:
-                raise error
+                # copy patches
+                for patch in app.patches:
+                    target = os.path.join(new_log_dir, os.path.basename(patch['path']))
+                    copy_file(patch['path'], target)
+                    _log.debug("Copied patch %s to %s", patch['path'], target)
+
+                if build_option('read_only_installdir'):
+                    # take away user write permissions (again)
+                    perms = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
+                    adjust_permissions(new_log_dir, perms, add=False, recursive=True)
+            except EasyBuildError as error:
+                if build_option('module_only'):
+                    application_log = None
+                    _log.debug("Using --module-only so can recover from error: %s", error)
+                else:
+                    raise error
 
     end_timestamp = datetime.now()
 
@@ -3803,12 +3871,12 @@ def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
 
 def reproduce_build(app, reprod_dir_root):
     """
-    Create reproducability files (processed easyconfig and easyblocks used) from class instance
+    Create reproducibility files (processed easyconfig and easyblocks used) from class instance
 
     :param app: easyblock class instance
     :param reprod_dir_root: root directory in which to create the 'reprod' directory
 
-    :return reprod_dir: directory containing reproducability files
+    :return reprod_dir: directory containing reproducibility files
     """
 
     ec_filename = app.cfg.filename()
