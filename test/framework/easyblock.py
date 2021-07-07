@@ -563,7 +563,7 @@ class EasyBlockTest(EnhancedTestCase):
         if get_module_syntax() == 'Tcl':
             self.assertFalse(re.search(r"prepend-path\s+LD_LIBRARY_PATH\s+\$%s\n" % sub_lib_path,
                                        txt, re.M))
-            self.assertFalse(re.search(r"prepend-path\s+PATH\s+\$%d\n" % sub_path_path, txt, re.M))
+            self.assertFalse(re.search(r"prepend-path\s+PATH\s+\$%s\n" % sub_path_path, txt, re.M))
         else:
             assert get_module_syntax() == 'Lua'
             self.assertFalse(re.search(r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "%s"\)\)\n' % sub_lib_path,
