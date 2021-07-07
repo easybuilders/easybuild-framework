@@ -149,7 +149,8 @@ class ModuleGenerator(object):
                 # Write txt
         """
         if self.added_paths is not None:
-            raise EasyBuildError('Module creation already in process. You cannot create multiple modules at the same time!')
+            raise EasyBuildError('Module creation already in process. '
+                                 'You cannot create multiple modules at the same time!')
         self.added_paths = set()  # Clear all
         txt = self.MODULE_SHEBANG
         if txt:
