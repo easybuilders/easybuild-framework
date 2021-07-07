@@ -27,6 +27,7 @@ Unit tests for easyblock.py
 
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+@author: Maxime Boissonneault (Compute Canada)
 """
 import os
 import re
@@ -1979,6 +1980,13 @@ class EasyBlockTest(EnhancedTestCase):
         # also check verification of checksums for extensions, which is part of fetch_extension_sources
         error_msg = "Checksum verification for extension source bar-0.0.tar.gz failed"
         self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_extension_sources)
+
+        # test without checksums, it should work since they are in checksums.json
+        toy_ec_json = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-testjson.eb')
+        ec_json = process_easyconfig(toy_ec_json)[0]
+        eb_json = get_easyblock_instance(ec_json)
+        eb_json.fetch_sources()
+        eb_json.checksum_step()
 
         # if --ignore-checksums is enabled, faulty checksums are reported but otherwise ignored (no error)
         build_options = {

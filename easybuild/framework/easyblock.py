@@ -2014,6 +2014,17 @@ class EasyBlock(object):
         patches = ent.get('patches', [])
         checksums = ent.get('checksums', [])
 
+        if not checksums:
+            checksums_from_json = self.get_checksums_from_json()
+            # recreate a list of checksums. If each filename is found, the generated list of checksums should match
+            # what is expected in list format
+            for fn in sources + patches:
+                # if the filename is a tuple, the actual source file name is the first element
+                if isinstance(fn, tuple):
+                    fn = fn[0]
+                if fn in checksums_from_json.keys():
+                    checksums += [checksums_from_json[fn]]
+
         if source_cnt is None:
             source_cnt = len(sources)
         patch_cnt, checksum_cnt = len(patches), len(checksums)

@@ -1,0 +1,50 @@
+name = 'toy'
+version = '0.0'
+versionsuffix = '-test'
+
+homepage = 'https://easybuilders.github.io/easybuild'
+description = "Toy C program, 100% toy."
+
+toolchain = {'name': 'gompi', 'version': '2018a'}
+toolchainopts = {'pic': True, 'opt': True, 'optarch': True}
+
+sources = [SOURCE_TAR_GZ]
+patches = ['toy-0.0_fix-silly-typo-in-printf-statement.patch']
+
+exts_default_options = {
+    'source_urls': ['http://example.com/%(name)s'],
+}
+
+exts_list = [
+    'ls',  # extension that is part of "standard library"
+    ('bar', '0.0', {
+        'buildopts': " && gcc bar.c -o anotherbar",
+        # custom extension filter to verify use of stdin value being passed to filter command
+        'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
+        'patches': [
+            'bar-0.0_fix-silly-typo-in-printf-statement.patch',
+            'bar-0.0_fix-very-silly-typo-in-printf-statement.patch',
+        ],
+        'toy_ext_param': "mv anotherbar bar_bis",
+        'unknowneasyconfigparameterthatshouldbeignored': 'foo',
+        # set boolean value (different from default value) to trigger (now fixed) bug with --inject-checksums
+        # cfr. https://github.com/easybuilders/easybuild-framework/pull/3034
+        'keepsymlinks': True,
+    }),
+    ('barbar', '0.0', {
+        'start_dir': 'src',
+    }),
+    (name, version, {
+        'sanity_check_paths': {'files': ['lib/libtoy.a'], 'dirs': []},
+        'exts_filter': ("ls -l lib/libtoy.a", ''),
+    }),
+]
+
+sanity_check_paths = {
+    'files': [('bin/yot', 'bin/toy'), 'bin/bar', 'bin/bar_bis', 'lib/libtoy.a', 'lib/libbar.a'],
+    'dirs': [],
+}
+
+postinstallcmds = ["echo TOY > %(installdir)s/README"]
+
+moduleclass = 'tools'
