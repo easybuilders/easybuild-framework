@@ -37,6 +37,7 @@ import copy
 import os
 import re
 import tempfile
+from contextlib import contextmanager
 from distutils.version import LooseVersion
 from textwrap import wrap
 
@@ -138,19 +139,25 @@ class ModuleGenerator(object):
         self.modules_tool = modules_tool()
         self.added_paths = None
 
-    def prepare_module_creation(self):
-        """Prepares creating a module and returns the file header (shebang) if any including the newline"""
+    @contextmanager
+    def start_module_creation(self):
+        """
+        Prepares creating a module and returns the file header (shebang) if any including the newline
+
+        Meant to be used in a with statement:
+            with generator.start_module_creation() as txt:
+                # Write txt
+        """
         if self.added_paths is not None:
-            raise EasyBuildError('Module creation already in process. Did you forget to finalize the module?')
+            raise EasyBuildError('Module creation already in process. You cannot create multiple modules at the same time!')
         self.added_paths = set()  # Clear all
         txt = self.MODULE_SHEBANG
         if txt:
             txt += '\n'
-        return txt
-
-    def finalize_module_creation(self):
-        """Finish creating a module. Must be called when done with the generator"""
-        self.added_paths = None
+        try:
+            yield txt
+        finally:
+            self.added_paths = None
 
     def create_symlinks(self, mod_symlink_paths, fake=False):
         """Create moduleclass symlink(s) to actual module file."""

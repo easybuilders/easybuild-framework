@@ -3210,21 +3210,18 @@ class EasyBlock(object):
         else:
             trace_msg("generating module file @ %s" % self.mod_filepath)
 
-        txt = self.module_generator.prepare_module_creation()
+        with self.module_generator.start_module_creation() as txt:
+            if self.modules_header:
+                txt += self.modules_header + '\n'
 
-        if self.modules_header:
-            txt += self.modules_header + '\n'
-
-        txt += self.make_module_description()
-        txt += self.make_module_group_check()
-        txt += self.make_module_deppaths()
-        txt += self.make_module_dep()
-        txt += self.make_module_extend_modpath()
-        txt += self.make_module_req()
-        txt += self.make_module_extra()
-        txt += self.make_module_footer()
-
-        self.module_generator.finalize_module_creation()
+            txt += self.make_module_description()
+            txt += self.make_module_group_check()
+            txt += self.make_module_deppaths()
+            txt += self.make_module_dep()
+            txt += self.make_module_extend_modpath()
+            txt += self.make_module_req()
+            txt += self.make_module_extra()
+            txt += self.make_module_footer()
 
         hook_txt = run_hook(MODULE_WRITE, self.hooks, args=[self, mod_filepath, txt])
         if hook_txt is not None:
