@@ -93,7 +93,7 @@ from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_shared_lib_ext, use_group
-from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, quote_str
+from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
@@ -1429,9 +1429,17 @@ class EasyBlock(object):
             note += "for paths are skipped for the statements below due to dry run"
             lines.append(self.module_generator.comment(note))
 
-        # for these environment variables, the corresponding subdirectory must include at least one file
-        keys_requiring_files = set(('PATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'CPATH',
-                                    'CMAKE_PREFIX_PATH', 'CMAKE_LIBRARY_PATH'))
+        # For these environment variables, the corresponding directory must include at least one file.
+        # The values determine if detection is done recursively, i.e. if it accepts directories where files
+        # are only in subdirectories.
+        keys_requiring_files = {
+            'PATH': False,
+            'LD_LIBRARY_PATH': False,
+            'LIBRARY_PATH': True,
+            'CPATH': True,
+            'CMAKE_PREFIX_PATH': True,
+            'CMAKE_LIBRARY_PATH': True,
+        }
 
         for key, reqs in sorted(requirements.items()):
             if isinstance(reqs, string_type):
@@ -1461,19 +1469,16 @@ class EasyBlock(object):
                     if fixed_paths != paths:
                         self.log.info("Fixed symlink lib64 in paths for %s: %s -> %s", key, paths, fixed_paths)
                         paths = fixed_paths
-                # remove duplicate paths
-                # don't use 'set' here, since order in 'paths' is important!
-                uniq_paths = []
-                for path in paths:
-                    if path not in uniq_paths:
-                        uniq_paths.append(path)
-                paths = uniq_paths
+                # remove duplicate paths preserving order
+                paths = nub(paths)
                 if key in keys_requiring_files:
                     # only retain paths that contain at least one file
+                    recursive = keys_requiring_files[key]
                     retained_paths = [
-                        path for path in paths
-                        if os.path.isdir(os.path.join(self.installdir, path))
-                        and dir_contains_files(os.path.join(self.installdir, path))
+                        path
+                        for path, fullpath in ((path, os.path.join(self.installdir, path)) for path in paths)
+                        if os.path.isdir(fullpath)
+                        and dir_contains_files(fullpath, recursive=recursive)
                     ]
                     if retained_paths != paths:
                         self.log.info("Only retaining paths for %s that contain at least one file: %s -> %s",

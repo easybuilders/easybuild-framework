@@ -1099,8 +1099,9 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
 def dir_contains_files(path, recursive=True):
     """
     Return True if the given directory does contain any file
-    
-    :recursive If False only the path itself is considered, else all subdirectories are also searched"""
+
+    :recursive If False only the path itself is considered, else all subdirectories are also searched
+    """
     if recursive:
         return any(files for _root, _dirs, files in os.walk(path))
     else:
