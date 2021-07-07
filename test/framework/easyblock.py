@@ -551,6 +551,25 @@ class EasyBlockTest(EnhancedTestCase):
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
+        # If PATH or LD_LIBRARY_PATH contain only folders, do not add an entry
+        sub_lib_path = os.path.join('lib', 'path_folders')
+        sub_path_path = os.path.join('bin', 'path_folders')
+        eb.make_module_req_guess = lambda: {'LD_LIBRARY_PATH': sub_lib_path, 'PATH': sub_path_path}
+        for path in (sub_lib_path, sub_path_path):
+            full_path = os.path.join(eb.installdir, path, 'subpath')
+            os.makedirs(full_path)
+            write_file(os.path.join(full_path, 'any.file'), 'test')
+        txt = eb.make_module_req()
+        if get_module_syntax() == 'Tcl':
+            self.assertFalse(re.search(r"prepend-path\s+LD_LIBRARY_PATH\s+\$%s\n" % sub_lib_path,
+                                       txt, re.M))
+            self.assertFalse(re.search(r"prepend-path\s+PATH\s+\$%s\n" % sub_path_path, txt, re.M))
+        else:
+            assert get_module_syntax() == 'Lua'
+            self.assertFalse(re.search(r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "%s"\)\)\n' % sub_lib_path,
+                                       txt, re.M))
+            self.assertFalse(re.search(r'prepend_path\("PATH", pathJoin\(root, "%s"\)\)\n' % sub_path_path, txt, re.M))
+
         # cleanup
         eb.close_log()
         os.remove(eb.logfile)

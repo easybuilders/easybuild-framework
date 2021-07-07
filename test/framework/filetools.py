@@ -2330,21 +2330,26 @@ class FileToolsTest(EnhancedTestCase):
 
         empty_dir = makedirs_in_test('empty_dir')
         self.assertFalse(ft.dir_contains_files(empty_dir))
+        self.assertFalse(ft.dir_contains_files(empty_dir, recursive=False))
 
         dir_w_subdir = makedirs_in_test('dir_w_subdir', 'sub_dir')
         self.assertFalse(ft.dir_contains_files(dir_w_subdir))
+        self.assertFalse(ft.dir_contains_files(dir_w_subdir, recursive=False))
 
         dir_subdir_file = makedirs_in_test('dir_subdir_file', 'sub_dir_w_file')
         ft.write_file(os.path.join(dir_subdir_file, 'sub_dir_w_file', 'file.h'), '')
         self.assertTrue(ft.dir_contains_files(dir_subdir_file))
+        self.assertFalse(ft.dir_contains_files(dir_subdir_file, recursive=False))
 
         dir_w_file = makedirs_in_test('dir_w_file')
         ft.write_file(os.path.join(dir_w_file, 'file.h'), '')
         self.assertTrue(ft.dir_contains_files(dir_w_file))
+        self.assertTrue(ft.dir_contains_files(dir_w_file, recursive=False))
 
         dir_w_dir_and_file = makedirs_in_test('dir_w_dir_and_file', 'sub_dir')
         ft.write_file(os.path.join(dir_w_dir_and_file, 'file.h'), '')
         self.assertTrue(ft.dir_contains_files(dir_w_dir_and_file))
+        self.assertTrue(ft.dir_contains_files(dir_w_dir_and_file, recursive=False))
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""
