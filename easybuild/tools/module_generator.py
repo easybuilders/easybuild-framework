@@ -41,7 +41,7 @@ from distutils.version import LooseVersion
 from textwrap import wrap
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
@@ -214,8 +214,9 @@ class ModuleGenerator(object):
             filtered_paths = [x for x in paths if x not in self.added_paths and not self.added_paths.add(x)]
         if filtered_paths != paths:
             removed_paths = paths if filtered_paths is None else [x for x in paths if x not in filtered_paths]
-            self.log.warning("Supressed adding the following path(s) to the module as they were already added: %s",
-                             removed_paths)
+            print_warning("Supressed adding the following path(s) to the module as they were already added: %s",
+                          removed_paths,
+                          log=self.log)
         return filtered_paths
 
     def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
