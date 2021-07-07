@@ -2073,6 +2073,10 @@ class EasyBlockTest(EnhancedTestCase):
         # no checksum issues
         self.assertEqual(eb.check_checksums(), [])
 
+        # should not return errors, since checksums are in checksums.json
+        eb.cfg['checksums'] = []
+        self.assertEqual(eb.check_checksums(), [])
+
     def test_this_is_easybuild(self):
         """Test 'this_is_easybuild' function (and get_git_revision function used by it)."""
         # make sure both return a non-Unicode string
