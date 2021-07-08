@@ -112,7 +112,7 @@ class ToyBuildTest(EnhancedTestCase):
         full_version = ''.join([versionprefix, version, versionsuffix])
 
         # check for success
-        success = re.compile(r"COMPLETED: Installation ended successfully \(took .* secs?\)")
+        success = re.compile(r"COMPLETED: Installation (ended|STOPPED) successfully \(took .* secs?\)")
         self.assertTrue(success.search(outtxt), "COMPLETED message found in '%s" % outtxt)
 
         # if the module exists, it should be fine
@@ -615,7 +615,16 @@ class ToyBuildTest(EnhancedTestCase):
         # 2. Existing build with --rebuild -> Reinstall and set read-only
         # 3. Existing build with --force -> Reinstall and set read-only
         # 4-5: Same as 2-3 but with --skip
-        for extra_args in ([], ['--rebuild'], ['--force'], ['--skip', '--rebuild'], ['--skip', '--force']):
+        # 6. Existing build with --fetch -> Test that logs can be written
+        test_cases = (
+            [],
+            ['--rebuild'],
+            ['--force'],
+            ['--skip', '--rebuild'],
+            ['--skip', '--force'],
+            ['--rebuild', '--fetch'],
+        )
+        for extra_args in test_cases:
             self.mock_stdout(True)
             self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'] + extra_args, force=False)
             self.mock_stdout(False)
