@@ -137,7 +137,7 @@ class ModuleGenerator(object):
         self.fake_mod_path = tempfile.mkdtemp()
 
         self.modules_tool = modules_tool()
-        self.added_paths = None
+        self.added_paths_per_key = None
 
     @contextmanager
     def start_module_creation(self):
@@ -148,17 +148,18 @@ class ModuleGenerator(object):
             with generator.start_module_creation() as txt:
                 # Write txt
         """
-        if self.added_paths is not None:
+        if self.added_paths_per_key is not None:
             raise EasyBuildError('Module creation already in process. '
                                  'You cannot create multiple modules at the same time!')
-        self.added_paths = set()  # Clear all
+        # Mapping of keys/env vars to paths already added
+        self.added_paths_per_key = dict()
         txt = self.MODULE_SHEBANG
         if txt:
             txt += '\n'
         try:
             yield txt
         finally:
-            self.added_paths = None
+            self.added_paths_per_key = None
 
     def create_symlinks(self, mod_symlink_paths, fake=False):
         """Create moduleclass symlink(s) to actual module file."""
@@ -203,27 +204,30 @@ class ModuleGenerator(object):
 
         return os.path.join(mod_path, mod_path_suffix)
 
-    def _filter_paths(self, paths):
-        """Filter out already added paths and return the remaining ones"""
-        if self.added_paths is None:
-            raise EasyBuildError('Module creation has not been started. Call prepare_module_creation first!')
+    def _filter_paths(self, key, paths):
+        """Filter out paths already added to key and return the remaining ones"""
+        if self.added_paths_per_key is None:
+            # For compatibility this is only a warning for now and we don't filter any paths
+            print_warning('Module creation has not been started. Call prepare_module_creation first!')
+            return paths
 
+        added_paths = self.added_paths_per_key.setdefault(key, set())
         # paths can be a string
         if isinstance(paths, string_type):
-            if paths in self.added_paths:
+            if paths in added_paths:
                 filtered_paths = None
             else:
-                self.added_paths.add(paths)
+                added_paths.add(paths)
                 filtered_paths = paths
         else:
             # Coerce any iterable/generator into a list
             if not isinstance(paths, list):
                 paths = list(paths)
-            filtered_paths = [x for x in paths if x not in self.added_paths and not self.added_paths.add(x)]
+            filtered_paths = [x for x in paths if x not in added_paths and not added_paths.add(x)]
         if filtered_paths != paths:
             removed_paths = paths if filtered_paths is None else [x for x in paths if x not in filtered_paths]
-            print_warning("Supressed adding the following path(s) to the module as they were already added: %s",
-                          removed_paths,
+            print_warning("Supressed adding the following path(s) to $%s of the module as they were already added: %s",
+                          key, removed_paths,
                           log=self.log)
         return filtered_paths
 
@@ -236,7 +240,7 @@ class ModuleGenerator(object):
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
-        paths = self._filter_paths(paths)
+        paths = self._filter_paths(key, paths)
         if not paths:
             return ''
         return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
@@ -250,7 +254,7 @@ class ModuleGenerator(object):
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
-        paths = self._filter_paths(paths)
+        paths = self._filter_paths(key, paths)
         if not paths:
             return ''
         return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
