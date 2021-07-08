@@ -1955,6 +1955,7 @@ class EasyBlockTest(EnhancedTestCase):
         """Test checksum step"""
         testdir = os.path.abspath(os.path.dirname(__file__))
         toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_checksums_json = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'checksums.json')
 
         ec = process_easyconfig(toy_ec)[0]
         eb = get_easyblock_instance(ec)
@@ -1963,6 +1964,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # fiddle with checksum to check whether faulty checksum is catched
         copy_file(toy_ec, self.test_prefix)
+        copy_file(toy_checksums_json, self.test_prefix)
         toy_ec = os.path.join(self.test_prefix, os.path.basename(toy_ec))
         ectxt = read_file(toy_ec)
         # replace MD5 checksum for toy-0.0.tar.gz
@@ -1987,6 +1989,29 @@ class EasyBlockTest(EnhancedTestCase):
         eb_json = get_easyblock_instance(ec_json)
         eb_json.fetch_sources()
         eb_json.checksum_step()
+
+        # if we look only at checksums in Json, it should succeed
+        eb = get_easyblock_instance(ec)
+        build_options = {
+            'checksum_priority': config.CHECKSUM_PRIORITY_JSON
+        }
+        init_config(build_options=build_options)
+        eb.fetch_sources()
+        eb.checksum_step()
+
+        # if we look only at checksums in easyconfig, it should fail
+        eb = get_easyblock_instance(ec)
+        build_options = {
+            'checksum_priority': config.CHECKSUM_PRIORITY_EASYCONFIG
+        }
+        init_config(build_options=build_options)
+        eb.fetch_sources()
+        error_msg = "Checksum verification for .*/toy-0.0.tar.gz using .* failed"
+        self.assertErrorRegex(EasyBuildError, error_msg, eb.checksum_step)
+
+        # also check verification of checksums for extensions, which is part of fetch_extension_sources
+        error_msg = "Checksum verification for extension source bar-0.0.tar.gz failed"
+        self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_extension_sources)
 
         # if --ignore-checksums is enabled, faulty checksums are reported but otherwise ignored (no error)
         build_options = {

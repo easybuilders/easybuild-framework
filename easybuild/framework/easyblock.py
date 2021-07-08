@@ -67,7 +67,7 @@ from easybuild.tools import config, run
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
-from easybuild.tools.config import CHECKSUM_PRIORITY_ANY, CHECKSUM_PRIORITY_EASYCONFIG, CHECKSUM_PRIORITY_JSON
+from easybuild.tools.config import CHECKSUM_PRIORITY_JSON
 from easybuild.tools.config import DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
@@ -357,11 +357,6 @@ class EasyBlock(object):
 
         if checksum is None or build_option("checksum_priority") == CHECKSUM_PRIORITY_JSON:
             return json_checksum
-        elif json_checksum is None or build_option("checksum_priority") == CHECKSUM_PRIORITY_EASYCONFIG:
-            return checksum
-        # both are defined, and any is valid, return a tuple containing both
-        elif build_option("checksum_priority") == CHECKSUM_PRIORITY_ANY:
-            return (checksum, json_checksum)
         else:
             return checksum
 
