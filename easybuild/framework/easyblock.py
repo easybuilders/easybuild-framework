@@ -67,6 +67,7 @@ from easybuild.tools import config, run
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
+from easybuild.tools.config import CHECKSUM_PRIORITY_ANY, CHECKSUM_PRIORITY_EASYCONFIG, CHECKSUM_PRIORITY_JSON
 from easybuild.tools.config import DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
@@ -333,22 +334,36 @@ class EasyBlock(object):
         :param filename: name of the file to obtain checksum for
         :param index: index of file in list
         """
+        checksum = None
+        json_checksums = self.get_checksums_from_json()
+        json_checksum = json_checksums.get(filename, None)
+
         # if checksums are provided as a dict, lookup by source filename as key
         if isinstance(checksums, dict):
             if filename is not None and filename in checksums:
-                return checksums[filename]
+                checksum = checksums[filename]
             else:
-                return None
+                checksum = None
         elif isinstance(checksums, (list, tuple)):
             if index is not None and index < len(checksums) and (index >= 0 or abs(index) <= len(checksums)):
-                return checksums[index]
+                checksum = checksums[index]
             else:
-                return None
+                checksum =None
         elif checksums is None:
-            return None
+            checksum = None
         else:
             raise EasyBuildError("Invalid type for checksums (%s), should be dict, list, tuple or None.",
                                  type(checksums))
+
+        if checksum is None or build_option("checksum_priority") == CHECKSUM_PRIORITY_JSON:
+            return json_checksum
+        elif json_checksum is None or build_option("checksum_priority") == CHECKSUM_PRIORITY_EASYCONFIG:
+            return checksum
+        # both are defined, and any is valid, return a tuple containing both
+        elif build_option("checksum_priority") == CHECKSUM_PRIORITY_ANY:
+            return (checksum, json_checksum)
+        else:
+            return checksum
 
     def get_checksums_from_json(self, always_read=False):
         if always_read or self.json_checksums is None:
@@ -427,7 +442,7 @@ class EasyBlock(object):
         if sources is None:
             sources = self.cfg['sources']
         if checksums is None:
-            checksums = self.cfg['checksums'] or self.get_checksums_from_json()
+            checksums = self.cfg['checksums']
 
         # Single source should be re-wrapped as a list, and checksums with it
         if isinstance(sources, dict):
@@ -565,7 +580,7 @@ class EasyBlock(object):
                     ext_options = resolve_template(ext_options, template_values)
 
                     source_urls = ext_options.get('source_urls', [])
-                    checksums = ext_options.get('checksums', self.get_checksums_from_json())
+                    checksums = ext_options.get('checksums', [])
 
                     if ext_options.get('nosource', None):
                         self.log.debug("No sources for extension %s, as indicated by 'nosource'", ext_name)
@@ -1919,7 +1934,7 @@ class EasyBlock(object):
 
         # fetch sources
         if self.cfg['sources']:
-            self.fetch_sources(self.cfg['sources'], checksums=self.cfg['checksums'] or self.get_checksums_from_json())
+            self.fetch_sources(self.cfg['sources'], checksums=self.cfg['checksums'])
         else:
             self.log.info('no sources provided')
 
@@ -1932,8 +1947,6 @@ class EasyBlock(object):
             if self.cfg['checksums'] and isinstance(self.cfg['checksums'], (list, tuple)):
                 # if checksums are provided as a list, first entries are assumed to be for sources
                 patches_checksums = self.cfg['checksums'][len(self.cfg['sources']):]
-            else:
-                patches_checksums = self.get_checksums_from_json()
             self.fetch_patches(checksums=patches_checksums)
         else:
             self.log.info('no patches provided')
