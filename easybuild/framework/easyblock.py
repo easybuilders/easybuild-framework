@@ -348,7 +348,7 @@ class EasyBlock(object):
             if index is not None and index < len(checksums) and (index >= 0 or abs(index) <= len(checksums)):
                 checksum = checksums[index]
             else:
-                checksum =None
+                checksum = None
         elif checksums is None:
             checksum = None
         else:
