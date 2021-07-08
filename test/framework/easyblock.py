@@ -1178,7 +1178,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.prepare_step()
 
         # Create a dummy file in bin to test if the duplicate entry of modextrapaths is ignored
-        os.mkdir(os.path.join(eb.installdir, 'bin'))
+        os.makedirs(os.path.join(eb.installdir, 'bin'))
         write_file(os.path.join(eb.installdir, 'bin', 'dummy_exe'), 'hello')
 
         modpath = os.path.join(eb.make_module_step(), name, version)
@@ -1214,17 +1214,20 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-        for (key, val) in modextrapaths.items():
-            if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
-            elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
-            else:
-                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
-            self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
-            # Check for duplicates
-            num_prepends = len(regex.finditer(txt))
-            self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
+        for (key, vals) in modextrapaths.items():
+            if isinstance(vals, string_type):
+                vals = [vals]
+            for val in vals:
+                if get_module_syntax() == 'Tcl':
+                    regex = re.compile(r'^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+                elif get_module_syntax() == 'Lua':
+                    regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
+                else:
+                    self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+                self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+                # Check for duplicates
+                num_prepends = len(regex.findall(txt))
+                self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('GCC', '6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
