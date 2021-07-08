@@ -559,6 +559,13 @@ class EasyConfig(object):
         finally:
             self.enable_templating = old_enable_templating
 
+    def __str__(self):
+        """Return a string representation of this EasyConfig instance"""
+        if self.path:
+            return '%s EasyConfig @ %s' % (self.name, self.path)
+        else:
+            return 'Raw %s EasyConfig' % self.name
+
     def filename(self):
         """Determine correct filename for this easyconfig file."""
 
