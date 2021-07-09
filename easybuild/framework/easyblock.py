@@ -2441,7 +2441,8 @@ class EasyBlock(object):
             if install:
                 try:
                     ext.prerun()
-                    txt = ext.run()
+                    with self.module_generator.start_module_creation():
+                        txt = ext.run()
                     if txt:
                         self.module_extra_extensions += txt
                     ext.postrun()

@@ -208,7 +208,7 @@ class ModuleGenerator(object):
         """Filter out paths already added to key and return the remaining ones"""
         if self.added_paths_per_key is None:
             # For compatibility this is only a warning for now and we don't filter any paths
-            print_warning('Module creation has not been started. Call prepare_module_creation first!')
+            print_warning('Module creation has not been started. Call start_module_creation first!')
             return paths
 
         added_paths = self.added_paths_per_key.setdefault(key, set())
