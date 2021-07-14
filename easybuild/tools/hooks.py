@@ -33,6 +33,7 @@ import os
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.config import build_option
 
 
 _log = fancylogger.getLogger('hooks', fname=False)
@@ -191,7 +192,8 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
 
         if msg is None:
             msg = "Running %s hook..." % label
-        print_msg(msg)
+        if build_option('debug'):
+            print_msg(msg)
 
         _log.info("Running '%s' hook function (arguments: %s)...", hook.__name__, args)
         res = hook(*args)
