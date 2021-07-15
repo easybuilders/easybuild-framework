@@ -1029,7 +1029,7 @@ class RobotTest(EnhancedTestCase):
         ordered_ecs, new_easyconfigs, new_avail_modules = find_resolved_modules(ecs, mods, self.modtool)
 
         # all dependencies are resolved for easyconfigs included in ordered_ecs
-        self.assertFalse(any([ec['dependencies'] for ec in ordered_ecs]))
+        self.assertFalse(any(ec['dependencies'] for ec in ordered_ecs))
 
         # nodeps/ondep easyconfigs have all dependencies resolved
         self.assertEqual(len(ordered_ecs), 2)

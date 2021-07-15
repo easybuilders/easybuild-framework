@@ -925,7 +925,7 @@ def main():
     for path in orig_sys_path:
         include_path = True
         # exclude path if it's potentially an EasyBuild/VSC package, providing the 'easybuild'/'vsc' namespace, resp.
-        if any([os.path.exists(os.path.join(path, pkg, '__init__.py')) for pkg in ['easyblocks', 'easybuild', 'vsc']]):
+        if any(os.path.exists(os.path.join(path, pkg, '__init__.py')) for pkg in ['easyblocks', 'easybuild', 'vsc']):
             include_path = False
         # exclude any .egg paths
         if path.endswith('.egg'):

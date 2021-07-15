@@ -1009,7 +1009,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # no postinstallcmds in toy-0.0-deps.eb
         expected = "29 %s+ postinstallcmds = " % green
-        self.assertTrue(any([line.startswith(expected) for line in lines]))
+        self.assertTrue(any(line.startswith(expected) for line in lines))
         expected = "30 %s+%s (1/2) toy-0.0" % (green, endcol)
         self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
         self.assertEqual(lines[-1], "=====")

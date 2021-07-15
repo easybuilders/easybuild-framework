@@ -98,7 +98,7 @@ class IntelFFTW(Fftw):
 
         def fftw_lib_exists(libname):
             """Helper function to check whether FFTW library with specified name exists."""
-            return any([os.path.exists(os.path.join(d, "lib%s.a" % libname)) for d in fft_lib_dirs])
+            return any(os.path.exists(os.path.join(d, "lib%s.a" % libname)) for d in fft_lib_dirs)
 
         if not fftw_lib_exists(interface_lib) and LooseVersion(imklver) >= LooseVersion("10.2"):
             # interface libs can be optional:
