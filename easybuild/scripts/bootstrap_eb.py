@@ -62,7 +62,7 @@ else:
     import urllib.request as std_urllib
 
 
-EB_BOOTSTRAP_VERSION = '20210618.01'
+EB_BOOTSTRAP_VERSION = '20210715.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
