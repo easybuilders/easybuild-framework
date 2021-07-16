@@ -229,6 +229,8 @@ class ModuleGenerator(object):
             print_warning("Supressed adding the following path(s) to $%s of the module as they were already added: %s",
                           key, removed_paths,
                           log=self.log)
+            if not filtered_paths:
+                filtered_paths = None
         return filtered_paths
 
     def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
@@ -241,7 +243,7 @@ class ModuleGenerator(object):
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
         paths = self._filter_paths(key, paths)
-        if not paths:
+        if paths is None:
             return ''
         return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
 
@@ -255,7 +257,7 @@ class ModuleGenerator(object):
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
         paths = self._filter_paths(key, paths)
-        if not paths:
+        if paths is None:
             return ''
         return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
 
