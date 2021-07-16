@@ -716,8 +716,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual('append_path("key", "1234@example.com")\n', res)
 
         self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
-                                            "which only expects relative paths." % self.modgen.app.installdir,
-                            append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+                                              "which only expects relative paths." % self.modgen.app.installdir,
+                              append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
     def test_module_extensions(self):
         """test the extensions() for extensions"""
@@ -795,8 +795,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual('prepend_path("key", "1234@example.com")\n', res)
 
         self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
-                                            "which only expects relative paths." % self.modgen.app.installdir,
-                            prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+                                              "which only expects relative paths." % self.modgen.app.installdir,
+                              prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
     def test_det_user_modpath(self):
         """Test for generic det_user_modpath method."""
