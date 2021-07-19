@@ -180,8 +180,8 @@ def include_easyblocks(tmpdir, paths):
         if not os.path.exists(target_path):
             symlink(easyblock_module, target_path)
 
-    included_ebs = [x for x in os.listdir(easyblocks_dir) if x not in ['__init__.py', 'generic']]
-    included_generic_ebs = [x for x in os.listdir(os.path.join(easyblocks_dir, 'generic')) if x != '__init__.py']
+    included_ebs = sorted(x for x in os.listdir(easyblocks_dir) if x not in ['__init__.py', 'generic'])
+    included_generic_ebs = sorted(x for x in os.listdir(os.path.join(easyblocks_dir, 'generic')) if x != '__init__.py')
     _log.debug("Included generic easyblocks: %s", included_generic_ebs)
     _log.debug("Included software-specific easyblocks: %s", included_ebs)
 

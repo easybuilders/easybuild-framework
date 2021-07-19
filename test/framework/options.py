@@ -34,6 +34,7 @@ import shutil
 import stat
 import sys
 import tempfile
+import textwrap
 from distutils.version import LooseVersion
 from unittest import TextTestRunner
 
@@ -3232,13 +3233,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     sys.modules[pkg].__path__.remove(path)
 
         # include extra test easyblocks
-        foo_txt = '\n'.join([
-            'from easybuild.framework.easyblock import EasyBlock',
-            'class EB_foo(EasyBlock):',
-            '   pass',
-            ''
-        ])
+        # Make them inherit from each other to trigger a known issue with changed imports, see #3779
+        # Choose naming so that order of naming is different than inheritance order
+        afoo_txt = textwrap.dedent("""
+            from easybuild.framework.easyblock import EasyBlock
+            class EB_afoo(EasyBlock):
+                def __init__(self, *args, **kwargs):
+                    super(EB_afoo, self).__init__(*args, **kwargs)
+        """)
+        write_file(os.path.join(self.test_prefix, 'afoo.py'), afoo_txt)
+        foo_txt = textwrap.dedent("""
+            from easybuild.easyblocks.zfoo import EB_zfoo
+            class EB_foo(EB_zfoo):
+                def __init__(self, *args, **kwargs):
+                    super(EB_foo, self).__init__(*args, **kwargs)
+        """)
         write_file(os.path.join(self.test_prefix, 'foo.py'), foo_txt)
+        zfoo_txt = textwrap.dedent("""
+            from easybuild.easyblocks.afoo import EB_afoo
+            class EB_zfoo(EB_afoo):
+                def __init__(self, *args, **kwargs):
+                    super(EB_zfoo, self).__init__(*args, **kwargs)
+        """)
+        write_file(os.path.join(self.test_prefix, 'zfoo.py'), zfoo_txt)
 
         # clear log
         write_file(self.logfile, '')
@@ -3256,11 +3273,26 @@ class CommandLineOptionsTest(EnhancedTestCase):
         foo_regex = re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)" % path_pattern, re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
 
+        ec_txt = '\n'.join([
+            'easyblock = "EB_foo"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        ec = EasyConfig(path=None, rawtxt=ec_txt)
+
         # easyblock is found via get_easyblock_class
-        klass = get_easyblock_class('EB_foo')
-        self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
+        for name in ('EB_afoo', 'EB_foo', 'EB_zfoo'):
+            klass = get_easyblock_class(name)
+            self.assertTrue(issubclass(klass, EasyBlock), "%s (%s) is an EasyBlock derivative class" % (klass, name))
+
+            eb_inst = klass(ec)
+            self.assertTrue(eb_inst is not None, "Instantiating the injected class %s works" % name)
 
         # 'undo' import of foo easyblock
+        del sys.modules['easybuild.easyblocks.afoo']
         del sys.modules['easybuild.easyblocks.foo']
 
     # must be run after test for --list-easyblocks, hence the '_xxx_'
