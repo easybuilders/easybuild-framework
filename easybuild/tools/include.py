@@ -128,15 +128,17 @@ def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None, pkg_init_body=None
 def verify_imports(pymods, pypkg, from_path):
     """Verify that import of specified modules from specified package and expected location works."""
 
-    for pymod in pymods:
-        pymod_spec = '%s.%s' % (pypkg, pymod)
-
+    pymod_specs = ['%s.%s' % (pypkg, pymod) for pymod in pymods]
+    for pymod_spec in pymod_specs:
         # force re-import if the specified modules was already imported;
         # this is required to ensure that an easyblock that is included via --include-easyblocks-from-pr
         # gets preference over one that is included via --include-easyblocks
         if pymod_spec in sys.modules:
             del sys.modules[pymod_spec]
 
+    # After all modules to be reloaded have been removed, import them again
+    # Note that removing them here may delete transitively loaded modules and not import them again
+    for pymod_spec in pymod_specs:
         try:
             pymod = __import__(pymod_spec, fromlist=[pypkg])
         # different types of exceptions may be thrown, not only ImportErrors
