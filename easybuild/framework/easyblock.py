@@ -336,6 +336,9 @@ class EasyBlock(object):
         """
         checksum = None
         json_checksums = self.get_checksums_from_json()
+        # sometimes, filename are specified as a dict
+        if isinstance(filename, dict):
+            filename = filename['filename']
         json_checksum = json_checksums.get(filename, None)
 
         # if checksums are provided as a dict, lookup by source filename as key
