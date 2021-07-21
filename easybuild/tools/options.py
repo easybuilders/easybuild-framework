@@ -883,14 +883,14 @@ class EasyBuildOptions(GeneralOption):
             self._postprocess_include()
 
         # prepare for --list/--avail
-        if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
+        if any((self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
                 self.options.list_easyblocks, self.options.list_toolchains, self.options.avail_cfgfile_constants,
                 self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
                 self.options.avail_repositories, self.options.show_default_moduleclasses,
                 self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
                 self.options.show_default_configfiles, self.options.avail_toolchain_opts,
                 self.options.avail_hooks, self.options.show_system_info,
-                ]):
+                )):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
 

@@ -577,7 +577,7 @@ class EBConfigObj(object):
                 self.log.debug("No toolchain version specified, using default %s" % tcversion)
             else:
                 raise EasyBuildError("No toolchain version specified, no default found.")
-        elif any([tc.test(tcname, tcversion) for tc in tcs]):
+        elif any(tc.test(tcname, tcversion) for tc in tcs):
             self.log.debug("Toolchain '%s' version '%s' is supported in easyconfig" % (tcname, tcversion))
         else:
             raise EasyBuildError("Toolchain '%s' version '%s' not supported in easyconfig (only %s)",

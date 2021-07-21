@@ -528,7 +528,7 @@ def det_common_path_prefix(paths):
     found_common = False
     while not found_common and prefix != os.path.dirname(prefix):
         prefix = os.path.dirname(prefix)
-        found_common = all([p.startswith(prefix) for p in paths])
+        found_common = all(p.startswith(prefix) for p in paths)
 
     if found_common:
         # prefix may be empty string for relative paths with a non-common prefix

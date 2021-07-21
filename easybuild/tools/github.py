@@ -1275,7 +1275,7 @@ def reasons_for_closing(pr_data):
     if uses_archived_tc:
         possible_reasons.append('archived')
 
-    if any([e['name'] in pr_data['title'] for e in obsoleted]):
+    if any(e['name'] in pr_data['title'] for e in obsoleted):
         possible_reasons.append('obsolete')
 
     return possible_reasons
@@ -1804,7 +1804,7 @@ def det_pr_target_repo(paths):
 
             # if all Python files are easyblocks, target repo should be easyblocks;
             # otherwise, target repo is assumed to be framework
-            if all([get_easyblock_class_name(path) for path in py_files]):
+            if all(get_easyblock_class_name(path) for path in py_files):
                 pr_target_repo = GITHUB_EASYBLOCKS_REPO
                 _log.info("All Python files are easyblocks, target repository is assumed to be %s", pr_target_repo)
             else:

@@ -260,7 +260,7 @@ class DocsTest(EnhancedTestCase):
         ]
         txt = list_software(output_format='txt', detailed=True)
         lines = txt.split('\n')
-        expected_found = any([lines[i:i + len(expected)] == expected for i in range(len(lines))])
+        expected_found = any(lines[i:i + len(expected)] == expected for i in range(len(lines)))
         self.assertTrue(expected_found, "%s found in: %s" % (expected, lines))
 
         expected = [
@@ -283,7 +283,7 @@ class DocsTest(EnhancedTestCase):
         ]
         txt = list_software(output_format='rst', detailed=True)
         lines = txt.split('\n')
-        expected_found = any([lines[i:i + len(expected)] == expected for i in range(len(lines))])
+        expected_found = any(lines[i:i + len(expected)] == expected for i in range(len(lines)))
         self.assertTrue(expected_found, "%s found in: %s" % (expected, lines))
 
 
