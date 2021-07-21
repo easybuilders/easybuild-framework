@@ -258,8 +258,6 @@ class EasyBlock(object):
         if group_name is not None:
             self.group = use_group(group_name)
 
-        self.ignore_test_failure = build_option('ignore_test_failure')
-
         # generate build/install directories
         self.gen_builddir()
         self.gen_installdir()
@@ -1831,7 +1829,7 @@ class EasyBlock(object):
 
         :param msg_or_error: failure description (string value or an EasyBuildError instance)
         """
-        if self.ignore_test_failure:
+        if build_option('ignore_test_failure'):
             print_warning("Test failure ignored: " + str(msg_or_error), log=self.log)
         else:
             exception = msg_or_error if isinstance(msg_or_error, EasyBuildError) else EasyBuildError(msg_or_error)

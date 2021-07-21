@@ -127,6 +127,8 @@ class EasyBlockTest(EnhancedTestCase):
         extra_options = exeb1.extra_options()
         check_extra_options_format(extra_options)
         self.assertTrue('options' in extra_options)
+        # Reporting test failure should work also for the extension EB
+        self.assertRaises(EasyBuildError, exeb1.report_test_failure, "Fails")
 
         # test extensioneasyblock, as easyblock
         exeb2 = ExtensionEasyBlock(ec)
@@ -135,6 +137,8 @@ class EasyBlockTest(EnhancedTestCase):
         extra_options = exeb2.extra_options()
         check_extra_options_format(extra_options)
         self.assertTrue('options' in extra_options)
+        # Reporting test failure should work also for the extension EB
+        self.assertRaises(EasyBuildError, exeb2.report_test_failure, "Fails")
 
         class TestExtension(ExtensionEasyBlock):
             @staticmethod
