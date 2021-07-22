@@ -3291,9 +3291,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             eb_inst = klass(ec)
             self.assertTrue(eb_inst is not None, "Instantiating the injected class %s works" % name)
 
-        # 'undo' import of foo easyblock
-        del sys.modules['easybuild.easyblocks.afoo']
-        del sys.modules['easybuild.easyblocks.foo']
+        # 'undo' import of the easyblocks
+        for name in ('afoo', 'foo', 'zfoo'):
+            del sys.modules['easybuild.easyblocks.' + name]
 
     # must be run after test for --list-easyblocks, hence the '_xxx_'
     # cleaning up the imported easyblocks is quite difficult...
