@@ -44,6 +44,7 @@ import glob
 import hashlib
 import imp
 import inspect
+import itertools
 import os
 import re
 import shutil
@@ -2338,6 +2339,25 @@ def copy_files(paths, target_path, force_in_dry_run=False, target_single_file=Fa
 
     elif not allow_empty:
         raise EasyBuildError("One or more files to copy should be specified!")
+
+
+def has_recursive_symlinks(path):
+    """
+    Check the given directory for recursive symlinks.
+
+    That means symlinks to folders inside the path which would cause infinite loops when traversed regularily.
+
+    :param path: Path to directory to check
+    """
+    for dirpath, dirnames, filenames in os.walk(path, followlinks=True):
+        for name in itertools.chain(dirnames, filenames):
+            fullpath = os.path.join(dirpath, name)
+            if os.path.islink(fullpath):
+                linkpath = os.path.realpath(fullpath)
+                fullpath += os.sep  # To catch the case where both are equal
+                if fullpath.startswith(linkpath + os.sep):
+                    return True
+    return False
 
 
 def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **kwargs):
