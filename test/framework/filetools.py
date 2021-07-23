@@ -1901,6 +1901,15 @@ class FileToolsTest(EnhancedTestCase):
         ft.mkdir(subdir)
         ft.copy_dir(srcdir, target_dir, symlinks=True, dirs_exist_ok=True)
 
+        # Detect recursive symlinks by default instead of infinite loop during copy
+        ft.remove_dir(target_dir)
+        os.symlink('.', os.path.join(subdir, 'recursive_link'))
+        self.assertErrorRegex(EasyBuildError, 'Recursive symlinks detected', ft.copy_dir, srcdir, target_dir)
+        self.assertFalse(os.path.exists(target_dir))
+        # Ok for symlinks=True
+        ft.copy_dir(srcdir, target_dir, symlinks=True)
+        self.assertTrue(os.path.exists(target_dir))
+
         # also test behaviour of copy_file under --dry-run
         build_options = {
             'extended_dry_run': True,
