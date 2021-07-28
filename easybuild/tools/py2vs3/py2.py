@@ -50,7 +50,7 @@ ConfigParser = configparser.SafeConfigParser
 
 
 # reload function (built-in in Python 2)
-reload = reload
+reload = reload  # noqa: F821
 
 # string type that can be used in 'isinstance' calls
 string_type = basestring
