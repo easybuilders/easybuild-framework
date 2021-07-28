@@ -570,3 +570,39 @@ def find_full_path(base_path, trim=(lambda x: x)):
             break
 
     return full_path
+
+
+def requires_pycodestyle():
+    try:
+        import pycodestyle  # noqa # pylint:disable=unused-import
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "no pycodestyle available")
+
+
+def requires_autopep8():
+    try:
+        import autopep8  # noqa # pylint:disable=unused-import
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "autopep8 is not available")
+
+
+def requires_graphviz():
+    try:
+        import graphwiz  # noqa # pylint:disable=unused-import
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "graphviz is not available")
+
+
+def requires_PyYAML():
+    try:
+        import yaml  # noqa # pylint:disable=unused-import
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "PyYAML is not available")
