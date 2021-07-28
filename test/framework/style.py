@@ -31,29 +31,19 @@ Style tests for easyconfig files.
 import glob
 import os
 import sys
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, requires_pycodestyle_or_pep8
 from unittest import TextTestRunner
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.style import _eb_check_trailing_whitespace, check_easyconfigs_style
 
-try:
-    import pycodestyle  # noqa
-except ImportError:
-    try:
-        import pep8  # noqa
-    except ImportError:
-        pass
-
 
 class StyleTest(EnhancedTestCase):
     log = fancylogger.getLogger("StyleTest", fname=False)
 
+    @requires_pycodestyle_or_pep8()
     def test_style_conformance(self):
         """Check the easyconfigs for style"""
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping style checks (no pycodestyle or pep8 available)")
-            return
 
         # all available easyconfig files
         test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -64,11 +54,9 @@ class StyleTest(EnhancedTestCase):
 
         self.assertEqual(result, 0, "No code style errors (and/or warnings) found.")
 
+    @requires_pycodestyle_or_pep8()
     def test_check_trailing_whitespace(self):
         """Test for trailing whitespace check."""
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping trailing whitespace checks (no pycodestyle or pep8 available)")
-            return
 
         lines = [
             "name = 'foo'",  # no trailing whitespace

@@ -809,43 +809,42 @@ class ModulesTest(EnhancedTestCase):
 
     def test_path_to_top_of_module_tree_lua(self):
         """Test path_to_top_of_module_tree function on modules in Lua syntax."""
-        if isinstance(self.modtool, Lmod):
-            orig_modulepath = os.environ.get('MODULEPATH')
-            self.modtool.unuse(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
-            curr_modulepath = os.environ.get('MODULEPATH')
-            error_msg = "Incorrect $MODULEPATH value after unuse: %s (orig: %s)" % (curr_modulepath, orig_modulepath)
-            self.assertEqual(curr_modulepath, None, error_msg)
+        if not isinstance(self.modtool, Lmod):
+            self.skipTest("Requires Lmod as modules tool")
 
-            top_moddir = os.path.join(self.test_prefix, 'test_modules')
-            core_dir = os.path.join(top_moddir, 'Core')
-            mkdir(core_dir, parents=True)
-            self.modtool.use(core_dir)
-            self.assertTrue(os.path.samefile(os.environ.get('MODULEPATH'), core_dir))
+        orig_modulepath = os.environ.get('MODULEPATH')
+        self.modtool.unuse(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
+        curr_modulepath = os.environ.get('MODULEPATH')
+        error_msg = "Incorrect $MODULEPATH value after unuse: %s (orig: %s)" % (curr_modulepath, orig_modulepath)
+        self.assertEqual(curr_modulepath, None, error_msg)
 
-            # install toy modules in Lua syntax that are sufficient to test path_to_top_of_module_tree with
-            intel_mod_dir = os.path.join(top_moddir, 'Compiler', 'intel', '2016')
-            intel_mod = 'prepend_path("MODULEPATH", "%s")\n' % intel_mod_dir
-            write_file(os.path.join(core_dir, 'intel', '2016.lua'), intel_mod)
+        top_moddir = os.path.join(self.test_prefix, 'test_modules')
+        core_dir = os.path.join(top_moddir, 'Core')
+        mkdir(core_dir, parents=True)
+        self.modtool.use(core_dir)
+        self.assertTrue(os.path.samefile(os.environ.get('MODULEPATH'), core_dir))
 
-            impi_mod_dir = os.path.join(top_moddir, 'MPI', 'intel', '2016', 'impi', '2016')
-            impi_mod = 'prepend_path("MODULEPATH", "%s")\n' % impi_mod_dir
-            write_file(os.path.join(intel_mod_dir, 'impi', '2016.lua'), impi_mod)
+        # install toy modules in Lua syntax that are sufficient to test path_to_top_of_module_tree with
+        intel_mod_dir = os.path.join(top_moddir, 'Compiler', 'intel', '2016')
+        intel_mod = 'prepend_path("MODULEPATH", "%s")\n' % intel_mod_dir
+        write_file(os.path.join(core_dir, 'intel', '2016.lua'), intel_mod)
 
-            imkl_mod = 'io.stderr:write("Hi from the imkl module")\n'
-            write_file(os.path.join(impi_mod_dir, 'imkl', '2016.lua'), imkl_mod)
+        impi_mod_dir = os.path.join(top_moddir, 'MPI', 'intel', '2016', 'impi', '2016')
+        impi_mod = 'prepend_path("MODULEPATH", "%s")\n' % impi_mod_dir
+        write_file(os.path.join(intel_mod_dir, 'impi', '2016.lua'), impi_mod)
 
-            self.assertEqual(self.modtool.available(), ['intel/2016'])
+        imkl_mod = 'io.stderr:write("Hi from the imkl module")\n'
+        write_file(os.path.join(impi_mod_dir, 'imkl', '2016.lua'), imkl_mod)
 
-            imkl_deps = ['intel/2016', 'impi/2016']
+        self.assertEqual(self.modtool.available(), ['intel/2016'])
 
-            # modules that compose toolchain are expected to be loaded
-            self.modtool.load(imkl_deps)
+        imkl_deps = ['intel/2016', 'impi/2016']
 
-            res = self.modtool.path_to_top_of_module_tree(core_dir, 'imkl/2016', impi_mod_dir, imkl_deps)
-            self.assertEqual(res, ['impi/2016', 'intel/2016'])
+        # modules that compose toolchain are expected to be loaded
+        self.modtool.load(imkl_deps)
 
-        else:
-            print("Skipping test_path_to_top_of_module_tree_lua, requires Lmod as modules tool")
+        res = self.modtool.path_to_top_of_module_tree(core_dir, 'imkl/2016', impi_mod_dir, imkl_deps)
+        self.assertEqual(res, ['impi/2016', 'intel/2016'])
 
     def test_interpret_raw_path_lua(self):
         """Test interpret_raw_path_lua method"""
