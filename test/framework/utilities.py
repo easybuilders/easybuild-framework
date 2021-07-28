@@ -514,3 +514,43 @@ def find_full_path(base_path, trim=(lambda x: x)):
             break
 
     return full_path
+
+
+def requires_pycodestyle_or_pep8():
+    try:
+        import pycodestyle  # noqa
+        ok = True
+    except ImportError:
+        try:
+            import pep8  # noqa
+            ok = True
+        except ImportError:
+            ok = False
+    return unittest.skipUnless(ok, "no pycodestyle or pep8 available")
+
+
+def requires_autopep8():
+    try:
+        import autopep8  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "autopep8 is not available")
+
+
+def requires_pygraph():
+    try:
+        import pygraph  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "pygraph is not available")
+
+
+def requires_PyYAML():
+    try:
+        import yaml  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "PyYAML is not available")

@@ -80,15 +80,7 @@ from easybuild.tools.systemtools import get_cpu_architecture, get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str, quote_py_str
 from test.framework.github import GITHUB_TEST_ACCOUNT
-from test.framework.utilities import find_full_path
-
-try:
-    import pycodestyle  # noqa
-except ImportError:
-    try:
-        import pep8  # noqa
-    except ImportError:
-        pass
+from test.framework.utilities import find_full_path, requires_autopep8, requires_pycodestyle_or_pep8, requires_pygraph
 
 
 EXPECTED_DOTTXT_TOY_DEPS = """digraph graphname {
@@ -2487,23 +2479,17 @@ class EasyConfigTest(EnhancedTestCase):
                     'foo_extra1', '', 'moduleclass', '']
         self.assertEqual(param_regex.findall(ectxt), expected)
 
+    @requires_autopep8()
     def test_dump_autopep8(self):
         """Test dump() with autopep8 usage enabled (only if autopep8 is available)."""
-        try:
-            import autopep8  # noqa
-            os.environ['EASYBUILD_DUMP_AUTOPEP8'] = '1'
-            init_config()
-            self.test_dump()
-            del os.environ['EASYBUILD_DUMP_AUTOPEP8']
-        except ImportError:
-            print("Skipping test_dump_autopep8, since autopep8 is not available")
+        os.environ['EASYBUILD_DUMP_AUTOPEP8'] = '1'
+        init_config()
+        self.test_dump()
+        del os.environ['EASYBUILD_DUMP_AUTOPEP8']
 
+    @requires_pycodestyle_or_pep8()
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
-
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping test_dump_extra (no pycodestyle or pep8 available)")
-            return
 
         rawtxt = '\n'.join([
             "easyblock = 'EB_foo'",
@@ -2541,12 +2527,9 @@ class EasyConfigTest(EnhancedTestCase):
 
         check_easyconfigs_style([testec])
 
+    @requires_pycodestyle_or_pep8()
     def test_dump_template(self):
         """ Test EasyConfig's dump() method for files containing templates"""
-
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping test_dump_template (no pycodestyle or pep8 available)")
-            return
 
         rawtxt = '\n'.join([
             "easyblock = 'EB_foo'",
@@ -2630,12 +2613,9 @@ class EasyConfigTest(EnhancedTestCase):
 
         check_easyconfigs_style([testec])
 
+    @requires_pycodestyle_or_pep8()
     def test_dump_comments(self):
         """ Test dump() method for files containing comments """
-
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping test_dump_comments (no pycodestyle or pep8 available)")
-            return
 
         rawtxt = '\n'.join([
             "# #",
@@ -2985,89 +2965,79 @@ class EasyConfigTest(EnhancedTestCase):
         res = "sanity_check_paths = {\n    'files': [],\n    'dirs': ['lib/python%(pyshortver)s/site-packages'],\n}"
         self.assertEqual(to_template_str('sanity_check_paths', test_input, templ_const, templ_val), res)
 
+    @requires_pygraph()
     def test_dep_graph(self):
         """Test for dep_graph."""
-        try:
-            import pygraph  # noqa
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        build_options = {
+            'external_modules_metadata': ConfigObj(),
+            'valid_module_classes': module_classes(),
+            'robot_path': [test_easyconfigs],
+            'silent': True,
+        }
+        init_config(build_options=build_options)
 
-            test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-            build_options = {
-                'external_modules_metadata': ConfigObj(),
-                'valid_module_classes': module_classes(),
-                'robot_path': [test_easyconfigs],
-                'silent': True,
-            }
-            init_config(build_options=build_options)
+        ec_file = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
+        ec_files = [(ec_file, False)]
+        ecs, _ = parse_easyconfigs(ec_files)
 
-            ec_file = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
-            ec_files = [(ec_file, False)]
-            ecs, _ = parse_easyconfigs(ec_files)
+        dot_file = os.path.join(self.test_prefix, 'test.dot')
+        ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
+        dep_graph(dot_file, ordered_ecs)
 
-            dot_file = os.path.join(self.test_prefix, 'test.dot')
-            ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
-            dep_graph(dot_file, ordered_ecs)
+        # hard check for expect .dot file contents
+        # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
+        # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
+        dottxt = read_file(dot_file)
 
-            # hard check for expect .dot file contents
-            # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
-            # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
-            dottxt = read_file(dot_file)
+        self.assertTrue(dottxt.startswith('digraph graphname {'))
 
-            self.assertTrue(dottxt.startswith('digraph graphname {'))
+        # compare sorted output, since order of lines can change
+        ordered_dottxt = '\n'.join(sorted(dottxt.split('\n')))
+        ordered_expected = '\n'.join(sorted(EXPECTED_DOTTXT_TOY_DEPS.split('\n')))
+        self.assertEqual(ordered_dottxt, ordered_expected)
 
-            # compare sorted output, since order of lines can change
-            ordered_dottxt = '\n'.join(sorted(dottxt.split('\n')))
-            ordered_expected = '\n'.join(sorted(EXPECTED_DOTTXT_TOY_DEPS.split('\n')))
-            self.assertEqual(ordered_dottxt, ordered_expected)
-
-        except ImportError:
-            print("Skipping test_dep_graph, since pygraph is not available")
-
+    @requires_pygraph()
     def test_dep_graph_multi_deps(self):
         """
         Test for dep_graph using easyconfig that uses multi_deps.
         """
-        try:
-            import pygraph  # noqa
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        build_options = {
+            'external_modules_metadata': ConfigObj(),
+            'valid_module_classes': module_classes(),
+            'robot_path': [test_easyconfigs],
+            'silent': True,
+        }
+        init_config(build_options=build_options)
 
-            test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-            build_options = {
-                'external_modules_metadata': ConfigObj(),
-                'valid_module_classes': module_classes(),
-                'robot_path': [test_easyconfigs],
-                'silent': True,
-            }
-            init_config(build_options=build_options)
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
 
-            toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
-            toy_ec_txt = read_file(toy_ec)
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = toy_ec_txt + "\nmulti_deps = {'GCC': ['4.6.3', '4.8.3', '7.3.0-2.30']}"
+        write_file(test_ec, test_ec_txt)
 
-            test_ec = os.path.join(self.test_prefix, 'test.eb')
-            test_ec_txt = toy_ec_txt + "\nmulti_deps = {'GCC': ['4.6.3', '4.8.3', '7.3.0-2.30']}"
-            write_file(test_ec, test_ec_txt)
+        ec_files = [(test_ec, False)]
+        ecs, _ = parse_easyconfigs(ec_files)
 
-            ec_files = [(test_ec, False)]
-            ecs, _ = parse_easyconfigs(ec_files)
+        dot_file = os.path.join(self.test_prefix, 'test.dot')
+        ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
+        dep_graph(dot_file, ordered_ecs)
 
-            dot_file = os.path.join(self.test_prefix, 'test.dot')
-            ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
-            dep_graph(dot_file, ordered_ecs)
+        # hard check for expect .dot file contents
+        # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
+        # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
+        dottxt = read_file(dot_file)
 
-            # hard check for expect .dot file contents
-            # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
-            # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
-            dottxt = read_file(dot_file)
+        self.assertTrue(dottxt.startswith('digraph graphname {'))
 
-            self.assertTrue(dottxt.startswith('digraph graphname {'))
-
-            # just check for toy -> GCC deps
-            # don't bother doing full output check
-            # (different order for fields depending on Python version makes that tricky)
-            for gccver in ['4.6.3', '4.8.3', '7.3.0-2.30']:
-                self.assertTrue('"GCC/%s";' % gccver in dottxt)
-                self.assertTrue('"toy/0.0" -> "GCC/%s"' % gccver in dottxt)
-
-        except ImportError:
-            print("Skipping test_dep_graph, since pygraph is not available")
+        # just check for toy -> GCC deps
+        # don't bother doing full output check
+        # (different order for fields depending on Python version makes that tricky)
+        for gccver in ['4.6.3', '4.8.3', '7.3.0-2.30']:
+            self.assertTrue('"GCC/%s";' % gccver in dottxt)
+            self.assertTrue('"toy/0.0" -> "GCC/%s"' % gccver in dottxt)
 
     def test_ActiveMNS_singleton(self):
         """Make sure ActiveMNS is a singleton class."""
@@ -4652,10 +4622,13 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(paths, args[:-1])
             self.assertEqual(target_path, args[-1])
 
-        if self.skip_github_tests:
-            print("Skipping test_det_copy_ec_specs using --from-pr, no GitHub token available?")
-            return
+    def test_det_copy_ec_specs_from_pr(self):
+        """Test det_copy_ec_specs function with --from-pr."""
 
+        if self.skip_github_tests:
+            self.skipTest("No GitHub token available?")
+
+        cwd = os.getcwd()
         # use fixed PR (speeds up the test due to caching in fetch_files_from_pr;
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/8007
         from_pr = 8007
