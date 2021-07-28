@@ -3454,17 +3454,26 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # include test cmakemake easyblock
         cmm_txt = '\n'.join([
-            'from easybuild.framework.easyblock import EasyBlock',
-            'class CMakeMake(EasyBlock):',
+            'from easybuild.easyblocks.generic.configuremake import ConfigureMake',
+            'class CMakeMake(ConfigureMake):',
             '   pass',
             ''
         ])
         write_file(os.path.join(self.test_prefix, 'cmakemake.py'), cmm_txt)
 
-        # including the same easyblock twice should work and give priority to the one from the PR
+        # include extra (wrong) configuremake easyblock to check that the one from a pr is preferred
+        configuremake_txt = '\n'.join([
+            # using object here instead of EasyBlock would make get_easyblock_class fail
+            'class ConfigureMake(object):',
+            '   pass',
+            ''
+        ])
+        write_file(os.path.join(self.test_prefix, 'configuremake.py'), configuremake_txt)
+
+        # including the same easyblock(s) twice should work and give priority to the one(s) from PR(s)
         args = [
             '--include-easyblocks=%s/*.py' % self.test_prefix,
-            '--include-easyblocks-from-pr=1915',
+            '--include-easyblocks-from-pr=1915,2479',
             '--list-easyblocks=detailed',
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -3477,10 +3486,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         logtxt = read_file(self.logfile)
 
-        expected = "WARNING: One or more easyblocks included from multiple locations: "
-        expected += "cmakemake.py (the one(s) from PR #1915 will be used)"
-        self.assertEqual(stderr.strip(), expected)
-        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #1915\n")
+        expected = "\nWARNING: One or more easyblocks included from multiple locations: "
+        expected += "cmakemake.py (the one(s) from PR #1915 will be used)\n\n"
+        expected += "\nWARNING: One or more easyblocks included from multiple locations: "
+        expected += "configuremake.py (the one(s) from PR #2479 will be used)\n\n"
+        self.assertEqual(stderr, expected)
+        expected = "== easyblock cmakemake.py included from PR #1915\n"
+        expected += "== easyblock configuremake.py included from PR #2479\n"
+        self.assertEqual(stdout, expected)
 
         # easyblock included from pr is found
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')

@@ -1597,6 +1597,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
             included_paths = expand_glob_paths(eb_go.options.include_easyblocks)
             included_from_file = set([os.path.basename(eb) for eb in included_paths])
 
+        easyblocks_from_all_prs = []
         for easyblock_pr in easyblock_prs:
             easyblocks_from_pr = fetch_easyblocks_from_pr(easyblock_pr)
             included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
@@ -1612,7 +1613,9 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
             for easyblock in included_from_pr:
                 print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log)
 
-            include_easyblocks(eb_go.options.tmpdir, easyblocks_from_pr)
+            easyblocks_from_all_prs.extend(easyblocks_from_pr)
+        # Include all at once
+        include_easyblocks(eb_go.options.tmpdir, easyblocks_from_all_prs)
 
         if eb_go.options.list_easyblocks:
             msg = list_easyblocks(eb_go.options.list_easyblocks, eb_go.options.output_format)
