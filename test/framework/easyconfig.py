@@ -3580,7 +3580,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(res[-1], os.path.join(symlinked_prefix, 'easybuild', 'easyconfigs'))
 
         # wipe sys.path. then only path found via $EB_SCRIPT_PATH is found
-        sys.path = []
+        sys.path[:] = []
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0], os.path.join(symlinked_prefix, 'easybuild', 'easyconfigs'))
