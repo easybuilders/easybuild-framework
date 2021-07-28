@@ -736,7 +736,6 @@ def get_os_name():
     # platform.linux_distribution was removed in Python 3.8,
     # see https://docs.python.org/2/library/platform.html#platform.linux_distribution
     if hasattr(platform, 'linux_distribution'):
-        # platform.linux_distribution is more useful, but only available since Python 2.6
         # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=PendingDeprecationWarning)
