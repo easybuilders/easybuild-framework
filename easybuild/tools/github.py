@@ -1080,6 +1080,24 @@ def find_software_name_for_patch(patch_name, ec_dirs):
                     if 'patches' in rawtxt:
                         all_ecs.append(path)
 
+    # Usual patch names are <software>-<version>_fix_foo.patch
+    # So search those ECs first
+    patch_stem = os.path.splitext(patch_name)[0]
+    # Extract possible sw name and version according to above scheme
+    # Those might be the same as the whole patch stem, which is OK
+    possible_sw_name = patch_stem.split('-')[0].lower()
+    possible_sw_name_version = patch_stem.split('_')[0].lower()
+
+    def ec_key(path):
+        filename = os.path.basename(path).lower()
+        # Put files with one of those as the prefix first, then sort by name
+        return (
+            not filename.startswith(possible_sw_name_version),
+            not filename.startswith(possible_sw_name),
+            filename
+        )
+    all_ecs.sort(key=ec_key)
+
     nr_of_ecs = len(all_ecs)
     for idx, path in enumerate(all_ecs):
         if soft_name:
