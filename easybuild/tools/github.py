@@ -1073,7 +1073,8 @@ def find_software_name_for_patch(patch_name, ec_dirs):
     for ec_dir in ec_dirs:
         for (dirpath, _, filenames) in os.walk(ec_dir):
             for fn in filenames:
-                if fn != 'TEMPLATE.eb' and not fn.endswith('.py'):
+                # TODO: In EasyBuild 5.x only check for '*.eb' files
+                if fn != 'TEMPLATE.eb' and os.path.splitext(fn) not in ('.py', '.patch'):
                     path = os.path.join(dirpath, fn)
                     rawtxt = read_file(path)
                     if 'patches' in rawtxt:
@@ -1083,7 +1084,6 @@ def find_software_name_for_patch(patch_name, ec_dirs):
     for idx, path in enumerate(all_ecs):
         if soft_name:
             break
-        rawtxt = read_file(path)
         try:
             ecs = process_easyconfig(path, validate=False)
             for ec in ecs:
