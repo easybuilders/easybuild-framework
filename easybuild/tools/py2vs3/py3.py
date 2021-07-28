@@ -36,7 +36,6 @@ import configparser  # noqa
 import json
 import sys
 import urllib.request as std_urllib  # noqa
-from collections import OrderedDict  # noqa
 from collections.abc import Mapping  # noqa
 from functools import cmp_to_key
 from importlib.util import spec_from_file_location, module_from_spec
