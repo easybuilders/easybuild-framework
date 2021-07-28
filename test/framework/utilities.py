@@ -555,3 +555,42 @@ def find_full_path(base_path, trim=(lambda x: x)):
             break
 
     return full_path
+
+
+def requires_pycodestyle():
+    try:
+        import pycodestyle  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "no pycodestyle available")
+
+
+def requires_autopep8():
+    try:
+        import autopep8  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "autopep8 is not available")
+
+
+def requires_pygraph():
+    try:
+        # do specific import, since python-graph-dot is not compatible with setuptools >= 82.0.0
+        # in which pkg_resources was removed;
+        # see also https://github.com/easybuilders/easybuild-framework/issues/5110
+        import pygraph.classes.digraph  # noqa # pylint:disable=unused-import
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "pygraph is not available")
+
+
+def requires_PyYAML():
+    try:
+        import yaml  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "PyYAML is not available")
