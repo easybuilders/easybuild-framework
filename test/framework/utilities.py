@@ -79,6 +79,9 @@ for key in os.environ.keys():
         newkey = '%s_%s' % (CONFIG_ENV_VAR_PREFIX, key[len(test_env_var_prefix):])
         os.environ[newkey] = val
 
+# test account, for which a token may be available
+GITHUB_TEST_ACCOUNT = os.environ.get('EB_GITHUB_TEST_ACCOUNT', 'easybuild_test')
+
 
 class EnhancedTestCase(TestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""

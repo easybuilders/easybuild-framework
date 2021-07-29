@@ -52,6 +52,7 @@ from easybuild.tools.github import VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import is_patch_for, pick_default_branch
 from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
+from test.framework.utilities import GITHUB_TEST_ACCOUNT
 import easybuild.tools.github as gh
 
 try:
@@ -61,8 +62,6 @@ except ImportError:
     HAVE_KEYRING = False
 
 
-# test account, for which a token may be available
-GITHUB_TEST_ACCOUNT = 'easybuild_test'
 # the user & repo to use in this test (https://github.com/easybuilders/testrepository)
 GITHUB_USER = "easybuilders"
 GITHUB_REPO = "testrepository"

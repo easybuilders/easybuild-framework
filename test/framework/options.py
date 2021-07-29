@@ -64,7 +64,7 @@ from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import HAVE_ARCHSPEC
 from easybuild.tools.version import VERSION
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config, GITHUB_TEST_ACCOUNT
 
 try:
     import pycodestyle  # noqa
@@ -93,9 +93,6 @@ prefix = /foo
 name = bar
 version = 1.2.3
 """
-
-# test account, for which a token may be available
-GITHUB_TEST_ACCOUNT = 'easybuild_test'
 
 
 class CommandLineOptionsTest(EnhancedTestCase):
