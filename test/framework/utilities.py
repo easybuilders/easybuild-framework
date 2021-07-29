@@ -165,13 +165,6 @@ class EnhancedTestCase(TestCase):
                 if not os.path.samefile(path, testdir_sandbox):
                     sys.path.remove(path)
 
-        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic
-        # to avoid that easyblocks picked up from other places cause trouble
-        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
-            for path in sys.modules[pkg].__path__[:]:
-                if testdir_sandbox not in path:
-                    sys.modules[pkg].__path__.remove(path)
-
         # hard inject location to (generic) test easyblocks into Python search path
         # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in easybuild/easyblocks/__init__.py
         easybuild.__path__.insert(0, os.path.join(testdir_sandbox, 'easybuild'))
@@ -187,6 +180,13 @@ class EnhancedTestCase(TestCase):
         test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
         easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
         reload(easybuild.easyblocks.generic)
+
+        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic
+        # to avoid that easyblocks picked up from other places cause trouble
+        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
+            for path in sys.modules[pkg].__path__[:]:
+                if testdir_sandbox not in path:
+                    sys.modules[pkg].__path__.remove(path)
 
         # save values of $PATH & $PYTHONPATH, so they can be restored later
         # this is important in case EasyBuild was installed as a module, since that module may be unloaded,
