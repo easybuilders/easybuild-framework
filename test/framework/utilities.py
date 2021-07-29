@@ -164,18 +164,19 @@ class EnhancedTestCase(TestCase):
             if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
                 if not os.path.samefile(path, testdir_sandbox):
                     sys.path.remove(path)
+        # And remove all loaded easyblocks to force reloading them
+        for mod in list(sys.modules):
+            if mod.startswith('easybuild.easyblocks'):
+                del sys.modules[mod]
 
         # hard inject location to (generic) test easyblocks into Python search path
         # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in easybuild/easyblocks/__init__.py
         easybuild.__path__.insert(0, os.path.join(testdir_sandbox, 'easybuild'))
-        sys.modules.pop('easybuild.easyblocks')
-        del easybuild.easyblocks
         import easybuild.easyblocks
         test_easyblocks_path = os.path.join(testdir_sandbox, 'easybuild', 'easyblocks')
         easybuild.easyblocks.__path__.insert(0, test_easyblocks_path)
         reload(easybuild.easyblocks)
 
-        sys.modules.pop('easybuild.easyblocks.generic')
         import easybuild.easyblocks.generic
         test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
         easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
