@@ -1,7 +1,9 @@
 import pkgutil
 
 # Import fake version
-from easybuild.tools.version import VERSION  # noqa: F401
+import easybuild.tools.version
+
+VERSION = easybuild.tools.version.VERSION
 
 subdirs = [chr(x) for x in range(ord('a'), ord('z') + 1)] + ['0']
 for subdir in subdirs:
