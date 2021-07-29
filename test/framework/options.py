@@ -3228,14 +3228,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
 
-        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic
-        # to avoid that easyblocks picked up from other places cause trouble
-        testdir_sandbox = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
-        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
-            for path in sys.modules[pkg].__path__[:]:
-                if testdir_sandbox not in path:
-                    sys.modules[pkg].__path__.remove(path)
-
         # include extra test easyblocks
         # Make them inherit from each other to trigger a known issue with changed imports, see #3779
         # Choose naming so that order of naming is different than inheritance order
@@ -3347,14 +3339,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
-
-        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic
-        # to avoid that easyblocks picked up from other places cause trouble
-        testdir_sandbox = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
-        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
-            for path in sys.modules[pkg].__path__[:]:
-                if testdir_sandbox not in path:
-                    sys.modules[pkg].__path__.remove(path)
 
         error_msg = "Failed to obtain class for FooBar easyblock"
         self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
@@ -3507,14 +3491,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
-
-        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic,
-        # to avoid that easyblocks picked up from other places cause trouble
-        testdir_sandbox = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
-        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
-            for path in sys.modules[pkg].__path__[:]:
-                if testdir_sandbox not in path:
-                    sys.modules[pkg].__path__.remove(path)
 
         # clear log
         write_file(self.logfile, '')
