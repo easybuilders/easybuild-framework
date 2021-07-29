@@ -3498,8 +3498,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # 'undo' import of easyblocks
         del sys.modules['easybuild.easyblocks.foo']
-        del sys.modules['easybuild.easyblocks.generic.cmakemake']
-        os.remove(os.path.join(self.test_prefix, 'cmakemake.py'))
+        for name in ('cmakemake', 'configuremake'):
+            del sys.modules['easybuild.easyblocks.generic.' + name]
+            os.remove(os.path.join(self.test_prefix, name + '.py'))
+
         sys.path[:] = orig_local_sys_path
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
