@@ -41,7 +41,6 @@ from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
-from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
@@ -52,7 +51,6 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPL
 from easybuild.framework.easyconfig.templates import TEMPLATE_SOFTWARE_VERSIONS, template_constant_dict
 from easybuild.framework.easyconfig.tools import avail_easyblocks
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs
-from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
@@ -484,6 +482,9 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
         for child in children:
             add_class(classes, child)
 
+    # Do the imports here so module changes (usually by tests) are picked up
+    from easybuild.framework.easyblock import EasyBlock
+    from easybuild.framework.extension import Extension
     roots = [EasyBlock, Extension]
 
     classes = {}
