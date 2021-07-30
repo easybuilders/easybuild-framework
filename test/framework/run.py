@@ -51,6 +51,7 @@ from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
 from easybuild.tools.run import parse_log_for_error, run_cmd, run_cmd_qa
 from easybuild.tools.config import ERROR, IGNORE, WARN
+from easybuild.tools.py2vs3 import subprocess_terminate
 
 
 class RunTest(EnhancedTestCase):
@@ -84,7 +85,7 @@ class RunTest(EnhancedTestCase):
                 yield proc
             finally:
                 # Make sure to close the process and its pipes
-                proc.communicate(timeout=1)
+                subprocess_terminate(proc, timeout=1)
 
         # get all output at once
         with get_proc("echo hello") as proc:

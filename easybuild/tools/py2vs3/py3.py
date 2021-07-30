@@ -73,6 +73,17 @@ def subprocess_popen_text(cmd, **kwargs):
     return subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, **kwargs)
 
 
+def subprocess_terminate(proc, timeout):
+    """Terminate the subprocess if it hasn't finished after the given timeout"""
+    try:
+        proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        for pipe in (proc.stdout, proc.stderr, proc.stdin):
+            if pipe:
+                pipe.close()
+        proc.terminate()
+
+
 def raise_with_traceback(exception_class, message, traceback):
     """Raise exception of specified class with given message and traceback."""
     raise exception_class(message).with_traceback(traceback)
