@@ -41,6 +41,7 @@ import re
 import struct
 import sys
 import termios
+import warnings
 from ctypes.util import find_library
 from socket import gethostname
 from easybuild.tools.py2vs3 import subprocess_popen_text
@@ -734,7 +735,10 @@ def get_os_name():
     if hasattr(platform, 'linux_distribution'):
         # platform.linux_distribution is more useful, but only available since Python 2.6
         # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
-        os_name = platform.linux_distribution()[0].strip()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=PendingDeprecationWarning)
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            os_name = platform.linux_distribution()[0].strip()
 
     # take into account that on some OSs, platform.distribution returns an empty string as OS name,
     # for example on OpenSUSE Leap 15.2
@@ -771,7 +775,10 @@ def get_os_version():
 
     # platform.dist was removed in Python 3.8
     if hasattr(platform, 'dist'):
-        os_version = platform.dist()[1]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=PendingDeprecationWarning)
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            os_version = platform.dist()[1]
 
     # take into account that on some OSs, platform.dist returns an empty string as OS version,
     # for example on OpenSUSE Leap 15.2
