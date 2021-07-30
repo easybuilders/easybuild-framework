@@ -468,6 +468,8 @@ def init_config(args=None, build_options=None, with_include=True, clear_caches=T
 
     cleanup(clear_caches=clear_caches)
 
+    if args is None:
+        args = []  # Ignore cmdline args as those are meant for the unittest framework
     # initialize configuration so config.get_modules_tool function works
     eb_go = eboptions.parse_options(args=args, with_include=with_include)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
