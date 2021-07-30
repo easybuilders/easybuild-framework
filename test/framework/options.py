@@ -391,8 +391,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # And now with the argument
         args.append('--skip-test-step')
         self.mock_stdout(True)
+        self.mock_stderr(True)
         outtxt = self.eb_main(args, do_build=True)
         self.mock_stdout(False)
+        self.mock_stderr(False)
         found_msg = "Skipping test step"
         found = re.search(found_msg, outtxt)
         self.assertTrue(found, "Message about test step being skipped is present, outtxt: %s" % outtxt)
