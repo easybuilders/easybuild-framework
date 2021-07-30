@@ -316,21 +316,24 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
 
     stdouterr = output
 
-    ec = proc.poll()
-    while ec is None:
-        # need to read from time to time.
-        # - otherwise the stdout/stderr buffer gets filled and it all stops working
-        output = get_output_from_process(proc, read_size=read_size)
-        if cmd_log:
-            cmd_log.write(output)
-        if stream_output:
-            sys.stdout.write(output)
-        stdouterr += output
+    try:
         ec = proc.poll()
+        while ec is None:
+            # need to read from time to time.
+            # - otherwise the stdout/stderr buffer gets filled and it all stops working
+            output = get_output_from_process(proc, read_size=read_size)
+            if cmd_log:
+                cmd_log.write(output)
+            if stream_output:
+                sys.stdout.write(output)
+            stdouterr += output
+            ec = proc.poll()
 
-    # read remaining data (all of it)
-    output = get_output_from_process(proc)
-    proc.stdout.close()
+        # read remaining data (all of it)
+        output = get_output_from_process(proc)
+    finally:
+        proc.stdout.close()
+
     if cmd_log:
         cmd_log.write(output)
         cmd_log.close()
