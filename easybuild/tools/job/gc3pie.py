@@ -34,6 +34,7 @@ Authors:
 import os
 from time import gmtime, strftime
 import time
+import warnings
 
 from easybuild.base import fancylogger
 from easybuild.tools import LooseVersion
@@ -47,7 +48,10 @@ _log = fancylogger.getLogger('gc3pie', fname=False)
 
 
 try:
-    import gc3libs
+    with warnings.catch_warnings():
+        # Workaround https://github.com/gc3pie/gc3pie/issues/670
+        warnings.simplefilter("ignore", category=DeprecationWarning)
+        import gc3libs
     import gc3libs.exceptions
     from gc3libs import Application, Run, create_engine
     from gc3libs.quantity import hours as hr
@@ -225,7 +229,10 @@ class GC3Pie(JobBackend):
         """
         # create an instance of `Engine` using the list of configuration files
         try:
-            self._engine = create_engine(*self.config_files, resource_errors_are_fatal=True)
+            with warnings.catch_warnings():
+                # Workaround https://github.com/gc3pie/gc3pie/issues/670
+                warnings.simplefilter("ignore", category=DeprecationWarning)
+                self._engine = create_engine(*self.config_files, resource_errors_are_fatal=True)
 
         except gc3libs.exceptions.Error as err:
             raise EasyBuildError("Failed to create GC3Pie engine: %s", err)
