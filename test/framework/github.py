@@ -1459,9 +1459,12 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(is_patch_for('ext_foo-1.2.3.patch', ec))
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(GithubTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(GithubTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(GithubTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

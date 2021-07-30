@@ -106,9 +106,12 @@ class StyleTest(EnhancedTestCase):
             self.assertEqual(result, expected_result)
 
 
-def suite():
+def suite(loader=None):
     """Return all style tests for easyconfigs."""
-    return TestLoaderFiltered().loadTestsFromTestCase(StyleTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(StyleTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(StyleTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

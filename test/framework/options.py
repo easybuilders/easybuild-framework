@@ -7463,9 +7463,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(opts_dict_to_eb_opts(opts_dict), expected)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(CommandLineOptionsTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(CommandLineOptionsTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(CommandLineOptionsTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

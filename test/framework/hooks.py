@@ -324,9 +324,12 @@ class HooksTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg_pattern, load_hooks, test_broken_hooks_pymod)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(HooksTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(HooksTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(HooksTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

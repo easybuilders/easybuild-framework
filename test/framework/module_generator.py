@@ -1757,11 +1757,16 @@ class LuaModuleGeneratorTest(ModuleGeneratorTest):
     MODULE_GENERATOR_CLASS = ModuleGeneratorLua
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
+    if loader:
+        args = []
+    else:
+        loader = TestLoaderFiltered()
+        args = [sys.argv[1:]]
     suite = TestSuite()
-    suite.addTests(TestLoaderFiltered().loadTestsFromTestCase(TclModuleGeneratorTest, sys.argv[1:]))
-    suite.addTests(TestLoaderFiltered().loadTestsFromTestCase(LuaModuleGeneratorTest, sys.argv[1:]))
+    suite.addTests(loader.loadTestsFromTestCase(TclModuleGeneratorTest, *args))
+    suite.addTests(loader.loadTestsFromTestCase(LuaModuleGeneratorTest, *args))
     return suite
 
 
