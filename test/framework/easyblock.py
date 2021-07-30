@@ -3615,9 +3615,12 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES)), ["some_dir", "some_dir"])
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests in this file """
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyBlockTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(EasyBlockTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyBlockTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

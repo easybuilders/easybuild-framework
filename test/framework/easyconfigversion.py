@@ -285,9 +285,12 @@ class EasyConfigVersion(EnhancedTestCase):
             self.assertTrue(hash(test_case))
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigVersion, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(EasyConfigVersion)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigVersion, sys.argv[1:])
 
 
 if __name__ == '__main__':

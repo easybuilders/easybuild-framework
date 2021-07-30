@@ -135,8 +135,11 @@ class EasyBuildLibTest(TestCase):
         self.assertEqual(modtool.list(), [{'default': None, 'mod_name': 'GCC/6.4.0-2.28'}])
 
 
-def suite():
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyBuildLibTest, sys.argv[1:])
+def suite(loader=None):
+    if loader:
+        return loader.loadTestsFromTestCase(EasyBuildLibTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyBuildLibTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

@@ -258,9 +258,12 @@ class IncludeTest(EnhancedTestCase):
         self.assertFalse(is_software_specific_easyblock(os.path.join(test_easyblocks, 'generic', 'toolchain.py')))
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(IncludeTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(IncludeTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(IncludeTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

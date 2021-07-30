@@ -509,9 +509,12 @@ class ContainersTest(EnhancedTestCase):
         self.assertEqual(cont_recipe, expected)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(ContainersTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(ContainersTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(ContainersTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

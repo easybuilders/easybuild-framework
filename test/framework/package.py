@@ -269,9 +269,12 @@ class PackageTest(EnhancedTestCase):
         self.mock_stdout(False)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(PackageTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(PackageTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(PackageTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
