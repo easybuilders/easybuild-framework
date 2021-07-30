@@ -2951,9 +2951,12 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(res, expected)
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests"""
-    return TestLoaderFiltered().loadTestsFromTestCase(ToolchainTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(ToolchainTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(ToolchainTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
