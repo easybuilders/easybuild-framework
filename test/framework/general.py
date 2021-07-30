@@ -155,9 +155,12 @@ class GeneralTest(EnhancedTestCase):
         self.assertEqual([test123.one, test123.three, test123.two], res)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(GeneralTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(GeneralTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(GeneralTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

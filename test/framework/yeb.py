@@ -190,9 +190,12 @@ class YebTest(EnhancedTestCase):
         self.assertEqual(ec.dependencies()[1]['external_module_metadata'], metadata)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(YebTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(YebTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(YebTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

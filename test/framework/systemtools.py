@@ -1133,9 +1133,12 @@ class SystemToolsTest(EnhancedTestCase):
                 self.assertExists(lib_path)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(SystemToolsTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(SystemToolsTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(SystemToolsTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
