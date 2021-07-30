@@ -28,6 +28,7 @@ Unit tests for asyncprocess.py.
 @author: Toon Willems (Ghent University)
 """
 
+import subprocess
 import sys
 import time
 from test.framework.utilities import EnhancedTestCase
@@ -62,6 +63,11 @@ class AsyncProcessTest(EnhancedTestCase):
 
     def tearDown(self):
         """cleanup"""
+        try:
+            # Terminate subprocess
+            self.shell.communicate(timeout=1)
+        except subprocess.TimeoutExpired:
+            pass
         super(AsyncProcessTest, self).tearDown()
 
 
