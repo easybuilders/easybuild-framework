@@ -397,6 +397,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             path = cwd
         dry_run_msg("  running interactive command \"%s\"" % cmd, silent=build_option('silent'))
         dry_run_msg("  (in %s)" % path, silent=build_option('silent'))
+        if cmd_log:
+            cmd_log.close()
         if simple:
             return True
         else:
@@ -442,6 +444,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         if isinstance(answers, string_type):
             answers = [answers]
         elif not isinstance(answers, list):
+            if cmd_log:
+                cmd_log.close()
             raise EasyBuildError("Invalid type for answer on %s, no string or list: %s (%s)",
                                  question, type(answers), answers)
         # list is manipulated when answering matching question, so return a copy
@@ -483,6 +487,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         proc = asyncprocess.Popen(cmd, shell=True, stdout=asyncprocess.PIPE, stderr=asyncprocess.STDOUT,
                                   stdin=asyncprocess.PIPE, close_fds=True, executable='/bin/bash')
     except OSError as err:
+        if cmd_log:
+            cmd_log.close()
         raise EasyBuildError("run_cmd_qa init cmd %s failed:%s", cmd, err)
 
     ec = proc.poll()
@@ -556,6 +562,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             except OSError as err:
                 _log.debug("run_cmd_qa exception caught when killing child process: %s", err)
             _log.debug("run_cmd_qa: full stdouterr: %s", stdout_err)
+            if cmd_log:
+                cmd_log.close()
             raise EasyBuildError("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s",
                                  cmd, maxhits, stdout_err[-500:])
 
@@ -570,9 +578,11 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             stdout_err += out
             if cmd_log:
                 cmd_log.write(out)
-                cmd_log.close()
     except IOError as err:
         _log.debug("runqanda cmd %s: remaining data read failed: %s", cmd, err)
+
+    if cmd_log:
+        cmd_log.close()
 
     if trace:
         trace_msg("interactive command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))
