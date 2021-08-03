@@ -10,7 +10,12 @@
 # - Changes to documentation and formatting
 
 import re
-from itertools import zip_longest
+# Modified: Make this compatible with Python 2
+try:
+    from itertools import zip_longest
+except ImportError:
+    # Python 2
+    from itertools import izip_longest as zip_longest
 
 
 class LooseVersion(object):
