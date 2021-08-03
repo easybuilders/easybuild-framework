@@ -1945,6 +1945,8 @@ class EasyBlock(object):
             if self.cfg['checksums'] and isinstance(self.cfg['checksums'], (list, tuple)):
                 # if checksums are provided as a list, first entries are assumed to be for sources
                 patches_checksums = self.cfg['checksums'][len(self.cfg['sources']):]
+            else:
+                patches_checksums = self.cfg['checksums']
             self.fetch_patches(checksums=patches_checksums)
         else:
             self.log.info('no patches provided')
