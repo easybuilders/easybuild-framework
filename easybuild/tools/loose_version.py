@@ -10,6 +10,7 @@
 # - Changes to documentation and formatting
 
 import re
+from itertools import zip_longest
 
 
 class LooseVersion(object):
@@ -48,12 +49,19 @@ class LooseVersion(object):
         if isinstance(other, str):
             other = LooseVersion(other)
 
-        if self.version == other.version:
-            return 0
-        if self.version < other.version:
-            return -1
-        if self.version > other.version:
-            return 1
+        # Modified: Behave the same in Python 2 & 3 when parts are of different types
+        # Taken from https://bugs.python.org/issue14894
+        for i, j in zip_longest(self.version, other.version, fillvalue=''):
+            if not type(i) is type(j):
+                i = str(i)
+                j = str(j)
+            if i == j:
+                continue
+            elif i < j:
+                return -1
+            else:  # i > j
+                return 1
+        return 0
 
     def __eq__(self, other):
         return self._cmp(other) == 0

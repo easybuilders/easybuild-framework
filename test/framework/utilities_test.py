@@ -131,6 +131,9 @@ class UtilitiesTest(EnhancedTestCase):
         self.assertLess(LooseVersion('2.1.5'), LooseVersion('2.2'))
         self.assertLess(LooseVersion('2.1.3'), LooseVersion('3'))
         self.assertLessEqual(LooseVersion('2.1.0'), LooseVersion('2.2'))
+        # Careful here: 1.0 > 1 !!!
+        self.assertGreater(LooseVersion('1.0'), LooseVersion('1'))
+        self.assertLess(LooseVersion('1'), LooseVersion('1.0'))
 
         # The following test is taken from Python disutils tests
         # licensed under the Python Software Foundation License Version 2
@@ -141,7 +144,11 @@ class UtilitiesTest(EnhancedTestCase):
                     ('3.2.pl0', '3.1.1.6', 1),
                     ('2g6', '11g', -1),
                     ('0.960923', '2.2beta29', -1),
-                    ('1.13++', '5.5.kw', -1))
+                    ('1.13++', '5.5.kw', -1),
+                    # Added from https://bugs.python.org/issue14894
+                    ('a.12.b.c', 'a.b.3', -1),
+                    ('1.0', '1', 1),
+                    ('1', '1.0', -1))
 
         for v1, v2, wanted in versions:
             res = LooseVersion(v1)._cmp(LooseVersion(v2))
