@@ -27,7 +27,7 @@ EasyBuild support for gompi compiler toolchain (includes GCC and OpenMPI).
 
 :author: Kenneth Hoste (Ghent University)
 """
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 import re
 
 from easybuild.toolchains.gcc import GccToolchain

@@ -33,7 +33,6 @@ import re
 import shutil
 import sys
 import tempfile
-from distutils.version import LooseVersion
 from inspect import cleandoc
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -43,7 +42,7 @@ from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
-from easybuild.tools import config
+from easybuild.tools import config, LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, update_build_option
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_file

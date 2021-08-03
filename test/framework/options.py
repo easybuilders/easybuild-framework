@@ -35,7 +35,7 @@ import stat
 import sys
 import tempfile
 import textwrap
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 from unittest import TextTestRunner
 
 import easybuild.main

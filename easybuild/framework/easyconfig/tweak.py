@@ -41,7 +41,6 @@ import glob
 import os
 import re
 import tempfile
-from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
@@ -54,6 +53,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths
 from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.toolchains.gcccore import GCCcore
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file, write_file

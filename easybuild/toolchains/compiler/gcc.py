@@ -30,9 +30,9 @@ Support for GCC (GNU Compiler Collection) as toolchain compiler.
 """
 
 import re
-from distutils.version import LooseVersion
 
 import easybuild.tools.systemtools as systemtools
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import get_software_root, get_software_version
 from easybuild.tools.toolchain.compiler import Compiler, DEFAULT_OPT_LEVEL

@@ -29,7 +29,7 @@ Interface module to TORQUE (PBS).
 :author: Toon Willems (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 import os
 import re
 import tempfile

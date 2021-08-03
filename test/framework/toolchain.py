@@ -34,7 +34,6 @@ import shutil
 import stat
 import sys
 import tempfile
-from distutils.version import LooseVersion
 from itertools import product
 from unittest import TextTestRunner
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
@@ -44,6 +43,7 @@ import easybuild.tools.toolchain as toolchain
 import easybuild.tools.toolchain.compiler
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.toolchains.system import SystemToolchain
+from easybuild.tools import LooseVersion
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar

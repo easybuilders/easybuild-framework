@@ -29,7 +29,6 @@ Support for Intel MKL as toolchain linear algebra library.
 :author: Kenneth Hoste (Ghent University)
 """
 import os
-from distutils.version import LooseVersion
 
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
@@ -39,6 +38,7 @@ from easybuild.toolchains.mpi.mpich import TC_CONSTANT_MPICH
 from easybuild.toolchains.mpi.mpich2 import TC_CONSTANT_MPICH2
 from easybuild.toolchains.mpi.mvapich2 import TC_CONSTANT_MVAPICH2
 from easybuild.toolchains.mpi.openmpi import TC_CONSTANT_OPENMPI
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 

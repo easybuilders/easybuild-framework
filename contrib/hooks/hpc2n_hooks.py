@@ -4,8 +4,8 @@
 
 import os
 
-from distutils.version import LooseVersion
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
+from easybuild.tools import LooseVersion
 from easybuild.tools.filetools import apply_regex_substitutions
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import get_software_root

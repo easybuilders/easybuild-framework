@@ -42,7 +42,6 @@ import shutil
 import sys
 import tempfile
 import pwd
-from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
 from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
@@ -56,7 +55,7 @@ from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyco
 from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, get_paths_for
 from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
-from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
+from easybuild.tools import build_log, LooseVersion, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
 from easybuild.tools.build_log import init_logging, log_start, print_msg, print_warning, raise_easybuilderror
 from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE, DEFAULT_ALLOW_LOADED_MODULES

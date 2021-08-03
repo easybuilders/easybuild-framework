@@ -37,7 +37,7 @@ import sys
 import urllib.request as std_urllib  # noqa
 from collections import OrderedDict  # noqa
 from collections.abc import Mapping  # noqa
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 from functools import cmp_to_key
 from html.parser import HTMLParser  # noqa
 from itertools import zip_longest

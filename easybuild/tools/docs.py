@@ -37,7 +37,7 @@ Documentation-related functionality
 import copy
 import inspect
 import os
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories

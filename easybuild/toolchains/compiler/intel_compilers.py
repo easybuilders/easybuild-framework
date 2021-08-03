@@ -29,9 +29,8 @@ Support for Intel compilers (icc, ifort) as toolchain compilers, version 2021.x 
 """
 import os
 
-from distutils.version import LooseVersion
-
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.tools import LooseVersion
 from easybuild.tools.toolchain.compiler import Compiler
 
 

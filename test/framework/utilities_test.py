@@ -37,9 +37,9 @@ from datetime import datetime
 from unittest import TextTestRunner
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.utilities import time2str, natural_keys
-from easybuild.tools import LooseVersion
 
 
 class UtilitiesTest(EnhancedTestCase):

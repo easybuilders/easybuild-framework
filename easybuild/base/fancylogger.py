@@ -83,8 +83,8 @@ import sys
 import threading
 import traceback
 import weakref
-from distutils.version import LooseVersion
 
+from easybuild.tools import LooseVersion
 from easybuild.tools.py2vs3 import raise_with_traceback, string_type
 
 

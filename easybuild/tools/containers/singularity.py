@@ -28,10 +28,10 @@ Support for generating singularity container recipes and creating container imag
 :author: Kenneth Hoste (HPC-UGent)
 :author: Mohamed Abidi (Bright Computing)
 """
-from distutils.version import LooseVersion
 import os
 import re
 
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX
 from easybuild.tools.config import CONT_IMAGE_FORMAT_SIF, CONT_IMAGE_FORMAT_SQUASHFS
