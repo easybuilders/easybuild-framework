@@ -57,7 +57,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.py2vs3 import OrderedDict, ascii_lowercase, sort_looseversions
+from easybuild.tools.py2vs3 import OrderedDict, ascii_lowercase
 from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import INDENT_2SPACES, INDENT_4SPACES
@@ -663,7 +663,7 @@ def list_software_rst(software, detailed=False):
             # sort pairs by version (and then by versionsuffix);
             # we sort by LooseVersion to obtain chronological version ordering,
             # but we also need to retain original string version for filtering-by-version done below
-            sorted_pairs = sort_looseversions((LooseVersion(v), vs, v) for v, vs in pairs)
+            sorted_pairs = sorted((LooseVersion(v), vs, v) for v, vs in pairs)
 
             for _, vsuff, ver in sorted_pairs:
                 table_values[0].append('``%s``' % ver)
@@ -721,7 +721,7 @@ def list_software_txt(software, detailed=False):
             # sort pairs by version (and then by versionsuffix);
             # we sort by LooseVersion to obtain chronological version ordering,
             # but we also need to retain original string version for filtering-by-version done below
-            sorted_pairs = sort_looseversions((LooseVersion(v), vs, v) for v, vs in pairs)
+            sorted_pairs = sorted((LooseVersion(v), vs, v) for v, vs in pairs)
 
             for _, vsuff, ver in sorted_pairs:
                 tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['versionsuffix'] == vsuff]
