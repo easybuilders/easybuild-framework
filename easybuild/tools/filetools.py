@@ -2503,6 +2503,9 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         # Note: Disable logging to also disable the error handling in run_cmd
         (out, ec) = run.run_cmd(cmd, log_ok=False, log_all=False, regexp=False, path=repo_name)
         if ec != 0 or tag not in out.splitlines():
+            print_warning('Tag %s was not downloaded in the first try due to %s/%s containing a branch'
+                          ' with the same name. You might want to alert the maintainers of %s about that issue.',
+                          tag, url, repo_name, repo_name)
             cmds = []
             if not keep_git_dir:
                 # Make the repo unshallow, same as git fetch --unshallow in git 1.8.3+
