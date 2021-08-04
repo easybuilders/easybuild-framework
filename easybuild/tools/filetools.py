@@ -2472,7 +2472,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     clone_cmd = ['git', 'clone']
 
     if tag:
-        clone_cmd.extend(['--branch', tag])
+        clone_cmd.extend(['--branch', 'refs/tags/' + tag])
 
     if recursive:
         clone_cmd.append('--recursive')

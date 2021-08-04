@@ -2491,15 +2491,21 @@ class FileToolsTest(EnhancedTestCase):
         git_config = {
             'repo_name': 'testrepository',
             'url': 'https://github.com/easybuilders',
-            'tag': 'main',
+            'tag': 'tag_for_tests',
         }
         target_dir = os.path.join(self.test_prefix, 'target')
 
         try:
             ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
             # (only) tarball is created in specified target dir
-            self.assertTrue(os.path.isfile(os.path.join(target_dir, 'test.tar.gz')))
+            test_file = os.path.join(target_dir, 'test.tar.gz')
+            self.assertTrue(os.path.isfile(test_file))
             self.assertEqual(os.listdir(target_dir), ['test.tar.gz'])
+
+            # Check that we indeed downloaded the tag and not a branch
+            extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
+            target_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
+            self.assertTrue(os.path.isfile(os.path.join(target_dir, 'this-is-a-tag.txt')))
 
             del git_config['tag']
             git_config['commit'] = '8456f86'
@@ -2516,7 +2522,7 @@ class FileToolsTest(EnhancedTestCase):
         git_config = {
             'repo_name': 'testrepository',
             'url': 'git@github.com:easybuilders',
-            'tag': 'master',
+            'tag': 'tag_for_tests',
         }
         args = ['test.tar.gz', self.test_prefix, git_config]
 
@@ -2570,10 +2576,10 @@ class FileToolsTest(EnhancedTestCase):
         git_config = {
             'repo_name': 'testrepository',
             'url': 'git@github.com:easybuilders',
-            'tag': 'master',
+            'tag': 'tag_for_tests',
         }
         expected = '\n'.join([
-            r'  running command "git clone --branch master git@github.com:easybuilders/testrepository.git"',
+            r'  running command "git clone --branch refs/tags/tag_for_tests git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
@@ -2582,7 +2588,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config['recursive'] = True
         expected = '\n'.join([
-            r'  running command "git clone --branch master --recursive git@github.com:easybuilders/testrepository.git"',
+            r'  running command "git clone --branch refs/tags/tag_for_tests --recursive git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
@@ -2591,7 +2597,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
-            r'  running command "git clone --branch master --recursive git@github.com:easybuilders/testrepository.git"',
+            r'  running command "git clone --branch refs/tags/tag_for_tests --recursive git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz testrepository"',
             r"  \(in .*/tmp.*\)",
