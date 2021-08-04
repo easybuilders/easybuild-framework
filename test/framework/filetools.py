@@ -2515,54 +2515,55 @@ class FileToolsTest(EnhancedTestCase):
             'url': 'git@github.com:easybuilders',
             'tag': 'tag_for_tests',
         }
+        git_repo = {'git_repo': 'git@github.com:easybuilders/testrepository.git'}  # Just to make the below shorter
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch refs/tags/tag_for_tests git@github.com:easybuilders/testrepository.git"',
+            r'  running command "git clone --depth 1 --branch refs/tags/tag_for_tests %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
-        ])
+        ]) % git_repo
         run_check()
 
         git_config['recursive'] = True
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch refs/tags/tag_for_tests --recursive git@github.com:easybuilders/testrepository.git"',
+            r'  running command "git clone --depth 1 --branch refs/tags/tag_for_tests --recursive %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
-        ])
+        ]) % git_repo
         run_check()
 
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
-            r'  running command "git clone --branch refs/tags/tag_for_tests --recursive git@github.com:easybuilders/testrepository.git"',
+            r'  running command "git clone --branch refs/tags/tag_for_tests --recursive %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz testrepository"',
             r"  \(in .*/tmp.*\)",
-        ])
+        ]) % git_repo
         run_check()
         del git_config['keep_git_dir']
 
         del git_config['tag']
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --no-checkout git@github.com:easybuilders/testrepository.git"',
+            r'  running command "git clone --depth 1 --no-checkout %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
             r'  running command "git checkout 8456f86 && git submodule update --init --recursive"',
             r"  \(in testrepository\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
-        ])
+        ]) % git_repo
         run_check()
 
         del git_config['recursive']
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --no-checkout git@github.com:easybuilders/testrepository.git"',
+            r'  running command "git clone --depth 1 --no-checkout %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
             r'  running command "git checkout 8456f86"',
             r"  \(in testrepository\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
-        ])
+        ]) % git_repo
         run_check()
 
         # Test with real data
@@ -2630,7 +2631,6 @@ class FileToolsTest(EnhancedTestCase):
         error_pattern = "git_config currently only supports filename ending in .tar.gz"
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
         args[0] = 'test.tar.gz'
-
 
     def test_is_sha256_checksum(self):
         """Test for is_sha256_checksum function."""
