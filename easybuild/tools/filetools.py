@@ -2477,7 +2477,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         clone_cmd.extend(['--depth', '1'])
 
     if tag:
-        clone_cmd.extend(['--branch', 'refs/tags/' + tag])
+        clone_cmd.extend(['--branch', tag])
         if recursive:
             clone_cmd.append('--recursive')
     else:
@@ -2487,7 +2487,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
 
     tmpdir = tempfile.mkdtemp()
     cwd = change_dir(tmpdir)
-    run.run_cmd(' '.join(clone_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+    run.run_cmd(' '.join(clone_cmd), log_all=True, simple=True, regexp=False)
 
     # if a specific commit is asked for, check it out
     if commit:
@@ -2495,14 +2495,33 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         if recursive:
             checkout_cmd.extend(['&&', 'git', 'submodule', 'update', '--init', '--recursive'])
 
-        run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
+        run.run_cmd(' '.join(checkout_cmd), log_all=True, simple=True, regexp=False, path=repo_name)
+    elif not build_option('extended_dry_run'):
+        # If we wanted to get a tag make sure we actually got a tag and not a branch with the same name
+        # This doesn't make sense in dry-run mode as we don't have anything to check
+        cmd = 'git describe --exact-match --tags HEAD'
+        # Note: Disable logging to also disable the error handling in run_cmd
+        (out, ec) = run.run_cmd(cmd, log_ok=False, log_all=False, regexp=False, path=repo_name)
+        if ec != 0 or tag not in out.splitlines():
+            cmds = []
+            if not keep_git_dir:
+                # Make the repo unshallow, same as git fetch --unshallow in git 1.8.3+
+                # The first fetch seemingly does nothing, no idea why.
+                cmds.append('git fetch --depth=2147483647 && git fetch --depth=2147483647')
+            cmds.append('git checkout refs/tags/' + tag)
+            # Clean all untracked files, e.g. from left-over submodules
+            cmds.append('git clean --force -d -x')
+            if recursive:
+                cmds.append('git submodule update --init --recursive')
+            for cmd in cmds:
+                run.run_cmd(cmd, log_all=True, simple=True, regexp=False, path=repo_name)
 
     # create an archive and delete the git repo directory
     if keep_git_dir:
         tar_cmd = ['tar', 'cfvz', targetpath, repo_name]
     else:
         tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
-    run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+    run.run_cmd(' '.join(tar_cmd), log_all=True, simple=True, regexp=False)
 
     # cleanup (repo_name dir does not exist in dry run mode)
     change_dir(cwd)

@@ -2517,7 +2517,7 @@ class FileToolsTest(EnhancedTestCase):
         }
         git_repo = {'git_repo': 'git@github.com:easybuilders/testrepository.git'}  # Just to make the below shorter
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch refs/tags/tag_for_tests %(git_repo)s"',
+            r'  running command "git clone --depth 1 --branch tag_for_tests %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
@@ -2526,7 +2526,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config['recursive'] = True
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch refs/tags/tag_for_tests --recursive %(git_repo)s"',
+            r'  running command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
@@ -2535,7 +2535,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
-            r'  running command "git clone --branch refs/tags/tag_for_tests --recursive %(git_repo)s"',
+            r'  running command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz testrepository"',
             r"  \(in .*/tmp.*\)",
@@ -2566,12 +2566,12 @@ class FileToolsTest(EnhancedTestCase):
         ]) % git_repo
         run_check()
 
-        # Test with real data
+        # Test with real data.
         init_config()
         git_config = {
             'repo_name': 'testrepository',
             'url': 'https://github.com/easybuilders',
-            'tag': 'tag_for_tests',
+            'tag': 'branch_tag_for_test',
         }
 
         try:
@@ -2581,11 +2581,21 @@ class FileToolsTest(EnhancedTestCase):
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
             self.assertEqual(os.listdir(target_dir), ['test.tar.gz'])
-
-            # Check that we indeed downloaded the tag and not a branch
+            # Check that we indeed downloaded the right tag
             extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
-            target_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
-            self.assertTrue(os.path.isfile(os.path.join(target_dir, 'this-is-a-tag.txt')))
+            extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
+            self.assertTrue(os.path.isfile(os.path.join(extracted_repo_dir, 'this-is-a-branch.txt')))
+            os.remove(test_file)
+
+            # use a tag that clashes with a branch name and make sure this is handled correctly
+            git_config['tag'] = 'tag_for_tests'
+            res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+            self.assertEqual(res, test_file)
+            self.assertTrue(os.path.isfile(test_file))
+            # Check that we indeed downloaded the tag and not the branch
+            extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
+            extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
+            self.assertTrue(os.path.isfile(os.path.join(extracted_repo_dir, 'this-is-a-tag.txt')))
 
             del git_config['tag']
             git_config['commit'] = '8456f86'
