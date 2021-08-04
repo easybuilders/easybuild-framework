@@ -2496,9 +2496,10 @@ class FileToolsTest(EnhancedTestCase):
         target_dir = os.path.join(self.test_prefix, 'target')
 
         try:
-            ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+            res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
             # (only) tarball is created in specified target dir
             test_file = os.path.join(target_dir, 'test.tar.gz')
+            self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
             self.assertEqual(os.listdir(target_dir), ['test.tar.gz'])
 
@@ -2509,8 +2510,10 @@ class FileToolsTest(EnhancedTestCase):
 
             del git_config['tag']
             git_config['commit'] = '8456f86'
-            ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
-            self.assertTrue(os.path.isfile(os.path.join(target_dir, 'test2.tar.gz')))
+            res = ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
+            test_file = os.path.join(target_dir, 'test2.tar.gz')
+            self.assertEqual(res, test_file)
+            self.assertTrue(os.path.isfile(test_file))
             self.assertEqual(sorted(os.listdir(target_dir)), ['test.tar.gz', 'test2.tar.gz'])
 
         except EasyBuildError as err:
@@ -2559,13 +2562,10 @@ class FileToolsTest(EnhancedTestCase):
 
         def run_check():
             """Helper function to run get_source_tarball_from_git & check dry run output"""
-            self.mock_stdout(True)
-            self.mock_stderr(True)
-            res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
-            stdout = self.get_stdout()
-            stderr = self.get_stderr()
-            self.mock_stdout(False)
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr():
+                res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+                stdout = self.get_stdout()
+                stderr = self.get_stderr()
             self.assertEqual(stderr, '')
             regex = re.compile(expected)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
