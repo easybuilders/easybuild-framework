@@ -2488,70 +2488,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_get_source_tarball_from_git(self):
         """Test get_source_tarball_from_git function."""
 
-        git_config = {
-            'repo_name': 'testrepository',
-            'url': 'https://github.com/easybuilders',
-            'tag': 'tag_for_tests',
-        }
         target_dir = os.path.join(self.test_prefix, 'target')
-
-        try:
-            res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
-            # (only) tarball is created in specified target dir
-            test_file = os.path.join(target_dir, 'test.tar.gz')
-            self.assertEqual(res, test_file)
-            self.assertTrue(os.path.isfile(test_file))
-            self.assertEqual(os.listdir(target_dir), ['test.tar.gz'])
-
-            # Check that we indeed downloaded the tag and not a branch
-            extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
-            target_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
-            self.assertTrue(os.path.isfile(os.path.join(target_dir, 'this-is-a-tag.txt')))
-
-            del git_config['tag']
-            git_config['commit'] = '8456f86'
-            res = ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
-            test_file = os.path.join(target_dir, 'test2.tar.gz')
-            self.assertEqual(res, test_file)
-            self.assertTrue(os.path.isfile(test_file))
-            self.assertEqual(sorted(os.listdir(target_dir)), ['test.tar.gz', 'test2.tar.gz'])
-
-        except EasyBuildError as err:
-            if "Network is down" in str(err):
-                print("Ignoring download error in test_get_source_tarball_from_git, working offline?")
-            else:
-                raise err
-
-        git_config = {
-            'repo_name': 'testrepository',
-            'url': 'git@github.com:easybuilders',
-            'tag': 'tag_for_tests',
-        }
-        args = ['test.tar.gz', self.test_prefix, git_config]
-
-        for key in ['repo_name', 'url', 'tag']:
-            orig_value = git_config.pop(key)
-            if key == 'tag':
-                error_pattern = "Neither tag nor commit found in git_config parameter"
-            else:
-                error_pattern = "%s not specified in git_config parameter" % key
-            self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
-            git_config[key] = orig_value
-
-        git_config['commit'] = '8456f86'
-        error_pattern = "Tag and commit are mutually exclusive in git_config parameter"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
-        del git_config['commit']
-
-        git_config['unknown'] = 'foobar'
-        error_pattern = "Found one or more unexpected keys in 'git_config' specification"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
-        del git_config['unknown']
-
-        args[0] = 'test.txt'
-        error_pattern = "git_config currently only supports filename ending in .tar.gz"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
-        args[0] = 'test.tar.gz'
 
         # only test in dry run mode, i.e. check which commands would be executed without actually running them
         build_options = {
@@ -2627,6 +2564,73 @@ class FileToolsTest(EnhancedTestCase):
             r"  \(in .*/tmp.*\)",
         ])
         run_check()
+
+        # Test with real data
+        init_config()
+        git_config = {
+            'repo_name': 'testrepository',
+            'url': 'https://github.com/easybuilders',
+            'tag': 'tag_for_tests',
+        }
+
+        try:
+            res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+            # (only) tarball is created in specified target dir
+            test_file = os.path.join(target_dir, 'test.tar.gz')
+            self.assertEqual(res, test_file)
+            self.assertTrue(os.path.isfile(test_file))
+            self.assertEqual(os.listdir(target_dir), ['test.tar.gz'])
+
+            # Check that we indeed downloaded the tag and not a branch
+            extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
+            target_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
+            self.assertTrue(os.path.isfile(os.path.join(target_dir, 'this-is-a-tag.txt')))
+
+            del git_config['tag']
+            git_config['commit'] = '8456f86'
+            res = ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
+            test_file = os.path.join(target_dir, 'test2.tar.gz')
+            self.assertEqual(res, test_file)
+            self.assertTrue(os.path.isfile(test_file))
+            self.assertEqual(sorted(os.listdir(target_dir)), ['test.tar.gz', 'test2.tar.gz'])
+
+        except EasyBuildError as err:
+            if "Network is down" in str(err):
+                print("Ignoring download error in test_get_source_tarball_from_git, working offline?")
+            else:
+                raise err
+
+        git_config = {
+            'repo_name': 'testrepository',
+            'url': 'git@github.com:easybuilders',
+            'tag': 'tag_for_tests',
+        }
+        args = ['test.tar.gz', self.test_prefix, git_config]
+
+        for key in ['repo_name', 'url', 'tag']:
+            orig_value = git_config.pop(key)
+            if key == 'tag':
+                error_pattern = "Neither tag nor commit found in git_config parameter"
+            else:
+                error_pattern = "%s not specified in git_config parameter" % key
+            self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
+            git_config[key] = orig_value
+
+        git_config['commit'] = '8456f86'
+        error_pattern = "Tag and commit are mutually exclusive in git_config parameter"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
+        del git_config['commit']
+
+        git_config['unknown'] = 'foobar'
+        error_pattern = "Found one or more unexpected keys in 'git_config' specification"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
+        del git_config['unknown']
+
+        args[0] = 'test.txt'
+        error_pattern = "git_config currently only supports filename ending in .tar.gz"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
+        args[0] = 'test.tar.gz'
+
 
     def test_is_sha256_checksum(self):
         """Test for is_sha256_checksum function."""
