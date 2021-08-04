@@ -2579,7 +2579,7 @@ class FileToolsTest(EnhancedTestCase):
             'tag': 'tag_for_tests',
         }
         expected = '\n'.join([
-            r'  running command "git clone --branch refs/tags/tag_for_tests git@github.com:easybuilders/testrepository.git"',
+            r'  running command "git clone --depth 1 --branch refs/tags/tag_for_tests git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
@@ -2588,7 +2588,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config['recursive'] = True
         expected = '\n'.join([
-            r'  running command "git clone --branch refs/tags/tag_for_tests --recursive git@github.com:easybuilders/testrepository.git"',
+            r'  running command "git clone --depth 1 --branch refs/tags/tag_for_tests --recursive git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
@@ -2608,7 +2608,7 @@ class FileToolsTest(EnhancedTestCase):
         del git_config['tag']
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
-            r'  running command "git clone --recursive git@github.com:easybuilders/testrepository.git"',
+            r'  running command "git clone --depth 1 --no-checkout git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
             r'  running command "git checkout 8456f86 && git submodule update --init --recursive"',
             r"  \(in testrepository\)",
@@ -2619,7 +2619,7 @@ class FileToolsTest(EnhancedTestCase):
 
         del git_config['recursive']
         expected = '\n'.join([
-            r'  running command "git clone git@github.com:easybuilders/testrepository.git"',
+            r'  running command "git clone --depth 1 --no-checkout git@github.com:easybuilders/testrepository.git"',
             r"  \(in .*/tmp.*\)",
             r'  running command "git checkout 8456f86"',
             r"  \(in testrepository\)",
