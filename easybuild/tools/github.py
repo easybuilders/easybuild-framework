@@ -839,7 +839,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # copy easyconfig files to right place
     target_dir = os.path.join(git_working_dir, pr_target_repo)
     print_msg("copying files to %s..." % target_dir)
-    file_info = COPY_FUNCTIONS[pr_target_repo](ec_paths, os.path.join(git_working_dir, pr_target_repo))
+    file_info = COPY_FUNCTIONS[pr_target_repo](ec_paths, target_dir)
 
     # figure out commit message to use
     if commit_msg:
@@ -1071,7 +1071,9 @@ def find_software_name_for_patch(patch_name, ec_dirs):
 
     all_ecs = []
     for ec_dir in ec_dirs:
-        for (dirpath, _, filenames) in os.walk(ec_dir):
+        for (dirpath, dirnames, filenames) in os.walk(ec_dir):
+            # Don't visit any hidden folders, such as .git
+            dirnames[:] = [i for i in dirnames if not i.startswith('.')]
             for fn in filenames:
                 # TODO: In EasyBuild 5.x only check for '*.eb' files
                 if fn != 'TEMPLATE.eb' and os.path.splitext(fn)[1] not in ('.py', '.patch'):
