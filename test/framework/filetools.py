@@ -2589,7 +2589,10 @@ class FileToolsTest(EnhancedTestCase):
 
             # use a tag that clashes with a branch name and make sure this is handled correctly
             git_config['tag'] = 'tag_for_tests'
-            res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+            with self.mocked_stdout_stderr():
+                res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+                stderr = self.get_stderr()
+            self.assertIn('Tag tag_for_tests was not downloaded in the first try', stderr)
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
             # Check that we indeed downloaded the tag and not the branch
