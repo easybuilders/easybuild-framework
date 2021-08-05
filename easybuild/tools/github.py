@@ -1069,11 +1069,13 @@ def find_software_name_for_patch(patch_name, ec_dirs):
 
     soft_name = None
 
+    ignore_dirs = build_option('ignore_dirs')
     all_ecs = []
     for ec_dir in ec_dirs:
         for (dirpath, dirnames, filenames) in os.walk(ec_dir):
-            # Don't visit any hidden folders, such as .git
-            dirnames[:] = [i for i in dirnames if not i.startswith('.')]
+            # Exclude ignored dirs
+            if ignore_dirs:
+                dirnames[:] = [i for i in dirnames if i not in ignore_dirs]
             for fn in filenames:
                 # TODO: In EasyBuild 5.x only check for '*.eb' files
                 if fn != 'TEMPLATE.eb' and os.path.splitext(fn)[1] not in ('.py', '.patch'):
