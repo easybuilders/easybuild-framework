@@ -102,6 +102,9 @@ ARCH_KEY_PREFIX = 'arch='
 # Vector extension constants
 SSE = 'sse'
 SSE2 = 'sse2'
+SSSE3 = 'ssse3'
+SSE4_1 = 'sse4_1'
+SSE4_2 = 'sse4_2'
 AVX = 'avx'
 AVX2 = 'avx2'
 AVX512F = 'avx512f'
@@ -141,7 +144,7 @@ CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, RISCV32, RISCV64, X86_64]
 CPU_FAMILIES = [AMD, ARM, INTEL, POWER, POWER_LE, RISCV]
 CPU_VENDORS = [AMD, APM, APPLE, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
 # Vector extensions of CPUs in ascending order (later => better)
-CPU_VECTOR_EXTS = [SSE, SSE2, AVX, AVX2, AVX512F]
+CPU_VECTOR_EXTS = [SSE, SSE2, SSSE3, SSE4_1, SSE4_2, AVX, AVX2, AVX512F]
 # ARM implementer IDs (i.e., the hexadeximal keys) taken from ARMv8-A Architecture Reference Manual
 # (ARM DDI 0487A.j, Section G6.2.102, Page G6-4493)
 VENDOR_IDS = {
