@@ -1392,7 +1392,7 @@ def parse_options(args=None, with_include=True):
         eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
                                  go_args=eb_args, error_env_options=True, error_env_option_method=raise_easybuilderror,
                                  with_include=with_include)
-    except Exception as err:
+    except EasyBuildError as err:
         raise EasyBuildError("Failed to parse configuration options: %s" % err)
 
     return eb_go
