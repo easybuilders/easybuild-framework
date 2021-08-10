@@ -155,11 +155,28 @@ class Compiler(Toolchain):
     def __init__(self, *args, **kwargs):
         """Compiler constructor."""
         Toolchain.base_init(self)
-        self.arch = systemtools.get_cpu_architecture()
-        self.cpu_family = systemtools.get_cpu_family()
+        self._arch, self._cpu_family, self._cpu_vector_exts = (None, None, None)
         # list of compiler prefixes
         self.prefixes = []
         super().__init__(*args, **kwargs)
+
+    @property
+    def arch(self):
+        if self._arch is None:
+            self._arch = systemtools.get_cpu_architecture()
+        return self._arch
+
+    @property
+    def cpu_family(self):
+        if self._cpu_family is None:
+            self._cpu_family = systemtools.get_cpu_family()
+        return self._cpu_family
+
+    @property
+    def cpu_vector_exts(self):
+        if self._cpu_vector_exts is None:
+            self._cpu_vector_exts = systemtools.get_cpu_vector_exts()
+        return self._cpu_vector_exts
 
     def set_options(self, options):
         """Process compiler toolchain options."""
@@ -332,6 +349,14 @@ class Compiler(Toolchain):
                     raise EasyBuildError("toolchainopts %s: '%s' must start with a '-'." % (extra, extraflags))
                 self.variables.nappend_el(var, extraflags)
 
+    def _pick_optarch_entry(self, optarch_value):
+        """
+        Get the best matching entry from optarch_value when it is a dict, else return it unchanged
+        """
+        if isinstance(optarch_value, dict):
+            optarch_value = systemtools.pick_opt_arch(optarch_value, self.arch, self.cpu_family, self.cpu_vector_exts)
+        return optarch_value
+
     def _set_optimal_architecture(self, default_optarch=None):
         """
         Get options for the current architecture
@@ -375,17 +400,16 @@ class Compiler(Toolchain):
             raise EasyBuildError("optarch is neither an string or a dict %s. This should never happen", optarch)
 
         if use_generic:
-            if (self.arch, self.cpu_family) in (self.COMPILER_GENERIC_OPTION or []):
-                optarch = self.COMPILER_GENERIC_OPTION[(self.arch, self.cpu_family)]
+            optarch = self._pick_optarch_entry(self.COMPILER_GENERIC_OPTION)
+        elif optarch is None:
+            # no --optarch specified or no option found for the current compiler
+            if default_optarch:
+                # Specified optarch default value
+                optarch = default_optarch
             else:
-                optarch = None
-        # Specified optarch default value
-        elif default_optarch and optarch is None:
-            optarch = default_optarch
-        # no --optarch specified, no option found for the current compiler, and no default optarch
-        elif optarch is None and (self.arch, self.cpu_family) in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
-            optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(self.arch, self.cpu_family)]
+                optarch = self._pick_optarch_entry(self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION)
 
+        optarch_target = '%s/%s/%s' % (self.arch, self.cpu_family, self.cpu_vector_exts)
         if optarch is not None:
             if optarch and not optarch.startswith('-'):
                 self.log.deprecated(f'Specifying optarch "{optarch}" without initial dash is deprecated.', '6.0')
@@ -394,11 +418,11 @@ class Compiler(Toolchain):
 
             optarch_log_str = optarch or 'no flags'
             self.log.info("_set_optimal_architecture: using %s as optarch for %s/%s.",
-                          optarch_log_str, self.arch, self.cpu_family)
+                          optarch_log_str, optarch_target, self.cpu_family)
             self.options.options_map['optarch'] = optarch
         elif self.options.options_map.get('optarch', None) is None:
             optarch_flags_str = "%soptarch flags" % ('', 'generic ')[use_generic]
-            error_msg = "Don't know how to set %s for %s/%s! " % (optarch_flags_str, self.arch, self.cpu_family)
+            error_msg = "Don't know how to set %s for %s! " % (optarch_flags_str, optarch_target)
             error_msg += "Use --optarch='<flags>' to override (see "
             error_msg += "https://docs.easybuild.io/controlling-compiler-optimization-flags/ "
             error_msg += "for details) and consider contributing your settings back (see "
