@@ -364,7 +364,7 @@ class Compiler(Toolchain):
         :param default_optarch: default value to use for optarch, rather than using default value based on architecture
                                 (--optarch and --optarch=GENERIC still override this value)
         """
-        ec_optarch = self.options.get('optarch', False)
+        ec_optarch = self.options.get('optarch')
         if isinstance(ec_optarch, str):
             if OPTARCH_MAP_CHAR in ec_optarch:
                 error_msg = "When setting optarch in the easyconfig (found %s), " % ec_optarch
@@ -380,17 +380,18 @@ class Compiler(Toolchain):
         if isinstance(optarch, dict):
             # optarch has been validated as complex string with multiple compilers and converted to a dictionary
             # first try module names, then the family in optarch
-            current_compiler_names = (getattr(self, 'COMPILER_MODULE_NAME', []) +
-                                      [getattr(self, 'COMPILER_FAMILY', None)])
+            current_compiler_names = self.COMPILER_MODULE_NAME or []
+            if self.COMPILER_FAMILY:
+                current_compiler_names.append(self.COMPILER_FAMILY)
+            compiler_optarch = None
             for current_compiler in current_compiler_names:
                 if current_compiler in optarch:
-                    optarch = optarch[current_compiler]
+                    compiler_optarch = optarch[current_compiler]
                     break
-            # still a dict: no option for this compiler
-            if isinstance(optarch, dict):
-                optarch = None
+            if compiler_optarch is None:
                 self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.",
-                              current_compiler)
+                              current_compiler_names)
+            optarch = self._pick_optarch_entry(compiler_optarch)
 
         if isinstance(optarch, str):
             use_generic = (optarch == OPTARCH_GENERIC)
