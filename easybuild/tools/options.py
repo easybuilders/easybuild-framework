@@ -106,7 +106,8 @@ from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CH
 from easybuild.tools.toolchain.toolchain import DEFAULT_SEARCH_PATH_CPP_HEADERS, DEFAULT_SEARCH_PATH_LINKER, SEARCH_PATH
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
-from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
+from easybuild.tools.systemtools import DARWIN, UNKNOWN, CPU_ARCHITECTURES, CPU_FAMILIES, CPU_VECTOR_EXTS
+from easybuild.tools.systemtools import check_python_version, get_cpu_architecture, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
 from easybuild.tools.utilities import flatten
 from easybuild.tools.version import this_is_easybuild
@@ -1099,34 +1100,72 @@ class EasyBuildOptions(GeneralOption):
             cleanup_and_exit(self.tmpdir)
 
     def _postprocess_optarch(self):
-        """Postprocess --optarch option."""
-        optarch_parts = self.options.optarch.split(OPTARCH_SEP)
+        """
+        Postprocess --optarch option.
 
-        # we expect to find a ':' in every entry in optarch, in case optarch is specified on a per-compiler basis
-        n_parts = len(optarch_parts)
-        map_char_cnts = [p.count(OPTARCH_MAP_CHAR) for p in optarch_parts]
-        if (n_parts > 1 and any(c != 1 for c in map_char_cnts)) or (n_parts == 1 and map_char_cnts[0] > 1):
+        Format: map   := <entry>(;<space>*<entry>)*
+                entry := <compiler>(,<arch-spec)*:<flag-string>
+        Example values:
+           "GENERIC"
+           "march=native"
+           "Intel,x86:xHost; Intel,x86,AMD,AVX2:mavx2 -fma; GCC:march=native"
+        """
+        # Split into entries, and each entry into key-value pairs
+        optarch_parts = [i.strip().split(OPTARCH_MAP_CHAR) for i in self.options.optarch.split(OPTARCH_SEP)]
+
+        # We should either have a single value or a list of key-value pairs, and nothing else
+        is_single_value = len(optarch_parts) == 1 and len(optarch_parts[0]) == 1
+        if not is_single_value and any(len(i) != 2 for i in optarch_parts):
             raise EasyBuildError(
                 "The optarch option has an incorrect syntax: %s", self.options.optarch,
                 exit_code=EasyBuildExit.OPTION_ERROR
             )
-        else:
-            # if there are options for different compilers, we set up a dict
-            if OPTARCH_MAP_CHAR in optarch_parts[0]:
-                optarch_dict = {}
-                for compiler, compiler_opt in [p.split(OPTARCH_MAP_CHAR) for p in optarch_parts]:
-                    if compiler in optarch_dict:
-                        raise EasyBuildError(
-                            "The optarch option contains duplicated entries for compiler %s: %s",
-                            compiler, self.options.optarch, exit_code=EasyBuildExit.OPTION_ERROR
-                        )
-                    else:
-                        optarch_dict[compiler] = compiler_opt
-                self.options.optarch = optarch_dict
-                self.log.info("Transforming optarch into a dict: %s", self.options.optarch)
+
+        # if there are options for different compilers, we set up a dict
+        if is_single_value:
             # if optarch is not in mapping format, we do nothing and just keep the string
-            else:
-                self.log.info("Keeping optarch raw: %s", self.options.optarch)
+            self.log.info("Keeping optarch raw: %s", self.options.optarch)
+        else:
+            optarch_dict = {}
+            for key, compiler_opt in optarch_parts:
+                # key can be either a compiler (only) or compiler and archspec(s)
+                key_parts = key.split(',')
+                compiler = key_parts.pop(0)
+                if key_parts:
+                    for part, allowed_values in zip(key_parts, (CPU_ARCHITECTURES, CPU_FAMILIES, CPU_VECTOR_EXTS)):
+                        if part not in allowed_values:
+                            raise EasyBuildError("The optarch option has an incorrect syntax: %s\n"
+                                                 "'%s' of '%s' is not in allowed values: %s",
+                                                 self.options.optarch, part, key, allowed_values,
+                                                 exit_code=EasyBuildExit.OPTION_ERROR)
+                    arch_specs = tuple(key_parts) if len(key_parts) > 1 else key_parts[0]
+                else:
+                    arch_specs = None
+                try:
+                    compiler_dict = optarch_dict[compiler]
+                    # Convert single entry to dict if required
+                    if not isinstance(compiler_dict, dict):
+                        compiler_dict = {None: compiler_dict}
+                        optarch_dict[compiler] = compiler_dict
+                    if arch_specs in compiler_dict:
+                        if arch_specs is None:
+                            raise EasyBuildError("The optarch option contains a duplicated entry for compiler %s: %s",
+                                                 compiler, self.options.optarch, exit_code=EasyBuildExit.OPTION_ERROR)
+                        else:
+                            raise EasyBuildError("The optarch option contains a duplicated entry %s "
+                                                 "for compiler %s: %s",
+                                                 arch_specs, compiler, self.options.optarch,
+                                                 exit_code=EasyBuildExit.OPTION_ERROR)
+                    else:
+                        compiler_dict[arch_specs] = compiler_opt
+                except KeyError:
+                    # Keep the dict flat when no archspecs are given
+                    if arch_specs is None:
+                        optarch_dict[compiler] = compiler_opt
+                    else:
+                        optarch_dict[compiler] = {arch_specs: compiler_opt}
+            self.options.optarch = optarch_dict
+            self.log.info("Transforming optarch into a dict: %s", self.options.optarch)
 
     def _postprocess_close_pr_reasons(self):
         """Postprocess --close-pr-reasons options"""

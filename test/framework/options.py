@@ -5859,8 +5859,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         options.options.optarch = 'Intel:something:somethingelse'
         self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
 
-        error_msg = "The optarch option contains duplicated entries for compiler"
+        error_msg = "The optarch option contains a duplicated entry for compiler"
         options.options.optarch = 'Intel:something;GCC:somethingelse;Intel:anothersomething'
+        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+
+        error_msg = "'x86' of 'x86' is not in allowed values"
+        options.options.optarch = 'Intel,x86:something'
         self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
 
         # Check the parsing itself
@@ -5872,7 +5876,26 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ('Intel:xHost', {'Intel': 'xHost'}),
             ('Intel:GENERIC', {'Intel': 'GENERIC'}),
             ('Intel:xHost;GCC:%s' % gcc_generic_flags, {'Intel': 'xHost', 'GCC': gcc_generic_flags}),
-            ('Intel:;GCC:%s' % gcc_generic_flags, {'Intel': '', 'GCC': gcc_generic_flags}),
+            # Allow empty values and spaces
+            ('Intel:; GCC:%s' % gcc_generic_flags, {'Intel': '', 'GCC': gcc_generic_flags}),
+            # Arch specific values. With Compiler only selection at different places in the list
+            (
+                'Intel,x86_64,Intel,sse:i86iSSE; Intel,x86_64,AMD:i86AMD; Intel,POWER:iPwr; Intel:xHost; '
+                'GCC:GENERIC; Clang:cl; Clang,POWER:clPwr',
+                {
+                    'Intel': {
+                        ('x86_64', 'Intel', 'sse'): 'i86iSSE',
+                        ('x86_64', 'AMD'): 'i86AMD',
+                        'POWER': 'iPwr',
+                        None: 'xHost',
+                    },
+                    'GCC': 'GENERIC',
+                    'Clang': {
+                        None: 'cl',
+                        'POWER': 'clPwr',
+                    },
+                },
+            ),
         ]
 
         for optarch_string, optarch_parsed in test_cases:
