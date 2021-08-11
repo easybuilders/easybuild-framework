@@ -593,7 +593,13 @@ class EasyBlock(object):
                         default_source_tmpl = resolve_template('%(name)s-%(version)s.tar.gz', template_values)
 
                         # if no sources are specified via 'sources', fall back to 'source_tmpl'
-                        src_fn = ext_options.get('source_tmpl', default_source_tmpl)
+                        src_fn = ext_options.get('source_tmpl')
+                        if src_fn is None:
+                            src_fn = default_source_tmpl
+                        elif not isinstance(src_fn, string_type):
+                            error_msg = "source_tmpl value must be a string! (found value of type '%s'): %s"
+                            raise EasyBuildError(error_msg, type(src_fn).__name__, src_fn)
+
                         src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
                                                     force_download=force_download)
                         if src_path:
