@@ -1355,6 +1355,8 @@ def pick_opt_arch(options, arch, cpu_family, vector_exts):
         yield (arch, )
         # Also allow single string entry
         yield arch
+        # Default fallback for any arch
+        yield None
 
     result = None
     for key in create_possible_keys():
