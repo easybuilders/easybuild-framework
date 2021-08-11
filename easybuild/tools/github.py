@@ -839,7 +839,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # copy easyconfig files to right place
     target_dir = os.path.join(git_working_dir, pr_target_repo)
     print_msg("copying files to %s..." % target_dir)
-    file_info = COPY_FUNCTIONS[pr_target_repo](ec_paths, os.path.join(git_working_dir, pr_target_repo))
+    file_info = COPY_FUNCTIONS[pr_target_repo](ec_paths, target_dir)
 
     # figure out commit message to use
     if commit_msg:
@@ -1069,21 +1069,43 @@ def find_software_name_for_patch(patch_name, ec_dirs):
 
     soft_name = None
 
+    ignore_dirs = build_option('ignore_dirs')
     all_ecs = []
     for ec_dir in ec_dirs:
-        for (dirpath, _, filenames) in os.walk(ec_dir):
+        for (dirpath, dirnames, filenames) in os.walk(ec_dir):
+            # Exclude ignored dirs
+            if ignore_dirs:
+                dirnames[:] = [i for i in dirnames if i not in ignore_dirs]
             for fn in filenames:
-                if fn != 'TEMPLATE.eb' and not fn.endswith('.py'):
+                # TODO: In EasyBuild 5.x only check for '*.eb' files
+                if fn != 'TEMPLATE.eb' and os.path.splitext(fn)[1] not in ('.py', '.patch'):
                     path = os.path.join(dirpath, fn)
                     rawtxt = read_file(path)
                     if 'patches' in rawtxt:
                         all_ecs.append(path)
 
+    # Usual patch names are <software>-<version>_fix_foo.patch
+    # So search those ECs first
+    patch_stem = os.path.splitext(patch_name)[0]
+    # Extract possible sw name and version according to above scheme
+    # Those might be the same as the whole patch stem, which is OK
+    possible_sw_name = patch_stem.split('-')[0].lower()
+    possible_sw_name_version = patch_stem.split('_')[0].lower()
+
+    def ec_key(path):
+        filename = os.path.basename(path).lower()
+        # Put files with one of those as the prefix first, then sort by name
+        return (
+            not filename.startswith(possible_sw_name_version),
+            not filename.startswith(possible_sw_name),
+            filename
+        )
+    all_ecs.sort(key=ec_key)
+
     nr_of_ecs = len(all_ecs)
     for idx, path in enumerate(all_ecs):
         if soft_name:
             break
-        rawtxt = read_file(path)
         try:
             ecs = process_easyconfig(path, validate=False)
             for ec in ecs:

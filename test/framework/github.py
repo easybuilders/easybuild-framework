@@ -595,6 +595,16 @@ class GithubTest(EnhancedTestCase):
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
         self.assertTrue(re.search(reg, txt))
 
+        self.assertEqual(gh.find_software_name_for_patch('test.patch', []), None)
+
+        # check behaviour of find_software_name_for_patch when non-UTF8 patch files are present (only with Python 3)
+        if sys.version_info[0] >= 3:
+            non_utf8_patch = os.path.join(self.test_prefix, 'problem.patch')
+            with open(non_utf8_patch, 'wb') as fp:
+                fp.write(bytes("+  ximage->byte_order=T1_byte_order; /* Set t1lib\xb4s byteorder */\n", 'iso_8859_1'))
+
+            self.assertEqual(gh.find_software_name_for_patch('test.patch', [self.test_prefix]), None)
+
     def test_github_det_commit_status(self):
         """Test det_commit_status function."""
 
