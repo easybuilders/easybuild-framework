@@ -1453,6 +1453,8 @@ class ToolchainTest(EnhancedTestCase):
         libblas_mt_intel3 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lguide -lpthread"
 
         # no -lguide
+        blas_static_libs_intel4 = 'libmkl_intel_lp64.a,libmkl_sequential.a,libmkl_core.a'
+        blas_shared_libs_intel4 = blas_static_libs_intel4.replace('.a', '.so')
         libblas_intel4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
         libblas_intel4 += " -Wl,--end-group -Wl,-Bdynamic"
         libblas_mt_intel4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
@@ -1469,18 +1471,83 @@ class ToolchainTest(EnhancedTestCase):
         libscalack_intel4 = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential "
         libscalack_intel4 += "-lmkl_core"
 
-        libblas_mt_fosscuda = "-lopenblas -lgfortran -lpthread"
+        blas_static_libs_fosscuda = "libopenblas.a,libgfortran.a"
+        blas_shared_libs_fosscuda = blas_static_libs_fosscuda.replace('.a', '.so')
+        blas_mt_static_libs_fosscuda = blas_static_libs_fosscuda + ",libpthread.a"
+        blas_mt_shared_libs_fosscuda = blas_mt_static_libs_fosscuda.replace('.a', '.so')
+        libblas_fosscuda = "-lopenblas -lgfortran"
+        libblas_mt_fosscuda = libblas_fosscuda + " -lpthread"
+
+        fft_static_libs_fosscuda = "libfftw3.a"
+        fft_shared_libs_fosscuda = fft_static_libs_fosscuda.replace('.a', '.so')
+        fft_mt_static_libs_fosscuda = "libfftw3.a,libpthread.a"
+        fft_mt_shared_libs_fosscuda = fft_mt_static_libs_fosscuda.replace('.a', '.so')
+        fft_mt_static_libs_fosscuda_omp = "libfftw3_omp.a,libfftw3.a,libpthread.a"
+        fft_mt_shared_libs_fosscuda_omp = fft_mt_static_libs_fosscuda_omp.replace('.a', '.so')
+        libfft_fosscuda = "-lfftw3"
+        libfft_mt_fosscuda = libfft_fosscuda + " -lpthread"
+        libfft_mt_fosscuda_omp = "-lfftw3_omp " + libfft_fosscuda + " -lpthread"
+
+        lapack_static_libs_fosscuda = "libopenblas.a,libgfortran.a"
+        lapack_shared_libs_fosscuda = lapack_static_libs_fosscuda.replace('.a', '.so')
+        lapack_mt_static_libs_fosscuda = lapack_static_libs_fosscuda + ",libpthread.a"
+        lapack_mt_shared_libs_fosscuda = lapack_mt_static_libs_fosscuda.replace('.a', '.so')
+        liblapack_fosscuda = "-lopenblas -lgfortran"
+        liblapack_mt_fosscuda = liblapack_fosscuda + " -lpthread"
+
         libscalack_fosscuda = "-lscalapack -lopenblas -lgfortran"
-        libfft_mt_fosscuda = "-lfftw3_omp -lfftw3 -lpthread"
+        libscalack_mt_fosscuda = libscalack_fosscuda + " -lpthread"
+        scalapack_static_libs_fosscuda = "libscalapack.a,libopenblas.a,libgfortran.a"
+        scalapack_shared_libs_fosscuda = scalapack_static_libs_fosscuda.replace('.a', '.so')
+        scalapack_mt_static_libs_fosscuda = "libscalapack.a,libopenblas.a,libgfortran.a,libpthread.a"
+        scalapack_mt_shared_libs_fosscuda = scalapack_mt_static_libs_fosscuda.replace('.a', '.so')
 
         tc = self.get_toolchain('fosscuda', version='2018a')
         tc.prepare()
+        self.assertEqual(os.environ['BLAS_SHARED_LIBS'], blas_shared_libs_fosscuda)
+        self.assertEqual(os.environ['BLAS_STATIC_LIBS'], blas_static_libs_fosscuda)
+        self.assertEqual(os.environ['BLAS_MT_SHARED_LIBS'], blas_mt_shared_libs_fosscuda)
+        self.assertEqual(os.environ['BLAS_MT_STATIC_LIBS'], blas_mt_static_libs_fosscuda)
+        self.assertEqual(os.environ['LIBBLAS'], libblas_fosscuda)
         self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_fosscuda)
+
+        self.assertEqual(os.environ['LAPACK_SHARED_LIBS'], lapack_shared_libs_fosscuda)
+        self.assertEqual(os.environ['LAPACK_STATIC_LIBS'], lapack_static_libs_fosscuda)
+        self.assertEqual(os.environ['LAPACK_MT_SHARED_LIBS'], lapack_mt_shared_libs_fosscuda)
+        self.assertEqual(os.environ['LAPACK_MT_STATIC_LIBS'], lapack_mt_static_libs_fosscuda)
+        self.assertEqual(os.environ['LIBLAPACK'], liblapack_fosscuda)
+        self.assertEqual(os.environ['LIBLAPACK_MT'], liblapack_mt_fosscuda)
+
+        self.assertEqual(os.environ['BLAS_LAPACK_SHARED_LIBS'], blas_shared_libs_fosscuda)
+        self.assertEqual(os.environ['BLAS_LAPACK_STATIC_LIBS'], blas_static_libs_fosscuda)
+        self.assertEqual(os.environ['BLAS_LAPACK_MT_SHARED_LIBS'], blas_mt_shared_libs_fosscuda)
+        self.assertEqual(os.environ['BLAS_LAPACK_MT_STATIC_LIBS'], blas_mt_static_libs_fosscuda)
+
+        self.assertEqual(os.environ['FFT_SHARED_LIBS'], fft_shared_libs_fosscuda)
+        self.assertEqual(os.environ['FFT_STATIC_LIBS'], fft_static_libs_fosscuda)
+        self.assertEqual(os.environ['FFT_SHARED_LIBS_MT'], fft_mt_shared_libs_fosscuda)
+        self.assertEqual(os.environ['FFT_STATIC_LIBS_MT'], fft_mt_static_libs_fosscuda)
+        self.assertEqual(os.environ['FFTW_SHARED_LIBS'], fft_shared_libs_fosscuda)
+        self.assertEqual(os.environ['FFTW_STATIC_LIBS'], fft_static_libs_fosscuda)
+        self.assertEqual(os.environ['FFTW_SHARED_LIBS_MT'], fft_mt_shared_libs_fosscuda)
+        self.assertEqual(os.environ['FFTW_STATIC_LIBS_MT'], fft_mt_static_libs_fosscuda)
+        self.assertEqual(os.environ['LIBFFT'], libfft_fosscuda)
+        self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_fosscuda)
+
         self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_fosscuda)
+        self.assertEqual(os.environ['LIBSCALAPACK_MT'], libscalack_mt_fosscuda)
+        self.assertEqual(os.environ['SCALAPACK_SHARED_LIBS'], scalapack_shared_libs_fosscuda)
+        self.assertEqual(os.environ['SCALAPACK_STATIC_LIBS'], scalapack_static_libs_fosscuda)
+        self.assertEqual(os.environ['SCALAPACK_MT_SHARED_LIBS'], scalapack_mt_shared_libs_fosscuda)
+        self.assertEqual(os.environ['SCALAPACK_MT_STATIC_LIBS'], scalapack_mt_static_libs_fosscuda)
         self.modtool.purge()
 
         tc = self.get_toolchain('intel', version='2018a')
         tc.prepare()
+        self.assertEqual(os.environ.get('BLAS_SHARED_LIBS', "(not set)"), blas_shared_libs_intel4)
+        self.assertEqual(os.environ.get('BLAS_STATIC_LIBS', "(not set)"), blas_static_libs_intel4)
+        self.assertEqual(os.environ.get('LAPACK_SHARED_LIBS', "(not set)"), blas_shared_libs_intel4)
+        self.assertEqual(os.environ.get('LAPACK_STATIC_LIBS', "(not set)"), blas_static_libs_intel4)
         self.assertEqual(os.environ.get('LIBBLAS', "(not set)"), libblas_intel4)
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel4)
         self.assertEqual(os.environ.get('LIBFFT', "(not set)"), libfft_intel4)
@@ -1517,9 +1584,42 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain('fosscuda', version='2018a')
         tc.set_options({'openmp': True})
         tc.prepare()
+        self.assertEqual(os.environ['BLAS_SHARED_LIBS'], blas_shared_libs_fosscuda)
+        self.assertEqual(os.environ['BLAS_STATIC_LIBS'], blas_static_libs_fosscuda)
+        self.assertEqual(os.environ['BLAS_MT_SHARED_LIBS'], blas_mt_shared_libs_fosscuda)
+        self.assertEqual(os.environ['BLAS_MT_STATIC_LIBS'], blas_mt_static_libs_fosscuda)
+        self.assertEqual(os.environ['LIBBLAS'], libblas_fosscuda)
         self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_fosscuda)
-        self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_fosscuda)
+
+        self.assertEqual(os.environ['LAPACK_SHARED_LIBS'], lapack_shared_libs_fosscuda)
+        self.assertEqual(os.environ['LAPACK_STATIC_LIBS'], lapack_static_libs_fosscuda)
+        self.assertEqual(os.environ['LAPACK_MT_SHARED_LIBS'], lapack_mt_shared_libs_fosscuda)
+        self.assertEqual(os.environ['LAPACK_MT_STATIC_LIBS'], lapack_mt_static_libs_fosscuda)
+        self.assertEqual(os.environ['LIBLAPACK'], liblapack_fosscuda)
+        self.assertEqual(os.environ['LIBLAPACK_MT'], liblapack_mt_fosscuda)
+
+        self.assertEqual(os.environ['BLAS_LAPACK_SHARED_LIBS'], blas_shared_libs_fosscuda)
+        self.assertEqual(os.environ['BLAS_LAPACK_STATIC_LIBS'], blas_static_libs_fosscuda)
+        self.assertEqual(os.environ['BLAS_LAPACK_MT_SHARED_LIBS'], blas_mt_shared_libs_fosscuda)
+        self.assertEqual(os.environ['BLAS_LAPACK_MT_STATIC_LIBS'], blas_mt_static_libs_fosscuda)
+
+        self.assertEqual(os.environ['FFT_SHARED_LIBS'], fft_shared_libs_fosscuda)
+        self.assertEqual(os.environ['FFT_STATIC_LIBS'], fft_static_libs_fosscuda)
+        self.assertEqual(os.environ['FFT_SHARED_LIBS_MT'], fft_mt_shared_libs_fosscuda_omp)
+        self.assertEqual(os.environ['FFT_STATIC_LIBS_MT'], fft_mt_static_libs_fosscuda_omp)
+        self.assertEqual(os.environ['FFTW_SHARED_LIBS'], fft_shared_libs_fosscuda)
+        self.assertEqual(os.environ['FFTW_STATIC_LIBS'], fft_static_libs_fosscuda)
+        self.assertEqual(os.environ['FFTW_SHARED_LIBS_MT'], fft_mt_shared_libs_fosscuda_omp)
+        self.assertEqual(os.environ['FFTW_STATIC_LIBS_MT'], fft_mt_static_libs_fosscuda_omp)
+        self.assertEqual(os.environ['LIBFFT'], libfft_fosscuda)
+        self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_fosscuda_omp)
+
         self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_fosscuda)
+        self.assertEqual(os.environ['LIBSCALAPACK_MT'], libscalack_mt_fosscuda)
+        self.assertEqual(os.environ['SCALAPACK_SHARED_LIBS'], scalapack_shared_libs_fosscuda)
+        self.assertEqual(os.environ['SCALAPACK_STATIC_LIBS'], scalapack_static_libs_fosscuda)
+        self.assertEqual(os.environ['SCALAPACK_MT_SHARED_LIBS'], scalapack_mt_shared_libs_fosscuda)
+        self.assertEqual(os.environ['SCALAPACK_MT_STATIC_LIBS'], scalapack_mt_static_libs_fosscuda)
 
     def test_standalone_iccifort(self):
         """Test whether standalone installation of iccifort matches the iccifort toolchain definition."""

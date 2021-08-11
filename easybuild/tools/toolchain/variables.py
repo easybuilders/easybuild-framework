@@ -111,8 +111,16 @@ class LibraryList(StrList):
                 self.END.PREFIX = prefix_begin_end
 
 
+class CommaSharedLibs(LibraryList):
+    """Comma-separated list of shared libraries"""
+    SEPARATOR = ','
+
+    PREFIX = 'lib'
+    SUFFIX = '.so'
+
+
 class CommaStaticLibs(LibraryList):
-    """Comma-separated list"""
+    """Comma-separated list of static libraries"""
     SEPARATOR = ','
 
     PREFIX = 'lib'
