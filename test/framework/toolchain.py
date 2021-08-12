@@ -821,11 +821,19 @@ class ToolchainTest(EnhancedTestCase):
             optarch_var['Intel'] = intel_flags
             optarch_var['GCC'] = gcc_flags
             optarch_var['GCCcore'] = gcccore_flags
+
+            # Save current tmp dir
+            old_vars = {name: os.environ.get(name) for name in ('TMPDIR', 'TEMP', 'TMP')}
+
             init_config(build_options={'optarch': optarch_var, 'silent': True})
             tc = self.get_toolchain(toolchain_name, version=toolchain_ver)
             tc.set_options({'optarch': enable})
             with self.mocked_stdout_stderr():
                 tc.prepare()
+
+            # Restore tmp dir
+            os.environ.update(old_vars)
+
             flags = None
             if toolchain_name == 'iccifort':
                 flags = intel_flags_exp
