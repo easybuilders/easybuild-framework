@@ -1756,24 +1756,31 @@ def set_tmpdir(tmpdir=None, raise_error=False):
     # reset to make sure tempfile picks up new temporary directory to use
     tempfile.tempdir = None
 
-    # test if temporary directory allows to execute files, warn if it doesn't
-    try:
-        fd, tmptest_file = tempfile.mkstemp()
-        os.close(fd)
-        os.chmod(tmptest_file, 0o700)
-        if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False, force_in_dry_run=True, trace=False,
-                       stream_output=False):
-            msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
-            msg += "This can cause problems in the build process, consider using --tmpdir."
-            if raise_error:
-                raise EasyBuildError(msg)
+    # Skip the executable check if it already succeeded for any parent folder
+    # Especially important for the unit test suite, less so for actual execution
+    executable_tmp_paths = getattr(set_tmpdir, 'executable_tmp_paths', [])
+    if not any(current_tmpdir.startswith(path) for path in executable_tmp_paths):
+        # test if temporary directory allows to execute files, warn if it doesn't
+        try:
+            fd, tmptest_file = tempfile.mkstemp()
+            os.close(fd)
+            os.chmod(tmptest_file, 0o700)
+            if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False, force_in_dry_run=True, trace=False,
+                           stream_output=False):
+                msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
+                msg += "This can cause problems in the build process, consider using --tmpdir."
+                if raise_error:
+                    raise EasyBuildError(msg)
+                else:
+                    _log.warning(msg)
             else:
-                _log.warning(msg)
-        else:
-            _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
-        os.remove(tmptest_file)
+                _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
+                # Put this folder into the cache
+                executable_tmp_paths.append(current_tmpdir)
+                set_tmpdir.executable_tmp_paths = executable_tmp_paths
+            os.remove(tmptest_file)
 
-    except OSError as err:
-        raise EasyBuildError("Failed to test whether temporary directory allows to execute files: %s", err)
+        except OSError as err:
+            raise EasyBuildError("Failed to test whether temporary directory allows to execute files: %s", err)
 
     return current_tmpdir
