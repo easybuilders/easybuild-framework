@@ -752,17 +752,28 @@ class ToolchainTest(EnhancedTestCase):
         intel_options = [('intelflag', 'intelflag'), ('GENERIC', 'xSSE2'), ('', '')]
         gcc_options = [('gccflag', 'gccflag'), ('march=nocona', 'march=nocona'), ('', '')]
         gcccore_options = [('gcccoreflag', 'gcccoreflag'), ('GENERIC', 'march=x86-64 -mtune=generic'), ('', '')]
-        toolchains = [
-            ('iccifort', '2018.1.163'),
-            ('GCC', '6.4.0-2.28'),
-            ('GCCcore', '6.2.0'),
-            ('PGI', '16.7-GCC-5.4.0-2.26'),
-        ]
+
+        tc_intel = ('iccifort', '2018.1.163')
+        tc_gcc = ('GCC', '6.4.0-2.28')
+        tc_gcccore = ('GCCcore', '6.2.0')
+        tc_pgi = ('PGI', '16.7-GCC-5.4.0-2.26')
         enabled = [True, False]
 
-        test_cases = product(intel_options, gcc_options, gcccore_options, toolchains, enabled)
+        test_cases = []
+        for i, (tc, options) in enumerate(zip((tc_intel, tc_gcc, tc_gcccore),
+                                              (intel_options, gcc_options, gcccore_options))):
+            # Vary only the compiler specific option
+            for opt in options:
+                new_value = [intel_options[0], gcc_options[0], gcccore_options[0], tc]
+                new_value[i] = opt
+                test_cases.append(new_value)
+        # Add one case for PGI
+        test_cases.append((intel_options[0], gcc_options[0], gcccore_options[0], tc_pgi))
 
-        for intel_flags, gcc_flags, gcccore_flags, (toolchain_name, toolchain_ver), enable in test_cases:
+        # Run each for enabled and disabled
+        test_cases = list(product(test_cases, enabled))
+
+        for (intel_flags, gcc_flags, gcccore_flags, (toolchain_name, toolchain_ver)), enable in test_cases:
 
             intel_flags, intel_flags_exp = intel_flags
             gcc_flags, gcc_flags_exp = gcc_flags
