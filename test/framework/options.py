@@ -5862,7 +5862,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         options.options.optarch = 'Intel:something;GCC:somethingelse;Intel:anothersomething'
         self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
 
-        error_msg = "'x86' of 'x86' is not in allowed values"
+        error_msg = "'x86' of 'Intel,x86' is not in allowed values"
         options.options.optarch = 'Intel,x86:something'
         self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
 
@@ -5893,6 +5893,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
                         None: 'cl',
                         'POWER': 'clPwr',
                     },
+                },
+            ),
+            (
+                # Case insensitive arch values
+                'Intel,X86_64,intel,SSE:i86iSSE; Clang,POWER:clPwr',
+                {
+                    'Intel': {('x86_64', 'Intel', 'sse'): 'i86iSSE'},
+                    'Clang': {'POWER': 'clPwr'},
                 },
             ),
         ]
