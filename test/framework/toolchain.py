@@ -37,7 +37,7 @@ import tempfile
 import textwrap
 from itertools import product
 from unittest import TextTestRunner
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config, mock_object
 
 import easybuild.tools.modules as modules
 import easybuild.tools.toolchain as toolchain
@@ -881,18 +881,28 @@ class ToolchainTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         toy_txt = read_file(eb_file)
 
-        # check that an optarch map raises an error
-        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': 'GCC:-march=sandrybridge;Intel:-xAVX'}")
-        msg = "syntax is not allowed"
+        # check that using compilers in optarch raises an error
+        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': 'GCC:march=sandybridge;Intel:xAVX'}")
+        msg = "The optarch option has an incorrect syntax"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, msg, self.eb_main, [test_ec], raise_error=True, do_build=True)
 
         # check that setting optarch flags work
-        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': '-march=sandybridge'}")
-        with self.mocked_stdout_stderr():
-            out = self.eb_main([test_ec], raise_error=True, do_build=True)
-        regex = re.compile("_set_optimal_architecture: using -march=sandybridge as optarch for x86_64")
-        self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+        test_cases = [
+            ('march=sandybridge', 'march=sandybridge'),
+            # <cpu-arch>,<cpu-family>,<vector-ext>
+            ('POWER,POWER:march=ppc; x86_64,Intel,AVX:march=avx', 'march=avx'),
+            ('POWER,POWER:march=ppc; x86_64,Intel,AVX2:march=avx; :GENERIC', 'march=x86-64 -mtune=generic'),
+        ]
+        with mock_object(st, 'get_cpu_arch_name', lambda: st.X86_64), \
+                mock_object(st, 'get_cpu_family', lambda: st.INTEL), \
+                mock_object(st, 'get_cpu_vector_exts', lambda: [st.SSE, st.SSE2, st.AVX]):
+            for optarch, expected in test_cases:
+                write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': '%s'}" % optarch)
+                with self.mocked_stdout_stderr():
+                    out = self.eb_main([test_ec, '--extended-dry-run'], raise_error=True, do_build=True)
+                msg = "_set_optimal_architecture: using %s as optarch for x86_64" % expected
+                self.assertIn(msg, out)
 
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""

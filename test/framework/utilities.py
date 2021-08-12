@@ -84,6 +84,17 @@ for key in list(os.environ):
         os.environ[newkey] = val
 
 
+@contextmanager
+def mock_object(target, attribute, new_value):
+    """Patch the named attribute/member of the given target object with the new_value"""
+    old_value = getattr(target, attribute)
+    setattr(target, attribute, new_value)
+    try:
+        yield
+    finally:
+        setattr(target, attribute, old_value)
+
+
 class EnhancedTestCase(TestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
 
