@@ -34,6 +34,7 @@ import copy
 import getpass
 import glob
 import functools
+import itertools
 import os
 import random
 import re
@@ -1013,11 +1014,13 @@ def is_patch_for(patch_name, ec):
 
     patches = copy.copy(ec['patches'])
 
-    for ext in ec.get_ref('exts_list'):
-        if isinstance(ext, (list, tuple)) and len(ext) == 3 and isinstance(ext[2], dict):
-            templates = {'name': ext[0], 'version': ext[1]}
-            ext_options = ext[2]
-            patches.extend(p % templates for p in ext_options.get('patches', []))
+    with ec.disable_templating():
+        for ext in itertools.chain(ec['exts_list'], ec.get('components', [])):
+            if isinstance(ext, (list, tuple)) and len(ext) == 3 and isinstance(ext[2], dict):
+                templates = {'name': ext[0], 'version': ext[1]}
+                ext_options = ext[2]
+                patches.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
+                               for p in ext_options.get('patches', []))
 
     for patch in patches:
         if isinstance(patch, (tuple, list)):
