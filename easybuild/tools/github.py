@@ -1013,10 +1013,11 @@ def is_patch_for(patch_name, ec):
 
     patches = copy.copy(ec['patches'])
 
-    for ext in ec['exts_list']:
+    for ext in ec.get_ref('exts_list'):
         if isinstance(ext, (list, tuple)) and len(ext) == 3 and isinstance(ext[2], dict):
+            templates = {'name': ext[0], 'version': ext[1]}
             ext_options = ext[2]
-            patches.extend(ext_options.get('patches', []))
+            patches.extend(p % templates for p in ext_options.get('patches', []))
 
     for patch in patches:
         if isinstance(patch, (tuple, list)):
