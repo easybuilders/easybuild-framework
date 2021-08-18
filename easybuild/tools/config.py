@@ -180,6 +180,7 @@ BUILD_OPTIONS_CMDLINE = {
         'envvars_user_modules',
         'extra_modules',
         'filter_deps',
+        'filter_ecs',
         'filter_env_vars',
         'hide_deps',
         'hide_toolchains',
