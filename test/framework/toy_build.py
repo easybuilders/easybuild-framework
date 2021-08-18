@@ -3491,6 +3491,14 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(ec_file=test_ec, extra_args=args, force=False,
                             raise_error=True, verbose=False, verify=False)
 
+    def test_toy_ignore_test_failure(self):
+        """Check whether use of --ignore-test-failure is mentioned in build output."""
+        args = ['--ignore-test-failure']
+        stdout, stderr = self.run_test_toy_build_with_output(extra_args=args, verify=False, testing=False)
+
+        self.assertTrue("Build succeeded (with --ignore-test-failure) for 1 out of 1" in stdout)
+        self.assertFalse(stderr)
+
 
 def suite():
     """ return all the tests in this file """

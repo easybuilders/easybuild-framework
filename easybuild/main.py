@@ -527,7 +527,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     correct_builds_cnt = len([ec_res for (_, ec_res) in ecs_with_res if ec_res.get('success', False)])
     overall_success = correct_builds_cnt == len(ordered_ecs)
-    success_msg = "Build succeeded for %s out of %s" % (correct_builds_cnt, len(ordered_ecs))
+    success_msg = "Build succeeded "
+    if build_option('ignore_test_failure'):
+        success_msg += "(with --ignore-test-failure) "
+    success_msg += "for %s out of %s" % (correct_builds_cnt, len(ordered_ecs))
 
     repo = init_repository(get_repository(), get_repositorypath())
     repo.cleanup()
