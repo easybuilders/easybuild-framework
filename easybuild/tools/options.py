@@ -1756,10 +1756,13 @@ def set_tmpdir(tmpdir=None, raise_error=False):
     # reset to make sure tempfile picks up new temporary directory to use
     tempfile.tempdir = None
 
+    # cache for checked paths, via function attribute
+    executable_tmp_paths = getattr(set_tmpdir, 'executable_tmp_paths', [])
+
     # Skip the executable check if it already succeeded for any parent folder
     # Especially important for the unit test suite, less so for actual execution
-    executable_tmp_paths = getattr(set_tmpdir, 'executable_tmp_paths', [])
     if not any(current_tmpdir.startswith(path) for path in executable_tmp_paths):
+
         # test if temporary directory allows to execute files, warn if it doesn't
         try:
             fd, tmptest_file = tempfile.mkstemp()
@@ -1775,9 +1778,13 @@ def set_tmpdir(tmpdir=None, raise_error=False):
                     _log.warning(msg)
             else:
                 _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
+
                 # Put this folder into the cache
                 executable_tmp_paths.append(current_tmpdir)
+
+                # set function attribute so we can retrieve cache later
                 set_tmpdir.executable_tmp_paths = executable_tmp_paths
+
             os.remove(tmptest_file)
 
         except OSError as err:
