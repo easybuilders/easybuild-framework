@@ -1819,7 +1819,7 @@ class EasyConfig(object):
                 error_msg += "option is set, or that the cuda_compute_capabilities easyconfig parameter is defined."
                 raise EasyBuildError(error_msg, key)
         else:
-            error_msg = "%s is not a template value baed on --cuda-compute-capabilities/cuda_compute_capabilities"
+            error_msg = "%s is not a template value based on --cuda-compute-capabilities/cuda_compute_capabilities"
             raise EasyBuildError(error_msg, key)
 
 
