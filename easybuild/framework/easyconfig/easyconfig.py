@@ -1810,10 +1810,10 @@ class EasyConfig(object):
         Returns user-friendly error message in case neither are defined,
         or if an unknown key is used.
         """
-        if key.startswith('cuda_') and key in [x for (x, _) in TEMPLATE_NAMES_DYNAMIC]:
-            if key in self.template_values:
+        if key.startswith('cuda_') and any(x[0] == key for x in TEMPLATE_NAMES_DYNAMIC):
+            try:
                 return self.template_values[key]
-            else:
+            except KeyError:
                 error_msg = "(get_cuda_cc_template_value) Template value '%s' is not defined!\n"
                 error_msg += "Make sure that either the --cuda-compute-capabilities EasyBuild configuration "
                 error_msg += "option is set, or that the cuda_compute_capabilities easyconfig parameter is defined."
