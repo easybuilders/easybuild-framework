@@ -4501,7 +4501,7 @@ class EasyConfigTest(EnhancedTestCase):
         error_pattern = "foobar is not a template value based on --cuda-compute-capabilities/cuda_compute_capabilities"
         self.assertErrorRegex(EasyBuildError, error_pattern, ec.get_cuda_cc_template_value, 'foobar')
 
-        error_pattern = r"\(get_cuda_cc_template_value\) Template value '%s' is not defined!\n"
+        error_pattern = r"Template value '%s' is not defined!\n"
         error_pattern += r"Make sure that either the --cuda-compute-capabilities EasyBuild configuration "
         error_pattern += "option is set, or that the cuda_compute_capabilities easyconfig parameter is defined."
         cuda_template_values = {

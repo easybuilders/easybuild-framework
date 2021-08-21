@@ -1814,7 +1814,7 @@ class EasyConfig(object):
             try:
                 return self.template_values[key]
             except KeyError:
-                error_msg = "(get_cuda_cc_template_value) Template value '%s' is not defined!\n"
+                error_msg = "Template value '%s' is not defined!\n"
                 error_msg += "Make sure that either the --cuda-compute-capabilities EasyBuild configuration "
                 error_msg += "option is set, or that the cuda_compute_capabilities easyconfig parameter is defined."
                 raise EasyBuildError(error_msg, key)
