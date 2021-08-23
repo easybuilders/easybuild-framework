@@ -44,6 +44,7 @@ import glob
 import hashlib
 import imp
 import inspect
+import itertools
 import os
 import re
 import shutil
@@ -2340,7 +2341,28 @@ def copy_files(paths, target_path, force_in_dry_run=False, target_single_file=Fa
         raise EasyBuildError("One or more files to copy should be specified!")
 
 
-def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **kwargs):
+def has_recursive_symlinks(path):
+    """
+    Check the given directory for recursive symlinks.
+
+    That means symlinks to folders inside the path which would cause infinite loops when traversed regularily.
+
+    :param path: Path to directory to check
+    """
+    for dirpath, dirnames, filenames in os.walk(path, followlinks=True):
+        for name in itertools.chain(dirnames, filenames):
+            fullpath = os.path.join(dirpath, name)
+            if os.path.islink(fullpath):
+                linkpath = os.path.realpath(fullpath)
+                fullpath += os.sep  # To catch the case where both are equal
+                if fullpath.startswith(linkpath + os.sep):
+                    _log.info("Recursive symlink detected at %s", fullpath)
+                    return True
+    return False
+
+
+def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, check_for_recursive_symlinks=True,
+             **kwargs):
     """
     Copy a directory from specified location to specified location
 
@@ -2348,6 +2370,7 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
     :param target_path: path to copy the directory to
     :param force_in_dry_run: force running the command during dry run
     :param dirs_exist_ok: boolean indicating whether it's OK if the target directory already exists
+    :param check_for_recursive_symlinks: If symlink arg is not given or False check for recursive symlinks first
 
     shutil.copytree is used if the target path does not exist yet;
     if the target path already exists, the 'copy' function will be used to copy the contents of
@@ -2359,6 +2382,13 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
         dry_run_msg("copied directory %s to %s" % (path, target_path))
     else:
         try:
+            if check_for_recursive_symlinks and not kwargs.get('symlinks'):
+                if has_recursive_symlinks(path):
+                    raise EasyBuildError("Recursive symlinks detected in %s. "
+                                         "Will not try copying this unless `symlinks=True` is passed",
+                                         path)
+                else:
+                    _log.debug("No recursive symlinks in %s", path)
             if not dirs_exist_ok and os.path.exists(target_path):
                 raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
 
@@ -2386,7 +2416,9 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
                 paths_to_copy = [os.path.join(path, x) for x in entries]
 
                 copy(paths_to_copy, target_path,
-                     force_in_dry_run=force_in_dry_run, dirs_exist_ok=dirs_exist_ok, **kwargs)
+                     force_in_dry_run=force_in_dry_run, dirs_exist_ok=dirs_exist_ok,
+                     check_for_recursive_symlinks=False,  # Don't check again
+                     **kwargs)
 
             else:
                 # if dirs_exist_ok is not enabled or target directory doesn't exist, just use shutil.copytree
