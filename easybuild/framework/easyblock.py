@@ -3703,8 +3703,11 @@ def build_and_install_one(ecdict, init_env):
 
             if os.path.exists(app.installdir) and build_option('read_only_installdir') and (
                     build_option('rebuild') or build_option('force')):
+                enabled_write_permissions = True
                 # re-enable write permissions so we can install additional modules
                 adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=True)
+            else:
+                enabled_write_permissions = False
 
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
@@ -3712,6 +3715,9 @@ def build_and_install_one(ecdict, init_env):
             # also add any extension easyblocks used during the build for reproducibility
             if app.ext_instances:
                 copy_easyblocks_for_reprod(app.ext_instances, reprod_dir)
+            # If not already done remove the granted write permissions if we did so
+            if enabled_write_permissions and os.lstat(app.installdir)[stat.ST_MODE] & stat.S_IWUSR:
+                adjust_permissions(app.installdir, stat.S_IWUSR, add=False, recursive=True)
 
     except EasyBuildError as err:
         first_n = 300
@@ -3728,6 +3734,21 @@ def build_and_install_one(ecdict, init_env):
 
     # successful (non-dry-run) build
     if result and not dry_run:
+        def ensure_writable_log_dir(log_dir):
+            """Make sure we can write into the log dir"""
+            if build_option('read_only_installdir'):
+                # temporarily re-enable write permissions for copying log/easyconfig to install dir
+                if os.path.exists(log_dir):
+                    adjust_permissions(log_dir, stat.S_IWUSR, add=True, recursive=True)
+                else:
+                    parent_dir = os.path.dirname(log_dir)
+                    if os.path.exists(parent_dir):
+                        adjust_permissions(parent_dir, stat.S_IWUSR, add=True, recursive=False)
+                        mkdir(log_dir, parents=True)
+                        adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
+                    else:
+                        mkdir(log_dir, parents=True)
+                        adjust_permissions(log_dir, stat.S_IWUSR, add=True, recursive=True)
 
         if app.cfg['stop']:
             ended = 'STOPPED'
@@ -3735,6 +3756,7 @@ def build_and_install_one(ecdict, init_env):
                 new_log_dir = os.path.join(app.builddir, config.log_path(ec=app.cfg))
             else:
                 new_log_dir = os.path.dirname(app.logfile)
+            ensure_writable_log_dir(new_log_dir)
 
         # if we're only running the sanity check, we should not copy anything new to the installation directory
         elif build_option('sanity_check_only'):
@@ -3742,14 +3764,7 @@ def build_and_install_one(ecdict, init_env):
 
         else:
             new_log_dir = os.path.join(app.installdir, config.log_path(ec=app.cfg))
-            if build_option('read_only_installdir'):
-                # temporarily re-enable write permissions for copying log/easyconfig to install dir
-                if os.path.exists(new_log_dir):
-                    adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=True)
-                else:
-                    adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=False)
-                    mkdir(new_log_dir, parents=True)
-                    adjust_permissions(app.installdir, stat.S_IWUSR, add=False, recursive=False)
+            ensure_writable_log_dir(new_log_dir)
 
             # collect build stats
             _log.info("Collecting build stats...")
