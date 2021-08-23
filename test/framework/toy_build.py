@@ -3061,7 +3061,6 @@ class ToyBuildTest(EnhancedTestCase):
                     self.assertTrue(regexes_S[ext].match(bin_txt),
                                     "Pattern '%s' found in %s: %s" % (regexes_S[ext].pattern, bin_path, bin_txt))
 
-
     def test_toy_system_toolchain_alias(self):
         """Test use of 'system' toolchain alias."""
         toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
