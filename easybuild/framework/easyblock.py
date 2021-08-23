@@ -2466,7 +2466,7 @@ class EasyBlock(object):
 
     def fix_shebang(self):
         """Fix shebang lines for specified files."""
-        for lang in ['perl', 'python']:
+        for lang in ['bash', 'perl', 'python']:
             shebang_regex = re.compile(r'^#![ ]*.*[/ ]%s.*' % lang)
             fix_shebang_for = self.cfg['fix_%s_shebang_for' % lang]
             if fix_shebang_for:
