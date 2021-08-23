@@ -3009,15 +3009,14 @@ class ToyBuildTest(EnhancedTestCase):
             # exact same file as original binary (untouched)
             self.assertEqual(toy_txt, fn_txt)
 
-        regexes = { }
+        regexes = {}
         # no re.M, this should match at start of file!
         regexes['py'] = re.compile(r'^#!/usr/bin/env python\n# test$')
         regexes['pl'] = re.compile(r'^#!/usr/bin/env perl\n# test$')
         regexes['sh'] = re.compile(r'^#!/usr/bin/env bash\n# test$')
 
-
         # all scripts should have a shebang that matches their extension
-        scripts = { }
+        scripts = {}
         scripts['py'] = ['t1.py', 't2.py', 't3.py', 't4.py', 't5.py', 't6.py', 't7.py', 'b1.py']
         scripts['pl'] = ['t1.pl', 't2.pl', 't3.pl', 't4.pl', 't5.pl', 't6.pl', 't7.pl', 'b1.pl']
         scripts['sh'] = ['t1.sh', 't2.sh', 't3.sh', 't4.sh', 't5.sh', 'b1.sh', 'b2.sh']
@@ -3044,7 +3043,7 @@ class ToyBuildTest(EnhancedTestCase):
             # exact same file as original binary (untouched)
             self.assertEqual(toy_txt, fn_txt)
 
-        regexes_S = { }
+        regexes_S = {}
         # no re.M, this should match at start of file!
         regexes_S['py'] = re.compile(r'^#!/usr/bin/env -S python\n# test$')
         regexes_S['pl'] = re.compile(r'^#!/usr/bin/env -S perl\n# test$')
