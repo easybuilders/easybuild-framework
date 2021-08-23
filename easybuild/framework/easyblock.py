@@ -2418,6 +2418,7 @@ class EasyBlock(object):
 
             tup = (ext.name, ext.version or '', idx + 1, exts_cnt)
             print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
+            start_time = datetime.now()
 
             if self.dry_run:
                 tup = (ext.name, ext.version, ext.__class__.__name__)
@@ -2438,11 +2439,19 @@ class EasyBlock(object):
 
             # real work
             if install:
-                ext.prerun()
-                txt = ext.run()
-                if txt:
-                    self.module_extra_extensions += txt
-                ext.postrun()
+                try:
+                    ext.prerun()
+                    txt = ext.run()
+                    if txt:
+                        self.module_extra_extensions += txt
+                    ext.postrun()
+                finally:
+                    if not self.dry_run:
+                        ext_duration = datetime.now() - start_time
+                        if ext_duration.total_seconds() >= 1:
+                            print_msg("\t... (took %s)", time2str(ext_duration), log=self.log, silent=self.silent)
+                        elif self.logdebug or build_option('trace'):
+                            print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
