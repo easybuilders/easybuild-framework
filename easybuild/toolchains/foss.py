@@ -35,6 +35,7 @@ from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.flexiblas import FlexiBLAS
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
+from easybuild.tools.systemtools import POWER, get_cpu_architecture
 
 
 class Foss(Gompi, OpenBLAS, FlexiBLAS, ScaLAPACK, Fftw):
@@ -56,7 +57,7 @@ class Foss(Gompi, OpenBLAS, FlexiBLAS, ScaLAPACK, Fftw):
         constants = ('BLAS_MODULE_NAME', 'BLAS_LIB', 'BLAS_LIB_MT', 'BLAS_FAMILY',
                      'LAPACK_MODULE_NAME', 'LAPACK_IS_BLAS', 'LAPACK_FAMILY')
 
-        if self.looseversion > LooseVersion('2021.0'):
+        if self.looseversion > LooseVersion('2021.0') and get_cpu_architecture() != POWER:
             for constant in constants:
                 setattr(self, constant, getattr(FlexiBLAS, constant))
         else:
