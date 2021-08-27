@@ -366,7 +366,7 @@ class EasyBlock(object):
     def get_checksums_from_json(self, always_read=False):
         if always_read or self.json_checksums is None:
             try:
-                path = self.obtain_file("checksums.json")
+                path = self.obtain_file("checksums.json", no_download=True)
                 self.log.info("Loading checksums from file %s", path)
                 json_txt = read_file(path)
                 self.json_checksums = json.loads(json_txt)
@@ -691,7 +691,7 @@ class EasyBlock(object):
         return exts_sources
 
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
-                    git_config=None):
+                    git_config=None, no_download=False):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -702,6 +702,7 @@ class EasyBlock(object):
         :param download_filename: filename with which the file should be downloaded, and then renamed to <filename>
         :param force_download: always try to download file, even if it's already available in source path
         :param git_config: dictionary to define how to download a git repository
+        :param no_download: do not try to download the file
         """
         srcpaths = source_paths()
 
@@ -799,6 +800,13 @@ class EasyBlock(object):
                 if self.dry_run:
                     self.dry_run_msg("  * %s found at %s", filename, foundfile)
                 return foundfile
+            elif no_download:
+                if self.dry_run:
+                    self.dry_run_msg("  * %s (MISSING)", filename)
+                    return filename
+                else:
+                    raise EasyBuildError("Couldn't find file %s anywhere, and downloading it is disable... "
+                                         "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
             elif git_config:
                 return get_source_tarball_from_git(filename, targetdir, git_config)
             else:
