@@ -976,31 +976,42 @@ def det_parallelism(par=None, maxpar=None):
     Determine level of parallelism that should be used.
     Default: educated guess based on # cores and 'ulimit -u' setting: min(# cores, ((ulimit -u) - 15) // 6)
     """
-    if par is not None:
-        if not isinstance(par, int):
-            try:
-                par = int(par)
-            except ValueError as err:
-                raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
-    else:
-        par = get_avail_core_count()
-        # check ulimit -u
-        out, ec = run_cmd('ulimit -u', force_in_dry_run=True, trace=False, stream_output=False)
+    def get_default_parallelism():
         try:
-            if out.startswith("unlimited"):
-                out = 2 ** 32 - 1
-            maxuserproc = int(out)
+            # Get cache value if any
+            par = det_parallelism._default_parallelism
+        except AttributeError:
+            # No cache -> Calculate value from current system values
+            par = get_avail_core_count()
+            # check ulimit -u
+            out, ec = run_cmd('ulimit -u', force_in_dry_run=True, trace=False, stream_output=False)
+            try:
+                if out.startswith("unlimited"):
+                    maxuserproc = 2 ** 32 - 1
+                else:
+                    maxuserproc = int(out)
+            except ValueError as err:
+                raise EasyBuildError("Failed to determine max user processes (%s, %s): %s", ec, out, err)
             # assume 6 processes per build thread + 15 overhead
-            par_guess = int((maxuserproc - 15) // 6)
+            par_guess = (maxuserproc - 15) // 6
             if par_guess < par:
                 par = par_guess
                 _log.info("Limit parallel builds to %s because max user processes is %s" % (par, out))
+            # Cache value
+            det_parallelism._default_parallelism = par
+        return par
+
+    if par is None:
+        par = get_default_parallelism()
+    else:
+        try:
+            par = int(par)
         except ValueError as err:
-            raise EasyBuildError("Failed to determine max user processes (%s, %s): %s", ec, out, err)
+            raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
 
     if maxpar is not None and maxpar < par:
         _log.info("Limiting parallellism from %s to %s" % (par, maxpar))
-        par = min(par, maxpar)
+        par = maxpar
 
     return par
 

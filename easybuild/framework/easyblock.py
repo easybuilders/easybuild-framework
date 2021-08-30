@@ -1791,18 +1791,20 @@ class EasyBlock(object):
         """Set 'parallel' easyconfig parameter to determine how many cores can/should be used for parallel builds."""
         # set level of parallelism for build
         par = build_option('parallel')
-        if self.cfg['parallel'] is not None:
+        cfg_par = self.cfg['parallel']
+        if cfg_par is None:
+            self.log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
+        else:
             if par is None:
-                par = self.cfg['parallel']
+                par = cfg_par
                 self.log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
             else:
-                par = min(int(par), int(self.cfg['parallel']))
+                par = min(int(par), int(cfg_par))
                 self.log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
-        else:
-            self.log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
 
-        self.cfg['parallel'] = det_parallelism(par=par, maxpar=self.cfg['maxparallel'])
-        self.log.info("Setting parallelism: %s" % self.cfg['parallel'])
+        par = det_parallelism(par, maxpar=self.cfg['maxparallel'])
+        self.log.info("Setting parallelism: %s" % par)
+        self.cfg['parallel'] = par
 
     def remove_module_file(self):
         """Remove module file (if it exists), and check for ghost installation directory (and deal with it)."""
