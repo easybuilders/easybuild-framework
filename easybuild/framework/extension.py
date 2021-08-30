@@ -138,6 +138,10 @@ class Extension(object):
                 self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
                                key, name, version, value)
 
+        if self.cfg['maxparallel'] and self.cfg['parallel'] > self.cfg['maxparallel']:
+            self.cfg['parallel'] = min(self.cfg['parallel'], self.cfg['maxparallel'])
+            self.log.info("Setting parallelism to %d for extension %s", self.cfg['parallel'], name)
+
         self.sanity_check_fail_msgs = []
 
     @property

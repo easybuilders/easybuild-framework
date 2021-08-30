@@ -1025,9 +1025,14 @@ class EasyBlockTest(EnhancedTestCase):
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = toy_ec_txt.replace("('barbar', '0.0', {", "('barbar', '0.0', {'easyblock': 'DummyExtension',")
+        test_ec_txt = test_ec_txt.replace("('barbar', '0.0', {", "('barbar', '0.0', {'maxparallel': 3,")
+        test_ec_txt += "\nparallel = 5"
         write_file(test_ec, test_ec_txt)
         ec = process_easyconfig(test_ec)[0]
         eb = get_easyblock_instance(ec)
+
+        # require to trigger setting of 'parallel' value
+        eb.check_readiness_step()
 
         eb.prepare_for_extensions()
         eb.init_ext_instances()
@@ -1039,6 +1044,17 @@ class EasyBlockTest(EnhancedTestCase):
             'EB_toy',  # 'toy' extension
         ]
         self.assertEqual(ext_inst_class_names, expected)
+
+        # default parallel is inherited from parent
+        self.assertEqual(eb.cfg['parallel'], 5)
+        self.assertEqual(eb.ext_instances[0].cfg['parallel'], 5)
+        self.assertEqual(eb.ext_instances[1].cfg['parallel'], 5)
+        self.assertEqual(eb.ext_instances[3].cfg['parallel'], 5)
+
+        barbar_ext = eb.ext_instances[2]
+        self.assertEqual(barbar_ext.name, 'barbar')
+        # parallel should be set to 3 for barbar, due to maxparallel
+        self.assertEqual(barbar_ext.cfg['parallel'], 3)
 
         # check what happen if we specify an easyblock that doesn't derive from Extension,
         # and hence can't be used to install extensions...
