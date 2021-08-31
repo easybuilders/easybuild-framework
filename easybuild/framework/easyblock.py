@@ -1791,18 +1791,19 @@ class EasyBlock(object):
         """Set 'parallel' easyconfig parameter to determine how many cores can/should be used for parallel builds."""
         # set level of parallelism for build
         par = build_option('parallel')
-        if self.cfg['parallel'] is not None:
-            if par is None:
-                par = self.cfg['parallel']
-                self.log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
-            else:
-                par = min(int(par), int(self.cfg['parallel']))
-                self.log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
-        else:
+        cfg_par = self.cfg['parallel']
+        if cfg_par is None:
             self.log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
+        elif par is None:
+            par = cfg_par
+            self.log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
+        else:
+            par = min(int(par), int(cfg_par))
+            self.log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
 
-        self.cfg['parallel'] = det_parallelism(par=par, maxpar=self.cfg['maxparallel'])
-        self.log.info("Setting parallelism: %s" % self.cfg['parallel'])
+        par = det_parallelism(par, maxpar=self.cfg['maxparallel'])
+        self.log.info("Setting parallelism: %s" % par)
+        self.cfg['parallel'] = par
 
     def remove_module_file(self):
         """Remove module file (if it exists), and check for ghost installation directory (and deal with it)."""
@@ -2418,6 +2419,7 @@ class EasyBlock(object):
 
             tup = (ext.name, ext.version or '', idx + 1, exts_cnt)
             print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
+            start_time = datetime.now()
 
             if self.dry_run:
                 tup = (ext.name, ext.version, ext.__class__.__name__)
@@ -2438,11 +2440,19 @@ class EasyBlock(object):
 
             # real work
             if install:
-                ext.prerun()
-                txt = ext.run()
-                if txt:
-                    self.module_extra_extensions += txt
-                ext.postrun()
+                try:
+                    ext.prerun()
+                    txt = ext.run()
+                    if txt:
+                        self.module_extra_extensions += txt
+                    ext.postrun()
+                finally:
+                    if not self.dry_run:
+                        ext_duration = datetime.now() - start_time
+                        if ext_duration.total_seconds() >= 1:
+                            print_msg("\t... (took %s)", time2str(ext_duration), log=self.log, silent=self.silent)
+                        elif self.logdebug or build_option('trace'):
+                            print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
@@ -3694,8 +3704,11 @@ def build_and_install_one(ecdict, init_env):
 
             if os.path.exists(app.installdir) and build_option('read_only_installdir') and (
                     build_option('rebuild') or build_option('force')):
+                enabled_write_permissions = True
                 # re-enable write permissions so we can install additional modules
                 adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=True)
+            else:
+                enabled_write_permissions = False
 
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
@@ -3703,6 +3716,9 @@ def build_and_install_one(ecdict, init_env):
             # also add any extension easyblocks used during the build for reproducibility
             if app.ext_instances:
                 copy_easyblocks_for_reprod(app.ext_instances, reprod_dir)
+            # If not already done remove the granted write permissions if we did so
+            if enabled_write_permissions and os.lstat(app.installdir)[stat.ST_MODE] & stat.S_IWUSR:
+                adjust_permissions(app.installdir, stat.S_IWUSR, add=False, recursive=True)
 
     except EasyBuildError as err:
         first_n = 300
@@ -3719,6 +3735,21 @@ def build_and_install_one(ecdict, init_env):
 
     # successful (non-dry-run) build
     if result and not dry_run:
+        def ensure_writable_log_dir(log_dir):
+            """Make sure we can write into the log dir"""
+            if build_option('read_only_installdir'):
+                # temporarily re-enable write permissions for copying log/easyconfig to install dir
+                if os.path.exists(log_dir):
+                    adjust_permissions(log_dir, stat.S_IWUSR, add=True, recursive=True)
+                else:
+                    parent_dir = os.path.dirname(log_dir)
+                    if os.path.exists(parent_dir):
+                        adjust_permissions(parent_dir, stat.S_IWUSR, add=True, recursive=False)
+                        mkdir(log_dir, parents=True)
+                        adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
+                    else:
+                        mkdir(log_dir, parents=True)
+                        adjust_permissions(log_dir, stat.S_IWUSR, add=True, recursive=True)
 
         if app.cfg['stop']:
             ended = 'STOPPED'
@@ -3726,6 +3757,7 @@ def build_and_install_one(ecdict, init_env):
                 new_log_dir = os.path.join(app.builddir, config.log_path(ec=app.cfg))
             else:
                 new_log_dir = os.path.dirname(app.logfile)
+            ensure_writable_log_dir(new_log_dir)
 
         # if we're only running the sanity check, we should not copy anything new to the installation directory
         elif build_option('sanity_check_only'):
@@ -3733,14 +3765,7 @@ def build_and_install_one(ecdict, init_env):
 
         else:
             new_log_dir = os.path.join(app.installdir, config.log_path(ec=app.cfg))
-            if build_option('read_only_installdir'):
-                # temporarily re-enable write permissions for copying log/easyconfig to install dir
-                if os.path.exists(new_log_dir):
-                    adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=True)
-                else:
-                    adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=False)
-                    mkdir(new_log_dir, parents=True)
-                    adjust_permissions(app.installdir, stat.S_IWUSR, add=False, recursive=False)
+            ensure_writable_log_dir(new_log_dir)
 
             # collect build stats
             _log.info("Collecting build stats...")

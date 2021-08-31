@@ -1790,6 +1790,46 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile("^copied 2 files to .*/target")
         self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
+    def test_has_recursive_symlinks(self):
+        """Test has_recursive_symlinks function"""
+        test_folder = tempfile.mkdtemp()
+        self.assertFalse(ft.has_recursive_symlinks(test_folder))
+        # Clasic Loop: Symlink to .
+        os.symlink('.', os.path.join(test_folder, 'self_link_dot'))
+        self.assertTrue(ft.has_recursive_symlinks(test_folder))
+        # Symlink to self
+        test_folder = tempfile.mkdtemp()
+        os.symlink('self_link', os.path.join(test_folder, 'self_link'))
+        self.assertTrue(ft.has_recursive_symlinks(test_folder))
+        # Symlink from 2 folders up
+        test_folder = tempfile.mkdtemp()
+        sub_folder = os.path.join(test_folder, 'sub1', 'sub2')
+        os.makedirs(sub_folder)
+        os.symlink(os.path.join('..', '..'), os.path.join(sub_folder, 'uplink'))
+        self.assertTrue(ft.has_recursive_symlinks(test_folder))
+        # Non-issue: Symlink to sibling folders
+        test_folder = tempfile.mkdtemp()
+        sub_folder = os.path.join(test_folder, 'sub1', 'sub2')
+        os.makedirs(sub_folder)
+        sibling_folder = os.path.join(test_folder, 'sub1', 'sibling')
+        os.mkdir(sibling_folder)
+        os.symlink('sibling', os.path.join(test_folder, 'sub1', 'sibling_link'))
+        os.symlink(os.path.join('..', 'sibling'), os.path.join(test_folder, sub_folder, 'sibling_link'))
+        self.assertFalse(ft.has_recursive_symlinks(test_folder))
+        # Tricky case: Sibling symlink to folder starting with the same name
+        os.mkdir(os.path.join(test_folder, 'sub11'))
+        os.symlink(os.path.join('..', 'sub11'), os.path.join(test_folder, 'sub1', 'trick_link'))
+        self.assertFalse(ft.has_recursive_symlinks(test_folder))
+        # Symlink cycle: sub1/cycle_2 -> sub2, sub2/cycle_1 -> sub1, ...
+        test_folder = tempfile.mkdtemp()
+        sub_folder1 = os.path.join(test_folder, 'sub1')
+        sub_folder2 = sub_folder = os.path.join(test_folder, 'sub2')
+        os.mkdir(sub_folder1)
+        os.mkdir(sub_folder2)
+        os.symlink(os.path.join('..', 'sub2'), os.path.join(sub_folder1, 'cycle_1'))
+        os.symlink(os.path.join('..', 'sub1'), os.path.join(sub_folder2, 'cycle_2'))
+        self.assertTrue(ft.has_recursive_symlinks(test_folder))
+
     def test_copy_dir(self):
         """Test copy_dir function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
@@ -1860,6 +1900,15 @@ class FileToolsTest(EnhancedTestCase):
         ft.mkdir(target_dir)
         ft.mkdir(subdir)
         ft.copy_dir(srcdir, target_dir, symlinks=True, dirs_exist_ok=True)
+
+        # Detect recursive symlinks by default instead of infinite loop during copy
+        ft.remove_dir(target_dir)
+        os.symlink('.', os.path.join(subdir, 'recursive_link'))
+        self.assertErrorRegex(EasyBuildError, 'Recursive symlinks detected', ft.copy_dir, srcdir, target_dir)
+        self.assertFalse(os.path.exists(target_dir))
+        # Ok for symlinks=True
+        ft.copy_dir(srcdir, target_dir, symlinks=True)
+        self.assertTrue(os.path.exists(target_dir))
 
         # also test behaviour of copy_file under --dry-run
         build_options = {

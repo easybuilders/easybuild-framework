@@ -801,7 +801,7 @@ class ModulesTool(object):
         else:
             args = list(args)
 
-        self.log.debug('Current MODULEPATH: %s' % os.environ.get('MODULEPATH', ''))
+        self.log.debug('Current MODULEPATH: %s' % os.environ.get('MODULEPATH', '<unset>'))
 
         # restore selected original environment variables before running module command
         environ = os.environ.copy()

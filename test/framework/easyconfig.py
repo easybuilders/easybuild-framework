@@ -3052,6 +3052,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(res, expected)
 
         # mock get_avail_core_count which is used by set_parallel -> det_parallelism
+        try:
+            del st.det_parallelism._default_parallelism  # Remove cache value
+        except AttributeError:
+            pass  # Ignore if not present
         orig_get_avail_core_count = st.get_avail_core_count
         st.get_avail_core_count = lambda: 42
 
