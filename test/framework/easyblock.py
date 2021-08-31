@@ -1026,6 +1026,7 @@ class EasyBlockTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = toy_ec_txt.replace("('barbar', '0.0', {", "('barbar', '0.0', {'easyblock': 'DummyExtension',")
         test_ec_txt = test_ec_txt.replace("('barbar', '0.0', {", "('barbar', '0.0', {'maxparallel': 3,")
+        test_ec_txt = test_ec_txt.replace("('bar', '0.0', {", "('bar', '0.0', {'maxparallel': 1,")
         test_ec_txt += "\nparallel = 5"
         write_file(test_ec, test_ec_txt)
         ec = process_easyconfig(test_ec)[0]
@@ -1048,8 +1049,12 @@ class EasyBlockTest(EnhancedTestCase):
         # default parallel is inherited from parent
         self.assertEqual(eb.cfg['parallel'], 5)
         self.assertEqual(eb.ext_instances[0].cfg['parallel'], 5)
-        self.assertEqual(eb.ext_instances[1].cfg['parallel'], 5)
         self.assertEqual(eb.ext_instances[3].cfg['parallel'], 5)
+
+        bar_ext = eb.ext_instances[1]
+        self.assertEqual(bar_ext.name, 'bar')
+        # parallel should be set to 1 for barbar, due to maxparallel
+        self.assertEqual(bar_ext.cfg['parallel'], 1)
 
         barbar_ext = eb.ext_instances[2]
         self.assertEqual(barbar_ext.name, 'barbar')

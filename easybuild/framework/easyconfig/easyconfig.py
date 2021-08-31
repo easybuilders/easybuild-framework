@@ -73,7 +73,7 @@ from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_s
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.py2vs3 import OrderedDict, create_base_metaclass, string_type
-from easybuild.tools.systemtools import check_os_dependency, pick_dep_version
+from easybuild.tools.systemtools import check_os_dependency, det_parallelism, pick_dep_version
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
@@ -1828,6 +1828,30 @@ class EasyConfig(object):
         else:
             error_msg = "%s is not a template value based on --cuda-compute-capabilities/cuda_compute_capabilities"
             raise EasyBuildError(error_msg, key)
+
+
+def get_parallel_ec_param_value(cfg, log):
+    """
+    Get value for 'parallel' easyconfig parameter for given EasyConfig instance.
+    Takes into account:
+    * --parallel EasyBuild configuration option (if defined)
+    * 'parallel' easyconfig parameter (if defined)
+    * 'maxparallel' easyconfig parameter (if defined)
+    * number of available cores (incl. affinity of active EasyBuild session)
+    """
+    # set level of parallelism for build
+    par = build_option('parallel')
+    cfg_par = cfg['parallel']
+    if cfg_par is None:
+        log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
+    elif par is None:
+        par = cfg_par
+        log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
+    else:
+        par = min(int(par), int(cfg_par))
+        log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
+
+    return det_parallelism(par, maxpar=cfg['maxparallel'])
 
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):
