@@ -996,7 +996,7 @@ def det_parallelism(par=None, maxpar=None):
             par_guess = (maxuserproc - 15) // 6
             if par_guess < par:
                 par = par_guess
-                _log.info("Limit parallel builds to %s because max user processes is %s" % (par, out))
+                _log.info("Limit parallel builds to %s because max user processes is %s", par, out)
             # Cache value
             det_parallelism._default_parallelism = par
         return par
@@ -1010,7 +1010,7 @@ def det_parallelism(par=None, maxpar=None):
             raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
 
     if maxpar is not None and maxpar < par:
-        _log.info("Limiting parallellism from %s to %s" % (par, maxpar))
+        _log.info("Limiting parallellism from %s to %s", par, maxpar)
         par = maxpar
 
     return par
