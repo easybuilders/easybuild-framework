@@ -57,6 +57,9 @@ class Foss(Gompi, OpenBLAS, FlexiBLAS, ScaLAPACK, Fftw):
         constants = ('BLAS_MODULE_NAME', 'BLAS_LIB', 'BLAS_LIB_MT', 'BLAS_FAMILY',
                      'LAPACK_MODULE_NAME', 'LAPACK_IS_BLAS', 'LAPACK_FAMILY')
 
+        # FlexiBLAS with OpenBLAS crashes on POWER, so we use OpenBLAS directly on POWER, see:
+        #  * https://github.com/easybuilders/easybuild-easyconfigs/issues/12968
+        #  * https://github.com/mpimd-csc/flexiblas/issues/17
         if self.looseversion > LooseVersion('2021.0') and get_cpu_architecture() != POWER:
             for constant in constants:
                 setattr(self, constant, getattr(FlexiBLAS, constant))
