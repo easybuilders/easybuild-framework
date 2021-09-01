@@ -2481,7 +2481,8 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         if recursive:
             clone_cmd.append('--recursive')
     else:
-        clone_cmd.append('--no-checkout')  # We do that manually below
+        # checkout is done separately below for specific commits
+        clone_cmd.append('--no-checkout')
 
     clone_cmd.append('%s/%s.git' % (url, repo_name))
 
@@ -2496,6 +2497,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
             checkout_cmd.extend(['&&', 'git', 'submodule', 'update', '--init', '--recursive'])
 
         run.run_cmd(' '.join(checkout_cmd), log_all=True, simple=True, regexp=False, path=repo_name)
+
     elif not build_option('extended_dry_run'):
         # If we wanted to get a tag make sure we actually got a tag and not a branch with the same name
         # This doesn't make sense in dry-run mode as we don't have anything to check
@@ -2507,10 +2509,13 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
                           ' with the same name. You might want to alert the maintainers of %s about that issue.',
                           tag, url, repo_name, repo_name)
             cmds = []
+
             if not keep_git_dir:
-                # Make the repo unshallow, same as git fetch --unshallow in git 1.8.3+
-                # The first fetch seemingly does nothing, no idea why.
+                # make the repo unshallow first;
+                # this is equivalent with 'git fetch -unshallow' in Git 1.8.3+
+                # (first fetch seems to do nothing, unclear why)
                 cmds.append('git fetch --depth=2147483647 && git fetch --depth=2147483647')
+
             cmds.append('git checkout refs/tags/' + tag)
             # Clean all untracked files, e.g. from left-over submodules
             cmds.append('git clean --force -d -x')
