@@ -2537,23 +2537,124 @@ class FileToolsTest(EnhancedTestCase):
     def test_get_source_tarball_from_git(self):
         """Test get_source_tarball_from_git function."""
 
+        target_dir = os.path.join(self.test_prefix, 'target')
+
+        # only test in dry run mode, i.e. check which commands would be executed without actually running them
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        def run_check():
+            """Helper function to run get_source_tarball_from_git & check dry run output"""
+            with self.mocked_stdout_stderr():
+                res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+                stdout = self.get_stdout()
+                stderr = self.get_stderr()
+            self.assertEqual(stderr, '')
+            regex = re.compile(expected)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+            self.assertEqual(os.path.dirname(res), target_dir)
+            self.assertEqual(os.path.basename(res), 'test.tar.gz')
+
+        git_config = {
+            'repo_name': 'testrepository',
+            'url': 'git@github.com:easybuilders',
+            'tag': 'tag_for_tests',
+        }
+        git_repo = {'git_repo': 'git@github.com:easybuilders/testrepository.git'}  # Just to make the below shorter
+        expected = '\n'.join([
+            r'  running command "git clone --depth 1 --branch tag_for_tests %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+
+        git_config['recursive'] = True
+        expected = '\n'.join([
+            r'  running command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+
+        git_config['keep_git_dir'] = True
+        expected = '\n'.join([
+            r'  running command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+        del git_config['keep_git_dir']
+
+        del git_config['tag']
+        git_config['commit'] = '8456f86'
+        expected = '\n'.join([
+            r'  running command "git clone --depth 1 --no-checkout %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "git checkout 8456f86 && git submodule update --init --recursive"',
+            r"  \(in testrepository\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+
+        del git_config['recursive']
+        expected = '\n'.join([
+            r'  running command "git clone --depth 1 --no-checkout %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "git checkout 8456f86"',
+            r"  \(in testrepository\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+
+        # Test with real data.
+        init_config()
         git_config = {
             'repo_name': 'testrepository',
             'url': 'https://github.com/easybuilders',
-            'tag': 'main',
+            'tag': 'branch_tag_for_test',
         }
-        target_dir = os.path.join(self.test_prefix, 'target')
 
         try:
-            ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+            res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
             # (only) tarball is created in specified target dir
-            self.assertTrue(os.path.isfile(os.path.join(target_dir, 'test.tar.gz')))
+            test_file = os.path.join(target_dir, 'test.tar.gz')
+            self.assertEqual(res, test_file)
+            self.assertTrue(os.path.isfile(test_file))
             self.assertEqual(os.listdir(target_dir), ['test.tar.gz'])
+            # Check that we indeed downloaded the right tag
+            extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
+            extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
+            self.assertTrue(os.path.isfile(os.path.join(extracted_repo_dir, 'this-is-a-branch.txt')))
+            os.remove(test_file)
+
+            # use a tag that clashes with a branch name and make sure this is handled correctly
+            git_config['tag'] = 'tag_for_tests'
+            with self.mocked_stdout_stderr():
+                res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+                stderr = self.get_stderr()
+            self.assertIn('Tag tag_for_tests was not downloaded in the first try', stderr)
+            self.assertEqual(res, test_file)
+            self.assertTrue(os.path.isfile(test_file))
+            # Check that we indeed downloaded the tag and not the branch
+            extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
+            extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
+            self.assertTrue(os.path.isfile(os.path.join(extracted_repo_dir, 'this-is-a-tag.txt')))
 
             del git_config['tag']
             git_config['commit'] = '8456f86'
-            ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
-            self.assertTrue(os.path.isfile(os.path.join(target_dir, 'test2.tar.gz')))
+            res = ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
+            test_file = os.path.join(target_dir, 'test2.tar.gz')
+            self.assertEqual(res, test_file)
+            self.assertTrue(os.path.isfile(test_file))
             self.assertEqual(sorted(os.listdir(target_dir)), ['test.tar.gz', 'test2.tar.gz'])
 
         except EasyBuildError as err:
@@ -2565,7 +2666,7 @@ class FileToolsTest(EnhancedTestCase):
         git_config = {
             'repo_name': 'testrepository',
             'url': 'git@github.com:easybuilders',
-            'tag': 'master',
+            'tag': 'tag_for_tests',
         }
         args = ['test.tar.gz', self.test_prefix, git_config]
 
@@ -2592,84 +2693,6 @@ class FileToolsTest(EnhancedTestCase):
         error_pattern = "git_config currently only supports filename ending in .tar.gz"
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
         args[0] = 'test.tar.gz'
-
-        # only test in dry run mode, i.e. check which commands would be executed without actually running them
-        build_options = {
-            'extended_dry_run': True,
-            'silent': False,
-        }
-        init_config(build_options=build_options)
-
-        def run_check():
-            """Helper function to run get_source_tarball_from_git & check dry run output"""
-            self.mock_stdout(True)
-            self.mock_stderr(True)
-            res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
-            stdout = self.get_stdout()
-            stderr = self.get_stderr()
-            self.mock_stdout(False)
-            self.mock_stderr(False)
-            self.assertEqual(stderr, '')
-            regex = re.compile(expected)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
-
-            self.assertEqual(os.path.dirname(res), target_dir)
-            self.assertEqual(os.path.basename(res), 'test.tar.gz')
-
-        git_config = {
-            'repo_name': 'testrepository',
-            'url': 'git@github.com:easybuilders',
-            'tag': 'master',
-        }
-        expected = '\n'.join([
-            r'  running command "git clone --branch master git@github.com:easybuilders/testrepository.git"',
-            r"  \(in .*/tmp.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in .*/tmp.*\)",
-        ])
-        run_check()
-
-        git_config['recursive'] = True
-        expected = '\n'.join([
-            r'  running command "git clone --branch master --recursive git@github.com:easybuilders/testrepository.git"',
-            r"  \(in .*/tmp.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in .*/tmp.*\)",
-        ])
-        run_check()
-
-        git_config['keep_git_dir'] = True
-        expected = '\n'.join([
-            r'  running command "git clone --branch master --recursive git@github.com:easybuilders/testrepository.git"',
-            r"  \(in .*/tmp.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz testrepository"',
-            r"  \(in .*/tmp.*\)",
-        ])
-        run_check()
-        del git_config['keep_git_dir']
-
-        del git_config['tag']
-        git_config['commit'] = '8456f86'
-        expected = '\n'.join([
-            r'  running command "git clone --recursive git@github.com:easybuilders/testrepository.git"',
-            r"  \(in .*/tmp.*\)",
-            r'  running command "git checkout 8456f86 && git submodule update --init --recursive"',
-            r"  \(in testrepository\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in .*/tmp.*\)",
-        ])
-        run_check()
-
-        del git_config['recursive']
-        expected = '\n'.join([
-            r'  running command "git clone git@github.com:easybuilders/testrepository.git"',
-            r"  \(in .*/tmp.*\)",
-            r'  running command "git checkout 8456f86"',
-            r"  \(in testrepository\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in .*/tmp.*\)",
-        ])
-        run_check()
 
     def test_is_sha256_checksum(self):
         """Test for is_sha256_checksum function."""
