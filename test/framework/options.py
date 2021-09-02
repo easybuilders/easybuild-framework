@@ -4020,7 +4020,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git\.\.\.",
             r"^== copying files to .*/easybuild-easyconfigs\.\.\.",
-            r"^== pushing branch '.*' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
+            r"^== pushing branch '[0-9]{14}_new_pr_toy00' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
         ]
         self._assert_regexs(regexs, txt)
 
@@ -4041,7 +4041,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyblocks.git\.\.\.",
             r"^== copying files to .*/easybuild-easyblocks\.\.\.",
-            r"^== pushing branch '.*' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
+            r"^== pushing branch '[0-9]{14}_new_pr_toy' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
         ]
         self._assert_regexs(regexs, txt)
 
@@ -4068,7 +4068,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-framework.git\.\.\.",
             r"^== copying files to .*/easybuild-framework\.\.\.",
-            r"^== pushing branch '.*' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
+            r"^== pushing branch '[0-9]{14}_new_pr_[A-Za-z]{10}' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
         ]
         self._assert_regexs(regexs, txt)
 
