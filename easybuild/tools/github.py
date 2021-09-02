@@ -902,6 +902,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if pr_branch is None:
         if ec_paths and pr_target_repo == GITHUB_EASYCONFIGS_REPO:
             label = file_info['ecs'][0].name + re.sub('[.-]', '', file_info['ecs'][0].version)
+        elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and paths.get('py_files'):
+            label = os.path.splitext(os.path.basename(paths['py_files'][0]))[0]
         else:
             label = ''.join(random.choice(ascii_letters) for _ in range(10))
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), label)
