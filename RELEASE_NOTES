@@ -9,12 +9,12 @@ v4.4.2 (September 7th 2021)
 
 update/bugfix release
 
-- add definition for new toolchain nvpsmpic (NVHPC + ParaStationMPI) (#3736)
 - various enhancements, including:
   - add per-extension timing in output produced by eb command (#3734)
+  - add definition for new toolchain nvpsmpic (NVHPC + ParaStationMPI + CUDA) (#3736)
   - include list of missing libraries in warning about missing FFTW libraries in imkl toolchain component (#3776)
   - check for recursive symlinks by default before copying a folder (#3784)
-  - add --filter-ecs options to filter out easyconfigs from set of easyconfigs to install (#3796)
+  - add --filter-ecs configuration option to filter out easyconfigs from set of easyconfigs to install (#3796)
   - check type of source_tmpl value for extensions, ensure it's a string value (not a list) (#3799)
   - also define $BLAS_SHARED_LIBS & co in build environment (analogous to $BLAS_STATIC_LIBS) (#3800)
   - report use of --ignore-test-failure in success message in output (#3806)
@@ -28,15 +28,15 @@ update/bugfix release
   - make logdir writable also when --stop/--fetch is used and --read-only-installdir is enabled (#3771)
   - fix forgotten renaming of 'l' to 'char' __init__.py that is created for included Python modules (#3773)
   - fix verify_imports by deleting all imported modules before re-importing them one by one (#3780)
-  - fix ignore_test_failure not set for Extensions (#3782)
+  - fix ignore_test_failure not set for Extension instances (#3782)
   - update iompi toolchain to intel-compiler subtoolchain for oneAPI versions (>= iompi 2020.12) (#3785)
   - don't parse patch files as easyconfigs when searching for where patch file is used (#3786)
   - make sure git clone with a tag argument actually downloads a tag (#3795)
   - fix CI by excluding GC3Pie 2.6.7 (which is broken with Python 2) and improve error reporting for option parsing (#3798)
-  - speed up tests by caching checked paths in set_tmpdir + less test cases for test_compiler_dependent_optarch (#3802)
   - correctly resolve templates for patches in extensions when uploading to GitHub (#3805)
-  - add --easystack to ignore_opts for submit_job() (#3813)
+  - add --easystack to ignored options when submitting job (#3813)
 - other changes:
+  - speed up tests by caching checked paths in set_tmpdir + less test cases for test_compiler_dependent_optarch (#3802)
   - speed up set_parallel method in EasyBlock class (#3812)
 
 
