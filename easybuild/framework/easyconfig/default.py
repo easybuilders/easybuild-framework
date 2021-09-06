@@ -95,6 +95,8 @@ DEFAULT_CONFIG = {
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
     'enhance_sanity_check': [False, "Indicate that additional sanity check commands & paths should enhance "
                              "the existin sanity check, not replace it", BUILD],
+    'fix_bash_shebang_for': [None, "List of files for which Bash shebang should be fixed "
+                                   "to '#!/usr/bin/env bash' (glob patterns supported)", BUILD],
     'fix_perl_shebang_for': [None, "List of files for which Perl shebang should be fixed "
                                    "to '#!/usr/bin/env perl' (glob patterns supported)", BUILD],
     'fix_python_shebang_for': [None, "List of files for which Python shebang should be fixed "

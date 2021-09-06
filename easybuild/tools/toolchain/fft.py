@@ -68,7 +68,9 @@ class Fft(Toolchain):
             if getattr(self, 'LIB_MULTITHREAD', None) is not None:
                 self.variables.nappend('LIBFFT_MT', self.LIB_MULTITHREAD)
 
+        self.variables.join('FFT_SHARED_LIBS', 'LIBFFT')
         self.variables.join('FFT_STATIC_LIBS', 'LIBFFT')
+        self.variables.join('FFT_SHARED_LIBS_MT', 'LIBFFT_MT')
         self.variables.join('FFT_STATIC_LIBS_MT', 'LIBFFT_MT')
 
         for root in self.get_software_root(self.FFT_MODULE_NAME):

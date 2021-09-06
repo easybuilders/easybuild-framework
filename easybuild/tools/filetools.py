@@ -44,6 +44,7 @@ import glob
 import hashlib
 import imp
 import inspect
+import itertools
 import os
 import re
 import shutil
@@ -528,7 +529,7 @@ def det_common_path_prefix(paths):
     found_common = False
     while not found_common and prefix != os.path.dirname(prefix):
         prefix = os.path.dirname(prefix)
-        found_common = all([p.startswith(prefix) for p in paths])
+        found_common = all(p.startswith(prefix) for p in paths)
 
     if found_common:
         # prefix may be empty string for relative paths with a non-common prefix
@@ -1096,9 +1097,16 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
     return var_defs, hits
 
 
-def dir_contains_files(path):
-    """Return True if the given directory does contain any file in itself or any subdirectory"""
-    return any(files for _root, _dirs, files in os.walk(path))
+def dir_contains_files(path, recursive=True):
+    """
+    Return True if the given directory does contain any file
+
+    :recursive If False only the path itself is considered, else all subdirectories are also searched
+    """
+    if recursive:
+        return any(files for _root, _dirs, files in os.walk(path))
+    else:
+        return any(os.path.isfile(os.path.join(path, x)) for x in os.listdir(path))
 
 
 def find_eb_script(script_name):
@@ -2333,7 +2341,28 @@ def copy_files(paths, target_path, force_in_dry_run=False, target_single_file=Fa
         raise EasyBuildError("One or more files to copy should be specified!")
 
 
-def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **kwargs):
+def has_recursive_symlinks(path):
+    """
+    Check the given directory for recursive symlinks.
+
+    That means symlinks to folders inside the path which would cause infinite loops when traversed regularily.
+
+    :param path: Path to directory to check
+    """
+    for dirpath, dirnames, filenames in os.walk(path, followlinks=True):
+        for name in itertools.chain(dirnames, filenames):
+            fullpath = os.path.join(dirpath, name)
+            if os.path.islink(fullpath):
+                linkpath = os.path.realpath(fullpath)
+                fullpath += os.sep  # To catch the case where both are equal
+                if fullpath.startswith(linkpath + os.sep):
+                    _log.info("Recursive symlink detected at %s", fullpath)
+                    return True
+    return False
+
+
+def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, check_for_recursive_symlinks=True,
+             **kwargs):
     """
     Copy a directory from specified location to specified location
 
@@ -2341,6 +2370,7 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
     :param target_path: path to copy the directory to
     :param force_in_dry_run: force running the command during dry run
     :param dirs_exist_ok: boolean indicating whether it's OK if the target directory already exists
+    :param check_for_recursive_symlinks: If symlink arg is not given or False check for recursive symlinks first
 
     shutil.copytree is used if the target path does not exist yet;
     if the target path already exists, the 'copy' function will be used to copy the contents of
@@ -2352,6 +2382,13 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
         dry_run_msg("copied directory %s to %s" % (path, target_path))
     else:
         try:
+            if check_for_recursive_symlinks and not kwargs.get('symlinks'):
+                if has_recursive_symlinks(path):
+                    raise EasyBuildError("Recursive symlinks detected in %s. "
+                                         "Will not try copying this unless `symlinks=True` is passed",
+                                         path)
+                else:
+                    _log.debug("No recursive symlinks in %s", path)
             if not dirs_exist_ok and os.path.exists(target_path):
                 raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
 
@@ -2379,7 +2416,9 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
                 paths_to_copy = [os.path.join(path, x) for x in entries]
 
                 copy(paths_to_copy, target_path,
-                     force_in_dry_run=force_in_dry_run, dirs_exist_ok=dirs_exist_ok, **kwargs)
+                     force_in_dry_run=force_in_dry_run, dirs_exist_ok=dirs_exist_ok,
+                     check_for_recursive_symlinks=False,  # Don't check again
+                     **kwargs)
 
             else:
                 # if dirs_exist_ok is not enabled or target directory doesn't exist, just use shutil.copytree
@@ -2464,17 +2503,24 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     # compose 'git clone' command, and run it
     clone_cmd = ['git', 'clone']
 
+    if not keep_git_dir:
+        # Speed up cloning by only fetching the most recent commit, not the whole history
+        # When we don't want to keep the .git folder there won't be a difference in the result
+        clone_cmd.extend(['--depth', '1'])
+
     if tag:
         clone_cmd.extend(['--branch', tag])
-
-    if recursive:
-        clone_cmd.append('--recursive')
+        if recursive:
+            clone_cmd.append('--recursive')
+    else:
+        # checkout is done separately below for specific commits
+        clone_cmd.append('--no-checkout')
 
     clone_cmd.append('%s/%s.git' % (url, repo_name))
 
     tmpdir = tempfile.mkdtemp()
     cwd = change_dir(tmpdir)
-    run.run_cmd(' '.join(clone_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+    run.run_cmd(' '.join(clone_cmd), log_all=True, simple=True, regexp=False)
 
     # if a specific commit is asked for, check it out
     if commit:
@@ -2482,14 +2528,40 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         if recursive:
             checkout_cmd.extend(['&&', 'git', 'submodule', 'update', '--init', '--recursive'])
 
-        run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
+        run.run_cmd(' '.join(checkout_cmd), log_all=True, simple=True, regexp=False, path=repo_name)
+
+    elif not build_option('extended_dry_run'):
+        # If we wanted to get a tag make sure we actually got a tag and not a branch with the same name
+        # This doesn't make sense in dry-run mode as we don't have anything to check
+        cmd = 'git describe --exact-match --tags HEAD'
+        # Note: Disable logging to also disable the error handling in run_cmd
+        (out, ec) = run.run_cmd(cmd, log_ok=False, log_all=False, regexp=False, path=repo_name)
+        if ec != 0 or tag not in out.splitlines():
+            print_warning('Tag %s was not downloaded in the first try due to %s/%s containing a branch'
+                          ' with the same name. You might want to alert the maintainers of %s about that issue.',
+                          tag, url, repo_name, repo_name)
+            cmds = []
+
+            if not keep_git_dir:
+                # make the repo unshallow first;
+                # this is equivalent with 'git fetch -unshallow' in Git 1.8.3+
+                # (first fetch seems to do nothing, unclear why)
+                cmds.append('git fetch --depth=2147483647 && git fetch --depth=2147483647')
+
+            cmds.append('git checkout refs/tags/' + tag)
+            # Clean all untracked files, e.g. from left-over submodules
+            cmds.append('git clean --force -d -x')
+            if recursive:
+                cmds.append('git submodule update --init --recursive')
+            for cmd in cmds:
+                run.run_cmd(cmd, log_all=True, simple=True, regexp=False, path=repo_name)
 
     # create an archive and delete the git repo directory
     if keep_git_dir:
         tar_cmd = ['tar', 'cfvz', targetpath, repo_name]
     else:
         tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
-    run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+    run.run_cmd(' '.join(tar_cmd), log_all=True, simple=True, regexp=False)
 
     # cleanup (repo_name dir does not exist in dry run mode)
     change_dir(cwd)

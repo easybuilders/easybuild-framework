@@ -59,7 +59,7 @@ from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION, is_y
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
+from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
@@ -559,6 +559,13 @@ class EasyConfig(object):
         finally:
             self.enable_templating = old_enable_templating
 
+    def __str__(self):
+        """Return a string representation of this EasyConfig instance"""
+        if self.path:
+            return '%s EasyConfig @ %s' % (self.name, self.path)
+        else:
+            return 'Raw %s EasyConfig' % self.name
+
     def filename(self):
         """Determine correct filename for this easyconfig file."""
 
@@ -881,7 +888,7 @@ class EasyConfig(object):
                 raise EasyBuildError("Non-tuple value type for OS dependency specification: %s (type %s)",
                                      dep, type(dep))
 
-            if not any([check_os_dependency(cand_dep) for cand_dep in dep]):
+            if not any(check_os_dependency(cand_dep) for cand_dep in dep):
                 not_found.append(dep)
 
         if not_found:
@@ -1802,6 +1809,25 @@ class EasyConfig(object):
                 value = resolve_template(value, self.template_values)
             res[key] = value
         return res
+
+    def get_cuda_cc_template_value(self, key):
+        """
+        Get template value based on --cuda-compute-capabilities EasyBuild configuration option
+        and cuda_compute_capabilities easyconfig parameter.
+        Returns user-friendly error message in case neither are defined,
+        or if an unknown key is used.
+        """
+        if key.startswith('cuda_') and any(x[0] == key for x in TEMPLATE_NAMES_DYNAMIC):
+            try:
+                return self.template_values[key]
+            except KeyError:
+                error_msg = "Template value '%s' is not defined!\n"
+                error_msg += "Make sure that either the --cuda-compute-capabilities EasyBuild configuration "
+                error_msg += "option is set, or that the cuda_compute_capabilities easyconfig parameter is defined."
+                raise EasyBuildError(error_msg, key)
+        else:
+            error_msg = "%s is not a template value based on --cuda-compute-capabilities/cuda_compute_capabilities"
+            raise EasyBuildError(error_msg, key)
 
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):

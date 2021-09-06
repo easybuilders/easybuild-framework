@@ -3052,6 +3052,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(res, expected)
 
         # mock get_avail_core_count which is used by set_parallel -> det_parallelism
+        try:
+            del st.det_parallelism._default_parallelism  # Remove cache value
+        except AttributeError:
+            pass  # Ignore if not present
         orig_get_avail_core_count = st.get_avail_core_count
         st.get_avail_core_count = lambda: 42
 
@@ -4482,6 +4486,56 @@ class EasyConfigTest(EnhancedTestCase):
 
         error_pattern = r"Failed to copy '.*' easyconfig parameter"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+
+    def test_get_cuda_cc_template_value(self):
+        """
+        Test getting template value based on --cuda-compute-capabilities / cuda_compute_capabilities.
+        """
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        error_pattern = "foobar is not a template value based on --cuda-compute-capabilities/cuda_compute_capabilities"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ec.get_cuda_cc_template_value, 'foobar')
+
+        error_pattern = r"Template value '%s' is not defined!\n"
+        error_pattern += r"Make sure that either the --cuda-compute-capabilities EasyBuild configuration "
+        error_pattern += "option is set, or that the cuda_compute_capabilities easyconfig parameter is defined."
+        cuda_template_values = {
+            'cuda_compute_capabilities': '6.5,7.0',
+            'cuda_cc_space_sep': '6.5 7.0',
+            'cuda_cc_semicolon_sep': '6.5;7.0',
+            'cuda_sm_comma_sep': 'sm_65,sm_70',
+            'cuda_sm_space_sep': 'sm_65 sm_70',
+        }
+        for key in cuda_template_values:
+            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
+
+        update_build_option('cuda_compute_capabilities', ['6.5', '7.0'])
+        ec = EasyConfig(self.eb_file)
+
+        for key in cuda_template_values:
+            self.assertEqual(ec.get_cuda_cc_template_value(key), cuda_template_values[key])
+
+        update_build_option('cuda_compute_capabilities', None)
+        ec = EasyConfig(self.eb_file)
+
+        for key in cuda_template_values:
+            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
+
+        self.contents += "\ncuda_compute_capabilities = ['6.5', '7.0']"
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        for key in cuda_template_values:
+            self.assertEqual(ec.get_cuda_cc_template_value(key), cuda_template_values[key])
 
 
 def suite():

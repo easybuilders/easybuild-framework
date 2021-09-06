@@ -295,7 +295,13 @@ class EnhancedTestCase(TestCase):
         env_before = copy.deepcopy(os.environ)
 
         try:
-            main(args=args, logfile=logfile, do_build=do_build, testing=testing, modtool=self.modtool)
+            if '--fetch' in args:
+                # The config sets modules_tool to None if --fetch is specified,
+                # so do the same here to keep the behavior consistent
+                modtool = None
+            else:
+                modtool = self.modtool
+            main(args=args, logfile=logfile, do_build=do_build, testing=testing, modtool=modtool)
         except SystemExit as err:
             if raise_systemexit:
                 raise err
