@@ -258,6 +258,7 @@ def print_msg(msg, *args, **kwargs):
     prefix = kwargs.pop('prefix', True)
     newline = kwargs.pop('newline', True)
     stderr = kwargs.pop('stderr', False)
+    pbar = kwargs.pop('progressbar', None)
     if kwargs:
         raise EasyBuildError("Unknown named arguments passed to print_msg: %s", kwargs)
 
@@ -272,6 +273,8 @@ def print_msg(msg, *args, **kwargs):
 
         if stderr:
             sys.stderr.write(msg)
+        elif pbar:
+            pbar.write(msg, end='')
         else:
             sys.stdout.write(msg)
 
@@ -304,6 +307,7 @@ def dry_run_msg(msg, *args, **kwargs):
         msg = msg % args
 
     silent = kwargs.pop('silent', False)
+    pbar = kwargs.pop('progressbar', None)
     if kwargs:
         raise EasyBuildError("Unknown named arguments passed to dry_run_msg: %s", kwargs)
 
@@ -311,7 +315,7 @@ def dry_run_msg(msg, *args, **kwargs):
         if dry_run_var is not None:
             msg = dry_run_var[0].sub(dry_run_var[1], msg)
 
-    print_msg(msg, silent=silent, prefix=False)
+    print_msg(msg, silent=silent, prefix=False, progressbar=pbar)
 
 
 def dry_run_warning(msg, *args, **kwargs):

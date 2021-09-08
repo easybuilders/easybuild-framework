@@ -39,6 +39,7 @@ import copy
 import os
 import stat
 import sys
+import tqdm
 import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
@@ -98,7 +99,7 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
     return [(ec_file, generated)]
 
 
-def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
+def build_and_install_software(ecs, init_session_state, exit_on_failure=True, progress=None):
     """
     Build and install software for all provided parsed easyconfig files.
 
@@ -113,9 +114,11 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
     res = []
     for ec in ecs:
+        if progress:
+            progress.set_description("Installing %s" % ec['short_mod_name'])
         ec_res = {}
         try:
-            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
+            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env, progressbar=progress)
             ec_res['log_file'] = app_log
             if not ec_res['success']:
                 ec_res['err'] = EasyBuildError(err)
@@ -153,6 +156,8 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
                 raise EasyBuildError(test_msg)
 
         res.append((ec, ec_res))
+        if progress:
+            progress.update()
 
     return res
 
@@ -520,8 +525,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # build software, will exit when errors occurs (except when testing)
     if not testing or (testing and do_build):
         exit_on_failure = not (options.dump_test_report or options.upload_test_report)
-
-        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)
+        # Create progressbar around software to install
+        progress_bar = tqdm.tqdm(total=len(ordered_ecs), desc="EasyBuild",
+                                 leave=False, unit='EB')
+        ecs_with_res = build_and_install_software(
+            ordered_ecs, init_session_state, exit_on_failure=exit_on_failure,
+            progress=progress_bar)
+        progress_bar.close()
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 
