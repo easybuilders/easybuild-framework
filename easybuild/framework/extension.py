@@ -36,7 +36,7 @@ The Extension class should serve as a base class for all extensions.
 import copy
 import os
 
-from easybuild.framework.easyconfig.easyconfig import resolve_template
+from easybuild.framework.easyconfig.easyconfig import get_parallel_ec_param_value, resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, raise_nosupport
 from easybuild.tools.filetools import change_dir
@@ -137,6 +137,12 @@ class Extension(object):
             else:
                 self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
                                key, name, version, value)
+
+        self.cfg['parallel'] = self.master.orig_parallel
+        par = get_parallel_ec_param_value(self.cfg, self.log)
+        self.log.info("Setting parallelism: %s", par)
+        self.log.info("Setting parallelism to %d for extension %s", par, name)
+        self.cfg['parallel'] = par
 
         self.sanity_check_fail_msgs = []
 

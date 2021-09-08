@@ -55,7 +55,8 @@ import easybuild.tools.environment as env
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
-from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
+from easybuild.framework.easyconfig.easyconfig import get_module_path, get_parallel_ec_param_value
+from easybuild.framework.easyconfig.easyconfig import letter_dir_for, resolve_template
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
@@ -92,7 +93,7 @@ from easybuild.tools.modules import get_software_root_env_var_name, get_software
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_shared_lib_ext, use_group
+from easybuild.tools.systemtools import check_linked_shared_libs, get_shared_lib_ext, use_group
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -211,6 +212,8 @@ class EasyBlock(object):
         self.logdebug = build_option('debug')
         self.postmsg = ''  # allow a post message to be set, which can be shown as last output
         self.current_step = None
+
+        self.orig_parallel = None
 
         # list of loaded modules
         self.loaded_modules = []
@@ -1789,20 +1792,13 @@ class EasyBlock(object):
 
     def set_parallel(self):
         """Set 'parallel' easyconfig parameter to determine how many cores can/should be used for parallel builds."""
-        # set level of parallelism for build
-        par = build_option('parallel')
-        cfg_par = self.cfg['parallel']
-        if cfg_par is None:
-            self.log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
-        elif par is None:
-            par = cfg_par
-            self.log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
-        else:
-            par = min(int(par), int(cfg_par))
-            self.log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
+        # keep track of original value for 'parallel', so it can be restored before determining level
+        # of parallelism that can be used for extensions
+        self.orig_parallel = self.cfg['parallel']
 
-        par = det_parallelism(par, maxpar=self.cfg['maxparallel'])
-        self.log.info("Setting parallelism: %s" % par)
+        par = get_parallel_ec_param_value(self.cfg, self.log)
+
+        self.log.info("Setting parallelism: %s", par)
         self.cfg['parallel'] = par
 
     def remove_module_file(self):
