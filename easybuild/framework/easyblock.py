@@ -3692,12 +3692,15 @@ def build_and_install_one(ecdict, init_env, progressbar=None):
     try:
         app_class = get_easyblock_class(easyblock, name=name)
         app = app_class(ecdict['ec'])
-        app.set_progressbar(progressbar)
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError as err:
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),
                     silent=silent)
 
+    # Setup progressbar
+    if progressbar:
+        app.set_progressbar(progressbar)
+        _log.info("Updated progressbar instance for easyblock %s" % easyblock)
     # application settings
     stop = build_option('stop')
     if stop is not None:
