@@ -39,7 +39,6 @@ import copy
 import os
 import stat
 import sys
-import tqdm
 import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
@@ -74,6 +73,7 @@ from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
+from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
 
 _log = None
 
@@ -112,13 +112,17 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, pr
     # e.g. via easyconfig.handle_allowed_system_deps
     init_env = copy.deepcopy(os.environ)
 
+    # Initialize progress bar with overall installation task
+    if progress:
+        task_id = progress.add_task("", total=len(ecs))
     res = []
     for ec in ecs:
         if progress:
-            progress.set_description("Installing %s" % ec['short_mod_name'])
+            progress.update(task_id, description=ec['short_mod_name'])
         ec_res = {}
         try:
-            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env, progressbar=progress)
+            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env, progressbar=progress,
+                                                                      task_id=task_id)
             ec_res['log_file'] = app_log
             if not ec_res['success']:
                 ec_res['err'] = EasyBuildError(err)
@@ -156,8 +160,6 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, pr
                 raise EasyBuildError(test_msg)
 
         res.append((ec, ec_res))
-        if progress:
-            progress.update()
 
     return res
 
@@ -526,12 +528,17 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if not testing or (testing and do_build):
         exit_on_failure = not (options.dump_test_report or options.upload_test_report)
         # Create progressbar around software to install
-        progress_bar = tqdm.tqdm(total=len(ordered_ecs), desc="EasyBuild",
-                                 leave=False, unit='EB')
-        ecs_with_res = build_and_install_software(
-            ordered_ecs, init_session_state, exit_on_failure=exit_on_failure,
-            progress=progress_bar)
-        progress_bar.close()
+        progress_bar = Progress(
+            TextColumn("[bold blue]Installing {task.description} ({task.completed:.0f}/{task.total})"),
+            BarColumn(),
+            "[progress.percentage]{task.percentage:>3.1f}%",
+            "•",
+            TimeElapsedColumn()
+        )
+        with progress_bar:
+            ecs_with_res = build_and_install_software(
+                ordered_ecs, init_session_state, exit_on_failure=exit_on_failure,
+                progress=progress_bar)
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 

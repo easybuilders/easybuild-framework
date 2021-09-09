@@ -63,4 +63,4 @@ archspec; python_version >= '2.7'
 cryptography==3.3.2; python_version == '2.7'
 cryptography; python_version >= '3.5'
 
-tqdm; python_version >= '2.7'
+rich; python_version >= '2.7'

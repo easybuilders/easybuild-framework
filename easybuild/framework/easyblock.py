@@ -214,6 +214,7 @@ class EasyBlock(object):
 
         # Create empty progress bar
         self.progressbar = None
+        self.pbar_task = None
 
         # list of loaded modules
         self.loaded_modules = []
@@ -303,12 +304,20 @@ class EasyBlock(object):
         self.log.info("Closing log for application name %s version %s" % (self.name, self.version))
         fancylogger.logToFile(self.logfile, enable=False)
 
-    def set_progressbar(self, progressbar):
+    def set_progressbar(self, progressbar, task_id):
         """
         Set progress bar, the progress bar is needed when writing messages so
         that the progress counter is always at the bottom
         """
         self.progressbar = progressbar
+        self.pbar_task = task_id
+
+    def advance_progress(self, tick=1.0):
+        """
+        Advance the progress bar forward with `tick`
+        """
+        if self.progressbar and self.pbar_task is not None:
+            self.progressbar.advance(self.pbar_task, tick)
 
     #
     # DRY RUN UTILITIES
@@ -328,7 +337,7 @@ class EasyBlock(object):
         """Print dry run message."""
         if args:
             msg = msg % args
-        dry_run_msg(msg, silent=self.silent, progressbar=self.progressbar)
+        dry_run_msg(msg, silent=self.silent)
 
     #
     # FETCH UTILITY FUNCTIONS
@@ -1647,8 +1656,7 @@ class EasyBlock(object):
                 self.log.debug("exit code: %s, stdout/err: %s", ec, cmdstdouterr)
                 res.append(ext_inst)
             else:
-                print_msg("skipping extension %s" % ext_inst.name, silent=self.silent, log=self.log,
-                          progressbar=self.progressbar)
+                print_msg("skipping extension %s" % ext_inst.name, silent=self.silent, log=self.log)
 
         self.ext_instances = res
 
@@ -1752,8 +1760,7 @@ class EasyBlock(object):
                     self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
 
             if self.iter_opts:
-                print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent,
-                          progressbar=self.progressbar)
+                print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
                 self.log.info("Current iteration index: %s", self.iter_idx)
 
             # pop first element from all iterative easyconfig parameters as next value to use
@@ -1894,8 +1901,7 @@ class EasyBlock(object):
                 hidden = LooseVersion(self.modules_tool.version) < LooseVersion('7.0.0')
 
             self.mod_file_backup = back_up_file(self.mod_filepath, hidden=hidden, strip_fn=strip_fn)
-            print_msg("backup of existing module file stored at %s" % self.mod_file_backup, log=self.log,
-                      progressbar=self.progressbar)
+            print_msg("backup of existing module file stored at %s" % self.mod_file_backup, log=self.log)
 
         # check if main install needs to be skipped
         # - if a current module can be found, skip is ok
@@ -2431,7 +2437,7 @@ class EasyBlock(object):
             change_dir(self.orig_workdir)
 
             tup = (ext.name, ext.version or '', idx + 1, exts_cnt)
-            print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent, progressbar=self.progressbar)
+            print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
             start_time = datetime.now()
 
             if self.dry_run:
@@ -2463,11 +2469,9 @@ class EasyBlock(object):
                     if not self.dry_run:
                         ext_duration = datetime.now() - start_time
                         if ext_duration.total_seconds() >= 1:
-                            print_msg("\t... (took %s)", time2str(ext_duration), log=self.log, silent=self.silent,
-                                      progressbar=self.progressbar)
+                            print_msg("\t... (took %s)", time2str(ext_duration), log=self.log, silent=self.silent)
                         elif self.logdebug or build_option('trace'):
-                            print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent,
-                                      progressbar=self.progressbar)
+                            print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
@@ -3265,7 +3269,7 @@ class EasyBlock(object):
                 else:
                     diff_msg += 'no differences found'
                 self.log.info(diff_msg)
-                print_msg(diff_msg, log=self.log, progressbar=self.progressbar)
+                print_msg(diff_msg, log=self.log)
 
             self.invalidate_module_caches(modpath)
 
@@ -3583,9 +3587,10 @@ class EasyBlock(object):
             return True
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
+        # Calculate progress bar tick
+        tick = 1.0 / float(len(steps))
 
-        print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent,
-                  progressbar=self.progressbar)
+        print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         trace_msg("installation prefix: %s" % self.installdir)
 
         ignore_locks = build_option('ignore_locks')
@@ -3605,12 +3610,12 @@ class EasyBlock(object):
         try:
             for (step_name, descr, step_methods, skippable) in steps:
                 if self.skip_step(step_name, skippable):
-                    print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent, progressbar=self.progressbar)
+                    print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
                     if self.dry_run:
                         self.dry_run_msg("%s... [DRY RUN]\n", descr)
                     else:
-                        print_msg("%s..." % descr, log=self.log, silent=self.silent, progressbar=self.progressbar)
+                        print_msg("%s..." % descr, log=self.log, silent=self.silent)
                     self.current_step = step_name
                     start_time = datetime.now()
                     try:
@@ -3619,11 +3624,10 @@ class EasyBlock(object):
                         if not self.dry_run:
                             step_duration = datetime.now() - start_time
                             if step_duration.total_seconds() >= 1:
-                                print_msg("... (took %s)", time2str(step_duration), log=self.log, silent=self.silent,
-                                          progressbar=self.progressbar)
+                                print_msg("... (took %s)", time2str(step_duration), log=self.log, silent=self.silent)
                             elif self.logdebug or build_option('trace'):
-                                print_msg("... (took < 1 sec)", log=self.log, silent=self.silent,
-                                          progressbar=self.progressbar)
+                                print_msg("... (took < 1 sec)", log=self.log, silent=self.silent)
+                self.advance_progress(tick)
 
         except StopException:
             pass
@@ -3649,7 +3653,7 @@ def print_dry_run_note(loc, silent=True):
     dry_run_msg(msg, silent=silent)
 
 
-def build_and_install_one(ecdict, init_env, progressbar=None):
+def build_and_install_one(ecdict, init_env, progressbar=None, task_id=None):
     """
     Build the software
     :param ecdict: dictionary contaning parsed easyconfig + metadata
@@ -3667,7 +3671,7 @@ def build_and_install_one(ecdict, init_env, progressbar=None):
 
     if dry_run:
         dry_run_msg('', silent=silent)
-    print_msg("processing EasyBuild easyconfig %s" % spec, log=_log, silent=silent, progressbar=progressbar)
+    print_msg("processing EasyBuild easyconfig %s" % spec, log=_log, silent=silent)
 
     if dry_run:
         # print note on interpreting dry run output (argument is reference to location of dry run messages)
@@ -3698,8 +3702,8 @@ def build_and_install_one(ecdict, init_env, progressbar=None):
                     silent=silent)
 
     # Setup progressbar
-    if progressbar:
-        app.set_progressbar(progressbar)
+    if progressbar and task_id is not None:
+        app.set_progressbar(progressbar, task_id)
         _log.info("Updated progressbar instance for easyblock %s" % easyblock)
     # application settings
     stop = build_option('stop')
@@ -3878,8 +3882,7 @@ def build_and_install_one(ecdict, init_env, progressbar=None):
         application_log = app.logfile
 
     req_time = time2str(end_timestamp - start_timestamp)
-    print_msg("%s: Installation %s %s (took %s)" % (summary, ended, succ, req_time), log=_log, silent=silent,
-              progressbar=progressbar)
+    print_msg("%s: Installation %s %s (took %s)" % (summary, ended, succ, req_time), log=_log, silent=silent)
 
     # check for errors
     if run.errors_found_in_log > 0:
@@ -3887,7 +3890,7 @@ def build_and_install_one(ecdict, init_env, progressbar=None):
                      "build logs, please verify the build.", run.errors_found_in_log)
 
     if app.postmsg:
-        print_msg("\nWARNING: %s\n" % app.postmsg, log=_log, silent=silent, progressbar=progressbar)
+        print_msg("\nWARNING: %s\n" % app.postmsg, log=_log, silent=silent)
 
     if dry_run:
         # print note on interpreting dry run output (argument is reference to location of dry run messages)
@@ -3901,8 +3904,7 @@ def build_and_install_one(ecdict, init_env, progressbar=None):
     if application_log:
         # there may be multiple log files, or the file name may be different due to zipping
         logs = glob.glob('%s*' % application_log)
-        print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=_log, silent=silent,
-                  progressbar=progressbar)
+        print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=_log, silent=silent)
 
     del app
 
