@@ -31,6 +31,8 @@ Tools for controlling output to terminal produced by EasyBuild.
 """
 import random
 
+from easybuild.tools.config import build_option
+
 try:
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
     HAVE_RICH = True
@@ -63,7 +65,7 @@ def create_progress_bar():
     Returns rich.progress.Progress instance if the Rich Python package is available,
     or a shim DummyProgress instance otherwise.
     """
-    if HAVE_RICH:
+    if HAVE_RICH and build_option('show_progress_bar'):
 
         # pick random spinner, from a selected subset of available spinner (see 'python3 -m rich.spinner')
         spinner = random.choice(('aesthetic', 'arc', 'bounce', 'dots', 'line', 'monkey', 'point', 'simpleDots'))
