@@ -292,6 +292,7 @@ BUILD_OPTIONS_CMDLINE = {
         'map_toolchains',
         'modules_tool_version_check',
         'pre_create_installdir',
+        'show_progress_bar',
     ],
     WARN: [
         'check_ebroot_env_vars',
