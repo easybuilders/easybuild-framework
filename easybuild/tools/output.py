@@ -29,8 +29,10 @@ Tools for controlling output to terminal produced by EasyBuild.
 :author: Kenneth Hoste (Ghent University)
 :author: Jørgen Nordmoen (University of Oslo)
 """
+import random
+
 try:
-    from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
     HAVE_RICH = True
 except ImportError:
     HAVE_RICH = False
@@ -62,11 +64,15 @@ def create_progress_bar():
     or a shim DummyProgress instance otherwise.
     """
     if HAVE_RICH:
+
+        # pick random spinner, from a selected subset of available spinner (see 'python3 -m rich.spinner')
+        spinner = random.choice(('aesthetic', 'arc', 'bounce', 'dots', 'line', 'monkey', 'point', 'simpleDots'))
+
         progress_bar = Progress(
             TextColumn("[bold blue]Installing {task.description} ({task.completed:.0f}/{task.total})"),
             BarColumn(),
             "[progress.percentage]{task.percentage:>3.1f}%",
-            "•",
+            SpinnerColumn(spinner),
             TimeElapsedColumn(),
             transient=True,
         )
