@@ -67,7 +67,8 @@ def create_progress_bar():
             BarColumn(),
             "[progress.percentage]{task.percentage:>3.1f}%",
             "•",
-            TimeElapsedColumn()
+            TimeElapsedColumn(),
+            transient=True,
         )
     else:
         progress_bar = DummyProgress()
