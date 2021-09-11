@@ -212,6 +212,10 @@ class EasyBlock(object):
         self.postmsg = ''  # allow a post message to be set, which can be shown as last output
         self.current_step = None
 
+        # Create empty progress bar
+        self.progress_bar = None
+        self.pbar_task = None
+
         # list of loaded modules
         self.loaded_modules = []
 
@@ -299,6 +303,21 @@ class EasyBlock(object):
         """
         self.log.info("Closing log for application name %s version %s" % (self.name, self.version))
         fancylogger.logToFile(self.logfile, enable=False)
+
+    def set_progress_bar(self, progress_bar, task_id):
+        """
+        Set progress bar, the progress bar is needed when writing messages so
+        that the progress counter is always at the bottom
+        """
+        self.progress_bar = progress_bar
+        self.pbar_task = task_id
+
+    def advance_progress(self, tick=1.0):
+        """
+        Advance the progress bar forward with `tick`
+        """
+        if self.progress_bar and self.pbar_task is not None:
+            self.progress_bar.advance(self.pbar_task, tick)
 
     #
     # DRY RUN UTILITIES
@@ -3568,6 +3587,8 @@ class EasyBlock(object):
             return True
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
+        # Calculate progress bar tick
+        tick = 1.0 / float(len(steps))
 
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         trace_msg("installation prefix: %s" % self.installdir)
@@ -3606,6 +3627,7 @@ class EasyBlock(object):
                                 print_msg("... (took %s)", time2str(step_duration), log=self.log, silent=self.silent)
                             elif self.logdebug or build_option('trace'):
                                 print_msg("... (took < 1 sec)", log=self.log, silent=self.silent)
+                self.advance_progress(tick)
 
         except StopException:
             pass
@@ -3631,7 +3653,7 @@ def print_dry_run_note(loc, silent=True):
     dry_run_msg(msg, silent=silent)
 
 
-def build_and_install_one(ecdict, init_env):
+def build_and_install_one(ecdict, init_env, progress_bar=None, task_id=None):
     """
     Build the software
     :param ecdict: dictionary contaning parsed easyconfig + metadata
@@ -3678,6 +3700,11 @@ def build_and_install_one(ecdict, init_env):
     except EasyBuildError as err:
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),
                     silent=silent)
+
+    # Setup progress bar
+    if progress_bar and task_id is not None:
+        app.set_progress_bar(progress_bar, task_id)
+        _log.info("Updated progress bar instance for easyblock %s", easyblock)
 
     # application settings
     stop = build_option('stop')
