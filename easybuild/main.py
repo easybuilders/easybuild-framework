@@ -68,12 +68,13 @@ from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develo
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
+from easybuild.tools.output import create_progress_bar
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
-from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
+
 
 _log = None
 
@@ -99,13 +100,14 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
     return [(ec_file, generated)]
 
 
-def build_and_install_software(ecs, init_session_state, exit_on_failure=True, progress=None):
+def build_and_install_software(ecs, init_session_state, exit_on_failure=True, progress_bar=None):
     """
     Build and install software for all provided parsed easyconfig files.
 
     :param ecs: easyconfig files to install software with
     :param init_session_state: initial session state, to use in test reports
     :param exit_on_failure: whether or not to exit on installation failure
+    :param progress_bar: progress bar to use to report progress
     """
     # obtain a copy of the starting environment so each build can start afresh
     # we shouldn't use the environment from init_session_state, since relevant env vars might have been set since
@@ -113,15 +115,20 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, pr
     init_env = copy.deepcopy(os.environ)
 
     # Initialize progress bar with overall installation task
-    if progress:
-        task_id = progress.add_task("", total=len(ecs))
+    if progress_bar:
+        task_id = progress_bar.add_task("", total=len(ecs))
+    else:
+        task_id = None
+
     res = []
     for ec in ecs:
-        if progress:
-            progress.update(task_id, description=ec['short_mod_name'])
+
+        if progress_bar:
+            progress_bar.update(task_id, description=ec['short_mod_name'])
+
         ec_res = {}
         try:
-            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env, progressbar=progress,
+            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env, progress_bar=progress_bar,
                                                                       task_id=task_id)
             ec_res['log_file'] = app_log
             if not ec_res['success']:
@@ -527,18 +534,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # build software, will exit when errors occurs (except when testing)
     if not testing or (testing and do_build):
         exit_on_failure = not (options.dump_test_report or options.upload_test_report)
-        # Create progressbar around software to install
-        progress_bar = Progress(
-            TextColumn("[bold blue]Installing {task.description} ({task.completed:.0f}/{task.total})"),
-            BarColumn(),
-            "[progress.percentage]{task.percentage:>3.1f}%",
-            "•",
-            TimeElapsedColumn()
-        )
+
+        progress_bar = create_progress_bar()
         with progress_bar:
-            ecs_with_res = build_and_install_software(
-                ordered_ecs, init_session_state, exit_on_failure=exit_on_failure,
-                progress=progress_bar)
+            ecs_with_res = build_and_install_software(ordered_ecs, init_session_state,
+                                                      exit_on_failure=exit_on_failure,
+                                                      progress_bar=progress_bar)
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 

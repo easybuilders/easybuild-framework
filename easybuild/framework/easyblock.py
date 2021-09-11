@@ -213,7 +213,7 @@ class EasyBlock(object):
         self.current_step = None
 
         # Create empty progress bar
-        self.progressbar = None
+        self.progress_bar = None
         self.pbar_task = None
 
         # list of loaded modules
@@ -304,20 +304,20 @@ class EasyBlock(object):
         self.log.info("Closing log for application name %s version %s" % (self.name, self.version))
         fancylogger.logToFile(self.logfile, enable=False)
 
-    def set_progressbar(self, progressbar, task_id):
+    def set_progress_bar(self, progress_bar, task_id):
         """
         Set progress bar, the progress bar is needed when writing messages so
         that the progress counter is always at the bottom
         """
-        self.progressbar = progressbar
+        self.progress_bar = progress_bar
         self.pbar_task = task_id
 
     def advance_progress(self, tick=1.0):
         """
         Advance the progress bar forward with `tick`
         """
-        if self.progressbar and self.pbar_task is not None:
-            self.progressbar.advance(self.pbar_task, tick)
+        if self.progress_bar and self.pbar_task is not None:
+            self.progress_bar.advance(self.pbar_task, tick)
 
     #
     # DRY RUN UTILITIES
@@ -3653,7 +3653,7 @@ def print_dry_run_note(loc, silent=True):
     dry_run_msg(msg, silent=silent)
 
 
-def build_and_install_one(ecdict, init_env, progressbar=None, task_id=None):
+def build_and_install_one(ecdict, init_env, progress_bar=None, task_id=None):
     """
     Build the software
     :param ecdict: dictionary contaning parsed easyconfig + metadata
@@ -3701,10 +3701,11 @@ def build_and_install_one(ecdict, init_env, progressbar=None, task_id=None):
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),
                     silent=silent)
 
-    # Setup progressbar
-    if progressbar and task_id is not None:
-        app.set_progressbar(progressbar, task_id)
-        _log.info("Updated progressbar instance for easyblock %s" % easyblock)
+    # Setup progress bar
+    if progress_bar and task_id is not None:
+        app.set_progress_bar(progress_bar, task_id)
+        _log.info("Updated progress bar instance for easyblock %s", easyblock)
+
     # application settings
     stop = build_option('stop')
     if stop is not None:
