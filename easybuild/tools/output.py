@@ -71,10 +71,10 @@ def create_progress_bar():
         spinner = random.choice(('aesthetic', 'arc', 'bounce', 'dots', 'line', 'monkey', 'point', 'simpleDots'))
 
         progress_bar = Progress(
-            TextColumn("[bold blue]Installing {task.description} ({task.completed:.0f}/{task.total})"),
-            BarColumn(bar_width=None),
-            "[progress.percentage]{task.percentage:>3.1f}%",
             SpinnerColumn(spinner),
+            "[progress.percentage]{task.percentage:>3.1f}%",
+            TextColumn("[bold blue]Installing {task.description} ({task.completed:.0f}/{task.total} done)"),
+            BarColumn(bar_width=None),
             TimeElapsedColumn(),
             transient=True,
             expand=True,
