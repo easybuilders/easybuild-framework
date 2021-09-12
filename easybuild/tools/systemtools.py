@@ -34,7 +34,6 @@ import fcntl
 import grp  # @UnresolvedImport
 import os
 import platform
-import pkg_resources
 import pwd
 import re
 import struct
@@ -42,6 +41,14 @@ import sys
 import termios
 from ctypes.util import find_library
 from socket import gethostname
+
+# pkg_resources is provided by the setuptools Python package,
+# which we really want to keep as an *optional* dependency
+try:
+    import pkg_resources
+    HAVE_PKG_RESOURCES = True
+except ImportError:
+    HAVE_PKG_RESOURCES = False
 
 try:
     # only needed on macOS, may not be available on Linux
@@ -162,6 +169,7 @@ OPT_DEPS = {
     'GitPython': "GitHub integration + using Git repository as easyconfigs archive",
     'graphviz-python': "rendering dependency graph with Graphviz: --dep-graph",
     'keyring': "storing GitHub token",
+    'pbs-python': "using Torque as --job backend",
     'pep8': "fallback for code style checking: --check-style, --check-contrib",
     'pycodestyle': "code style checking: --check-style, --check-contrib",
     'pysvn': "using SVN repository as easyconfigs archive",
@@ -171,12 +179,14 @@ OPT_DEPS = {
     'requests': "fallback library for downloading files",
     'Rich': "eb command rich terminal output",
     'PyYAML': "easystack files and .yeb easyconfig format",
+    'setuptools': "obtaining information on Python packages via pkg_resources module",
 }
 
 OPT_DEP_PKG_NAMES = {
     'GC3Pie': 'gc3libs',
     'GitPython': 'git',
     'graphviz-python': 'gv',
+    'pbs-python': 'pbs',
     'python-graph-core': 'pygraph.classes.digraph',
     'python-graph-dot': 'pygraph.readwrite.dot',
     'python-hglib': 'hglib',
@@ -1136,6 +1146,30 @@ def pick_dep_version(dep_version):
     return result
 
 
+def det_pypkg_version(pkg_name, imported_pkg, import_name=None):
+    """Determine version of a Python package."""
+
+    version = None
+
+    if HAVE_PKG_RESOURCES:
+        if import_name:
+            try:
+                version = pkg_resources.get_distribution(import_name).version
+            except pkg_resources.DistributionNotFound as err:
+                _log.debug("%s Python package not found: %s", import_name, err)
+
+        if version is None:
+            try:
+                version = pkg_resources.get_distribution(pkg_name).version
+            except pkg_resources.DistributionNotFound as err:
+                _log.debug("%s Python package not found: %s", pkg_name, err)
+
+    if version is None and hasattr(imported_pkg, '__version__'):
+        version = imported_pkg.__version__
+
+    return version
+
+
 def check_easybuild_deps(modtool):
     """
     Check presence and version of required and optional EasyBuild dependencies, and report back to terminal.
@@ -1166,16 +1200,9 @@ def check_easybuild_deps(modtool):
             mod = None
 
         if mod:
-            try:
-                dep_version = pkg_resources.get_distribution(pkg).version
-            except pkg_resources.DistributionNotFound:
-                try:
-                    dep_version = pkg_resources.get_distribution(key).version
-                except pkg_resources.DistributionNotFound:
-                    if hasattr(mod, '__version__'):
-                        dep_version = mod.__version__
-                    else:
-                        dep_version = '(unknown version)'
+            dep_version = det_pypkg_version(key, mod, import_name=pkg)
+            if dep_version is None:
+                dep_version = '(unknown version)'
         else:
             dep_version = '(NOT AVAILABLE)'
 

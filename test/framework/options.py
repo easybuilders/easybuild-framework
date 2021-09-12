@@ -5848,14 +5848,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_check_eb_deps(self):
         """Test for --check-eb-deps."""
         txt, _ = self._run_mock_eb(['--check-eb-deps'], raise_error=True)
+        opt_dep_version_pattern = r'([0-9.]+|\(NOT AVAILABLE\)|\(unknown version\))'
         patterns = [
             r"^Required dependencies:",
             r"^\* Python [23][0-9.]+$",
             r"^\* [A-Za-z ]+ [0-9.]+ \(modules tool\)$",
             r"^Optional dependencies:",
-            r"^\* archspec ([0-9.]+|\(NOT AVAILABLE\))+\s+\[determining name of CPU microarchitecture\]$",
-            r"^\* GitPython ([0-9.]+|\(NOT AVAILABLE\))+\s+\[GitHub integration .*\]$",
-            r"^\* Rich ([0-9.]+|\(NOT AVAILABLE\))+\s+\[eb command rich terminal output\]$",
+            r"^\* archspec %s\s+\[determining name of CPU microarchitecture\]$" % opt_dep_version_pattern,
+            r"^\* GitPython %s\s+\[GitHub integration .*\]$" % opt_dep_version_pattern,
+            r"^\* Rich %s\s+\[eb command rich terminal output\]$" % opt_dep_version_pattern,
+            r"^\* setuptools %s\s+\[obtaining information on Python packages .*\]$" % opt_dep_version_pattern,
             r"^System tools:",
             r"^\* make ([0-9.]+|\(NOT AVAILABLE\)|\(available, UNKNOWN version\))$",
             r"^\* patch ([0-9.]+|\(NOT AVAILABLE\)|\(available, UNKNOWN version\))$",
