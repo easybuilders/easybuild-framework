@@ -68,7 +68,7 @@ from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develo
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
-from easybuild.tools.output import create_progress_bar
+from easybuild.tools.output import create_progress_bar, print_checks
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
@@ -261,7 +261,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                            terse=options.terse)
 
     if options.check_eb_deps:
-        print(check_easybuild_deps(modtool))
+        print_checks(check_easybuild_deps(modtool))
 
     # GitHub options that warrant a silent cleanup & exit
     if options.check_github:

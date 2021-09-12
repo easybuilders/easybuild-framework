@@ -59,7 +59,7 @@ except ImportError:
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import is_readable, read_file, which
-from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.run import run_cmd
 
 
@@ -160,7 +160,24 @@ ARM_CORTEX_IDS = {
 RPM = 'rpm'
 DPKG = 'dpkg'
 
-SYSTEM_TOOLS = ('7z', 'bunzip2', DPKG, 'gunzip', 'make', 'patch', RPM, 'sed', 'tar', 'unxz', 'unzip')
+SYSTEM_TOOLS = {
+    '7z': "extracting sources (.iso)",
+    'bunzip2': "decompressing sources (.bz2, .tbz, .tbz2, ...)",
+    DPKG: "checking OS dependencies (Debian, Ubuntu, ...)",
+    'gunzip': "decompressing source files (.gz, .tgz, ...)",
+    'make': "build tool",
+    'patch': "applying patch files",
+    RPM: "checking OS dependencies (CentOS, RHEL, OpenSuSE, SLES, ...)",
+    'sed': "runtime patching",
+    'Slurm': "backend for --job (sbatch command)",
+    'tar': "unpacking source files (.tar)",
+    'unxz': "decompressing source files (.xz, .txz)",
+    'unzip': "decompressing files (.zip)",
+}
+
+SYSTEM_TOOL_CMDS = {
+    'Slurm': 'sbatch',
+}
 
 OPT_DEPS = {
     'archspec': "determining name of CPU microarchitecture",
@@ -1176,6 +1193,8 @@ def check_easybuild_deps(modtool):
     """
     version_regex = re.compile(r'\s(?P<version>[0-9][0-9.]+[a-z]*)')
 
+    checks_data = OrderedDict()
+
     def extract_version(tool):
         """Helper function to extract (only) version for specific command line tool."""
         out = get_tool_version(tool, ignore_ec=True)
@@ -1201,52 +1220,39 @@ def check_easybuild_deps(modtool):
 
         if mod:
             dep_version = det_pypkg_version(key, mod, import_name=pkg)
-            if dep_version is None:
-                dep_version = '(unknown version)'
         else:
-            dep_version = '(NOT AVAILABLE)'
+            dep_version = False
 
         opt_dep_versions[key] = dep_version
 
-    lines = [
-        '',
-        "Required dependencies:",
-        "----------------------",
-        '',
-        "* Python %s" % python_version,
-        "* %s (modules tool)" % modtool,
-        '',
-        "Optional dependencies:",
-        "----------------------",
-        '',
-    ]
-    for pkg in sorted(opt_dep_versions, key=lambda x: x.lower()):
-        line = "* %s %s" % (pkg, opt_dep_versions[pkg])
-        line = line.ljust(40) + " [%s]" % OPT_DEPS[pkg]
-        lines.append(line)
+    checks_data['col_titles'] = ('name', 'version', 'used for')
 
-    lines.extend([
-        '',
-        "System tools:",
-        "-------------",
-        '',
-    ])
+    req_deps_key = "Required dependencies"
+    checks_data[req_deps_key] = OrderedDict()
+    checks_data[req_deps_key]['Python'] = (python_version, None)
+    checks_data[req_deps_key]['modules tool:'] = (str(modtool), None)
 
-    tools = list(SYSTEM_TOOLS) + ['Slurm']
-    cmds = {'Slurm': 'sbatch'}
+    opt_deps_key = "Optional dependencies"
+    checks_data[opt_deps_key] = {}
 
-    for tool in sorted(tools, key=lambda x: x.lower()):
-        line = "* %s " % tool
-        cmd = cmds.get(tool, tool)
+    for pkg in opt_dep_versions:
+        checks_data[opt_deps_key][pkg] = (opt_dep_versions[pkg], OPT_DEPS[pkg])
+
+    sys_tools_key = "System tools"
+    checks_data[sys_tools_key] = {}
+
+    for tool in SYSTEM_TOOLS:
+        tool_info = None
+        cmd = SYSTEM_TOOL_CMDS.get(tool, tool)
         if which(cmd):
             version = extract_version(cmd)
             if version.startswith('UNKNOWN'):
-                line += "(available, %s)" % version
+                tool_info = None
             else:
-                line += version
+                tool_info = version
         else:
-            line += "(NOT AVAILABLE)"
+            tool_info = False
 
-        lines.append(line)
+        checks_data[sys_tools_key][tool] = (tool_info, None)
 
-    return '\n'.join(lines)
+    return checks_data
