@@ -34,6 +34,7 @@ import fcntl
 import grp  # @UnresolvedImport
 import os
 import platform
+import pkg_resources
 import pwd
 import re
 import struct
@@ -151,6 +152,36 @@ ARM_CORTEX_IDS = {
 # OS package handler name constants
 RPM = 'rpm'
 DPKG = 'dpkg'
+
+SYSTEM_TOOLS = ('7z', 'bunzip2', DPKG, 'gunzip', 'make', 'patch', RPM, 'sed', 'tar', 'unxz', 'unzip')
+
+OPT_DEPS = {
+    'archspec': "determining name of CPU microarchitecture",
+    'autopep8': "auto-formatting for dumped easyconfigs",
+    'GC3Pie': "backend for --job",
+    'GitPython': "GitHub integration + using Git repository as easyconfigs archive",
+    'graphviz-python': "rendering dependency graph with Graphviz: --dep-graph",
+    'keyring': "storing GitHub token",
+    'pep8': "fallback for code style checking: --check-style, --check-contrib",
+    'pycodestyle': "code style checking: --check-style, --check-contrib",
+    'pysvn': "using SVN repository as easyconfigs archive",
+    'python-graph-core': "creating dependency graph: --dep-graph",
+    'python-graph-dot': "saving dependency graph as dot file: --dep-graph",
+    'python-hglib': "using Mercurial repository as easyconfigs archive",
+    'requests': "fallback library for downloading files",
+    'Rich': "eb command rich terminal output",
+    'PyYAML': "easystack files and .yeb easyconfig format",
+}
+
+OPT_DEP_PKG_NAMES = {
+    'GC3Pie': 'gc3libs',
+    'GitPython': 'git',
+    'graphviz-python': 'gv',
+    'python-graph-core': 'pygraph.classes.digraph',
+    'python-graph-dot': 'pygraph.readwrite.dot',
+    'python-hglib': 'hglib',
+    'PyYAML': 'yaml',
+}
 
 
 class SystemToolsException(Exception):
@@ -722,14 +753,14 @@ def check_os_dependency(dep):
     return found
 
 
-def get_tool_version(tool, version_option='--version'):
+def get_tool_version(tool, version_option='--version', ignore_ec=False):
     """
     Get output of running version option for specific command line tool.
     Output is returned as a single-line string (newlines are replaced by '; ').
     """
     out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False, force_in_dry_run=True,
                       trace=False, stream_output=False)
-    if ec:
+    if not ignore_ec and ec:
         _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, out))
         return UNKNOWN
     else:
@@ -1103,3 +1134,92 @@ def pick_dep_version(dep_version):
         raise EasyBuildError("Unknown value type for version: %s (%s), should be string value", typ, dep_version)
 
     return result
+
+
+def check_easybuild_deps(modtool):
+    """
+    Check presence and version of required and optional EasyBuild dependencies, and report back to terminal.
+    """
+    version_regex = re.compile(r'\s(?P<version>[0-9][0-9.]+[a-z]*)')
+
+    def extract_version(tool):
+        """Helper function to extract (only) version for specific command line tool."""
+        out = get_tool_version(tool, ignore_ec=True)
+        res = version_regex.search(out)
+        if res:
+            version = res.group('version')
+        else:
+            version = "UNKNOWN version"
+
+        return version
+
+    python_version = extract_version(sys.executable)
+
+    opt_dep_versions = {}
+    for key in OPT_DEPS:
+
+        pkg = OPT_DEP_PKG_NAMES.get(key, key.lower())
+
+        try:
+            mod = __import__(pkg)
+        except ImportError:
+            mod = None
+
+        if mod:
+            try:
+                dep_version = pkg_resources.get_distribution(pkg).version
+            except pkg_resources.DistributionNotFound:
+                try:
+                    dep_version = pkg_resources.get_distribution(key).version
+                except pkg_resources.DistributionNotFound:
+                    if hasattr(mod, '__version__'):
+                        dep_version = mod.__version__
+                    else:
+                        dep_version = '(unknown version)'
+        else:
+            dep_version = '(NOT AVAILABLE)'
+
+        opt_dep_versions[key] = dep_version
+
+    lines = [
+        '',
+        "Required dependencies:",
+        "----------------------",
+        '',
+        "* Python %s" % python_version,
+        "* %s (modules tool)" % modtool,
+        '',
+        "Optional dependencies:",
+        "----------------------",
+        '',
+    ]
+    for pkg in sorted(opt_dep_versions, key=lambda x: x.lower()):
+        line = "* %s %s" % (pkg, opt_dep_versions[pkg])
+        line = line.ljust(40) + " [%s]" % OPT_DEPS[pkg]
+        lines.append(line)
+
+    lines.extend([
+        '',
+        "System tools:",
+        "-------------",
+        '',
+    ])
+
+    tools = list(SYSTEM_TOOLS) + ['Slurm']
+    cmds = {'Slurm': 'sbatch'}
+
+    for tool in sorted(tools, key=lambda x: x.lower()):
+        line = "* %s " % tool
+        cmd = cmds.get(tool, tool)
+        if which(cmd):
+            version = extract_version(cmd)
+            if version.startswith('UNKNOWN'):
+                line += "(available, %s)" % version
+            else:
+                line += version
+        else:
+            line += "(NOT AVAILABLE)"
+
+        lines.append(line)
+
+    return '\n'.join(lines)

@@ -207,6 +207,15 @@ class ModulesTool(object):
         self.set_and_check_version()
         self.supports_depends_on = False
 
+    def __str__(self):
+        """String representation of this ModulesTool instance."""
+        res = self.NAME
+        if self.version:
+            res += ' ' + self.version
+        else:
+            res += ' (unknown version)'
+        return res
+
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
         return (self.NAME, self.cmd, self.version)
@@ -1177,7 +1186,7 @@ class ModulesTool(object):
 
 class EnvironmentModulesC(ModulesTool):
     """Interface to (C) environment modules (modulecmd)."""
-    NAME = "Environment Modules v3"
+    NAME = "Environment Modules"
     COMMAND = "modulecmd"
     REQ_VERSION = '3.2.10'
     MAX_VERSION = '3.99'
@@ -1312,7 +1321,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
 class EnvironmentModules(EnvironmentModulesTcl):
     """Interface to environment modules 4.0+"""
-    NAME = "Environment Modules v4"
+    NAME = "Environment Modules"
     COMMAND = os.path.join(os.getenv('MODULESHOME', 'MODULESHOME_NOT_DEFINED'), 'libexec', 'modulecmd.tcl')
     COMMAND_ENVIRONMENT = 'MODULES_CMD'
     REQ_VERSION = '4.0.0'
