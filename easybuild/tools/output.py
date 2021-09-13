@@ -97,7 +97,7 @@ def print_checks(checks_data):
     if HAVE_RICH:
         console = Console()
         # don't use console.print, which causes SyntaxError in Python 2
-        console_print = getattr(console, 'print')
+        console_print = getattr(console, 'print')  # noqa: B009
         console_print('')
 
     for section in checks_data:
