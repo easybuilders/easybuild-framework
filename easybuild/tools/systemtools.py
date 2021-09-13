@@ -179,35 +179,24 @@ SYSTEM_TOOL_CMDS = {
     'Slurm': 'sbatch',
 }
 
-OPT_DEPS = {
-    'archspec': "determining name of CPU microarchitecture",
-    'autopep8': "auto-formatting for dumped easyconfigs",
-    'GC3Pie': "backend for --job",
-    'GitPython': "GitHub integration + using Git repository as easyconfigs archive",
-    'graphviz-python': "rendering dependency graph with Graphviz: --dep-graph",
-    'keyring': "storing GitHub token",
-    'pbs-python': "using Torque as --job backend",
-    'pep8': "fallback for code style checking: --check-style, --check-contrib",
-    'pycodestyle': "code style checking: --check-style, --check-contrib",
-    'pysvn': "using SVN repository as easyconfigs archive",
-    'python-graph-core': "creating dependency graph: --dep-graph",
-    'python-graph-dot': "saving dependency graph as dot file: --dep-graph",
-    'python-hglib': "using Mercurial repository as easyconfigs archive",
-    'requests': "fallback library for downloading files",
-    'Rich': "eb command rich terminal output",
-    'PyYAML': "easystack files and .yeb easyconfig format",
-    'setuptools': "obtaining information on Python packages via pkg_resources module",
-}
-
-OPT_DEP_PKG_NAMES = {
-    'GC3Pie': 'gc3libs',
-    'GitPython': 'git',
-    'graphviz-python': 'gv',
-    'pbs-python': 'pbs',
-    'python-graph-core': 'pygraph.classes.digraph',
-    'python-graph-dot': 'pygraph.readwrite.dot',
-    'python-hglib': 'hglib',
-    'PyYAML': 'yaml',
+EASYBUILD_OPTIONAL_DEPENDENCIES = {
+    'archspec': (None, "determining name of CPU microarchitecture"),
+    'autopep8': (None, "auto-formatting for dumped easyconfigs"),
+    'GC3Pie': ('gc3libs', "backend for --job"),
+    'GitPython': ('git', "GitHub integration + using Git repository as easyconfigs archive"),
+    'graphviz-python': ('gv', "rendering dependency graph with Graphviz: --dep-graph"),
+    'keyring': (None, "storing GitHub token"),
+    'pbs-python': ('pbs', "using Torque as --job backend"),
+    'pep8': (None, "fallback for code style checking: --check-style, --check-contrib"),
+    'pycodestyle': (None, "code style checking: --check-style, --check-contrib"),
+    'pysvn': (None, "using SVN repository as easyconfigs archive"),
+    'python-graph-core': ('pygraph.classes.digraph', "creating dependency graph: --dep-graph"),
+    'python-graph-dot': ('pygraph.readwrite.dot', "saving dependency graph as dot file: --dep-graph"),
+    'python-hglib': ('hglib', "using Mercurial repository as easyconfigs archive"),
+    'requests': (None, "fallback library for downloading files"),
+    'Rich': (None, "eb command rich terminal output"),
+    'PyYAML': ('yaml', "easystack files and .yeb easyconfig format"),
+    'setuptools': ('pkg_resources', "obtaining information on Python packages via pkg_resources module"),
 }
 
 
@@ -1209,9 +1198,11 @@ def check_easybuild_deps(modtool):
     python_version = extract_version(sys.executable)
 
     opt_dep_versions = {}
-    for key in OPT_DEPS:
+    for key in EASYBUILD_OPTIONAL_DEPENDENCIES:
 
-        pkg = OPT_DEP_PKG_NAMES.get(key, key.lower())
+        pkg = EASYBUILD_OPTIONAL_DEPENDENCIES[key][0]
+        if pkg is None:
+            pkg = key.lower()
 
         try:
             mod = __import__(pkg)
@@ -1235,8 +1226,8 @@ def check_easybuild_deps(modtool):
     opt_deps_key = "Optional dependencies"
     checks_data[opt_deps_key] = {}
 
-    for pkg in opt_dep_versions:
-        checks_data[opt_deps_key][pkg] = (opt_dep_versions[pkg], OPT_DEPS[pkg])
+    for key in opt_dep_versions:
+        checks_data[opt_deps_key][key] = (opt_dep_versions[key], EASYBUILD_OPTIONAL_DEPENDENCIES[key][1])
 
     sys_tools_key = "System tools"
     checks_data[sys_tools_key] = {}
