@@ -49,7 +49,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
 
 try:
-    import rich
+    import rich  # noqa
     HAVE_RICH = True
 except ImportError:
     HAVE_RICH = False
