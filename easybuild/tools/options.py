@@ -1047,25 +1047,25 @@ class EasyBuildOptions(GeneralOption):
 
         self.log.info("Checks on configuration options passed")
 
+    def get_cfg_opt_abs_path(self, opt_name, path):
+        """Get path value of configuration option as absolute path."""
+        if os.path.isabs(path):
+            abs_path = path
+        else:
+            abs_path = os.path.abspath(path)
+            self.log.info("Relative path value for '%s' configuration option resolved to absolute path: %s",
+                          path, abs_path)
+        return abs_path
+
     def _ensure_abs_path(self, opt_name):
         """Ensure that path value for specified configuration option is an absolute path."""
-
-        def _ensure_abs_path(opt_name, path):
-            """Helper function to make path value for a configuration option an absolute path."""
-            if os.path.isabs(path):
-                abs_path = path
-            else:
-                abs_path = os.path.abspath(path)
-                self.log.info("Relative path value for '%s' configuration option resolved to absolute path: %s",
-                              path, abs_path)
-            return abs_path
 
         opt_val = getattr(self.options, opt_name)
         if opt_val:
             if isinstance(opt_val, string_type):
-                setattr(self.options, opt_name, _ensure_abs_path(opt_name, opt_val))
+                setattr(self.options, opt_name, self.get_cfg_opt_abs_path(opt_name, opt_val))
             elif isinstance(opt_val, list):
-                abs_paths = [_ensure_abs_path(opt_name, p) for p in opt_val]
+                abs_paths = [self.get_cfg_opt_abs_path(opt_name, p) for p in opt_val]
                 setattr(self.options, opt_name, abs_paths)
             else:
                 error_msg = "Don't know how to ensure absolute path(s) for '%s' configuration option (value type: %s)"
@@ -1075,9 +1075,19 @@ class EasyBuildOptions(GeneralOption):
         """Postprocessing of configuration options"""
 
         # resolve relative paths for configuration options that specify a location
-        path_opt_names = ('buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
+        path_opt_names = ['buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
                           'installpath_modules', 'installpath_software', 'prefix', 'packagepath',
-                          'repositorypath', 'robot_paths', 'sourcepath')
+                          'robot_paths', 'sourcepath']
+
+        # repositorypath is a special case: only first part is a path;
+        # 2nd (optional) part is a relative subdir and should not be resolved to an absolute path!
+        repositorypath = self.options.repositorypath
+        if isinstance(repositorypath, (list, tuple)) and len(repositorypath) == 2:
+            abs_path = self.get_cfg_opt_abs_path('repositorypath', repositorypath[0])
+            self.options.repositorypath = (abs_path, repositorypath[1])
+        else:
+            path_opt_names.append('repositorypath')
+
         for opt_name in path_opt_names:
             self._ensure_abs_path(opt_name)
 

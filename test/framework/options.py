@@ -6246,6 +6246,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         cfgtxt = '\n'.join([
             "[config]",
             "containerpath = ..",
+            "repositorypath = /apps/easyconfigs_archive, somesubdir",
         ])
         write_file(cfgfile, cfgtxt)
 
@@ -6263,6 +6264,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^containerpath\s+\(F\) = .*/test_topdir/test_middle_dir$",
             r"^installpath\s+\(E\) = .*/test_topdir$",
             r"^prefix\s+\(C\) = .*/test_topdir/test_middle_dir$",
+            r"^repositorypath\s+\(F\) = \('/apps/easyconfigs_archive', ' somesubdir'\)$",
             r"^sourcepath\s+\(C\) = .*/test_topdir/test_middle_dir/test_subdir$",
         ]
         for pattern in patterns:
