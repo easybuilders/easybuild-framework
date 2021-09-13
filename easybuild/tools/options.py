@@ -1047,8 +1047,40 @@ class EasyBuildOptions(GeneralOption):
 
         self.log.info("Checks on configuration options passed")
 
+    def _ensure_abs_path(self, opt_name):
+        """Ensure that path value for specified configuration option is an absolute path."""
+
+        def _ensure_abs_path(opt_name, path):
+            """Helper function to make path value for a configuration option an absolute path."""
+            if os.path.isabs(path):
+                abs_path = path
+            else:
+                abs_path = os.path.abspath(path)
+                self.log.info("Relative path value for '%s' configuration option resolved to absolute path: %s",
+                              path, abs_path)
+            return abs_path
+
+        opt_val = getattr(self.options, opt_name)
+        if opt_val:
+            if isinstance(opt_val, string_type):
+                setattr(self.options, opt_name, _ensure_abs_path(opt_name, opt_val))
+            elif isinstance(opt_val, list):
+                abs_paths = [_ensure_abs_path(opt_name, p) for p in opt_val]
+                setattr(self.options, opt_name, abs_paths)
+            else:
+                error_msg = "Don't know how to ensure absolute path(s) for '%s' configuration option (value type: %s)"
+                raise EasyBuildError(error_msg, opt_name, type(opt_val))
+
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
+
+        # resolve relative paths for configuration options that specify a location
+        path_opt_names = ('buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
+                          'installpath_modules', 'installpath_software', 'prefix', 'packagepath',
+                          'repositorypath', 'robot_paths', 'sourcepath')
+        for opt_name in path_opt_names:
+            self._ensure_abs_path(opt_name)
+
         if self.options.prefix is not None:
             # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath in account
             # in the legacy-style configuration, repository is initialised in configuration file itself

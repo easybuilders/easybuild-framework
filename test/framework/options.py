@@ -6233,6 +6233,42 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_modfile))
 
+    def test_config_abs_path(self):
+        """Test ensuring of absolute path values for path configuration options."""
+
+        test_topdir = os.path.join(self.test_prefix, 'test_topdir')
+        test_subdir = os.path.join(test_topdir, 'test_middle_dir', 'test_subdir')
+        mkdir(test_subdir, parents=True)
+        change_dir(test_subdir)
+
+        # a relative path specified in a configuration file is positively weird, but fine :)
+        cfgfile = os.path.join(self.test_prefix, 'test.cfg')
+        cfgtxt = '\n'.join([
+            "[config]",
+            "containerpath = ..",
+        ])
+        write_file(cfgfile, cfgtxt)
+
+        os.environ['EASYBUILD_INSTALLPATH'] = '../..'
+
+        args = [
+            '--configfiles=%s' % cfgfile,
+            '--prefix=..',
+            '--sourcepath=.',
+            '--show-config',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+
+        patterns = [
+            r"^containerpath\s+\(F\) = .*/test_topdir/test_middle_dir$",
+            r"^installpath\s+\(E\) = .*/test_topdir$",
+            r"^prefix\s+\(C\) = .*/test_topdir/test_middle_dir$",
+            r"^sourcepath\s+\(C\) = .*/test_topdir/test_middle_dir/test_subdir$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (pattern, txt))
+
     # end-to-end testing of unknown filename
     def test_easystack_wrong_read(self):
         """Test for --easystack <easystack.yaml> when wrong name is provided"""
