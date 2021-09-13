@@ -1054,7 +1054,7 @@ class EasyBuildOptions(GeneralOption):
         else:
             abs_path = os.path.abspath(path)
             self.log.info("Relative path value for '%s' configuration option resolved to absolute path: %s",
-                          path, abs_path)
+                          opt_name, abs_path)
         return abs_path
 
     def _ensure_abs_path(self, opt_name):
