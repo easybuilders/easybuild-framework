@@ -69,7 +69,8 @@ from easybuild.tools.config import DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX
 from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_WAIT_ON_LOCK_INTERVAL, DEFAULT_WAIT_ON_LOCK_LIMIT
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, ERROR, FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS
-from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS, WARN
+from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS
+from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
@@ -448,6 +449,9 @@ class EasyBuildOptions(GeneralOption):
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
             'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_TXT, FORMAT_RST]),
+            'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
+                             "with fallback to basic colored output",
+                             'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),
             'parallel': ("Specify (maximum) level of parallellism used during build procedure",
                          'int', 'store', None),
             'pre-create-installdir': ("Create installation directory before submitting build jobs",

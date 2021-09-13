@@ -48,6 +48,12 @@ from easybuild.base.frozendict import FrozenDictKnownKeys
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
 
+try:
+    import rich
+    HAVE_RICH = True
+except ImportError:
+    HAVE_RICH = False
+
 
 _log = fancylogger.getLogger('config', fname=False)
 
@@ -135,6 +141,13 @@ LOCAL_VAR_NAMING_CHECK_ERROR = 'error'
 LOCAL_VAR_NAMING_CHECK_LOG = 'log'
 LOCAL_VAR_NAMING_CHECK_WARN = WARN
 LOCAL_VAR_NAMING_CHECKS = [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN]
+
+
+OUTPUT_STYLE_AUTO = 'auto'
+OUTPUT_STYLE_BASIC = 'basic'
+OUTPUT_STYLE_NO_COLOR = 'no_color'
+OUTPUT_STYLE_RICH = 'rich'
+OUTPUT_STYLES = (OUTPUT_STYLE_AUTO, OUTPUT_STYLE_BASIC, OUTPUT_STYLE_NO_COLOR, OUTPUT_STYLE_RICH)
 
 
 class Singleton(ABCMeta):
@@ -341,6 +354,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_WAIT_ON_LOCK_INTERVAL: [
         'wait_on_lock_interval',
+    ],
+    OUTPUT_STYLE_AUTO: [
+        'output_style',
     ],
 }
 # build option that do not have a perfectly matching command line option
@@ -686,6 +702,22 @@ def get_module_syntax():
     Return module syntax (Lua, Tcl)
     """
     return ConfigurationVariables()['module_syntax']
+
+
+def get_output_style():
+    """Return output style to use."""
+    output_style = build_option('output_style')
+
+    if output_style == OUTPUT_STYLE_AUTO:
+        if HAVE_RICH:
+            output_style = OUTPUT_STYLE_RICH
+        else:
+            output_style = OUTPUT_STYLE_BASIC
+
+    if output_style == OUTPUT_STYLE_RICH and not HAVE_RICH:
+        raise EasyBuildError("Can't use '%s' output style, Rich Python package is not available!", OUTPUT_STYLE_RICH)
+
+    return output_style
 
 
 def log_file_format(return_directory=False, ec=None, date=None, timestamp=None):

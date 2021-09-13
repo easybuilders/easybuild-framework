@@ -31,16 +31,15 @@ Tools for controlling output to terminal produced by EasyBuild.
 """
 import random
 
-from easybuild.tools.config import build_option
+from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
 from easybuild.tools.py2vs3 import OrderedDict
 
 try:
     from rich.console import Console
     from rich.table import Table
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
-    HAVE_RICH = True
 except ImportError:
-    HAVE_RICH = False
+    pass
 
 
 class DummyProgress(object):
@@ -61,6 +60,11 @@ class DummyProgress(object):
         pass
 
 
+def use_rich():
+    """Return whether or not to use Rich to produce rich output."""
+    return get_output_style() == OUTPUT_STYLE_RICH
+
+
 def create_progress_bar():
     """
     Create progress bar to display overall progress.
@@ -68,7 +72,7 @@ def create_progress_bar():
     Returns rich.progress.Progress instance if the Rich Python package is available,
     or a shim DummyProgress instance otherwise.
     """
-    if HAVE_RICH and build_option('show_progress_bar'):
+    if use_rich() and build_option('show_progress_bar'):
 
         # pick random spinner, from a selected subset of available spinner (see 'python3 -m rich.spinner')
         spinner = random.choice(('aesthetic', 'arc', 'bounce', 'dots', 'line', 'monkey', 'point', 'simpleDots'))
@@ -95,7 +99,7 @@ def print_checks(checks_data):
 
     col2_label = col_titles[1]
 
-    if HAVE_RICH:
+    if use_rich():
         console = Console()
         # don't use console.print, which causes SyntaxError in Python 2
         console_print = getattr(console, 'print')  # noqa: B009
@@ -104,7 +108,7 @@ def print_checks(checks_data):
     for section in checks_data:
         section_checks = checks_data[section]
 
-        if HAVE_RICH:
+        if use_rich():
             table = Table(title=section)
             table.add_column(col_titles[0])
             table.add_column(col_titles[1])
@@ -124,7 +128,7 @@ def print_checks(checks_data):
         else:
             check_names = sorted(section_checks, key=lambda x: x.lower())
 
-        if HAVE_RICH:
+        if use_rich():
             for check_name in check_names:
                 (info, descr) = checks_data[section][check_name]
                 if info is None:
@@ -150,7 +154,7 @@ def print_checks(checks_data):
                 lines.append(line)
             lines.append('')
 
-        if HAVE_RICH:
+        if use_rich():
             console_print(table)
         else:
             print('\n'.join(lines))
