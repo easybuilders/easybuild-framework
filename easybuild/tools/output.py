@@ -32,8 +32,11 @@ Tools for controlling output to terminal produced by EasyBuild.
 import random
 
 from easybuild.tools.config import build_option
+from easybuild.tools.py2vs3 import OrderedDict
 
 try:
+    from rich.console import Console
+    from rich.table import Table
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
     HAVE_RICH = True
 except ImportError:
@@ -83,3 +86,71 @@ def create_progress_bar():
         progress_bar = DummyProgress()
 
     return progress_bar
+
+
+def print_checks(checks_data):
+    """Print overview of checks that were made."""
+
+    col_titles = checks_data.pop('col_titles', ('name', 'info', 'description'))
+
+    col2_label = col_titles[1]
+
+    if HAVE_RICH:
+        console = Console()
+        # don't use console.print, which causes SyntaxError in Python 2
+        console_print = getattr(console, 'print')  # noqa: B009
+        console_print('')
+
+    for section in checks_data:
+        section_checks = checks_data[section]
+
+        if HAVE_RICH:
+            table = Table(title=section)
+            table.add_column(col_titles[0])
+            table.add_column(col_titles[1])
+            # only add 3rd column if there's any information to include in it
+            if any(x[1] for x in section_checks.values()):
+                table.add_column(col_titles[2])
+        else:
+            lines = [
+                '',
+                section + ':',
+                '-' * (len(section) + 1),
+                '',
+            ]
+
+        if isinstance(section_checks, OrderedDict):
+            check_names = section_checks.keys()
+        else:
+            check_names = sorted(section_checks, key=lambda x: x.lower())
+
+        if HAVE_RICH:
+            for check_name in check_names:
+                (info, descr) = checks_data[section][check_name]
+                if info is None:
+                    info = ':yellow_circle:  [yellow]%s?!' % col2_label
+                elif info is False:
+                    info = ':cross_mark:  [red]not found'
+                else:
+                    info = ':white_heavy_check_mark:  [green]%s' % info
+                if descr:
+                    table.add_row(check_name.rstrip(':'), info, descr)
+                else:
+                    table.add_row(check_name.rstrip(':'), info)
+        else:
+            for check_name in check_names:
+                (info, descr) = checks_data[section][check_name]
+                if info is None:
+                    info = '(found, UNKNOWN %s)' % col2_label
+                elif info is False:
+                    info = '(NOT FOUND)'
+                line = "* %s %s" % (check_name, info)
+                if descr:
+                    line = line.ljust(40) + '[%s]' % descr
+                lines.append(line)
+            lines.append('')
+
+        if HAVE_RICH:
+            console_print(table)
+        else:
+            print('\n'.join(lines))

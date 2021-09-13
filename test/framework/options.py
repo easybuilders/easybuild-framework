@@ -5845,6 +5845,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+    def test_check_eb_deps(self):
+        """Test for --check-eb-deps."""
+        txt, _ = self._run_mock_eb(['--check-eb-deps'], raise_error=True)
+
+        # keep in mind that these patterns should match with both normal output and Rich output!
+        opt_dep_info_pattern = r'([0-9.]+|\(NOT FOUND\)|not found|\(unknown version\))'
+        tool_info_pattern = r'([0-9.]+|\(NOT FOUND\)|not found|\(found, UNKNOWN version\)|version\?\!)'
+        patterns = [
+            r"Required dependencies",
+            r"Python.* [23][0-9.]+",
+            r"modules tool.* [A-Za-z0-9.\s-]+",
+            r"Optional dependencies",
+            r"archspec.* %s.*determining name" % opt_dep_info_pattern,
+            r"GitPython.* %s.*GitHub integration" % opt_dep_info_pattern,
+            r"Rich.* %s.*eb command rich terminal output" % opt_dep_info_pattern,
+            r"setuptools.* %s.*information on Python packages" % opt_dep_info_pattern,
+            r"System tools",
+            r"make.* %s" % tool_info_pattern,
+            r"patch.* %s" % tool_info_pattern,
+            r"sed.* %s" % tool_info_pattern,
+            r"Slurm.* %s" % tool_info_pattern,
+        ]
+
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
     def test_tmp_logdir(self):
         """Test use of --tmp-logdir."""
 

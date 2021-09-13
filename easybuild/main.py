@@ -68,11 +68,12 @@ from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develo
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
-from easybuild.tools.output import create_progress_bar
+from easybuild.tools.output import create_progress_bar, print_checks
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
+from easybuild.tools.systemtools import check_easybuild_deps
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
 
 
@@ -259,6 +260,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
                            terse=options.terse)
 
+    if options.check_eb_deps:
+        print_checks(check_easybuild_deps(modtool))
+
     # GitHub options that warrant a silent cleanup & exit
     if options.check_github:
         check_github()
@@ -297,6 +301,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [
         options.add_pr_labels,
+        options.check_eb_deps,
         options.check_github,
         options.create_index,
         options.install_github_token,
