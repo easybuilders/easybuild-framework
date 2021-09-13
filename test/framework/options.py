@@ -6276,7 +6276,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (pattern, txt))
 
-        # if --robot is also used, that wins and $EASYBUILD_ROBOT_PATHS doesn't matter anymore
+        # paths specified via --robot have precedence over those specified via $EASYBUILD_ROBOT_PATHS
         change_dir(test_subdir)
         args.append('--robot=..:.')
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
