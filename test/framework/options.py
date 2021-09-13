@@ -6250,7 +6250,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         write_file(cfgfile, cfgtxt)
 
+        # relative paths in environment variables is also weird,
+        # but OK for the sake of testing...
         os.environ['EASYBUILD_INSTALLPATH'] = '../..'
+        os.environ['EASYBUILD_ROBOT_PATHS'] = '../..'
 
         args = [
             '--configfiles=%s' % cfgfile,
@@ -6258,15 +6261,36 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--sourcepath=.',
             '--show-config',
         ]
+
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
 
         patterns = [
-            r"^containerpath\s+\(F\) = .*/test_topdir/test_middle_dir$",
-            r"^installpath\s+\(E\) = .*/test_topdir$",
-            r"^prefix\s+\(C\) = .*/test_topdir/test_middle_dir$",
+            r"^containerpath\s+\(F\) = /.*/test_topdir/test_middle_dir$",
+            r"^installpath\s+\(E\) = /.*/test_topdir$",
+            r"^prefix\s+\(C\) = /.*/test_topdir/test_middle_dir$",
             r"^repositorypath\s+\(F\) = \('/apps/easyconfigs_archive', ' somesubdir'\)$",
-            r"^sourcepath\s+\(C\) = .*/test_topdir/test_middle_dir/test_subdir$",
+            r"^sourcepath\s+\(C\) = /.*/test_topdir/test_middle_dir/test_subdir$",
+            r"^robot-paths\s+\(E\) = /.*/test_topdir$",
         ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (pattern, txt))
+
+        # if --robot is also used, that wins and $EASYBUILD_ROBOT_PATHS doesn't matter anymore
+        change_dir(test_subdir)
+        args.append('--robot=..:.')
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+
+        patterns.pop(-1)
+        robot_value_pattern = ', '.join([
+            r'/.*/test_topdir/test_middle_dir',  # via --robot (first path)
+            r'/.*/test_topdir/test_middle_dir/test_subdir',  # via --robot (second path)
+            r'/.*/test_topdir',  # via $EASYBUILD_ROBOT_PATHS
+        ])
+        patterns.extend([
+            r"^robot-paths\s+\(C\) = %s$" % robot_value_pattern,
+            r"^robot\s+\(C\) = %s$" % robot_value_pattern,
+        ])
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (pattern, txt))
