@@ -48,20 +48,27 @@ class OutputTest(EnhancedTestCase):
     def test_create_progress_bar(self):
         """Test create_progress_bar function."""
 
-        progress_bar = create_progress_bar()
         if HAVE_RICH:
-            progress_bar_class = rich.progress.ProgressBar
+            expected_progress_bar_class = rich.progress.Progress
         else:
-            progress_bar_class = DummyProgress
-        self.assertTrue(isinstance(progress_bar, progress_bar_class))
+            expected_progress_bar_class = DummyProgress
+
+        progress_bar = create_progress_bar()
+        error_msg = "%s should be instance of class %s" % (progress_bar, expected_progress_bar_class)
+        self.assertTrue(isinstance(progress_bar, expected_progress_bar_class), error_msg)
 
         update_build_option('output_style', 'basic')
+        progress_bar = create_progress_bar()
         self.assertTrue(isinstance(progress_bar, DummyProgress))
 
-        update_build_option('output_style', 'rich')
-        self.assertTrue(isinstance(progress_bar, progress_bar_class))
+        if HAVE_RICH:
+            update_build_option('output_style', 'rich')
+            progress_bar = create_progress_bar()
+            error_msg = "%s should be instance of class %s" % (progress_bar, expected_progress_bar_class)
+            self.assertTrue(isinstance(progress_bar, expected_progress_bar_class), error_msg)
 
         update_build_option('show_progress_bar', False)
+        progress_bar = create_progress_bar()
         self.assertTrue(isinstance(progress_bar, DummyProgress))
 
     def test_get_output_style(self):
