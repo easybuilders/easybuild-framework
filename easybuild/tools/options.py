@@ -1074,10 +1074,12 @@ class EasyBuildOptions(GeneralOption):
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
 
-        # resolve relative paths for configuration options that specify a location
+        # resolve relative paths for configuration options that specify a location;
+        # ensuring absolute paths for 'robot' is handled separately below,
+        # because we need to be careful with the argument pass to --robot
         path_opt_names = ['buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
                           'installpath_modules', 'installpath_software', 'prefix', 'packagepath',
-                          'robot', 'robot_paths', 'sourcepath']
+                          'robot_paths', 'sourcepath']
 
         # repositorypath is a special case: only first part is a path;
         # 2nd (optional) part is a relative subdir and should not be resolved to an absolute path!
@@ -1133,7 +1135,7 @@ class EasyBuildOptions(GeneralOption):
 
             # paths specified to --robot have preference over --robot-paths
             # keep both values in sync if robot is enabled, which implies enabling dependency resolver
-            self.options.robot_paths = self.options.robot + self.options.robot_paths
+            self.options.robot_paths = [os.path.abspath(p) for p in self.options.robot + self.options.robot_paths]
             self.options.robot = self.options.robot_paths
 
         # Update the search_paths (if any) to absolute paths
