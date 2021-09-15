@@ -2270,6 +2270,8 @@ def copy_file(path, target_path, force_in_dry_run=False):
     :param target_path: path to copy the file to
     :param force_in_dry_run: force copying of file during dry run
     """
+    if not os.path.exists(path):
+        raise EasyBuildError("could not copy '%s' it does not exist!" % path)
     if not force_in_dry_run and build_option('extended_dry_run'):
         dry_run_msg("copied file %s to %s" % (path, target_path))
     else:
@@ -2285,13 +2287,16 @@ def copy_file(path, target_path, force_in_dry_run=False):
                 _log.info("Copied contents of file %s to %s", path, target_path)
             else:
                 mkdir(os.path.dirname(target_path), parents=True)
-                if os.path.exists(path):
+                if os.path.isfile(path) and not os.path.islink(path):
                     shutil.copy2(path, target_path)
+                    _log.info("%s copied to %s", path, target_path)
                 elif os.path.islink(path):
                     # special care for copying broken symlinks
                     link_target = os.readlink(path)
                     symlink(link_target, target_path)
-                _log.info("%s copied to %s", path, target_path)
+                    _log.info("created symlink from %s to %s", path, target_path)
+                else:
+                    _log.warn("ignoring '%s' since it is neither a file nor a symlink" % path)
         except (IOError, OSError, shutil.Error) as err:
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
