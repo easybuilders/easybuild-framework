@@ -1135,7 +1135,7 @@ class EasyBuildOptions(GeneralOption):
 
             # paths specified to --robot have preference over --robot-paths
             # keep both values in sync if robot is enabled, which implies enabling dependency resolver
-            self.options.robot_paths = [os.path.abspath(p) for p in self.options.robot + self.options.robot_paths]
+            self.options.robot_paths = [os.path.abspath(p) for p in self.options.robot] + self.options.robot_paths
             self.options.robot = self.options.robot_paths
 
         # Update the search_paths (if any) to absolute paths
