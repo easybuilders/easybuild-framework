@@ -2272,7 +2272,7 @@ def copy_file(path, target_path, force_in_dry_run=False):
     """
     # NOTE: 'exists' will return False if 'path' is a broken symlink
     if not os.path.exists(path) and not os.path.islink(path):
-        raise EasyBuildError("could not copy '%s' it does not exist!" % path)
+        raise EasyBuildError("Could not copy '%s' it does not exist!" % path)
     if not force_in_dry_run and build_option('extended_dry_run'):
         dry_run_msg("copied file %s to %s" % (path, target_path))
     else:

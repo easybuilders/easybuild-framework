@@ -1661,6 +1661,10 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
         self.assertEqual(txt, '')
 
+        # Test that a non-existing file raises an exception
+        src, target = os.path.join(self.test_prefix, 'this_file_does_not_exist'), os.path.join(self.test_prefix, 'toy')
+        self.assertErrorRegex(EasyBuildError, "Could not copy *", ft.copy_file, src, target)
+
     def test_copy_files(self):
         """Test copy_files function."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
