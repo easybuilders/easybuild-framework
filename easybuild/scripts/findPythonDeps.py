@@ -3,7 +3,6 @@
 import argparse
 import json
 import os
-import pkg_resources
 import re
 import shutil
 import subprocess
@@ -11,6 +10,11 @@ import sys
 import tempfile
 from contextlib import contextmanager
 from pprint import pprint
+try:
+    import pkg_resources
+except ImportError as e:
+    print('pkg_resources could not be imported: %s\nYou might need to install setuptools!' % e)
+    sys.exit(1)
 
 
 @contextmanager
