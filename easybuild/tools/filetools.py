@@ -2270,13 +2270,12 @@ def copy_file(path, target_path, force_in_dry_run=False):
     :param target_path: path to copy the file to
     :param force_in_dry_run: force copying of file during dry run
     """
-    # NOTE: 'exists' will return False if 'path' is a broken symlink
-    if not os.path.exists(path) and not os.path.islink(path):
-        if force_in_dry_run:
-            raise EasyBuildError("Could not copy '%s' it does not exist!", path)
-        else:
-            _log.debug("Ignoring non-existing file in 'copy_file' because of dry run mode: %s", path)
-            dry_run_msg("copied file %s to %s" % (path, target_path))
+    if not force_in_dry_run and build_option('extended_dry_run'):
+        # If in dry run mode, do not copy any files, just lie about it
+        dry_run_msg("copied file %s to %s" % (path, target_path))
+    elif not os.path.exists(path) and not os.path.islink(path):
+        # NOTE: 'exists' will return False if 'path' is a broken symlink
+        raise EasyBuildError("Could not copy '%s' it does not exist!", path)
     else:
         try:
             target_exists = os.path.exists(target_path)
