@@ -3959,7 +3959,7 @@ def reproduce_build(app, reprod_dir_root):
     except NotImplementedError as err:
         _log.warning("Unable to dump easyconfig instance to %s: %s", reprod_spec, err)
 
-    # also archive all the relevant easyblocks
+    # also archive all the relevant easyblocks (including any used by extensions)
     copy_easyblocks_for_reprod([app], reprod_dir)
 
     # if there is a hook file we should also archive it
