@@ -138,7 +138,7 @@ class EnhancedTestCase(TestCase):
         init_config()
 
         # disable progress bars when running the tests,
-        # since it messes up with test suite progress output when test installations are performed
+        # since it messes with test suite progress output when test installations are performed
         os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
         update_build_option('show_progress_bar', False)
 
