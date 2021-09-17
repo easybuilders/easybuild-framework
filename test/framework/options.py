@@ -6260,6 +6260,68 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_modfile))
 
+    def test_config_abs_path(self):
+        """Test ensuring of absolute path values for path configuration options."""
+
+        test_topdir = os.path.join(self.test_prefix, 'test_topdir')
+        test_subdir = os.path.join(test_topdir, 'test_middle_dir', 'test_subdir')
+        mkdir(test_subdir, parents=True)
+        change_dir(test_subdir)
+
+        # a relative path specified in a configuration file is positively weird, but fine :)
+        cfgfile = os.path.join(self.test_prefix, 'test.cfg')
+        cfgtxt = '\n'.join([
+            "[config]",
+            "containerpath = ..",
+            "repositorypath = /apps/easyconfigs_archive, somesubdir",
+        ])
+        write_file(cfgfile, cfgtxt)
+
+        # relative paths in environment variables is also weird,
+        # but OK for the sake of testing...
+        os.environ['EASYBUILD_INSTALLPATH'] = '../..'
+        os.environ['EASYBUILD_ROBOT_PATHS'] = '../..'
+
+        args = [
+            '--configfiles=%s' % cfgfile,
+            '--prefix=..',
+            '--sourcepath=.',
+            '--show-config',
+        ]
+
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+
+        patterns = [
+            r"^containerpath\s+\(F\) = /.*/test_topdir/test_middle_dir$",
+            r"^installpath\s+\(E\) = /.*/test_topdir$",
+            r"^prefix\s+\(C\) = /.*/test_topdir/test_middle_dir$",
+            r"^repositorypath\s+\(F\) = \('/apps/easyconfigs_archive', ' somesubdir'\)$",
+            r"^sourcepath\s+\(C\) = /.*/test_topdir/test_middle_dir/test_subdir$",
+            r"^robot-paths\s+\(E\) = /.*/test_topdir$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (pattern, txt))
+
+        # paths specified via --robot have precedence over those specified via $EASYBUILD_ROBOT_PATHS
+        change_dir(test_subdir)
+        args.append('--robot=..:.')
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+
+        patterns.pop(-1)
+        robot_value_pattern = ', '.join([
+            r'/.*/test_topdir/test_middle_dir',  # via --robot (first path)
+            r'/.*/test_topdir/test_middle_dir/test_subdir',  # via --robot (second path)
+            r'/.*/test_topdir',  # via $EASYBUILD_ROBOT_PATHS
+        ])
+        patterns.extend([
+            r"^robot-paths\s+\(C\) = %s$" % robot_value_pattern,
+            r"^robot\s+\(C\) = %s$" % robot_value_pattern,
+        ])
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (pattern, txt))
+
     # end-to-end testing of unknown filename
     def test_easystack_wrong_read(self):
         """Test for --easystack <easystack.yaml> when wrong name is provided"""

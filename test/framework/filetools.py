@@ -1610,7 +1610,9 @@ class FileToolsTest(EnhancedTestCase):
 
         # clean error when trying to copy a directory with copy_file
         src, target = os.path.dirname(to_copy), os.path.join(self.test_prefix, 'toy')
-        self.assertErrorRegex(EasyBuildError, "Failed to copy file.*Is a directory", ft.copy_file, src, target)
+        # error message was changed in Python 3.9.7 to "FileNotFoundError: Directory does not exist"
+        error_pattern = "Failed to copy file.*(Is a directory|Directory does not exist)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_file, src, target)
 
         # test overwriting of existing file owned by someone else,
         # which should make copy_file use shutil.copyfile rather than shutil.copy2
