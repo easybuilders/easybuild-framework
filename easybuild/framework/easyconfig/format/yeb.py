@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,7 +29,7 @@ Useful: http://www.yaml.org/spec/1.2/spec.html
 :author: Caroline De Brouwer (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-
+import copy
 import os
 import platform
 from distutils.version import LooseVersion
@@ -53,7 +53,8 @@ YAML_SPECIAL_CHARS = set(":{}[],&*#?|-<>=!%@\\")
 def yaml_join(loader, node):
     """
     defines custom YAML join function.
-    see http://stackoverflow.com/questions/5484016/how-can-i-do-string-concatenation-or-string-replacement-in-yaml/23212524#23212524
+    see http://stackoverflow.com/questions/5484016/
+        how-can-i-do-string-concatenation-or-string-replacement-in-yaml/23212524#23212524
     :param loader: the YAML Loader
     :param node: the YAML (sequence) node
     """
@@ -90,7 +91,9 @@ class FormatYeb(EasyConfigFormat):
         """
         Return parsed easyconfig as a dictionary, based on specified arguments.
         """
-        return self.parsed_yeb
+        # avoid passing anything by reference, so next time get_config_dict is called
+        # we can be sure we return a dictionary that correctly reflects the contents of the easyconfig file
+        return copy.deepcopy(self.parsed_yeb)
 
     @only_if_module_is_available('yaml')
     def parse(self, txt):
@@ -115,7 +118,7 @@ class FormatYeb(EasyConfigFormat):
         yaml_header = []
         for i, line in enumerate(lines):
             if line.startswith(YAML_DIR):
-                if lines[i+1].startswith(YAML_SEP):
+                if lines[i + 1].startswith(YAML_SEP):
                     yaml_header.extend([lines.pop(i), lines.pop(i)])
 
         injected_constants = ['__CONSTANTS__: ']

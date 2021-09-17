@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,6 +37,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 :author: Ward Poelmans (Ghent University)
 """
 import copy
+import fnmatch
 import glob
 import os
 import re
@@ -47,14 +48,18 @@ from distutils.version import LooseVersion
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
-from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_info, get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, is_patch_file, read_file, resolve_path, which, write_file
-from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
+from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
+from easybuild.tools.filetools import read_file, resolve_path, which, write_file
+from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
+from easybuild.tools.github import det_pr_labels, download_repo, fetch_easyconfigs_from_pr, fetch_pr_data
+from easybuild.tools.github import fetch_files_from_pr
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
@@ -303,7 +308,7 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     return paths
 
 
-def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_pr=False):
+def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None):
     """Obtain alternative paths for easyconfig files."""
 
     # paths where tweaked easyconfigs will be placed, easyconfigs listed on the command line take priority and will be
@@ -314,12 +319,13 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_pr=False):
         tweaked_ecs_paths = (os.path.join(tmpdir, 'tweaked_easyconfigs'),
                              os.path.join(tmpdir, 'tweaked_dep_easyconfigs'))
 
-    # path where files touched in PR will be downloaded to
-    pr_path = None
-    if from_pr:
-        pr_path = os.path.join(tmpdir, "files_pr%s" % from_pr)
+    # paths where files touched in PRs will be downloaded to,
+    # which are picked up via 'pr_paths' build option in fetch_files_from_pr
+    pr_paths = None
+    if from_prs:
+        pr_paths = [os.path.join(tmpdir, 'files_pr%s' % pr) for pr in from_prs]
 
-    return tweaked_ecs_paths, pr_path
+    return tweaked_ecs_paths, pr_paths
 
 
 def det_easyconfig_paths(orig_paths):
@@ -328,14 +334,22 @@ def det_easyconfig_paths(orig_paths):
     :param orig_paths: list of original easyconfig paths
     :return: list of paths to easyconfig files
     """
-    from_pr = build_option('from_pr')
+    try:
+        from_prs = [int(x) for x in build_option('from_pr')]
+    except ValueError:
+        raise EasyBuildError("Argument to --from-pr must be a comma separated list of PR #s.")
+
     robot_path = build_option('robot_path')
 
     # list of specified easyconfig files
     ec_files = orig_paths[:]
 
-    if from_pr is not None:
-        pr_files = fetch_easyconfigs_from_pr(from_pr)
+    if from_prs:
+        pr_files = []
+        for pr in from_prs:
+            # path to where easyconfig files should be downloaded is determined via 'pr_paths' build option,
+            # which corresponds to the list of PR paths returned by alt_easyconfig_paths
+            pr_files.extend(fetch_easyconfigs_from_pr(pr))
 
         if ec_files:
             # replace paths for specified easyconfigs that are touched in PR
@@ -347,45 +361,18 @@ def det_easyconfig_paths(orig_paths):
             # if no easyconfigs are specified, use all the ones touched in the PR
             ec_files = [path for path in pr_files if path.endswith('.eb')]
 
+    filter_ecs = build_option('filter_ecs')
+    if filter_ecs:
+        ec_files = [ec for ec in ec_files
+                    if not any(fnmatch.fnmatch(ec, filter_spec) for filter_spec in filter_ecs)]
     if ec_files and robot_path:
-        # look for easyconfigs with relative paths in robot search path,
-        # unless they were found at the given relative paths
+        ignore_subdirs = build_option('ignore_dirs')
+        if not build_option('consider_archived_easyconfigs'):
+            ignore_subdirs.append(EASYCONFIGS_ARCHIVE_DIR)
 
-        # determine which easyconfigs files need to be found, if any
-        ecs_to_find = []
-        for idx, ec_file in enumerate(ec_files):
-            if ec_file == os.path.basename(ec_file) and not os.path.exists(ec_file):
-                ecs_to_find.append((idx, ec_file))
-        _log.debug("List of easyconfig files to find: %s" % ecs_to_find)
+        ec_files = locate_files(ec_files, robot_path, ignore_subdirs=ignore_subdirs)
 
-        # find missing easyconfigs by walking paths in robot search path
-        for path in robot_path:
-            _log.debug("Looking for missing easyconfig files (%d left) in %s..." % (len(ecs_to_find), path))
-            for (subpath, dirnames, filenames) in os.walk(path, topdown=True):
-                for idx, orig_path in ecs_to_find[:]:
-                    if orig_path in filenames:
-                        full_path = os.path.join(subpath, orig_path)
-                        _log.info("Found %s in %s: %s" % (orig_path, path, full_path))
-                        ec_files[idx] = full_path
-                        # if file was found, stop looking for it (first hit wins)
-                        ecs_to_find.remove((idx, orig_path))
-
-                # stop os.walk insanity as soon as we have all we need (os.walk loop)
-                if not ecs_to_find:
-                    break
-
-                # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
-                dirnames[:] = [d for d in dirnames if d not in build_option('ignore_dirs')]
-
-                # ignore archived easyconfigs, unless specified otherwise
-                if not build_option('consider_archived_easyconfigs'):
-                    dirnames[:] = [d for d in dirnames if d != EASYCONFIGS_ARCHIVE_DIR]
-
-            # stop os.walk insanity as soon as we have all we need (outer loop)
-            if not ecs_to_find:
-                break
-
-    return [os.path.abspath(ec_file) for ec_file in ec_files]
+    return ec_files
 
 
 def parse_easyconfigs(paths, validate=True):
@@ -504,14 +491,19 @@ def find_related_easyconfigs(path, ec):
     return sorted(res)
 
 
-def review_pr(paths=None, pr=None, colored=True, branch='develop'):
+def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False):
     """
     Print multi-diff overview between specified easyconfigs or PR and specified branch.
     :param pr: pull request number in easybuild-easyconfigs repo to review
     :param paths: path tuples (path, generated) of easyconfigs to review
     :param colored: boolean indicating whether a colored multi-diff should be generated
     :param branch: easybuild-easyconfigs branch to compare with
+    :param testing: whether to ignore PR labels (used in test_review_pr)
     """
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
+    if pr_target_repo != GITHUB_EASYCONFIGS_REPO:
+        raise EasyBuildError("Reviewing PRs for repositories other than easyconfigs hasn't been implemented yet")
+
     tmpdir = tempfile.mkdtemp()
 
     download_repo_path = download_repo(branch=branch, path=tmpdir)
@@ -537,6 +529,26 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
             lines.append(multidiff(ec['spec'], files, colored=colored))
         else:
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
+
+    if pr:
+        file_info = det_file_info(pr_files, download_repo_path)
+
+        pr_target_account = build_option('pr_target_account')
+        github_user = build_option('github_user')
+        pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
+        pr_labels = [label['name'] for label in pr_data['labels']] if not testing else []
+
+        expected_labels = det_pr_labels(file_info, pr_target_repo)
+        missing_labels = [label for label in expected_labels if label not in pr_labels]
+
+        if missing_labels:
+            lines.extend(['', "This PR should be labelled with %s" % ', '.join(["'%s'" % ml for ml in missing_labels])])
+
+        if not pr_data['milestone']:
+            lines.extend(['', "This PR should be associated with a milestone"])
+        elif '.x' in pr_data['milestone']['title']:
+            lines.extend(['', "This PR is associated with a generic '.x' milestone, "
+                              "it should be associated to the next release milestone once merged"])
 
     return '\n'.join(lines)
 
@@ -638,6 +650,14 @@ def categorize_files_by_type(paths):
         # file must exist in order to check whether it's a patch file
         elif os.path.isfile(path) and is_patch_file(path):
             res['patch_files'].append(path)
+        elif path.endswith('.patch'):
+            if not os.path.exists(path):
+                raise EasyBuildError('File %s does not exist, did you mistype the path?', path)
+            elif not os.path.isfile(path):
+                raise EasyBuildError('File %s is expected to be a regular file, but is a folder instead', path)
+            else:
+                raise EasyBuildError('%s is not detected as a valid patch file. Please verify its contents!',
+                                     path)
         else:
             # anything else is considered to be an easyconfig file
             res['easyconfigs'].append(path)
@@ -744,3 +764,70 @@ def avail_easyblocks():
                                        easyblock_mod_name, easyblocks[easyblock_mod_name]['loc'], path)
 
     return easyblocks
+
+
+def det_copy_ec_specs(orig_paths, from_pr):
+    """Determine list of paths + target directory for --copy-ec."""
+
+    if from_pr is not None and not isinstance(from_pr, list):
+        from_pr = [from_pr]
+
+    target_path, paths = None, []
+
+    # if only one argument is specified, use current directory as target directory
+    if len(orig_paths) == 1:
+        target_path = os.getcwd()
+        paths = orig_paths[:]
+
+    # if multiple arguments are specified, assume that last argument is target location,
+    # and remove that from list of paths to copy
+    elif orig_paths:
+        target_path = orig_paths[-1]
+        paths = orig_paths[:-1]
+
+    # if --from-pr was used in combination with --copy-ec, some extra care must be taken
+    if from_pr:
+        # pull in the paths to all the changed files in the PR,
+        # which includes easyconfigs but also patch files (& maybe more);
+        # do this in a dedicated subdirectory of the working tmpdir,
+        # to avoid potential trouble with already existing files in the working tmpdir
+        # (note: we use a fixed subdirectory in the working tmpdir here rather than a unique random subdirectory,
+        #  to ensure that the caching for fetch_files_from_pr works across calls for the same PR)
+        tmpdir = os.path.join(tempfile.gettempdir(), 'fetch_files_from_pr_%s' % '_'.join(str(pr) for pr in from_pr))
+        pr_paths = []
+        for pr in from_pr:
+            pr_paths.extend(fetch_files_from_pr(pr=pr, path=tmpdir))
+
+        # assume that files need to be copied to current working directory for now
+        target_path = os.getcwd()
+
+        if orig_paths:
+            last_path = orig_paths[-1]
+
+            # check files touched by PR and see if the target directory for --copy-ec
+            # corresponds to the name of one of these files;
+            # if so we should copy the specified file(s) to the current working directory,
+            # since interpreting the last argument as target location is very unlikely to be correct in this case
+            pr_filenames = [os.path.basename(p) for p in pr_paths]
+            if last_path in pr_filenames:
+                paths = orig_paths[:]
+            else:
+                target_path = last_path
+                # exclude last argument that is used as target location
+                paths = orig_paths[:-1]
+
+        # if list of files to copy is empty at this point,
+        # we simply copy *all* files touched by the PR
+        if not paths:
+            paths = pr_paths
+
+        # replace path for files touched by PR (no need to worry about others)
+        for idx, path in enumerate(paths):
+            filename = os.path.basename(path)
+            pr_matches = [x for x in pr_paths if os.path.basename(x) == filename]
+            if len(pr_matches) == 1:
+                paths[idx] = pr_matches[0]
+            elif pr_matches:
+                raise EasyBuildError("Found multiple paths for %s in PR: %s", filename, pr_matches)
+
+    return paths, target_path

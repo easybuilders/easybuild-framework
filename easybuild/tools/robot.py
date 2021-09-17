@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -52,10 +52,10 @@ from easybuild.tools.utilities import flatten, nub
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
 
-def det_robot_path(robot_paths_option, tweaked_ecs_paths, pr_path, auto_robot=False):
+def det_robot_path(robot_paths_option, tweaked_ecs_paths, pr_paths, auto_robot=False):
     """Determine robot path."""
     robot_path = robot_paths_option[:]
-    _log.info("Using robot path(s): %s" % robot_path)
+    _log.info("Using robot path(s): %s", robot_path)
 
     tweaked_ecs_path, tweaked_ecs_deps_path = None, None
     # paths to tweaked easyconfigs or easyconfigs downloaded from a PR have priority
@@ -67,9 +67,10 @@ def det_robot_path(robot_paths_option, tweaked_ecs_paths, pr_path, auto_robot=Fa
         robot_path.append(tweaked_ecs_deps_path)
         _log.info("Prepended list of robot search paths with %s and appended with %s: %s", tweaked_ecs_path,
                   tweaked_ecs_deps_path, robot_path)
-    if pr_path is not None:
-        robot_path.append(pr_path)
-        _log.info("Appended list of robot search paths with %s: %s" % (pr_path, robot_path))
+
+    if pr_paths is not None:
+        robot_path.extend(pr_paths)
+        _log.info("Extended list of robot search paths with %s: %s", pr_paths, robot_path)
 
     return robot_path
 

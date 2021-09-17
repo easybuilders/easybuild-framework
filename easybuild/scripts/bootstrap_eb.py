@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -62,7 +62,7 @@ else:
     import urllib.request as std_urllib
 
 
-EB_BOOTSTRAP_VERSION = '20200203.01'
+EB_BOOTSTRAP_VERSION = '20210715.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -81,6 +81,9 @@ EASYBUILD_PACKAGES = (([] if IS_PY3 else [VSC_INSTALL, VSC_BASE]) +
                       ['easybuild-framework', 'easybuild-easyblocks', 'easybuild-easyconfigs'])
 
 STAGE1_SUBDIR = 'eb_stage1'
+
+# the EasyBuild bootstrap script is deprecated, and will only run if $EASYBUILD_BOOTSTRAP_DEPRECATED is defined
+EASYBUILD_BOOTSTRAP_DEPRECATED = os.environ.pop('EASYBUILD_BOOTSTRAP_DEPRECATED', None)
 
 # set print_debug to True for detailed progress info
 print_debug = os.environ.pop('EASYBUILD_BOOTSTRAP_DEBUG', False)
@@ -625,7 +628,8 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir, forcedversion):
 
     # figure out EasyBuild version via eb command line
     # note: EasyBuild uses some magic to determine the EasyBuild version based on the versions of the individual pkgs
-    pattern = "This is EasyBuild (?P<version>%(v)s) \(framework: %(v)s, easyblocks: %(v)s\)" % {'v': '[0-9.]*[a-z0-9]*'}
+    ver_regex = {'ver': '[0-9.]*[a-z0-9]*'}
+    pattern = r"This is EasyBuild (?P<version>%(ver)s) \(framework: %(ver)s, easyblocks: %(ver)s\)" % ver_regex
     version_re = re.compile(pattern)
     version_out_file = os.path.join(tmpdir, 'eb_version.out')
     eb_version_cmd = 'from easybuild.tools.version import this_is_easybuild; print(this_is_easybuild())'
@@ -853,6 +857,17 @@ def main():
     self_txt = open(__file__).read()
     if IS_PY3:
         self_txt = self_txt.encode('utf-8')
+
+    url = 'https://docs.easybuild.io/en/latest/Installation.html'
+    info("Use of the EasyBuild boostrap script is DEPRECATED (since June 2021).")
+    info("It is strongly recommended to use one of the installation methods outlined at %s instead!\n" % url)
+    if not EASYBUILD_BOOTSTRAP_DEPRECATED:
+        error("The EasyBuild bootstrap script will only run if $EASYBUILD_BOOTSTRAP_DEPRECATED is defined.")
+    else:
+        msg = "You have opted to continue with the EasyBuild bootstrap script by defining "
+        msg += "$EASYBUILD_BOOTSTRAP_DEPRECATED. Good luck!\n"
+        info(msg)
+
     info("EasyBuild bootstrap script (version %s, MD5: %s)" % (EB_BOOTSTRAP_VERSION, md5(self_txt).hexdigest()))
     info("Found Python %s\n" % '; '.join(sys.version.split('\n')))
 
@@ -910,7 +925,7 @@ def main():
     for path in orig_sys_path:
         include_path = True
         # exclude path if it's potentially an EasyBuild/VSC package, providing the 'easybuild'/'vsc' namespace, resp.
-        if any([os.path.exists(os.path.join(path, pkg, '__init__.py')) for pkg in ['easyblocks', 'easybuild', 'vsc']]):
+        if any(os.path.exists(os.path.join(path, pkg, '__init__.py')) for pkg in ['easyblocks', 'easybuild', 'vsc']):
             include_path = False
         # exclude any .egg paths
         if path.endswith('.egg'):

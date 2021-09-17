@@ -9,9 +9,12 @@ keyrings.alt; python_version >= '2.7'
 gitdb==0.6.4; python_version < '2.7'
 gitdb; python_version >= '2.7'
 
+# GitPython 3.1.15 deprecates Python 3.5
+GitPython==3.1.14; python_version >= '3.0' and python_version < '3.6'
 # GitPython 2.1.9 no longer supports Python 2.6
 GitPython==2.1.8; python_version < '2.7'
-GitPython; python_version >= '2.7'
+GitPython; python_version >= '3.6' or (python_version <= '3.0' and python_version >= '2.7')
+
 
 # pydot (dep for python-graph-dot) 1.2.0 and more recent doesn't work with Python 2.6
 pydot==1.1.0; python_version < '2.7'
@@ -46,9 +49,19 @@ PyYAML; python_version >= '2.7'
 pycodestyle; python_version < '2.7'
 flake8; python_version >= '2.7'
 
-GC3Pie
+# 2.6.7 uses invalid Python 2 syntax
+GC3Pie!=2.6.7; python_version < '3.0'
+GC3Pie; python_version >= '3.0'
 python-graph-dot
 python-hglib
 requests
 
 archspec; python_version >= '2.7'
+
+# cryptography is not needed at all for Python 2.6
+# cryptography 3.4.0 no longer supports Python 2.7
+cryptography==3.3.2; python_version == '2.7'
+cryptography; python_version >= '3.5'
+
+# rich is only supported for Python 3.6+
+rich; python_version >= '3.6'

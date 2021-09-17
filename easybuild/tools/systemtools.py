@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2020 Ghent University
+# Copyright 2011-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,6 +29,7 @@ Module with useful functions for getting system information
 @auther: Ward Poelmans (Ghent University)
 """
 import ctypes
+import errno
 import fcntl
 import grp  # @UnresolvedImport
 import os
@@ -41,11 +42,24 @@ import termios
 from ctypes.util import find_library
 from socket import gethostname
 
+# pkg_resources is provided by the setuptools Python package,
+# which we really want to keep as an *optional* dependency
+try:
+    import pkg_resources
+    HAVE_PKG_RESOURCES = True
+except ImportError:
+    HAVE_PKG_RESOURCES = False
+
+try:
+    # only needed on macOS, may not be available on Linux
+    import ctypes.macholib.dyld
+except ImportError:
+    pass
+
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
 from easybuild.tools.filetools import is_readable, read_file, which
-from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.run import run_cmd
 
 
@@ -72,6 +86,8 @@ AARCH32 = 'AArch32'
 AARCH64 = 'AArch64'
 POWER = 'POWER'
 X86_64 = 'x86_64'
+
+ARCH_KEY_PREFIX = 'arch='
 
 # Vendor constants
 AMD = 'AMD'
@@ -144,6 +160,45 @@ ARM_CORTEX_IDS = {
 RPM = 'rpm'
 DPKG = 'dpkg'
 
+SYSTEM_TOOLS = {
+    '7z': "extracting sources (.iso)",
+    'bunzip2': "decompressing sources (.bz2, .tbz, .tbz2, ...)",
+    DPKG: "checking OS dependencies (Debian, Ubuntu, ...)",
+    'gunzip': "decompressing source files (.gz, .tgz, ...)",
+    'make': "build tool",
+    'patch': "applying patch files",
+    RPM: "checking OS dependencies (CentOS, RHEL, OpenSuSE, SLES, ...)",
+    'sed': "runtime patching",
+    'Slurm': "backend for --job (sbatch command)",
+    'tar': "unpacking source files (.tar)",
+    'unxz': "decompressing source files (.xz, .txz)",
+    'unzip': "decompressing files (.zip)",
+}
+
+SYSTEM_TOOL_CMDS = {
+    'Slurm': 'sbatch',
+}
+
+EASYBUILD_OPTIONAL_DEPENDENCIES = {
+    'archspec': (None, "determining name of CPU microarchitecture"),
+    'autopep8': (None, "auto-formatting for dumped easyconfigs"),
+    'GC3Pie': ('gc3libs', "backend for --job"),
+    'GitPython': ('git', "GitHub integration + using Git repository as easyconfigs archive"),
+    'graphviz-python': ('gv', "rendering dependency graph with Graphviz: --dep-graph"),
+    'keyring': (None, "storing GitHub token"),
+    'pbs-python': ('pbs', "using Torque as --job backend"),
+    'pep8': (None, "fallback for code style checking: --check-style, --check-contrib"),
+    'pycodestyle': (None, "code style checking: --check-style, --check-contrib"),
+    'pysvn': (None, "using SVN repository as easyconfigs archive"),
+    'python-graph-core': ('pygraph.classes.digraph', "creating dependency graph: --dep-graph"),
+    'python-graph-dot': ('pygraph.readwrite.dot', "saving dependency graph as dot file: --dep-graph"),
+    'python-hglib': ('hglib', "using Mercurial repository as easyconfigs archive"),
+    'requests': (None, "fallback library for downloading files"),
+    'Rich': (None, "eb command rich terminal output"),
+    'PyYAML': ('yaml', "easystack files and .yeb easyconfig format"),
+    'setuptools': ('pkg_resources', "obtaining information on Python packages via pkg_resources module"),
+}
+
 
 class SystemToolsException(Exception):
     """raised when systemtools fails"""
@@ -152,24 +207,35 @@ class SystemToolsException(Exception):
 def sched_getaffinity():
     """Determine list of available cores for current process."""
     cpu_mask_t = ctypes.c_ulong
-    cpu_setsize = 1024
     n_cpu_bits = 8 * ctypes.sizeof(cpu_mask_t)
-    n_mask_bits = cpu_setsize // n_cpu_bits
-
-    class cpu_set_t(ctypes.Structure):
-        """Class that implements the cpu_set_t struct."""
-        _fields_ = [('bits', cpu_mask_t * n_mask_bits)]
 
     _libc_lib = find_library('c')
-    _libc = ctypes.cdll.LoadLibrary(_libc_lib)
+    _libc = ctypes.CDLL(_libc_lib, use_errno=True)
 
     pid = os.getpid()
-    cs = cpu_set_t()
-    ec = _libc.sched_getaffinity(os.getpid(), ctypes.sizeof(cpu_set_t), ctypes.pointer(cs))
-    if ec == 0:
-        _log.debug("sched_getaffinity for pid %s successful", pid)
-    else:
-        raise EasyBuildError("sched_getaffinity failed for pid %s ec %s", pid, ec)
+
+    cpu_setsize = 1024  # Max number of CPUs currently detectable
+    max_cpu_setsize = cpu_mask_t(-1).value // 4  # (INT_MAX / 2)
+    # Limit it to something reasonable but still big enough
+    max_cpu_setsize = min(max_cpu_setsize, 1e9)
+    while cpu_setsize < max_cpu_setsize:
+        n_mask_bits = cpu_setsize // n_cpu_bits
+
+        class cpu_set_t(ctypes.Structure):
+            """Class that implements the cpu_set_t struct."""
+            _fields_ = [('bits', cpu_mask_t * n_mask_bits)]
+
+        cs = cpu_set_t()
+        ec = _libc.sched_getaffinity(pid, ctypes.sizeof(cpu_set_t), ctypes.pointer(cs))
+        if ec == 0:
+            _log.debug("sched_getaffinity for pid %s successful", pid)
+            break
+        elif ctypes.get_errno() != errno.EINVAL:
+            raise EasyBuildError("sched_getaffinity failed for pid %s errno %s", pid, ctypes.get_errno())
+        cpu_setsize *= 2
+
+    if ec != 0:
+        raise EasyBuildError("sched_getaffinity failed finding a large enough cpuset for pid %s", pid)
 
     cpus = []
     for bitmask in cs.bits:
@@ -677,8 +743,15 @@ def check_os_dependency(dep):
 
     for pkg_cmd in pkg_cmds:
         if which(pkg_cmd):
-            cmd = ' '.join([pkg_cmd, pkg_cmd_flag.get(pkg_cmd), dep])
-            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False,
+            cmd = [
+                # unset $LD_LIBRARY_PATH to avoid broken rpm command due to loaded dependencies
+                # see https://github.com/easybuilders/easybuild-easyconfigs/pull/4179
+                'unset LD_LIBRARY_PATH &&',
+                pkg_cmd,
+                pkg_cmd_flag.get(pkg_cmd),
+                dep,
+            ]
+            found = run_cmd(' '.join(cmd), simple=True, log_all=False, log_ok=False,
                             force_in_dry_run=True, trace=False, stream_output=False)
             if found:
                 break
@@ -696,14 +769,14 @@ def check_os_dependency(dep):
     return found
 
 
-def get_tool_version(tool, version_option='--version'):
+def get_tool_version(tool, version_option='--version', ignore_ec=False):
     """
     Get output of running version option for specific command line tool.
     Output is returned as a single-line string (newlines are replaced by '; ').
     """
     out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False, force_in_dry_run=True,
                       trace=False, stream_output=False)
-    if ec:
+    if not ignore_ec and ec:
         _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, out))
         return UNKNOWN
     else:
@@ -763,6 +836,140 @@ def get_glibc_version():
     return glibc_ver
 
 
+def check_linked_shared_libs(path, required_patterns=None, banned_patterns=None):
+    """
+    Check for (lack of) patterns in linked shared libraries for binary/library at specified path.
+    Uses 'ldd' on Linux and 'otool -L' on macOS to determine linked shared libraries.
+
+    Returns True or False for dynamically linked binaries and shared libraries to indicate
+    whether all patterns match and antipatterns don't match.
+
+    Returns None if given path is not a dynamically linked binary or library.
+    """
+    if required_patterns is None:
+        required_regexs = []
+    else:
+        required_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in required_patterns]
+
+    if banned_patterns is None:
+        banned_regexs = []
+    else:
+        banned_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in banned_patterns]
+
+    # resolve symbolic links (unless they're broken)
+    if os.path.islink(path) and os.path.exists(path):
+        path = os.path.realpath(path)
+
+    file_cmd_out, _ = run_cmd("file %s" % path, simple=False, trace=False)
+
+    os_type = get_os_type()
+
+    # check whether specified path is a dynamically linked binary or a shared library
+    if os_type == LINUX:
+        # example output for dynamically linked binaries:
+        #   /usr/bin/ls: ELF 64-bit LSB executable, x86-64, ..., dynamically linked (uses shared libs), ...
+        # example output for shared libraries:
+        #   /lib64/libc-2.17.so: ELF 64-bit LSB shared object, x86-64, ..., dynamically linked (uses shared libs), ...
+        if "dynamically linked" in file_cmd_out:
+            linked_libs_out, _ = run_cmd("ldd %s" % path, simple=False, trace=False)
+        else:
+            return None
+
+    elif os_type == DARWIN:
+        # example output for dynamically linked binaries:
+        #   /bin/ls: Mach-O 64-bit executable x86_64
+        # example output for shared libraries:
+        #   /usr/lib/libz.dylib: Mach-O 64-bit dynamically linked shared library x86_64
+        bin_lib_regex = re.compile('(Mach-O .* executable)|(dynamically linked)', re.M)
+        if bin_lib_regex.search(file_cmd_out):
+            linked_libs_out, _ = run_cmd("otool -L %s" % path, simple=False, trace=False)
+        else:
+            return None
+    else:
+        raise EasyBuildError("Unknown OS type: %s", os_type)
+
+    found_banned_patterns = []
+    missing_required_patterns = []
+    for regex in required_regexs:
+        if not regex.search(linked_libs_out):
+            missing_required_patterns.append(regex.pattern)
+
+    for regex in banned_regexs:
+        if regex.search(linked_libs_out):
+            found_banned_patterns.append(regex.pattern)
+
+    if missing_required_patterns:
+        patterns = ', '.join("'%s'" % p for p in missing_required_patterns)
+        _log.warning("Required patterns not found in linked libraries output for %s: %s", path, patterns)
+
+    if found_banned_patterns:
+        patterns = ', '.join("'%s'" % p for p in found_banned_patterns)
+        _log.warning("Banned patterns found in linked libraries output for %s: %s", path, patterns)
+
+    return not (found_banned_patterns or missing_required_patterns)
+
+
+def locate_solib(libobj):
+    """
+    Return absolute path to loaded library using dlinfo
+    Based on https://stackoverflow.com/a/35683698
+
+    :params libobj: ctypes CDLL object
+    """
+    # early return if we're not on a Linux system
+    if get_os_type() != LINUX:
+        return None
+
+    class LINKMAP(ctypes.Structure):
+        _fields_ = [
+            ("l_addr", ctypes.c_void_p),
+            ("l_name", ctypes.c_char_p)
+        ]
+
+    libdl = ctypes.cdll.LoadLibrary(ctypes.util.find_library('dl'))
+
+    dlinfo = libdl.dlinfo
+    dlinfo.argtypes = ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p
+    dlinfo.restype = ctypes.c_int
+
+    libpointer = ctypes.c_void_p()
+    dlinfo(libobj._handle, 2, ctypes.byref(libpointer))
+    libpath = ctypes.cast(libpointer, ctypes.POINTER(LINKMAP)).contents.l_name
+
+    return libpath.decode('utf-8')
+
+
+def find_library_path(lib_filename):
+    """
+    Search library by file name in the system
+    Return absolute path to existing libraries
+
+    :params lib_filename: name of library file
+    """
+
+    lib_abspath = None
+    os_type = get_os_type()
+
+    try:
+        lib_obj = ctypes.cdll.LoadLibrary(lib_filename)
+    except OSError:
+        _log.info("Library '%s' not found in host system", lib_filename)
+    else:
+        # ctypes.util.find_library only accepts unversioned library names
+        if os_type == LINUX:
+            # find path to library with dlinfo
+            lib_abspath = locate_solib(lib_obj)
+        elif os_type == DARWIN:
+            # ctypes.macholib.dyld.dyld_find accepts file names and returns full path
+            lib_abspath = ctypes.macholib.dyld.dyld_find(lib_filename)
+        else:
+            raise EasyBuildError("Unknown host OS type: %s", os_type)
+
+        _log.info("Found absolute path to %s: %s", lib_filename, lib_abspath)
+
+    return lib_abspath
+
+
 def get_system_info():
     """Return a dictionary with system information."""
     python_version = '; '.join(sys.version.split('\n'))
@@ -816,31 +1023,42 @@ def det_parallelism(par=None, maxpar=None):
     Determine level of parallelism that should be used.
     Default: educated guess based on # cores and 'ulimit -u' setting: min(# cores, ((ulimit -u) - 15) // 6)
     """
-    if par is not None:
-        if not isinstance(par, int):
-            try:
-                par = int(par)
-            except ValueError as err:
-                raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
-    else:
-        par = get_avail_core_count()
-        # check ulimit -u
-        out, ec = run_cmd('ulimit -u', force_in_dry_run=True, trace=False, stream_output=False)
+    def get_default_parallelism():
         try:
-            if out.startswith("unlimited"):
-                out = 2 ** 32 - 1
-            maxuserproc = int(out)
+            # Get cache value if any
+            par = det_parallelism._default_parallelism
+        except AttributeError:
+            # No cache -> Calculate value from current system values
+            par = get_avail_core_count()
+            # check ulimit -u
+            out, ec = run_cmd('ulimit -u', force_in_dry_run=True, trace=False, stream_output=False)
+            try:
+                if out.startswith("unlimited"):
+                    maxuserproc = 2 ** 32 - 1
+                else:
+                    maxuserproc = int(out)
+            except ValueError as err:
+                raise EasyBuildError("Failed to determine max user processes (%s, %s): %s", ec, out, err)
             # assume 6 processes per build thread + 15 overhead
-            par_guess = int((maxuserproc - 15) // 6)
+            par_guess = (maxuserproc - 15) // 6
             if par_guess < par:
                 par = par_guess
-                _log.info("Limit parallel builds to %s because max user processes is %s" % (par, out))
+                _log.info("Limit parallel builds to %s because max user processes is %s", par, out)
+            # Cache value
+            det_parallelism._default_parallelism = par
+        return par
+
+    if par is None:
+        par = get_default_parallelism()
+    else:
+        try:
+            par = int(par)
         except ValueError as err:
-            raise EasyBuildError("Failed to determine max user processes (%s, %s): %s", ec, out, err)
+            raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
 
     if maxpar is not None and maxpar < par:
-        _log.info("Limiting parallellism from %s to %s" % (par, maxpar))
-        par = min(par, maxpar)
+        _log.info("Limiting parallellism from %s to %s", par, maxpar)
+        par = maxpar
 
     return par
 
@@ -871,17 +1089,9 @@ def check_python_version():
     python_ver = '%d.%d' % (python_maj_ver, python_min_ver)
     _log.info("Found Python version %s", python_ver)
 
-    silence_deprecation_warnings = build_option('silence_deprecation_warnings') or []
-
     if python_maj_ver == 2:
-        if python_min_ver < 6:
-            raise EasyBuildError("Python 2.6 or higher is required when using Python 2, found Python %s", python_ver)
-        elif python_min_ver == 6:
-            depr_msg = "Running EasyBuild with Python 2.6 is deprecated"
-            if 'Python26' in silence_deprecation_warnings:
-                _log.warning(depr_msg)
-            else:
-                _log.deprecated(depr_msg, '5.0')
+        if python_min_ver < 7:
+            raise EasyBuildError("Python 2.7 is required when using Python 2, found Python %s", python_ver)
         else:
             _log.info("Running EasyBuild with Python 2 (version %s)", python_ver)
 
@@ -914,20 +1124,126 @@ def pick_dep_version(dep_version):
         result = None
 
     elif isinstance(dep_version, dict):
-        # figure out matches based on dict keys (after splitting on '=')
-        my_arch_key = 'arch=%s' % get_cpu_architecture()
-        arch_keys = [x for x in dep_version.keys() if x.startswith('arch=')]
+        arch_keys = [x for x in dep_version.keys() if x.startswith(ARCH_KEY_PREFIX)]
         other_keys = [x for x in dep_version.keys() if x not in arch_keys]
         if other_keys:
-            raise EasyBuildError("Unexpected keys in version: %s. Only 'arch=' keys are supported", other_keys)
+            other_keys = ','.join(sorted(other_keys))
+            raise EasyBuildError("Unexpected keys in version: %s (only 'arch=' keys are supported)", other_keys)
         if arch_keys:
-            if my_arch_key in dep_version:
-                result = dep_version[my_arch_key]
-                _log.info("Version selected from %s using key %s: %s", dep_version, my_arch_key, result)
+            host_arch_key = ARCH_KEY_PREFIX + get_cpu_architecture()
+            star_arch_key = ARCH_KEY_PREFIX + '*'
+            # check for specific 'arch=' key first
+            if host_arch_key in dep_version:
+                result = dep_version[host_arch_key]
+                _log.info("Version selected from %s using key %s: %s", dep_version, host_arch_key, result)
+            # fall back to 'arch=*'
+            elif star_arch_key in dep_version:
+                result = dep_version[star_arch_key]
+                _log.info("Version selected for %s using fallback key %s: %s", dep_version, star_arch_key, result)
             else:
-                raise EasyBuildError("No matches for version in %s (looking for %s)", dep_version, my_arch_key)
+                raise EasyBuildError("No matches for version in %s (looking for %s)", dep_version, host_arch_key)
+        else:
+            raise EasyBuildError("Found empty dict as version!")
 
     else:
-        raise EasyBuildError("Unknown value type for version: %s", dep_version)
+        typ = type(dep_version)
+        raise EasyBuildError("Unknown value type for version: %s (%s), should be string value", typ, dep_version)
 
     return result
+
+
+def det_pypkg_version(pkg_name, imported_pkg, import_name=None):
+    """Determine version of a Python package."""
+
+    version = None
+
+    if HAVE_PKG_RESOURCES:
+        if import_name:
+            try:
+                version = pkg_resources.get_distribution(import_name).version
+            except pkg_resources.DistributionNotFound as err:
+                _log.debug("%s Python package not found: %s", import_name, err)
+
+        if version is None:
+            try:
+                version = pkg_resources.get_distribution(pkg_name).version
+            except pkg_resources.DistributionNotFound as err:
+                _log.debug("%s Python package not found: %s", pkg_name, err)
+
+    if version is None and hasattr(imported_pkg, '__version__'):
+        version = imported_pkg.__version__
+
+    return version
+
+
+def check_easybuild_deps(modtool):
+    """
+    Check presence and version of required and optional EasyBuild dependencies, and report back to terminal.
+    """
+    version_regex = re.compile(r'\s(?P<version>[0-9][0-9.]+[a-z]*)')
+
+    checks_data = OrderedDict()
+
+    def extract_version(tool):
+        """Helper function to extract (only) version for specific command line tool."""
+        out = get_tool_version(tool, ignore_ec=True)
+        res = version_regex.search(out)
+        if res:
+            version = res.group('version')
+        else:
+            version = "UNKNOWN version"
+
+        return version
+
+    python_version = extract_version(sys.executable)
+
+    opt_dep_versions = {}
+    for key in EASYBUILD_OPTIONAL_DEPENDENCIES:
+
+        pkg = EASYBUILD_OPTIONAL_DEPENDENCIES[key][0]
+        if pkg is None:
+            pkg = key.lower()
+
+        try:
+            mod = __import__(pkg)
+        except ImportError:
+            mod = None
+
+        if mod:
+            dep_version = det_pypkg_version(key, mod, import_name=pkg)
+        else:
+            dep_version = False
+
+        opt_dep_versions[key] = dep_version
+
+    checks_data['col_titles'] = ('name', 'version', 'used for')
+
+    req_deps_key = "Required dependencies"
+    checks_data[req_deps_key] = OrderedDict()
+    checks_data[req_deps_key]['Python'] = (python_version, None)
+    checks_data[req_deps_key]['modules tool:'] = (str(modtool), None)
+
+    opt_deps_key = "Optional dependencies"
+    checks_data[opt_deps_key] = {}
+
+    for key in opt_dep_versions:
+        checks_data[opt_deps_key][key] = (opt_dep_versions[key], EASYBUILD_OPTIONAL_DEPENDENCIES[key][1])
+
+    sys_tools_key = "System tools"
+    checks_data[sys_tools_key] = {}
+
+    for tool in SYSTEM_TOOLS:
+        tool_info = None
+        cmd = SYSTEM_TOOL_CMDS.get(tool, tool)
+        if which(cmd):
+            version = extract_version(cmd)
+            if version.startswith('UNKNOWN'):
+                tool_info = None
+            else:
+                tool_info = version
+        else:
+            tool_info = False
+
+        checks_data[sys_tools_key][tool] = (tool_info, None)
+
+    return checks_data

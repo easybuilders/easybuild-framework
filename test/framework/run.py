@@ -1,6 +1,6 @@
 # #
 # -*- coding: utf-8 -*-
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -38,6 +38,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from easybuild.base.fancylogger import setLogLevelDebug
@@ -46,13 +47,8 @@ import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
-from easybuild.tools.run import (
-    check_log_for_errors,
-    get_output_from_process,
-    run_cmd,
-    run_cmd_qa,
-    parse_log_for_error,
-)
+from easybuild.tools.run import check_log_for_errors, complete_cmd, get_output_from_process
+from easybuild.tools.run import parse_log_for_error, run_cmd, run_cmd_qa
 from easybuild.tools.config import ERROR, IGNORE, WARN
 
 
@@ -233,7 +229,7 @@ class RunTest(EnhancedTestCase):
         # a more 'complex' command to run, make sure all required output is there
         (out, ec) = run_cmd("for j in `seq 1 3`; do for i in `seq 1 100`; do echo hello; done; sleep 1.4; done")
         self.assertTrue(out.startswith('hello\nhello\n'))
-        self.assertEqual(len(out), len("hello\n"*300))
+        self.assertEqual(len(out), len("hello\n" * 300))
         self.assertEqual(ec, 0)
 
     def test_run_cmd_log_output(self):
@@ -351,8 +347,26 @@ class RunTest(EnhancedTestCase):
         cmd += 'echo "Pick a number: "; read number; echo "Picked number: $number"'
         (out, ec) = run_cmd_qa(cmd, {'Pick a number: ': '42'}, log_all=True, maxhits=5)
 
+        self.assertEqual(ec, 0)
         regex = re.compile("Picked number: 42$")
         self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+
+        # also test with script run as interactive command that quickly exits with non-zero exit code;
+        # see https://github.com/easybuilders/easybuild-framework/issues/3593
+        script_txt = '\n'.join([
+            "#/bin/bash",
+            "echo 'Hello, I am about to exit'",
+            "echo 'ERROR: I failed' >&2",
+            "exit 1",
+        ])
+        script = os.path.join(self.test_prefix, 'test.sh')
+        write_file(script, script_txt)
+        adjust_permissions(script, stat.S_IXUSR)
+
+        out, ec = run_cmd_qa(script, {}, log_ok=False)
+
+        self.assertEqual(ec, 1)
+        self.assertEqual(out, "Hello, I am about to exit\nERROR: I failed\n")
 
     def test_run_cmd_qa_log_all(self):
         """Test run_cmd_qa with log_output enabled"""
@@ -510,7 +524,10 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_list(self):
         """Test run_cmd with command specified as a list rather than a string"""
-        (out, ec) = run_cmd(['/bin/sh', '-c', "echo hello"], shell=False)
+        cmd = ['/bin/sh', '-c', "echo hello"]
+        self.assertErrorRegex(EasyBuildError, "When passing cmd as a list then `shell` must be set explictely!",
+                              run_cmd, cmd)
+        (out, ec) = run_cmd(cmd, shell=False)
         self.assertEqual(out, "hello\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
@@ -552,6 +569,49 @@ class RunTest(EnhancedTestCase):
             '',
         ])
         self.assertEqual(stdout, expected)
+
+    def test_run_cmd_async(self):
+        """Test asynchronously running of a shell command via run_cmd + complete_cmd."""
+
+        os.environ['TEST'] = 'test123'
+
+        cmd_info = run_cmd("sleep 2; echo $TEST", asynchronous=True)
+        proc = cmd_info[0]
+
+        # change value of $TEST to check that command is completed with correct environment
+        os.environ['TEST'] = 'some_other_value'
+
+        # initial poll should result in None, since it takes a while for the command to complete
+        ec = proc.poll()
+        self.assertEqual(ec, None)
+
+        while ec is None:
+            time.sleep(1)
+            ec = proc.poll()
+
+        out, ec = complete_cmd(*cmd_info, simple=False)
+        self.assertEqual(ec, 0)
+        self.assertEqual(out, 'test123\n')
+
+        # also test with a command that produces a lot of output,
+        # since that tends to lock up things unless we frequently grab some output...
+        cmd = "echo start; for i in $(seq 1 50); do sleep 0.1; for j in $(seq 1000); do echo foo; done; done; echo done"
+        cmd_info = run_cmd(cmd, asynchronous=True)
+        proc = cmd_info[0]
+
+        output = ''
+        ec = proc.poll()
+        self.assertEqual(ec, None)
+
+        while ec is None:
+            time.sleep(1)
+            output += get_output_from_process(proc)
+            ec = proc.poll()
+
+        out, ec = complete_cmd(*cmd_info, simple=False, output=output)
+        self.assertEqual(ec, 0)
+        self.assertTrue(out.startswith('start\n'))
+        self.assertTrue(out.endswith('\ndone\n'))
 
     def test_check_log_for_errors(self):
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')

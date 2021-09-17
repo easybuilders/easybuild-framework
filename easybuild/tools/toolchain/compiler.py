@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -93,6 +93,11 @@ class Compiler(Toolchain):
         'vectorize': (None, "Enable compiler auto-vectorization, default except for noopt and lowopt"),
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
         'rpath': (True, "Use RPATH wrappers when --rpath is enabled in EasyBuild configuration"),
+        'extra_cflags': (None, "Specify extra CFLAGS options."),
+        'extra_cxxflags': (None, "Specify extra CXXFLAGS options."),
+        'extra_fflags': (None, "Specify extra FFLAGS options."),
+        'extra_fcflags': (None, "Specify extra FCFLAGS options."),
+        'extra_f90flags': (None, "Specify extra F90FLAGS options."),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = None
@@ -110,6 +115,11 @@ class Compiler(Toolchain):
         'static': 'static',
         'unroll': 'unroll',
         'verbose': 'v',
+        'extra_cflags': '%(value)s',
+        'extra_cxxflags': '%(value)s',
+        'extra_fflags': '%(value)s',
+        'extra_fcflags': '%(value)s',
+        'extra_f90flags': '%(value)s',
     }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
@@ -277,15 +287,19 @@ class Compiler(Toolchain):
         self.variables.nextend('PRECFLAGS', precflags[:1])
 
         # precflags last
-        for var in ['CFLAGS', 'CXXFLAGS']:
+        for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
             self.variables.join(var, 'OPTFLAGS', 'PRECFLAGS')
             self.variables.nextend(var, flags)
-            self.variables.nextend(var, cflags)
-
-        for var in ['FCFLAGS', 'FFLAGS', 'F90FLAGS']:
-            self.variables.join(var, 'OPTFLAGS', 'PRECFLAGS')
-            self.variables.nextend(var, flags)
-            self.variables.nextend(var, fflags)
+            if var.startswith('C'):
+                self.variables.nextend(var, cflags)
+            else:
+                self.variables.nextend(var, fflags)
+            extra = 'extra_' + var.lower()
+            if self.options.get(extra):
+                extraflags = self.options.option(extra)
+                if not extraflags or extraflags[0] != '-':
+                    raise EasyBuildError("toolchainopts %s: '%s' must start with a '-'." % (extra, extraflags))
+                self.variables.nappend_el(var, extraflags[1:])
 
     def _set_optimal_architecture(self, default_optarch=None):
         """

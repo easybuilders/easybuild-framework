@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -59,6 +59,14 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(ec['name'], 'GCC')
         self.assertEqual(ec['version'], '4.6.3')
 
+        # changes to this dict should not affect the return value of the next call to get_config_dict
+        fn = 'test.tar.gz'
+        ec['sources'].append(fn)
+
+        ec_bis = ecp.get_config_dict()
+        self.assertTrue(fn in ec['sources'])
+        self.assertFalse(fn in ec_bis['sources'])
+
     def test_v20(self):
         """Test parsing of easyconfig in format v2."""
         # hard enable experimental
@@ -80,6 +88,14 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(ec['toolchain'], {'name': 'system', 'version': 'system'})
         self.assertEqual(ec['name'], 'GCC')
         self.assertEqual(ec['version'], '4.6.2')
+
+        # changes to this dict should not affect the return value of the next call to get_config_dict
+        fn = 'test.tar.gz'
+        ec['sources'].append(fn)
+
+        ec_bis = ecp.get_config_dict()
+        self.assertTrue(fn in ec['sources'])
+        self.assertFalse(fn in ec_bis['sources'])
 
         # restore
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental

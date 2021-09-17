@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -54,6 +54,8 @@ COMP_NAME_VERSION_TEMPLATES = {
     # required for use of iccifort toolchain
     'icc,ifort': ('intel', '%(icc)s'),
     'iccifort': ('intel', '%(iccifort)s'),
+    # required for use of intel-compilers toolchain (OneAPI compilers)
+    'intel-compilers': ('intel', '%(intel-compilers)s'),
     # required for use of ClangGCC toolchain
     'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
     # required for use of gcccuda toolchain, and for CUDA installed with GCC toolchain
@@ -67,6 +69,12 @@ COMP_NAME_VERSION_TEMPLATES = {
     # required for use of xlcxlf toolchain
     'xlc,xlf': ('xlcxlf', '%(xlc)s'),
 }
+
+# possible prefixes for Cray toolchain names
+# example: CrayGNU, CrayCCE, cpeGNU, cpeCCE, ...;
+# important for determining $MODULEPATH extensions in det_modpath_extensions,
+# cfr. https://github.com/easybuilders/easybuild-framework/issues/3575
+CRAY_TOOLCHAIN_NAME_PREFIXES = ('Cray', 'cpe')
 
 
 class HierarchicalMNS(ModuleNamingScheme):
@@ -108,26 +116,28 @@ class HierarchicalMNS(ModuleNamingScheme):
         if tc_comps is None:
             # no compiler in toolchain, system toolchain
             res = None
-        elif len(tc_comps) == 1:
-            tc_comp = tc_comps[0]
-            if tc_comp is None:
-                res = None
-            else:
-                res = (tc_comp['name'], self.det_full_version(tc_comp))
         else:
-            comp_versions = dict([(comp['name'], self.det_full_version(comp)) for comp in tc_comps])
-            comp_names = comp_versions.keys()
-            key = ','.join(sorted(comp_names))
-            if key in COMP_NAME_VERSION_TEMPLATES:
-                tc_comp_name, tc_comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
-                tc_comp_ver = tc_comp_ver_tmpl % comp_versions
-                # make sure that icc/ifort versions match (unless not existing as separate modules)
-                if tc_comp_name == 'intel' and comp_versions.get('icc') != comp_versions.get('ifort'):
-                    raise EasyBuildError("Bumped into different versions for Intel compilers: %s", comp_versions)
+            if len(tc_comps) > 0 and tc_comps[0]:
+                comp_versions = dict([(comp['name'], self.det_full_version(comp)) for comp in tc_comps])
+                comp_names = comp_versions.keys()
+                key = ','.join(sorted(comp_names))
+                if key in COMP_NAME_VERSION_TEMPLATES:
+                    tc_comp_name, tc_comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
+                    tc_comp_ver = tc_comp_ver_tmpl % comp_versions
+                    # make sure that icc/ifort versions match (unless not existing as separate modules)
+                    if tc_comp_name == 'intel' and comp_versions.get('icc') != comp_versions.get('ifort'):
+                        raise EasyBuildError("Bumped into different versions for Intel compilers: %s", comp_versions)
+                    res = (tc_comp_name, tc_comp_ver)
+                else:
+                    if len(tc_comps) == 1:
+                        tc_comp = tc_comps[0]
+                        res = (tc_comp['name'], self.det_full_version(tc_comp))
+                    else:
+                        raise EasyBuildError("Unknown set of toolchain compilers, module naming scheme needs work: %s",
+                                             comp_names)
             else:
-                raise EasyBuildError("Unknown set of toolchain compilers, module naming scheme needs work: %s",
-                                     comp_names)
-            res = (tc_comp_name, tc_comp_ver)
+                res = None
+
         return res
 
     def det_module_subdir(self, ec):
@@ -234,8 +244,9 @@ class HierarchicalMNS(ModuleNamingScheme):
                 paths.append(os.path.join(MPI, tc_comp_name, tc_comp_ver, ec['name'], fullver))
 
         # special case for Cray toolchains
-        elif modclass == MODULECLASS_TOOLCHAIN and tc_comp_info is None and ec.name.startswith('Cray'):
-            paths.append(os.path.join(TOOLCHAIN, ec.name, ec.version))
+        elif modclass == MODULECLASS_TOOLCHAIN and tc_comp_info is None:
+            if any(ec.name.startswith(x) for x in CRAY_TOOLCHAIN_NAME_PREFIXES):
+                paths.append(os.path.join(TOOLCHAIN, ec.name, ec.version))
 
         return paths
 

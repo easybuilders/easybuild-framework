@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -54,7 +54,7 @@ def flatten(lst):
     return res
 
 
-def quote_str(val, escape_newline=False, prefer_single_quotes=False, tcl=False):
+def quote_str(val, escape_newline=False, prefer_single_quotes=False, escape_backslash=False, tcl=False):
     """
     Obtain a new value to be used in string replacement context.
 
@@ -66,10 +66,14 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False, tcl=False):
 
     :param escape_newline: wrap strings that include a newline in triple quotes
     :param prefer_single_quotes: if possible use single quotes
+    :param escape_backslash: escape backslash characters in the string
     :param tcl: Boolean for whether we are quoting for Tcl syntax
     """
 
     if isinstance(val, string_type):
+        # escape backslashes
+        if escape_backslash:
+            val = val.replace('\\', '\\\\')
         # forced triple double quotes
         if ("'" in val and '"' in val) or (escape_newline and '\n' in val):
             return '"""%s"""' % val
@@ -92,7 +96,7 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False, tcl=False):
 
 def quote_py_str(val):
     """Version of quote_str specific for generating use in Python context (e.g., easyconfig parameters)."""
-    return quote_str(val, escape_newline=True, prefer_single_quotes=True)
+    return quote_str(val, escape_newline=True, prefer_single_quotes=True, escape_backslash=True)
 
 
 def shell_quote(token):
@@ -169,18 +173,18 @@ def only_if_module_is_available(modnames, pkgname=None, url=None):
                     pass
 
             if imported is None:
-                raise ImportError("None of the specified modules %s is available" % ', '.join(modnames))
+                raise ImportError
             else:
                 return orig
 
-        except ImportError as err:
-            # need to pass down 'err' via named argument to ensure it's in scope when using Python 3.x
-            def error(err=err, *args, **kwargs):
-                msg = "%s; required module '%s' is not available" % (err, modname)
+        except ImportError:
+            def error(*args, **kwargs):
+                msg = "None of the specified modules (%s) is available" % ', '.join(modnames)
                 if pkgname:
                     msg += " (provided by Python package %s, available from %s)" % (pkgname, url)
                 elif url:
                     msg += " (available from %s)" % url
+                msg += ", yet one of them is required!"
                 raise EasyBuildError("ImportError: %s", msg)
             return error
 
@@ -254,6 +258,10 @@ def mk_rst_table(titles, columns):
     """
     Returns an rst table with given titles and columns (a nested list of string columns for each column)
     """
+    # take into account that passed values may be iterators produced via 'map'
+    titles = list(titles)
+    columns = list(columns)
+
     title_cnt, col_cnt = len(titles), len(columns)
     if title_cnt != col_cnt:
         msg = "Number of titles/columns should be equal, found %d titles and %d columns" % (title_cnt, col_cnt)
@@ -292,19 +300,23 @@ def time2str(delta):
     if not isinstance(delta, datetime.timedelta):
         raise EasyBuildError("Incorrect value type provided to time2str, should be datetime.timedelta: %s", type(delta))
 
-    delta_secs = delta.days * 3600 * 24 + delta.seconds + delta.microseconds / 10**6
+    delta_secs = delta.total_seconds()
 
-    if delta_secs < 60:
-        res = '%d sec' % int(delta_secs)
-    elif delta_secs < 3600:
-        mins = int(delta_secs / 60)
-        secs = int(delta_secs - (mins * 60))
-        res = '%d min %d sec' % (mins, secs)
-    else:
-        hours = int(delta_secs / 3600)
-        mins = int((delta_secs - hours * 3600) / 60)
-        secs = int(delta_secs - (hours * 3600) - (mins * 60))
-        hours_str = 'hours' if hours > 1 else 'hour'
-        res = '%d %s %d min %d sec' % (hours, hours_str, mins, secs)
+    hours, remainder = divmod(delta_secs, 3600)
+    mins, secs = divmod(remainder, 60)
 
-    return res
+    res = []
+    if hours:
+        res.append('%d %s' % (hours, 'hour' if hours == 1 else 'hours'))
+    if mins or hours:
+        res.append('%d %s' % (mins, 'min' if mins == 1 else 'mins'))
+    res.append('%d %s' % (secs, 'sec' if secs == 1 else 'secs'))
+
+    return ' '.join(res)
+
+
+def natural_keys(key):
+    """Can be used as the sort key in list.sort(key=natural_keys) to sort in natural order (i.e. respecting numbers)"""
+    def try_to_int(key_part):
+        return int(key_part) if key_part.isdigit() else key_part
+    return [try_to_int(key_part) for key_part in re.split(r'(\d+)', key)]

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -44,7 +44,7 @@ from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.modules import EnvironmentModulesC, Lmod
+from easybuild.tools.modules import EnvironmentModulesC, EnvironmentModulesTcl, Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
@@ -610,13 +610,14 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
                 '',
-                "module swap foo bar",
+                "module swap bar",
                 '',
             ])
         else:
             expected = '\n'.join([
                 '',
-                'swap("foo", "bar")',
+                'unload("foo")',
+                'load("bar")',
                 '',
             ])
 
@@ -627,7 +628,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             expected = '\n'.join([
                 '',
                 "if { [ is-loaded foo ] } {",
-                "    module swap foo bar",
+                "    module swap bar",
                 '} else {',
                 "    module load bar",
                 '}',
@@ -637,7 +638,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             expected = '\n'.join([
                 '',
                 'if isloaded("foo") then',
-                '    swap("foo", "bar")',
+                '    unload("foo")',
+                '    load("bar")',
                 'else',
                 '    load("bar")',
                 'end',
@@ -646,6 +648,24 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         self.assertEqual(expected, self.modgen.swap_module('foo', 'bar', guarded=True))
         self.assertEqual(expected, self.modgen.swap_module('foo', 'bar'))
+
+        # create tiny test Tcl module to make sure that tested modules tools support single-argument swap
+        # see https://github.com/easybuilders/easybuild-framework/issues/3396;
+        # this is known to fail with the ancient Tcl-only implementation of environment modules,
+        # but that's considered to be a non-issue (since this is mostly relevant for Cray systems,
+        # which are either using EnvironmentModulesC (3.2.10), EnvironmentModules (4.x) or Lmod...
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl and self.modtool.__class__ != EnvironmentModulesTcl:
+            test_mod_txt = "#%Module\nmodule swap GCC/7.3.0-2.30"
+
+            test_mod_fn = 'test_single_arg_swap/1.2.3'
+            write_file(os.path.join(self.test_prefix, test_mod_fn), test_mod_txt)
+
+            self.modtool.load(['GCC/4.6.3'])
+            self.modtool.use(self.test_prefix)
+            self.modtool.load(['test_single_arg_swap/1.2.3'])
+
+            expected = ['GCC/7.3.0-2.30', 'test_single_arg_swap/1.2.3']
+            self.assertEqual(sorted([m['mod_name'] for m in self.modtool.list()]), expected)
 
     def test_append_paths(self):
         """Test generating append-paths statements."""
@@ -835,12 +855,43 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_getenv_cmd(self):
         """Test getting value of environment variable."""
+
+        test_mod_file = os.path.join(self.test_prefix, 'test', '1.2.3')
+
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            # can't have $LMOD_QUIET set when testing with Tcl syntax,
+            # otherwise we won't get the output produced by the test module file...
+            if 'LMOD_QUIET' in os.environ:
+                del os.environ['LMOD_QUIET']
+
             self.assertEqual('$::env(HOSTNAME)', self.modgen.getenv_cmd('HOSTNAME'))
             self.assertEqual('$::env(HOME)', self.modgen.getenv_cmd('HOME'))
+
+            expected = '[if { [info exists ::env(TEST)] } { concat $::env(TEST) } else { concat "foobar" } ]'
+            getenv_txt = self.modgen.getenv_cmd('TEST', default='foobar')
+            self.assertEqual(getenv_txt, expected)
+
+            write_file(test_mod_file, '#%%Module\nputs stderr %s' % getenv_txt)
         else:
             self.assertEqual('os.getenv("HOSTNAME")', self.modgen.getenv_cmd('HOSTNAME'))
             self.assertEqual('os.getenv("HOME")', self.modgen.getenv_cmd('HOME'))
+
+            expected = 'os.getenv("TEST") or "foobar"'
+            getenv_txt = self.modgen.getenv_cmd('TEST', default='foobar')
+            self.assertEqual(getenv_txt, expected)
+
+            test_mod_file += '.lua'
+            write_file(test_mod_file, "io.stderr:write(%s)" % getenv_txt)
+
+        # only test loading of test module in Lua syntax when using Lmod
+        if isinstance(self.modtool, Lmod) or not test_mod_file.endswith('.lua'):
+            self.modtool.use(self.test_prefix)
+            out = self.modtool.run_module('load', 'test/1.2.3', return_stderr=True)
+            self.assertEqual(out.strip(), 'foobar')
+
+            os.environ['TEST'] = 'test_value_that_is_not_foobar'
+            out = self.modtool.run_module('load', 'test/1.2.3', return_stderr=True)
+            self.assertEqual(out.strip(), 'test_value_that_is_not_foobar')
 
     def test_alias(self):
         """Test setting of alias in modulefiles."""
@@ -1250,6 +1301,14 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                        ['Compiler/intel/2019.4.243'], ['Core']),
             'imkl-2019.4.243-iimpi-2019.08.eb': ('imkl/2019.4.243',
                                                  'MPI/intel/2019.4.243/impi/2019.4.243', [], [], ['Core']),
+            'intel-compilers-2021.2.0.eb': ('intel-compilers/2021.2.0', 'Core',
+                                            ['Compiler/intel/2021.2.0'], ['Compiler/intel/2021.2.0'], ['Core']),
+            'impi-2021.2.0-intel-compilers-2021.2.0.eb': ('impi/2021.2.0', 'Compiler/intel/2021.2.0',
+                                                          ['MPI/intel/2021.2.0/impi/2021.2.0'],
+                                                          ['MPI/intel/2021.2.0/impi/2021.2.0'],
+                                                          ['Core']),
+            'imkl-2021.2.0-iimpi-2021a.eb': ('imkl/2021.2.0', 'MPI/intel/2021.2.0/impi/2021.2.0',
+                                             [], [], ['Core']),
             'CUDA-9.1.85-GCC-6.4.0-2.28.eb': ('CUDA/9.1.85', 'Compiler/GCC/6.4.0-2.28',
                                               ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85'],
                                               ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85'], ['Core']),
@@ -1277,6 +1336,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                   ['Toolchain/CrayCCE/5.1.29'],
                                   ['Toolchain/CrayCCE/5.1.29'],
                                   ['Core']),
+            'cpeGNU-21.04.eb': ('cpeGNU/21.04', 'Core',
+                                ['Toolchain/cpeGNU/21.04'],
+                                ['Toolchain/cpeGNU/21.04'],
+                                ['Core']),
             'HPL-2.1-CrayCCE-5.1.29.eb': ('HPL/2.1', 'Toolchain/CrayCCE/5.1.29', [], [], ['Core']),
         }
         for ecfile, mns_vals in test_ecs.items():
@@ -1327,11 +1390,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         test_ecs = {
-            'GCC-6.4.0-2.28.eb':               ('compiler/GCC/6.4.0-2.28',          '', [], [], []),
+            'GCC-6.4.0-2.28.eb': ('compiler/GCC/6.4.0-2.28', '', [], [], []),
             'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb': ('mpi/OpenMPI/2.1.2-GCC-6.4.0-2.28', '', [], [], []),
-            'gzip-1.5-foss-2018a.eb':   ('tools/gzip/1.5-foss-2018a', '', [], [], []),
-            'foss-2018a.eb':            ('toolchain/foss/2018a',      '', [], [], []),
-            'impi-5.1.2.150.eb':          ('mpi/impi/5.1.2.150',          '', [], [], []),
+            'gzip-1.5-foss-2018a.eb': ('tools/gzip/1.5-foss-2018a', '', [], [], []),
+            'foss-2018a.eb': ('toolchain/foss/2018a', '', [], [], []),
+            'impi-5.1.2.150.eb': ('mpi/impi/5.1.2.150', '', [], [], []),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
@@ -1410,6 +1473,48 @@ class ModuleGeneratorTest(EnhancedTestCase):
         expected = self.modgen.app.installdir
 
         self.assertEqual(self.modgen.det_installdir(test_modfile), expected)
+
+    def test_generated_module_file_swap(self):
+        """Test loading a generated module file that includes swap statements."""
+
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
+            mod_ext = '.lua'
+
+            if not isinstance(self.modtool, Lmod):
+                # Lua module files are only supported by Lmod,
+                # so early exit if that's not the case in the test setup
+                return
+
+        else:
+            mod_ext = ''
+
+        # empty test modules
+        for modname in ('one/1.0', 'one/1.1'):
+            modfile = os.path.join(self.test_prefix, modname + mod_ext)
+            write_file(modfile, self.modgen.MODULE_SHEBANG)
+
+        modulepath = os.getenv('MODULEPATH')
+        if modulepath:
+            self.modtool.unuse(modulepath)
+
+        test_mod = os.path.join(self.test_prefix, 'test', '1.0' + mod_ext)
+        test_mod_txt = '\n'.join([
+            self.modgen.MODULE_SHEBANG,
+            self.modgen.swap_module('one', 'one/1.1'),
+        ])
+        write_file(test_mod, test_mod_txt)
+
+        # prepare environment for loading test module
+        self.modtool.use(self.test_prefix)
+        self.modtool.load(['one/1.0'])
+
+        self.modtool.load(['test/1.0'])
+
+        # check whether resulting environment is correct
+        loaded_mods = self.modtool.list()
+        self.assertEqual(loaded_mods[-1]['mod_name'], 'test/1.0')
+        # one/1.0 module was swapped for one/1.1
+        self.assertEqual(loaded_mods[-2]['mod_name'], 'one/1.1')
 
 
 class TclModuleGeneratorTest(ModuleGeneratorTest):

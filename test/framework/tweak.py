@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2020 Ghent University
+# Copyright 2014-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -534,6 +534,7 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(list_deps_versionsuffixes(ec_spec), [])
         ec_spec = os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
         self.assertEqual(list_deps_versionsuffixes(ec_spec), ['-deps'])
+
 
 def suite():
     """ return all the tests in this file """

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -48,6 +48,12 @@ from easybuild.base.frozendict import FrozenDictKnownKeys
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
 
+try:
+    import rich  # noqa
+    HAVE_RICH = True
+except ImportError:
+    HAVE_RICH = False
+
 
 _log = fancylogger.getLogger('config', fname=False)
 
@@ -79,10 +85,13 @@ CONT_TYPES = [CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
 DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
 DEFAULT_BRANCH = 'develop'
+DEFAULT_ENV_FOR_SHEBANG = '/usr/bin/env'
+DEFAULT_ENVVAR_USERS_MODULES = 'HOME'
 DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
+DEFAULT_MINIMAL_BUILD_ENV = 'CC:gcc,CXX:g++'
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Lua'
 DEFAULT_MODULES_TOOL = 'Lmod'
@@ -100,6 +109,7 @@ DEFAULT_PKG_RELEASE = '1'
 DEFAULT_PKG_TOOL = PKG_TOOL_FPM
 DEFAULT_PKG_TYPE = PKG_TYPE_RPM
 DEFAULT_PNS = 'EasyBuildPNS'
+DEFAULT_PR_TARGET_ACCOUNT = 'easybuilders'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 DEFAULT_WAIT_ON_LOCK_INTERVAL = 60
@@ -133,6 +143,13 @@ LOCAL_VAR_NAMING_CHECK_WARN = WARN
 LOCAL_VAR_NAMING_CHECKS = [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN]
 
 
+OUTPUT_STYLE_AUTO = 'auto'
+OUTPUT_STYLE_BASIC = 'basic'
+OUTPUT_STYLE_NO_COLOR = 'no_color'
+OUTPUT_STYLE_RICH = 'rich'
+OUTPUT_STYLES = (OUTPUT_STYLE_AUTO, OUTPUT_STYLE_BASIC, OUTPUT_STYLE_NO_COLOR, OUTPUT_STYLE_RICH)
+
+
 class Singleton(ABCMeta):
     """Serves as metaclass for classes that should implement the Singleton pattern.
 
@@ -159,6 +176,7 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 # build options that have a perfectly matching command line option, listed by default value
 BUILD_OPTIONS_CMDLINE = {
     None: [
+        'accept_eula_for',
         'aggregate_regtest',
         'backup_modules',
         'container_config',
@@ -166,15 +184,20 @@ BUILD_OPTIONS_CMDLINE = {
         'container_image_name',
         'container_template_recipe',
         'container_tmpdir',
+        'cuda_cache_dir',
+        'cuda_cache_maxsize',
         'cuda_compute_capabilities',
         'download_timeout',
         'dump_test_report',
         'easyblock',
+        'envvars_user_modules',
         'extra_modules',
         'filter_deps',
+        'filter_ecs',
         'filter_env_vars',
         'hide_deps',
         'hide_toolchains',
+        'http_header_fields_urlpat',
         'force_download',
         'from_pr',
         'git_working_dirs_path',
@@ -183,6 +206,7 @@ BUILD_OPTIONS_CMDLINE = {
         'group',
         'hooks',
         'ignore_dirs',
+        'include_easyblocks_from_pr',
         'job_backend_config',
         'job_cores',
         'job_deps_type',
@@ -202,15 +226,18 @@ BUILD_OPTIONS_CMDLINE = {
         'pr_branch_name',
         'pr_commit_msg',
         'pr_descr',
-        'pr_target_account',
         'pr_target_repo',
         'pr_title',
-        'rpath_filter',
         'regtest_output_dir',
+        'rpath_filter',
+        'rpath_override_dirs',
+        'banned_linked_shared_libs',
+        'required_linked_shared_libs',
         'silence_deprecation_warnings',
         'skip',
         'stop',
         'subdir_user_modules',
+        'sysroot',
         'test_report_env_filter',
         'testoutput',
         'wait_on_lock',
@@ -235,8 +262,8 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_checksums',
         'ignore_index',
         'ignore_locks',
+        'ignore_test_failure',
         'install_latest_eb_release',
-        'lib64_fallback_sanity_check',
         'logtostdout',
         'minimal_toolchains',
         'module_extensions',
@@ -247,10 +274,14 @@ BUILD_OPTIONS_CMDLINE = {
         'rebuild',
         'robot',
         'rpath',
+        'sanity_check_only',
         'search_paths',
         'sequential',
         'set_gid_bit',
+        'skip_extensions',
         'skip_test_cases',
+        'skip_test_step',
+        'generate_devel_module',
         'sticky_bit',
         'trace',
         'upload_test_report',
@@ -267,10 +298,14 @@ BUILD_OPTIONS_CMDLINE = {
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
         'fixed_installdir_naming_scheme',
+        'lib_lib64_symlink',
+        'lib64_fallback_sanity_check',
+        'lib64_lib_symlink',
         'mpi_tests',
         'map_toolchains',
         'modules_tool_version_check',
         'pre_create_installdir',
+        'show_progress_bar',
     ],
     WARN: [
         'check_ebroot_env_vars',
@@ -284,11 +319,17 @@ BUILD_OPTIONS_CMDLINE = {
     DEFAULT_BRANCH: [
         'pr_target_branch',
     ],
+    DEFAULT_ENV_FOR_SHEBANG: [
+        'env_for_shebang',
+    ],
     DEFAULT_INDEX_MAX_AGE: [
         'index_max_age',
     ],
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
         'max_fail_ratio_adjust_permissions',
+    ],
+    DEFAULT_MINIMAL_BUILD_ENV: [
+        'minimal_build_env',
     ],
     DEFAULT_PKG_RELEASE: [
         'package_release',
@@ -298,6 +339,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_PKG_TYPE: [
         'package_type',
+    ],
+    DEFAULT_PR_TARGET_ACCOUNT: [
+        'pr_target_account',
     ],
     GENERAL_CLASS: [
         'suffix_modules_path',
@@ -311,6 +355,9 @@ BUILD_OPTIONS_CMDLINE = {
     DEFAULT_WAIT_ON_LOCK_INTERVAL: [
         'wait_on_lock_interval',
     ],
+    OUTPUT_STYLE_AUTO: [
+        'output_style',
+    ],
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {
@@ -318,7 +365,7 @@ BUILD_OPTIONS_OTHER = {
         'build_specs',
         'command_line',
         'external_modules_metadata',
-        'pr_path',
+        'pr_paths',
         'robot_path',
         'valid_module_classes',
         'valid_stops',
@@ -483,6 +530,10 @@ def init_build_options(build_options=None, cmdline_options=None):
             _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
 
+        if not cmdline_options.accept_eula_for and cmdline_options.accept_eula:
+            _log.deprecated("Use accept-eula-for configuration setting rather than accept-eula.", '5.0')
+            cmdline_options.accept_eula_for = cmdline_options.accept_eula
+
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]
         active_build_options.update(dict([(key, getattr(cmdline_options, key)) for key in cmdline_build_option_names]))
         # other options which can be derived but have no perfectly matching cmdline option
@@ -516,6 +567,9 @@ def build_option(key, **kwargs):
     build_options = BuildOptions()
     if key in build_options:
         return build_options[key]
+    elif key == 'accept_eula':
+        _log.deprecated("Use accept_eula_for build option rather than accept_eula.", '5.0')
+        return build_options['accept_eula_for']
     elif 'default' in kwargs:
         return kwargs['default']
     else:
@@ -523,6 +577,18 @@ def build_option(key, **kwargs):
         error_msg += "Make sure you have set up the EasyBuild configuration using set_up_configuration() "
         error_msg += "(from easybuild.tools.options) in case you're not using EasyBuild via the 'eb' CLI."
         raise EasyBuildError(error_msg)
+
+
+def update_build_option(key, value):
+    """
+    Update build option with specified name to given value.
+
+    WARNING: Use this with care, the build options are not expected to be changed during an EasyBuild session!
+    """
+    # BuildOptions() is a (singleton) frozen dict, so this is less straightforward that it seems...
+    build_options = BuildOptions()
+    build_options._FrozenDict__dict[key] = value
+    _log.warning("Build option '%s' was updated to: %s", key, build_option(key))
 
 
 def build_path():
@@ -636,6 +702,22 @@ def get_module_syntax():
     Return module syntax (Lua, Tcl)
     """
     return ConfigurationVariables()['module_syntax']
+
+
+def get_output_style():
+    """Return output style to use."""
+    output_style = build_option('output_style')
+
+    if output_style == OUTPUT_STYLE_AUTO:
+        if HAVE_RICH:
+            output_style = OUTPUT_STYLE_RICH
+        else:
+            output_style = OUTPUT_STYLE_BASIC
+
+    if output_style == OUTPUT_STYLE_RICH and not HAVE_RICH:
+        raise EasyBuildError("Can't use '%s' output style, Rich Python package is not available!", OUTPUT_STYLE_RICH)
+
+    return output_style
 
 
 def log_file_format(return_directory=False, ec=None, date=None, timestamp=None):

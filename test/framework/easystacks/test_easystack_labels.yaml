@@ -1,0 +1,7 @@
+software:
+  binutils:
+    toolchains:
+      GCCcore-4.9.3:
+        versions:
+            '3.11':
+              exclude-labels: arch:aarch64

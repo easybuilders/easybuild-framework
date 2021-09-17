@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -107,7 +107,10 @@ def get_output_from_process(proc, read_size=None, asynchronous=False):
     """
 
     if asynchronous:
-        output = asyncprocess.recv_some(proc)
+        # e=False is set to avoid raising an exception when command has completed;
+        # that's needed to ensure we get all output,
+        # see https://github.com/easybuilders/easybuild-framework/issues/3593
+        output = asyncprocess.recv_some(proc, e=False)
     elif read_size:
         output = proc.stdout.read(read_size)
     else:
@@ -125,7 +128,7 @@ def get_output_from_process(proc, read_size=None, asynchronous=False):
 
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            force_in_dry_run=False, verbose=True, shell=True, trace=True, stream_output=None):
+            force_in_dry_run=False, verbose=True, shell=None, trace=True, stream_output=None, asynchronous=False):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -138,9 +141,10 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param path: path to execute the command in; current working directory is used if unspecified
     :param force_in_dry_run: force running the command during dry run
     :param verbose: include message on running the command in dry run output
-    :param shell: allow commands to not run in a shell (especially useful for cmd lists)
+    :param shell: allow commands to not run in a shell (especially useful for cmd lists), defaults to True
     :param trace: print command being executed as part of trace output
     :param stream_output: enable streaming command output to stdout
+    :param asynchronous: run command asynchronously (returns subprocess.Popen instance if set to True)
     """
     cwd = os.getcwd()
 
@@ -150,6 +154,13 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         cmd_msg = ' '.join(cmd)
     else:
         raise EasyBuildError("Unknown command type ('%s'): %s", type(cmd), cmd)
+
+    if shell is None:
+        shell = True
+        if isinstance(cmd, list):
+            raise EasyBuildError("When passing cmd as a list then `shell` must be set explictely! "
+                                 "Note that all elements of the list but the first are treated as arguments "
+                                 "to the shell and NOT to the command to be executed!")
 
     if log_output or (trace and build_option('trace')):
         # collect output of running command in temporary log file, if desired
@@ -225,10 +236,35 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
                                 stdin=subprocess.PIPE, close_fds=True, executable=exec_cmd)
     except OSError as err:
         raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
+
     if inp:
         proc.stdin.write(inp.encode())
     proc.stdin.close()
 
+    if asynchronous:
+        return (proc, cmd, cwd, start_time, cmd_log)
+    else:
+        return complete_cmd(proc, cmd, cwd, start_time, cmd_log, log_ok=log_ok, log_all=log_all, simple=simple,
+                            regexp=regexp, stream_output=stream_output, trace=trace)
+
+
+def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False, simple=False,
+                 regexp=True, stream_output=None, trace=True, output=''):
+    """
+    Complete running of command represented by passed subprocess.Popen instance.
+
+    :param proc: subprocess.Popen instance representing running command
+    :param cmd: command being run
+    :param owd: original working directory
+    :param start_time: start time of command (datetime instance)
+    :param cmd_log: log file to print command output to
+    :param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    :param log_all: always log command output and exit code
+    :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
+    :param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
+    :param stream_output: enable streaming command output to stdout
+    :param trace: print command being executed as part of trace output
+    """
     # use small read size when streaming output, to make it stream more fluently
     # read size should not be too small though, to avoid too much overhead
     if stream_output:
@@ -236,8 +272,9 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     else:
         read_size = 1024 * 8
 
+    stdouterr = output
+
     ec = proc.poll()
-    stdouterr = ''
     while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
@@ -251,6 +288,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     # read remaining data (all of it)
     output = get_output_from_process(proc)
+    proc.stdout.close()
     if cmd_log:
         cmd_log.write(output)
         cmd_log.close()
@@ -262,9 +300,9 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         trace_msg("command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))
 
     try:
-        os.chdir(cwd)
+        os.chdir(owd)
     except OSError as err:
-        raise EasyBuildError("Failed to return to %s after executing command: %s", cwd, err)
+        raise EasyBuildError("Failed to return to %s after executing command: %s", owd, err)
 
     return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
 
@@ -286,6 +324,11 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     :param trace: print command being executed as part of trace output
     """
     cwd = os.getcwd()
+
+    if not isinstance(cmd, string_type) and len(cmd) > 1:
+        # We use shell=True and hence we should really pass the command as a string
+        # When using a list then every element past the first is passed to the shell itself, not the command!
+        raise EasyBuildError("The command passed must be a string!")
 
     if log_all or (trace and build_option('trace')):
         # collect output of running command in temporary log file, if desired
@@ -411,6 +454,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         try:
             out = get_output_from_process(proc, asynchronous=True)
+
             if cmd_log:
                 cmd_log.write(out)
             stdout_err += out

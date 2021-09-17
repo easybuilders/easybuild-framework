@@ -1,5 +1,5 @@
 #
-# Copyright 2014-2020 Ghent University
+# Copyright 2014-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -35,6 +35,7 @@ import difflib
 import pprint
 import re
 import sys
+from contextlib import contextmanager
 
 try:
     from cStringIO import StringIO  # Python 2
@@ -60,7 +61,7 @@ def nicediff(txta, txtb, offset=5):
     res_idx = []
     # very bruteforce
     for didx in different_idx:
-        for idx in range(max(didx-offset, 0), min(didx+offset, len(diff)-1)):
+        for idx in range(max(didx - offset, 0), min(didx + offset, len(diff) - 1)):
             if idx not in res_idx:
                 res_idx.append(idx)
     res_idx.sort()
@@ -184,6 +185,26 @@ class TestCase(OrigTestCase):
     def get_stderr(self):
         """Return output captured from stderr until now."""
         return sys.stderr.getvalue()
+
+    @contextmanager
+    def mocked_stdout_stderr(self, mock_stdout=True, mock_stderr=True):
+        """Context manager to mock stdout and stderr"""
+        if mock_stdout:
+            self.mock_stdout(True)
+        if mock_stderr:
+            self.mock_stderr(True)
+        try:
+            if mock_stdout and mock_stderr:
+                yield sys.stdout, sys.stderr
+            elif mock_stdout:
+                yield sys.stdout
+            else:
+                yield sys.stderr
+        finally:
+            if mock_stdout:
+                self.mock_stdout(False)
+            if mock_stderr:
+                self.mock_stderr(False)
 
     def tearDown(self):
         """Cleanup after running a test."""

@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,6 +30,7 @@ This is the original pure python code, to be exec'ed rather then parsed
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
+import copy
 import os
 import pprint
 import re
@@ -129,13 +130,28 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         if spec_tc_version is not None and not spec_tc_version == tc_version:
             raise EasyBuildError('Requested toolchain version %s not available, only %s', spec_tc_version, tc_version)
 
-        return cfg
+        # avoid passing anything by reference, so next time get_config_dict is called
+        # we can be sure we return a dictionary that correctly reflects the contents of the easyconfig file;
+        # we can't use copy.deepcopy() directly because in Python 2 copying the (irrelevant) __builtins__ key fails...
+        cfg_copy = {}
+        for key in cfg:
+            # skip special variables like __builtins__, and imported modules (like 'os')
+            if key != '__builtins__' and "'module'" not in str(type(cfg[key])):
+                try:
+                    cfg_copy[key] = copy.deepcopy(cfg[key])
+                except Exception as err:
+                    raise EasyBuildError("Failed to copy '%s' easyconfig parameter: %s" % (key, err))
+            else:
+                self.log.debug("Not copying '%s' variable from parsed easyconfig", key)
+
+        return cfg_copy
 
     def parse(self, txt):
         """
         Pre-process txt to extract header, docstring and pyheader, with non-indented section markers enforced.
         """
-        super(FormatOneZero, self).parse(txt, strict_section_markers=True)
+        self.rawcontent = txt
+        super(FormatOneZero, self).parse(self.rawcontent, strict_section_markers=True)
 
     def _reformat_line(self, param_name, param_val, outer=False, addlen=0):
         """
@@ -356,6 +372,16 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         return '\n'.join(dump)
 
+    @property
+    def comments(self):
+        """
+        Return comments (and extract them first if needed).
+        """
+        if not self._comments:
+            self.extract_comments(self.rawcontent)
+
+        return self._comments
+
     def extract_comments(self, rawtxt):
         """
         Extract comments from raw content.
@@ -363,14 +389,14 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         Discriminates between comment header, comments above a line (parameter definition), and inline comments.
         Inline comments on items of iterable values are also extracted.
         """
-        self.comments = {
+        self._comments = {
             'above': {},  # comments above a parameter definition
             'header': [],  # header comment lines
             'inline': {},  # inline comments
             'iterabove': {},  # comment above elements of iterable values
             'iterinline': {},  # inline comments on elements of iterable values
             'tail': [],  # comment at the end of the easyconfig file
-         }
+        }
 
         parsed_ec = self.get_config_dict()
 
@@ -538,7 +564,7 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
             dep_block = reg_dep_block.search(block_contents)
             if dep_block:
                 dependencies = eval(dep_block.group(1))
-                if type(dependencies) == list:
+                if isinstance(dependencies, list):
                     block['dependencies'] = dependencies
                 else:
                     block['dependencies'] = [dependencies]

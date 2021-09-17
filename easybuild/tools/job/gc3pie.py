@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2020 Ghent University
+# Copyright 2015-2021 Ghent University
 # Copyright 2015 S3IT, University of Zurich
 #
 # This file is part of EasyBuild,
@@ -168,7 +168,7 @@ class GC3Pie(JobBackend):
         """
         named_args = {
             'jobname': name,  # job name in GC3Pie
-            'name':    name,  # job name in EasyBuild
+            'name': name,  # job name in EasyBuild
         }
 
         # environment

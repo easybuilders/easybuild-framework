@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2020 Ghent University
+# Copyright 2015-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -69,8 +69,8 @@ class BuildLogTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
         logToFile(tmplog, enable=False)
 
-        log_re = re.compile(r"^root ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$", re.M)
-        logtxt = open(tmplog, 'r').read()
+        log_re = re.compile(r"^fancyroot ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$", re.M)
+        logtxt = read_file(tmplog, 'r')
         self.assertTrue(log_re.match(logtxt), "%s matches %s" % (log_re.pattern, logtxt))
 
         # test formatting of message
@@ -132,16 +132,16 @@ class BuildLogTest(EnhancedTestCase):
         logtxt = read_file(tmplog)
 
         expected_logtxt = '\n'.join([
-            r"root.test_easybuildlog \[DEBUG\] :: 123 debug",
-            r"root.test_easybuildlog \[INFO\] :: foobar info",
-            r"root.test_easybuildlog \[WARNING\] :: justawarning",
-            r"root.test_easybuildlog \[WARNING\] :: Deprecated functionality.*anotherwarning.*",
-            r"root.test_easybuildlog \[WARNING\] :: Deprecated functionality.*onemorewarning.*",
-            r"root.test_easybuildlog \[WARNING\] :: Deprecated functionality.*lastwarning.*",
-            r"root.test_easybuildlog \[WARNING\] :: Deprecated functionality.*thisisnotprinted.*",
-            r"root.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput",
-            r"root.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): err: msg: %s",
-            r"root.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops",
+            r"fancyroot.test_easybuildlog \[DEBUG\] :: 123 debug",
+            r"fancyroot.test_easybuildlog \[INFO\] :: foobar info",
+            r"fancyroot.test_easybuildlog \[WARNING\] :: justawarning",
+            r"fancyroot.test_easybuildlog \[WARNING\] :: Deprecated functionality.*anotherwarning.*",
+            r"fancyroot.test_easybuildlog \[WARNING\] :: Deprecated functionality.*onemorewarning.*",
+            r"fancyroot.test_easybuildlog \[WARNING\] :: Deprecated functionality.*lastwarning.*",
+            r"fancyroot.test_easybuildlog \[WARNING\] :: Deprecated functionality.*thisisnotprinted.*",
+            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput",
+            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): err: msg: %s",
+            r"fancyroot.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops",
             '',
         ])
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
@@ -165,10 +165,10 @@ class BuildLogTest(EnhancedTestCase):
         logToFile(tmplog, enable=False)
         logtxt = read_file(tmplog)
         expected_logtxt = '\n'.join([
-            r"root.test_easybuildlog \[WARNING\] :: bleh",
-            r"root.test_easybuildlog \[INFO\] :: 4\+2 = 42",
-            r"root.test_easybuildlog \[DEBUG\] :: this is just a test",
-            r"root.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): foo baz baz",
+            r"fancyroot.test_easybuildlog \[WARNING\] :: bleh",
+            r"fancyroot.test_easybuildlog \[INFO\] :: 4\+2 = 42",
+            r"fancyroot.test_easybuildlog \[DEBUG\] :: this is just a test",
+            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): foo baz baz",
             '',
         ])
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
@@ -217,7 +217,7 @@ class BuildLogTest(EnhancedTestCase):
         logToFile(tmplog, enable=False)
         logtxt = read_file(tmplog)
 
-        prefix = 'root.test_easybuildlog'
+        prefix = 'fancyroot.test_easybuildlog'
         devel_msg = r"%s \[DEVEL\] :: tmi" % prefix
         debug_msg = r"%s \[DEBUG\] :: gdb" % prefix
         info_msg = r"%s \[INFO\] :: fyi" % prefix
@@ -419,7 +419,7 @@ class BuildLogTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(logfile))
         self.assertEqual(os.path.dirname(logfile), tmpdir)
         self.assertTrue(isinstance(log, EasyBuildLog))
-        self.assertTrue(stdout.startswith("== temporary log file in case of crash"))
+        self.assertTrue(stdout.startswith("== Temporary log file in case of crash"))
 
         stop_logging(logfile)
 

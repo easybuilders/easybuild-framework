@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,7 +40,7 @@ import easybuild.tools.options as eboptions
 from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, build_path, get_build_log_path, get_log_filename, get_repositorypath
-from easybuild.tools.config import install_path, log_file_format, log_path, source_paths
+from easybuild.tools.config import install_path, log_file_format, log_path, source_paths, update_build_option
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, init_build_options
 from easybuild.tools.filetools import copy_dir, mkdir, write_file
@@ -190,8 +190,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
         os.environ['EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION'] = 'whatever'
 
         error = r"Found 2 environment variable\(s\) that are prefixed with %s " % CONFIG_ENV_VAR_PREFIX
-        error += "but do not match valid option\(s\): "
-        error += ','.join(['EASYBUILD_FOO', 'EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION'])
+        error += r"but do not match valid option\(s\): "
+        error += r','.join(['EASYBUILD_FOO', 'EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION'])
         self.assertErrorRegex(EasyBuildError, error, init_config)
 
         del os.environ['EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION']
@@ -244,6 +244,9 @@ class EasyBuildConfigTest(EnhancedTestCase):
         cfgtxt = '\n'.join([
             '[config]',
             'installpath = %s' % testpath2,
+            # special case: configuration option to a value starting with '--'
+            '[override]',
+            'optarch = --test',
         ])
         write_file(config_file, cfgtxt)
 
@@ -260,6 +263,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(source_paths(), [os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'sources')])  # default
         self.assertEqual(install_path(), installpath_software)  # via cmdline arg
         self.assertEqual(install_path('mod'), os.path.join(testpath2, 'modules'))  # via config file
+
+        self.assertEqual(options.optarch, '--test')  # via config file
 
         # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
         # to check whether easyconfigs install path is auto-included in robot path
@@ -297,7 +302,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(install_path('mod'), installpath_modules),  # via config file
         self.assertEqual(source_paths(), [testpath2])  # via command line
         self.assertEqual(build_path(), testpath1)  # via config file
-        self.assertEqual(get_repositorypath(), [os.path.join(topdir, 'ebfiles_repo'), 'somesubdir'])  # via config file
+        self.assertEqual(get_repositorypath(), (os.path.join(topdir, 'ebfiles_repo'), 'somesubdir'))  # via config file
 
         # hardcoded first entry
         self.assertEqual(options.robot_paths[0], '/tmp/foo')
@@ -365,7 +370,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         # only valid keys can be set
         BuildOptions.__class__._instances.clear()
-        msg = "Encountered unknown keys .* \(known keys: .*"
+        msg = r"Encountered unknown keys .* \(known keys: .*"
         self.assertErrorRegex(KeyError, msg, BuildOptions, {'thisisclearlynotavalidbuildoption': 'FAIL'})
 
         # test init_build_options and build_option functions
@@ -671,6 +676,13 @@ class EasyBuildConfigTest(EnhancedTestCase):
         build_log_path = os.path.join(self.test_prefix, 'chicken')
         init_config(args=['--tmp-logdir=%s' % build_log_path])
         self.assertEqual(get_build_log_path(), build_log_path)
+
+    def test_update_build_option(self):
+        """Test updating of a build option."""
+        self.assertEqual(build_option('banned_linked_shared_libs'), None)
+
+        update_build_option('banned_linked_shared_libs', '/usr/lib64/libssl.so.1.1')
+        self.assertEqual(build_option('banned_linked_shared_libs'), '/usr/lib64/libssl.so.1.1')
 
 
 def suite():

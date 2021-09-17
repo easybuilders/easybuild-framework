@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -127,7 +127,7 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     curdir = os.getcwd()
 
     # regex pattern for options to ignore (help options can't reach here)
-    ignore_opts = re.compile('^--robot$|^--job|^--try-.*$')
+    ignore_opts = re.compile('^--robot$|^--job|^--try-.*$|^--easystack$')
 
     # generate_cmd_line returns the options in form --longopt=value
     opts = [o for o in cmd_line_opts if not ignore_opts.match(o.split('=')[0])]

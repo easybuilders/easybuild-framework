@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,29 +28,34 @@ Unit tests for systemtools.py
 @author: Kenneth hoste (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
+import ctypes
 import re
+import os
 import sys
+import stat
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import read_file
+from easybuild.tools.filetools import adjust_permissions, read_file, symlink, which, write_file
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
-from easybuild.tools.systemtools import check_python_version, pick_dep_version
+from easybuild.tools.systemtools import check_linked_shared_libs, check_os_dependency, check_python_version
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_arch_name, get_cpu_architecture
 from easybuild.tools.systemtools import get_cpu_family, get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
 from easybuild.tools.systemtools import get_gcc_version, get_glibc_version, get_os_type, get_os_name, get_os_version
 from easybuild.tools.systemtools import get_platform_name, get_shared_lib_ext, get_system_info, get_total_memory
+from easybuild.tools.systemtools import find_library_path, locate_solib, pick_dep_version
 
 
 PROC_CPUINFO_TXT = None
+
 PROC_CPUINFO_TXT_RASPI2 = """processor : 0
 model name : ARMv7 Processor rev 5 (v7l)
 BogoMIPS : 57.60
@@ -71,6 +76,7 @@ CPU variant : 0x0
 CPU part : 0xc07
 CPU revision : 5
 """
+
 PROC_CPUINFO_TXT_ODROID_XU3 = """processor	: 0
 model name	: ARMv7 Processor rev 3 (v7l)
 BogoMIPS	: 84.00
@@ -91,6 +97,7 @@ CPU variant	: 0x2
 CPU part	: 0xc0f
 CPU revision	: 3
 """
+
 PROC_CPUINFO_TXT_XGENE2 = """processor	: 0
 cpu MHz		: 2400.000
 Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32
@@ -100,6 +107,7 @@ CPU variant	: 0x1
 CPU part	: 0x000
 CPU revision	: 0
 """
+
 PROC_CPUINFO_TXT_THUNDERX = """processor	: 0
 Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32
 CPU implementer	: 0x43
@@ -108,6 +116,7 @@ CPU variant	: 0x1
 CPU part	: 0x0a1
 CPU revision	: 0
 """
+
 PROC_CPUINFO_TXT_POWER = """processor	: 0
 cpu		: POWER7 (architected), altivec supported
 clock		: 3550.000000MHz
@@ -123,6 +132,13 @@ platform	: pSeries
 model		: IBM,8205-E6C
 machine		: CHRP IBM,8205-E6C
 """
+
+PROC_CPUINFO_TXT_AMD_FLAGS = ' '.join([
+    "fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall",
+    "nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid pni",
+    "monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs",
+    "skinit wdt hw_pstate npt lbrv svm_lock nrip_save pausefilter vmmcall",
+])
 PROC_CPUINFO_TXT_AMD = """processor	: 0
 vendor_id	: AuthenticAMD
 cpu family	: 16
@@ -142,7 +158,7 @@ fpu		: yes
 fpu_exception	: yes
 cpuid level	: 5
 wp		: yes
-flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt hw_pstate npt lbrv svm_lock nrip_save pausefilter vmmcall
+flags		: %(flags)s
 bogomips	: 4400.54
 TLB size	: 1024 4K pages
 clflush size	: 64
@@ -169,14 +185,23 @@ fpu		: yes
 fpu_exception	: yes
 cpuid level	: 5
 wp		: yes
-flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt hw_pstate npt lbrv svm_lock nrip_save pausefilter vmmcall
+flags		: %(flags)s
 bogomips	: 4400.54
 TLB size	: 1024 4K pages
 clflush size	: 64
 cache_alignment	: 64
 address sizes	: 48 bits physical, 48 bits virtual
 power management: ts ttp tm stc 100mhzsteps hwpstate
-"""
+""" % {'flags': PROC_CPUINFO_TXT_AMD_FLAGS}
+
+PROC_CPUINFO_TXT_INTEL_FLAGS = ' '.join([
+    "fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss",
+    "ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good xtopology nonstop_tsc",
+    "aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 cx16 xtpr pdcm pcid dca sse4_1 sse4_2",
+    "x2apic popcnt tsc_deadline_timer aes xsave avx lahf_lm ida arat xsaveopt pln pts dts tpr_shadow vnmi",
+    "flexpriority ept vpid",
+])
+
 PROC_CPUINFO_TXT_INTEL = """processor	: 0
 vendor_id	: GenuineIntel
 cpu family	: 6
@@ -196,7 +221,7 @@ fpu		: yes
 fpu_exception	: yes
 cpuid level	: 13
 wp		: yes
-flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good xtopology nonstop_tsc aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic popcnt tsc_deadline_timer aes xsave avx lahf_lm ida arat xsaveopt pln pts dts tpr_shadow vnmi flexpriority ept vpid
+flags		: %(flags)s
 bogomips	: 5200.15
 clflush size	: 64
 cache_alignment	: 64
@@ -222,13 +247,14 @@ fpu		: yes
 fpu_exception	: yes
 cpuid level	: 13
 wp		: yes
-flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good xtopology nonstop_tsc aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic popcnt tsc_deadline_timer aes xsave avx lahf_lm ida arat xsaveopt pln pts dts tpr_shadow vnmi flexpriority ept vpid
+flags		: %(flags)s
 bogomips	: 5200.04
 clflush size	: 64
 cache_alignment	: 64
 address sizes	: 46 bits physical, 48 bits virtual
 power management:
-"""
+""" % {'flags': PROC_CPUINFO_TXT_INTEL_FLAGS}
+
 PROC_MEMINFO_TXT = """MemTotal:       66059108 kB
 MemFree:         2639988 kB
 Buffers:          236368 kB
@@ -280,7 +306,7 @@ MACHINE_NAME = None
 def mocked_read_file(fp):
     """Mocked version of read_file, with specified contents for known filenames."""
     known_fps = {
-        MAX_FREQ_FP:  '2850000',
+        MAX_FREQ_FP: '2850000',
         PROC_CPUINFO_FP: PROC_CPUINFO_TXT,
         PROC_MEMINFO_FP: PROC_MEMINFO_TXT,
     }
@@ -305,7 +331,11 @@ def mocked_run_cmd(cmd, **kwargs):
         "sysctl -n hw.memsize": '8589934592',
         "sysctl -n machdep.cpu.brand_string": "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz",
         "sysctl -n machdep.cpu.extfeatures": "SYSCALL XD 1GBPAGE EM64T LAHF LZCNT RDTSCP TSCI",
-        "sysctl -n machdep.cpu.features": "FPU VME DE PSE TSC MSR PAE MCE CX8 APIC SEP MTRR PGE MCA CMOV PAT PSE36 CLFSH DS ACPI MMX FXSR SSE SSE2 SS HTT TM PBE SSE3 PCLMULQDQ DTES64 MON DSCPL VMX EST TM2 SSSE3 FMA CX16 TPR PDCM SSE4.1 SSE4.2 x2APIC MOVBE POPCNT AES PCID XSAVE OSXSAVE SEGLIM64 TSCTMR AVX1.0 RDRAND F16C",
+        "sysctl -n machdep.cpu.features": ' '.join([
+            "FPU VME DE PSE TSC MSR PAE MCE CX8 APIC SEP MTRR PGE MCA CMOV PAT PSE36 CLFSH DS ACPI MMX FXSR SSE SSE2",
+            "SS HTT TM PBE SSE3 PCLMULQDQ DTES64 MON DSCPL VMX EST TM2 SSSE3 FMA CX16 TPR PDCM SSE4.1 SSE4.2 x2APIC",
+            "MOVBE POPCNT AES PCID XSAVE OSXSAVE SEGLIM64 TSCTMR AVX1.0 RDRAND F16C",
+        ]),
         "sysctl -n machdep.cpu.leaf7_features": "SMEP ERMS RDWRFSGS TSC_THREAD_OFFSET BMI1 AVX2 BMI2 INVPCID FPU_CSDS",
         "sysctl -n machdep.cpu.vendor": 'GenuineIntel',
         "ulimit -u": '40',
@@ -331,6 +361,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Set up systemtools test."""
         super(SystemToolsTest, self).setUp()
         self.orig_get_cpu_architecture = st.get_cpu_architecture
+        self.orig_get_os_name = st.get_os_name
         self.orig_get_os_type = st.get_os_type
         self.orig_is_readable = st.is_readable
         self.orig_read_file = st.read_file
@@ -349,6 +380,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.is_readable = self.orig_is_readable
         st.read_file = self.orig_read_file
         st.get_cpu_architecture = self.orig_get_cpu_architecture
+        st.get_os_name = self.orig_get_os_name
         st.get_os_type = self.orig_get_os_type
         st.run_cmd = self.orig_run_cmd
         st.platform.uname = self.orig_platform_uname
@@ -422,7 +454,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting CPU speed."""
         cpu_speed = get_cpu_speed()
         self.assertTrue(isinstance(cpu_speed, float) or cpu_speed is None)
-        self.assertTrue(cpu_speed > 0.0 or cpu_speed is None)
+        self.assertTrue(cpu_speed is None or cpu_speed > 0.0)
 
     def test_cpu_speed_linux(self):
         """Test getting CPU speed (mocked for Linux)."""
@@ -457,7 +489,7 @@ class SystemToolsTest(EnhancedTestCase):
         cpu_feat = get_cpu_features()
         self.assertTrue(isinstance(cpu_feat, list))
         self.assertTrue(len(cpu_feat) > 0)
-        self.assertTrue(all([isinstance(x, string_type) for x in cpu_feat]))
+        self.assertTrue(all(isinstance(x, string_type) for x in cpu_feat))
 
     def test_cpu_features_linux(self):
         """Test getting CPU features (mocked for Linux)."""
@@ -818,8 +850,8 @@ class SystemToolsTest(EnhancedTestCase):
         error_pattern = r"EasyBuild is not compatible \(yet\) with Python 4.0"
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
-        mock_python_ver(2, 5)
-        error_pattern = r"Python 2.6 or higher is required when using Python 2, found Python 2.5"
+        mock_python_ver(2, 6)
+        error_pattern = r"Python 2.7 is required when using Python 2, found Python 2.6"
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
         # no problems when running with a supported Python version
@@ -827,44 +859,18 @@ class SystemToolsTest(EnhancedTestCase):
             mock_python_ver(*pyver)
             self.assertEqual(check_python_version(), pyver)
 
-        mock_python_ver(2, 6)
-        # deprecation warning triggers an error in test environment
-        error_pattern = r"Running EasyBuild with Python 2.6 is deprecated"
-        self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
-
-        # we may trigger a deprecation warning below (when testing with Python 2.6)
-        py26_depr_warning = "\nWARNING: Deprecated functionality, will no longer work in v5.0: "
-        py26_depr_warning += "Running EasyBuild with Python 2.6 is deprecated"
-
-        self.allow_deprecated_behaviour()
-
-        # first test with mocked Python 2.6
-        self.mock_stderr(True)
-        check_python_version()
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-
-        # we should always get a deprecation warning here
-        self.assertTrue(stderr.startswith(py26_depr_warning))
-
-        # restore Python version info to check with Python version used to run tests
-        st.sys.version_info = self.orig_sys_version_info
-
         # shouldn't raise any errors, since Python version used to run tests should be supported;
         self.mock_stderr(True)
         (py_maj_ver, py_min_ver) = check_python_version()
         stderr = self.get_stderr()
         self.mock_stderr(False)
+        self.assertFalse(stderr)
 
         self.assertTrue(py_maj_ver in [2, 3])
         if py_maj_ver == 2:
-            self.assertTrue(py_min_ver in [6, 7])
+            self.assertTrue(py_min_ver == 7)
         else:
             self.assertTrue(py_min_ver >= 5)
-
-        # only deprecation warning when actually testing with Python 2.6
-        if sys.version_info[:2] == (2, 6):
-            self.assertTrue(stderr.startswith(py26_depr_warning))
 
     def test_pick_dep_version(self):
         """Test pick_dep_version function."""
@@ -885,6 +891,154 @@ class SystemToolsTest(EnhancedTestCase):
 
         error_pattern = "Unknown value type for version"
         self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, ('1.2.3', '4.5.6'))
+
+        # check support for using 'arch=*' as fallback key
+        dep_ver_dict = {
+            'arch=*': '1.2.3',
+            'arch=foo': '1.2.3-foo',
+            'arch=POWER': '1.2.3-ppc64le',
+        }
+        self.assertEqual(pick_dep_version(dep_ver_dict), '1.2.3-ppc64le')
+
+        del dep_ver_dict['arch=POWER']
+        self.assertEqual(pick_dep_version(dep_ver_dict), '1.2.3')
+
+        # check how faulty input is handled
+        self.assertErrorRegex(EasyBuildError, "Found empty dict as version!", pick_dep_version, {})
+        error_pattern = r"Unexpected keys in version: bar,foo \(only 'arch=' keys are supported\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, {'foo': '1.2', 'bar': '2.3'})
+        error_pattern = r"Unknown value type for version: .* \(1.23\), should be string value"
+        self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, 1.23)
+
+    def test_check_os_dependency(self):
+        """Test check_os_dependency."""
+
+        # mock get_os_name in systemtools module to get control over command used to check OS dep
+        st.get_os_name = lambda: 'centos'
+
+        # add fake 'rpm' command that fails when $LD_LIBRARY_PATH is set
+        rpm = os.path.join(self.test_prefix, 'rpm')
+        rpm_txt = '\n'.join([
+            "#!/bin/bash",
+            "if [[ -z $LD_LIBRARY_PATH ]]; then",
+            '    echo "OK: $@ (LD_LIBRARY_PATH: $LD_LIBRARY_PATH)"',
+            "    exit 0",
+            "else",
+            '    echo "LD_LIBRARY_PATH set ($LD_LIBRARY_PATH), fail!"',
+            "    exit 1",
+            "fi",
+        ])
+        write_file(rpm, rpm_txt)
+        adjust_permissions(rpm, stat.S_IXUSR, add=True)
+
+        # also create fake 'locate' command, which is used as fallback
+        locate = os.path.join(self.test_prefix, 'locate')
+        write_file(locate, 'exit 1')
+        adjust_permissions(locate, stat.S_IXUSR, add=True)
+
+        os.environ['PATH'] = self.test_prefix + ':' + os.getenv('PATH')
+
+        self.assertTrue(os.path.samefile(which('rpm'), rpm))
+
+        # redefine $HOME to put .bash_profile startup script to control $LD_LIBRARY_PATH value
+        # we can't directly control the $LD_LIBRARY_PATH via os.environ, doesn't work...
+        os.environ['HOME'] = self.test_prefix
+        bash_profile = os.path.join(self.test_prefix, '.bash_profile')
+        write_file(bash_profile, 'unset LD_LIBRARY_PATH')
+
+        # mocked rpm always exits with exit code 0 (unless $LD_LIBRARY_PATH is set)
+        self.assertTrue(check_os_dependency('foo'))
+
+        # still works fine if $LD_LIBRARY_PATH is set
+        write_file(bash_profile, 'export LD_LIBRARY_PATH=%s' % self.test_prefix)
+        self.assertTrue(check_os_dependency('bar'))
+
+    def test_check_linked_shared_libs(self):
+        """Test for check_linked_shared_libs function."""
+
+        txt_path = os.path.join(self.test_prefix, 'test.txt')
+        write_file(txt_path, "some text")
+
+        broken_symlink_path = os.path.join(self.test_prefix, 'broken_symlink')
+        symlink('/doesnotexist', broken_symlink_path, use_abspath_source=False)
+
+        # result is always None for anything other than dynamically linked binaries or shared libraries
+        self.assertEqual(check_linked_shared_libs(self.test_prefix), None)
+        self.assertEqual(check_linked_shared_libs(txt_path), None)
+        self.assertEqual(check_linked_shared_libs(broken_symlink_path), None)
+
+        bin_ls_path = which('ls')
+
+        os_type = get_os_type()
+        if os_type == LINUX:
+            out, _ = run_cmd("ldd %s" % bin_ls_path)
+        elif os_type == DARWIN:
+            out, _ = run_cmd("otool -L %s" % bin_ls_path)
+        else:
+            raise EasyBuildError("Unknown OS type: %s" % os_type)
+
+        shlib_ext = get_shared_lib_ext()
+        lib_path_regex = re.compile(r'(?P<lib_path>[^\s]*/lib[^ ]+\.%s[^ ]*)' % shlib_ext, re.M)
+        lib_path = lib_path_regex.search(out).group(1)
+
+        test_pattern_named_args = [
+            # if no patterns are specified, result is always True
+            {},
+            {'required_patterns': ['/lib', shlib_ext]},
+            {'banned_patterns': ['this_pattern_should_not_match']},
+            {'required_patterns': ['/lib', shlib_ext], 'banned_patterns': ['weirdstuff']},
+        ]
+        for pattern_named_args in test_pattern_named_args:
+            # result is always None for anything other than dynamically linked binaries or shared libraries
+            self.assertEqual(check_linked_shared_libs(self.test_prefix, **pattern_named_args), None)
+            self.assertEqual(check_linked_shared_libs(txt_path, **pattern_named_args), None)
+            self.assertEqual(check_linked_shared_libs(broken_symlink_path, **pattern_named_args), None)
+            for path in (bin_ls_path, lib_path):
+                error_msg = "Check on linked libs should pass for %s with %s" % (path, pattern_named_args)
+                self.assertTrue(check_linked_shared_libs(path, **pattern_named_args), error_msg)
+
+        # also test with input that should result in failing check
+        test_pattern_named_args = [
+            {'required_patterns': ['this_pattern_will_not_match']},
+            {'banned_patterns': ['/lib']},
+            {'required_patterns': ['weirdstuff'], 'banned_patterns': ['/lib', shlib_ext]},
+        ]
+        for pattern_named_args in test_pattern_named_args:
+            # result is always None for anything other than dynamically linked binaries or shared libraries
+            self.assertEqual(check_linked_shared_libs(self.test_prefix, **pattern_named_args), None)
+            self.assertEqual(check_linked_shared_libs(txt_path, **pattern_named_args), None)
+            self.assertEqual(check_linked_shared_libs(broken_symlink_path, **pattern_named_args), None)
+            for path in (bin_ls_path, lib_path):
+                error_msg = "Check on linked libs should fail for %s with %s" % (path, pattern_named_args)
+                self.assertFalse(check_linked_shared_libs(path, **pattern_named_args), error_msg)
+
+    def test_locate_solib(self):
+        """Test locate_solib function (Linux only)."""
+        if get_os_type() == LINUX:
+            libname = 'libc.so.6'
+            libc_obj = None
+            try:
+                libc_obj = ctypes.cdll.LoadLibrary(libname)
+            except OSError:
+                pass
+            if libc_obj:
+                libc_path = locate_solib(libc_obj)
+                self.assertEqual(os.path.basename(libc_path), libname)
+                self.assertTrue(os.path.exists(libc_path), "%s should exist" % libname)
+
+    def test_find_library_path(self):
+        """Test find_library_path function (Linux and Darwin only)."""
+        if get_os_type() == LINUX:
+            libname = 'libc.so.6'
+        elif get_os_type() == DARWIN:
+            libname = 'libSystem.dylib'
+        else:
+            libname = None
+
+        if libname:
+            lib_path = find_library_path(libname)
+            self.assertEqual(os.path.basename(lib_path), libname)
+            self.assertTrue(os.path.exists(lib_path), "%s should exist" % libname)
 
 
 def suite():

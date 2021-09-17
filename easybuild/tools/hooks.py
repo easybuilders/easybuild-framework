@@ -1,5 +1,5 @@
 # #
-# Copyright 2017-2020 Ghent University
+# Copyright 2017-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -58,6 +58,7 @@ TESTCASES_STEP = 'testcases'
 
 START = 'start'
 PARSE = 'parse'
+MODULE_WRITE = 'module_write'
 END = 'end'
 
 PRE_PREF = 'pre_'
@@ -69,7 +70,7 @@ STEP_NAMES = [FETCH_STEP, READY_STEP, SOURCE_STEP, PATCH_STEP, PREPARE_STEP, CON
               INSTALL_STEP, EXTENSIONS_STEP, POSTPROC_STEP, SANITYCHECK_STEP, CLEANUP_STEP, MODULE_STEP,
               PERMISSIONS_STEP, PACKAGE_STEP, TESTCASES_STEP]
 
-HOOK_NAMES = [START, PARSE] + [p + s for s in STEP_NAMES for p in [PRE_PREF, POST_PREF]] + [END]
+HOOK_NAMES = [START, PARSE, MODULE_WRITE] + [p + s for s in STEP_NAMES for p in [PRE_PREF, POST_PREF]] + [END]
 KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
 
 
@@ -99,7 +100,7 @@ def load_hooks(hooks_path):
                         if attr.endswith(HOOK_SUFF):
                             hook = getattr(imported_hooks, attr)
                             if callable(hook):
-                                hooks.update({attr: hook})
+                                hooks[attr] = hook
                             else:
                                 _log.debug("Skipping non-callable attribute '%s' when loading hooks", attr)
                     _log.info("Found hooks: %s", sorted(hooks.keys()))
@@ -119,11 +120,8 @@ def load_hooks(hooks_path):
 
 
 def verify_hooks(hooks):
-    """Check whether list of obtained hooks only includes known hooks."""
-    unknown_hooks = []
-    for key in sorted(hooks):
-        if key not in KNOWN_HOOKS:
-            unknown_hooks.append(key)
+    """Check whether obtained hooks only includes known hooks."""
+    unknown_hooks = [key for key in sorted(hooks) if key not in KNOWN_HOOKS]
 
     if unknown_hooks:
         error_lines = ["Found one or more unknown hooks:"]
@@ -147,7 +145,7 @@ def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
     Find hook with specified label.
 
     :param label: name of hook
-    :param hooks: list of defined hooks
+    :param hooks: dict of defined hooks
     :param pre_step_hook: indicates whether hook to run is a pre-step hook
     :param post_step_hook: indicates whether hook to run is a post-step hook
     """
@@ -162,27 +160,26 @@ def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
 
     hook_name = hook_prefix + label + HOOK_SUFF
 
-    for key in hooks:
-        if key == hook_name:
-            _log.info("Found %s hook", hook_name)
-            res = hooks[key]
-            break
+    res = hooks.get(hook_name)
+    if res:
+        _log.info("Found %s hook", hook_name)
 
     return res
 
 
 def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None, msg=None):
     """
-    Run hook with specified label.
+    Run hook with specified label and return result of calling the hook or None.
 
     :param label: name of hook
-    :param hooks: list of defined hooks
+    :param hooks: dict of defined hooks
     :param pre_step_hook: indicates whether hook to run is a pre-step hook
     :param post_step_hook: indicates whether hook to run is a post-step hook
     :param args: arguments to pass to hook function
     :param msg: custom message that is printed when hook is called
     """
     hook = find_hook(label, hooks, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
+    res = None
     if hook:
         if args is None:
             args = []
@@ -197,4 +194,5 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
         print_msg(msg)
 
         _log.info("Running '%s' hook function (arguments: %s)...", hook.__name__, args)
-        hook(*args)
+        res = hook(*args)
+    return res

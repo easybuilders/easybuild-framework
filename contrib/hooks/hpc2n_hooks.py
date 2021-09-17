@@ -11,6 +11,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import get_software_root
 from easybuild.tools.systemtools import get_shared_lib_ext
 
+
 # Add/remove dependencies and/or patches
 # Access to the raw values before templating and such.
 def parse_hook(ec, *args, **kwargs):
@@ -58,7 +59,7 @@ def parse_hook(ec, *args, **kwargs):
             if LooseVersion(ec.version) >= LooseVersion('3'):
                 pmix_version = '2.2.1'
             if LooseVersion(ec.version) >= LooseVersion('4'):
-                pmix_version = '3.0.2' # OpenMPI 4.0.0 is not compatible with PMIx 3.1.x
+                pmix_version = '3.0.2'  # OpenMPI 4.0.0 is not compatible with PMIx 3.1.x
 
             extra_deps.append(('PMIx', pmix_version))
             # Use of external PMIx requires external libevent
@@ -161,21 +162,19 @@ def pre_module_hook(self, *args, **kwargs):
         self.log.info("[pre-module hook] Set I_MPI_PMI_LIBRARY in impi module")
         # Must be done this way, updating self.cfg['modextravars']
         # directly doesn't work due to templating.
-        en_templ = self.cfg.enable_templating
-        self.cfg.enable_templating = False
-        shlib_ext = get_shared_lib_ext()
-        pmix_root = get_software_root('PMIx')
-        if pmix_root:
-            mpi_type = 'pmix_v3'
-            self.cfg['modextravars'].update({
-                'I_MPI_PMI_LIBRARY': os.path.join(pmix_root, "lib", "libpmi." + shlib_ext)
-            })
-            self.cfg['modextravars'].update({'SLURM_MPI_TYPE': mpi_type})
-            # Unfortunately UCX doesn't yet work for unknown reasons. Make sure it is off.
-            self.cfg['modextravars'].update({'SLURM_PMIX_DIRECT_CONN_UCX': 'false'})
-        else:
-            self.cfg['modextravars'].update({'I_MPI_PMI_LIBRARY': "/lap/slurm/lib/libpmi.so"})
-        self.cfg.enable_templating = en_templ
+        with self.cfg.disable_templating():
+            shlib_ext = get_shared_lib_ext()
+            pmix_root = get_software_root('PMIx')
+            if pmix_root:
+                mpi_type = 'pmix_v3'
+                self.cfg['modextravars'].update({
+                    'I_MPI_PMI_LIBRARY': os.path.join(pmix_root, "lib", "libpmi." + shlib_ext)
+                })
+                self.cfg['modextravars'].update({'SLURM_MPI_TYPE': mpi_type})
+                # Unfortunately UCX doesn't yet work for unknown reasons. Make sure it is off.
+                self.cfg['modextravars'].update({'SLURM_PMIX_DIRECT_CONN_UCX': 'false'})
+            else:
+                self.cfg['modextravars'].update({'I_MPI_PMI_LIBRARY': "/lap/slurm/lib/libpmi.so"})
 
     if self.name == 'OpenBLAS':
         self.log.info("[pre-module hook] Set OMP_NUM_THREADS=1 in OpenBLAS module")
@@ -196,18 +195,14 @@ def pre_module_hook(self, *args, **kwargs):
         self.log.info("[pre-module hook] Set SLURM_MPI_TYPE=%s in OpenMPI module" % mpi_type)
         # Must be done this way, updating self.cfg['modextravars']
         # directly doesn't work due to templating.
-        en_templ = self.cfg.enable_templating
-        self.cfg.enable_templating = False
-        self.cfg['modextravars'].update({'SLURM_MPI_TYPE': mpi_type})
-        # Unfortunately UCX doesn't yet work for unknown reasons. Make sure it is off.
-        self.cfg['modextravars'].update({'SLURM_PMIX_DIRECT_CONN_UCX': 'false'})
-        self.cfg.enable_templating = en_templ
+        with self.cfg.disable_templating():
+            self.cfg['modextravars'].update({'SLURM_MPI_TYPE': mpi_type})
+            # Unfortunately UCX doesn't yet work for unknown reasons. Make sure it is off.
+            self.cfg['modextravars'].update({'SLURM_PMIX_DIRECT_CONN_UCX': 'false'})
 
     if self.name == 'PMIx':
         # This is a, hopefully, temporary workaround for https://github.com/pmix/pmix/issues/1114
         if LooseVersion(self.version) > LooseVersion('2') and LooseVersion(self.version) < LooseVersion('3'):
             self.log.info("[pre-module hook] Set PMIX_MCA_gds=^ds21 in PMIx module")
-            en_templ = self.cfg.enable_templating
-            self.cfg.enable_templating = False
-            self.cfg['modextravars'].update({'PMIX_MCA_gds': '^ds21'})
-            self.cfg.enable_templating = en_templ
+            with self.cfg.disable_templating():
+                self.cfg['modextravars'].update({'PMIX_MCA_gds': '^ds21'})

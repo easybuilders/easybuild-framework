@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -85,6 +85,7 @@ class Extension(object):
     """
     Support for installing extensions.
     """
+
     def __init__(self, mself, ext, extra_params=None):
         """
         Constructor for Extension class
@@ -104,16 +105,17 @@ class Extension(object):
 
         name, version = self.ext['name'], self.ext.get('version', None)
 
-        # parent sanity check paths/commands are not relevant for extension
+        # parent sanity check paths/commands and postinstallcmds are not relevant for extension
         self.cfg['sanity_check_commands'] = []
         self.cfg['sanity_check_paths'] = []
+        self.cfg['postinstallcmds'] = []
 
         # construct dict with template values that can be used
         self.cfg.template_values.update(template_constant_dict({'name': name, 'version': version}))
 
         # Add install/builddir templates with values from master.
-        for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-            self.cfg.template_values[name[0]] = str(getattr(self.master, name[0], None))
+        for key in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+            self.cfg.template_values[key[0]] = str(getattr(self.master, key[0], None))
 
         # list of source/patch files: we use an empty list as default value like in EasyBlock
         self.src = resolve_template(self.ext.get('src', []), self.cfg.template_values)
@@ -168,7 +170,7 @@ class Extension(object):
         """
         Stuff to do after installing a extension.
         """
-        pass
+        self.master.run_post_install_commands(commands=self.cfg.get('postinstallcmds', []))
 
     @property
     def toolchain(self):

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2020 Ghent University
+# Copyright 2009-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -35,4 +35,4 @@ globals().update(ALL_CATEGORIES)
 EASYCONFIGS_PKG_SUBDIR = 'easyconfigs'
 
 # is used in some tools
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.easyconfig import EasyConfig  # noqa

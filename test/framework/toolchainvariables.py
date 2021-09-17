@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -125,11 +125,11 @@ class ToolchainVariablesTest(EnhancedTestCase):
         # e.g. numpy and mkl blas
         # -Wl:-Bstatic,-Wl:--start-group,mkl_intel_lp64,mkl_intel_thread,mkl_core,-Wl:--end-group,-Wl:-Bdynamic,iomp5
         kwargs = {
-                  'prefix': '',
-                  'prefix_begin_end': '-Wl:',
-                  'separator': ',',
-                  'separator_begin_end': ',',
-                  }
+            'prefix': '',
+            'prefix_begin_end': '-Wl:',
+            'separator': ',',
+            'separator_begin_end': ',',
+        }
         copy_blas_2.try_function_on_element('change', kwargs=kwargs)
         copy_blas_2.SEPARATOR = ','
 

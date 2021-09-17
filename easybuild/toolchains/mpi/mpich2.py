@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -45,7 +45,7 @@ class Mpich2(Mpich):
     def _set_mpi_compiler_variables(self):
         """Set the MPICH_{CC, CXX, F77, F90, FC} variables."""
 
-	# C/CXX commands are set by the parent or child classes
+        # C/CXX commands are set by the parent or child classes
 
         if self.MPI_COMPILER_MPIF77 is None and self.MPI_COMPILER_MPIF90 is None and self.MPI_COMPILER_MPIFC is None:
             # hardwire MPI wrapper commands (otherwise Mpich parent class sets them based on MPICH version)

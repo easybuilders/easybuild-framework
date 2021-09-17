@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2020 Ghent University
+# Copyright 2012-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,7 +32,6 @@ from easybuild.toolchains.gmvapich2 import Gmvapich2
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.acml import Acml
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-
 
 
 class Gmacml(Gmvapich2, Acml, ScaLAPACK, Fftw):

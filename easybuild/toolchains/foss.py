@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2020 Ghent University
+# Copyright 2013-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,27 +32,62 @@ from distutils.version import LooseVersion
 from easybuild.toolchains.gompi import Gompi
 from easybuild.toolchains.golf import Golf
 from easybuild.toolchains.fft.fftw import Fftw
+from easybuild.toolchains.linalg.flexiblas import FlexiBLAS
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 
-class Foss(Gompi, OpenBLAS, ScaLAPACK, Fftw):
+class Foss(Gompi, OpenBLAS, FlexiBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'foss'
     SUBTOOLCHAIN = [Gompi.NAME, Golf.NAME]
 
-    def is_deprecated(self):
-        """Return whether or not this toolchain is deprecated."""
+    def __init__(self, *args, **kwargs):
+        """Toolchain constructor."""
+        super(Foss, self).__init__(*args, **kwargs)
+
         # need to transform a version like '2016a' with something that is safe to compare with '2000'
         # comparing subversions that include letters causes TypeErrors in Python 3
         # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June) (good enough for this purpose)
         version = self.version.replace('a', '.01').replace('b', '.07')
 
+        self.looseversion = LooseVersion(version)
+
+        constants = ('BLAS_MODULE_NAME', 'BLAS_LIB', 'BLAS_LIB_MT', 'BLAS_FAMILY',
+                     'LAPACK_MODULE_NAME', 'LAPACK_IS_BLAS', 'LAPACK_FAMILY')
+
+        if self.looseversion > LooseVersion('2021.0'):
+            for constant in constants:
+                setattr(self, constant, getattr(FlexiBLAS, constant))
+        else:
+            for constant in constants:
+                setattr(self, constant, getattr(OpenBLAS, constant))
+
+    def banned_linked_shared_libs(self):
+        """
+        List of shared libraries (names, file names, paths) which are
+        not allowed to be linked in any installed binary/library.
+        """
+        res = []
+        res.extend(Gompi.banned_linked_shared_libs(self))
+
+        if self.looseversion >= LooseVersion('2021.0'):
+            res.extend(FlexiBLAS.banned_linked_shared_libs(self))
+        else:
+            res.extend(OpenBLAS.banned_linked_shared_libs(self))
+
+        res.extend(ScaLAPACK.banned_linked_shared_libs(self))
+        res.extend(Fftw.banned_linked_shared_libs(self))
+
+        return res
+
+    def is_deprecated(self):
+        """Return whether or not this toolchain is deprecated."""
+
         # foss toolchains older than foss/2016a are deprecated
         # take into account that foss/2016.x is always < foss/2016a according to LooseVersion;
         # foss/2016.01 & co are not deprecated yet...
-        foss_ver = LooseVersion(version)
-        if foss_ver < LooseVersion('2016.01'):
+        if self.looseversion < LooseVersion('2016.01'):
             deprecated = True
         else:
             deprecated = False

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2015-2020 Ghent University
+# Copyright 2015-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -72,9 +72,11 @@ subdirs = [chr(char) for char in range(ord('a'), ord('z') + 1)] + ['0']
 for subdir in subdirs:
     __path__ = pkgutil.extend_path(__path__, '%s.%s' % (__name__, subdir))
 
-del l, subdir, subdirs
+del subdir, subdirs
+if 'char' in dir():
+    del char
 
-__path__ = __import__('pkgutil').extend_path(__path__, __name__)
+__path__ = pkgutil.extend_path(__path__, __name__)
 """
 
 
@@ -125,8 +127,18 @@ def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None, pkg_init_body=None
 
 def verify_imports(pymods, pypkg, from_path):
     """Verify that import of specified modules from specified package and expected location works."""
-    for pymod in pymods:
-        pymod_spec = '%s.%s' % (pypkg, pymod)
+
+    pymod_specs = ['%s.%s' % (pypkg, pymod) for pymod in pymods]
+    for pymod_spec in pymod_specs:
+        # force re-import if the specified modules was already imported;
+        # this is required to ensure that an easyblock that is included via --include-easyblocks-from-pr
+        # gets preference over one that is included via --include-easyblocks
+        if pymod_spec in sys.modules:
+            del sys.modules[pymod_spec]
+
+    # After all modules to be reloaded have been removed, import them again
+    # Note that removing them here may delete transitively loaded modules and not import them again
+    for pymod_spec in pymod_specs:
         try:
             pymod = __import__(pymod_spec, fromlist=[pypkg])
         # different types of exceptions may be thrown, not only ImportErrors
@@ -170,8 +182,8 @@ def include_easyblocks(tmpdir, paths):
         if not os.path.exists(target_path):
             symlink(easyblock_module, target_path)
 
-    included_ebs = [x for x in os.listdir(easyblocks_dir) if x not in ['__init__.py', 'generic']]
-    included_generic_ebs = [x for x in os.listdir(os.path.join(easyblocks_dir, 'generic')) if x != '__init__.py']
+    included_ebs = sorted(x for x in os.listdir(easyblocks_dir) if x not in ['__init__.py', 'generic'])
+    included_generic_ebs = sorted(x for x in os.listdir(os.path.join(easyblocks_dir, 'generic')) if x != '__init__.py')
     _log.debug("Included generic easyblocks: %s", included_generic_ebs)
     _log.debug("Included software-specific easyblocks: %s", included_ebs)
 
@@ -273,7 +285,7 @@ def include_toolchains(tmpdir, paths):
         sys.modules[tcpkg].__path__.insert(0, os.path.join(toolchains_path, 'easybuild', 'toolchains', subpkg))
 
     # sanity check: verify that included toolchain modules can be imported (from expected location)
-    verify_imports([os.path.splitext(mns)[0] for mns in included_toolchains], 'easybuild.toolchains', tcs_dir)
+    verify_imports([os.path.splitext(tc)[0] for tc in included_toolchains], 'easybuild.toolchains', tcs_dir)
     for subpkg in toolchain_subpkgs:
         pkg = '.'.join(['easybuild', 'toolchains', subpkg])
         loc = os.path.join(tcs_dir, subpkg)

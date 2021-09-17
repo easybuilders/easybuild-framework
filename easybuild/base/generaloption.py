@@ -1,5 +1,5 @@
 #
-# Copyright 2011-2020 Ghent University
+# Copyright 2011-2021 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,12 +40,29 @@ import textwrap
 from functools import reduce
 from optparse import Option, OptionGroup, OptionParser, OptionValueError, Values
 from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python v2.4
-from optparse import gettext as _gettext  # this is gettext.gettext normally
 
 from easybuild.base.fancylogger import getLogger, setroot, setLogLevel, getDetailsLogLevels
 from easybuild.base.optcomplete import autocomplete, CompleterOption
 from easybuild.tools.py2vs3 import StringIO, configparser, string_type
 from easybuild.tools.utilities import mk_rst_table, nub, shell_quote
+
+try:
+    import gettext
+    eb_translation = None
+
+    def get_translation():
+        global eb_translation
+        if not eb_translation:
+            # Finding a translation is expensive, so do only once
+            domain = gettext.textdomain()
+            eb_translation = gettext.translation(domain, gettext.bindtextdomain(domain), fallback=True)
+        return eb_translation
+
+    def _gettext(message):
+        return get_translation().gettext(message)
+except ImportError:
+    def _gettext(message):
+        return message
 
 
 HELP_OUTPUT_FORMATS = ['', 'rst', 'short', 'config']
@@ -307,7 +324,7 @@ class ExtOption(CompleterOption):
                     empty = get_empty_add_flex(lvalue, self=self)
                     if empty in value:
                         ind = value.index(empty)
-                        lvalue = value[:ind] + default + value[ind+1:]
+                        lvalue = value[:ind] + default + value[ind + 1:]
                     else:
                         lvalue = value
             elif action == "regex":
@@ -1376,8 +1393,7 @@ class GeneralOption(object):
                             configfile_values[opt_dest] = newval
                     else:
                         configfile_cmdline_dest.append(opt_dest)
-                        configfile_cmdline.append("--%s" % opt_name)
-                        configfile_cmdline.append(val)
+                        configfile_cmdline.append("--%s=%s" % (opt_name, val))
 
         # reparse
         self.log.debug('parseconfigfiles: going to parse options through cmdline %s' % configfile_cmdline)
@@ -1573,7 +1589,7 @@ class GeneralOption(object):
                                        (opt_name, default, action))
                 else:
                     if opt_value == default and ((action in ('store_true',) +
-                                                 ExtOption.EXTOPTION_LOG and default is False) or
+                                                  ExtOption.EXTOPTION_LOG and default is False) or
                                                  (action in ('store_false',) and default is True)):
                         if hasattr(self.parser.option_class, 'ENABLE') and \
                            hasattr(self.parser.option_class, 'DISABLE'):
@@ -1588,10 +1604,10 @@ class GeneralOption(object):
                 if default is not None:
                     if action == 'add_flex' and default:
                         for ind, elem in enumerate(opt_value):
-                            if elem == default[0] and opt_value[ind:ind+len(default)] == default:
+                            if elem == default[0] and opt_value[ind:ind + len(default)] == default:
                                 empty = get_empty_add_flex(opt_value, self=self)
                                 # TODO: this will only work for tuples and lists
-                                opt_value = opt_value[:ind] + type(opt_value)([empty]) + opt_value[ind+len(default):]
+                                opt_value = opt_value[:ind] + type(opt_value)([empty]) + opt_value[ind + len(default):]
                                 # only the first occurence
                                 break
                     elif hasattr(opt_value, '__neg__'):

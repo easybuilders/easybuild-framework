@@ -8,8 +8,6 @@ Support for IBM compilers (xlc, xlf) as toolchain compilers.
 :author: Jack Perdue <j-perdue@tamu.edu> - TAMU HPRC - http://sc.tamu.edu
 """
 
-from distutils.version import LooseVersion
-
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler, DEFAULT_OPT_LEVEL
 
