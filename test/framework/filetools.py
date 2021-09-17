@@ -45,7 +45,7 @@ from unittest import TextTestRunner
 from easybuild.tools import run
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import IGNORE, ERROR
+from easybuild.tools.config import IGNORE, ERROR, update_build_option
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import std_urllib
 
