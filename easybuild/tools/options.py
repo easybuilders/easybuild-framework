@@ -1053,8 +1053,52 @@ class EasyBuildOptions(GeneralOption):
 
         self.log.info("Checks on configuration options passed")
 
+    def get_cfg_opt_abs_path(self, opt_name, path):
+        """Get path value of configuration option as absolute path."""
+        if os.path.isabs(path):
+            abs_path = path
+        else:
+            abs_path = os.path.abspath(path)
+            self.log.info("Relative path value for '%s' configuration option resolved to absolute path: %s",
+                          opt_name, abs_path)
+        return abs_path
+
+    def _ensure_abs_path(self, opt_name):
+        """Ensure that path value for specified configuration option is an absolute path."""
+
+        opt_val = getattr(self.options, opt_name)
+        if opt_val:
+            if isinstance(opt_val, string_type):
+                setattr(self.options, opt_name, self.get_cfg_opt_abs_path(opt_name, opt_val))
+            elif isinstance(opt_val, list):
+                abs_paths = [self.get_cfg_opt_abs_path(opt_name, p) for p in opt_val]
+                setattr(self.options, opt_name, abs_paths)
+            else:
+                error_msg = "Don't know how to ensure absolute path(s) for '%s' configuration option (value type: %s)"
+                raise EasyBuildError(error_msg, opt_name, type(opt_val))
+
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
+
+        # resolve relative paths for configuration options that specify a location;
+        # ensuring absolute paths for 'robot' is handled separately below,
+        # because we need to be careful with the argument pass to --robot
+        path_opt_names = ['buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
+                          'installpath_modules', 'installpath_software', 'prefix', 'packagepath',
+                          'robot_paths', 'sourcepath']
+
+        # repositorypath is a special case: only first part is a path;
+        # 2nd (optional) part is a relative subdir and should not be resolved to an absolute path!
+        repositorypath = self.options.repositorypath
+        if isinstance(repositorypath, (list, tuple)) and len(repositorypath) == 2:
+            abs_path = self.get_cfg_opt_abs_path('repositorypath', repositorypath[0])
+            self.options.repositorypath = (abs_path, repositorypath[1])
+        else:
+            path_opt_names.append('repositorypath')
+
+        for opt_name in path_opt_names:
+            self._ensure_abs_path(opt_name)
+
         if self.options.prefix is not None:
             # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath in account
             # in the legacy-style configuration, repository is initialised in configuration file itself
@@ -1097,7 +1141,7 @@ class EasyBuildOptions(GeneralOption):
 
             # paths specified to --robot have preference over --robot-paths
             # keep both values in sync if robot is enabled, which implies enabling dependency resolver
-            self.options.robot_paths = [os.path.abspath(path) for path in self.options.robot + self.options.robot_paths]
+            self.options.robot_paths = [os.path.abspath(p) for p in self.options.robot] + self.options.robot_paths
             self.options.robot = self.options.robot_paths
 
         # Update the search_paths (if any) to absolute paths
