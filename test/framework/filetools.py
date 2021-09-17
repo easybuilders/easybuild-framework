@@ -1662,8 +1662,18 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(txt, '')
 
         # Test that a non-existing file raises an exception
+        update_build_option('extended_dry_run', False)
         src, target = os.path.join(self.test_prefix, 'this_file_does_not_exist'), os.path.join(self.test_prefix, 'toy')
         self.assertErrorRegex(EasyBuildError, "Could not copy *", ft.copy_file, src, target)
+        # Test that copying a non-existing file in 'dry_run' mode does noting
+        update_build_option('extended_dry_run', True)
+        self.mock_stdout(True)
+        ft.copy_file(src, target, force_in_dry_run=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue(re.search("^copied file %s to %s" % (src, target), txt))
+        # However, if we add 'force_in_dry_run=True' it should throw an exception
+        self.assertErrorRegex(EasyBuildError, "Could not copy *", ft.copy_file, src, target, force_in_dry_run=True)
 
     def test_copy_files(self):
         """Test copy_files function."""
