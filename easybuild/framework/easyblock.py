@@ -2429,13 +2429,22 @@ class EasyBlock(object):
             self.skip_extensions()
 
         # Create progress bar for extensions
-        ext_task_id = self.progress_bar.add_task("Extension", total=len(self.ext_instances), software="")
-        # Step size to advance progress bar for extensions
-        ext_step_size = 1.0 / 4.0
+        if self.progress_bar:
+            ext_task_id = self.progress_bar.add_task("Extension", total=len(self.ext_instances), software="")
+            # Step size to advance progress bar for extensions
+            ext_step_size = 1.0 / 4.0
+        def _advance_ext_bar():
+            """
+            Helper method to update the extension progress bar
+            """
+            if self.progress_bar:
+                self.progress_bar.advance(ext_task_id, ext_step_size)
+
         for ext in self.ext_instances:
 
             self.log.debug("Starting extension %s" % ext.name)
-            self.progress_bar.update(ext_task_id, software=ext.name)
+            if self.progress_bar:
+                self.progress_bar.update(ext_task_id, software=ext.name)
 
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
@@ -2456,24 +2465,25 @@ class EasyBlock(object):
                 # the (fake) module for the parent software gets loaded before installing extensions
                 ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
                                       rpath_filter_dirs=self.rpath_filter_dirs)
-            self.progress_bar.advance(ext_task_id, ext_step_size)
+            _advance_ext_bar()
 
             # real work
             if install:
                 ext.prerun()
-                self.progress_bar.advance(ext_task_id, ext_step_size)
+                _advance_ext_bar()
                 txt = ext.run()
-                self.progress_bar.advance(ext_task_id, ext_step_size)
+                _advance_ext_bar()
                 if txt:
                     self.module_extra_extensions += txt
                 ext.postrun()
-                self.progress_bar.advance(ext_task_id, ext_step_size)
+                _advance_ext_bar()
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
             self.clean_up_fake_module(fake_mod_data)
         # Remove task from progress bar
-        self.progress_bar.remove_task(ext_task_id)
+        if self.progress_bar:
+            self.progress_bar.remove_task(ext_task_id)
 
     def package_step(self):
         """Package installed software (e.g., into an RPM), if requested, using selected package tool."""
