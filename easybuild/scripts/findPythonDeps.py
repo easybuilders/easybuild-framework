@@ -58,7 +58,8 @@ def get_dep_tree(package_spec):
         venv_dir = os.path.join(tmp_dir, 'venv')
         # create virtualenv, install package in it
         run_cmd(['virtualenv', '--system-site-packages', venv_dir], action_desc='create virtualenv')
-        run_in_venv('pip install "%s"' % package_spec, venv_dir, action_desc='install ' + package_spec)
+        out = run_in_venv('pip install "%s"' % package_spec, venv_dir, action_desc='install ' + package_spec)
+        print('%s installed: %s' % (package_spec, out))
         # install pipdeptree, figure out dependency tree for installed package
         run_in_venv('pip install pipdeptree', venv_dir, action_desc='install pipdeptree')
         dep_tree = run_in_venv('pipdeptree -j -p "%s"' % package_name,
@@ -73,9 +74,9 @@ def find_deps(pkgs, dep_tree):
         matching_entries = [entry for entry in dep_tree
                             if pkg in (entry['package']['package_name'], entry['package']['key'])]
         if not matching_entries:
-            raise RuntimeError("Found no installed package for '%s'" % pkg)
+            raise RuntimeError("Found no installed package for '%s' in %s" % (pkg, dep_tree))
         if len(matching_entries) > 1:
-            raise RuntimeError("Found multiple installed packages for '%s'" % pkg)
+            raise RuntimeError("Found multiple installed packages for '%s' in %s" % (pkg, dep_tree))
         entry = matching_entries[0]
         res.append((entry['package']['package_name'], entry['package']['installed_version']))
         deps = (dep['package_name'] for dep in entry['dependencies'])
