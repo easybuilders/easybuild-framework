@@ -2433,6 +2433,7 @@ class EasyBlock(object):
             ext_task_id = self.progress_bar.add_task("Extension", total=len(self.ext_instances), software="")
             # Step size to advance progress bar for extensions
             ext_step_size = 1.0 / 4.0
+
         def _advance_ext_bar():
             """
             Helper method to update the extension progress bar
