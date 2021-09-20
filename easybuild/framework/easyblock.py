@@ -59,8 +59,8 @@ from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_di
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
-from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
+from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension, resolve_exts_filter_template
 from easybuild.tools import config, run
 from easybuild.tools.build_details import get_build_stats
@@ -80,18 +80,19 @@ from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move
 from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file, symlink
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
-from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
 from easybuild.tools.hooks import MODULE_WRITE, load_hooks, run_hook
-from easybuild.tools.run import run_cmd
+from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import Lmod, curr_module_paths, invalidate_module_caches_for, get_software_root
+from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
+from easybuild.tools.output import create_progress_bar
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
+from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_shared_lib_ext, use_group
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
@@ -2428,17 +2429,17 @@ class EasyBlock(object):
         if self.skip:
             self.skip_extensions()
 
-        exts_cnt = len(self.ext_instances)
-        for idx, ext in enumerate(self.ext_instances):
+        # Create progress bar for extensions
+        ext_task_id = self.progress_bar.add_task("Extension", total=len(self.ext_instances), software="")
+        # Step size to advance progress bar for extensions
+        ext_step_size = 1.0 / 4.0
+        for ext in self.ext_instances:
 
             self.log.debug("Starting extension %s" % ext.name)
+            self.progress_bar.update(ext_task_id, software=ext.name)
 
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
-
-            tup = (ext.name, ext.version or '', idx + 1, exts_cnt)
-            print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
-            start_time = datetime.now()
 
             if self.dry_run:
                 tup = (ext.name, ext.version, ext.__class__.__name__)
@@ -2456,26 +2457,24 @@ class EasyBlock(object):
                 # the (fake) module for the parent software gets loaded before installing extensions
                 ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
                                       rpath_filter_dirs=self.rpath_filter_dirs)
+            self.progress_bar.advance(ext_task_id, ext_step_size)
 
             # real work
             if install:
-                try:
-                    ext.prerun()
-                    txt = ext.run()
-                    if txt:
-                        self.module_extra_extensions += txt
-                    ext.postrun()
-                finally:
-                    if not self.dry_run:
-                        ext_duration = datetime.now() - start_time
-                        if ext_duration.total_seconds() >= 1:
-                            print_msg("\t... (took %s)", time2str(ext_duration), log=self.log, silent=self.silent)
-                        elif self.logdebug or build_option('trace'):
-                            print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
+                ext.prerun()
+                self.progress_bar.advance(ext_task_id, ext_step_size)
+                txt = ext.run()
+                self.progress_bar.advance(ext_task_id, ext_step_size)
+                if txt:
+                    self.module_extra_extensions += txt
+                ext.postrun()
+                self.progress_bar.advance(ext_task_id, ext_step_size)
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
             self.clean_up_fake_module(fake_mod_data)
+        # Remove task from progress bar
+        self.progress_bar.remove_task(ext_task_id)
 
     def package_step(self):
         """Package installed software (e.g., into an RPM), if requested, using selected package tool."""

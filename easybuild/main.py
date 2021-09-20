@@ -117,7 +117,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, pr
 
     # Initialize progress bar with overall installation task
     if progress_bar:
-        task_id = progress_bar.add_task("", total=len(ecs))
+        task_id = progress_bar.add_task("Installing", total=len(ecs), software="")
     else:
         task_id = None
 
@@ -125,7 +125,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, pr
     for ec in ecs:
 
         if progress_bar:
-            progress_bar.update(task_id, description=ec['short_mod_name'])
+            progress_bar.update(task_id, software=ec['short_mod_name'])
 
         ec_res = {}
         try:

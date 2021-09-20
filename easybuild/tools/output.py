@@ -80,7 +80,8 @@ def create_progress_bar():
         progress_bar = Progress(
             SpinnerColumn(spinner),
             "[progress.percentage]{task.percentage:>3.1f}%",
-            TextColumn("[bold blue]Installing {task.description} ({task.completed:.0f}/{task.total} done)"),
+            TextColumn("[blue bold]{task.description} {task.fields[software]}"
+                       " ({task.completed:.0f}/{task.total} done)"),
             BarColumn(bar_width=None),
             TimeElapsedColumn(),
             transient=True,
