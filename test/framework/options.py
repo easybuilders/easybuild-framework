@@ -429,7 +429,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [toy_ec, '--ignore-test-failure', '--force']
 
-        with self.mocked_stdout_stderr() as (_, stderr):
+        with self.mocked_stderr() as stderr:
             outtxt = self.eb_main(args, do_build=True)
 
         msg = 'Test failure ignored'
