@@ -29,21 +29,35 @@ Tools for controlling output to terminal produced by EasyBuild.
 :author: Kenneth Hoste (Ghent University)
 :author: Jørgen Nordmoen (University of Oslo)
 """
+import functools
 import random
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
 from easybuild.tools.py2vs3 import OrderedDict
 
 try:
-    from rich.console import Console
+    from rich.console import Console, RenderGroup
+    from rich.live import Live
     from rich.table import Table
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+    from rich.progress import DownloadColumn, FileSizeColumn, TransferSpeedColumn, TimeRemainingColumn
 except ImportError:
     pass
 
 
-class DummyProgress(object):
-    """Shim for Rich's Progress class."""
+PROGRESS_BAR_DOWNLOAD = 'download'
+PROGRESS_BAR_EASYCONFIG = 'easyconfig'
+PROGRESS_BAR_OVERALL = 'overall'
+
+_progress_bar_cache = {}
+
+
+class DummyRich(object):
+    """
+    Dummy shim for Rich classes.
+    Used in case Rich is not available, or when EasyBuild is not configured to use rich output style.
+    """
 
     # __enter__ and __exit__ must be implemented to allow use as context manager
     def __enter__(self, *args, **kwargs):
@@ -61,35 +75,171 @@ class DummyProgress(object):
 
 
 def use_rich():
-    """Return whether or not to use Rich to produce rich output."""
+    """
+    Return whether or not to use Rich to produce rich output.
+    """
     return get_output_style() == OUTPUT_STYLE_RICH
 
 
-def create_progress_bar():
+def rich_live_cm():
     """
-    Create progress bar to display overall progress.
-
-    Returns rich.progress.Progress instance if the Rich Python package is available,
-    or a shim DummyProgress instance otherwise.
+    Return Live instance to use as context manager.
     """
     if use_rich() and build_option('show_progress_bar'):
-
-        # pick random spinner, from a selected subset of available spinner (see 'python3 -m rich.spinner')
-        spinner = random.choice(('aesthetic', 'arc', 'bounce', 'dots', 'line', 'monkey', 'point', 'simpleDots'))
-
-        progress_bar = Progress(
-            SpinnerColumn(spinner),
-            "[progress.percentage]{task.percentage:>3.1f}%",
-            TextColumn("[bold blue]Installing {task.description} ({task.completed:.0f}/{task.total} done)"),
-            BarColumn(bar_width=None),
-            TimeElapsedColumn(),
-            transient=True,
-            expand=True,
+        overall_pbar = overall_progress_bar()
+        easyconfig_pbar = easyconfig_progress_bar()
+        download_pbar = download_progress_bar()
+        download_pbar_bis = download_progress_bar_unknown_size()
+        pbar_group = RenderGroup(
+                download_pbar,
+                download_pbar_bis,
+                easyconfig_pbar,
+                overall_pbar
         )
+        live = Live(pbar_group)
     else:
-        progress_bar = DummyProgress()
+        live = DummyRich()
+
+    return live
+
+
+def progress_bar_cache(func):
+    """
+    Function decorator to cache created progress bars for easy retrieval.
+    """
+    @functools.wraps(func)
+    def new_func():
+        if hasattr(func, 'cached'):
+            progress_bar = func.cached
+        elif use_rich() and build_option('show_progress_bar'):
+            progress_bar = func()
+        else:
+            progress_bar = DummyRich()
+
+        func.cached = progress_bar
+        return func.cached
+
+    return new_func
+
+
+@progress_bar_cache
+def overall_progress_bar():
+    """
+    Get progress bar to display overall progress.
+    """
+    progress_bar = Progress(
+        TimeElapsedColumn(),
+        TextColumn("{task.description}({task.completed} out of {task.total} easyconfigs done)"),
+        BarColumn(bar_width=None),
+        expand=True,
+    )
 
     return progress_bar
+
+
+@progress_bar_cache
+def easyconfig_progress_bar():
+    """
+    Get progress bar to display progress for installing a single easyconfig file.
+    """
+    progress_bar = Progress(
+        TextColumn("[bold blue]{task.description} ({task.completed} out of {task.total} steps done)"),
+        BarColumn(),
+        TimeElapsedColumn(),
+    )
+
+    return progress_bar
+
+
+@progress_bar_cache
+def download_progress_bar():
+    """
+    Get progress bar to show progress for downloading a file of known size.
+    """
+    progress_bar = Progress(
+        TextColumn('[bold yellow]Downloading {task.description}'),
+        BarColumn(),
+        DownloadColumn(),
+        TransferSpeedColumn(),
+        TimeRemainingColumn(),
+    )
+
+    return progress_bar
+
+
+@progress_bar_cache
+def download_progress_bar_unknown_size():
+    """
+    Get progress bar to show progress for downloading a file of unknown size.
+    """
+    progress_bar = Progress(
+        TextColumn('[bold yellow]Downloading {task.description}'),
+        FileSizeColumn(),
+        TransferSpeedColumn(),
+    )
+
+    return progress_bar
+
+
+def get_progress_bar(bar_type, size=None):
+    """
+    Get progress bar of given type.
+    """
+    progress_bar_types = {
+        PROGRESS_BAR_DOWNLOAD: download_progress_bar,
+        PROGRESS_BAR_EASYCONFIG: easyconfig_progress_bar,
+        PROGRESS_BAR_OVERALL: overall_progress_bar,
+    }
+
+    if bar_type == PROGRESS_BAR_DOWNLOAD and not size:
+        pbar = download_progress_bar_unknown_size()
+    elif bar_type in progress_bar_types:
+        pbar = progress_bar_types[bar_type]()
+    else:
+        raise EasyBuildError("Unknown progress bar type: %s", bar_type)
+
+    return pbar
+
+
+def start_progress_bar(bar_type, size, label=None):
+    """
+    Start progress bar of given type.
+
+    :param label: label for progress bar
+    :param size: total target size of progress bar
+    """
+    pbar = get_progress_bar(bar_type, size=size)
+    task_id = pbar.add_task('')
+    _progress_bar_cache[bar_type] = (pbar, task_id)
+    if size:
+        pbar.update(task_id, total=size)
+    if label:
+        pbar.update(task_id, description=label)
+
+
+def update_progress_bar(bar_type, label=None, progress_size=None):
+    """
+    Update progress bar of given type, add progress of given size.
+
+    :param bar_type: type of progress bar
+    :param label: label for progress bar
+    :param progress_size: size of progress made
+    """
+    (pbar, task_id) = _progress_bar_cache[bar_type]
+    if label:
+        pbar.update(task_id, description=label)
+    if progress_size:
+        pbar.update(task_id, advance=progress_size)
+
+
+def stop_progress_bar(bar_type, visible=False):
+    """
+    Stop progress bar of given type.
+    """
+    (pbar, task_id) = _progress_bar_cache[bar_type]
+    pbar.stop_task(task_id)
+    if not visible:
+        pbar.update(task_id, visible=False)
 
 
 def print_checks(checks_data):
