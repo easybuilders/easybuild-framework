@@ -216,13 +216,13 @@ def start_progress_bar(bar_type, size, label=None):
         pbar.update(task_id, description=label)
 
 
-def update_progress_bar(bar_type, label=None, progress_size=None):
+def update_progress_bar(bar_type, label=None, progress_size=1):
     """
     Update progress bar of given type, add progress of given size.
 
     :param bar_type: type of progress bar
     :param label: label for progress bar
-    :param progress_size: size of progress made
+    :param progress_size: amount of progress made
     """
     (pbar, task_id) = _progress_bar_cache[bar_type]
     if label:

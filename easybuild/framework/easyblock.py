@@ -3619,7 +3619,7 @@ class EasyBlock(object):
                                 print_msg("... (took < 1 sec)", log=self.log, silent=self.silent)
 
                 progress_label = progress_label_tmpl % (self.full_mod_name, step_id, n_steps)
-                update_progress_bar(PROGRESS_BAR_EASYCONFIG, progress_size=1, label=progress_label)
+                update_progress_bar(PROGRESS_BAR_EASYCONFIG, label=progress_label)
 
         except StopException:
             pass
