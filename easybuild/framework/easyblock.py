@@ -3574,7 +3574,11 @@ class EasyBlock(object):
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
-        start_progress_bar(PROGRESS_BAR_EASYCONFIG, len(steps), label=self.full_mod_name)
+        progress_label_tmpl = "%s (%d out of %d steps done)"
+
+        n_steps = len(steps)
+        progress_label = progress_label_tmpl % (self.full_mod_name, 0, n_steps)
+        start_progress_bar(PROGRESS_BAR_EASYCONFIG, n_steps, label=progress_label)
 
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         trace_msg("installation prefix: %s" % self.installdir)
@@ -3594,7 +3598,7 @@ class EasyBlock(object):
             create_lock(lock_name)
 
         try:
-            for (step_name, descr, step_methods, skippable) in steps:
+            for step_id, (step_name, descr, step_methods, skippable) in enumerate(steps):
                 if self.skip_step(step_name, skippable):
                     print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
@@ -3613,13 +3617,17 @@ class EasyBlock(object):
                                 print_msg("... (took %s)", time2str(step_duration), log=self.log, silent=self.silent)
                             elif self.logdebug or build_option('trace'):
                                 print_msg("... (took < 1 sec)", log=self.log, silent=self.silent)
-                update_progress_bar(PROGRESS_BAR_EASYCONFIG, progress_size=1)
+
+                progress_label = progress_label_tmpl % (self.full_mod_name, step_id, n_steps)
+                update_progress_bar(PROGRESS_BAR_EASYCONFIG, progress_size=1, label=progress_label)
 
         except StopException:
             pass
         finally:
             if not ignore_locks:
                 remove_lock(lock_name)
+
+        update_progress_bar(PROGRESS_BAR_EASYCONFIG, label="%s done!" % self.full_mod_name)
 
         # return True for successfull build (or stopped build)
         return True

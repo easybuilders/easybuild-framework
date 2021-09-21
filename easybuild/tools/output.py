@@ -30,7 +30,6 @@ Tools for controlling output to terminal produced by EasyBuild.
 :author: Jørgen Nordmoen (University of Oslo)
 """
 import functools
-import random
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
@@ -40,7 +39,7 @@ try:
     from rich.console import Console, RenderGroup
     from rich.live import Live
     from rich.table import Table
-    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+    from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
     from rich.progress import DownloadColumn, FileSizeColumn, TransferSpeedColumn, TimeRemainingColumn
 except ImportError:
     pass
@@ -143,7 +142,7 @@ def easyconfig_progress_bar():
     Get progress bar to display progress for installing a single easyconfig file.
     """
     progress_bar = Progress(
-        TextColumn("[bold blue]{task.description} ({task.completed} out of {task.total} steps done)"),
+        TextColumn("[bold blue]{task.description}"),
         BarColumn(),
         TimeElapsedColumn(),
     )
