@@ -69,6 +69,9 @@ class DummyRich(object):
     def add_task(self, *args, **kwargs):
         pass
 
+    def stop_task(self, *args, **kwargs):
+        pass
+
     def update(self, *args, **kwargs):
         pass
 
