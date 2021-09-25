@@ -107,8 +107,8 @@ def progress_bar_cache(func):
     Function decorator to cache created progress bars for easy retrieval.
     """
     @functools.wraps(func)
-    def new_func():
-        if hasattr(func, 'cached'):
+    def new_func(ignore_cache=False):
+        if hasattr(func, 'cached') and not ignore_cache:
             progress_bar = func.cached
         elif use_rich() and build_option('show_progress_bar'):
             progress_bar = func()
