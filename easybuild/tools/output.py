@@ -75,6 +75,10 @@ class DummyRich(object):
     def update(self, *args, **kwargs):
         pass
 
+    # internal Rich methods
+    def __rich_console__(self, *args, **kwargs):
+        pass
+
 
 def use_rich():
     """
