@@ -574,6 +574,33 @@ def get_cpu_features():
     return cpu_feat
 
 
+def get_gpu_info():
+    """
+    Get the GPU info
+    """
+    gpu_info = {}
+    os_type = get_os_type()
+
+    if os_type == LINUX:
+        try:
+            cmd = "nvidia-smi --query-gpu=gpu_name,driver_version --format=csv,noheader"
+            _log.debug("Trying to determine NVIDIA GPU info on Linux via cmd '%s'", cmd)
+            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+            if ec == 0:
+                for line in out.strip().split('\n'):
+                    if 'NVIDIA' in gpu_info and line in gpu_info['NVIDIA']:
+                        gpu_info['NVIDIA'][line] += 1
+                    else:
+                        gpu_info['NVIDIA'] = {}
+                        gpu_info['NVIDIA'][line] = 1
+        except Exception:
+            _log.debug("No NVIDIA GPUs detected")
+    else:
+        _log.debug("Only know how to get GPU info on Linux")
+
+    return gpu_info
+
+
 def get_kernel_name():
     """NO LONGER SUPPORTED: use get_os_type() instead"""
     _log.nosupport("get_kernel_name() is replaced by get_os_type()", '2.0')
