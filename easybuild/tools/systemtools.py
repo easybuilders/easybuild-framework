@@ -588,15 +588,16 @@ def get_gpu_info():
             out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
             if ec == 0:
                 for line in out.strip().split('\n'):
-                    if 'NVIDIA' in gpu_info and line in gpu_info['NVIDIA']:
-                        gpu_info['NVIDIA'][line] += 1
-                    else:
-                        gpu_info['NVIDIA'] = {}
-                        gpu_info['NVIDIA'][line] = 1
-        except Exception:
-            _log.debug("No NVIDIA GPUs detected")
+                    nvidia_gpu_info = gpu_info.setdefault('NVIDIA', {})
+                    nvidia_gpu_info.setdefault(line, 0)
+                    nvidia_gpu_info[line] += 1
+            else:
+                _log.debug("None zero exit (%s) from nvidia-smi: %s" % (ec, out))
+        except Exception as err:
+            _log.debug("Exception was raised when running nvidia-smi: %s", err)
+            _log.info("No NVIDIA GPUs detected")
     else:
-        _log.debug("Only know how to get GPU info on Linux")
+        _log.info("Only know how to get GPU info on Linux, assuming no GPUs are present")
 
     return gpu_info
 
