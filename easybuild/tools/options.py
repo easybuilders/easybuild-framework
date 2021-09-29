@@ -1318,11 +1318,6 @@ class EasyBuildOptions(GeneralOption):
             "  -> speed: %s" % system_info['cpu_speed'],
             "  -> cores: %s" % system_info['core_count'],
             "  -> features: %s" % ','.join(cpu_features),
-            '',
-            "* software:",
-            "  -> glibc version: %s" % system_info['glibc_version'],
-            "  -> Python binary: %s" % sys.executable,
-            "  -> Python version: %s" % sys.version.split(' ')[0],
         ])
 
         if gpu_info:
@@ -1333,7 +1328,15 @@ class EasyBuildOptions(GeneralOption):
             for vendor in gpu_info:
                 lines.append("  -> %s" % vendor)
                 for gpu, num in gpu_info[vendor].items():
-                    lines.append("    -> %s: %s" % (gpu, num))
+                    lines.append("    -> %sx %s" % (num, gpu))
+
+        lines.extend([
+            '',
+            "* software:",
+            "  -> glibc version: %s" % system_info['glibc_version'],
+            "  -> Python binary: %s" % sys.executable,
+            "  -> Python version: %s" % sys.version.split(' ')[0],
+        ])
 
         return '\n'.join(lines)
 
