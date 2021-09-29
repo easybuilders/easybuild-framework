@@ -592,7 +592,7 @@ def get_gpu_info():
                     nvidia_gpu_info.setdefault(line, 0)
                     nvidia_gpu_info[line] += 1
             else:
-                _log.debug("None zero exit (%s) from nvidia-smi: %s" % (ec, out))
+                _log.debug("None zero exit (%s) from nvidia-smi: %s", ec, out)
         except Exception as err:
             _log.debug("Exception was raised when running nvidia-smi: %s", err)
             _log.info("No NVIDIA GPUs detected")
