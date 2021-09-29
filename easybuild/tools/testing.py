@@ -301,7 +301,7 @@ def post_pr_test_report(pr_nrs, repo_type, test_report, msg, init_session_state,
     if gpu_info:
         for vendor in gpu_info:
             for gpu, num in gpu_info[vendor].items():
-                gpu_str += ", %s %s x %s" % (vendor, num, gpu)
+                gpu_str += ", %s x %s %s" % (num, vendor, gpu)
 
     os_info = '%(hostname)s - %(os_type)s %(os_name)s %(os_version)s' % system_info
     short_system_info = "%(os_info)s, %(cpu_arch)s, %(cpu_model)s%(gpu)s, Python %(pyver)s" % {
