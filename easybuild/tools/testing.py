@@ -50,7 +50,7 @@ from easybuild.tools.github import GITHUB_EASYBLOCKS_REPO, GITHUB_EASYCONFIGS_RE
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.robot import resolve_dependencies
-from easybuild.tools.systemtools import UNKNOWN, get_system_info
+from easybuild.tools.systemtools import UNKNOWN, get_gpu_info, get_system_info
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 
 
@@ -295,11 +295,20 @@ def post_pr_test_report(pr_nrs, repo_type, test_report, msg, init_session_state,
     if system_info['cpu_arch_name'] != UNKNOWN:
         system_info['cpu_model'] += " (%s)" % system_info['cpu_arch_name']
 
+    # add GPU info, if known
+    gpu_info = get_gpu_info()
+    gpu_str = ""
+    if gpu_info:
+        for vendor in gpu_info:
+            for gpu, num in gpu_info[vendor].items():
+                gpu_str += ", %s x %s %s" % (num, vendor, gpu)
+
     os_info = '%(hostname)s - %(os_type)s %(os_name)s %(os_version)s' % system_info
-    short_system_info = "%(os_info)s, %(cpu_arch)s, %(cpu_model)s, Python %(pyver)s" % {
+    short_system_info = "%(os_info)s, %(cpu_arch)s, %(cpu_model)s%(gpu)s, Python %(pyver)s" % {
         'os_info': os_info,
         'cpu_arch': system_info['cpu_arch'],
         'cpu_model': system_info['cpu_model'],
+        'gpu': gpu_str,
         'pyver': system_info['python_version'].split(' ')[0],
     }
 
