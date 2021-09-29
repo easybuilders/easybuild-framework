@@ -2437,12 +2437,16 @@ class ToolchainTest(EnhancedTestCase):
         # check whether 'stubs' library directory are correctly filtered out
         paths = [
             'prefix/software/CUDA/1.2.3/lib/stubs/',  # should be filtered (no -rpath)
+            'prefix/software/CUDA/1.2.3/stubs/lib/',  # should be filtered (no -rpath)
             'tmp/foo/',
             'prefix/software/stubs/1.2.3/lib',  # should NOT be filtered
             'prefix/software/CUDA/1.2.3/lib/stubs',  # should be filtered (no -rpath)
+            'prefix/software/CUDA/1.2.3/stubs/lib',  # should be filtered (no -rpath)
             'prefix/software/CUDA/1.2.3/lib64/stubs/',  # should be filtered (no -rpath)
+            'prefix/software/CUDA/1.2.3/stubs/lib64/',  # should be filtered (no -rpath)
             'prefix/software/foobar/4.5/notreallystubs',  # should NOT be filtered
             'prefix/software/CUDA/1.2.3/lib64/stubs',  # should be filtered (no -rpath)
+            'prefix/software/CUDA/1.2.3/stubs/lib64',  # should be filtered (no -rpath)
             'prefix/software/zlib/1.2.11/lib',
             'prefix/software/bleh/0/lib/stubs',  # should be filtered (no -rpath)
             'prefix/software/foobar/4.5/stubsbutnotreally',  # should NOT be filtered
@@ -2465,12 +2469,16 @@ class ToolchainTest(EnhancedTestCase):
             '-Wl,-rpath=%s/prefix/software/foobar/4.5/stubsbutnotreally' % self.test_prefix,
             '%(user)s.c',
             '-L%s/prefix/software/CUDA/1.2.3/lib/stubs/' % self.test_prefix,
+            '-L%s/prefix/software/CUDA/1.2.3/stubs/lib/' % self.test_prefix,
             '-L%s/tmp/foo/' % self.test_prefix,
             '-L%s/prefix/software/stubs/1.2.3/lib' % self.test_prefix,
             '-L%s/prefix/software/CUDA/1.2.3/lib/stubs' % self.test_prefix,
+            '-L%s/prefix/software/CUDA/1.2.3/stubs/lib' % self.test_prefix,
             '-L%s/prefix/software/CUDA/1.2.3/lib64/stubs/' % self.test_prefix,
+            '-L%s/prefix/software/CUDA/1.2.3/stubs/lib64/' % self.test_prefix,
             '-L%s/prefix/software/foobar/4.5/notreallystubs' % self.test_prefix,
             '-L%s/prefix/software/CUDA/1.2.3/lib64/stubs' % self.test_prefix,
+            '-L%s/prefix/software/CUDA/1.2.3/stubs/lib64' % self.test_prefix,
             '-L%s/prefix/software/zlib/1.2.11/lib' % self.test_prefix,
             '-L%s/prefix/software/bleh/0/lib/stubs' % self.test_prefix,
             '-L%s/prefix/software/foobar/4.5/stubsbutnotreally' % self.test_prefix,
