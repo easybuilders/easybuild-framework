@@ -1608,11 +1608,12 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(target_path))
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
 
-        # Make sure it doesn't fail if target_path is a dir with some other file(s) in it
-        to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-deps.eb')
+        # Make sure it doesn't fail if path is a symlink and target_path is a dir
+        to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-link-0.0.eb')
         target_path = self.test_prefix
         ft.copy_file(to_copy, target_path)
         self.assertTrue(os.path.exists(os.path.join(target_path, os.path.basename(to_copy))))
+        self.assertTrue(os.path.islink(os.path.join(target_path, os.path.basename(to_copy))))
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(os.path.join(target_path, os.path.basename(to_copy))))
 
         # clean error when trying to copy a directory with copy_file
