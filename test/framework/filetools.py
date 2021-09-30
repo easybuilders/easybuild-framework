@@ -1609,12 +1609,14 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
 
         # Make sure it doesn't fail if path is a symlink and target_path is a dir
-        to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-link-0.0.eb')
-        target_path = self.test_prefix
-        ft.copy_file(to_copy, target_path)
-        self.assertTrue(os.path.exists(os.path.join(target_path, os.path.basename(to_copy))))
-        self.assertTrue(os.path.islink(os.path.join(target_path, os.path.basename(to_copy))))
-        self.assertTrue(ft.read_file(to_copy) == ft.read_file(os.path.join(target_path, os.path.basename(to_copy))))
+        link_to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-link-0.0.eb')
+        base_dir = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy')
+        link_to_copy = 'toy-link-0.0.eb'
+        dir_target_path = self.test_prefix
+        ft.copy_file(os.path.join(base_dir, link_to_copy), dir_target_path)
+        self.assertTrue(os.path.islink(os.path.join(dir_target_path, link_to_copy)))
+        self.assertTrue(os.readlink(os.path.join(dir_target_path, link_to_copy)) == os.readlink(os.path.join(base_dir, link_to_copy)))
+        os.remove(os.path.join(dir_target_path, link_to_copy))
 
         # clean error when trying to copy a directory with copy_file
         src, target = os.path.dirname(to_copy), os.path.join(self.test_prefix, 'toy')

@@ -2277,8 +2277,6 @@ def copy_file(path, target_path, force_in_dry_run=False):
         # NOTE: 'exists' will return False if 'path' is a broken symlink
         raise EasyBuildError("Could not copy '%s' it does not exist!", path)
     else:
-        if os.path.isdir(target_path):
-            target_path = os.path.join(target_path, os.path.basename(path))
         try:
             target_exists = os.path.exists(target_path)
             if target_exists and os.path.samefile(path, target_path):
@@ -2292,10 +2290,13 @@ def copy_file(path, target_path, force_in_dry_run=False):
             else:
                 mkdir(os.path.dirname(target_path), parents=True)
                 if os.path.islink(path):
+                    if os.path.isdir(target_path):
+                        target_path = os.path.join(target_path, os.path.basename(path))
+                        _log.info("target_path changed to %s", target_path)
                     # special care for copying broken symlinks
                     link_target = os.readlink(path)
-                    symlink(link_target, target_path)
-                    _log.info("created symlink from %s to %s", path, target_path)
+                    symlink(link_target, target_path, use_abspath_source=False)
+                    _log.info("created symlink %s to %s", link_target, target_path)
                 else:
                     shutil.copy2(path, target_path)
                     _log.info("%s copied to %s", path, target_path)
