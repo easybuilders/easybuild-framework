@@ -1615,7 +1615,9 @@ class FileToolsTest(EnhancedTestCase):
         dir_target_path = self.test_prefix
         ft.copy_file(os.path.join(base_dir, link_to_copy), dir_target_path)
         self.assertTrue(os.path.islink(os.path.join(dir_target_path, link_to_copy)))
-        self.assertTrue(os.readlink(os.path.join(dir_target_path, link_to_copy)) == os.readlink(os.path.join(base_dir, link_to_copy)))
+        link_source = os.readlink(os.path.join(base_dir, link_to_copy))
+        link_target = os.readlink(os.path.join(dir_target_path, link_to_copy))
+        self.assertTrue(link_target == link_source)
         os.remove(os.path.join(dir_target_path, link_to_copy))
 
         # clean error when trying to copy a directory with copy_file
