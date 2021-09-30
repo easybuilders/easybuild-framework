@@ -1602,26 +1602,25 @@ class FileToolsTest(EnhancedTestCase):
     def test_copy_file(self):
         """Test copy_file function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
-        to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         target_path = os.path.join(self.test_prefix, 'toy.eb')
-        ft.copy_file(to_copy, target_path)
+        ft.copy_file(toy_ec, target_path)
         self.assertTrue(os.path.exists(target_path))
-        self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+        self.assertTrue(ft.read_file(toy_ec) == ft.read_file(target_path))
 
         # Make sure it doesn't fail if path is a symlink and target_path is a dir
-        link_to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-link-0.0.eb')
-        base_dir = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy')
-        link_to_copy = 'toy-link-0.0.eb'
-        dir_target_path = self.test_prefix
-        ft.copy_file(os.path.join(base_dir, link_to_copy), dir_target_path)
-        self.assertTrue(os.path.islink(os.path.join(dir_target_path, link_to_copy)))
-        link_source = os.readlink(os.path.join(base_dir, link_to_copy))
-        link_target = os.readlink(os.path.join(dir_target_path, link_to_copy))
-        self.assertTrue(link_target == link_source)
-        os.remove(os.path.join(dir_target_path, link_to_copy))
+        toy_link_fn = 'toy-link-0.0.eb'
+        toy_link = os.path.join(self.test_prefix, toy_link_fn)
+        ft.symlink(toy_ec, toy_link)
+        dir_target_path = os.path.join(self.test_prefix, 'subdir')
+        ft.mkdir(dir_target_path)
+        ft.copy_file(toy_link, dir_target_path)
+        self.assertTrue(os.path.islink(os.path.join(dir_target_path, toy_link_fn)))
+        self.assertEqual(os.readlink(os.path.join(dir_target_path, toy_link_fn)), os.readlink(toy_link))
+        os.remove(os.path.join(dir_target_path, toy_link))
 
         # clean error when trying to copy a directory with copy_file
-        src, target = os.path.dirname(to_copy), os.path.join(self.test_prefix, 'toy')
+        src, target = os.path.dirname(toy_ec), os.path.join(self.test_prefix, 'toy')
         # error message was changed in Python 3.9.7 to "FileNotFoundError: Directory does not exist"
         error_pattern = "Failed to copy file.*(Is a directory|Directory does not exist)"
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_file, src, target)
@@ -1658,7 +1657,7 @@ class FileToolsTest(EnhancedTestCase):
         os.remove(target_path)
 
         self.mock_stdout(True)
-        ft.copy_file(to_copy, target_path)
+        ft.copy_file(toy_ec, target_path)
         txt = self.get_stdout()
         self.mock_stdout(False)
 
@@ -1667,12 +1666,12 @@ class FileToolsTest(EnhancedTestCase):
 
         # forced copy, even in dry run mode
         self.mock_stdout(True)
-        ft.copy_file(to_copy, target_path, force_in_dry_run=True)
+        ft.copy_file(toy_ec, target_path, force_in_dry_run=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
 
         self.assertTrue(os.path.exists(target_path))
-        self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+        self.assertTrue(ft.read_file(toy_ec) == ft.read_file(target_path))
         self.assertEqual(txt, '')
 
         # Test that a non-existing file raises an exception
@@ -2205,7 +2204,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 90)
+            self.assertEqual(len(index), 89)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
