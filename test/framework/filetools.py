@@ -1608,6 +1608,13 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(target_path))
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
 
+        # Make sure it doesn't fail if target_path is a dir with some other file(s) in it
+        to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-deps.eb')
+        target_path = self.test_prefix
+        ft.copy_file(to_copy, target_path)
+        self.assertTrue(os.path.exists(os.path.join(target_path, os.path.basename(to_copy))))
+        self.assertTrue(ft.read_file(to_copy) == ft.read_file(os.path.join(target_path, os.path.basename(to_copy))))
+
         # clean error when trying to copy a directory with copy_file
         src, target = os.path.dirname(to_copy), os.path.join(self.test_prefix, 'toy')
         # error message was changed in Python 3.9.7 to "FileNotFoundError: Directory does not exist"
