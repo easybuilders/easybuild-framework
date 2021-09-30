@@ -2277,6 +2277,8 @@ def copy_file(path, target_path, force_in_dry_run=False):
         # NOTE: 'exists' will return False if 'path' is a broken symlink
         raise EasyBuildError("Could not copy '%s' it does not exist!", path)
     else:
+        if os.path.isdir(target_path):
+            target_path = os.path.join(target_path, os.path.basename(path))
         try:
             target_exists = os.path.exists(target_path)
             if target_exists and os.path.samefile(path, target_path):
