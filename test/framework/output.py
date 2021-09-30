@@ -48,6 +48,9 @@ class OutputTest(EnhancedTestCase):
     def test_overall_progress_bar(self):
         """Test overall_progress_bar function."""
 
+        # restore default (was disabled in EnhancedTestCase.setUp to avoid messing up test output)
+        update_build_option('show_progress_bar', True)
+
         if HAVE_RICH:
             expected_progress_bar_class = rich.progress.Progress
         else:
