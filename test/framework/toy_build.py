@@ -2902,13 +2902,16 @@ class ToyBuildTest(EnhancedTestCase):
         modify_env(os.environ, self.orig_environ, verbose=False)
         self.modtool.use(test_mod_path)
 
+        # disable showing of progress bars (again), doesn't make sense when running tests
+        os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
+
         write_file(test_ec, test_ec_txt)
 
         # also check behaviour when using 'depends_on' rather than 'load' statements (requires Lmod 7.6.1 or newer)
         if self.modtool.supports_depends_on:
 
             remove_file(toy_mod_file)
-            self.test_toy_build(ec_file=test_ec, extra_args=['--module-depends-on'])
+            self.test_toy_build(ec_file=test_ec, extra_args=['--module-depends-on'], raise_error=True)
 
             toy_mod_txt = read_file(toy_mod_file)
 
