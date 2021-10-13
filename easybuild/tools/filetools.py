@@ -62,7 +62,7 @@ from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
 from easybuild.tools.config import build_option, install_path
-from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD, start_progress_bar, stop_progress_bar, update_progress_bar
+from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
 
@@ -261,13 +261,13 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     if sys.version_info[0] >= 3 and (isinstance(data, bytes) or data_is_file_obj):
         mode += 'b'
 
-    # don't bother showing a progress bar for small files
-    if size and size < 1024:
+    # don't bother showing a progress bar for small files (< 10MB)
+    if size and size < 10 * (1024 ** 2):
         _log.info("Not showing progress bar for downloading small file (size %s)", size)
         show_progress = False
 
     if show_progress:
-        start_progress_bar(PROGRESS_BAR_DOWNLOAD, size, label=os.path.basename(path))
+        start_progress_bar(PROGRESS_BAR_DOWNLOAD_ONE, size, label=os.path.basename(path))
 
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
@@ -278,12 +278,12 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
                 for chunk in iter(partial(data.read, 1024 ** 2), b''):
                     fh.write(chunk)
                     if show_progress:
-                        update_progress_bar(PROGRESS_BAR_DOWNLOAD, progress_size=len(chunk))
+                        update_progress_bar(PROGRESS_BAR_DOWNLOAD_ONE, progress_size=len(chunk))
             else:
                 fh.write(data)
 
         if show_progress:
-            stop_progress_bar(PROGRESS_BAR_DOWNLOAD)
+            stop_progress_bar(PROGRESS_BAR_DOWNLOAD_ONE)
 
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", path, err)

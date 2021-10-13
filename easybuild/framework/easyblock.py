@@ -89,7 +89,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import Lmod, curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
-from easybuild.tools.output import PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
+from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
 from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
@@ -689,6 +689,8 @@ class EasyBlock(object):
         :param git_config: dictionary to define how to download a git repository
         """
         srcpaths = source_paths()
+
+        update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
 
         # should we download or just try and find it?
         if re.match(r"^(https?|ftp)://", filename):
@@ -1921,6 +1923,27 @@ class EasyBlock(object):
                 raise EasyBuildError("EasyBuild-version %s is newer than the currently running one. Aborting!",
                                      easybuild_version)
 
+        # count number of files to download: sources + patches (incl. extensions)
+        # FIXME: to make this count fully correct, we need the Extension instances first,
+        # which requires significant refactoring in fetch_extension_sources
+        # (also needed to fix https://github.com/easybuilders/easybuild-framework/issues/3849)
+        cnt = len(self.cfg['sources']) + len(self.cfg['patches'])
+        if self.cfg['exts_list']:
+            for ext in self.cfg['exts_list']:
+                if isinstance(ext, tuple) and len(ext) >= 3:
+                    ext_opts = ext[2]
+                    if 'source' in ext_opts:
+                        cnt += 1
+                    elif 'sources' in ext_opts:
+                        cnt += len(ext_opts['sources'])
+                    else:
+                        # assume there's always one source file;
+                        # for extensions using PythonPackage, no 'source' or 'sources' may be specified
+                        cnt += 1
+                    cnt += len(ext_opts.get('patches', []))
+
+        start_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, cnt)
+
         if self.dry_run:
 
             self.dry_run_msg("Available download URLs for sources/patches:")
@@ -2002,6 +2025,8 @@ class EasyBlock(object):
                 mkdir(pardir, parents=True)
         else:
             self.log.info("Skipped installation dirs check per user request")
+
+        stop_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL)
 
     def checksum_step(self):
         """Verify checksum of sources and patches, if a checksum is available."""

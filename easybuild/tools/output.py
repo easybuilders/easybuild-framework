@@ -45,7 +45,8 @@ except ImportError:
     pass
 
 
-PROGRESS_BAR_DOWNLOAD = 'download'
+PROGRESS_BAR_DOWNLOAD_ALL = 'download_all'
+PROGRESS_BAR_DOWNLOAD_ONE = 'download_one'
 PROGRESS_BAR_EXTENSIONS = 'extensions'
 PROGRESS_BAR_EASYCONFIG = 'easyconfig'
 PROGRESS_BAR_OVERALL = 'overall'
@@ -101,8 +102,9 @@ def rich_live_cm():
     """
     if show_progress_bars():
         pbar_group = RenderGroup(
-                download_progress_bar(),
-                download_progress_bar_unknown_size(),
+                download_one_progress_bar(),
+                download_one_progress_bar_unknown_size(),
+                download_all_progress_bar(),
                 extensions_progress_bar(),
                 easyconfig_progress_bar(),
                 overall_progress_bar(),
@@ -163,7 +165,22 @@ def easyconfig_progress_bar():
 
 
 @progress_bar_cache
-def download_progress_bar():
+def download_all_progress_bar():
+    """
+    Get progress bar to show progress on downloading of all source files.
+    """
+    progress_bar = Progress(
+        TextColumn("[bold blue]Fetching files: {task.percentage:>3.0f}% ({task.completed}/{task.total})"),
+        BarColumn(),
+        TimeElapsedColumn(),
+        TextColumn("({task.description})"),
+    )
+
+    return progress_bar
+
+
+@progress_bar_cache
+def download_one_progress_bar():
     """
     Get progress bar to show progress for downloading a file of known size.
     """
@@ -179,7 +196,7 @@ def download_progress_bar():
 
 
 @progress_bar_cache
-def download_progress_bar_unknown_size():
+def download_one_progress_bar_unknown_size():
     """
     Get progress bar to show progress for downloading a file of unknown size.
     """
@@ -211,14 +228,15 @@ def get_progress_bar(bar_type, size=None):
     Get progress bar of given type.
     """
     progress_bar_types = {
-        PROGRESS_BAR_DOWNLOAD: download_progress_bar,
+        PROGRESS_BAR_DOWNLOAD_ALL: download_all_progress_bar,
+        PROGRESS_BAR_DOWNLOAD_ONE: download_one_progress_bar,
         PROGRESS_BAR_EXTENSIONS: extensions_progress_bar,
         PROGRESS_BAR_EASYCONFIG: easyconfig_progress_bar,
         PROGRESS_BAR_OVERALL: overall_progress_bar,
     }
 
-    if bar_type == PROGRESS_BAR_DOWNLOAD and not size:
-        pbar = download_progress_bar_unknown_size()
+    if bar_type == PROGRESS_BAR_DOWNLOAD_ONE and not size:
+        pbar = download_one_progress_bar_unknown_size()
     elif bar_type in progress_bar_types:
         pbar = progress_bar_types[bar_type]()
     else:
