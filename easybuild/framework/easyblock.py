@@ -3638,7 +3638,7 @@ class EasyBlock(object):
             create_lock(lock_name)
 
         try:
-            for step_id, (step_name, descr, step_methods, skippable) in enumerate(steps):
+            for step_name, descr, step_methods, skippable in steps:
                 if self.skip_step(step_name, skippable):
                     print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
