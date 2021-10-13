@@ -391,14 +391,16 @@ class FileToolsTest(EnhancedTestCase):
 
         # also try with actual HTTP header
         try:
-            with std_urllib.urlopen(test_url) as fh:
-                self.assertEqual(ft.det_file_size(fh.info()), expected_size)
+            fh = std_urllib.urlopen(test_url)
+            self.assertEqual(ft.det_file_size(fh.info()), expected_size)
+            fh.close()
 
             # also try using requests, which is used as a fallback in download_file
             try:
                 import requests
-                with requests.get(test_url) as res:
-                    self.assertEqual(ft.det_file_size(res.headers), expected_size)
+                res = requests.get(test_url)
+                self.assertEqual(ft.det_file_size(res.headers), expected_size)
+                res.close()
             except ImportError:
                 pass
         except std_urllib.URLError:
