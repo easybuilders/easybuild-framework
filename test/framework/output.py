@@ -103,11 +103,19 @@ class OutputTest(EnhancedTestCase):
 
     def test_use_rich(self):
         """Test use_rich function."""
-        try:
-            import rich  # noqa
+
+        self.assertEqual(build_option('output_style'), 'auto')
+
+        if HAVE_RICH:
             self.assertTrue(use_rich())
-        except ImportError:
+
+            update_build_option('output_style', 'rich')
+            self.assertTrue(use_rich())
+        else:
             self.assertFalse(use_rich())
+
+        update_build_option('output_style', 'basic')
+        self.assertFalse(use_rich())
 
 
 def suite():
