@@ -255,8 +255,13 @@ def start_progress_bar(bar_type, size, label=None):
     pbar = get_progress_bar(bar_type, size=size)
     task_id = pbar.add_task('')
     _progress_bar_cache[bar_type] = (pbar, task_id)
-    if size:
+
+    # don't bother showing progress bar if there's only 1 item to make progress on
+    if size == 1:
+        pbar.update(task_id, visible=False)
+    elif size:
         pbar.update(task_id, total=size)
+
     if label:
         pbar.update(task_id, description=label)
 
