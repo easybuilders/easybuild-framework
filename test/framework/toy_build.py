@@ -57,6 +57,7 @@ from easybuild.tools.filetools import read_file, remove_dir, remove_file, which,
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
 from easybuild.tools.py2vs3 import reload, string_type
+from easybuild.tools.output import show_progress_bars
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
@@ -3522,6 +3523,19 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue("Build succeeded (with --ignore-test-failure) for 1 out of 1" in stdout)
         self.assertFalse(stderr)
+
+    def test_toy_build_with_progress_bars(self):
+        """Test installation with showing of progress bars enabled."""
+
+        # don't disable showing of progress bars, to ensure we catch any problems
+        # that are only triggered when progress bars are being shown...
+        del os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR']
+
+        stdout, _ = self.run_test_toy_build_with_output()
+
+        if show_progress_bars():
+            regex = re.compile(r"^toy/0.0 done! \(17 out of 17 steps done\) ━+ [0-9:]+", re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
 def suite():
