@@ -721,6 +721,22 @@ def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_header
     return urlpat_headers
 
 
+def det_file_size(http_header):
+    """
+    Determine size of file from provided HTTP header info (without downloading it).
+    """
+    res = None
+    len_key = 'Content-Length'
+    if len_key in http_header:
+        size = http_header[len_key]
+        try:
+            res = int(size)
+        except (ValueError, TypeError) as err:
+            _log.warning("Failed to interpret size '%s' as integer value: %s", size, err)
+
+    return res
+
+
 def download_file(filename, url, path, forced=False):
     """Download a file from the given URL, to the specified path."""
 
@@ -772,28 +788,23 @@ def download_file(filename, url, path, forced=False):
     while not downloaded and attempt_cnt < max_attempts:
         attempt_cnt += 1
         try:
-            size = None
             if used_urllib is std_urllib:
                 # urllib2 (Python 2) / urllib.request (Python 3) does the right thing for http proxy setups,
                 # urllib does not!
                 url_fd = std_urllib.urlopen(url_req, timeout=timeout)
                 status_code = url_fd.getcode()
-                http_header = url_fd.info()
-                len_key = 'Content-Length'
-                if len_key in http_header:
-                    size = http_header[len_key]
-                    try:
-                        size = int(size)
-                    except (ValueError, TypeError) as err:
-                        _log.warning("Failed to interpret size '%s' as integer value: %s", size, err)
-                        size = None
+                size = det_file_size(url_fd.info())
             else:
                 response = requests.get(url, headers=headers, stream=True, timeout=timeout)
                 status_code = response.status_code
                 response.raise_for_status()
+                size = det_file_size(response.headers)
                 url_fd = response.raw
                 url_fd.decode_content = True
-            _log.debug('response code for given url %s: %s' % (url, status_code))
+
+            _log.debug("HTTP response code for given url %s: %s", url, status_code)
+            _log.info("File size for %s: %s", url, size)
+
             # note: we pass the file object to write_file rather than reading the file first,
             # to ensure the data is read in chunks (which prevents problems in Python 3.9+);
             # cfr. https://github.com/easybuilders/easybuild-framework/issues/3455

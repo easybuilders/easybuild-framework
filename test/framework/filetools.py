@@ -376,6 +376,34 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.normalize_path('/././foo//bar/././baz/'), '/foo/bar/baz')
         self.assertEqual(ft.normalize_path('//././foo//bar/././baz/'), '//foo/bar/baz')
 
+    def test_det_file_size(self):
+        """Test det_file_size function."""
+
+        self.assertEqual(ft.det_file_size({'Content-Length': '12345'}), 12345)
+
+        # missing content length, or invalid value
+        self.assertEqual(ft.det_file_size({}), None)
+        self.assertEqual(ft.det_file_size({'Content-Length': 'foo'}), None)
+
+        test_url = 'https://github.com/easybuilders/easybuild-framework/raw/develop/'
+        test_url += 'test/framework/sandbox/sources/toy/toy-0.0.tar.gz'
+        expected_size = 273
+
+        # also try with actual HTTP header
+        try:
+            with std_urllib.urlopen(test_url) as fh:
+                self.assertEqual(ft.det_file_size(fh.info()), expected_size)
+
+            # also try using requests, which is used as a fallback in download_file
+            try:
+                import requests
+                with requests.get(test_url) as res:
+                    self.assertEqual(ft.det_file_size(res.headers), expected_size)
+            except ImportError:
+                pass
+        except std_urllib.URLError:
+            print("Skipping online test for det_file_size (working offline)")
+
     def test_download_file(self):
         """Test download_file function."""
         fn = 'toy-0.0.tar.gz'
