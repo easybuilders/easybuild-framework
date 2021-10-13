@@ -40,12 +40,29 @@ import textwrap
 from functools import reduce
 from optparse import Option, OptionGroup, OptionParser, OptionValueError, Values
 from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python v2.4
-from optparse import gettext as _gettext  # this is gettext.gettext normally
 
 from easybuild.base.fancylogger import getLogger, setroot, setLogLevel, getDetailsLogLevels
 from easybuild.base.optcomplete import autocomplete, CompleterOption
 from easybuild.tools.py2vs3 import StringIO, configparser, string_type
 from easybuild.tools.utilities import mk_rst_table, nub, shell_quote
+
+try:
+    import gettext
+    eb_translation = None
+
+    def get_translation():
+        global eb_translation
+        if not eb_translation:
+            # Finding a translation is expensive, so do only once
+            domain = gettext.textdomain()
+            eb_translation = gettext.translation(domain, gettext.bindtextdomain(domain), fallback=True)
+        return eb_translation
+
+    def _gettext(message):
+        return get_translation().gettext(message)
+except ImportError:
+    def _gettext(message):
+        return message
 
 
 HELP_OUTPUT_FORMATS = ['', 'rst', 'short', 'config']

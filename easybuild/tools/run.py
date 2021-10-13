@@ -128,7 +128,7 @@ def get_output_from_process(proc, read_size=None, asynchronous=False):
 
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            force_in_dry_run=False, verbose=True, shell=True, trace=True, stream_output=None, asynchronous=False):
+            force_in_dry_run=False, verbose=True, shell=None, trace=True, stream_output=None, asynchronous=False):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -141,7 +141,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param path: path to execute the command in; current working directory is used if unspecified
     :param force_in_dry_run: force running the command during dry run
     :param verbose: include message on running the command in dry run output
-    :param shell: allow commands to not run in a shell (especially useful for cmd lists)
+    :param shell: allow commands to not run in a shell (especially useful for cmd lists), defaults to True
     :param trace: print command being executed as part of trace output
     :param stream_output: enable streaming command output to stdout
     :param asynchronous: run command asynchronously (returns subprocess.Popen instance if set to True)
@@ -154,6 +154,13 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         cmd_msg = ' '.join(cmd)
     else:
         raise EasyBuildError("Unknown command type ('%s'): %s", type(cmd), cmd)
+
+    if shell is None:
+        shell = True
+        if isinstance(cmd, list):
+            raise EasyBuildError("When passing cmd as a list then `shell` must be set explictely! "
+                                 "Note that all elements of the list but the first are treated as arguments "
+                                 "to the shell and NOT to the command to be executed!")
 
     if log_output or (trace and build_option('trace')):
         # collect output of running command in temporary log file, if desired
@@ -281,6 +288,7 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
 
     # read remaining data (all of it)
     output = get_output_from_process(proc)
+    proc.stdout.close()
     if cmd_log:
         cmd_log.write(output)
         cmd_log.close()
@@ -316,6 +324,11 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     :param trace: print command being executed as part of trace output
     """
     cwd = os.getcwd()
+
+    if not isinstance(cmd, string_type) and len(cmd) > 1:
+        # We use shell=True and hence we should really pass the command as a string
+        # When using a list then every element past the first is passed to the shell itself, not the command!
+        raise EasyBuildError("The command passed must be a string!")
 
     if log_all or (trace and build_option('trace')):
         # collect output of running command in temporary log file, if desired

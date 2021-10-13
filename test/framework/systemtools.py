@@ -28,6 +28,7 @@ Unit tests for systemtools.py
 @author: Kenneth hoste (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
+import ctypes
 import re
 import os
 import sys
@@ -38,18 +39,19 @@ from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import adjust_permissions, read_file, which, write_file
+from easybuild.tools.filetools import adjust_permissions, read_file, symlink, which, write_file
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
-from easybuild.tools.systemtools import check_os_dependency, check_python_version, pick_dep_version
+from easybuild.tools.systemtools import check_linked_shared_libs, check_os_dependency, check_python_version
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_arch_name, get_cpu_architecture
 from easybuild.tools.systemtools import get_cpu_family, get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
 from easybuild.tools.systemtools import get_gcc_version, get_glibc_version, get_os_type, get_os_name, get_os_version
 from easybuild.tools.systemtools import get_platform_name, get_shared_lib_ext, get_system_info, get_total_memory
+from easybuild.tools.systemtools import find_library_path, locate_solib, pick_dep_version
 
 
 PROC_CPUINFO_TXT = None
@@ -452,7 +454,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting CPU speed."""
         cpu_speed = get_cpu_speed()
         self.assertTrue(isinstance(cpu_speed, float) or cpu_speed is None)
-        self.assertTrue(cpu_speed > 0.0 or cpu_speed is None)
+        self.assertTrue(cpu_speed is None or cpu_speed > 0.0)
 
     def test_cpu_speed_linux(self):
         """Test getting CPU speed (mocked for Linux)."""
@@ -487,7 +489,7 @@ class SystemToolsTest(EnhancedTestCase):
         cpu_feat = get_cpu_features()
         self.assertTrue(isinstance(cpu_feat, list))
         self.assertTrue(len(cpu_feat) > 0)
-        self.assertTrue(all([isinstance(x, string_type) for x in cpu_feat]))
+        self.assertTrue(all(isinstance(x, string_type) for x in cpu_feat))
 
     def test_cpu_features_linux(self):
         """Test getting CPU features (mocked for Linux)."""
@@ -848,8 +850,8 @@ class SystemToolsTest(EnhancedTestCase):
         error_pattern = r"EasyBuild is not compatible \(yet\) with Python 4.0"
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
-        mock_python_ver(2, 5)
-        error_pattern = r"Python 2.6 or higher is required when using Python 2, found Python 2.5"
+        mock_python_ver(2, 6)
+        error_pattern = r"Python 2.7 is required when using Python 2, found Python 2.6"
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
         # no problems when running with a supported Python version
@@ -857,44 +859,18 @@ class SystemToolsTest(EnhancedTestCase):
             mock_python_ver(*pyver)
             self.assertEqual(check_python_version(), pyver)
 
-        mock_python_ver(2, 6)
-        # deprecation warning triggers an error in test environment
-        error_pattern = r"Running EasyBuild with Python 2.6 is deprecated"
-        self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
-
-        # we may trigger a deprecation warning below (when testing with Python 2.6)
-        py26_depr_warning = "\nWARNING: Deprecated functionality, will no longer work in v5.0: "
-        py26_depr_warning += "Running EasyBuild with Python 2.6 is deprecated"
-
-        self.allow_deprecated_behaviour()
-
-        # first test with mocked Python 2.6
-        self.mock_stderr(True)
-        check_python_version()
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-
-        # we should always get a deprecation warning here
-        self.assertTrue(stderr.startswith(py26_depr_warning))
-
-        # restore Python version info to check with Python version used to run tests
-        st.sys.version_info = self.orig_sys_version_info
-
         # shouldn't raise any errors, since Python version used to run tests should be supported;
         self.mock_stderr(True)
         (py_maj_ver, py_min_ver) = check_python_version()
         stderr = self.get_stderr()
         self.mock_stderr(False)
+        self.assertFalse(stderr)
 
         self.assertTrue(py_maj_ver in [2, 3])
         if py_maj_ver == 2:
-            self.assertTrue(py_min_ver in [6, 7])
+            self.assertTrue(py_min_ver == 7)
         else:
             self.assertTrue(py_min_ver >= 5)
-
-        # only deprecation warning when actually testing with Python 2.6
-        if sys.version_info[:2] == (2, 6):
-            self.assertTrue(stderr.startswith(py26_depr_warning))
 
     def test_pick_dep_version(self):
         """Test pick_dep_version function."""
@@ -976,6 +952,93 @@ class SystemToolsTest(EnhancedTestCase):
         # still works fine if $LD_LIBRARY_PATH is set
         write_file(bash_profile, 'export LD_LIBRARY_PATH=%s' % self.test_prefix)
         self.assertTrue(check_os_dependency('bar'))
+
+    def test_check_linked_shared_libs(self):
+        """Test for check_linked_shared_libs function."""
+
+        txt_path = os.path.join(self.test_prefix, 'test.txt')
+        write_file(txt_path, "some text")
+
+        broken_symlink_path = os.path.join(self.test_prefix, 'broken_symlink')
+        symlink('/doesnotexist', broken_symlink_path, use_abspath_source=False)
+
+        # result is always None for anything other than dynamically linked binaries or shared libraries
+        self.assertEqual(check_linked_shared_libs(self.test_prefix), None)
+        self.assertEqual(check_linked_shared_libs(txt_path), None)
+        self.assertEqual(check_linked_shared_libs(broken_symlink_path), None)
+
+        bin_ls_path = which('ls')
+
+        os_type = get_os_type()
+        if os_type == LINUX:
+            out, _ = run_cmd("ldd %s" % bin_ls_path)
+        elif os_type == DARWIN:
+            out, _ = run_cmd("otool -L %s" % bin_ls_path)
+        else:
+            raise EasyBuildError("Unknown OS type: %s" % os_type)
+
+        shlib_ext = get_shared_lib_ext()
+        lib_path_regex = re.compile(r'(?P<lib_path>[^\s]*/lib[^ ]+\.%s[^ ]*)' % shlib_ext, re.M)
+        lib_path = lib_path_regex.search(out).group(1)
+
+        test_pattern_named_args = [
+            # if no patterns are specified, result is always True
+            {},
+            {'required_patterns': ['/lib', shlib_ext]},
+            {'banned_patterns': ['this_pattern_should_not_match']},
+            {'required_patterns': ['/lib', shlib_ext], 'banned_patterns': ['weirdstuff']},
+        ]
+        for pattern_named_args in test_pattern_named_args:
+            # result is always None for anything other than dynamically linked binaries or shared libraries
+            self.assertEqual(check_linked_shared_libs(self.test_prefix, **pattern_named_args), None)
+            self.assertEqual(check_linked_shared_libs(txt_path, **pattern_named_args), None)
+            self.assertEqual(check_linked_shared_libs(broken_symlink_path, **pattern_named_args), None)
+            for path in (bin_ls_path, lib_path):
+                error_msg = "Check on linked libs should pass for %s with %s" % (path, pattern_named_args)
+                self.assertTrue(check_linked_shared_libs(path, **pattern_named_args), error_msg)
+
+        # also test with input that should result in failing check
+        test_pattern_named_args = [
+            {'required_patterns': ['this_pattern_will_not_match']},
+            {'banned_patterns': ['/lib']},
+            {'required_patterns': ['weirdstuff'], 'banned_patterns': ['/lib', shlib_ext]},
+        ]
+        for pattern_named_args in test_pattern_named_args:
+            # result is always None for anything other than dynamically linked binaries or shared libraries
+            self.assertEqual(check_linked_shared_libs(self.test_prefix, **pattern_named_args), None)
+            self.assertEqual(check_linked_shared_libs(txt_path, **pattern_named_args), None)
+            self.assertEqual(check_linked_shared_libs(broken_symlink_path, **pattern_named_args), None)
+            for path in (bin_ls_path, lib_path):
+                error_msg = "Check on linked libs should fail for %s with %s" % (path, pattern_named_args)
+                self.assertFalse(check_linked_shared_libs(path, **pattern_named_args), error_msg)
+
+    def test_locate_solib(self):
+        """Test locate_solib function (Linux only)."""
+        if get_os_type() == LINUX:
+            libname = 'libc.so.6'
+            libc_obj = None
+            try:
+                libc_obj = ctypes.cdll.LoadLibrary(libname)
+            except OSError:
+                pass
+            if libc_obj:
+                libc_path = locate_solib(libc_obj)
+                self.assertEqual(os.path.basename(libc_path), libname)
+                self.assertTrue(os.path.exists(libc_path), "%s should exist" % libname)
+
+    def test_find_library_path(self):
+        """Test find_library_path function (Linux and Darwin only)."""
+        if get_os_type() == LINUX:
+            libname = 'libc.so.6'
+        elif get_os_type() == DARWIN:
+            libname = 'libSystem.dylib'
+        else:
+            libname = None
+
+        if libname:
+            lib_path = find_library_path(libname)
+            self.assertEqual(os.path.basename(lib_path), libname)
+            self.assertTrue(os.path.exists(lib_path), "%s should exist" % libname)
 
 
 def suite():

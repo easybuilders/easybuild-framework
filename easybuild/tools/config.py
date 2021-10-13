@@ -48,6 +48,12 @@ from easybuild.base.frozendict import FrozenDictKnownKeys
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
 
+try:
+    import rich  # noqa
+    HAVE_RICH = True
+except ImportError:
+    HAVE_RICH = False
+
 
 _log = fancylogger.getLogger('config', fname=False)
 
@@ -137,6 +143,13 @@ LOCAL_VAR_NAMING_CHECK_WARN = WARN
 LOCAL_VAR_NAMING_CHECKS = [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN]
 
 
+OUTPUT_STYLE_AUTO = 'auto'
+OUTPUT_STYLE_BASIC = 'basic'
+OUTPUT_STYLE_NO_COLOR = 'no_color'
+OUTPUT_STYLE_RICH = 'rich'
+OUTPUT_STYLES = (OUTPUT_STYLE_AUTO, OUTPUT_STYLE_BASIC, OUTPUT_STYLE_NO_COLOR, OUTPUT_STYLE_RICH)
+
+
 class Singleton(ABCMeta):
     """Serves as metaclass for classes that should implement the Singleton pattern.
 
@@ -180,6 +193,7 @@ BUILD_OPTIONS_CMDLINE = {
         'envvars_user_modules',
         'extra_modules',
         'filter_deps',
+        'filter_ecs',
         'filter_env_vars',
         'hide_deps',
         'hide_toolchains',
@@ -214,8 +228,11 @@ BUILD_OPTIONS_CMDLINE = {
         'pr_descr',
         'pr_target_repo',
         'pr_title',
-        'rpath_filter',
         'regtest_output_dir',
+        'rpath_filter',
+        'rpath_override_dirs',
+        'banned_linked_shared_libs',
+        'required_linked_shared_libs',
         'silence_deprecation_warnings',
         'skip',
         'stop',
@@ -245,6 +262,7 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_checksums',
         'ignore_index',
         'ignore_locks',
+        'ignore_test_failure',
         'install_latest_eb_release',
         'logtostdout',
         'minimal_toolchains',
@@ -256,9 +274,11 @@ BUILD_OPTIONS_CMDLINE = {
         'rebuild',
         'robot',
         'rpath',
+        'sanity_check_only',
         'search_paths',
         'sequential',
         'set_gid_bit',
+        'skip_extensions',
         'skip_test_cases',
         'skip_test_step',
         'generate_devel_module',
@@ -285,6 +305,7 @@ BUILD_OPTIONS_CMDLINE = {
         'map_toolchains',
         'modules_tool_version_check',
         'pre_create_installdir',
+        'show_progress_bar',
     ],
     WARN: [
         'check_ebroot_env_vars',
@@ -334,6 +355,9 @@ BUILD_OPTIONS_CMDLINE = {
     DEFAULT_WAIT_ON_LOCK_INTERVAL: [
         'wait_on_lock_interval',
     ],
+    OUTPUT_STYLE_AUTO: [
+        'output_style',
+    ],
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {
@@ -341,7 +365,7 @@ BUILD_OPTIONS_OTHER = {
         'build_specs',
         'command_line',
         'external_modules_metadata',
-        'pr_path',
+        'pr_paths',
         'robot_path',
         'valid_module_classes',
         'valid_stops',
@@ -555,6 +579,18 @@ def build_option(key, **kwargs):
         raise EasyBuildError(error_msg)
 
 
+def update_build_option(key, value):
+    """
+    Update build option with specified name to given value.
+
+    WARNING: Use this with care, the build options are not expected to be changed during an EasyBuild session!
+    """
+    # BuildOptions() is a (singleton) frozen dict, so this is less straightforward that it seems...
+    build_options = BuildOptions()
+    build_options._FrozenDict__dict[key] = value
+    _log.warning("Build option '%s' was updated to: %s", key, build_option(key))
+
+
 def build_path():
     """
     Return the build path
@@ -666,6 +702,22 @@ def get_module_syntax():
     Return module syntax (Lua, Tcl)
     """
     return ConfigurationVariables()['module_syntax']
+
+
+def get_output_style():
+    """Return output style to use."""
+    output_style = build_option('output_style')
+
+    if output_style == OUTPUT_STYLE_AUTO:
+        if HAVE_RICH:
+            output_style = OUTPUT_STYLE_RICH
+        else:
+            output_style = OUTPUT_STYLE_BASIC
+
+    if output_style == OUTPUT_STYLE_RICH and not HAVE_RICH:
+        raise EasyBuildError("Can't use '%s' output style, Rich Python package is not available!", OUTPUT_STYLE_RICH)
+
+    return output_style
 
 
 def log_file_format(return_directory=False, ec=None, date=None, timestamp=None):

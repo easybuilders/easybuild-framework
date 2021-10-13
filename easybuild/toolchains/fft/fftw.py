@@ -39,15 +39,18 @@ class Fftw(Fft):
     """FFTW FFT library"""
 
     FFT_MODULE_NAME = ['FFTW']
+    FFTW_API_VERSION = ''
 
     def _set_fftw_variables(self):
 
-        suffix = ''
-        version = self.get_software_version(self.FFT_MODULE_NAME)[0]
-        if LooseVersion(version) < LooseVersion('2') or LooseVersion(version) >= LooseVersion('4'):
-            raise EasyBuildError("_set_fft_variables: FFTW unsupported version %s (major should be 2 or 3)", version)
-        elif LooseVersion(version) > LooseVersion('2'):
-            suffix = '3'
+        suffix = self.FFTW_API_VERSION
+        if not suffix:
+            version = self.get_software_version(self.FFT_MODULE_NAME)[0]
+            if LooseVersion(version) < LooseVersion('2') or LooseVersion(version) >= LooseVersion('4'):
+                raise EasyBuildError("_set_fft_variables: FFTW unsupported version %s (major should be 2 or 3)",
+                                     version)
+            elif LooseVersion(version) > LooseVersion('2'):
+                suffix = '3'
 
         # order matters!
         fftw_libs = ["fftw%s" % suffix]
@@ -68,7 +71,7 @@ class Fftw(Fft):
         # TODO can these be replaced with the FFT ones?
         self.variables.join('FFTW_INC_DIR', 'FFT_INC_DIR')
         self.variables.join('FFTW_LIB_DIR', 'FFT_LIB_DIR')
-        if 'FFT_STATIC_LIBS' in self.variables:
-            self.variables.join('FFTW_STATIC_LIBS', 'FFT_STATIC_LIBS')
-        if 'FFT_STATIC_LIBS_MT' in self.variables:
-            self.variables.join('FFTW_STATIC_LIBS_MT', 'FFT_STATIC_LIBS_MT')
+
+        for key in ('SHARED_LIBS', 'SHARED_LIBS_MT', 'STATIC_LIBS', 'STATIC_LIBS_MT'):
+            if 'FFT_' + key in self.variables:
+                self.variables.join('FFTW_' + key, 'FFT_' + key)

@@ -127,6 +127,8 @@ class EasyBlockTest(EnhancedTestCase):
         extra_options = exeb1.extra_options()
         check_extra_options_format(extra_options)
         self.assertTrue('options' in extra_options)
+        # Reporting test failure should work also for the extension EB
+        self.assertRaises(EasyBuildError, exeb1.report_test_failure, "Fails")
 
         # test extensioneasyblock, as easyblock
         exeb2 = ExtensionEasyBlock(ec)
@@ -135,6 +137,8 @@ class EasyBlockTest(EnhancedTestCase):
         extra_options = exeb2.extra_options()
         check_extra_options_format(extra_options)
         self.assertTrue('options' in extra_options)
+        # Reporting test failure should work also for the extension EB
+        self.assertRaises(EasyBuildError, exeb2.report_test_failure, "Fails")
 
         class TestExtension(ExtensionEasyBlock):
             @staticmethod
@@ -550,6 +554,25 @@ class EasyBlockTest(EnhancedTestCase):
                                        txt, re.M))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        # If PATH or LD_LIBRARY_PATH contain only folders, do not add an entry
+        sub_lib_path = os.path.join('lib', 'path_folders')
+        sub_path_path = os.path.join('bin', 'path_folders')
+        eb.make_module_req_guess = lambda: {'LD_LIBRARY_PATH': sub_lib_path, 'PATH': sub_path_path}
+        for path in (sub_lib_path, sub_path_path):
+            full_path = os.path.join(eb.installdir, path, 'subpath')
+            os.makedirs(full_path)
+            write_file(os.path.join(full_path, 'any.file'), 'test')
+        txt = eb.make_module_req()
+        if get_module_syntax() == 'Tcl':
+            self.assertFalse(re.search(r"prepend-path\s+LD_LIBRARY_PATH\s+\$%s\n" % sub_lib_path,
+                                       txt, re.M))
+            self.assertFalse(re.search(r"prepend-path\s+PATH\s+\$%s\n" % sub_path_path, txt, re.M))
+        else:
+            assert get_module_syntax() == 'Lua'
+            self.assertFalse(re.search(r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "%s"\)\)\n' % sub_lib_path,
+                                       txt, re.M))
+            self.assertFalse(re.search(r'prepend_path\("PATH", pathJoin\(root, "%s"\)\)\n' % sub_path_path, txt, re.M))
 
         # cleanup
         eb.close_log()
@@ -992,6 +1015,69 @@ class EasyBlockTest(EnhancedTestCase):
         # cleanup
         eb.close_log()
         os.remove(eb.logfile)
+
+    def test_init_extensions(self):
+        """Test creating extension instances."""
+
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec_txt = read_file(toy_ec_file)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = toy_ec_txt.replace("('barbar', '0.0', {", "('barbar', '0.0', {'easyblock': 'DummyExtension',")
+        write_file(test_ec, test_ec_txt)
+        ec = process_easyconfig(test_ec)[0]
+        eb = get_easyblock_instance(ec)
+
+        eb.prepare_for_extensions()
+        eb.init_ext_instances()
+        ext_inst_class_names = [x.__class__.__name__ for x in eb.ext_instances]
+        expected = [
+            'Toy_Extension',  # 'ls' extension
+            'Toy_Extension',  # 'bar' extension
+            'DummyExtension',  # 'barbar' extension
+            'EB_toy',  # 'toy' extension
+        ]
+        self.assertEqual(ext_inst_class_names, expected)
+
+        # check what happen if we specify an easyblock that doesn't derive from Extension,
+        # and hence can't be used to install extensions...
+        test_ec = os.path.join(self.test_prefix, 'test_broken.eb')
+        test_ec_txt = test_ec_txt.replace('DummyExtension', 'ConfigureMake')
+        write_file(test_ec, test_ec_txt)
+        ec = process_easyconfig(test_ec)[0]
+        eb = get_easyblock_instance(ec)
+
+        eb.prepare_for_extensions()
+        error_pattern = "ConfigureMake easyblock can not be used to install extensions"
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.init_ext_instances)
+
+    def test_extension_source_tmpl(self):
+        """Test type checking for 'source_tmpl' value of an extension."""
+        self.contents = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'toy'",
+            "version = '0.0'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "exts_list = [",
+            "    ('bar', '0.0', {",
+            "         'source_tmpl': [SOURCE_TAR_GZ],",
+            "    }),",
+            "]",
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        error_pattern = r"source_tmpl value must be a string! "
+        error_pattern += r"\(found value of type 'list'\): \['bar-0\.0\.tar\.gz'\]"
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+
+        self.contents = self.contents.replace("'source_tmpl': [SOURCE_TAR_GZ]", "'source_tmpl': SOURCE_TAR_GZ")
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.fetch_step()
 
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
@@ -1677,16 +1763,18 @@ class EasyBlockTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
+        # Do this before loading the easyblock to check the non-translated output below
+        os.environ['LC_ALL'] = 'C'
+
         # this import only works here, since EB_toy is a test easyblock
         from easybuild.easyblocks.toy import EB_toy
 
         # purposely inject failing custom extension filter for last extension
         toy_ec = EasyConfig(toy_ec_fn)
-        toy_ec.enable_templating = False
-        exts_list = toy_ec['exts_list']
-        exts_list[-1][2]['exts_filter'] = ("thisshouldfail", '')
-        toy_ec['exts_list'] = exts_list
-        toy_ec.enable_templating = True
+        with toy_ec.disable_templating():
+            exts_list = toy_ec['exts_list']
+            exts_list[-1][2]['exts_filter'] = ("thisshouldfail", '')
+            toy_ec['exts_list'] = exts_list
 
         eb = EB_toy(toy_ec)
         eb.silent = True
@@ -2069,6 +2157,21 @@ class EasyBlockTest(EnhancedTestCase):
             '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt
         ]
         # no checksum issues
+        self.assertEqual(eb.check_checksums(), [])
+
+        # checksums as dict for some files
+        eb.cfg['checksums'] = [
+            {
+                'toy-0.0.tar.gz': '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
+                'toy-0.1.tar.gz': '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234',
+            },
+            '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487',  # toy-*.patch
+            '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt
+        ]
+        self.assertEqual(eb.check_checksums(), [])
+
+        # sources can also have dict entries
+        eb.cfg['sources'] = [{'filename': 'toy-0.0.tar.gz', 'download_fileame': 'toy.tar.gz'}]
         self.assertEqual(eb.check_checksums(), [])
 
     def test_this_is_easybuild(self):

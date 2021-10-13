@@ -127,7 +127,9 @@ class LinAlg(Toolchain):
             self.variables.nappend('LIBBLAS', self.LIB_EXTRA, position=20)
             self.variables.nappend('LIBBLAS_MT', self.LIB_EXTRA, position=20)
 
+        self.variables.join('BLAS_SHARED_LIBS', 'LIBBLAS')
         self.variables.join('BLAS_STATIC_LIBS', 'LIBBLAS')
+        self.variables.join('BLAS_MT_SHARED_LIBS', 'LIBBLAS_MT')
         self.variables.join('BLAS_MT_STATIC_LIBS', 'LIBBLAS_MT')
         for root in self.get_software_root(self.BLAS_MODULE_NAME):
             self.variables.append_exists('BLAS_LIB_DIR', root, self.BLAS_LIB_DIR)
@@ -147,7 +149,9 @@ class LinAlg(Toolchain):
             self.variables.join('LIBLAPACK_MT_ONLY', 'LIBBLAS_MT')
             self.variables.join('LIBLAPACK', 'LIBBLAS')
             self.variables.join('LIBLAPACK_MT', 'LIBBLAS_MT')
+            self.variables.join('LAPACK_SHARED_LIBS', 'BLAS_SHARED_LIBS')
             self.variables.join('LAPACK_STATIC_LIBS', 'BLAS_STATIC_LIBS')
+            self.variables.join('LAPACK_MT_SHARED_LIBS', 'BLAS_MT_SHARED_LIBS')
             self.variables.join('LAPACK_MT_STATIC_LIBS', 'BLAS_MT_STATIC_LIBS')
             self.variables.join('LAPACK_LIB_DIR', 'BLAS_LIB_DIR')
             self.variables.join('LAPACK_INC_DIR', 'BLAS_INC_DIR')
@@ -183,7 +187,9 @@ class LinAlg(Toolchain):
                 self.variables.nappend('LIBLAPACK', self.LIB_EXTRA, position=20)
                 self.variables.nappend('LIBLAPACK_MT', self.LIB_EXTRA, position=20)
 
+            self.variables.join('LAPACK_SHARED_LIBS', 'LIBLAPACK')
             self.variables.join('LAPACK_STATIC_LIBS', 'LIBLAPACK')
+            self.variables.join('LAPACK_MT_SHARED_LIBS', 'LIBLAPACK_MT')
             self.variables.join('LAPACK_MT_STATIC_LIBS', 'LIBLAPACK_MT')
 
             for root in self.get_software_root(self.LAPACK_MODULE_NAME):
@@ -192,7 +198,9 @@ class LinAlg(Toolchain):
 
         self.variables.join('BLAS_LAPACK_LIB_DIR', 'LAPACK_LIB_DIR', 'BLAS_LIB_DIR')
         self.variables.join('BLAS_LAPACK_INC_DIR', 'LAPACK_INC_DIR', 'BLAS_INC_DIR')
+        self.variables.join('BLAS_LAPACK_SHARED_LIBS', 'LAPACK_SHARED_LIBS', 'BLAS_SHARED_LIBS')
         self.variables.join('BLAS_LAPACK_STATIC_LIBS', 'LAPACK_STATIC_LIBS', 'BLAS_STATIC_LIBS')
+        self.variables.join('BLAS_LAPACK_MT_SHARED_LIBS', 'LAPACK_MT_SHARED_LIBS', 'BLAS_MT_SHARED_LIBS')
         self.variables.join('BLAS_LAPACK_MT_STATIC_LIBS', 'LAPACK_MT_STATIC_LIBS', 'BLAS_MT_STATIC_LIBS')
 
         # add general dependency variables
@@ -293,7 +301,9 @@ class LinAlg(Toolchain):
             self.variables.nappend('LIBSCALAPACK', self.LIB_EXTRA, position=20)
             self.variables.nappend('LIBSCALAPACK_MT', self.LIB_EXTRA, position=20)
 
+        self.variables.join('SCALAPACK_SHARED_LIBS', 'LIBSCALAPACK')
         self.variables.join('SCALAPACK_STATIC_LIBS', 'LIBSCALAPACK')
+        self.variables.join('SCALAPACK_MT_SHARED_LIBS', 'LIBSCALAPACK_MT')
         self.variables.join('SCALAPACK_MT_STATIC_LIBS', 'LIBSCALAPACK_MT')
         for root in self.get_software_root(self.SCALAPACK_MODULE_NAME):
             self.variables.append_exists('SCALAPACK_LIB_DIR', root, self.SCALAPACK_LIB_DIR)

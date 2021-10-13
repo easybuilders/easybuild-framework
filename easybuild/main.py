@@ -55,6 +55,7 @@ from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_g
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
+from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
@@ -67,11 +68,14 @@ from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develo
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
+from easybuild.tools.output import create_progress_bar, print_checks
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
+from easybuild.tools.systemtools import check_easybuild_deps
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
+
 
 _log = None
 
@@ -97,24 +101,36 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
     return [(ec_file, generated)]
 
 
-def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
+def build_and_install_software(ecs, init_session_state, exit_on_failure=True, progress_bar=None):
     """
     Build and install software for all provided parsed easyconfig files.
 
     :param ecs: easyconfig files to install software with
     :param init_session_state: initial session state, to use in test reports
     :param exit_on_failure: whether or not to exit on installation failure
+    :param progress_bar: progress bar to use to report progress
     """
     # obtain a copy of the starting environment so each build can start afresh
     # we shouldn't use the environment from init_session_state, since relevant env vars might have been set since
     # e.g. via easyconfig.handle_allowed_system_deps
     init_env = copy.deepcopy(os.environ)
 
+    # Initialize progress bar with overall installation task
+    if progress_bar:
+        task_id = progress_bar.add_task("", total=len(ecs))
+    else:
+        task_id = None
+
     res = []
     for ec in ecs:
+
+        if progress_bar:
+            progress_bar.update(task_id, description=ec['short_mod_name'])
+
         ec_res = {}
         try:
-            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
+            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env, progress_bar=progress_bar,
+                                                                      task_id=task_id)
             ec_res['log_file'] = app_log
             if not ec_res['success']:
                 ec_res['err'] = EasyBuildError(err)
@@ -207,7 +223,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     options, orig_paths = eb_go.options, eb_go.args
 
     global _log
-    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate, tweaked_ecs_paths) = cfg_settings
+    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
+     from_pr_list, tweaked_ecs_paths) = cfg_settings
 
     # load hook implementations (if any)
     hooks = load_hooks(options.hooks)
@@ -242,6 +259,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if search_query:
         search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
                            terse=options.terse)
+
+    if options.check_eb_deps:
+        print_checks(check_easybuild_deps(modtool))
 
     # GitHub options that warrant a silent cleanup & exit
     if options.check_github:
@@ -281,6 +301,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [
         options.add_pr_labels,
+        options.check_eb_deps,
         options.check_github,
         options.create_index,
         options.install_github_token,
@@ -303,6 +324,14 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     init_session_state.update({'module_list': modlist})
     _log.debug("Initial session state: %s" % init_session_state)
 
+    if options.skip_test_step:
+        if options.ignore_test_failure:
+            raise EasyBuildError("Found both ignore-test-failure and skip-test-step enabled. "
+                                 "Please use only one of them.")
+        else:
+            print_warning("Will not run the test step as requested via skip-test-step. "
+                          "Consider using ignore-test-failure instead and verify the results afterwards")
+
     # determine easybuild-easyconfigs package install path
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
     if not easyconfigs_pkg_paths:
@@ -318,7 +347,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     if options.copy_ec:
         # figure out list of files to copy + target location (taking into account --from-pr)
-        orig_paths, target_path = det_copy_ec_specs(orig_paths, options.from_pr)
+        orig_paths, target_path = det_copy_ec_specs(orig_paths, from_pr_list)
 
     categorized_paths = categorize_files_by_type(orig_paths)
 
@@ -403,8 +432,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     forced = options.force or options.rebuild
     dry_run_mode = options.dry_run or options.dry_run_short or options.missing_modules
 
+    keep_available_modules = forced or dry_run_mode or options.extended_dry_run or pr_options
+    keep_available_modules = keep_available_modules or options.inject_checksums or options.sanity_check_only
+
     # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
-    if not (forced or dry_run_mode or options.extended_dry_run or pr_options or options.inject_checksums):
+    if not keep_available_modules:
         retained_ecs = skip_available(easyconfigs, modtool)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
@@ -508,13 +540,20 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if not testing or (testing and do_build):
         exit_on_failure = not (options.dump_test_report or options.upload_test_report)
 
-        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)
+        progress_bar = create_progress_bar()
+        with progress_bar:
+            ecs_with_res = build_and_install_software(ordered_ecs, init_session_state,
+                                                      exit_on_failure=exit_on_failure,
+                                                      progress_bar=progress_bar)
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 
     correct_builds_cnt = len([ec_res for (_, ec_res) in ecs_with_res if ec_res.get('success', False)])
     overall_success = correct_builds_cnt == len(ordered_ecs)
-    success_msg = "Build succeeded for %s out of %s" % (correct_builds_cnt, len(ordered_ecs))
+    success_msg = "Build succeeded "
+    if build_option('ignore_test_failure'):
+        success_msg += "(with --ignore-test-failure) "
+    success_msg += "for %s out of %s" % (correct_builds_cnt, len(ordered_ecs))
 
     repo = init_repository(get_repository(), get_repositorypath())
     repo.cleanup()

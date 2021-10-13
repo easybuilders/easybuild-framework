@@ -524,7 +524,10 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_list(self):
         """Test run_cmd with command specified as a list rather than a string"""
-        (out, ec) = run_cmd(['/bin/sh', '-c', "echo hello"], shell=False)
+        cmd = ['/bin/sh', '-c', "echo hello"]
+        self.assertErrorRegex(EasyBuildError, "When passing cmd as a list then `shell` must be set explictely!",
+                              run_cmd, cmd)
+        (out, ec) = run_cmd(cmd, shell=False)
         self.assertEqual(out, "hello\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)

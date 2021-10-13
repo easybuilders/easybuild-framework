@@ -57,15 +57,16 @@ class IntelFFTW(Fftw):
         bitsuff = '_lp64'
         if self.options.get('i8', None):
             bitsuff = '_ilp64'
-        compsuff = '_intel'
-        if get_software_root('icc') is None:
-            if get_software_root('PGI'):
-                compsuff = '_pgi'
-            elif get_software_root('GCC'):
-                compsuff = '_gnu'
-            else:
-                error_msg = "Not using Intel compilers, PGI nor GCC, don't know compiler suffix for FFTW libraries."
-                raise EasyBuildError(error_msg)
+
+        if get_software_root('icc') or get_software_root('intel-compilers'):
+            compsuff = '_intel'
+        elif get_software_root('PGI'):
+            compsuff = '_pgi'
+        elif get_software_root('GCC'):
+            compsuff = '_gnu'
+        else:
+            error_msg = "Not using Intel compilers, PGI nor GCC, don't know compiler suffix for FFTW libraries."
+            raise EasyBuildError(error_msg)
 
         interface_lib = "fftw3xc%s%s" % (compsuff, picsuff)
         fftw_libs = [interface_lib]
@@ -97,7 +98,7 @@ class IntelFFTW(Fftw):
 
         def fftw_lib_exists(libname):
             """Helper function to check whether FFTW library with specified name exists."""
-            return any([os.path.exists(os.path.join(d, "lib%s.a" % libname)) for d in fft_lib_dirs])
+            return any(os.path.exists(os.path.join(d, "lib%s.a" % libname)) for d in fft_lib_dirs)
 
         if not fftw_lib_exists(interface_lib) and LooseVersion(imklver) >= LooseVersion("10.2"):
             # interface libs can be optional:
@@ -111,14 +112,15 @@ class IntelFFTW(Fftw):
         # filter out libraries from list of FFTW libraries to check for if they are not provided by Intel MKL
         check_fftw_libs = [lib for lib in fftw_libs if lib not in ['dl', 'gfortran']]
 
-        if all([fftw_lib_exists(lib) for lib in check_fftw_libs]):
-            self.FFT_LIB = fftw_libs
-        else:
+        missing_fftw_libs = [lib for lib in check_fftw_libs if not fftw_lib_exists(lib)]
+        if missing_fftw_libs:
             msg = "Not all FFTW interface libraries %s are found in %s" % (check_fftw_libs, fft_lib_dirs)
-            msg += ", can't set $FFT_LIB."
+            msg += ", can't set $FFT_LIB. Missing: %s" % (missing_fftw_libs)
             if self.dry_run:
                 dry_run_warning(msg, silent=build_option('silent'))
             else:
                 raise EasyBuildError(msg)
+        else:
+            self.FFT_LIB = fftw_libs
 
         self.FFT_LIB_MT = fftw_mt_libs

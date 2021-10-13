@@ -4,6 +4,135 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.4.2 (September 7th 2021)
+---------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add per-extension timing in output produced by eb command (#3734)
+  - add definition for new toolchain nvpsmpic (NVHPC + ParaStationMPI + CUDA) (#3736)
+  - include list of missing libraries in warning about missing FFTW libraries in imkl toolchain component (#3776)
+  - check for recursive symlinks by default before copying a folder (#3784)
+  - add --filter-ecs configuration option to filter out easyconfigs from set of easyconfigs to install (#3796)
+  - check type of source_tmpl value for extensions, ensure it's a string value (not a list) (#3799)
+  - also define $BLAS_SHARED_LIBS & co in build environment (analogous to $BLAS_STATIC_LIBS) (#3800)
+  - report use of --ignore-test-failure in success message in output (#3806)
+  - add get_cuda_cc_template_value method to EasyConfig class (#3807)
+  - add support for fix_bash_shebang_for (#3808)
+  - pick up $MODULES_CMD to facilitate using Environment Modules 4.x as modules tool (#3816)
+  - use more sensible branch name for creating easyblocks PR with --new-pr (#3817)
+- various bug fixes, including:
+  - remove Python 2.6 from list of supported Python versions in setup.py (#3767)
+  - don't add directory that doesn't include any files to $PATH or $LD_LIBRARY_PATH (#3769)
+  - make logdir writable also when --stop/--fetch is used and --read-only-installdir is enabled (#3771)
+  - fix forgotten renaming of 'l' to 'char' __init__.py that is created for included Python modules (#3773)
+  - fix verify_imports by deleting all imported modules before re-importing them one by one (#3780)
+  - fix ignore_test_failure not set for Extension instances (#3782)
+  - update iompi toolchain to intel-compiler subtoolchain for oneAPI versions (>= iompi 2020.12) (#3785)
+  - don't parse patch files as easyconfigs when searching for where patch file is used (#3786)
+  - make sure git clone with a tag argument actually downloads a tag (#3795)
+  - fix CI by excluding GC3Pie 2.6.7 (which is broken with Python 2) and improve error reporting for option parsing (#3798)
+  - correctly resolve templates for patches in extensions when uploading to GitHub (#3805)
+  - add --easystack to ignored options when submitting job (#3813)
+- other changes:
+  - speed up tests by caching checked paths in set_tmpdir + less test cases for test_compiler_dependent_optarch (#3802)
+  - speed up set_parallel method in EasyBlock class (#3812)
+
+
+v4.4.1 (July 6th 2021)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - enhance detection of patch files supplied to 'eb' command with better error messages (#3709)
+  - add per-step timing information (#3716)
+  - add module-write hook (#3728)
+  - add ignore-test-failure configuration option to ignore failing test step (#3732)
+  - add toolchain definition for nvompic (NVHPC + OpenMPI) (#3735)
+  - warn about generic milestone in --review-pr and --merge-pr (#3751)
+- various bug fixes, including:
+  - don't override COMPILER_MODULE_NAME, inherited from Ffmpi, in Fujitsu toolchain definition (#3721)
+  - avoid overwritting pr_nr in post_pr_test_report for reports with --include-easyblocks-from-pr (#3724, #3726)
+  - fix crash in get_config_dict when copying modules that were imported in easyconfig file (like 'import os') (#3729)
+  - parse C standard flags in CFLAGS for Fujitsu compiler (#3731)
+  - fix error message for --use-ccache (#3733)
+  - error out when passing a list to run_cmd* to avoid running wrong command unintended, unless shell=True is used (#3737)
+  - minor fixes to output of test reports when using multiple PRs (#3741)
+  - fix location for modules installed with intel-compilers toolchain in HierarchicalMNS by always checking toolchain compiler name against template map (#3745)
+  - avoid checking msg attribute of GitCommandError (#3756)
+  - consider sources provided as dict in EasyBlock.check_checksums_for (#3758)
+  - don't make changes to software installation directory when using --sanity-check-only (#3761)
+  - honor specified easyblock for extensions (#3762)
+- other changes:
+  - make sure that tests requiring a github token have 'github' in the test name so that they can be easily filtered (#3730)
+  - deprecate EasyBuild bootstrap script (#3742)
+  - use temporary download folder in test_http_header_fields_urlpat (#3755)
+
+
+v4.4.0 (June 2nd 2021)
+----------------------
+
+feature release
+
+- various enhancements, including:
+  - enhance apply_regex_substitutions to allow specifying action to take in case there are no matches (#3440)
+  - performance improvements for easyconfig parsing and eb startup (#3555)
+  - add support for downloading easyconfigs from multiple PRs with --from-pr (#3605, #3707, #3708)
+  - add support for prepending custom library paths in RPATH section via --rpath-override-dirs (#3650)
+  - allow amending easyconfig parameters which are not the default (#3651)
+  - update HierarchicalMNS for Intel OneAPI compilers (#3653)
+  - add support for --sanity-check-only (#3655)
+  - add support for running commands asynchronously via run_cmd + complete_cmd functions (#3656)
+  - add support for using oneAPI versions of 'intel' toolchain components (#3665)
+  - add toolchain definition for gofbf (foss with FlexiBLAS rather than OpenBLAS) (#3666)
+  - add support for using ARCH constant in easyconfig files (#3670)
+  - honor keyboard interrupt in 'eb' command (#3674)
+  - add toolchain definition for Fujitsu toolchain (#3677, #3704, #3712, #3713, #3714, #3717)
+  - extend sanity check step to check whether specific libraries are not linked into installed binaries/libraries (#3678)
+    - via banned-linked-shared-libs and required-linked-shared-libs EasyBuild configuration options
+    - via banned_linked_shared_libs and required_linked_shared_libs methods in toolchain support
+    - via banned_linked_shared_libs and required_linked_shared_libs methods in easyblock
+    - via banned_linked_shared_libs and required_linked_shared_libs easyconfig parameters
+  - add locate_solib function to locate Linux shared libraries (#3682)
+  - add system agnostic function to locate shared libraries (#3683)
+  - add update_build_option function to update specific build options after initializing the EasyBuild configuration (#3684)
+  - allow opting out of recursively unloaded of modules via recursive_module_unload easyconfig parameter (#3689)
+  - check for correct version values when parsing easystack file (#3693)
+  - run post-install commands specified for a specific extension (#3696)
+  - add support for --skip-extensions (#3702)
+  - include PR title in output produced by --merge-pr (#3706)
+- various bug fixes, including:
+  - avoid metadata greedy behaviour when probing for external module metadata (mostly relevant for integration with Cray Programming Environment) (#3559)
+  - catch problems early on if --github-user is not specified for --new-pr & co (#3644)
+  - re-enable write permissions when installing with read-only-installdir (#3649)
+  - also run sanity check for extensions when using --module-only (#3655)
+  - improve logging when failing to load class from exts_classmap (#3657)
+  - fix use of --module-only on existing installations without write permissions (#3659)
+  - correct help text for subdir-user-modules (#3660)
+  - avoid picking up easyblocks outside of sandbox in framework tests (#3680)
+  - use unload/load in ModuleGeneratorLua.swap_module, since 'swap' is not supported by Lmod (#3685)
+  - update HierarchicalMNS to also return 'Toolchain/<name>/<version>' as $MODULEPATH extension for cpe* Cray toolchains (#3686)
+  - make EasyConfigParser.get_config_dict return a copy rather than a reference (#3692)
+  - make sure that $TAPE is unset when using piped tar (#3698)
+  - fix extending message for changed files in new_pr_from_branch (#3699)
+  - enhance sched_getaffinity function to avoid early crash when counting available cores on systems with more than 1024 cores (#3701)
+  - correctly strip extension from filename in extract_cmd and back_up_file functions (#3705)
+- other changes:
+  - deprecate adding a non-existing path to $MODULEPATH (#3637)
+  - bump cryptography requirement from 3.2.1 to 3.3.2 (#3643, #3648)
+  - test bootstrap script in separate workflow, and limit test configurations a bit (#3646)
+  - update setup.py to indicate compatibility with Python 3.8 and 3.9 (#3647)
+  - replace log_error parameter of which() by on_error (#3661, #3664)
+  - don't skip sanity check for --module-only --rebuild (#3645)
+  - move disable_templating function into the EasyConfig class (#3668)
+  - pin GitPython version for Python<3.6, don't test bootstrap script against Python 3.8/3.9 (#3675)
+  - tweak foss toolchain definition to switch from OpenBLAS to FlexiBLAS in foss/2021a (#3679)
+  - suggest missing SSH key when not able to read from remote repository in --check-github (#3681)
+  - drop support for Python 2.6 (#3715)
+
+
 v4.3.4 (April 9th 2021)
 -----------------------
 

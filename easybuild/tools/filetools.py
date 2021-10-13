@@ -44,6 +44,7 @@ import glob
 import hashlib
 import imp
 import inspect
+import itertools
 import os
 import re
 import shutil
@@ -58,7 +59,8 @@ from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
-from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, GENERIC_EASYBLOCK_PKG, build_option, install_path
+from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
+from easybuild.tools.config import build_option, install_path
 from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
 
@@ -140,9 +142,11 @@ EXTRACT_CMDS = {
     '.tb2': "tar xjf %(filepath)s",
     '.tbz': "tar xjf %(filepath)s",
     '.tbz2': "tar xjf %(filepath)s",
-    # xzipped or xzipped tarball
-    '.tar.xz': "unxz %(filepath)s --stdout | tar x",
-    '.txz': "unxz %(filepath)s --stdout | tar x",
+    # xzipped or xzipped tarball;
+    # need to make sure that $TAPE is not set to avoid 'tar x' command failing,
+    # see https://github.com/easybuilders/easybuild-framework/issues/3652
+    '.tar.xz': "unset TAPE; unxz %(filepath)s --stdout | tar x",
+    '.txz': "unset TAPE; unxz %(filepath)s --stdout | tar x",
     '.xz': "unxz %(filepath)s",
     # tarball
     '.tar': "tar xf %(filepath)s",
@@ -297,11 +301,19 @@ def symlink(source_path, symlink_path, use_abspath_source=True):
     if use_abspath_source:
         source_path = os.path.abspath(source_path)
 
-    try:
-        os.symlink(source_path, symlink_path)
-        _log.info("Symlinked %s to %s", source_path, symlink_path)
-    except OSError as err:
-        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
+    if os.path.exists(symlink_path):
+        abs_source_path = os.path.abspath(source_path)
+        symlink_target_path = os.path.abspath(os.readlink(symlink_path))
+        if abs_source_path != symlink_target_path:
+            raise EasyBuildError("Trying to symlink %s to %s, but the symlink already exists and points to %s.",
+                                 source_path, symlink_path, symlink_target_path)
+        _log.info("Skipping symlinking %s to %s, link already exists", source_path, symlink_path)
+    else:
+        try:
+            os.symlink(source_path, symlink_path)
+            _log.info("Symlinked %s to %s", source_path, symlink_path)
+        except OSError as err:
+            raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
 
 
 def remove_file(path):
@@ -450,15 +462,29 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     return base_dir
 
 
-def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=True):
+def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=None, on_error=None):
     """
     Return (first) path in $PATH for specified command, or None if command is not found
 
     :param retain_all: returns *all* locations to the specified command in $PATH, not just the first one
     :param check_perms: check whether candidate path has read/exec permissions before accepting it as a match
     :param log_ok: Log an info message where the command has been found (if any)
-    :param log_error: Log a warning message when command hasn't been found
+    :param on_error: What to do if the command was not found, default: WARN. Possible values: IGNORE, WARN, ERROR
     """
+    if log_error is not None:
+        _log.deprecated("'log_error' named argument in which function has been replaced by 'on_error'", '5.0')
+        # If set, make sure on_error is at least WARN
+        if log_error and on_error == IGNORE:
+            on_error = WARN
+        elif not log_error and on_error is None:  # If set to False, use IGNORE unless on_error is also set
+            on_error = IGNORE
+    # Set default
+    # TODO: After removal of log_error from the parameters, on_error=WARN can be used instead of this
+    if on_error is None:
+        on_error = WARN
+    if on_error not in (IGNORE, WARN, ERROR):
+        raise EasyBuildError("Invalid value for 'on_error': %s", on_error)
+
     if retain_all:
         res = []
     else:
@@ -482,8 +508,12 @@ def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=True):
                 res = cmd_path
                 break
 
-    if not res and log_error:
-        _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
+    if not res and on_error != IGNORE:
+        msg = "Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths)
+        if on_error == WARN:
+            _log.warning(msg)
+        else:
+            raise EasyBuildError(msg)
     return res
 
 
@@ -499,13 +529,31 @@ def det_common_path_prefix(paths):
     found_common = False
     while not found_common and prefix != os.path.dirname(prefix):
         prefix = os.path.dirname(prefix)
-        found_common = all([p.startswith(prefix) for p in paths])
+        found_common = all(p.startswith(prefix) for p in paths)
 
     if found_common:
         # prefix may be empty string for relative paths with a non-common prefix
         return prefix.rstrip(os.path.sep) or None
     else:
         return None
+
+
+def normalize_path(path):
+    """Normalize path removing empty and dot components.
+
+    Similar to os.path.normpath but does not resolve '..' which may return a wrong path when symlinks are used
+    """
+    # In POSIX 3 or more leading slashes are equivalent to 1
+    if path.startswith(os.path.sep):
+        if path.startswith(os.path.sep * 2) and not path.startswith(os.path.sep * 3):
+            start_slashes = os.path.sep * 2
+        else:
+            start_slashes = os.path.sep
+    else:
+        start_slashes = ''
+
+    filtered_comps = (comp for comp in path.split(os.path.sep) if comp and comp != '.')
+    return start_slashes + os.path.sep.join(filtered_comps)
 
 
 def is_alt_pypi_url(url):
@@ -1049,9 +1097,16 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
     return var_defs, hits
 
 
-def dir_contains_files(path):
-    """Return True if the given directory does contain any file in itself or any subdirectory"""
-    return any(files for _root, _dirs, files in os.walk(path))
+def dir_contains_files(path, recursive=True):
+    """
+    Return True if the given directory does contain any file
+
+    :recursive If False only the path itself is considered, else all subdirectories are also searched
+    """
+    if recursive:
+        return any(files for _root, _dirs, files in os.walk(path))
+    else:
+        return any(os.path.isfile(os.path.join(path, x)) for x in os.listdir(path))
 
 
 def find_eb_script(script_name):
@@ -1273,7 +1328,7 @@ def extract_cmd(filepath, overwrite=False):
     """
     filename = os.path.basename(filepath)
     ext = find_extension(filename)
-    target = filename.rstrip(ext)
+    target = filename[:-len(ext)]
 
     cmd_tmpl = EXTRACT_CMDS[ext.lower()]
     if overwrite:
@@ -1447,14 +1502,24 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     return True
 
 
-def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
+def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb', on_missing_match=None):
     """
     Apply specified list of regex substitutions.
 
     :param paths: list of paths to files to patch (or just a single filepath)
     :param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
     :param backup: create backup of original file with specified suffix (no backup if value evaluates to False)
+    :param on_missing_match: Define what to do when no match was found in the file.
+                             Can be 'error' to raise an error, 'warn' to print a warning or 'ignore' to do nothing
+                             Defaults to the value of --strict
     """
+    if on_missing_match is None:
+        on_missing_match = build_option('strict')
+    allowed_values = (ERROR, IGNORE, WARN)
+    if on_missing_match not in allowed_values:
+        raise EasyBuildError('Invalid value passed to on_missing_match: %s (allowed: %s)',
+                             on_missing_match, ', '.join(allowed_values))
+
     if isinstance(paths, string_type):
         paths = [paths]
 
@@ -1468,9 +1533,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
     else:
         _log.info("Applying following regex substitutions to %s: %s", paths, regex_subs)
 
-        compiled_regex_subs = []
-        for regex, subtxt in regex_subs:
-            compiled_regex_subs.append((re.compile(regex), subtxt))
+        compiled_regex_subs = [(re.compile(regex), subtxt) for (regex, subtxt) in regex_subs]
 
         for path in paths:
             try:
@@ -1490,6 +1553,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
 
                 if backup:
                     copy_file(path, path + backup)
+                replacement_msgs = []
                 with open_file(path, 'w') as out_file:
                     lines = txt_utf8.split('\n')
                     del txt_utf8
@@ -1498,11 +1562,21 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb'):
                             match = regex.search(line)
                             if match:
                                 origtxt = match.group(0)
-                                _log.info("Replacing line %d in %s: '%s' -> '%s'",
-                                          (line_id + 1), path, origtxt, subtxt)
+                                replacement_msgs.append("Replaced in line %d: '%s' -> '%s'" %
+                                                        (line_id + 1, origtxt, subtxt))
                                 line = regex.sub(subtxt, line)
                                 lines[line_id] = line
                     out_file.write('\n'.join(lines))
+                if replacement_msgs:
+                    _log.info('Applied the following substitutions to %s:\n%s', path, '\n'.join(replacement_msgs))
+                else:
+                    msg = 'Nothing found to replace in %s' % path
+                    if on_missing_match == ERROR:
+                        raise EasyBuildError(msg)
+                    elif on_missing_match == WARN:
+                        _log.warning(msg)
+                    else:
+                        _log.info(msg)
 
             except (IOError, OSError) as err:
                 raise EasyBuildError("Failed to patch %s: %s", path, err)
@@ -1939,8 +2013,8 @@ def back_up_file(src_file, backup_extension='bak', hidden=False, strip_fn=None):
         fn_suffix = '.%s' % backup_extension
 
     src_dir, src_fn = os.path.split(src_file)
-    if strip_fn:
-        src_fn = src_fn.rstrip(strip_fn)
+    if strip_fn and src_fn.endswith(strip_fn):
+        src_fn = src_fn[:-len(strip_fn)]
 
     backup_fp = find_backup_name_candidate(os.path.join(src_dir, fn_prefix + src_fn + fn_suffix))
 
@@ -2197,7 +2271,11 @@ def copy_file(path, target_path, force_in_dry_run=False):
     :param force_in_dry_run: force copying of file during dry run
     """
     if not force_in_dry_run and build_option('extended_dry_run'):
+        # If in dry run mode, do not copy any files, just lie about it
         dry_run_msg("copied file %s to %s" % (path, target_path))
+    elif not os.path.exists(path) and not os.path.islink(path):
+        # NOTE: 'exists' will return False if 'path' is a broken symlink
+        raise EasyBuildError("Could not copy '%s' it does not exist!", path)
     else:
         try:
             target_exists = os.path.exists(target_path)
@@ -2211,13 +2289,14 @@ def copy_file(path, target_path, force_in_dry_run=False):
                 _log.info("Copied contents of file %s to %s", path, target_path)
             else:
                 mkdir(os.path.dirname(target_path), parents=True)
-                if os.path.exists(path):
-                    shutil.copy2(path, target_path)
-                elif os.path.islink(path):
+                if os.path.islink(path):
                     # special care for copying broken symlinks
                     link_target = os.readlink(path)
                     symlink(link_target, target_path)
-                _log.info("%s copied to %s", path, target_path)
+                    _log.info("created symlink from %s to %s", path, target_path)
+                else:
+                    shutil.copy2(path, target_path)
+                    _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError, shutil.Error) as err:
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
@@ -2267,7 +2346,28 @@ def copy_files(paths, target_path, force_in_dry_run=False, target_single_file=Fa
         raise EasyBuildError("One or more files to copy should be specified!")
 
 
-def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **kwargs):
+def has_recursive_symlinks(path):
+    """
+    Check the given directory for recursive symlinks.
+
+    That means symlinks to folders inside the path which would cause infinite loops when traversed regularily.
+
+    :param path: Path to directory to check
+    """
+    for dirpath, dirnames, filenames in os.walk(path, followlinks=True):
+        for name in itertools.chain(dirnames, filenames):
+            fullpath = os.path.join(dirpath, name)
+            if os.path.islink(fullpath):
+                linkpath = os.path.realpath(fullpath)
+                fullpath += os.sep  # To catch the case where both are equal
+                if fullpath.startswith(linkpath + os.sep):
+                    _log.info("Recursive symlink detected at %s", fullpath)
+                    return True
+    return False
+
+
+def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, check_for_recursive_symlinks=True,
+             **kwargs):
     """
     Copy a directory from specified location to specified location
 
@@ -2275,6 +2375,7 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
     :param target_path: path to copy the directory to
     :param force_in_dry_run: force running the command during dry run
     :param dirs_exist_ok: boolean indicating whether it's OK if the target directory already exists
+    :param check_for_recursive_symlinks: If symlink arg is not given or False check for recursive symlinks first
 
     shutil.copytree is used if the target path does not exist yet;
     if the target path already exists, the 'copy' function will be used to copy the contents of
@@ -2286,6 +2387,13 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
         dry_run_msg("copied directory %s to %s" % (path, target_path))
     else:
         try:
+            if check_for_recursive_symlinks and not kwargs.get('symlinks'):
+                if has_recursive_symlinks(path):
+                    raise EasyBuildError("Recursive symlinks detected in %s. "
+                                         "Will not try copying this unless `symlinks=True` is passed",
+                                         path)
+                else:
+                    _log.debug("No recursive symlinks in %s", path)
             if not dirs_exist_ok and os.path.exists(target_path):
                 raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
 
@@ -2313,7 +2421,9 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
                 paths_to_copy = [os.path.join(path, x) for x in entries]
 
                 copy(paths_to_copy, target_path,
-                     force_in_dry_run=force_in_dry_run, dirs_exist_ok=dirs_exist_ok, **kwargs)
+                     force_in_dry_run=force_in_dry_run, dirs_exist_ok=dirs_exist_ok,
+                     check_for_recursive_symlinks=False,  # Don't check again
+                     **kwargs)
 
             else:
                 # if dirs_exist_ok is not enabled or target directory doesn't exist, just use shutil.copytree
@@ -2398,17 +2508,24 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     # compose 'git clone' command, and run it
     clone_cmd = ['git', 'clone']
 
+    if not keep_git_dir:
+        # Speed up cloning by only fetching the most recent commit, not the whole history
+        # When we don't want to keep the .git folder there won't be a difference in the result
+        clone_cmd.extend(['--depth', '1'])
+
     if tag:
         clone_cmd.extend(['--branch', tag])
-
-    if recursive:
-        clone_cmd.append('--recursive')
+        if recursive:
+            clone_cmd.append('--recursive')
+    else:
+        # checkout is done separately below for specific commits
+        clone_cmd.append('--no-checkout')
 
     clone_cmd.append('%s/%s.git' % (url, repo_name))
 
     tmpdir = tempfile.mkdtemp()
     cwd = change_dir(tmpdir)
-    run.run_cmd(' '.join(clone_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+    run.run_cmd(' '.join(clone_cmd), log_all=True, simple=True, regexp=False)
 
     # if a specific commit is asked for, check it out
     if commit:
@@ -2416,14 +2533,40 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         if recursive:
             checkout_cmd.extend(['&&', 'git', 'submodule', 'update', '--init', '--recursive'])
 
-        run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
+        run.run_cmd(' '.join(checkout_cmd), log_all=True, simple=True, regexp=False, path=repo_name)
+
+    elif not build_option('extended_dry_run'):
+        # If we wanted to get a tag make sure we actually got a tag and not a branch with the same name
+        # This doesn't make sense in dry-run mode as we don't have anything to check
+        cmd = 'git describe --exact-match --tags HEAD'
+        # Note: Disable logging to also disable the error handling in run_cmd
+        (out, ec) = run.run_cmd(cmd, log_ok=False, log_all=False, regexp=False, path=repo_name)
+        if ec != 0 or tag not in out.splitlines():
+            print_warning('Tag %s was not downloaded in the first try due to %s/%s containing a branch'
+                          ' with the same name. You might want to alert the maintainers of %s about that issue.',
+                          tag, url, repo_name, repo_name)
+            cmds = []
+
+            if not keep_git_dir:
+                # make the repo unshallow first;
+                # this is equivalent with 'git fetch -unshallow' in Git 1.8.3+
+                # (first fetch seems to do nothing, unclear why)
+                cmds.append('git fetch --depth=2147483647 && git fetch --depth=2147483647')
+
+            cmds.append('git checkout refs/tags/' + tag)
+            # Clean all untracked files, e.g. from left-over submodules
+            cmds.append('git clean --force -d -x')
+            if recursive:
+                cmds.append('git submodule update --init --recursive')
+            for cmd in cmds:
+                run.run_cmd(cmd, log_all=True, simple=True, regexp=False, path=repo_name)
 
     # create an archive and delete the git repo directory
     if keep_git_dir:
         tar_cmd = ['tar', 'cfvz', targetpath, repo_name]
     else:
         tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
-    run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+    run.run_cmd(' '.join(tar_cmd), log_all=True, simple=True, regexp=False)
 
     # cleanup (repo_name dir does not exist in dry run mode)
     change_dir(cwd)

@@ -34,6 +34,7 @@ import copy
 import getpass
 import glob
 import functools
+import itertools
 import os
 import random
 import re
@@ -447,7 +448,15 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
 
     if path is None:
         if github_repo == GITHUB_EASYCONFIGS_REPO:
-            path = build_option('pr_path')
+            pr_paths = build_option('pr_paths')
+            if pr_paths:
+                # figure out directory for this specific PR (see also alt_easyconfig_paths)
+                cands = [p for p in pr_paths if p.endswith('files_pr%s' % pr)]
+                if len(cands) == 1:
+                    path = cands[0]
+                else:
+                    raise EasyBuildError("Failed to isolate path for PR #%s from list of PR paths: %s", pr, pr_paths)
+
         elif github_repo == GITHUB_EASYBLOCKS_REPO:
             path = os.path.join(tempfile.gettempdir(), 'ebs_pr%s' % pr)
         else:
@@ -831,7 +840,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # copy easyconfig files to right place
     target_dir = os.path.join(git_working_dir, pr_target_repo)
     print_msg("copying files to %s..." % target_dir)
-    file_info = COPY_FUNCTIONS[pr_target_repo](ec_paths, os.path.join(git_working_dir, pr_target_repo))
+    file_info = COPY_FUNCTIONS[pr_target_repo](ec_paths, target_dir)
 
     # figure out commit message to use
     if commit_msg:
@@ -893,6 +902,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if pr_branch is None:
         if ec_paths and pr_target_repo == GITHUB_EASYCONFIGS_REPO:
             label = file_info['ecs'][0].name + re.sub('[.-]', '', file_info['ecs'][0].version)
+        elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and paths.get('py_files'):
+            label = os.path.splitext(os.path.basename(paths['py_files'][0]))[0]
         else:
             label = ''.join(random.choice(ascii_letters) for _ in range(10))
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), label)
@@ -1005,10 +1016,14 @@ def is_patch_for(patch_name, ec):
 
     patches = copy.copy(ec['patches'])
 
-    for ext in ec['exts_list']:
-        if isinstance(ext, (list, tuple)) and len(ext) == 3 and isinstance(ext[2], dict):
-            ext_options = ext[2]
-            patches.extend(ext_options.get('patches', []))
+    with ec.disable_templating():
+        # take into account both list of extensions (via exts_list) and components (cfr. Bundle easyblock)
+        for entry in itertools.chain(ec['exts_list'], ec.get('components', [])):
+            if isinstance(entry, (list, tuple)) and len(entry) == 3 and isinstance(entry[2], dict):
+                templates = {'name': entry[0], 'version': entry[1]}
+                options = entry[2]
+                patches.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
+                               for p in options.get('patches', []))
 
     for patch in patches:
         if isinstance(patch, (tuple, list)):
@@ -1061,21 +1076,43 @@ def find_software_name_for_patch(patch_name, ec_dirs):
 
     soft_name = None
 
+    ignore_dirs = build_option('ignore_dirs')
     all_ecs = []
     for ec_dir in ec_dirs:
-        for (dirpath, _, filenames) in os.walk(ec_dir):
+        for (dirpath, dirnames, filenames) in os.walk(ec_dir):
+            # Exclude ignored dirs
+            if ignore_dirs:
+                dirnames[:] = [i for i in dirnames if i not in ignore_dirs]
             for fn in filenames:
-                if fn != 'TEMPLATE.eb' and not fn.endswith('.py'):
+                # TODO: In EasyBuild 5.x only check for '*.eb' files
+                if fn != 'TEMPLATE.eb' and os.path.splitext(fn)[1] not in ('.py', '.patch'):
                     path = os.path.join(dirpath, fn)
                     rawtxt = read_file(path)
                     if 'patches' in rawtxt:
                         all_ecs.append(path)
 
+    # Usual patch names are <software>-<version>_fix_foo.patch
+    # So search those ECs first
+    patch_stem = os.path.splitext(patch_name)[0]
+    # Extract possible sw name and version according to above scheme
+    # Those might be the same as the whole patch stem, which is OK
+    possible_sw_name = patch_stem.split('-')[0].lower()
+    possible_sw_name_version = patch_stem.split('_')[0].lower()
+
+    def ec_key(path):
+        filename = os.path.basename(path).lower()
+        # Put files with one of those as the prefix first, then sort by name
+        return (
+            not filename.startswith(possible_sw_name_version),
+            not filename.startswith(possible_sw_name),
+            filename
+        )
+    all_ecs.sort(key=ec_key)
+
     nr_of_ecs = len(all_ecs)
     for idx, path in enumerate(all_ecs):
         if soft_name:
             break
-        rawtxt = read_file(path)
         try:
             ecs = process_easyconfig(path, validate=False)
             for ec in ecs:
@@ -1175,7 +1212,10 @@ def check_pr_eligible_to_merge(pr_data):
     # check whether a milestone is set
     msg_tmpl = "* milestone is set: %s"
     if pr_data['milestone']:
-        print_msg(msg_tmpl % "OK (%s)" % pr_data['milestone']['title'], prefix=False)
+        milestone = pr_data['milestone']['title']
+        if '.x' in milestone:
+            milestone += ", please change to the next release milestone once the PR is merged"
+        print_msg(msg_tmpl % "OK (%s)" % milestone, prefix=False)
     else:
         res = not_eligible(msg_tmpl % 'no milestone found')
 
@@ -1224,7 +1264,7 @@ def reasons_for_closing(pr_data):
 
     robot_paths = build_option('robot_path')
 
-    pr_files = [path for path in fetch_easyconfigs_from_pr(pr_data['number']) if path.endswith('.eb')]
+    pr_files = [p for p in fetch_easyconfigs_from_pr(pr_data['number']) if p.endswith('.eb')]
 
     obsoleted = []
     uses_archived_tc = []
@@ -1264,7 +1304,7 @@ def reasons_for_closing(pr_data):
     if uses_archived_tc:
         possible_reasons.append('archived')
 
-    if any([e['name'] in pr_data['title'] for e in obsoleted]):
+    if any(e['name'] in pr_data['title'] for e in obsoleted):
         possible_reasons.append('obsolete')
 
     return possible_reasons
@@ -1381,6 +1421,7 @@ def merge_pr(pr):
 
     msg = "\n%s/%s PR #%s was submitted by %s, " % (pr_target_account, pr_target_repo, pr, pr_data['user']['login'])
     msg += "you are using GitHub account '%s'\n" % github_user
+    msg += "\nPR title: %s\n\n" % pr_data['title']
     print_msg(msg, prefix=False)
     if pr_data['user']['login'] == github_user:
         raise EasyBuildError("Please do not merge your own PRs!")
@@ -1482,17 +1523,17 @@ def add_pr_labels(pr, branch=GITHUB_DEVELOP_BRANCH):
 
     download_repo_path = download_repo(branch=branch, path=tmpdir)
 
-    pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
+    pr_files = [p for p in fetch_easyconfigs_from_pr(pr) if p.endswith('.eb')]
 
     file_info = det_file_info(pr_files, download_repo_path)
 
     pr_target_account = build_option('pr_target_account')
     github_user = build_option('github_user')
     pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
-    pr_labels = [label['name'] for label in pr_data['labels']]
+    pr_labels = [x['name'] for x in pr_data['labels']]
 
     expected_labels = det_pr_labels(file_info, pr_target_repo)
-    missing_labels = [label for label in expected_labels if label not in pr_labels]
+    missing_labels = [x for x in expected_labels if x not in pr_labels]
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
@@ -1607,7 +1648,7 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
                 msg.extend(["  " + x for x in patch_paths])
             if deleted_paths:
                 msg.append("* %d deleted file(s)" % len(deleted_paths))
-                msg.append(["  " + x for x in deleted_paths])
+                msg.extend(["  " + x for x in deleted_paths])
 
             print_msg('\n'.join(msg), log=_log)
         else:
@@ -1792,7 +1833,7 @@ def det_pr_target_repo(paths):
 
             # if all Python files are easyblocks, target repo should be easyblocks;
             # otherwise, target repo is assumed to be framework
-            if all([get_easyblock_class_name(path) for path in py_files]):
+            if all(get_easyblock_class_name(path) for path in py_files):
                 pr_target_repo = GITHUB_EASYBLOCKS_REPO
                 _log.info("All Python files are easyblocks, target repository is assumed to be %s", pr_target_repo)
             else:
@@ -2016,6 +2057,8 @@ def check_github():
             ver, req_ver = git.__version__, '1.0'
             if LooseVersion(ver) < LooseVersion(req_ver):
                 check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (ver, req_ver)
+            elif "Could not read from remote repository" in str(push_err):
+                check_res = "FAIL (GitHub SSH key missing? %s)" % push_err
             else:
                 check_res = "FAIL (unexpected exception: %s)" % push_err
         else:
