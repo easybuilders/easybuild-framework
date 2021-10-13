@@ -46,6 +46,7 @@ except ImportError:
 
 
 PROGRESS_BAR_DOWNLOAD = 'download'
+PROGRESS_BAR_EXTENSIONS = 'extensions'
 PROGRESS_BAR_EASYCONFIG = 'easyconfig'
 PROGRESS_BAR_OVERALL = 'overall'
 
@@ -87,20 +88,24 @@ def use_rich():
     return get_output_style() == OUTPUT_STYLE_RICH
 
 
+def show_progress_bars():
+    """
+    Return whether or not to show progress bars.
+    """
+    return use_rich() and build_option('show_progress_bar')
+
+
 def rich_live_cm():
     """
     Return Live instance to use as context manager.
     """
-    if use_rich() and build_option('show_progress_bar'):
-        overall_pbar = overall_progress_bar()
-        easyconfig_pbar = easyconfig_progress_bar()
-        download_pbar = download_progress_bar()
-        download_pbar_bis = download_progress_bar_unknown_size()
+    if show_progress_bars():
         pbar_group = RenderGroup(
-                download_pbar,
-                download_pbar_bis,
-                easyconfig_pbar,
-                overall_pbar
+                download_progress_bar(),
+                download_progress_bar_unknown_size(),
+                extensions_progress_bar(),
+                easyconfig_progress_bar(),
+                overall_progress_bar(),
         )
         live = Live(pbar_group)
     else:
@@ -149,7 +154,7 @@ def easyconfig_progress_bar():
     Get progress bar to display progress for installing a single easyconfig file.
     """
     progress_bar = Progress(
-        TextColumn("[bold blue]{task.description}"),
+        TextColumn("[bold green]{task.description}"),
         BarColumn(),
         TimeElapsedColumn(),
     )
@@ -187,12 +192,27 @@ def download_progress_bar_unknown_size():
     return progress_bar
 
 
+@progress_bar_cache
+def extensions_progress_bar():
+    """
+    Get progress bar to show progress for installing extensions.
+    """
+    progress_bar = Progress(
+        TextColumn("[bold blue]{task.description} ({task.completed}/{task.total})"),
+        BarColumn(),
+        TimeElapsedColumn(),
+    )
+
+    return progress_bar
+
+
 def get_progress_bar(bar_type, size=None):
     """
     Get progress bar of given type.
     """
     progress_bar_types = {
         PROGRESS_BAR_DOWNLOAD: download_progress_bar,
+        PROGRESS_BAR_EXTENSIONS: extensions_progress_bar,
         PROGRESS_BAR_EASYCONFIG: easyconfig_progress_bar,
         PROGRESS_BAR_OVERALL: overall_progress_bar,
     }

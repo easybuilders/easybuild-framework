@@ -89,7 +89,8 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import Lmod, curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
-from easybuild.tools.output import PROGRESS_BAR_EASYCONFIG, start_progress_bar, update_progress_bar
+from easybuild.tools.output import PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
+from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
@@ -2415,6 +2416,9 @@ class EasyBlock(object):
             self.skip_extensions()
 
         exts_cnt = len(self.ext_instances)
+
+        start_progress_bar(PROGRESS_BAR_EXTENSIONS, exts_cnt)
+
         for idx, ext in enumerate(self.ext_instances):
 
             self.log.debug("Starting extension %s" % ext.name)
@@ -2422,8 +2426,12 @@ class EasyBlock(object):
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
 
+            progress_label = "Installing '%s' extension" % ext.name
+            update_progress_bar(PROGRESS_BAR_EXTENSIONS, label=progress_label)
+
             tup = (ext.name, ext.version or '', idx + 1, exts_cnt)
             print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
+
             start_time = datetime.now()
 
             if self.dry_run:
@@ -2458,6 +2466,8 @@ class EasyBlock(object):
                             print_msg("\t... (took %s)", time2str(ext_duration), log=self.log, silent=self.silent)
                         elif self.logdebug or build_option('trace'):
                             print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
+
+        stop_progress_bar(PROGRESS_BAR_EXTENSIONS, visible=False)
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
