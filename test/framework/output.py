@@ -56,7 +56,7 @@ class OutputTest(EnhancedTestCase):
         else:
             expected_progress_bar_class = DummyRich
 
-        progress_bar = overall_progress_bar()
+        progress_bar = overall_progress_bar(ignore_cache=True)
         error_msg = "%s should be instance of class %s" % (progress_bar, expected_progress_bar_class)
         self.assertTrue(isinstance(progress_bar, expected_progress_bar_class), error_msg)
 
