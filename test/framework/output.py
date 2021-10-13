@@ -33,7 +33,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_output_style, update_build_option
-from easybuild.tools.output import DummyRich, overall_progress_bar, use_rich
+from easybuild.tools.output import DummyRich, overall_progress_bar, show_progress_bars, use_rich
 
 try:
     import rich.progress
@@ -101,21 +101,28 @@ class OutputTest(EnhancedTestCase):
             error_pattern = "Can't use 'rich' output style, Rich Python package is not available!"
             self.assertErrorRegex(EasyBuildError, error_pattern, get_output_style)
 
-    def test_use_rich(self):
-        """Test use_rich function."""
+    def test_use_rich_show_progress_bars(self):
+        """Test use_rich and show_progress_bar functions."""
+
+        # restore default configuration to show progress bars (disabled to avoid mangled test output)
+        update_build_option('show_progress_bar', True)
 
         self.assertEqual(build_option('output_style'), 'auto')
 
         if HAVE_RICH:
             self.assertTrue(use_rich())
+            self.assertTrue(show_progress_bars())
 
             update_build_option('output_style', 'rich')
             self.assertTrue(use_rich())
+            self.assertTrue(show_progress_bars())
         else:
             self.assertFalse(use_rich())
+            self.assertFalse(show_progress_bars())
 
         update_build_option('output_style', 'basic')
         self.assertFalse(use_rich())
+        self.assertFalse(show_progress_bars())
 
 
 def suite():
