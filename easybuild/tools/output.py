@@ -156,7 +156,7 @@ def easyconfig_progress_bar():
     Get progress bar to display progress for installing a single easyconfig file.
     """
     progress_bar = Progress(
-        TextColumn("[bold green]{task.description}"),
+        TextColumn("[bold green]{task.description} ({task.completed} out of {task.total} steps done)"),
         BarColumn(),
         TimeElapsedColumn(),
     )

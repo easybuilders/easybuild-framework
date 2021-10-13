@@ -3496,6 +3496,7 @@ class EasyBlock(object):
         run_hook(step, self.hooks, post_step_hook=True, args=[self])
 
         if self.cfg['stop'] == step:
+            update_progress_bar(PROGRESS_BAR_EASYCONFIG)
             self.log.info("Stopping after %s step.", step)
             raise StopException(step)
 
@@ -3609,11 +3610,15 @@ class EasyBlock(object):
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
-        progress_label_tmpl = "%s (%d out of %d steps done)"
+        # figure out how many steps will actually be run (not be skipped)
+        step_cnt = 0
+        for (step_name, _, _, skippable) in steps:
+            if not self.skip_step(step_name, skippable):
+                step_cnt += 1
+            if self.cfg['stop'] == step_name:
+                break
 
-        n_steps = len(steps)
-        progress_label = progress_label_tmpl % (self.full_mod_name, 0, n_steps)
-        start_progress_bar(PROGRESS_BAR_EASYCONFIG, n_steps, label=progress_label)
+        start_progress_bar(PROGRESS_BAR_EASYCONFIG, step_cnt, label=self.full_mod_name)
 
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         trace_msg("installation prefix: %s" % self.installdir)
@@ -3653,8 +3658,7 @@ class EasyBlock(object):
                             elif self.logdebug or build_option('trace'):
                                 print_msg("... (took < 1 sec)", log=self.log, silent=self.silent)
 
-                progress_label = progress_label_tmpl % (self.full_mod_name, step_id, n_steps)
-                update_progress_bar(PROGRESS_BAR_EASYCONFIG, label=progress_label)
+                    update_progress_bar(PROGRESS_BAR_EASYCONFIG)
 
         except StopException:
             pass
@@ -3662,7 +3666,7 @@ class EasyBlock(object):
             if not ignore_locks:
                 remove_lock(lock_name)
 
-        update_progress_bar(PROGRESS_BAR_EASYCONFIG, label="%s done!" % self.full_mod_name)
+        update_progress_bar(PROGRESS_BAR_EASYCONFIG, label="%s done!" % self.full_mod_name, progress_size=0)
 
         # return True for successfull build (or stopped build)
         return True
