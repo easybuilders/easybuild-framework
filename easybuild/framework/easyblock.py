@@ -3618,7 +3618,7 @@ class EasyBlock(object):
             if self.cfg['stop'] == step_name:
                 break
 
-        start_progress_bar(PROGRESS_BAR_EASYCONFIG, step_cnt, label=self.full_mod_name)
+        start_progress_bar(PROGRESS_BAR_EASYCONFIG, step_cnt, label="Installing %s" % self.full_mod_name)
 
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         trace_msg("installation prefix: %s" % self.installdir)
@@ -3658,7 +3658,8 @@ class EasyBlock(object):
                             elif self.logdebug or build_option('trace'):
                                 print_msg("... (took < 1 sec)", log=self.log, silent=self.silent)
 
-                    update_progress_bar(PROGRESS_BAR_EASYCONFIG)
+                    progress_label = "Installing %s: %s" % (self.full_mod_name, descr)
+                    update_progress_bar(PROGRESS_BAR_EASYCONFIG, label=progress_label)
 
         except StopException:
             pass
@@ -3666,7 +3667,7 @@ class EasyBlock(object):
             if not ignore_locks:
                 remove_lock(lock_name)
 
-        update_progress_bar(PROGRESS_BAR_EASYCONFIG, label="%s done!" % self.full_mod_name, progress_size=0)
+        stop_progress_bar(PROGRESS_BAR_EASYCONFIG)
 
         # return True for successfull build (or stopped build)
         return True

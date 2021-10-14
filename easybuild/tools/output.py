@@ -39,7 +39,7 @@ try:
     from rich.console import Console, RenderGroup
     from rich.live import Live
     from rich.table import Table
-    from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
     from rich.progress import DownloadColumn, FileSizeColumn, TransferSpeedColumn, TimeRemainingColumn
 except ImportError:
     pass
@@ -156,6 +156,7 @@ def easyconfig_progress_bar():
     Get progress bar to display progress for installing a single easyconfig file.
     """
     progress_bar = Progress(
+        SpinnerColumn('line'),
         TextColumn("[bold green]{task.description} ({task.completed} out of {task.total} steps done)"),
         BarColumn(),
         TimeElapsedColumn(),
