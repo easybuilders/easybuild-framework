@@ -199,6 +199,7 @@ BUILD_OPTIONS_CMDLINE = {
         'hide_toolchains',
         'http_header_fields_urlpat',
         'force_download',
+        'insecure_download',
         'from_pr',
         'git_working_dirs_path',
         'github_user',
