@@ -93,7 +93,7 @@ def show_progress_bars():
     """
     Return whether or not to show progress bars.
     """
-    return use_rich() and build_option('show_progress_bar')
+    return use_rich() and build_option('show_progress_bar') and not build_option('extended_dry_run')
 
 
 def rich_live_cm():
