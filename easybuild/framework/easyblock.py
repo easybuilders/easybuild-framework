@@ -490,7 +490,8 @@ class EasyBlock(object):
 
             force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES]
             insecure_download = build_option('insecure_download')
-            path = self.obtain_file(patch_file, extension=extension, force_download=force_download, insecure_download=insecure_download)
+            path = self.obtain_file(patch_file, extension=extension, force_download=force_download,
+                                    insecure_download=insecure_download)
             if path:
                 self.log.debug('File %s found for patch %s' % (path, patch_spec))
                 patchspec = {

@@ -764,7 +764,7 @@ def download_file(filename, url, path, forced=False, insecure=False):
                     url_fd = std_urllib.urlopen(url_req, timeout=timeout)
                 status_code = url_fd.getcode()
             else:
-                response = requests.get(url, headers=headers, stream=True, timeout=timeout, verify=( not insecure ))
+                response = requests.get(url, headers=headers, stream=True, timeout=timeout, verify=(not insecure))
                 status_code = response.status_code
                 response.raise_for_status()
                 url_fd = response.raw

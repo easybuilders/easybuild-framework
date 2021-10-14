@@ -408,7 +408,7 @@ class EasyBuildOptions(GeneralOption):
                                "even if they are available already in source path",
                                'choice', 'store_or_None', DEFAULT_FORCE_DOWNLOAD, FORCE_DOWNLOAD_CHOICES),
             'insecure-download': ("Don't check the server certificate against the available certificate authorities.",
-                                   None, 'store_true', False),
+                                  None, 'store_true', False),
             'generate-devel-module': ("Generate a develop module file, implies --force if disabled",
                                       None, 'store_true', True),
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
