@@ -161,9 +161,9 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
         res.append((ec, ec_res))
 
-        update_progress_bar(PROGRESS_BAR_OVERALL, progress_size=1)
+        update_progress_bar(PROGRESS_BAR_OVERALL)
 
-    stop_progress_bar(PROGRESS_BAR_OVERALL, visible=True)
+    stop_progress_bar(PROGRESS_BAR_OVERALL)
 
     return res
 
