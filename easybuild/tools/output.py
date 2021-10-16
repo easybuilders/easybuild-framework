@@ -144,7 +144,6 @@ def overall_progress_bar():
         TimeElapsedColumn(),
         TextColumn("{task.description}({task.completed} out of {task.total} easyconfigs done)"),
         BarColumn(bar_width=None),
-        expand=True,
     )
 
     return progress_bar
