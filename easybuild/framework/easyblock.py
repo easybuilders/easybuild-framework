@@ -1923,26 +1923,7 @@ class EasyBlock(object):
                 raise EasyBuildError("EasyBuild-version %s is newer than the currently running one. Aborting!",
                                      easybuild_version)
 
-        # count number of files to download: sources + patches (incl. extensions)
-        # FIXME: to make this count fully correct, we need the Extension instances first,
-        # which requires significant refactoring in fetch_extension_sources
-        # (also needed to fix https://github.com/easybuilders/easybuild-framework/issues/3849)
-        cnt = len(self.cfg['sources']) + len(self.cfg['patches'])
-        if self.cfg['exts_list']:
-            for ext in self.cfg['exts_list']:
-                if isinstance(ext, tuple) and len(ext) >= 3:
-                    ext_opts = ext[2]
-                    if 'source' in ext_opts:
-                        cnt += 1
-                    elif 'sources' in ext_opts:
-                        cnt += len(ext_opts['sources'])
-                    else:
-                        # assume there's always one source file;
-                        # for extensions using PythonPackage, no 'source' or 'sources' may be specified
-                        cnt += 1
-                    cnt += len(ext_opts.get('patches', []))
-
-        start_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, cnt)
+        start_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, self.cfg.count_files())
 
         if self.dry_run:
 
