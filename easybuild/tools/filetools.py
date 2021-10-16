@@ -1409,6 +1409,44 @@ def guess_patch_level(patched_files, parent_dir):
     return patch_level
 
 
+def create_patch_info(patch_spec):
+    """
+    Create info dictionary from specified patch spec.
+    """
+    if isinstance(patch_spec, (list, tuple)):
+        if not len(patch_spec) == 2:
+            error_msg = "Unknown patch specification '%s', only 2-element lists/tuples are supported!"
+            raise EasyBuildError(error_msg, str(patch_spec))
+
+        patch_info = {'name': patch_spec[0]}
+
+        patch_arg = patch_spec[1]
+        # patch level *must* be of type int, nothing else (not True/False!)
+        # note that 'isinstance(..., int)' returns True for True/False values...
+        if isinstance(patch_arg, int) and not isinstance(patch_arg, bool):
+            patch_info['level'] = patch_arg
+
+        # string value as patch argument can be either path where patch should be applied,
+        # or path to where a non-patch file should be copied
+        elif isinstance(patch_arg, string_type):
+            if patch_spec[0].endswith('.patch'):
+                patch_info['sourcepath'] = patch_arg
+            # non-patch files are assumed to be files to copy
+            else:
+                patch_info['copy'] = patch_arg
+        else:
+            raise EasyBuildError("Wrong patch spec '%s', only int/string are supported as 2nd element",
+                                 str(patch_spec))
+
+    elif isinstance(patch_spec, string_type):
+        patch_info = {'name': patch_spec}
+    else:
+        error_msg = "Wrong patch spec, should be string of 2-tuple with patch name + argument: %s"
+        raise EasyBuildError(error_msg, patch_spec)
+
+    return patch_info
+
+
 def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=False, use_git=False):
     """
     Apply a patch to source code in directory dest

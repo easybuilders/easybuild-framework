@@ -474,7 +474,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
-        exts_sources = eb.fetch_extension_sources()
+        exts_sources = eb.collect_exts_file_info()
 
         self.assertEqual(len(exts_sources), 2)
         self.assertEqual(exts_sources[0]['name'], 'ext1')

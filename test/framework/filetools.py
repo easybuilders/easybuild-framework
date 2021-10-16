@@ -1510,6 +1510,23 @@ class FileToolsTest(EnhancedTestCase):
         url = 'https://pypi.python.org/packages/source/n/nosuchpackageonpypiever/nosuchpackageonpypiever-0.0.0.tar.gz'
         self.assertEqual(ft.derive_alt_pypi_url(url), None)
 
+    def test_create_patch_info(self):
+        """Test create_patch_info function."""
+
+        self.assertEqual(ft.create_patch_info('foo.patch'), {'name': 'foo.patch'})
+        self.assertEqual(ft.create_patch_info('foo.txt'), {'name': 'foo.txt'})
+        self.assertEqual(ft.create_patch_info(('foo.patch', 1)), {'name': 'foo.patch', 'level': 1})
+        self.assertEqual(ft.create_patch_info(('foo.patch', 'subdir')), {'name': 'foo.patch', 'sourcepath': 'subdir'})
+        self.assertEqual(ft.create_patch_info(('foo.txt', 'subdir')), {'name': 'foo.txt', 'copy': 'subdir'})
+
+        # faulty input
+        error_msg = "Wrong patch spec"
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, None)
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'name': 'foo.patch'})
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, ('foo.patch', [1, 2]))
+        error_msg = "Unknown patch specification"
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, ('foo.patch', 1, 'subdir'))
+
     def test_apply_patch(self):
         """ Test apply_patch """
         testdir = os.path.dirname(os.path.abspath(__file__))
