@@ -1172,9 +1172,7 @@ class ToolchainTest(EnhancedTestCase):
         # create dummy imkl module and put required lib*.a files in place
 
         imkl_module_path = os.path.join(moddir, 'imkl', imklver)
-        imkl_fftw_module_path = os.path.join(moddir, 'imkl-FFTW', imklver)
         imkl_dir = os.path.join(self.test_prefix, 'software', 'imkl', imklver)
-        imkl_fftw_dir = os.path.join(self.test_prefix, 'software', 'imkl-FFTW', imklver)
 
         imkl_mod_txt = '\n'.join([
             "#%Module",
@@ -1182,13 +1180,6 @@ class ToolchainTest(EnhancedTestCase):
             "setenv EBVERSIONIMKL %s" % imklver,
         ])
         write_file(imkl_module_path, imkl_mod_txt)
-
-        imkl_fftw_mod_txt = '\n'.join([
-            "#%Module",
-            "setenv EBROOTIMKLMINFFTW %s" % imkl_fftw_dir,
-            "setenv EBVERSIONIMKLMINFFTW %s" % imklver,
-        ])
-        write_file(imkl_fftw_module_path, imkl_fftw_mod_txt)
 
         mkl_libs = ['mkl_cdft_core', 'mkl_blacs_intelmpi_lp64']
         mkl_libs += ['mkl_intel_lp64', 'mkl_sequential', 'mkl_core', 'mkl_intel_ilp64']
@@ -1199,6 +1190,15 @@ class ToolchainTest(EnhancedTestCase):
             fftw_libs.append('fftw3x_cdft')
 
         if LooseVersion(imklver) >= LooseVersion('2021.4.0'):
+            imkl_fftw_module_path = os.path.join(moddir, 'imkl-FFTW', imklver)
+            imkl_fftw_dir = os.path.join(self.test_prefix, 'software', 'imkl-FFTW', imklver)
+            imkl_fftw_mod_txt = '\n'.join([
+                "#%Module",
+                "setenv EBROOTIMKLMINFFTW %s" % imkl_fftw_dir,
+                "setenv EBVERSIONIMKLMINFFTW %s" % imklver,
+            ])
+            write_file(imkl_fftw_module_path, imkl_fftw_mod_txt)
+
             subdir = 'mkl/%s/lib/intel64' % imklver
             os.makedirs(os.path.join(imkl_dir, subdir))
             for fftlib in mkl_libs:
@@ -1208,6 +1208,7 @@ class ToolchainTest(EnhancedTestCase):
             for fftlib in fftw_libs:
                 write_file(os.path.join(imkl_fftw_dir, subdir, 'lib%s.a' % fftlib), 'foo')
         else:
+            self.modtool.unload(['imkl-FFTW'])
             for subdir in ['mkl/lib/intel64', 'compiler/lib/intel64', 'lib/em64t']:
                 os.makedirs(os.path.join(imkl_dir, subdir))
                 for fftlib in mkl_libs + fftw_libs:
