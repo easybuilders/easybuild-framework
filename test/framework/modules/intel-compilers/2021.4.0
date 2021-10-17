@@ -1,0 +1,41 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+Intel C, C++ & Fortran compilers (classic and oneAPI)
+
+
+More information
+================
+ - Homepage: https://software.intel.com/content/www/us/en/develop/tools/oneapi/hpc-toolkit.html
+    }
+}
+
+module-whatis {Description: Intel C, C++ & Fortran compilers (classic and oneAPI)}
+module-whatis {Homepage: https://software.intel.com/content/www/us/en/develop/tools/oneapi/hpc-toolkit.html}
+module-whatis {URL: https://software.intel.com/content/www/us/en/develop/tools/oneapi/hpc-toolkit.html}
+
+set root /tmp/intel-compilers/2021.4.0
+
+conflict intel-compilers
+
+prepend-path	CPATH		$root/tbb/2021.4.0/include
+prepend-path	LD_LIBRARY_PATH		$root/compiler/2021.4.0/linux/lib
+prepend-path	LD_LIBRARY_PATH		$root/compiler/2021.4.0/linux/lib/x64
+prepend-path	LD_LIBRARY_PATH		$root/compiler/2021.4.0/linux/compiler/lib/intel64_lin
+prepend-path	LD_LIBRARY_PATH		$root/tbb/2021.4.0/lib/intel64/gcc4.8
+prepend-path	LIBRARY_PATH		$root/compiler/2021.4.0/linux/lib
+prepend-path	LIBRARY_PATH		$root/compiler/2021.4.0/linux/lib/x64
+prepend-path	LIBRARY_PATH		$root/compiler/2021.4.0/linux/compiler/lib/intel64_lin
+prepend-path	LIBRARY_PATH		$root/tbb/2021.4.0/lib/intel64/gcc4.8
+prepend-path	OCL_ICD_FILENAMES		$root/compiler/2021.4.0/linux/lib/x64/libintelocl.so
+prepend-path	PATH		$root/compiler/2021.4.0/linux/bin
+prepend-path	PATH		$root/compiler/2021.4.0/linux/bin/intel64
+prepend-path	TBBROOT		$root/tbb/2021.4.0
+setenv	EBROOTINTELMINCOMPILERS		"$root"
+setenv	EBVERSIONINTELMINCOMPILERS		"2021.4.0"
+setenv	EBDEVELINTELMINCOMPILERS		"$root/easybuild/Core-intel-compilers-2021.4.0-easybuild-devel"
+
+# Built with EasyBuild version 4.5.0dev
