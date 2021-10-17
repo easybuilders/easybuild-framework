@@ -1020,6 +1020,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_fft_env_vars_intel(self):
         """Test setting of $FFT* environment variables using intel toolchain."""
 
+        self.modtool.purge()
         self.setup_sandbox_for_intel_fftw(self.test_prefix)
         self.modtool.prepend_module_path(self.test_prefix)
 
@@ -1079,6 +1080,7 @@ class ToolchainTest(EnhancedTestCase):
         libfft_mt += '-Wl,-Bdynamic -liomp5 -lpthread'
         self.assertEqual(tc.get_variable('LIBFFT_MT'), libfft_mt)
 
+        self.modtool.purge()
         self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='2021.4.0')
         tc = self.get_toolchain('intel', version='2021b')
         tc.prepare()
@@ -1208,7 +1210,6 @@ class ToolchainTest(EnhancedTestCase):
             for fftlib in fftw_libs:
                 write_file(os.path.join(imkl_fftw_dir, subdir, 'lib%s.a' % fftlib), 'foo')
         else:
-            self.modtool.unload(['imkl-FFTW'])
             for subdir in ['mkl/lib/intel64', 'compiler/lib/intel64', 'lib/em64t']:
                 os.makedirs(os.path.join(imkl_dir, subdir))
                 for fftlib in mkl_libs + fftw_libs:
