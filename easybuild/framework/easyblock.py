@@ -3613,6 +3613,9 @@ class EasyBlock(object):
                 if self.skip_step(step_name, skippable):
                     print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
+                    progress_label = "Installing %s: %s" % (self.full_mod_name, descr)
+                    update_progress_bar(PROGRESS_BAR_EASYCONFIG, label=progress_label, progress_size=0)
+
                     if self.dry_run:
                         self.dry_run_msg("%s... [DRY RUN]\n", descr)
                     else:
@@ -3629,8 +3632,7 @@ class EasyBlock(object):
                             elif self.logdebug or build_option('trace'):
                                 print_msg("... (took < 1 sec)", log=self.log, silent=self.silent)
 
-                    progress_label = "Installing %s: %s" % (self.full_mod_name, descr)
-                    update_progress_bar(PROGRESS_BAR_EASYCONFIG, label=progress_label)
+                    update_progress_bar(PROGRESS_BAR_EASYCONFIG)
 
         except StopException:
             pass
