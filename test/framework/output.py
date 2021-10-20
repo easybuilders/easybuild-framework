@@ -33,7 +33,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_output_style, update_build_option
-from easybuild.tools.output import DummyRich, overall_progress_bar, show_progress_bars, use_rich
+from easybuild.tools.output import DummyRich, colorize, overall_progress_bar, show_progress_bars, use_rich
 
 try:
     import rich.progress
@@ -123,6 +123,20 @@ class OutputTest(EnhancedTestCase):
         update_build_option('output_style', 'basic')
         self.assertFalse(use_rich())
         self.assertFalse(show_progress_bars())
+
+    def test_colorize(self):
+        """
+        Test colorize function
+        """
+        if HAVE_RICH:
+            for color in ('green', 'red', 'yellow'):
+                self.assertEqual(colorize('test', color), '[bold %s]test[/bold %s]' % (color, color))
+        else:
+            self.assertEqual(colorize('test', 'green'), '\x1b[0;32mtest\x1b[0m')
+            self.assertEqual(colorize('test', 'red'), '\x1b[0;31mtest\x1b[0m')
+            self.assertEqual(colorize('test', 'yellow'), '\x1b[1;33mtest\x1b[0m')
+
+        self.assertErrorRegex(EasyBuildError, "Unknown color: nosuchcolor", colorize, 'test', 'nosuchcolor')
 
 
 def suite():
