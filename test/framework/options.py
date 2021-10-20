@@ -4020,7 +4020,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git\.\.\.",
             r"^== copying files to .*/easybuild-easyconfigs\.\.\.",
-            r"^== pushing branch '.*' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
+            r"^== pushing branch '[0-9]{14}_new_pr_toy00' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
         ]
         self._assert_regexs(regexs, txt)
 
@@ -4041,7 +4041,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyblocks.git\.\.\.",
             r"^== copying files to .*/easybuild-easyblocks\.\.\.",
-            r"^== pushing branch '.*' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
+            r"^== pushing branch '[0-9]{14}_new_pr_toy' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
         ]
         self._assert_regexs(regexs, txt)
 
@@ -4068,7 +4068,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-framework.git\.\.\.",
             r"^== copying files to .*/easybuild-framework\.\.\.",
-            r"^== pushing branch '.*' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
+            r"^== pushing branch '[0-9]{14}_new_pr_[A-Za-z]{10}' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
         ]
         self._assert_regexs(regexs, txt)
 
@@ -5845,6 +5845,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+    def test_check_eb_deps(self):
+        """Test for --check-eb-deps."""
+        txt, _ = self._run_mock_eb(['--check-eb-deps'], raise_error=True)
+
+        # keep in mind that these patterns should match with both normal output and Rich output!
+        opt_dep_info_pattern = r'([0-9.]+|\(NOT FOUND\)|not found|\(unknown version\))'
+        tool_info_pattern = r'([0-9.]+|\(NOT FOUND\)|not found|\(found, UNKNOWN version\)|version\?\!)'
+        patterns = [
+            r"Required dependencies",
+            r"Python.* [23][0-9.]+",
+            r"modules tool.* [A-Za-z0-9.\s-]+",
+            r"Optional dependencies",
+            r"archspec.* %s.*determining name" % opt_dep_info_pattern,
+            r"GitPython.* %s.*GitHub integration" % opt_dep_info_pattern,
+            r"Rich.* %s.*eb command rich terminal output" % opt_dep_info_pattern,
+            r"setuptools.* %s.*information on Python packages" % opt_dep_info_pattern,
+            r"System tools",
+            r"make.* %s" % tool_info_pattern,
+            r"patch.* %s" % tool_info_pattern,
+            r"sed.* %s" % tool_info_pattern,
+            r"Slurm.* %s" % tool_info_pattern,
+        ]
+
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
     def test_tmp_logdir(self):
         """Test use of --tmp-logdir."""
 
@@ -6232,6 +6259,68 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt + '\naccept_eula = True')
         self.eb_main(args, do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_modfile))
+
+    def test_config_abs_path(self):
+        """Test ensuring of absolute path values for path configuration options."""
+
+        test_topdir = os.path.join(self.test_prefix, 'test_topdir')
+        test_subdir = os.path.join(test_topdir, 'test_middle_dir', 'test_subdir')
+        mkdir(test_subdir, parents=True)
+        change_dir(test_subdir)
+
+        # a relative path specified in a configuration file is positively weird, but fine :)
+        cfgfile = os.path.join(self.test_prefix, 'test.cfg')
+        cfgtxt = '\n'.join([
+            "[config]",
+            "containerpath = ..",
+            "repositorypath = /apps/easyconfigs_archive, somesubdir",
+        ])
+        write_file(cfgfile, cfgtxt)
+
+        # relative paths in environment variables is also weird,
+        # but OK for the sake of testing...
+        os.environ['EASYBUILD_INSTALLPATH'] = '../..'
+        os.environ['EASYBUILD_ROBOT_PATHS'] = '../..'
+
+        args = [
+            '--configfiles=%s' % cfgfile,
+            '--prefix=..',
+            '--sourcepath=.',
+            '--show-config',
+        ]
+
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+
+        patterns = [
+            r"^containerpath\s+\(F\) = /.*/test_topdir/test_middle_dir$",
+            r"^installpath\s+\(E\) = /.*/test_topdir$",
+            r"^prefix\s+\(C\) = /.*/test_topdir/test_middle_dir$",
+            r"^repositorypath\s+\(F\) = \('/apps/easyconfigs_archive', ' somesubdir'\)$",
+            r"^sourcepath\s+\(C\) = /.*/test_topdir/test_middle_dir/test_subdir$",
+            r"^robot-paths\s+\(E\) = /.*/test_topdir$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (pattern, txt))
+
+        # paths specified via --robot have precedence over those specified via $EASYBUILD_ROBOT_PATHS
+        change_dir(test_subdir)
+        args.append('--robot=..:.')
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+
+        patterns.pop(-1)
+        robot_value_pattern = ', '.join([
+            r'/.*/test_topdir/test_middle_dir',  # via --robot (first path)
+            r'/.*/test_topdir/test_middle_dir/test_subdir',  # via --robot (second path)
+            r'/.*/test_topdir',  # via $EASYBUILD_ROBOT_PATHS
+        ])
+        patterns.extend([
+            r"^robot-paths\s+\(C\) = %s$" % robot_value_pattern,
+            r"^robot\s+\(C\) = %s$" % robot_value_pattern,
+        ])
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (pattern, txt))
 
     # end-to-end testing of unknown filename
     def test_easystack_wrong_read(self):

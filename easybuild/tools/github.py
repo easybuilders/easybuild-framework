@@ -34,6 +34,7 @@ import copy
 import getpass
 import glob
 import functools
+import itertools
 import os
 import random
 import re
@@ -839,7 +840,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # copy easyconfig files to right place
     target_dir = os.path.join(git_working_dir, pr_target_repo)
     print_msg("copying files to %s..." % target_dir)
-    file_info = COPY_FUNCTIONS[pr_target_repo](ec_paths, os.path.join(git_working_dir, pr_target_repo))
+    file_info = COPY_FUNCTIONS[pr_target_repo](ec_paths, target_dir)
 
     # figure out commit message to use
     if commit_msg:
@@ -901,6 +902,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if pr_branch is None:
         if ec_paths and pr_target_repo == GITHUB_EASYCONFIGS_REPO:
             label = file_info['ecs'][0].name + re.sub('[.-]', '', file_info['ecs'][0].version)
+        elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and paths.get('py_files'):
+            label = os.path.splitext(os.path.basename(paths['py_files'][0]))[0]
         else:
             label = ''.join(random.choice(ascii_letters) for _ in range(10))
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), label)
@@ -1013,10 +1016,14 @@ def is_patch_for(patch_name, ec):
 
     patches = copy.copy(ec['patches'])
 
-    for ext in ec['exts_list']:
-        if isinstance(ext, (list, tuple)) and len(ext) == 3 and isinstance(ext[2], dict):
-            ext_options = ext[2]
-            patches.extend(ext_options.get('patches', []))
+    with ec.disable_templating():
+        # take into account both list of extensions (via exts_list) and components (cfr. Bundle easyblock)
+        for entry in itertools.chain(ec['exts_list'], ec.get('components', [])):
+            if isinstance(entry, (list, tuple)) and len(entry) == 3 and isinstance(entry[2], dict):
+                templates = {'name': entry[0], 'version': entry[1]}
+                options = entry[2]
+                patches.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
+                               for p in options.get('patches', []))
 
     for patch in patches:
         if isinstance(patch, (tuple, list)):
@@ -1069,21 +1076,43 @@ def find_software_name_for_patch(patch_name, ec_dirs):
 
     soft_name = None
 
+    ignore_dirs = build_option('ignore_dirs')
     all_ecs = []
     for ec_dir in ec_dirs:
-        for (dirpath, _, filenames) in os.walk(ec_dir):
+        for (dirpath, dirnames, filenames) in os.walk(ec_dir):
+            # Exclude ignored dirs
+            if ignore_dirs:
+                dirnames[:] = [i for i in dirnames if i not in ignore_dirs]
             for fn in filenames:
-                if fn != 'TEMPLATE.eb' and not fn.endswith('.py'):
+                # TODO: In EasyBuild 5.x only check for '*.eb' files
+                if fn != 'TEMPLATE.eb' and os.path.splitext(fn)[1] not in ('.py', '.patch'):
                     path = os.path.join(dirpath, fn)
                     rawtxt = read_file(path)
                     if 'patches' in rawtxt:
                         all_ecs.append(path)
 
+    # Usual patch names are <software>-<version>_fix_foo.patch
+    # So search those ECs first
+    patch_stem = os.path.splitext(patch_name)[0]
+    # Extract possible sw name and version according to above scheme
+    # Those might be the same as the whole patch stem, which is OK
+    possible_sw_name = patch_stem.split('-')[0].lower()
+    possible_sw_name_version = patch_stem.split('_')[0].lower()
+
+    def ec_key(path):
+        filename = os.path.basename(path).lower()
+        # Put files with one of those as the prefix first, then sort by name
+        return (
+            not filename.startswith(possible_sw_name_version),
+            not filename.startswith(possible_sw_name),
+            filename
+        )
+    all_ecs.sort(key=ec_key)
+
     nr_of_ecs = len(all_ecs)
     for idx, path in enumerate(all_ecs):
         if soft_name:
             break
-        rawtxt = read_file(path)
         try:
             ecs = process_easyconfig(path, validate=False)
             for ec in ecs:

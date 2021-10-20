@@ -68,11 +68,15 @@ from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develo
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
+from easybuild.tools.output import PROGRESS_BAR_OVERALL, print_checks, rich_live_cm
+from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
+from easybuild.tools.systemtools import check_easybuild_deps
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
+
 
 _log = None
 
@@ -111,8 +115,11 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     # e.g. via easyconfig.handle_allowed_system_deps
     init_env = copy.deepcopy(os.environ)
 
+    start_progress_bar(PROGRESS_BAR_OVERALL, size=len(ecs))
+
     res = []
     for ec in ecs:
+
         ec_res = {}
         try:
             (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
@@ -153,6 +160,10 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
                 raise EasyBuildError(test_msg)
 
         res.append((ec, ec_res))
+
+        update_progress_bar(PROGRESS_BAR_OVERALL)
+
+    stop_progress_bar(PROGRESS_BAR_OVERALL)
 
     return res
 
@@ -245,6 +256,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
                            terse=options.terse)
 
+    if options.check_eb_deps:
+        print_checks(check_easybuild_deps(modtool))
+
     # GitHub options that warrant a silent cleanup & exit
     if options.check_github:
         check_github()
@@ -283,6 +297,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [
         options.add_pr_labels,
+        options.check_eb_deps,
         options.check_github,
         options.create_index,
         options.install_github_token,
@@ -521,13 +536,18 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if not testing or (testing and do_build):
         exit_on_failure = not (options.dump_test_report or options.upload_test_report)
 
-        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)
+        with rich_live_cm():
+            ecs_with_res = build_and_install_software(ordered_ecs, init_session_state,
+                                                      exit_on_failure=exit_on_failure)
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 
     correct_builds_cnt = len([ec_res for (_, ec_res) in ecs_with_res if ec_res.get('success', False)])
     overall_success = correct_builds_cnt == len(ordered_ecs)
-    success_msg = "Build succeeded for %s out of %s" % (correct_builds_cnt, len(ordered_ecs))
+    success_msg = "Build succeeded "
+    if build_option('ignore_test_failure'):
+        success_msg += "(with --ignore-test-failure) "
+    success_msg += "for %s out of %s" % (correct_builds_cnt, len(ordered_ecs))
 
     repo = init_repository(get_repository(), get_repositorypath())
     repo.cleanup()

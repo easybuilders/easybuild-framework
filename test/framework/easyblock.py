@@ -1052,6 +1052,33 @@ class EasyBlockTest(EnhancedTestCase):
         error_pattern = "ConfigureMake easyblock can not be used to install extensions"
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.init_ext_instances)
 
+    def test_extension_source_tmpl(self):
+        """Test type checking for 'source_tmpl' value of an extension."""
+        self.contents = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'toy'",
+            "version = '0.0'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "exts_list = [",
+            "    ('bar', '0.0', {",
+            "         'source_tmpl': [SOURCE_TAR_GZ],",
+            "    }),",
+            "]",
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        error_pattern = r"source_tmpl value must be a string! "
+        error_pattern += r"\(found value of type 'list'\): \['bar-0\.0\.tar\.gz'\]"
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+
+        self.contents = self.contents.replace("'source_tmpl': [SOURCE_TAR_GZ]", "'source_tmpl': SOURCE_TAR_GZ")
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.fetch_step()
+
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
 

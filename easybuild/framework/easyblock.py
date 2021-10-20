@@ -89,6 +89,8 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import Lmod, curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
+from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
+from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
@@ -211,6 +213,10 @@ class EasyBlock(object):
         self.logdebug = build_option('debug')
         self.postmsg = ''  # allow a post message to be set, which can be shown as last output
         self.current_step = None
+
+        # Create empty progress bar
+        self.progress_bar = None
+        self.pbar_task = None
 
         # list of loaded modules
         self.loaded_modules = []
@@ -593,7 +599,13 @@ class EasyBlock(object):
                         default_source_tmpl = resolve_template('%(name)s-%(version)s.tar.gz', template_values)
 
                         # if no sources are specified via 'sources', fall back to 'source_tmpl'
-                        src_fn = ext_options.get('source_tmpl', default_source_tmpl)
+                        src_fn = ext_options.get('source_tmpl')
+                        if src_fn is None:
+                            src_fn = default_source_tmpl
+                        elif not isinstance(src_fn, string_type):
+                            error_msg = "source_tmpl value must be a string! (found value of type '%s'): %s"
+                            raise EasyBuildError(error_msg, type(src_fn).__name__, src_fn)
+
                         src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
                                                     force_download=force_download)
                         if src_path:
@@ -677,6 +689,8 @@ class EasyBlock(object):
         :param git_config: dictionary to define how to download a git repository
         """
         srcpaths = source_paths()
+
+        update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
 
         # should we download or just try and find it?
         if re.match(r"^(https?|ftp)://", filename):
@@ -1785,18 +1799,19 @@ class EasyBlock(object):
         """Set 'parallel' easyconfig parameter to determine how many cores can/should be used for parallel builds."""
         # set level of parallelism for build
         par = build_option('parallel')
-        if self.cfg['parallel'] is not None:
-            if par is None:
-                par = self.cfg['parallel']
-                self.log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
-            else:
-                par = min(int(par), int(self.cfg['parallel']))
-                self.log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
-        else:
+        cfg_par = self.cfg['parallel']
+        if cfg_par is None:
             self.log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
+        elif par is None:
+            par = cfg_par
+            self.log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
+        else:
+            par = min(int(par), int(cfg_par))
+            self.log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
 
-        self.cfg['parallel'] = det_parallelism(par=par, maxpar=self.cfg['maxparallel'])
-        self.log.info("Setting parallelism: %s" % self.cfg['parallel'])
+        par = det_parallelism(par, maxpar=self.cfg['maxparallel'])
+        self.log.info("Setting parallelism: %s" % par)
+        self.cfg['parallel'] = par
 
     def remove_module_file(self):
         """Remove module file (if it exists), and check for ghost installation directory (and deal with it)."""
@@ -1908,6 +1923,8 @@ class EasyBlock(object):
                 raise EasyBuildError("EasyBuild-version %s is newer than the currently running one. Aborting!",
                                      easybuild_version)
 
+        start_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, self.cfg.count_files())
+
         if self.dry_run:
 
             self.dry_run_msg("Available download URLs for sources/patches:")
@@ -1989,6 +2006,8 @@ class EasyBlock(object):
                 mkdir(pardir, parents=True)
         else:
             self.log.info("Skipped installation dirs check per user request")
+
+        stop_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL)
 
     def checksum_step(self):
         """Verify checksum of sources and patches, if a checksum is available."""
@@ -2403,6 +2422,9 @@ class EasyBlock(object):
             self.skip_extensions()
 
         exts_cnt = len(self.ext_instances)
+
+        start_progress_bar(PROGRESS_BAR_EXTENSIONS, exts_cnt)
+
         for idx, ext in enumerate(self.ext_instances):
 
             self.log.debug("Starting extension %s" % ext.name)
@@ -2410,8 +2432,13 @@ class EasyBlock(object):
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
 
+            progress_label = "Installing '%s' extension" % ext.name
+            update_progress_bar(PROGRESS_BAR_EXTENSIONS, label=progress_label)
+
             tup = (ext.name, ext.version or '', idx + 1, exts_cnt)
             print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
+
+            start_time = datetime.now()
 
             if self.dry_run:
                 tup = (ext.name, ext.version, ext.__class__.__name__)
@@ -2432,11 +2459,21 @@ class EasyBlock(object):
 
             # real work
             if install:
-                ext.prerun()
-                txt = ext.run()
-                if txt:
-                    self.module_extra_extensions += txt
-                ext.postrun()
+                try:
+                    ext.prerun()
+                    txt = ext.run()
+                    if txt:
+                        self.module_extra_extensions += txt
+                    ext.postrun()
+                finally:
+                    if not self.dry_run:
+                        ext_duration = datetime.now() - start_time
+                        if ext_duration.total_seconds() >= 1:
+                            print_msg("\t... (took %s)", time2str(ext_duration), log=self.log, silent=self.silent)
+                        elif self.logdebug or build_option('trace'):
+                            print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
+
+        stop_progress_bar(PROGRESS_BAR_EXTENSIONS, visible=False)
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
@@ -2469,7 +2506,7 @@ class EasyBlock(object):
 
     def fix_shebang(self):
         """Fix shebang lines for specified files."""
-        for lang in ['perl', 'python']:
+        for lang in ['bash', 'perl', 'python']:
             shebang_regex = re.compile(r'^#![ ]*.*[/ ]%s.*' % lang)
             fix_shebang_for = self.cfg['fix_%s_shebang_for' % lang]
             if fix_shebang_for:
@@ -3440,6 +3477,7 @@ class EasyBlock(object):
         run_hook(step, self.hooks, post_step_hook=True, args=[self])
 
         if self.cfg['stop'] == step:
+            update_progress_bar(PROGRESS_BAR_EASYCONFIG)
             self.log.info("Stopping after %s step.", step)
             raise StopException(step)
 
@@ -3553,6 +3591,16 @@ class EasyBlock(object):
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
+        # figure out how many steps will actually be run (not be skipped)
+        step_cnt = 0
+        for (step_name, _, _, skippable) in steps:
+            if not self.skip_step(step_name, skippable):
+                step_cnt += 1
+            if self.cfg['stop'] == step_name:
+                break
+
+        start_progress_bar(PROGRESS_BAR_EASYCONFIG, step_cnt, label="Installing %s" % self.full_mod_name)
+
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         trace_msg("installation prefix: %s" % self.installdir)
 
@@ -3571,7 +3619,7 @@ class EasyBlock(object):
             create_lock(lock_name)
 
         try:
-            for (step_name, descr, step_methods, skippable) in steps:
+            for step_name, descr, step_methods, skippable in steps:
                 if self.skip_step(step_name, skippable):
                     print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
@@ -3591,11 +3639,16 @@ class EasyBlock(object):
                             elif self.logdebug or build_option('trace'):
                                 print_msg("... (took < 1 sec)", log=self.log, silent=self.silent)
 
+                    progress_label = "Installing %s: %s" % (self.full_mod_name, descr)
+                    update_progress_bar(PROGRESS_BAR_EASYCONFIG, label=progress_label)
+
         except StopException:
             pass
         finally:
             if not ignore_locks:
                 remove_lock(lock_name)
+
+        stop_progress_bar(PROGRESS_BAR_EASYCONFIG)
 
         # return True for successfull build (or stopped build)
         return True
@@ -3688,8 +3741,11 @@ def build_and_install_one(ecdict, init_env):
 
             if os.path.exists(app.installdir) and build_option('read_only_installdir') and (
                     build_option('rebuild') or build_option('force')):
+                enabled_write_permissions = True
                 # re-enable write permissions so we can install additional modules
                 adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=True)
+            else:
+                enabled_write_permissions = False
 
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
@@ -3697,6 +3753,9 @@ def build_and_install_one(ecdict, init_env):
             # also add any extension easyblocks used during the build for reproducibility
             if app.ext_instances:
                 copy_easyblocks_for_reprod(app.ext_instances, reprod_dir)
+            # If not already done remove the granted write permissions if we did so
+            if enabled_write_permissions and os.lstat(app.installdir)[stat.ST_MODE] & stat.S_IWUSR:
+                adjust_permissions(app.installdir, stat.S_IWUSR, add=False, recursive=True)
 
     except EasyBuildError as err:
         first_n = 300
@@ -3713,6 +3772,21 @@ def build_and_install_one(ecdict, init_env):
 
     # successful (non-dry-run) build
     if result and not dry_run:
+        def ensure_writable_log_dir(log_dir):
+            """Make sure we can write into the log dir"""
+            if build_option('read_only_installdir'):
+                # temporarily re-enable write permissions for copying log/easyconfig to install dir
+                if os.path.exists(log_dir):
+                    adjust_permissions(log_dir, stat.S_IWUSR, add=True, recursive=True)
+                else:
+                    parent_dir = os.path.dirname(log_dir)
+                    if os.path.exists(parent_dir):
+                        adjust_permissions(parent_dir, stat.S_IWUSR, add=True, recursive=False)
+                        mkdir(log_dir, parents=True)
+                        adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
+                    else:
+                        mkdir(log_dir, parents=True)
+                        adjust_permissions(log_dir, stat.S_IWUSR, add=True, recursive=True)
 
         if app.cfg['stop']:
             ended = 'STOPPED'
@@ -3720,6 +3794,7 @@ def build_and_install_one(ecdict, init_env):
                 new_log_dir = os.path.join(app.builddir, config.log_path(ec=app.cfg))
             else:
                 new_log_dir = os.path.dirname(app.logfile)
+            ensure_writable_log_dir(new_log_dir)
 
         # if we're only running the sanity check, we should not copy anything new to the installation directory
         elif build_option('sanity_check_only'):
@@ -3727,14 +3802,7 @@ def build_and_install_one(ecdict, init_env):
 
         else:
             new_log_dir = os.path.join(app.installdir, config.log_path(ec=app.cfg))
-            if build_option('read_only_installdir'):
-                # temporarily re-enable write permissions for copying log/easyconfig to install dir
-                if os.path.exists(new_log_dir):
-                    adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=True)
-                else:
-                    adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=False)
-                    mkdir(new_log_dir, parents=True)
-                    adjust_permissions(app.installdir, stat.S_IWUSR, add=False, recursive=False)
+            ensure_writable_log_dir(new_log_dir)
 
             # collect build stats
             _log.info("Collecting build stats...")

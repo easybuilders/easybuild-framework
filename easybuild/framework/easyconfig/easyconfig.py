@@ -59,7 +59,7 @@ from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION, is_y
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
+from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
@@ -559,6 +559,13 @@ class EasyConfig(object):
         finally:
             self.enable_templating = old_enable_templating
 
+    def __str__(self):
+        """Return a string representation of this EasyConfig instance"""
+        if self.path:
+            return '%s EasyConfig @ %s' % (self.name, self.path)
+        else:
+            return 'Raw %s EasyConfig' % self.name
+
     def filename(self):
         """Determine correct filename for this easyconfig file."""
 
@@ -765,6 +772,28 @@ class EasyConfig(object):
 
         # indicate that this is a parsed easyconfig
         self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
+
+    def count_files(self):
+        """
+        Determine number of files (sources + patches) required for this easyconfig.
+        """
+        cnt = len(self['sources']) + len(self['patches'])
+
+        for ext in self['exts_list']:
+            if isinstance(ext, tuple) and len(ext) >= 3:
+                ext_opts = ext[2]
+                # check for 'sources' first, since that's also considered first by EasyBlock.fetch_extension_sources
+                if 'sources' in ext_opts:
+                    cnt += len(ext_opts['sources'])
+                elif 'source_tmpl' in ext_opts:
+                    cnt += 1
+                else:
+                    # assume there's always one source file;
+                    # for extensions using PythonPackage, no 'source' or 'sources' may be specified
+                    cnt += 1
+                cnt += len(ext_opts.get('patches', []))
+
+        return cnt
 
     def local_var_naming(self, local_var_naming_check):
         """Deal with local variables that do not follow the recommended naming scheme (if any)."""
@@ -1802,6 +1831,25 @@ class EasyConfig(object):
                 value = resolve_template(value, self.template_values)
             res[key] = value
         return res
+
+    def get_cuda_cc_template_value(self, key):
+        """
+        Get template value based on --cuda-compute-capabilities EasyBuild configuration option
+        and cuda_compute_capabilities easyconfig parameter.
+        Returns user-friendly error message in case neither are defined,
+        or if an unknown key is used.
+        """
+        if key.startswith('cuda_') and any(x[0] == key for x in TEMPLATE_NAMES_DYNAMIC):
+            try:
+                return self.template_values[key]
+            except KeyError:
+                error_msg = "Template value '%s' is not defined!\n"
+                error_msg += "Make sure that either the --cuda-compute-capabilities EasyBuild configuration "
+                error_msg += "option is set, or that the cuda_compute_capabilities easyconfig parameter is defined."
+                raise EasyBuildError(error_msg, key)
+        else:
+            error_msg = "%s is not a template value based on --cuda-compute-capabilities/cuda_compute_capabilities"
+            raise EasyBuildError(error_msg, key)
 
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):

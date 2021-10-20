@@ -44,6 +44,7 @@ import glob
 import hashlib
 import imp
 import inspect
+import itertools
 import os
 import re
 import shutil
@@ -53,6 +54,7 @@ import sys
 import tempfile
 import time
 import zlib
+from functools import partial
 
 from easybuild.base import fancylogger
 from easybuild.tools import run
@@ -60,6 +62,7 @@ from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
 from easybuild.tools.config import build_option, install_path
+from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
 
@@ -214,7 +217,8 @@ def read_file(path, log_error=True, mode='r'):
     return txt
 
 
-def write_file(path, data, append=False, forced=False, backup=False, always_overwrite=True, verbose=False):
+def write_file(path, data, append=False, forced=False, backup=False, always_overwrite=True, verbose=False,
+               show_progress=False, size=None):
     """
     Write given contents to file at given path;
     overwrites current file contents without backup by default!
@@ -226,6 +230,8 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     :param backup: back up existing file before overwriting or modifying it
     :param always_overwrite: don't require --force to overwrite an existing file
     :param verbose: be verbose, i.e. inform where backup file was created
+    :param show_progress: show progress bar while writing file
+    :param size: size (in bytes) of data to write (used for progress bar)
     """
     # early exit in 'dry run' mode
     if not forced and build_option('extended_dry_run'):
@@ -255,15 +261,30 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     if sys.version_info[0] >= 3 and (isinstance(data, bytes) or data_is_file_obj):
         mode += 'b'
 
+    # don't bother showing a progress bar for small files (< 10MB)
+    if size and size < 10 * (1024 ** 2):
+        _log.info("Not showing progress bar for downloading small file (size %s)", size)
+        show_progress = False
+
+    if show_progress:
+        start_progress_bar(PROGRESS_BAR_DOWNLOAD_ONE, size, label=os.path.basename(path))
+
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
         with open_file(path, mode) as fh:
             if data_is_file_obj:
-                # if a file-like object was provided, use copyfileobj (which reads the file in chunks)
-                shutil.copyfileobj(data, fh)
+                # if a file-like object was provided, read file in 1MB chunks
+                for chunk in iter(partial(data.read, 1024 ** 2), b''):
+                    fh.write(chunk)
+                    if show_progress:
+                        update_progress_bar(PROGRESS_BAR_DOWNLOAD_ONE, progress_size=len(chunk))
             else:
                 fh.write(data)
+
+        if show_progress:
+            stop_progress_bar(PROGRESS_BAR_DOWNLOAD_ONE)
+
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
@@ -700,6 +721,22 @@ def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_header
     return urlpat_headers
 
 
+def det_file_size(http_header):
+    """
+    Determine size of file from provided HTTP header info (without downloading it).
+    """
+    res = None
+    len_key = 'Content-Length'
+    if len_key in http_header:
+        size = http_header[len_key]
+        try:
+            res = int(size)
+        except (ValueError, TypeError) as err:
+            _log.warning("Failed to interpret size '%s' as integer value: %s", size, err)
+
+    return res
+
+
 def download_file(filename, url, path, forced=False):
     """Download a file from the given URL, to the specified path."""
 
@@ -756,19 +793,24 @@ def download_file(filename, url, path, forced=False):
                 # urllib does not!
                 url_fd = std_urllib.urlopen(url_req, timeout=timeout)
                 status_code = url_fd.getcode()
+                size = det_file_size(url_fd.info())
             else:
                 response = requests.get(url, headers=headers, stream=True, timeout=timeout)
                 status_code = response.status_code
                 response.raise_for_status()
+                size = det_file_size(response.headers)
                 url_fd = response.raw
                 url_fd.decode_content = True
-            _log.debug('response code for given url %s: %s' % (url, status_code))
+
+            _log.debug("HTTP response code for given url %s: %s", url, status_code)
+            _log.info("File size for %s: %s", url, size)
+
             # note: we pass the file object to write_file rather than reading the file first,
             # to ensure the data is read in chunks (which prevents problems in Python 3.9+);
             # cfr. https://github.com/easybuilders/easybuild-framework/issues/3455
             # and https://bugs.python.org/issue42853
-            write_file(path, url_fd, forced=forced, backup=True)
-            _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
+            write_file(path, url_fd, forced=forced, backup=True, show_progress=True, size=size)
+            _log.info("Downloaded file %s from url %s to %s", filename, url, path)
             downloaded = True
             url_fd.close()
         except used_urllib.HTTPError as err:
@@ -2270,7 +2312,11 @@ def copy_file(path, target_path, force_in_dry_run=False):
     :param force_in_dry_run: force copying of file during dry run
     """
     if not force_in_dry_run and build_option('extended_dry_run'):
+        # If in dry run mode, do not copy any files, just lie about it
         dry_run_msg("copied file %s to %s" % (path, target_path))
+    elif not os.path.exists(path) and not os.path.islink(path):
+        # NOTE: 'exists' will return False if 'path' is a broken symlink
+        raise EasyBuildError("Could not copy '%s' it does not exist!", path)
     else:
         try:
             target_exists = os.path.exists(target_path)
@@ -2284,13 +2330,17 @@ def copy_file(path, target_path, force_in_dry_run=False):
                 _log.info("Copied contents of file %s to %s", path, target_path)
             else:
                 mkdir(os.path.dirname(target_path), parents=True)
-                if os.path.exists(path):
-                    shutil.copy2(path, target_path)
-                elif os.path.islink(path):
+                if os.path.islink(path):
+                    if os.path.isdir(target_path):
+                        target_path = os.path.join(target_path, os.path.basename(path))
+                        _log.info("target_path changed to %s", target_path)
                     # special care for copying broken symlinks
                     link_target = os.readlink(path)
-                    symlink(link_target, target_path)
-                _log.info("%s copied to %s", path, target_path)
+                    symlink(link_target, target_path, use_abspath_source=False)
+                    _log.info("created symlink %s to %s", link_target, target_path)
+                else:
+                    shutil.copy2(path, target_path)
+                    _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError, shutil.Error) as err:
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
@@ -2340,7 +2390,28 @@ def copy_files(paths, target_path, force_in_dry_run=False, target_single_file=Fa
         raise EasyBuildError("One or more files to copy should be specified!")
 
 
-def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **kwargs):
+def has_recursive_symlinks(path):
+    """
+    Check the given directory for recursive symlinks.
+
+    That means symlinks to folders inside the path which would cause infinite loops when traversed regularily.
+
+    :param path: Path to directory to check
+    """
+    for dirpath, dirnames, filenames in os.walk(path, followlinks=True):
+        for name in itertools.chain(dirnames, filenames):
+            fullpath = os.path.join(dirpath, name)
+            if os.path.islink(fullpath):
+                linkpath = os.path.realpath(fullpath)
+                fullpath += os.sep  # To catch the case where both are equal
+                if fullpath.startswith(linkpath + os.sep):
+                    _log.info("Recursive symlink detected at %s", fullpath)
+                    return True
+    return False
+
+
+def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, check_for_recursive_symlinks=True,
+             **kwargs):
     """
     Copy a directory from specified location to specified location
 
@@ -2348,6 +2419,7 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
     :param target_path: path to copy the directory to
     :param force_in_dry_run: force running the command during dry run
     :param dirs_exist_ok: boolean indicating whether it's OK if the target directory already exists
+    :param check_for_recursive_symlinks: If symlink arg is not given or False check for recursive symlinks first
 
     shutil.copytree is used if the target path does not exist yet;
     if the target path already exists, the 'copy' function will be used to copy the contents of
@@ -2359,6 +2431,13 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
         dry_run_msg("copied directory %s to %s" % (path, target_path))
     else:
         try:
+            if check_for_recursive_symlinks and not kwargs.get('symlinks'):
+                if has_recursive_symlinks(path):
+                    raise EasyBuildError("Recursive symlinks detected in %s. "
+                                         "Will not try copying this unless `symlinks=True` is passed",
+                                         path)
+                else:
+                    _log.debug("No recursive symlinks in %s", path)
             if not dirs_exist_ok and os.path.exists(target_path):
                 raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
 
@@ -2386,7 +2465,9 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, **k
                 paths_to_copy = [os.path.join(path, x) for x in entries]
 
                 copy(paths_to_copy, target_path,
-                     force_in_dry_run=force_in_dry_run, dirs_exist_ok=dirs_exist_ok, **kwargs)
+                     force_in_dry_run=force_in_dry_run, dirs_exist_ok=dirs_exist_ok,
+                     check_for_recursive_symlinks=False,  # Don't check again
+                     **kwargs)
 
             else:
                 # if dirs_exist_ok is not enabled or target directory doesn't exist, just use shutil.copytree
@@ -2471,17 +2552,24 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     # compose 'git clone' command, and run it
     clone_cmd = ['git', 'clone']
 
+    if not keep_git_dir:
+        # Speed up cloning by only fetching the most recent commit, not the whole history
+        # When we don't want to keep the .git folder there won't be a difference in the result
+        clone_cmd.extend(['--depth', '1'])
+
     if tag:
         clone_cmd.extend(['--branch', tag])
-
-    if recursive:
-        clone_cmd.append('--recursive')
+        if recursive:
+            clone_cmd.append('--recursive')
+    else:
+        # checkout is done separately below for specific commits
+        clone_cmd.append('--no-checkout')
 
     clone_cmd.append('%s/%s.git' % (url, repo_name))
 
     tmpdir = tempfile.mkdtemp()
     cwd = change_dir(tmpdir)
-    run.run_cmd(' '.join(clone_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+    run.run_cmd(' '.join(clone_cmd), log_all=True, simple=True, regexp=False)
 
     # if a specific commit is asked for, check it out
     if commit:
@@ -2489,14 +2577,40 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         if recursive:
             checkout_cmd.extend(['&&', 'git', 'submodule', 'update', '--init', '--recursive'])
 
-        run.run_cmd(' '.join(checkout_cmd), log_all=True, log_ok=False, simple=False, regexp=False, path=repo_name)
+        run.run_cmd(' '.join(checkout_cmd), log_all=True, simple=True, regexp=False, path=repo_name)
+
+    elif not build_option('extended_dry_run'):
+        # If we wanted to get a tag make sure we actually got a tag and not a branch with the same name
+        # This doesn't make sense in dry-run mode as we don't have anything to check
+        cmd = 'git describe --exact-match --tags HEAD'
+        # Note: Disable logging to also disable the error handling in run_cmd
+        (out, ec) = run.run_cmd(cmd, log_ok=False, log_all=False, regexp=False, path=repo_name)
+        if ec != 0 or tag not in out.splitlines():
+            print_warning('Tag %s was not downloaded in the first try due to %s/%s containing a branch'
+                          ' with the same name. You might want to alert the maintainers of %s about that issue.',
+                          tag, url, repo_name, repo_name)
+            cmds = []
+
+            if not keep_git_dir:
+                # make the repo unshallow first;
+                # this is equivalent with 'git fetch -unshallow' in Git 1.8.3+
+                # (first fetch seems to do nothing, unclear why)
+                cmds.append('git fetch --depth=2147483647 && git fetch --depth=2147483647')
+
+            cmds.append('git checkout refs/tags/' + tag)
+            # Clean all untracked files, e.g. from left-over submodules
+            cmds.append('git clean --force -d -x')
+            if recursive:
+                cmds.append('git submodule update --init --recursive')
+            for cmd in cmds:
+                run.run_cmd(cmd, log_all=True, simple=True, regexp=False, path=repo_name)
 
     # create an archive and delete the git repo directory
     if keep_git_dir:
         tar_cmd = ['tar', 'cfvz', targetpath, repo_name]
     else:
         tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
-    run.run_cmd(' '.join(tar_cmd), log_all=True, log_ok=False, simple=False, regexp=False)
+    run.run_cmd(' '.join(tar_cmd), log_all=True, simple=True, regexp=False)
 
     # cleanup (repo_name dir does not exist in dry run mode)
     change_dir(cwd)
