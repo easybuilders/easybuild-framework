@@ -1746,6 +1746,16 @@ class ToyBuildTest(EnhancedTestCase):
         # remove module file so we can try --module-only
         remove_file(toy_mod)
 
+        # make sure that sources for extensions can't be found,
+        # they should not be needed when using --module-only
+        # (cfr. https://github.com/easybuilders/easybuild-framework/issues/3849)
+        del os.environ['EASYBUILD_SOURCEPATH']
+
+        # first try normal --module-only, should work fine
+        self.eb_main([test_ec, '--module-only'], do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
+        remove_file(toy_mod)
+
         # rename file required for barbar extension, so we can check whether sanity check catches it
         libbarbar = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'lib', 'libbarbar.a')
         move_file(libbarbar, libbarbar + '.foobar')
