@@ -33,7 +33,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_output_style, update_build_option
-from easybuild.tools.output import DummyRich, colorize, overall_progress_bar, show_progress_bars, use_rich
+from easybuild.tools.output import DummyRich, colorize, status_bar, show_progress_bars, use_rich
 
 try:
     import rich.progress
@@ -45,8 +45,8 @@ except ImportError:
 class OutputTest(EnhancedTestCase):
     """Tests for functions controlling terminal output."""
 
-    def test_overall_progress_bar(self):
-        """Test overall_progress_bar function."""
+    def test_status_bar(self):
+        """Test status_bar function."""
 
         # restore default (was disabled in EnhancedTestCase.setUp to avoid messing up test output)
         update_build_option('show_progress_bar', True)
@@ -56,22 +56,22 @@ class OutputTest(EnhancedTestCase):
         else:
             expected_progress_bar_class = DummyRich
 
-        progress_bar = overall_progress_bar(ignore_cache=True)
+        progress_bar = status_bar(ignore_cache=True)
         error_msg = "%s should be instance of class %s" % (progress_bar, expected_progress_bar_class)
         self.assertTrue(isinstance(progress_bar, expected_progress_bar_class), error_msg)
 
         update_build_option('output_style', 'basic')
-        progress_bar = overall_progress_bar(ignore_cache=True)
+        progress_bar = status_bar(ignore_cache=True)
         self.assertTrue(isinstance(progress_bar, DummyRich))
 
         if HAVE_RICH:
             update_build_option('output_style', 'rich')
-            progress_bar = overall_progress_bar(ignore_cache=True)
+            progress_bar = status_bar(ignore_cache=True)
             error_msg = "%s should be instance of class %s" % (progress_bar, expected_progress_bar_class)
             self.assertTrue(isinstance(progress_bar, expected_progress_bar_class), error_msg)
 
         update_build_option('show_progress_bar', False)
-        progress_bar = overall_progress_bar(ignore_cache=True)
+        progress_bar = status_bar(ignore_cache=True)
         self.assertTrue(isinstance(progress_bar, DummyRich))
 
     def test_get_output_style(self):

@@ -61,7 +61,7 @@ PROGRESS_BAR_DOWNLOAD_ALL = 'download_all'
 PROGRESS_BAR_DOWNLOAD_ONE = 'download_one'
 PROGRESS_BAR_EXTENSIONS = 'extensions'
 PROGRESS_BAR_EASYCONFIG = 'easyconfig'
-PROGRESS_BAR_OVERALL = 'overall'
+STATUS_BAR = 'status'
 
 _progress_bar_cache = {}
 
@@ -134,7 +134,7 @@ def rich_live_cm():
                 download_all_progress_bar(),
                 extensions_progress_bar(),
                 easyconfig_progress_bar(),
-                overall_progress_bar(),
+                status_bar(),
         )
         live = Live(pbar_group)
     else:
@@ -163,7 +163,7 @@ def progress_bar_cache(func):
 
 
 @progress_bar_cache
-def overall_progress_bar():
+def status_bar():
     """
     Get progress bar to display overall progress.
     """
@@ -259,7 +259,7 @@ def get_progress_bar(bar_type, size=None):
         PROGRESS_BAR_DOWNLOAD_ONE: download_one_progress_bar,
         PROGRESS_BAR_EXTENSIONS: extensions_progress_bar,
         PROGRESS_BAR_EASYCONFIG: easyconfig_progress_bar,
-        PROGRESS_BAR_OVERALL: overall_progress_bar,
+        STATUS_BAR: status_bar,
     }
 
     if bar_type == PROGRESS_BAR_DOWNLOAD_ONE and not size:
