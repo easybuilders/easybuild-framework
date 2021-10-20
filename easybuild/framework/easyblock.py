@@ -3596,19 +3596,19 @@ class EasyBlock(object):
 
         ignore_locks = build_option('ignore_locks')
 
-        if ignore_locks:
-            self.log.info("Ignoring locks...")
-        else:
-            lock_name = self.installdir.replace('/', '_')
-
-            # check if lock already exists;
-            # either aborts with an error or waits until it disappears (depends on --wait-on-lock)
-            check_lock(lock_name)
-
-            # create lock to avoid that another installation running in parallel messes things up
-            create_lock(lock_name)
-
         try:
+            if ignore_locks:
+                self.log.info("Ignoring locks...")
+            else:
+                lock_name = self.installdir.replace('/', '_')
+
+                # check if lock already exists;
+                # either aborts with an error or waits until it disappears (depends on --wait-on-lock)
+                check_lock(lock_name)
+
+                # create lock to avoid that another installation running in parallel messes things up
+                create_lock(lock_name)
+
             for step_name, descr, step_methods, skippable in steps:
                 if self.skip_step(step_name, skippable):
                     print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
@@ -3640,7 +3640,7 @@ class EasyBlock(object):
             if not ignore_locks:
                 remove_lock(lock_name)
 
-        stop_progress_bar(PROGRESS_BAR_EASYCONFIG)
+            stop_progress_bar(PROGRESS_BAR_EASYCONFIG)
 
         # return True for successfull build (or stopped build)
         return True
