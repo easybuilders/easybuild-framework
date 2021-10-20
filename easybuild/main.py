@@ -68,7 +68,7 @@ from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develo
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
-from easybuild.tools.output import PROGRESS_BAR_OVERALL, print_checks, rich_live_cm
+from easybuild.tools.output import COLOR_GREEN, COLOR_RED, STATUS_BAR, colorize, print_checks, rich_live_cm
 from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
@@ -115,9 +115,12 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     # e.g. via easyconfig.handle_allowed_system_deps
     init_env = copy.deepcopy(os.environ)
 
-    start_progress_bar(PROGRESS_BAR_OVERALL, size=len(ecs))
+    start_progress_bar(STATUS_BAR, size=len(ecs))
 
     res = []
+    ec_results = []
+    failed_cnt = 0
+
     for ec in ecs:
 
         ec_res = {}
@@ -131,6 +134,12 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             ec_res['success'] = False
             ec_res['err'] = err
             ec_res['traceback'] = traceback.format_exc()
+
+        if ec_res['success']:
+            ec_results.append(ec['full_mod_name'] + ' (' + colorize('OK', COLOR_GREEN) + ')')
+        else:
+            ec_results.append(ec['full_mod_name'] + ' (' + colorize('FAILED', COLOR_RED) + ')')
+            failed_cnt += 1
 
         # keep track of success/total count
         if ec_res['success']:
@@ -161,9 +170,18 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
         res.append((ec, ec_res))
 
-        update_progress_bar(PROGRESS_BAR_OVERALL)
+        if failed_cnt:
+            # if installations failed: indicate th
+            status_label = ' (%s): ' % colorize('%s failed!' % failed_cnt, COLOR_RED)
+            failed_ecs = [x for x in ec_results[::-1] if 'FAILED' in x]
+            ok_ecs = [x for x in ec_results[::-1] if x not in failed_ecs]
+            status_label += ', '.join(failed_ecs + ok_ecs)
+        else:
+            status_label = ': ' + ', '.join(ec_results[::-1])
 
-    stop_progress_bar(PROGRESS_BAR_OVERALL)
+        update_progress_bar(STATUS_BAR, label=status_label)
+
+    stop_progress_bar(STATUS_BAR)
 
     return res
 

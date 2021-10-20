@@ -36,22 +36,49 @@ from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_s
 from easybuild.tools.py2vs3 import OrderedDict
 
 try:
-    from rich.console import Console, RenderGroup
+    from rich.console import Console, Group
     from rich.live import Live
-    from rich.table import Table
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
     from rich.progress import DownloadColumn, FileSizeColumn, TransferSpeedColumn, TimeRemainingColumn
+    from rich.table import Column, Table
 except ImportError:
     pass
 
+
+COLOR_GREEN = 'green'
+COLOR_RED = 'red'
+COLOR_YELLOW = 'yellow'
+
+# map known colors to ANSII color codes
+KNOWN_COLORS = {
+    COLOR_GREEN: '\033[0;32m',
+    COLOR_RED: '\033[0;31m',
+    COLOR_YELLOW: '\033[1;33m',
+}
+COLOR_END = '\033[0m'
 
 PROGRESS_BAR_DOWNLOAD_ALL = 'download_all'
 PROGRESS_BAR_DOWNLOAD_ONE = 'download_one'
 PROGRESS_BAR_EXTENSIONS = 'extensions'
 PROGRESS_BAR_EASYCONFIG = 'easyconfig'
-PROGRESS_BAR_OVERALL = 'overall'
+STATUS_BAR = 'status'
 
 _progress_bar_cache = {}
+
+
+def colorize(txt, color):
+    """
+    Colorize given text, with specified color.
+    """
+    if color in KNOWN_COLORS:
+        if use_rich():
+            coltxt = '[bold %s]%s[/bold %s]' % (color, txt, color)
+        else:
+            coltxt = KNOWN_COLORS[color] + txt + COLOR_END
+    else:
+        raise EasyBuildError("Unknown color: %s", color)
+
+    return coltxt
 
 
 class DummyRich(object):
@@ -101,13 +128,13 @@ def rich_live_cm():
     Return Live instance to use as context manager.
     """
     if show_progress_bars():
-        pbar_group = RenderGroup(
+        pbar_group = Group(
                 download_one_progress_bar(),
                 download_one_progress_bar_unknown_size(),
                 download_all_progress_bar(),
                 extensions_progress_bar(),
                 easyconfig_progress_bar(),
-                overall_progress_bar(),
+                status_bar(),
         )
         live = Live(pbar_group)
     else:
@@ -136,14 +163,13 @@ def progress_bar_cache(func):
 
 
 @progress_bar_cache
-def overall_progress_bar():
+def status_bar():
     """
     Get progress bar to display overall progress.
     """
     progress_bar = Progress(
-        TimeElapsedColumn(),
-        TextColumn("{task.description}({task.completed} out of {task.total} easyconfigs done)"),
-        BarColumn(bar_width=None),
+        TimeElapsedColumn(Column(min_width=7, no_wrap=True)),
+        TextColumn("{task.completed} out of {task.total} easyconfigs done{task.description}"),
     )
 
     return progress_bar
@@ -155,10 +181,11 @@ def easyconfig_progress_bar():
     Get progress bar to display progress for installing a single easyconfig file.
     """
     progress_bar = Progress(
-        SpinnerColumn('point'),
+        SpinnerColumn('point', speed=0.2),
         TextColumn("[bold green]{task.description} ({task.completed} out of {task.total} steps done)"),
         BarColumn(),
         TimeElapsedColumn(),
+        refresh_per_second=1,
     )
 
     return progress_bar
@@ -232,7 +259,7 @@ def get_progress_bar(bar_type, size=None):
         PROGRESS_BAR_DOWNLOAD_ONE: download_one_progress_bar,
         PROGRESS_BAR_EXTENSIONS: extensions_progress_bar,
         PROGRESS_BAR_EASYCONFIG: easyconfig_progress_bar,
-        PROGRESS_BAR_OVERALL: overall_progress_bar,
+        STATUS_BAR: status_bar,
     }
 
     if bar_type == PROGRESS_BAR_DOWNLOAD_ONE and not size:
