@@ -121,11 +121,6 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     ec_results = []
     failed_cnt = 0
 
-    def collect_result(mod_name, success):
-        """
-        Keep track of failed easyconfig
-        """
-
     for ec in ecs:
 
         ec_res = {}
