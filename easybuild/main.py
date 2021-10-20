@@ -119,23 +119,32 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
     res = []
     ec_results = []
+    failed_cnt = 0
+
+    def collect_result(mod_name, success):
+        """
+        Keep track of failed easyconfig
+        """
+
     for ec in ecs:
 
         ec_res = {}
         try:
             (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
             ec_res['log_file'] = app_log
-            if ec_res['success']:
-                ec_results.append(ec['full_mod_name'] + ' (' + colorize('OK', COLOR_GREEN) + ')')
-            else:
+            if not ec_res['success']:
                 ec_res['err'] = EasyBuildError(err)
-                ec_results.append(ec['full_mod_name'] + ' (' + colorize('FAILED', COLOR_RED) + ')')
         except Exception as err:
             # purposely catch all exceptions
             ec_res['success'] = False
             ec_res['err'] = err
             ec_res['traceback'] = traceback.format_exc()
+
+        if ec_res['success']:
+            ec_results.append(ec['full_mod_name'] + ' (' + colorize('OK', COLOR_GREEN) + ')')
+        else:
             ec_results.append(ec['full_mod_name'] + ' (' + colorize('FAILED', COLOR_RED) + ')')
+            failed_cnt += 1
 
         # keep track of success/total count
         if ec_res['success']:
@@ -166,7 +175,16 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
         res.append((ec, ec_res))
 
-        update_progress_bar(PROGRESS_BAR_OVERALL, label=': ' + ', '.join(ec_results))
+        if failed_cnt:
+            # if installations failed: indicate th
+            status_label = '(%s): ' % colorize('%s failed!' % failed_cnt, COLOR_RED)
+            failed_ecs = [x for x in ec_results[::-1] if 'FAILED' in x]
+            ok_ecs = [x for x in ec_results[::-1] if x not in failed_ecs]
+            status_label += ', '.join(failed_ecs + ok_ecs)
+        else:
+            status_label = ': ' + ', '.join(ec_results[::-1])
+
+        update_progress_bar(PROGRESS_BAR_OVERALL, label=status_label)
 
     stop_progress_bar(PROGRESS_BAR_OVERALL)
 
