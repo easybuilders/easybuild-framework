@@ -177,7 +177,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
         if failed_cnt:
             # if installations failed: indicate th
-            status_label = '(%s): ' % colorize('%s failed!' % failed_cnt, COLOR_RED)
+            status_label = ' (%s): ' % colorize('%s failed!' % failed_cnt, COLOR_RED)
             failed_ecs = [x for x in ec_results[::-1] if 'FAILED' in x]
             ok_ecs = [x for x in ec_results[::-1] if x not in failed_ecs]
             status_label += ', '.join(failed_ecs + ok_ecs)
