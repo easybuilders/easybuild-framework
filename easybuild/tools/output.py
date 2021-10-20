@@ -45,6 +45,18 @@ except ImportError:
     pass
 
 
+COLOR_GREEN = 'green'
+COLOR_RED = 'red'
+COLOR_YELLOW = 'yellow'
+
+# map known colors to ANSII color codes
+KNOWN_COLORS = {
+    COLOR_GREEN: '\033[0;32m',
+    COLOR_RED: '\033[0;31m',
+    COLOR_YELLOW: '\033[1;33m',
+}
+COLOR_END = '\033[0m'
+
 PROGRESS_BAR_DOWNLOAD_ALL = 'download_all'
 PROGRESS_BAR_DOWNLOAD_ONE = 'download_one'
 PROGRESS_BAR_EXTENSIONS = 'extensions'
@@ -52,6 +64,21 @@ PROGRESS_BAR_EASYCONFIG = 'easyconfig'
 PROGRESS_BAR_OVERALL = 'overall'
 
 _progress_bar_cache = {}
+
+
+def colorize(txt, color):
+    """
+    Colorize given text, with specified color.
+    """
+    if color in KNOWN_COLORS:
+        if use_rich():
+            coltxt = '[bold %s]%s[/bold %s]' % (color, txt, color)
+        else:
+            coltxt = KNOWN_COLORS[color] + txt + COLOR_END
+    else:
+        raise EasyBuildError("Unknown color: %s", color)
+
+    return coltxt
 
 
 class DummyRich(object):
@@ -142,8 +169,7 @@ def overall_progress_bar():
     """
     progress_bar = Progress(
         TimeElapsedColumn(),
-        TextColumn("{task.description}({task.completed} out of {task.total} easyconfigs done)"),
-        BarColumn(bar_width=None),
+        TextColumn("{task.completed} out of {task.total} easyconfigs done{task.description}"),
     )
 
     return progress_bar
@@ -155,10 +181,11 @@ def easyconfig_progress_bar():
     Get progress bar to display progress for installing a single easyconfig file.
     """
     progress_bar = Progress(
-        SpinnerColumn('point'),
+        SpinnerColumn('point', speed=0.2),
         TextColumn("[bold green]{task.description} ({task.completed} out of {task.total} steps done)"),
         BarColumn(),
         TimeElapsedColumn(),
+        refresh_per_second=1,
     )
 
     return progress_bar

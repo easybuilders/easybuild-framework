@@ -68,7 +68,7 @@ from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develo
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
-from easybuild.tools.output import PROGRESS_BAR_OVERALL, print_checks, rich_live_cm
+from easybuild.tools.output import COLOR_GREEN, COLOR_RED, PROGRESS_BAR_OVERALL, colorize, print_checks, rich_live_cm
 from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
@@ -118,19 +118,24 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     start_progress_bar(PROGRESS_BAR_OVERALL, size=len(ecs))
 
     res = []
+    ec_results = []
     for ec in ecs:
 
         ec_res = {}
         try:
             (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
             ec_res['log_file'] = app_log
-            if not ec_res['success']:
+            if ec_res['success']:
+                ec_results.append(ec['full_mod_name'] + ' (' + colorize('OK', COLOR_GREEN) + ')')
+            else:
                 ec_res['err'] = EasyBuildError(err)
+                ec_results.append(ec['full_mod_name'] + ' (' + colorize('FAILED', COLOR_RED) + ')')
         except Exception as err:
             # purposely catch all exceptions
             ec_res['success'] = False
             ec_res['err'] = err
             ec_res['traceback'] = traceback.format_exc()
+            ec_results.append(ec['full_mod_name'] + ' (' + colorize('FAILED', COLOR_RED) + ')')
 
         # keep track of success/total count
         if ec_res['success']:
@@ -161,7 +166,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
         res.append((ec, ec_res))
 
-        update_progress_bar(PROGRESS_BAR_OVERALL)
+        update_progress_bar(PROGRESS_BAR_OVERALL, label=': ' + ', '.join(ec_results))
 
     stop_progress_bar(PROGRESS_BAR_OVERALL)
 
