@@ -33,7 +33,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_output_style, update_build_option
-from easybuild.tools.output import DummyRich, colorize, status_bar, show_progress_bars, use_rich
+from easybuild.tools.output import DummyRich, colorize, show_progress_bars, status_bar, use_rich
 
 try:
     import rich.progress
