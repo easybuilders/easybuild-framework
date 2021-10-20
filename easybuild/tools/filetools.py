@@ -54,6 +54,7 @@ import sys
 import tempfile
 import time
 import zlib
+from functools import partial
 
 from easybuild.base import fancylogger
 from easybuild.tools import run
@@ -61,6 +62,7 @@ from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
 from easybuild.tools.config import build_option, install_path
+from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
 
@@ -215,7 +217,8 @@ def read_file(path, log_error=True, mode='r'):
     return txt
 
 
-def write_file(path, data, append=False, forced=False, backup=False, always_overwrite=True, verbose=False):
+def write_file(path, data, append=False, forced=False, backup=False, always_overwrite=True, verbose=False,
+               show_progress=False, size=None):
     """
     Write given contents to file at given path;
     overwrites current file contents without backup by default!
@@ -227,6 +230,8 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     :param backup: back up existing file before overwriting or modifying it
     :param always_overwrite: don't require --force to overwrite an existing file
     :param verbose: be verbose, i.e. inform where backup file was created
+    :param show_progress: show progress bar while writing file
+    :param size: size (in bytes) of data to write (used for progress bar)
     """
     # early exit in 'dry run' mode
     if not forced and build_option('extended_dry_run'):
@@ -256,15 +261,30 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
     if sys.version_info[0] >= 3 and (isinstance(data, bytes) or data_is_file_obj):
         mode += 'b'
 
+    # don't bother showing a progress bar for small files (< 10MB)
+    if size and size < 10 * (1024 ** 2):
+        _log.info("Not showing progress bar for downloading small file (size %s)", size)
+        show_progress = False
+
+    if show_progress:
+        start_progress_bar(PROGRESS_BAR_DOWNLOAD_ONE, size, label=os.path.basename(path))
+
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
         with open_file(path, mode) as fh:
             if data_is_file_obj:
-                # if a file-like object was provided, use copyfileobj (which reads the file in chunks)
-                shutil.copyfileobj(data, fh)
+                # if a file-like object was provided, read file in 1MB chunks
+                for chunk in iter(partial(data.read, 1024 ** 2), b''):
+                    fh.write(chunk)
+                    if show_progress:
+                        update_progress_bar(PROGRESS_BAR_DOWNLOAD_ONE, progress_size=len(chunk))
             else:
                 fh.write(data)
+
+        if show_progress:
+            stop_progress_bar(PROGRESS_BAR_DOWNLOAD_ONE)
+
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
@@ -701,6 +721,22 @@ def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_header
     return urlpat_headers
 
 
+def det_file_size(http_header):
+    """
+    Determine size of file from provided HTTP header info (without downloading it).
+    """
+    res = None
+    len_key = 'Content-Length'
+    if len_key in http_header:
+        size = http_header[len_key]
+        try:
+            res = int(size)
+        except (ValueError, TypeError) as err:
+            _log.warning("Failed to interpret size '%s' as integer value: %s", size, err)
+
+    return res
+
+
 def download_file(filename, url, path, forced=False):
     """Download a file from the given URL, to the specified path."""
 
@@ -757,19 +793,24 @@ def download_file(filename, url, path, forced=False):
                 # urllib does not!
                 url_fd = std_urllib.urlopen(url_req, timeout=timeout)
                 status_code = url_fd.getcode()
+                size = det_file_size(url_fd.info())
             else:
                 response = requests.get(url, headers=headers, stream=True, timeout=timeout)
                 status_code = response.status_code
                 response.raise_for_status()
+                size = det_file_size(response.headers)
                 url_fd = response.raw
                 url_fd.decode_content = True
-            _log.debug('response code for given url %s: %s' % (url, status_code))
+
+            _log.debug("HTTP response code for given url %s: %s", url, status_code)
+            _log.info("File size for %s: %s", url, size)
+
             # note: we pass the file object to write_file rather than reading the file first,
             # to ensure the data is read in chunks (which prevents problems in Python 3.9+);
             # cfr. https://github.com/easybuilders/easybuild-framework/issues/3455
             # and https://bugs.python.org/issue42853
-            write_file(path, url_fd, forced=forced, backup=True)
-            _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
+            write_file(path, url_fd, forced=forced, backup=True, show_progress=True, size=size)
+            _log.info("Downloaded file %s from url %s to %s", filename, url, path)
             downloaded = True
             url_fd.close()
         except used_urllib.HTTPError as err:
@@ -1407,6 +1448,44 @@ def guess_patch_level(patched_files, parent_dir):
             _log.debug('No match found for %s, trying next patched file...' % patched_file)
 
     return patch_level
+
+
+def create_patch_info(patch_spec):
+    """
+    Create info dictionary from specified patch spec.
+    """
+    if isinstance(patch_spec, (list, tuple)):
+        if not len(patch_spec) == 2:
+            error_msg = "Unknown patch specification '%s', only 2-element lists/tuples are supported!"
+            raise EasyBuildError(error_msg, str(patch_spec))
+
+        patch_info = {'name': patch_spec[0]}
+
+        patch_arg = patch_spec[1]
+        # patch level *must* be of type int, nothing else (not True/False!)
+        # note that 'isinstance(..., int)' returns True for True/False values...
+        if isinstance(patch_arg, int) and not isinstance(patch_arg, bool):
+            patch_info['level'] = patch_arg
+
+        # string value as patch argument can be either path where patch should be applied,
+        # or path to where a non-patch file should be copied
+        elif isinstance(patch_arg, string_type):
+            if patch_spec[0].endswith('.patch'):
+                patch_info['sourcepath'] = patch_arg
+            # non-patch files are assumed to be files to copy
+            else:
+                patch_info['copy'] = patch_arg
+        else:
+            raise EasyBuildError("Wrong patch spec '%s', only int/string are supported as 2nd element",
+                                 str(patch_spec))
+
+    elif isinstance(patch_spec, string_type):
+        patch_info = {'name': patch_spec}
+    else:
+        error_msg = "Wrong patch spec, should be string of 2-tuple with patch name + argument: %s"
+        raise EasyBuildError(error_msg, patch_spec)
+
+    return patch_info
 
 
 def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=False, use_git=False):
@@ -2290,10 +2369,13 @@ def copy_file(path, target_path, force_in_dry_run=False):
             else:
                 mkdir(os.path.dirname(target_path), parents=True)
                 if os.path.islink(path):
+                    if os.path.isdir(target_path):
+                        target_path = os.path.join(target_path, os.path.basename(path))
+                        _log.info("target_path changed to %s", target_path)
                     # special care for copying broken symlinks
                     link_target = os.readlink(path)
-                    symlink(link_target, target_path)
-                    _log.info("created symlink from %s to %s", path, target_path)
+                    symlink(link_target, target_path, use_abspath_source=False)
+                    _log.info("created symlink %s to %s", link_target, target_path)
                 else:
                     shutil.copy2(path, target_path)
                     _log.info("%s copied to %s", path, target_path)

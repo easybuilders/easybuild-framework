@@ -376,6 +376,36 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.normalize_path('/././foo//bar/././baz/'), '/foo/bar/baz')
         self.assertEqual(ft.normalize_path('//././foo//bar/././baz/'), '//foo/bar/baz')
 
+    def test_det_file_size(self):
+        """Test det_file_size function."""
+
+        self.assertEqual(ft.det_file_size({'Content-Length': '12345'}), 12345)
+
+        # missing content length, or invalid value
+        self.assertEqual(ft.det_file_size({}), None)
+        self.assertEqual(ft.det_file_size({'Content-Length': 'foo'}), None)
+
+        test_url = 'https://github.com/easybuilders/easybuild-framework/raw/develop/'
+        test_url += 'test/framework/sandbox/sources/toy/toy-0.0.tar.gz'
+        expected_size = 273
+
+        # also try with actual HTTP header
+        try:
+            fh = std_urllib.urlopen(test_url)
+            self.assertEqual(ft.det_file_size(fh.info()), expected_size)
+            fh.close()
+
+            # also try using requests, which is used as a fallback in download_file
+            try:
+                import requests
+                res = requests.get(test_url)
+                self.assertEqual(ft.det_file_size(res.headers), expected_size)
+                res.close()
+            except ImportError:
+                pass
+        except std_urllib.URLError:
+            print("Skipping online test for det_file_size (working offline)")
+
     def test_download_file(self):
         """Test download_file function."""
         fn = 'toy-0.0.tar.gz'
@@ -1510,6 +1540,23 @@ class FileToolsTest(EnhancedTestCase):
         url = 'https://pypi.python.org/packages/source/n/nosuchpackageonpypiever/nosuchpackageonpypiever-0.0.0.tar.gz'
         self.assertEqual(ft.derive_alt_pypi_url(url), None)
 
+    def test_create_patch_info(self):
+        """Test create_patch_info function."""
+
+        self.assertEqual(ft.create_patch_info('foo.patch'), {'name': 'foo.patch'})
+        self.assertEqual(ft.create_patch_info('foo.txt'), {'name': 'foo.txt'})
+        self.assertEqual(ft.create_patch_info(('foo.patch', 1)), {'name': 'foo.patch', 'level': 1})
+        self.assertEqual(ft.create_patch_info(('foo.patch', 'subdir')), {'name': 'foo.patch', 'sourcepath': 'subdir'})
+        self.assertEqual(ft.create_patch_info(('foo.txt', 'subdir')), {'name': 'foo.txt', 'copy': 'subdir'})
+
+        # faulty input
+        error_msg = "Wrong patch spec"
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, None)
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'name': 'foo.patch'})
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, ('foo.patch', [1, 2]))
+        error_msg = "Unknown patch specification"
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, ('foo.patch', 1, 'subdir'))
+
     def test_apply_patch(self):
         """ Test apply_patch """
         testdir = os.path.dirname(os.path.abspath(__file__))
@@ -1602,14 +1649,25 @@ class FileToolsTest(EnhancedTestCase):
     def test_copy_file(self):
         """Test copy_file function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
-        to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         target_path = os.path.join(self.test_prefix, 'toy.eb')
-        ft.copy_file(to_copy, target_path)
+        ft.copy_file(toy_ec, target_path)
         self.assertTrue(os.path.exists(target_path))
-        self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+        self.assertTrue(ft.read_file(toy_ec) == ft.read_file(target_path))
+
+        # Make sure it doesn't fail if path is a symlink and target_path is a dir
+        toy_link_fn = 'toy-link-0.0.eb'
+        toy_link = os.path.join(self.test_prefix, toy_link_fn)
+        ft.symlink(toy_ec, toy_link)
+        dir_target_path = os.path.join(self.test_prefix, 'subdir')
+        ft.mkdir(dir_target_path)
+        ft.copy_file(toy_link, dir_target_path)
+        self.assertTrue(os.path.islink(os.path.join(dir_target_path, toy_link_fn)))
+        self.assertEqual(os.readlink(os.path.join(dir_target_path, toy_link_fn)), os.readlink(toy_link))
+        os.remove(os.path.join(dir_target_path, toy_link))
 
         # clean error when trying to copy a directory with copy_file
-        src, target = os.path.dirname(to_copy), os.path.join(self.test_prefix, 'toy')
+        src, target = os.path.dirname(toy_ec), os.path.join(self.test_prefix, 'toy')
         # error message was changed in Python 3.9.7 to "FileNotFoundError: Directory does not exist"
         error_pattern = "Failed to copy file.*(Is a directory|Directory does not exist)"
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.copy_file, src, target)
@@ -1646,7 +1704,7 @@ class FileToolsTest(EnhancedTestCase):
         os.remove(target_path)
 
         self.mock_stdout(True)
-        ft.copy_file(to_copy, target_path)
+        ft.copy_file(toy_ec, target_path)
         txt = self.get_stdout()
         self.mock_stdout(False)
 
@@ -1655,12 +1713,12 @@ class FileToolsTest(EnhancedTestCase):
 
         # forced copy, even in dry run mode
         self.mock_stdout(True)
-        ft.copy_file(to_copy, target_path, force_in_dry_run=True)
+        ft.copy_file(toy_ec, target_path, force_in_dry_run=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
 
         self.assertTrue(os.path.exists(target_path))
-        self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+        self.assertTrue(ft.read_file(toy_ec) == ft.read_file(target_path))
         self.assertEqual(txt, '')
 
         # Test that a non-existing file raises an exception
