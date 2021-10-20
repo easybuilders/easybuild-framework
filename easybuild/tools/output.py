@@ -36,7 +36,7 @@ from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_s
 from easybuild.tools.py2vs3 import OrderedDict
 
 try:
-    from rich.console import Console, RenderGroup
+    from rich.console import Console, Group
     from rich.live import Live
     from rich.table import Table
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
@@ -101,7 +101,7 @@ def rich_live_cm():
     Return Live instance to use as context manager.
     """
     if show_progress_bars():
-        pbar_group = RenderGroup(
+        pbar_group = Group(
                 download_one_progress_bar(),
                 download_one_progress_bar_unknown_size(),
                 download_all_progress_bar(),
