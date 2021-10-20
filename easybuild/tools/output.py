@@ -38,9 +38,9 @@ from easybuild.tools.py2vs3 import OrderedDict
 try:
     from rich.console import Console, Group
     from rich.live import Live
-    from rich.table import Table
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
     from rich.progress import DownloadColumn, FileSizeColumn, TransferSpeedColumn, TimeRemainingColumn
+    from rich.table import Column, Table
 except ImportError:
     pass
 
@@ -168,7 +168,7 @@ def status_bar():
     Get progress bar to display overall progress.
     """
     progress_bar = Progress(
-        TimeElapsedColumn(),
+        TimeElapsedColumn(Column(min_width=7, no_wrap=True)),
         TextColumn("{task.completed} out of {task.total} easyconfigs done{task.description}"),
     )
 
