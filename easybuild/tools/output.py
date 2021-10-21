@@ -295,27 +295,31 @@ def start_progress_bar(bar_type, size, label=None):
 
 def update_progress_bar(bar_type, label=None, progress_size=1):
     """
-    Update progress bar of given type, add progress of given size.
+    Update progress bar of given type (if it was started), add progress of given size.
 
     :param bar_type: type of progress bar
     :param label: label for progress bar
     :param progress_size: amount of progress made
     """
-    (pbar, task_id) = _progress_bar_cache[bar_type]
-    if label:
-        pbar.update(task_id, description=label)
-    if progress_size:
-        pbar.update(task_id, advance=progress_size)
+    if bar_type in _progress_bar_cache:
+        (pbar, task_id) = _progress_bar_cache[bar_type]
+        if label:
+            pbar.update(task_id, description=label)
+        if progress_size:
+            pbar.update(task_id, advance=progress_size)
 
 
 def stop_progress_bar(bar_type, visible=False):
     """
     Stop progress bar of given type.
     """
-    (pbar, task_id) = _progress_bar_cache[bar_type]
-    pbar.stop_task(task_id)
-    if not visible:
-        pbar.update(task_id, visible=False)
+    if bar_type in _progress_bar_cache:
+        (pbar, task_id) = _progress_bar_cache[bar_type]
+        pbar.stop_task(task_id)
+        if not visible:
+            pbar.update(task_id, visible=False)
+    else:
+        raise EasyBuildError("Failed to stop %s progress bar, since it was never started?!", bar_type)
 
 
 def print_checks(checks_data):

@@ -33,7 +33,8 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_output_style, update_build_option
-from easybuild.tools.output import DummyRich, colorize, show_progress_bars, status_bar, use_rich
+from easybuild.tools.output import PROGRESS_BAR_EXTENSIONS, DummyRich, colorize, get_progress_bar, show_progress_bars
+from easybuild.tools.output import start_progress_bar, status_bar, stop_progress_bar, update_progress_bar, use_rich
 
 try:
     import rich.progress
@@ -137,6 +138,34 @@ class OutputTest(EnhancedTestCase):
             self.assertEqual(colorize('test', 'yellow'), '\x1b[1;33mtest\x1b[0m')
 
         self.assertErrorRegex(EasyBuildError, "Unknown color: nosuchcolor", colorize, 'test', 'nosuchcolor')
+
+    def test_get_start_update_stop_progress_bar(self):
+        """
+        Test starting/updating/stopping of progress bars.
+        """
+        # restore default configuration to show progress bars (disabled to avoid mangled test output)
+        update_build_option('show_progress_bar', True)
+
+        # stopping a progress bar that never was started results in an error
+        error_pattern = "Failed to stop extensions progress bar, since it was never started"
+        self.assertErrorRegex(EasyBuildError, error_pattern, stop_progress_bar, PROGRESS_BAR_EXTENSIONS)
+
+        # updating a progress bar that never was started is silently ignored on purpose
+        update_progress_bar(PROGRESS_BAR_EXTENSIONS)
+        update_progress_bar(PROGRESS_BAR_EXTENSIONS, label="foo")
+        update_progress_bar(PROGRESS_BAR_EXTENSIONS, progress_size=100)
+
+        # also test normal cycle: start, update, stop
+        start_progress_bar(PROGRESS_BAR_EXTENSIONS, 100)
+        update_progress_bar(PROGRESS_BAR_EXTENSIONS)  # single step progress
+        update_progress_bar(PROGRESS_BAR_EXTENSIONS, label="test123", progress_size=5)
+        stop_progress_bar(PROGRESS_BAR_EXTENSIONS)
+
+        pbar = get_progress_bar(PROGRESS_BAR_EXTENSIONS)
+        if HAVE_RICH:
+            self.assertTrue(isinstance(pbar, rich.progress.Progress))
+        else:
+            self.assertTrue(isinstance(pbar, DummyRich))
 
 
 def suite():
