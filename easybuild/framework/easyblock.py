@@ -1733,6 +1733,21 @@ class EasyBlock(object):
         exts_cnt = len(all_ext_names)
         exts_queue = self.ext_instances[:]
 
+        start_progress_bar(PROGRESS_BAR_EXTENSIONS, exts_cnt)
+
+        def update_exts_progress_bar(running_exts, progress_size):
+            """Helper function to update extensions progress bar."""
+            running_exts_cnt = len(running_exts)
+            if running_exts_cnt > 1:
+                progress_label = "Installing %d extensions: " % running_exts_cnt
+            elif running_exts_cnt == 1:
+                progress_label = "Installing extension "
+            else:
+                progress_label = "Not installing extensions (yet)"
+
+            progress_label += ' '.join(e.name for e in running_exts)
+            update_progress_bar(PROGRESS_BAR_EXTENSIONS, label=progress_label, progress_size=progress_size)
+
         iter_id = 0
         while exts_queue or running_exts:
 
@@ -1750,6 +1765,7 @@ class EasyBlock(object):
                         ext.postrun()
                         running_exts.remove(ext)
                         installed_ext_names.append(ext.name)
+                        update_exts_progress_bar(running_exts, 1)
                     else:
                         self.log.debug("Installation of %s is still running...", ext.name)
 
@@ -1811,7 +1827,10 @@ class EasyBlock(object):
                         ext.prerun()
                         ext.run(asynchronous=True)
                         running_exts.append(ext)
-                        self.log.debug("Started installation of extension %s in the background...", ext.name)
+                        self.log.info("Started installation of extension %s in the background...", ext.name)
+                        update_exts_progress_bar(running_exts, 0)
+
+        stop_progress_bar(PROGRESS_BAR_EXTENSIONS, visible=False)
 
     #
     # MISCELLANEOUS UTILITY FUNCTIONS
