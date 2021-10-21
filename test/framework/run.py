@@ -640,7 +640,7 @@ class RunTest(EnhancedTestCase):
         # also test use of check_async_cmd on verbose test command
         cmd_info = run_cmd(verbose_test_cmd, asynchronous=True)
 
-        error_pattern = "Number of output bytes to read should be a positive integer value"
+        error_pattern = r"Number of output bytes to read should be a positive integer value \(or zero\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info, output_read_size=-1)
         self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info, output_read_size='foo')
 

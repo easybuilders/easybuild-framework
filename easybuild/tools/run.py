@@ -265,7 +265,7 @@ def check_async_cmd(proc, cmd, owd, start_time, cmd_log, output_read_size=1024, 
     # use small read size, to avoid waiting for a long time until sufficient output is produced
     if output_read_size:
         if not isinstance(output_read_size, int) or output_read_size < 0:
-            raise EasyBuildError("Number of output bytes to read should be a positive integer value")
+            raise EasyBuildError("Number of output bytes to read should be a positive integer value (or zero)")
         add_out = get_output_from_process(proc, read_size=output_read_size)
         _log.debug("Additional output from asynchronous command '%s': %s" % (cmd, add_out))
         output += add_out
