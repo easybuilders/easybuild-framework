@@ -483,7 +483,7 @@ def find_related_easyconfigs(path, ec):
         else:
             _log.debug("No related easyconfigs in potential paths using '%s'" % regex)
 
-    return sorted(res)
+    return res
 
 
 def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False, max_ecs=None, filter_ecs=None):
