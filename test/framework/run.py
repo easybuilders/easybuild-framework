@@ -639,6 +639,13 @@ class RunTest(EnhancedTestCase):
 
         # also test use of check_async_cmd on verbose test command
         cmd_info = run_cmd(verbose_test_cmd, asynchronous=True)
+
+        # with output_read_size set to 0, no output is read yet, only status of command is checked
+        res = check_async_cmd(*cmd_info, output_read_size=0)
+        self.assertEqual(res['done'], False)
+        self.assertEqual(res['exit_code'], None)
+        self.assertEqual(res['output'], '')
+
         res = check_async_cmd(*cmd_info)
         self.assertEqual(res['done'], False)
         self.assertEqual(res['exit_code'], None)
