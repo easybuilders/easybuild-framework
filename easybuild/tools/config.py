@@ -269,6 +269,7 @@ BUILD_OPTIONS_CMDLINE = {
         'module_extensions',
         'module_only',
         'package',
+        'parallel_extensions_install',
         'read_only_installdir',
         'remove_ghost_install_dirs',
         'rebuild',

@@ -1646,7 +1646,8 @@ class EasyBlock(object):
         """
         self.log.debug("List of loaded modules: %s", self.modules_tool.list())
 
-        if parallel:
+        if build_option('parallel_extensions_install') and parallel:
+            self.log.experimental("installing extensions in parallel")
             self.install_extensions_parallel(install=install)
         else:
             self.install_extensions_sequential(install=install)
