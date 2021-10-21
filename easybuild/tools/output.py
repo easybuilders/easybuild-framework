@@ -242,7 +242,7 @@ def extensions_progress_bar():
     Get progress bar to show progress for installing extensions.
     """
     progress_bar = Progress(
-        TextColumn("[bold blue]{task.description} ({task.completed}/{task.total})"),
+        TextColumn("[bold blue]{task.description}"),
         BarColumn(),
         TimeElapsedColumn(),
     )

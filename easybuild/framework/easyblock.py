@@ -1661,7 +1661,6 @@ class EasyBlock(object):
         self.log.info("Installing extensions sequentially...")
 
         exts_cnt = len(self.ext_instances)
-        start_progress_bar(PROGRESS_BAR_EXTENSIONS, exts_cnt)
 
         for idx, ext in enumerate(self.ext_instances):
 
@@ -1670,7 +1669,7 @@ class EasyBlock(object):
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
 
-            progress_label = "Installing '%s' extension" % ext.name
+            progress_label = "Installing '%s' extension (%s/%s)" % (ext.name, idx + 1, exts_cnt)
             update_progress_bar(PROGRESS_BAR_EXTENSIONS, label=progress_label)
 
             tup = (ext.name, ext.version or '', idx + 1, exts_cnt)
@@ -1711,8 +1710,6 @@ class EasyBlock(object):
                         elif self.logdebug or build_option('trace'):
                             print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
 
-        stop_progress_bar(PROGRESS_BAR_EXTENSIONS, visible=False)
-
     def install_extensions_parallel(self, install=True):
         """
         Install extensions in parallel.
@@ -1734,8 +1731,6 @@ class EasyBlock(object):
         exts_cnt = len(all_ext_names)
         exts_queue = self.ext_instances[:]
 
-        start_progress_bar(PROGRESS_BAR_EXTENSIONS, exts_cnt)
-
         def update_exts_progress_bar(running_exts, progress_size):
             """Helper function to update extensions progress bar."""
             running_exts_cnt = len(running_exts)
@@ -1747,6 +1742,7 @@ class EasyBlock(object):
                 progress_label = "Not installing extensions (yet)"
 
             progress_label += ' '.join(e.name for e in running_exts)
+            progress_label += "(%d/%d done)" % (len(installed_ext_names), exts_cnt)
             update_progress_bar(PROGRESS_BAR_EXTENSIONS, label=progress_label, progress_size=progress_size)
 
         iter_id = 0
@@ -1830,8 +1826,6 @@ class EasyBlock(object):
                         running_exts.append(ext)
                         self.log.info("Started installation of extension %s in the background...", ext.name)
                         update_exts_progress_bar(running_exts, 0)
-
-        stop_progress_bar(PROGRESS_BAR_EXTENSIONS, visible=False)
 
     #
     # MISCELLANEOUS UTILITY FUNCTIONS
@@ -2587,9 +2581,12 @@ class EasyBlock(object):
 
             fake_mod_data = self.load_fake_module(purge=True, extra_modules=build_dep_mods)
 
+        start_progress_bar(PROGRESS_BAR_EXTENSIONS, len(self.cfg['exts_list']))
+
         self.prepare_for_extensions()
 
         if fetch:
+            update_progress_bar(PROGRESS_BAR_EXTENSIONS, label="fetching extension sources/patches", progress_size=0)
             self.exts = self.collect_exts_file_info(fetch_files=True)
 
         self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
@@ -2603,9 +2600,11 @@ class EasyBlock(object):
             self.clean_up_fake_module(fake_mod_data)
             raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
 
+        update_progress_bar(PROGRESS_BAR_EXTENSIONS, label="creating Extension instances", progress_size=0)
         self.init_ext_instances()
 
         if self.skip:
+            update_progress_bar(PROGRESS_BAR_EXTENSIONS, label="skipping installed extensions", progress_size=0)
             self.skip_extensions()
 
         self.install_extensions(install=install)
@@ -2613,6 +2612,8 @@ class EasyBlock(object):
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
             self.clean_up_fake_module(fake_mod_data)
+
+        stop_progress_bar(PROGRESS_BAR_EXTENSIONS, visible=False)
 
     def package_step(self):
         """Package installed software (e.g., into an RPM), if requested, using selected package tool."""
