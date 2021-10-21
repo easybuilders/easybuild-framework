@@ -1616,14 +1616,18 @@ class EasyBlock(object):
         - use this to detect existing extensions and to remove them from self.ext_instances
         - based on initial R version
         """
+        self.update_exts_progress_bar("skipping installed extensions")
+
         # obtaining untemplated reference value is required here to support legacy string templates like name/version
         exts_filter = self.cfg.get_ref('exts_filter')
 
         if not exts_filter or len(exts_filter) == 0:
             raise EasyBuildError("Skipping of extensions, but no exts_filter set in easyconfig")
 
+        exts_cnt = len(self.ext_instances)
+
         res = []
-        for ext_inst in self.ext_instances:
+        for idx, ext_inst in enumerate(self.ext_instances):
             cmd, stdin = resolve_exts_filter_template(exts_filter, ext_inst)
             (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
             self.log.info("exts_filter result %s %s", cmdstdouterr, ec)
@@ -1633,6 +1637,8 @@ class EasyBlock(object):
                 res.append(ext_inst)
             else:
                 print_msg("skipping extension %s" % ext_inst.name, silent=self.silent, log=self.log)
+
+            self.update_exts_progress_bar("skipping installed extensions (%d/%d checked)" % (idx + 1, exts_cnt))
 
         self.ext_instances = res
 
@@ -2477,6 +2483,8 @@ class EasyBlock(object):
         """
         exts_list = self.cfg.get_ref('exts_list')
 
+        self.update_exts_progress_bar("creating internal datastructures for extensions")
+
         # early exit if there are no extensions
         if not exts_list:
             return
@@ -2500,7 +2508,9 @@ class EasyBlock(object):
             error_msg = "Improper default extension class specification, should be string: %s (%s)"
             raise EasyBuildError(error_msg, exts_defaultclass, type(exts_defaultclass))
 
-        for ext in self.exts:
+        exts_cnt = len(self.exts)
+
+        for idx, ext in enumerate(self.exts):
             ext_name = ext['name']
             self.log.debug("Creating class instance for extension %s...", ext_name)
 
@@ -2561,6 +2571,9 @@ class EasyBlock(object):
                 self.log.debug("Installing extension %s with class %s (from %s)", ext_name, class_name, mod_path)
 
             self.ext_instances.append(inst)
+            pbar_label = "creating internal datastructures for extensions "
+            pbar_label += "(%d/%d done)" % (idx + 1, exts_cnt)
+            self.update_exts_progress_bar(pbar_label)
 
     def update_exts_progress_bar(self, info, progress_size=0):
         """
@@ -2608,11 +2621,9 @@ class EasyBlock(object):
             self.clean_up_fake_module(fake_mod_data)
             raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
 
-        self.update_exts_progress_bar("creating internal datastructures")
         self.init_ext_instances()
 
         if self.skip:
-            self.update_exts_progress_bar("skipping install extensions")
             self.skip_extensions()
 
         self.install_extensions(install=install)
