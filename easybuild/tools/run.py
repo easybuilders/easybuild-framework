@@ -276,7 +276,7 @@ def check_async_cmd(proc, cmd, owd, start_time, cmd_log, output_read_size=1024, 
         done = False
     else:
         _log.debug("Asynchronous command '%s' completed!", cmd)
-        output, _ = complete_cmd(proc, cmd, owd, start_time, cmd_log, output=output, simple=False)
+        output, _ = complete_cmd(proc, cmd, owd, start_time, cmd_log, output=output, simple=False, trace=False)
         done = True
 
     res = {
