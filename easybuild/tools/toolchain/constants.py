@@ -30,8 +30,8 @@ Toolchain specific variables
 """
 
 from easybuild.tools.variables import AbsPathList
-from easybuild.tools.toolchain.variables import LinkLibraryPaths, IncludePaths, CommandFlagList, CommaStaticLibs
-from easybuild.tools.toolchain.variables import FlagList, LibraryList
+from easybuild.tools.toolchain.variables import CommandFlagList, CommaSharedLibs, CommaStaticLibs
+from easybuild.tools.toolchain.variables import FlagList, IncludePaths, LibraryList, LinkLibraryPaths
 
 
 COMPILER_VARIABLES = [
@@ -114,6 +114,10 @@ BLAS_MAP_CLASS = {
         ('LIBBLAS', 'BLAS libraries'),
         ('LIBBLAS_MT', 'multithreaded BLAS libraries'),
     ],
+    CommaSharedLibs: [
+        ('BLAS_SHARED_LIBS', 'Comma-separated list of shared BLAS libraries'),
+        ('BLAS_MT_SHARED_LIBS', 'Comma-separated list of shared multithreaded BLAS libraries'),
+    ],
     CommaStaticLibs: [
         ('BLAS_STATIC_LIBS', 'Comma-separated list of static BLAS libraries'),
         ('BLAS_MT_STATIC_LIBS', 'Comma-separated list of static multithreaded BLAS libraries'),
@@ -131,6 +135,12 @@ LAPACK_MAP_CLASS = {
         ('LIBLAPACK_MT_ONLY', 'multithreaded LAPACK libraries (LAPACK only)'),
         ('LIBLAPACK', 'LAPACK libraries'),
         ('LIBLAPACK_MT', 'multithreaded LAPACK libraries'),
+    ],
+    CommaSharedLibs: [
+        ('LAPACK_SHARED_LIBS', 'Comma-separated list of shared LAPACK libraries'),
+        ('LAPACK_MT_SHARED_LIBS', 'Comma-separated list of shared LAPACK libraries'),
+        ('BLAS_LAPACK_SHARED_LIBS', 'Comma-separated list of shared BLAS and LAPACK libraries'),
+        ('BLAS_LAPACK_MT_SHARED_LIBS', 'Comma-separated list of shared BLAS and LAPACK libraries'),
     ],
     CommaStaticLibs: [
         ('LAPACK_STATIC_LIBS', 'Comma-separated list of static LAPACK libraries'),
@@ -166,6 +176,10 @@ SCALAPACK_MAP_CLASS = {
         ('LIBSCALAPACK', 'SCALAPACK libraries'),
         ('LIBSCALAPACK_MT', 'multithreaded SCALAPACK libraries'),
     ],
+    CommaSharedLibs: [
+        ('SCALAPACK_SHARED_LIBS', 'Comma-separated list of shared SCALAPACK libraries'),
+        ('SCALAPACK_MT_SHARED_LIBS', 'Comma-separated list of shared SCALAPACK libraries'),
+    ],
     CommaStaticLibs: [
         ('SCALAPACK_STATIC_LIBS', 'Comma-separated list of static SCALAPACK libraries'),
         ('SCALAPACK_MT_STATIC_LIBS', 'Comma-separated list of static SCALAPACK libraries'),
@@ -181,6 +195,10 @@ FFT_MAP_CLASS = {
         ('LIBFFT', 'FFT libraries'),
         ('LIBFFT_MT', 'Multithreaded FFT libraries'),
     ],
+    CommaSharedLibs: [
+        ('FFT_SHARED_LIBS', 'Comma-separated list of shared FFT libraries'),
+        ('FFT_SHARED_LIBS_MT', 'Comma-separated list of shared multithreaded FFT libraries'),
+    ],
     CommaStaticLibs: [
         ('FFT_STATIC_LIBS', 'Comma-separated list of static FFT libraries'),
         ('FFT_STATIC_LIBS_MT', 'Comma-separated list of static multithreaded FFT libraries'),
@@ -191,6 +209,10 @@ FFTW_MAP_CLASS = {
     AbsPathList: [
         ('FFTW_LIB_DIR', 'FFTW library directory'),
         ('FFTW_INC_DIR', 'FFTW include directory'),
+    ],
+    CommaSharedLibs: [
+        ('FFTW_SHARED_LIBS', 'Comma-separated list of shared FFTW libraries'),
+        ('FFTW_SHARED_LIBS_MT', 'Comma-separated list of shared multithreaded FFTW libraries'),
     ],
     CommaStaticLibs: [
         ('FFTW_STATIC_LIBS', 'Comma-separated list of static FFTW libraries'),

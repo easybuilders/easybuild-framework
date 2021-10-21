@@ -489,7 +489,7 @@ class SystemToolsTest(EnhancedTestCase):
         cpu_feat = get_cpu_features()
         self.assertTrue(isinstance(cpu_feat, list))
         self.assertTrue(len(cpu_feat) > 0)
-        self.assertTrue(all([isinstance(x, string_type) for x in cpu_feat]))
+        self.assertTrue(all(isinstance(x, string_type) for x in cpu_feat))
 
     def test_cpu_features_linux(self):
         """Test getting CPU features (mocked for Linux)."""

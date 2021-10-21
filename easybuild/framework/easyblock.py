@@ -61,7 +61,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
-from easybuild.framework.extension import resolve_exts_filter_template
+from easybuild.framework.extension import Extension, resolve_exts_filter_template
 from easybuild.tools import config, run
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
@@ -72,9 +72,10 @@ from easybuild.tools.config import build_option, build_path, get_log_filename, g
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
-from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
-from easybuild.tools.filetools import compute_checksum, copy_file, check_lock, create_lock, derive_alt_pypi_url
-from easybuild.tools.filetools import diff_files, dir_contains_files, download_file, encode_class_name, extract_file
+from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
+from easybuild.tools.filetools import compute_checksum, convert_name, copy_file, create_lock, create_patch_info
+from easybuild.tools.filetools import derive_alt_pypi_url, diff_files, dir_contains_files, download_file
+from easybuild.tools.filetools import encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file, symlink
@@ -89,11 +90,13 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import Lmod, curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
+from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
+from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_shared_lib_ext, use_group
-from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, quote_str
+from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
@@ -211,6 +214,10 @@ class EasyBlock(object):
         self.logdebug = build_option('debug')
         self.postmsg = ''  # allow a post message to be set, which can be shown as last output
         self.current_step = None
+
+        # Create empty progress bar
+        self.progress_bar = None
+        self.pbar_task = None
 
         # list of loaded modules
         self.loaded_modules = []
@@ -353,7 +360,7 @@ class EasyBlock(object):
 
         :param source: source to be found (single dictionary in 'sources' list, or filename)
         :param checksum: checksum corresponding to source
-        :param extension: flag if being called from fetch_extension_sources()
+        :param extension: flag if being called from collect_exts_file_info()
         """
         filename, download_filename, extract_cmd, source_urls, git_config = None, None, None, None, None
 
@@ -442,52 +449,19 @@ class EasyBlock(object):
         patches = []
         for index, patch_spec in enumerate(patch_specs):
 
-            # check if the patches can be located
-            copy_file = False
-            suff = None
-            level = None
-            if isinstance(patch_spec, (list, tuple)):
-                if not len(patch_spec) == 2:
-                    raise EasyBuildError("Unknown patch specification '%s', only 2-element lists/tuples are supported!",
-                                         str(patch_spec))
-                patch_file = patch_spec[0]
-
-                # this *must* be of typ int, nothing else
-                # no 'isinstance(..., int)', since that would make True/False also acceptable
-                if isinstance(patch_spec[1], int):
-                    level = patch_spec[1]
-                elif isinstance(patch_spec[1], string_type):
-                    # non-patch files are assumed to be files to copy
-                    if not patch_spec[0].endswith('.patch'):
-                        copy_file = True
-                    suff = patch_spec[1]
-                else:
-                    raise EasyBuildError("Wrong patch spec '%s', only int/string are supported as 2nd element",
-                                         str(patch_spec))
-            else:
-                patch_file = patch_spec
+            patch_info = create_patch_info(patch_spec)
 
             force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES]
-            path = self.obtain_file(patch_file, extension=extension, force_download=force_download)
+            path = self.obtain_file(patch_info['name'], extension=extension, force_download=force_download)
             if path:
-                self.log.debug('File %s found for patch %s' % (path, patch_spec))
-                patchspec = {
-                    'name': patch_file,
-                    'path': path,
-                    'checksum': self.get_checksum_for(checksums, index=index),
-                }
-                if suff:
-                    if copy_file:
-                        patchspec['copy'] = suff
-                    else:
-                        patchspec['sourcepath'] = suff
-                if level is not None:
-                    patchspec['level'] = level
+                self.log.debug('File %s found for patch %s', path, patch_spec)
+                patch_info['path'] = path
+                patch_info['checksum'] = self.get_checksum_for(checksums, index=index)
 
                 if extension:
-                    patches.append(patchspec)
+                    patches.append(patch_info)
                 else:
-                    self.patches.append(patchspec)
+                    self.patches.append(patch_info)
             else:
                 raise EasyBuildError('No file found for patch %s', patch_spec)
 
@@ -495,14 +469,29 @@ class EasyBlock(object):
             self.log.info("Fetched extension patches: %s", patches)
             return patches
         else:
-            self.log.info("Added patches: %s" % self.patches)
+            self.log.info("Added patches: %s", self.patches)
 
     def fetch_extension_sources(self, skip_checksums=False):
         """
-        Find source file for extensions.
+        Fetch source and patch files for extensions (DEPRECATED, use collect_exts_file_info instead).
+        """
+        depr_msg = "EasyBlock.fetch_extension_sources is deprecated, use EasyBlock.collect_exts_file_info instead"
+        self.log.deprecated(depr_msg, '5.0')
+        return self.collect_exts_file_info(fetch_files=True, verify_checksums=not skip_checksums)
+
+    def collect_exts_file_info(self, fetch_files=True, verify_checksums=True):
+        """
+        Collect information on source and patch files for extensions.
+
+        :param fetch_files: whether or not to fetch files (if False, path to files will be missing from info)
+        :param verify_checksums: whether or not to verify checksums
+        :return: list of dict values, one per extension, with information on source/patch files.
         """
         exts_sources = []
         exts_list = self.cfg.get_ref('exts_list')
+
+        if verify_checksums and not fetch_files:
+            raise EasyBuildError("Can't verify checksums for extension files if they are not being fetched")
 
         if self.dry_run:
             self.dry_run_msg("\nList of sources/patches for extensions:")
@@ -510,10 +499,8 @@ class EasyBlock(object):
         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
 
         for ext in exts_list:
-            if (isinstance(ext, list) or isinstance(ext, tuple)) and ext:
-
+            if isinstance(ext, (list, tuple)) and ext:
                 # expected format: (name, version, options (dict))
-
                 ext_name = ext[0]
                 if len(ext) == 1:
                     exts_sources.append({'name': ext_name})
@@ -537,6 +524,10 @@ class EasyBlock(object):
                         'version': ext_version,
                         'options': ext_options,
                     }
+
+                    # if a particular easyblock is specified, make sure it's used
+                    # (this is picked up by init_ext_instances)
+                    ext_src['easyblock'] = ext_options.get('easyblock', None)
 
                     # construct dictionary with template values;
                     # inherited from parent, except for name/version templates which are specific to this extension
@@ -579,26 +570,33 @@ class EasyBlock(object):
                         if 'source_urls' not in source:
                             source['source_urls'] = source_urls
 
-                        src = self.fetch_source(source, checksums, extension=True)
-
-                        # copy 'path' entry to 'src' for use with extensions
-                        ext_src.update({'src': src['path']})
+                        if fetch_files:
+                            src = self.fetch_source(source, checksums, extension=True)
+                            # copy 'path' entry to 'src' for use with extensions
+                            ext_src.update({'src': src['path']})
 
                     else:
                         # use default template for name of source file if none is specified
                         default_source_tmpl = resolve_template('%(name)s-%(version)s.tar.gz', template_values)
 
                         # if no sources are specified via 'sources', fall back to 'source_tmpl'
-                        src_fn = ext_options.get('source_tmpl', default_source_tmpl)
-                        src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
-                                                    force_download=force_download)
-                        if src_path:
-                            ext_src.update({'src': src_path})
-                        else:
-                            raise EasyBuildError("Source for extension %s not found.", ext)
+                        src_fn = ext_options.get('source_tmpl')
+                        if src_fn is None:
+                            src_fn = default_source_tmpl
+                        elif not isinstance(src_fn, string_type):
+                            error_msg = "source_tmpl value must be a string! (found value of type '%s'): %s"
+                            raise EasyBuildError(error_msg, type(src_fn).__name__, src_fn)
+
+                        if fetch_files:
+                            src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
+                                                        force_download=force_download)
+                            if src_path:
+                                ext_src.update({'src': src_path})
+                            else:
+                                raise EasyBuildError("Source for extension %s not found.", ext)
 
                     # verify checksum for extension sources
-                    if 'src' in ext_src and not skip_checksums:
+                    if verify_checksums and 'src' in ext_src:
                         src_path = ext_src['src']
                         src_fn = os.path.basename(src_path)
 
@@ -618,12 +616,17 @@ class EasyBlock(object):
                             raise EasyBuildError('Checksum verification for extension source %s failed', src_fn)
 
                     # locate extension patches (if any), and verify checksums
-                    ext_patches = self.fetch_patches(patch_specs=ext_options.get('patches', []), extension=True)
+                    ext_patches = ext_options.get('patches', [])
+                    if fetch_files:
+                        ext_patches = self.fetch_patches(patch_specs=ext_patches, extension=True)
+                    else:
+                        ext_patches = [create_patch_info(p) for p in ext_patches]
+
                     if ext_patches:
                         self.log.debug('Found patches for extension %s: %s', ext_name, ext_patches)
                         ext_src.update({'patches': ext_patches})
 
-                        if not skip_checksums:
+                        if verify_checksums:
                             for patch in ext_patches:
                                 patch = patch['path']
                                 # report both MD5 and SHA256 checksums,
@@ -673,6 +676,8 @@ class EasyBlock(object):
         :param git_config: dictionary to define how to download a git repository
         """
         srcpaths = source_paths()
+
+        update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
 
         # should we download or just try and find it?
         if re.match(r"^(https?|ftp)://", filename):
@@ -1423,9 +1428,17 @@ class EasyBlock(object):
             note += "for paths are skipped for the statements below due to dry run"
             lines.append(self.module_generator.comment(note))
 
-        # for these environment variables, the corresponding subdirectory must include at least one file
-        keys_requiring_files = set(('PATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'CPATH',
-                                    'CMAKE_PREFIX_PATH', 'CMAKE_LIBRARY_PATH'))
+        # For these environment variables, the corresponding directory must include at least one file.
+        # The values determine if detection is done recursively, i.e. if it accepts directories where files
+        # are only in subdirectories.
+        keys_requiring_files = {
+            'PATH': False,
+            'LD_LIBRARY_PATH': False,
+            'LIBRARY_PATH': True,
+            'CPATH': True,
+            'CMAKE_PREFIX_PATH': True,
+            'CMAKE_LIBRARY_PATH': True,
+        }
 
         for key, reqs in sorted(requirements.items()):
             if isinstance(reqs, string_type):
@@ -1455,19 +1468,16 @@ class EasyBlock(object):
                     if fixed_paths != paths:
                         self.log.info("Fixed symlink lib64 in paths for %s: %s -> %s", key, paths, fixed_paths)
                         paths = fixed_paths
-                # remove duplicate paths
-                # don't use 'set' here, since order in 'paths' is important!
-                uniq_paths = []
-                for path in paths:
-                    if path not in uniq_paths:
-                        uniq_paths.append(path)
-                paths = uniq_paths
+                # remove duplicate paths preserving order
+                paths = nub(paths)
                 if key in keys_requiring_files:
                     # only retain paths that contain at least one file
+                    recursive = keys_requiring_files[key]
                     retained_paths = [
-                        path for path in paths
-                        if os.path.isdir(os.path.join(self.installdir, path))
-                        and dir_contains_files(os.path.join(self.installdir, path))
+                        path
+                        for path, fullpath in ((path, os.path.join(self.installdir, path)) for path in paths)
+                        if os.path.isdir(fullpath)
+                        and dir_contains_files(fullpath, recursive=recursive)
                     ]
                     if retained_paths != paths:
                         self.log.info("Only retaining paths for %s that contain at least one file: %s -> %s",
@@ -1776,18 +1786,19 @@ class EasyBlock(object):
         """Set 'parallel' easyconfig parameter to determine how many cores can/should be used for parallel builds."""
         # set level of parallelism for build
         par = build_option('parallel')
-        if self.cfg['parallel'] is not None:
-            if par is None:
-                par = self.cfg['parallel']
-                self.log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
-            else:
-                par = min(int(par), int(self.cfg['parallel']))
-                self.log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
-        else:
+        cfg_par = self.cfg['parallel']
+        if cfg_par is None:
             self.log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
+        elif par is None:
+            par = cfg_par
+            self.log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
+        else:
+            par = min(int(par), int(cfg_par))
+            self.log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
 
-        self.cfg['parallel'] = det_parallelism(par=par, maxpar=self.cfg['maxparallel'])
-        self.log.info("Setting parallelism: %s" % self.cfg['parallel'])
+        par = det_parallelism(par, maxpar=self.cfg['maxparallel'])
+        self.log.info("Setting parallelism: %s" % par)
+        self.cfg['parallel'] = par
 
     def remove_module_file(self):
         """Remove module file (if it exists), and check for ghost installation directory (and deal with it)."""
@@ -1813,6 +1824,18 @@ class EasyBlock(object):
 
             self.log.info("Removing existing module file %s", self.mod_filepath)
             remove_file(self.mod_filepath)
+
+    def report_test_failure(self, msg_or_error):
+        """
+        Report a failing test either via an exception or warning depending on ignore-test-failure
+
+        :param msg_or_error: failure description (string value or an EasyBuildError instance)
+        """
+        if build_option('ignore_test_failure'):
+            print_warning("Test failure ignored: " + str(msg_or_error), log=self.log)
+        else:
+            exception = msg_or_error if isinstance(msg_or_error, EasyBuildError) else EasyBuildError(msg_or_error)
+            raise exception
 
     #
     # STEP FUNCTIONS
@@ -1887,6 +1910,8 @@ class EasyBlock(object):
                 raise EasyBuildError("EasyBuild-version %s is newer than the currently running one. Aborting!",
                                      easybuild_version)
 
+        start_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, self.cfg.count_files())
+
         if self.dry_run:
 
             self.dry_run_msg("Available download URLs for sources/patches:")
@@ -1948,7 +1973,7 @@ class EasyBlock(object):
 
         # fetch extensions
         if self.cfg.get_ref('exts_list'):
-            self.exts = self.fetch_extension_sources(skip_checksums=skip_checksums)
+            self.exts = self.collect_exts_file_info(fetch_files=True, verify_checksums=not skip_checksums)
 
         # create parent dirs in install and modules path already
         # this is required when building in parallel
@@ -1968,6 +1993,8 @@ class EasyBlock(object):
                 mkdir(pardir, parents=True)
         else:
             self.log.info("Skipped installation dirs check per user request")
+
+        stop_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL)
 
     def checksum_step(self):
         """Verify checksum of sources and patches, if a checksum is available."""
@@ -2012,7 +2039,12 @@ class EasyBlock(object):
 
         for fn, checksum in zip(sources + patches, checksums):
             if isinstance(checksum, dict):
-                checksum = checksum.get(fn)
+                # sources entry may be a dictionary rather than just a string value with filename
+                if isinstance(fn, dict):
+                    filename = fn['filename']
+                else:
+                    filename = fn
+                checksum = checksum.get(filename)
 
             # take into account that we may encounter a tuple of valid SHA256 checksums
             # (see https://github.com/easybuilders/easybuild-framework/pull/2958)
@@ -2229,6 +2261,13 @@ class EasyBlock(object):
 
             return out
 
+    def _test_step(self):
+        """Run the test_step and handles failures"""
+        try:
+            self.test_step()
+        except EasyBuildError as err:
+            self.report_test_failure(err)
+
     def stage_install_step(self):
         """
         Install in a stage directory before actual installation.
@@ -2252,8 +2291,11 @@ class EasyBlock(object):
         self.ext_instances = []
         exts_classmap = self.cfg['exts_classmap']
 
+        # self.exts may already be populated at this point through collect_exts_file_info;
+        # if it's not, we do it lightweight here, by skipping fetching of the files;
+        # information on location of source/patch files will be lacking in that case (but that should be fine)
         if exts_list and not self.exts:
-            self.exts = self.fetch_extension_sources()
+            self.exts = self.collect_exts_file_info(fetch_files=False, verify_checksums=False)
 
         # obtain name and module path for default extention class
         exts_defaultclass = self.cfg['exts_defaultclass']
@@ -2269,18 +2311,31 @@ class EasyBlock(object):
             ext_name = ext['name']
             self.log.debug("Creating class instance for extension %s...", ext_name)
 
-            cls, inst = None, None
-            class_name = encode_class_name(ext_name)
-            mod_path = get_module_path(class_name, generic=False)
+            # if a specific easyblock is specified for this extension, honor it;
+            # just passing this to get_easyblock_class is sufficient
+            easyblock = ext.get('easyblock', None)
+            if easyblock:
+                class_name = easyblock
+                mod_path = get_module_path(class_name)
+            else:
+                class_name = encode_class_name(ext_name)
+                mod_path = get_module_path(class_name, generic=False)
 
-            # try instantiating extension-specific class
+            cls, inst = None, None
+
+            # try instantiating extension-specific class, or honor specified easyblock
             try:
                 # no error when importing class fails, in case we run into an existing easyblock
                 # with a similar name (e.g., Perl Extension 'GO' vs 'Go' for which 'EB_Go' is available)
-                cls = get_easyblock_class(None, name=ext_name, error_on_failed_import=False,
+                cls = get_easyblock_class(easyblock, name=ext_name, error_on_failed_import=False,
                                           error_on_missing_easyblock=False)
+
                 self.log.debug("Obtained class %s for extension %s", cls, ext_name)
                 if cls is not None:
+                    # make sure that this easyblock can be used to install extensions
+                    if not issubclass(cls, Extension):
+                        raise EasyBuildError("%s easyblock can not be used to install extensions!", cls.__name__)
+
                     inst = cls(self, ext)
             except (ImportError, NameError) as err:
                 self.log.debug("Failed to use extension-specific class for extension %s: %s", ext_name, err)
@@ -2338,7 +2393,7 @@ class EasyBlock(object):
         self.prepare_for_extensions()
 
         if fetch:
-            self.exts = self.fetch_extension_sources()
+            self.exts = self.collect_exts_file_info(fetch_files=True)
 
         self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
@@ -2357,6 +2412,9 @@ class EasyBlock(object):
             self.skip_extensions()
 
         exts_cnt = len(self.ext_instances)
+
+        start_progress_bar(PROGRESS_BAR_EXTENSIONS, exts_cnt)
+
         for idx, ext in enumerate(self.ext_instances):
 
             self.log.debug("Starting extension %s" % ext.name)
@@ -2364,8 +2422,13 @@ class EasyBlock(object):
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
 
+            progress_label = "Installing '%s' extension" % ext.name
+            update_progress_bar(PROGRESS_BAR_EXTENSIONS, label=progress_label)
+
             tup = (ext.name, ext.version or '', idx + 1, exts_cnt)
             print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
+
+            start_time = datetime.now()
 
             if self.dry_run:
                 tup = (ext.name, ext.version, ext.__class__.__name__)
@@ -2386,11 +2449,21 @@ class EasyBlock(object):
 
             # real work
             if install:
-                ext.prerun()
-                txt = ext.run()
-                if txt:
-                    self.module_extra_extensions += txt
-                ext.postrun()
+                try:
+                    ext.prerun()
+                    txt = ext.run()
+                    if txt:
+                        self.module_extra_extensions += txt
+                    ext.postrun()
+                finally:
+                    if not self.dry_run:
+                        ext_duration = datetime.now() - start_time
+                        if ext_duration.total_seconds() >= 1:
+                            print_msg("\t... (took %s)", time2str(ext_duration), log=self.log, silent=self.silent)
+                        elif self.logdebug or build_option('trace'):
+                            print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
+
+        stop_progress_bar(PROGRESS_BAR_EXTENSIONS, visible=False)
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
@@ -2423,7 +2496,7 @@ class EasyBlock(object):
 
     def fix_shebang(self):
         """Fix shebang lines for specified files."""
-        for lang in ['perl', 'python']:
+        for lang in ['bash', 'perl', 'python']:
             shebang_regex = re.compile(r'^#![ ]*.*[/ ]%s.*' % lang)
             fix_shebang_for = self.cfg['fix_%s_shebang_for' % lang]
             if fix_shebang_for:
@@ -3367,10 +3440,12 @@ class EasyBlock(object):
         run_hook(step, self.hooks, pre_step_hook=True, args=[self])
 
         for step_method in step_methods:
-            self.log.info("Running method %s part of step %s" % (extract_method_name(step_method), step))
+            # Remove leading underscore from e.g. "_test_step"
+            method_name = extract_method_name(step_method).lstrip('_')
+            self.log.info("Running method %s part of step %s", method_name, step)
 
             if self.dry_run:
-                self.dry_run_msg("[%s method]", step_method(self).__name__)
+                self.dry_run_msg("[%s method]", method_name)
 
                 # if an known possible error occurs, just report it and continue
                 try:
@@ -3392,6 +3467,7 @@ class EasyBlock(object):
         run_hook(step, self.hooks, post_step_hook=True, args=[self])
 
         if self.cfg['stop'] == step:
+            update_progress_bar(PROGRESS_BAR_EASYCONFIG)
             self.log.info("Stopping after %s step.", step)
             raise StopException(step)
 
@@ -3443,7 +3519,7 @@ class EasyBlock(object):
         prepare_step_spec = (PREPARE_STEP, 'preparing', [lambda x: x.prepare_step], False)
         configure_step_spec = (CONFIGURE_STEP, 'configuring', [lambda x: x.configure_step], True)
         build_step_spec = (BUILD_STEP, 'building', [lambda x: x.build_step], True)
-        test_step_spec = (TEST_STEP, 'testing', [lambda x: x.test_step], True)
+        test_step_spec = (TEST_STEP, 'testing', [lambda x: x._test_step], True)
         extensions_step_spec = (EXTENSIONS_STEP, 'taking care of extensions', [lambda x: x.extensions_step], False)
 
         # part 1: pre-iteration + first iteration
@@ -3505,28 +3581,41 @@ class EasyBlock(object):
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
+        # figure out how many steps will actually be run (not be skipped)
+        step_cnt = 0
+        for (step_name, _, _, skippable) in steps:
+            if not self.skip_step(step_name, skippable):
+                step_cnt += 1
+            if self.cfg['stop'] == step_name:
+                break
+
+        start_progress_bar(PROGRESS_BAR_EASYCONFIG, step_cnt, label="Installing %s" % self.full_mod_name)
+
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         trace_msg("installation prefix: %s" % self.installdir)
 
         ignore_locks = build_option('ignore_locks')
 
-        if ignore_locks:
-            self.log.info("Ignoring locks...")
-        else:
-            lock_name = self.installdir.replace('/', '_')
-
-            # check if lock already exists;
-            # either aborts with an error or waits until it disappears (depends on --wait-on-lock)
-            check_lock(lock_name)
-
-            # create lock to avoid that another installation running in parallel messes things up
-            create_lock(lock_name)
-
         try:
-            for (step_name, descr, step_methods, skippable) in steps:
+            if ignore_locks:
+                self.log.info("Ignoring locks...")
+            else:
+                lock_name = self.installdir.replace('/', '_')
+
+                # check if lock already exists;
+                # either aborts with an error or waits until it disappears (depends on --wait-on-lock)
+                check_lock(lock_name)
+
+                # create lock to avoid that another installation running in parallel messes things up
+                create_lock(lock_name)
+
+            for step_name, descr, step_methods, skippable in steps:
                 if self.skip_step(step_name, skippable):
                     print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
+                    progress_label = "Installing %s: %s" % (self.full_mod_name, descr)
+                    update_progress_bar(PROGRESS_BAR_EASYCONFIG, label=progress_label, progress_size=0)
+
                     if self.dry_run:
                         self.dry_run_msg("%s... [DRY RUN]\n", descr)
                     else:
@@ -3543,11 +3632,15 @@ class EasyBlock(object):
                             elif self.logdebug or build_option('trace'):
                                 print_msg("... (took < 1 sec)", log=self.log, silent=self.silent)
 
+                    update_progress_bar(PROGRESS_BAR_EASYCONFIG)
+
         except StopException:
             pass
         finally:
             if not ignore_locks:
                 remove_lock(lock_name)
+
+            stop_progress_bar(PROGRESS_BAR_EASYCONFIG)
 
         # return True for successfull build (or stopped build)
         return True
@@ -3640,8 +3733,11 @@ def build_and_install_one(ecdict, init_env):
 
             if os.path.exists(app.installdir) and build_option('read_only_installdir') and (
                     build_option('rebuild') or build_option('force')):
+                enabled_write_permissions = True
                 # re-enable write permissions so we can install additional modules
                 adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=True)
+            else:
+                enabled_write_permissions = False
 
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
@@ -3649,6 +3745,9 @@ def build_and_install_one(ecdict, init_env):
             # also add any extension easyblocks used during the build for reproducibility
             if app.ext_instances:
                 copy_easyblocks_for_reprod(app.ext_instances, reprod_dir)
+            # If not already done remove the granted write permissions if we did so
+            if enabled_write_permissions and os.lstat(app.installdir)[stat.ST_MODE] & stat.S_IWUSR:
+                adjust_permissions(app.installdir, stat.S_IWUSR, add=False, recursive=True)
 
     except EasyBuildError as err:
         first_n = 300
@@ -3665,6 +3764,21 @@ def build_and_install_one(ecdict, init_env):
 
     # successful (non-dry-run) build
     if result and not dry_run:
+        def ensure_writable_log_dir(log_dir):
+            """Make sure we can write into the log dir"""
+            if build_option('read_only_installdir'):
+                # temporarily re-enable write permissions for copying log/easyconfig to install dir
+                if os.path.exists(log_dir):
+                    adjust_permissions(log_dir, stat.S_IWUSR, add=True, recursive=True)
+                else:
+                    parent_dir = os.path.dirname(log_dir)
+                    if os.path.exists(parent_dir):
+                        adjust_permissions(parent_dir, stat.S_IWUSR, add=True, recursive=False)
+                        mkdir(log_dir, parents=True)
+                        adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
+                    else:
+                        mkdir(log_dir, parents=True)
+                        adjust_permissions(log_dir, stat.S_IWUSR, add=True, recursive=True)
 
         if app.cfg['stop']:
             ended = 'STOPPED'
@@ -3672,16 +3786,15 @@ def build_and_install_one(ecdict, init_env):
                 new_log_dir = os.path.join(app.builddir, config.log_path(ec=app.cfg))
             else:
                 new_log_dir = os.path.dirname(app.logfile)
+            ensure_writable_log_dir(new_log_dir)
+
+        # if we're only running the sanity check, we should not copy anything new to the installation directory
+        elif build_option('sanity_check_only'):
+            _log.info("Only running sanity check, so skipping build stats, easyconfigs archive, reprod files...")
+
         else:
             new_log_dir = os.path.join(app.installdir, config.log_path(ec=app.cfg))
-            if build_option('read_only_installdir'):
-                # temporarily re-enable write permissions for copying log/easyconfig to install dir
-                if os.path.exists(new_log_dir):
-                    adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=True)
-                else:
-                    adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=False)
-                    mkdir(new_log_dir, parents=True)
-                    adjust_permissions(app.installdir, stat.S_IWUSR, add=False, recursive=False)
+            ensure_writable_log_dir(new_log_dir)
 
             # collect build stats
             _log.info("Collecting build stats...")
@@ -3721,30 +3834,35 @@ def build_and_install_one(ecdict, init_env):
 
         # cleanup logs
         app.close_log()
-        log_fn = os.path.basename(get_log_filename(app.name, app.version))
-        try:
-            application_log = os.path.join(new_log_dir, log_fn)
-            move_logs(app.logfile, application_log)
 
-            newspec = os.path.join(new_log_dir, app.cfg.filename())
-            copy_file(spec, newspec)
-            _log.debug("Copied easyconfig file %s to %s", spec, newspec)
+        if build_option('sanity_check_only'):
+            _log.info("Only running sanity check, so not copying anything to software install directory...")
+        else:
+            log_fn = os.path.basename(get_log_filename(app.name, app.version))
+            try:
+                application_log = os.path.join(new_log_dir, log_fn)
+                move_logs(app.logfile, application_log)
 
-            # copy patches
-            for patch in app.patches:
-                target = os.path.join(new_log_dir, os.path.basename(patch['path']))
-                copy_file(patch['path'], target)
-                _log.debug("Copied patch %s to %s", patch['path'], target)
+                newspec = os.path.join(new_log_dir, app.cfg.filename())
+                copy_file(spec, newspec)
+                _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
-            if build_option('read_only_installdir'):
-                # take away user write permissions (again)
-                adjust_permissions(new_log_dir, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False, recursive=True)
-        except EasyBuildError as error:
-            if build_option('module_only'):
-                application_log = None
-                _log.debug("Using --module-only so can recover from error: %s", error)
-            else:
-                raise error
+                # copy patches
+                for patch in app.patches:
+                    target = os.path.join(new_log_dir, os.path.basename(patch['path']))
+                    copy_file(patch['path'], target)
+                    _log.debug("Copied patch %s to %s", patch['path'], target)
+
+                if build_option('read_only_installdir'):
+                    # take away user write permissions (again)
+                    perms = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
+                    adjust_permissions(new_log_dir, perms, add=False, recursive=True)
+            except EasyBuildError as error:
+                if build_option('module_only'):
+                    application_log = None
+                    _log.debug("Using --module-only so can recover from error: %s", error)
+                else:
+                    raise error
 
     end_timestamp = datetime.now()
 

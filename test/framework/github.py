@@ -33,12 +33,14 @@ import os
 import random
 import re
 import sys
+import textwrap
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from time import gmtime
 from unittest import TextTestRunner
 
 import easybuild.tools.testing
 from easybuild.base.rest import RestClient
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import categorize_files_by_type
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, module_classes, update_build_option
@@ -595,6 +597,16 @@ class GithubTest(EnhancedTestCase):
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
         self.assertTrue(re.search(reg, txt))
 
+        self.assertEqual(gh.find_software_name_for_patch('test.patch', []), None)
+
+        # check behaviour of find_software_name_for_patch when non-UTF8 patch files are present (only with Python 3)
+        if sys.version_info[0] >= 3:
+            non_utf8_patch = os.path.join(self.test_prefix, 'problem.patch')
+            with open(non_utf8_patch, 'wb') as fp:
+                fp.write(bytes("+  ximage->byte_order=T1_byte_order; /* Set t1lib\xb4s byteorder */\n", 'iso_8859_1'))
+
+            self.assertEqual(gh.find_software_name_for_patch('test.patch', [self.test_prefix]), None)
+
     def test_github_det_commit_status(self):
         """Test det_commit_status function."""
 
@@ -793,53 +805,103 @@ class GithubTest(EnhancedTestCase):
         """Test for det_patch_specs function."""
 
         patch_paths = [os.path.join(self.test_prefix, p) for p in ['1.patch', '2.patch', '3.patch']]
-        file_info = {'ecs': [
-            {'name': 'A', 'patches': ['1.patch'], 'exts_list': []},
-            {'name': 'B', 'patches': [], 'exts_list': []},
-        ]
-        }
+        file_info = {'ecs': []}
+
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'A'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+
+            patches = ['1.patch']
+        """)
+        file_info['ecs'].append(EasyConfig(None, rawtxt=rawtxt))
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'B'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+        """)
+        file_info['ecs'].append(EasyConfig(None, rawtxt=rawtxt))
+
         error_pattern = "Failed to determine software name to which patch file .*/2.patch relates"
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_patch_specs, patch_paths, file_info, [])
         self.mock_stdout(False)
 
-        file_info['ecs'].append({'name': 'C', 'patches': [('3.patch', 'subdir'), '2.patch'], 'exts_list': []})
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'C'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+
+            patches = [('3.patch', 'subdir'), '2.patch']
+        """)
+        file_info['ecs'].append(EasyConfig(None, rawtxt=rawtxt))
         self.mock_stdout(True)
         res = gh.det_patch_specs(patch_paths, file_info, [])
         self.mock_stdout(False)
 
-        self.assertEqual(len(res), 3)
-        self.assertEqual(os.path.basename(res[0][0]), '1.patch')
-        self.assertEqual(res[0][1], 'A')
-        self.assertEqual(os.path.basename(res[1][0]), '2.patch')
-        self.assertEqual(res[1][1], 'C')
-        self.assertEqual(os.path.basename(res[2][0]), '3.patch')
-        self.assertEqual(res[2][1], 'C')
+        self.assertEqual([i[0] for i in res], patch_paths)
+        self.assertEqual([i[1] for i in res], ['A', 'C', 'C'])
 
         # check if patches for extensions are found
-        file_info['ecs'][-1] = {
-            'name': 'patched_ext',
-            'patches': [],
-            'exts_list': [
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'patched_ext'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+
+            exts_list = [
                 'foo',
                 ('bar', '1.2.3'),
                 ('patched', '4.5.6', {
-                    'patches': [('2.patch', 1), '3.patch'],
+                    'patches': [('%(name)s-2.patch', 1), '%(name)s-3.patch'],
                 }),
-            ],
-        }
+            ]
+        """)
+        patch_paths[1:3] = [os.path.join(self.test_prefix, p) for p in ['patched-2.patch', 'patched-3.patch']]
+        file_info['ecs'][-1] = EasyConfig(None, rawtxt=rawtxt)
 
         self.mock_stdout(True)
         res = gh.det_patch_specs(patch_paths, file_info, [])
         self.mock_stdout(False)
 
-        self.assertEqual(len(res), 3)
-        self.assertEqual(os.path.basename(res[0][0]), '1.patch')
-        self.assertEqual(res[0][1], 'A')
-        self.assertEqual(os.path.basename(res[1][0]), '2.patch')
-        self.assertEqual(res[1][1], 'patched_ext')
-        self.assertEqual(os.path.basename(res[2][0]), '3.patch')
-        self.assertEqual(res[2][1], 'patched_ext')
+        self.assertEqual([i[0] for i in res], patch_paths)
+        self.assertEqual([i[1] for i in res], ['A', 'patched_ext', 'patched_ext'])
+
+        # check if patches for components are found
+        rawtxt = textwrap.dedent("""
+            easyblock = 'PythonBundle'
+            name = 'patched_bundle'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+
+            components = [
+                ('bar', '1.2.3'),
+                ('patched', '4.5.6', {
+                    'patches': [('%(name)s-2.patch', 1), '%(name)s-3.patch'],
+                }),
+            ]
+        """)
+        file_info['ecs'][-1] = EasyConfig(None, rawtxt=rawtxt)
+
+        self.mock_stdout(True)
+        res = gh.det_patch_specs(patch_paths, file_info, [])
+        self.mock_stdout(False)
+
+        self.assertEqual([i[0] for i in res], patch_paths)
+        self.assertEqual([i[1] for i in res], ['A', 'patched_bundle', 'patched_bundle'])
 
     def test_github_restclient(self):
         """Test use of RestClient."""

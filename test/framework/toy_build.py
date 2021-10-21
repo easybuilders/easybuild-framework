@@ -106,21 +106,26 @@ class ToyBuildTest(EnhancedTestCase):
         if os.path.exists(self.dummylogfn):
             os.remove(self.dummylogfn)
 
-    def check_toy(self, installpath, outtxt, version='0.0', versionprefix='', versionsuffix=''):
+    def check_toy(self, installpath, outtxt, version='0.0', versionprefix='', versionsuffix='', error=None):
         """Check whether toy build succeeded."""
 
         full_version = ''.join([versionprefix, version, versionsuffix])
 
+        if error is not None:
+            error_msg = '\nNote: Caught error: %s' % error
+        else:
+            error_msg = ''
+
         # check for success
-        success = re.compile(r"COMPLETED: Installation ended successfully \(took .* secs?\)")
-        self.assertTrue(success.search(outtxt), "COMPLETED message found in '%s" % outtxt)
+        success = re.compile(r"COMPLETED: Installation (ended|STOPPED) successfully \(took .* secs?\)")
+        self.assertTrue(success.search(outtxt), "COMPLETED message found in '%s'%s" % (outtxt, error_msg))
 
         # if the module exists, it should be fine
         toy_module = os.path.join(installpath, 'modules', 'all', 'toy', full_version)
         msg = "module for toy build toy/%s found (path %s)" % (full_version, toy_module)
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
-        self.assertTrue(os.path.exists(toy_module), msg)
+        self.assertTrue(os.path.exists(toy_module), msg + error_msg)
 
         # module file is symlinked according to moduleclass
         toy_module_symlink = os.path.join(installpath, 'modules', 'tools', 'toy', full_version)
@@ -183,7 +188,7 @@ class ToyBuildTest(EnhancedTestCase):
                 raise myerr
 
         if verify:
-            self.check_toy(self.test_installpath, outtxt, versionsuffix=versionsuffix)
+            self.check_toy(self.test_installpath, outtxt, versionsuffix=versionsuffix, error=myerr)
 
         if test_readme:
             # make sure postinstallcmds were used
@@ -615,7 +620,16 @@ class ToyBuildTest(EnhancedTestCase):
         # 2. Existing build with --rebuild -> Reinstall and set read-only
         # 3. Existing build with --force -> Reinstall and set read-only
         # 4-5: Same as 2-3 but with --skip
-        for extra_args in ([], ['--rebuild'], ['--force'], ['--skip', '--rebuild'], ['--skip', '--force']):
+        # 6. Existing build with --fetch -> Test that logs can be written
+        test_cases = (
+            [],
+            ['--rebuild'],
+            ['--force'],
+            ['--skip', '--rebuild'],
+            ['--skip', '--force'],
+            ['--rebuild', '--fetch'],
+        )
+        for extra_args in test_cases:
             self.mock_stdout(True)
             self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'] + extra_args, force=False)
             self.mock_stdout(False)
@@ -1730,6 +1744,16 @@ class ToyBuildTest(EnhancedTestCase):
         self.eb_main([test_ec], do_build=True, raise_error=True)
 
         # remove module file so we can try --module-only
+        remove_file(toy_mod)
+
+        # make sure that sources for extensions can't be found,
+        # they should not be needed when using --module-only
+        # (cfr. https://github.com/easybuilders/easybuild-framework/issues/3849)
+        del os.environ['EASYBUILD_SOURCEPATH']
+
+        # first try normal --module-only, should work fine
+        self.eb_main([test_ec, '--module-only'], do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
         remove_file(toy_mod)
 
         # rename file required for barbar extension, so we can check whether sanity check catches it
@@ -2888,13 +2912,16 @@ class ToyBuildTest(EnhancedTestCase):
         modify_env(os.environ, self.orig_environ, verbose=False)
         self.modtool.use(test_mod_path)
 
+        # disable showing of progress bars (again), doesn't make sense when running tests
+        os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
+
         write_file(test_ec, test_ec_txt)
 
         # also check behaviour when using 'depends_on' rather than 'load' statements (requires Lmod 7.6.1 or newer)
         if self.modtool.supports_depends_on:
 
             remove_file(toy_mod_file)
-            self.test_toy_build(ec_file=test_ec, extra_args=['--module-depends-on'])
+            self.test_toy_build(ec_file=test_ec, extra_args=['--module-depends-on'], raise_error=True)
 
             toy_mod_txt = read_file(toy_mod_file)
 
@@ -2937,6 +2964,7 @@ class ToyBuildTest(EnhancedTestCase):
             # copy of bin/toy to use in fix_python_shebang_for and fix_perl_shebang_for
             "    'cp -a %(installdir)s/bin/toy %(installdir)s/bin/toy.python',",
             "    'cp -a %(installdir)s/bin/toy %(installdir)s/bin/toy.perl',",
+            "    'cp -a %(installdir)s/bin/toy %(installdir)s/bin/toy.sh',",
 
             # hardcoded path to bin/python
             "   'echo \"#!/usr/bin/python\\n# test\" > %(installdir)s/bin/t1.py',",
@@ -2973,9 +3001,26 @@ class ToyBuildTest(EnhancedTestCase):
             # shebang bash
             "   'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/b2.sh',",
 
+            # tests for bash shebang
+            # hardcoded path to bin/bash
+            "   'echo \"#!/bin/bash\\n# test\" > %(installdir)s/bin/t1.sh',",
+            # hardcoded path to usr/bin/bash
+            "   'echo \"#!/usr/bin/bash\\n# test\" > %(installdir)s/bin/t2.sh',",
+            # already OK, should remain the same
+            "   'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/t3.sh',",
+            # shebang with space, should strip the space
+            "   'echo \"#! /usr/bin/env bash\\n# test\" > %(installdir)s/bin/t4.sh',",
+            # no shebang sh
+            "   'echo \"# test\" > %(installdir)s/bin/t5.sh',",
+            # shebang python
+            "   'echo \"#!/usr/bin/env python\\n# test\" > %(installdir)s/bin/b1.py',",
+            # shebang perl
+            "   'echo \"#!/usr/bin/env perl\\n# test\" > %(installdir)s/bin/b1.pl',",
+
             "]",
-            "fix_python_shebang_for = ['bin/t1.py', 'bin/*.py', 'nosuchdir/*.py', 'bin/toy.python', 'bin/b1.sh']",
-            "fix_perl_shebang_for = ['bin/*.pl', 'bin/b2.sh', 'bin/toy.perl']",
+            "fix_python_shebang_for = ['bin/t1.py', 'bin/t*.py', 'nosuchdir/*.py', 'bin/toy.python', 'bin/b1.sh']",
+            "fix_perl_shebang_for = ['bin/t*.pl', 'bin/b2.sh', 'bin/toy.perl']",
+            "fix_bash_shebang_for = ['bin/t*.sh', 'bin/b1.py', 'bin/b1.pl', 'bin/toy.sh']",
         ])
         write_file(test_ec, test_ec_txt)
         self.test_toy_build(ec_file=test_ec, raise_error=True)
@@ -2984,36 +3029,31 @@ class ToyBuildTest(EnhancedTestCase):
 
         # bin/toy and bin/toy2 should *not* be patched, since they're binary files
         toy_txt = read_file(os.path.join(toy_bindir, 'toy'), mode='rb')
-        for fn in ['toy.perl', 'toy.python']:
+        for fn in ['toy.sh', 'toy.perl', 'toy.python']:
             fn_txt = read_file(os.path.join(toy_bindir, fn), mode='rb')
             # no shebang added
             self.assertFalse(fn_txt.startswith(b"#!/"))
             # exact same file as original binary (untouched)
             self.assertEqual(toy_txt, fn_txt)
 
+        regexes = {}
         # no re.M, this should match at start of file!
-        py_shebang_regex = re.compile(r'^#!/usr/bin/env python\n# test$')
-        for pybin in ['t1.py', 't2.py', 't3.py', 't4.py', 't5.py', 't6.py', 't7.py']:
-            pybin_path = os.path.join(toy_bindir, pybin)
-            pybin_txt = read_file(pybin_path)
-            self.assertTrue(py_shebang_regex.match(pybin_txt),
-                            "Pattern '%s' found in %s: %s" % (py_shebang_regex.pattern, pybin_path, pybin_txt))
+        regexes['py'] = re.compile(r'^#!/usr/bin/env python\n# test$')
+        regexes['pl'] = re.compile(r'^#!/usr/bin/env perl\n# test$')
+        regexes['sh'] = re.compile(r'^#!/usr/bin/env bash\n# test$')
 
-        # no re.M, this should match at start of file!
-        perl_shebang_regex = re.compile(r'^#!/usr/bin/env perl\n# test$')
-        for perlbin in ['t1.pl', 't2.pl', 't3.pl', 't4.pl', 't5.pl', 't6.pl', 't7.pl']:
-            perlbin_path = os.path.join(toy_bindir, perlbin)
-            perlbin_txt = read_file(perlbin_path)
-            self.assertTrue(perl_shebang_regex.match(perlbin_txt),
-                            "Pattern '%s' found in %s: %s" % (perl_shebang_regex.pattern, perlbin_path, perlbin_txt))
+        # all scripts should have a shebang that matches their extension
+        scripts = {}
+        scripts['py'] = ['t1.py', 't2.py', 't3.py', 't4.py', 't5.py', 't6.py', 't7.py', 'b1.py']
+        scripts['pl'] = ['t1.pl', 't2.pl', 't3.pl', 't4.pl', 't5.pl', 't6.pl', 't7.pl', 'b1.pl']
+        scripts['sh'] = ['t1.sh', 't2.sh', 't3.sh', 't4.sh', 't5.sh', 'b1.sh', 'b2.sh']
 
-        # There are 2 bash files which shouldn't be influenced by fix_shebang
-        bash_shebang_regex = re.compile(r'^#!/usr/bin/env bash\n# test$')
-        for bashbin in ['b1.sh', 'b2.sh']:
-            bashbin_path = os.path.join(toy_bindir, bashbin)
-            bashbin_txt = read_file(bashbin_path)
-            self.assertTrue(bash_shebang_regex.match(bashbin_txt),
-                            "Pattern '%s' found in %s: %s" % (bash_shebang_regex.pattern, bashbin_path, bashbin_txt))
+        for ext in ['sh', 'pl', 'py']:
+            for script in scripts[ext]:
+                bin_path = os.path.join(toy_bindir, script)
+                bin_txt = read_file(bin_path)
+                self.assertTrue(regexes[ext].match(bin_txt),
+                                "Pattern '%s' found in %s: %s" % (regexes[ext].pattern, bin_path, bin_txt))
 
         # now test with a custom env command
         extra_args = ['--env-for-shebang=/usr/bin/env -S']
@@ -3023,36 +3063,30 @@ class ToyBuildTest(EnhancedTestCase):
 
         # bin/toy and bin/toy2 should *not* be patched, since they're binary files
         toy_txt = read_file(os.path.join(toy_bindir, 'toy'), mode='rb')
-        for fn in ['toy.perl', 'toy.python']:
+        for fn in ['toy.sh', 'toy.perl', 'toy.python']:
             fn_txt = read_file(os.path.join(toy_bindir, fn), mode='rb')
             # no shebang added
             self.assertFalse(fn_txt.startswith(b"#!/"))
             # exact same file as original binary (untouched)
             self.assertEqual(toy_txt, fn_txt)
 
+        regexes_S = {}
         # no re.M, this should match at start of file!
-        py_shebang_regex = re.compile(r'^#!/usr/bin/env -S python\n# test$')
-        for pybin in ['t1.py', 't2.py', 't3.py', 't4.py', 't5.py', 't6.py', 't7.py']:
-            pybin_path = os.path.join(toy_bindir, pybin)
-            pybin_txt = read_file(pybin_path)
-            self.assertTrue(py_shebang_regex.match(pybin_txt),
-                            "Pattern '%s' found in %s: %s" % (py_shebang_regex.pattern, pybin_path, pybin_txt))
+        regexes_S['py'] = re.compile(r'^#!/usr/bin/env -S python\n# test$')
+        regexes_S['pl'] = re.compile(r'^#!/usr/bin/env -S perl\n# test$')
+        regexes_S['sh'] = re.compile(r'^#!/usr/bin/env -S bash\n# test$')
 
-        # no re.M, this should match at start of file!
-        perl_shebang_regex = re.compile(r'^#!/usr/bin/env -S perl\n# test$')
-        for perlbin in ['t1.pl', 't2.pl', 't3.pl', 't4.pl', 't5.pl', 't6.pl', 't7.pl']:
-            perlbin_path = os.path.join(toy_bindir, perlbin)
-            perlbin_txt = read_file(perlbin_path)
-            self.assertTrue(perl_shebang_regex.match(perlbin_txt),
-                            "Pattern '%s' found in %s: %s" % (perl_shebang_regex.pattern, perlbin_path, perlbin_txt))
-
-        # There are 2 bash files which shouldn't be influenced by fix_shebang
-        bash_shebang_regex = re.compile(r'^#!/usr/bin/env bash\n# test$')
-        for bashbin in ['b1.sh', 'b2.sh']:
-            bashbin_path = os.path.join(toy_bindir, bashbin)
-            bashbin_txt = read_file(bashbin_path)
-            self.assertTrue(bash_shebang_regex.match(bashbin_txt),
-                            "Pattern '%s' found in %s: %s" % (bash_shebang_regex.pattern, bashbin_path, bashbin_txt))
+        for ext in ['sh', 'pl', 'py']:
+            for script in scripts[ext]:
+                bin_path = os.path.join(toy_bindir, script)
+                bin_txt = read_file(bin_path)
+                # the scripts b1.py, b1.pl, b1.sh, b2.sh should keep their original shebang
+                if script.startswith('b'):
+                    self.assertTrue(regexes[ext].match(bin_txt),
+                                    "Pattern '%s' found in %s: %s" % (regexes[ext].pattern, bin_path, bin_txt))
+                else:
+                    self.assertTrue(regexes_S[ext].match(bin_txt),
+                                    "Pattern '%s' found in %s: %s" % (regexes_S[ext].pattern, bin_path, bin_txt))
 
     def test_toy_system_toolchain_alias(self):
         """Test use of 'system' toolchain alias."""
@@ -3490,6 +3524,14 @@ class ToyBuildTest(EnhancedTestCase):
         ]
         self.test_toy_build(ec_file=test_ec, extra_args=args, force=False,
                             raise_error=True, verbose=False, verify=False)
+
+    def test_toy_ignore_test_failure(self):
+        """Check whether use of --ignore-test-failure is mentioned in build output."""
+        args = ['--ignore-test-failure']
+        stdout, stderr = self.run_test_toy_build_with_output(extra_args=args, verify=False, testing=False)
+
+        self.assertTrue("Build succeeded (with --ignore-test-failure) for 1 out of 1" in stdout)
+        self.assertFalse(stderr)
 
 
 def suite():

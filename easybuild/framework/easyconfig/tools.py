@@ -37,6 +37,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 :author: Ward Poelmans (Ghent University)
 """
 import copy
+import fnmatch
 import glob
 import os
 import re
@@ -360,6 +361,10 @@ def det_easyconfig_paths(orig_paths):
             # if no easyconfigs are specified, use all the ones touched in the PR
             ec_files = [path for path in pr_files if path.endswith('.eb')]
 
+    filter_ecs = build_option('filter_ecs')
+    if filter_ecs:
+        ec_files = [ec for ec in ec_files
+                    if not any(fnmatch.fnmatch(ec, filter_spec) for filter_spec in filter_ecs)]
     if ec_files and robot_path:
         ignore_subdirs = build_option('ignore_dirs')
         if not build_option('consider_archived_easyconfigs'):
@@ -542,6 +547,12 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False
 
         if missing_labels:
             lines.extend(['', "This PR should be labelled with %s" % ', '.join(["'%s'" % ml for ml in missing_labels])])
+
+        if not pr_data['milestone']:
+            lines.extend(['', "This PR should be associated with a milestone"])
+        elif '.x' in pr_data['milestone']['title']:
+            lines.extend(['', "This PR is associated with a generic '.x' milestone, "
+                              "it should be associated to the next release milestone once merged"])
 
     return '\n'.join(lines)
 

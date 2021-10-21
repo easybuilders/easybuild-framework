@@ -960,9 +960,11 @@ class Toolchain(object):
 
         # always include filter for 'stubs' library directory,
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2683
-        lib_stubs_pattern = '.*/lib(64)?/stubs/?'
-        if lib_stubs_pattern not in rpath_filter_dirs:
-            rpath_filter_dirs.append(lib_stubs_pattern)
+        # (since CUDA 11.something the stubs are in $EBROOTCUDA/stubs/lib64)
+        lib_stubs_patterns = ['.*/lib(64)?/stubs/?', '.*/stubs/lib(64)?/?']
+        for lib_stubs_pattern in lib_stubs_patterns:
+            if lib_stubs_pattern not in rpath_filter_dirs:
+                rpath_filter_dirs.append(lib_stubs_pattern)
 
         # directory where all wrappers will be placed
         wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)

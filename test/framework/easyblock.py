@@ -127,6 +127,8 @@ class EasyBlockTest(EnhancedTestCase):
         extra_options = exeb1.extra_options()
         check_extra_options_format(extra_options)
         self.assertTrue('options' in extra_options)
+        # Reporting test failure should work also for the extension EB
+        self.assertRaises(EasyBuildError, exeb1.report_test_failure, "Fails")
 
         # test extensioneasyblock, as easyblock
         exeb2 = ExtensionEasyBlock(ec)
@@ -135,6 +137,8 @@ class EasyBlockTest(EnhancedTestCase):
         extra_options = exeb2.extra_options()
         check_extra_options_format(extra_options)
         self.assertTrue('options' in extra_options)
+        # Reporting test failure should work also for the extension EB
+        self.assertRaises(EasyBuildError, exeb2.report_test_failure, "Fails")
 
         class TestExtension(ExtensionEasyBlock):
             @staticmethod
@@ -550,6 +554,25 @@ class EasyBlockTest(EnhancedTestCase):
                                        txt, re.M))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        # If PATH or LD_LIBRARY_PATH contain only folders, do not add an entry
+        sub_lib_path = os.path.join('lib', 'path_folders')
+        sub_path_path = os.path.join('bin', 'path_folders')
+        eb.make_module_req_guess = lambda: {'LD_LIBRARY_PATH': sub_lib_path, 'PATH': sub_path_path}
+        for path in (sub_lib_path, sub_path_path):
+            full_path = os.path.join(eb.installdir, path, 'subpath')
+            os.makedirs(full_path)
+            write_file(os.path.join(full_path, 'any.file'), 'test')
+        txt = eb.make_module_req()
+        if get_module_syntax() == 'Tcl':
+            self.assertFalse(re.search(r"prepend-path\s+LD_LIBRARY_PATH\s+\$%s\n" % sub_lib_path,
+                                       txt, re.M))
+            self.assertFalse(re.search(r"prepend-path\s+PATH\s+\$%s\n" % sub_path_path, txt, re.M))
+        else:
+            assert get_module_syntax() == 'Lua'
+            self.assertFalse(re.search(r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "%s"\)\)\n' % sub_lib_path,
+                                       txt, re.M))
+            self.assertFalse(re.search(r'prepend_path\("PATH", pathJoin\(root, "%s"\)\)\n' % sub_path_path, txt, re.M))
 
         # cleanup
         eb.close_log()
@@ -992,6 +1015,69 @@ class EasyBlockTest(EnhancedTestCase):
         # cleanup
         eb.close_log()
         os.remove(eb.logfile)
+
+    def test_init_extensions(self):
+        """Test creating extension instances."""
+
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec_txt = read_file(toy_ec_file)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = toy_ec_txt.replace("('barbar', '0.0', {", "('barbar', '0.0', {'easyblock': 'DummyExtension',")
+        write_file(test_ec, test_ec_txt)
+        ec = process_easyconfig(test_ec)[0]
+        eb = get_easyblock_instance(ec)
+
+        eb.prepare_for_extensions()
+        eb.init_ext_instances()
+        ext_inst_class_names = [x.__class__.__name__ for x in eb.ext_instances]
+        expected = [
+            'Toy_Extension',  # 'ls' extension
+            'Toy_Extension',  # 'bar' extension
+            'DummyExtension',  # 'barbar' extension
+            'EB_toy',  # 'toy' extension
+        ]
+        self.assertEqual(ext_inst_class_names, expected)
+
+        # check what happen if we specify an easyblock that doesn't derive from Extension,
+        # and hence can't be used to install extensions...
+        test_ec = os.path.join(self.test_prefix, 'test_broken.eb')
+        test_ec_txt = test_ec_txt.replace('DummyExtension', 'ConfigureMake')
+        write_file(test_ec, test_ec_txt)
+        ec = process_easyconfig(test_ec)[0]
+        eb = get_easyblock_instance(ec)
+
+        eb.prepare_for_extensions()
+        error_pattern = "ConfigureMake easyblock can not be used to install extensions"
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.init_ext_instances)
+
+    def test_extension_source_tmpl(self):
+        """Test type checking for 'source_tmpl' value of an extension."""
+        self.contents = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'toy'",
+            "version = '0.0'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "exts_list = [",
+            "    ('bar', '0.0', {",
+            "         'source_tmpl': [SOURCE_TAR_GZ],",
+            "    }),",
+            "]",
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        error_pattern = r"source_tmpl value must be a string! "
+        error_pattern += r"\(found value of type 'list'\): \['bar-0\.0\.tar\.gz'\]"
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+
+        self.contents = self.contents.replace("'source_tmpl': [SOURCE_TAR_GZ]", "'source_tmpl': SOURCE_TAR_GZ")
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.fetch_step()
 
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
@@ -1531,6 +1617,65 @@ class EasyBlockTest(EnhancedTestCase):
 
         self.assertTrue(verify_checksum(expected_path, eb.cfg['checksums'][0]))
 
+    def test_collect_exts_file_info(self):
+        """Test collect_exts_file_info method."""
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_sources = os.path.join(testdir, 'sandbox', 'sources', 'toy')
+        toy_ext_sources = os.path.join(toy_sources, 'extensions')
+        toy_ec_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec = process_easyconfig(toy_ec_file)[0]
+        toy_eb = EasyBlock(toy_ec['ec'])
+
+        exts_file_info = toy_eb.collect_exts_file_info()
+
+        self.assertTrue(isinstance(exts_file_info, list))
+        self.assertEqual(len(exts_file_info), 4)
+
+        self.assertEqual(exts_file_info[0], {'name': 'ls'})
+
+        self.assertEqual(exts_file_info[1]['name'], 'bar')
+        self.assertEqual(exts_file_info[1]['src'], os.path.join(toy_ext_sources, 'bar-0.0.tar.gz'))
+        bar_patch1 = 'bar-0.0_fix-silly-typo-in-printf-statement.patch'
+        self.assertEqual(exts_file_info[1]['patches'][0]['name'], bar_patch1)
+        self.assertEqual(exts_file_info[1]['patches'][0]['path'], os.path.join(toy_ext_sources, bar_patch1))
+        bar_patch2 = 'bar-0.0_fix-very-silly-typo-in-printf-statement.patch'
+        self.assertEqual(exts_file_info[1]['patches'][1]['name'], bar_patch2)
+        self.assertEqual(exts_file_info[1]['patches'][1]['path'], os.path.join(toy_ext_sources, bar_patch2))
+
+        self.assertEqual(exts_file_info[2]['name'], 'barbar')
+        self.assertEqual(exts_file_info[2]['src'], os.path.join(toy_ext_sources, 'barbar-0.0.tar.gz'))
+        self.assertFalse('patches' in exts_file_info[2])
+
+        self.assertEqual(exts_file_info[3]['name'], 'toy')
+        self.assertEqual(exts_file_info[3]['src'], os.path.join(toy_sources, 'toy-0.0.tar.gz'))
+        self.assertFalse('patches' in exts_file_info[3])
+
+        # location of files is missing when fetch_files is set to False
+        exts_file_info = toy_eb.collect_exts_file_info(fetch_files=False, verify_checksums=False)
+
+        self.assertTrue(isinstance(exts_file_info, list))
+        self.assertEqual(len(exts_file_info), 4)
+
+        self.assertEqual(exts_file_info[0], {'name': 'ls'})
+
+        self.assertEqual(exts_file_info[1]['name'], 'bar')
+        self.assertFalse('src' in exts_file_info[1])
+        self.assertEqual(exts_file_info[1]['patches'][0]['name'], bar_patch1)
+        self.assertFalse('path' in exts_file_info[1]['patches'][0])
+        self.assertEqual(exts_file_info[1]['patches'][1]['name'], bar_patch2)
+        self.assertFalse('path' in exts_file_info[1]['patches'][1])
+
+        self.assertEqual(exts_file_info[2]['name'], 'barbar')
+        self.assertFalse('src' in exts_file_info[2])
+        self.assertFalse('patches' in exts_file_info[2])
+
+        self.assertEqual(exts_file_info[3]['name'], 'toy')
+        self.assertFalse('src' in exts_file_info[3])
+        self.assertFalse('patches' in exts_file_info[3])
+
+        error_msg = "Can't verify checksums for extension files if they are not being fetched"
+        self.assertErrorRegex(EasyBuildError, error_msg, toy_eb.collect_exts_file_info, fetch_files=False)
+
     def test_obtain_file_extension(self):
         """Test use of obtain_file method on an extension."""
 
@@ -1976,9 +2121,16 @@ class EasyBlockTest(EnhancedTestCase):
         error_msg = "Checksum verification for .*/toy-0.0.tar.gz using .* failed"
         self.assertErrorRegex(EasyBuildError, error_msg, eb.checksum_step)
 
-        # also check verification of checksums for extensions, which is part of fetch_extension_sources
+        # also check verification of checksums for extensions, which is part of collect_exts_file_info
         error_msg = "Checksum verification for extension source bar-0.0.tar.gz failed"
+        self.assertErrorRegex(EasyBuildError, error_msg, eb.collect_exts_file_info)
+
+        # also check with deprecated fetch_extension_sources method
+        self.allow_deprecated_behaviour()
+        self.mock_stderr(True)
         self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_extension_sources)
+        self.mock_stderr(False)
+        self.disallow_deprecated_behaviour()
 
         # if --ignore-checksums is enabled, faulty checksums are reported but otherwise ignored (no error)
         build_options = {
@@ -1998,13 +2150,26 @@ class EasyBlockTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        eb.fetch_extension_sources()
+        eb.collect_exts_file_info()
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertEqual(stdout, '')
         self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz")
+
+        # also check with deprecated fetch_extension_sources method
+        self.allow_deprecated_behaviour()
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        eb.fetch_extension_sources()
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stdout, '')
+        self.assertTrue(stderr.strip().endswith("WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz"))
+        self.disallow_deprecated_behaviour()
 
     def test_check_checksums(self):
         """Test for check_checksums_for and check_checksums methods."""
@@ -2071,6 +2236,21 @@ class EasyBlockTest(EnhancedTestCase):
             '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt
         ]
         # no checksum issues
+        self.assertEqual(eb.check_checksums(), [])
+
+        # checksums as dict for some files
+        eb.cfg['checksums'] = [
+            {
+                'toy-0.0.tar.gz': '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
+                'toy-0.1.tar.gz': '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234',
+            },
+            '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487',  # toy-*.patch
+            '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',  # toy-extra.txt
+        ]
+        self.assertEqual(eb.check_checksums(), [])
+
+        # sources can also have dict entries
+        eb.cfg['sources'] = [{'filename': 'toy-0.0.tar.gz', 'download_fileame': 'toy.tar.gz'}]
         self.assertEqual(eb.check_checksums(), [])
 
     def test_this_is_easybuild(self):

@@ -1,14 +1,15 @@
 ##
-# Copyright 2009-2020 Ghent University
+# Copyright 2016-2021 Ghent University
+# Copyright 2016-2021 Forschungszentrum Juelich
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# https://github.com/easybuilders/easybuild
+# http://github.com/hpcugent/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,22 +24,20 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Dummy easyblock for Makecp.
+EasyBuild support for npsmpi compiler toolchain (includes NVHPC and ParaStationMPI, and CUDA as dependency).
 
-@author: Miguel Dias Costa (National University of Singapore)
+:author: Damian Alvarez (Forschungszentrum Juelich)
+:author: Sebastian Achilles (Forschungszentrum Juelich)
 """
-from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig import CUSTOM
+
+from easybuild.toolchains.nvhpc import NVHPCToolchain
+# We pull in MPI and CUDA at once so this maps nicely to HMNS
+from easybuild.toolchains.mpi.psmpi import Psmpi
+from easybuild.toolchains.compiler.cuda import Cuda
 
 
-class PythonBundle(EasyBlock):
-    """Dummy support for bundle of modules."""
-
-    @staticmethod
-    def extra_options(extra_vars=None):
-        if extra_vars is None:
-            extra_vars = {}
-        extra_vars.update({
-            'components': [(), "List of components to install: tuples w/ name, version and easyblock to use", CUSTOM],
-        })
-        return EasyBlock.extra_options(extra_vars)
+# Order matters!
+class NVpsmpic(NVHPCToolchain, Cuda, Psmpi):
+    """Compiler toolchain with NVHPC and ParaStationMPI, with CUDA as dependency."""
+    NAME = 'nvpsmpic'
+    SUBTOOLCHAIN = NVHPCToolchain.NAME

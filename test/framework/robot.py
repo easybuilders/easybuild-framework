@@ -670,6 +670,23 @@ class RobotTest(EnhancedTestCase):
         regex = re.compile(r"^ \* \[.\] .*/__archive__/.*/intel-2012a.eb \(module: intel/2012a\)", re.M)
         self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
+        args = [
+            os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
+            os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'),
+            os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0-gompi-2018a.eb'),
+            '--dry-run',
+            '--robot',
+            '--tmpdir=%s' % self.test_prefix,
+            '--filter-ecs=*oy-0.0.eb,*-test.eb',
+        ]
+        outtxt = self.eb_main(args, raise_error=True)
+
+        regex = re.compile(r"^ \* \[.\] .*/toy-0.0-gompi-2018a.eb \(module: toy/0.0-gompi-2018a\)", re.M)
+        self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+        for ec in ('toy-0.0.eb', 'toy-0.0-gompi-2018a-test.eb'):
+            regex = re.compile(r"^ \* \[.\] .*/%s \(module:" % ec, re.M)
+            self.assertFalse(regex.search(outtxt), "%s should be fitered in %s" % (ec, outtxt))
+
     def test_search_paths(self):
         """Test search_paths command line argument."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -1029,7 +1046,7 @@ class RobotTest(EnhancedTestCase):
         ordered_ecs, new_easyconfigs, new_avail_modules = find_resolved_modules(ecs, mods, self.modtool)
 
         # all dependencies are resolved for easyconfigs included in ordered_ecs
-        self.assertFalse(any([ec['dependencies'] for ec in ordered_ecs]))
+        self.assertFalse(any(ec['dependencies'] for ec in ordered_ecs))
 
         # nodeps/ondep easyconfigs have all dependencies resolved
         self.assertEqual(len(ordered_ecs), 2)

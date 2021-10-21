@@ -474,7 +474,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
-        exts_sources = eb.fetch_extension_sources()
+        exts_sources = eb.collect_exts_file_info()
 
         self.assertEqual(len(exts_sources), 2)
         self.assertEqual(exts_sources[0]['name'], 'ext1')
@@ -3052,6 +3052,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(res, expected)
 
         # mock get_avail_core_count which is used by set_parallel -> det_parallelism
+        try:
+            del st.det_parallelism._default_parallelism  # Remove cache value
+        except AttributeError:
+            pass  # Ignore if not present
         orig_get_avail_core_count = st.get_avail_core_count
         st.get_avail_core_count = lambda: 42
 
@@ -4482,6 +4486,109 @@ class EasyConfigTest(EnhancedTestCase):
 
         error_pattern = r"Failed to copy '.*' easyconfig parameter"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+
+    def test_get_cuda_cc_template_value(self):
+        """
+        Test getting template value based on --cuda-compute-capabilities / cuda_compute_capabilities.
+        """
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        error_pattern = "foobar is not a template value based on --cuda-compute-capabilities/cuda_compute_capabilities"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ec.get_cuda_cc_template_value, 'foobar')
+
+        error_pattern = r"Template value '%s' is not defined!\n"
+        error_pattern += r"Make sure that either the --cuda-compute-capabilities EasyBuild configuration "
+        error_pattern += "option is set, or that the cuda_compute_capabilities easyconfig parameter is defined."
+        cuda_template_values = {
+            'cuda_compute_capabilities': '6.5,7.0',
+            'cuda_cc_space_sep': '6.5 7.0',
+            'cuda_cc_semicolon_sep': '6.5;7.0',
+            'cuda_sm_comma_sep': 'sm_65,sm_70',
+            'cuda_sm_space_sep': 'sm_65 sm_70',
+        }
+        for key in cuda_template_values:
+            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
+
+        update_build_option('cuda_compute_capabilities', ['6.5', '7.0'])
+        ec = EasyConfig(self.eb_file)
+
+        for key in cuda_template_values:
+            self.assertEqual(ec.get_cuda_cc_template_value(key), cuda_template_values[key])
+
+        update_build_option('cuda_compute_capabilities', None)
+        ec = EasyConfig(self.eb_file)
+
+        for key in cuda_template_values:
+            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
+
+        self.contents += "\ncuda_compute_capabilities = ['6.5', '7.0']"
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        for key in cuda_template_values:
+            self.assertEqual(ec.get_cuda_cc_template_value(key), cuda_template_values[key])
+
+    def test_count_files(self):
+        """Tests for EasyConfig.count_files method."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        foss = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
+        toy = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        toy_exts = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+
+        # no sources or patches for toolchain => 0
+        foss_ec = EasyConfig(foss)
+        self.assertEqual(foss_ec['sources'], [])
+        self.assertEqual(foss_ec['patches'], [])
+        self.assertEqual(foss_ec.count_files(), 0)
+        # 1 source + 2 patches => 3
+        toy_ec = EasyConfig(toy)
+        self.assertEqual(len(toy_ec['sources']), 1)
+        self.assertEqual(len(toy_ec['patches']), 2)
+        self.assertEqual(toy_ec['exts_list'], [])
+        self.assertEqual(toy_ec.count_files(), 3)
+        # 1 source + 1 patch
+        # 4 extensions
+        # * ls: no sources/patches (only name is specified)
+        # * bar: 1 source (implied, using default source_tmpl) + 2 patches
+        # * barbar: 1 source (implied, using default source_tmpl)
+        # * toy: 1 source (implied, using default source_tmpl)
+        # => 7 files in total
+        toy_exts_ec = EasyConfig(toy_exts)
+        self.assertEqual(len(toy_exts_ec['sources']), 1)
+        self.assertEqual(len(toy_exts_ec['patches']), 1)
+        self.assertEqual(len(toy_exts_ec['exts_list']), 4)
+        self.assertEqual(toy_exts_ec.count_files(), 7)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        copy_file(toy_exts, test_ec)
+        # add a couple of additional extensions to verify correct file count
+        test_ec_extra = '\n'.join([
+            'exts_list += [',
+            '    ("test-ext-one", "0.0", {',
+            '        "sources": ["test-ext-one-0.0-part1.tgz", "test-ext-one-0.0-part2.zip"],',
+            # if both 'sources' and 'source_tmpl' are specified, 'source_tmpl' is ignored,
+            # see EasyBlock.fetch_extension_sources, so it should be too when counting files
+            '        "source_tmpl": "test-ext-one-%(version)s.tar.gz",',
+            '    }),',
+            '    ("test-ext-two", "0.0", {',
+            '        "source_tmpl": "test-ext-two-0.0-part1.tgz",',
+            '        "patches": ["test-ext-two.patch"],',
+            '    }),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_extra, append=True)
+        test_ec = EasyConfig(test_ec)
+        self.assertEqual(test_ec.count_files(), 11)
 
 
 def suite():
