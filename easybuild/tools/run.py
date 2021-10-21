@@ -248,7 +248,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
                             regexp=regexp, stream_output=stream_output, trace=trace)
 
 
-def check_async_cmd(proc, cmd, owd, start_time, cmd_log, output_read_size=1024, output=''):
+def check_async_cmd(proc, cmd, owd, start_time, cmd_log, fail_on_error=True, output_read_size=1024, output=''):
     """
     Check status of command that was started asynchronously.
 
@@ -276,7 +276,8 @@ def check_async_cmd(proc, cmd, owd, start_time, cmd_log, output_read_size=1024, 
         done = False
     else:
         _log.debug("Asynchronous command '%s' completed!", cmd)
-        output, _ = complete_cmd(proc, cmd, owd, start_time, cmd_log, output=output, simple=False, trace=False)
+        output, _ = complete_cmd(proc, cmd, owd, start_time, cmd_log, output=output,
+                                 simple=False, trace=False, log_ok=fail_on_error, log_all=fail_on_error)
         done = True
 
     res = {
