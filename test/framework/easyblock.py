@@ -435,7 +435,8 @@ class EasyBlockTest(EnhancedTestCase):
         # this is not a path that should be picked up
         os.mkdir(os.path.join(eb.installdir, 'CPATH'))
 
-        guess = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            guess = eb.make_module_req()
 
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"^prepend-path\s+CLASSPATH\s+\$root/bla.jar$", guess, re.M))
@@ -462,7 +463,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # check that bin is only added to PATH if there are files in there
         write_file(os.path.join(eb.installdir, 'bin', 'test'), 'test')
-        guess = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
             self.assertFalse(re.search(r"^prepend-path\s+PATH\s+\$root/sbin$", guess, re.M))
@@ -481,7 +483,8 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertFalse('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))' in guess)
         # -- With files
         write_file(os.path.join(eb.installdir, 'lib64', 'libfoo.so'), 'test')
-        guess = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
         elif get_module_syntax() == 'Lua':
@@ -490,7 +493,8 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'test')
         shutil.rmtree(os.path.join(eb.installdir, 'lib64'))
         os.symlink('lib', os.path.join(eb.installdir, 'lib64'))
-        guess = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertFalse(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
         elif get_module_syntax() == 'Lua':
@@ -509,7 +513,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # check for behavior when a string value is used as dict value by make_module_req_guesses
         eb.make_module_req_guess = lambda: {'PATH': 'bin'}
-        txt = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.match(r"^\nprepend-path\s+PATH\s+\$root/bin\n$", txt, re.M))
         elif get_module_syntax() == 'Lua':
@@ -520,7 +525,8 @@ class EasyBlockTest(EnhancedTestCase):
         # check for correct behaviour if empty string is specified as one of the values
         # prepend-path statements should be included for both the 'bin' subdir and the install root
         eb.make_module_req_guess = lambda: {'PATH': ['bin', '']}
-        txt = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"\nprepend-path\s+PATH\s+\$root/bin\n", txt, re.M))
             self.assertTrue(re.search(r"\nprepend-path\s+PATH\s+\$root\n", txt, re.M))
@@ -535,7 +541,8 @@ class EasyBlockTest(EnhancedTestCase):
         for path in ['pathA', 'pathB', 'pathC']:
             os.mkdir(os.path.join(eb.installdir, 'lib', path))
             write_file(os.path.join(eb.installdir, 'lib', path, 'libfoo.so'), 'test')
-        txt = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"\nprepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/pathC\n" +
                                       r"prepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/pathA\n" +
@@ -1152,7 +1159,7 @@ class EasyBlockTest(EnhancedTestCase):
         # purposely use a 'nasty' description, that includes (unbalanced) special chars: [, ], {, }
         descr = "This {is a}} [fancy]] [[description]]. {{[[TEST}]"
         modextravars = {'PI': '3.1415', 'FOO': 'bar'}
-        modextrapaths = {'PATH': 'pibin', 'CPATH': 'pi/include'}
+        modextrapaths = {'PATH': ('bin', 'pibin'), 'CPATH': 'pi/include'}
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
@@ -1176,6 +1183,10 @@ class EasyBlockTest(EnhancedTestCase):
         eb.check_readiness_step()
         eb.make_builddir()
         eb.prepare_step()
+
+        # Create a dummy file in bin to test if the duplicate entry of modextrapaths is ignored
+        os.makedirs(os.path.join(eb.installdir, 'bin'))
+        write_file(os.path.join(eb.installdir, 'bin', 'dummy_exe'), 'hello')
 
         modpath = os.path.join(eb.make_module_step(), name, version)
         if get_module_syntax() == 'Lua':
@@ -1210,14 +1221,20 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-        for (key, val) in modextrapaths.items():
-            if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
-            elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
-            else:
-                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
-            self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+        for (key, vals) in modextrapaths.items():
+            if isinstance(vals, string_type):
+                vals = [vals]
+            for val in vals:
+                if get_module_syntax() == 'Tcl':
+                    regex = re.compile(r'^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+                elif get_module_syntax() == 'Lua':
+                    regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
+                else:
+                    self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+                self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+                # Check for duplicates
+                num_prepends = len(regex.findall(txt))
+                self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('GCC', '6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':

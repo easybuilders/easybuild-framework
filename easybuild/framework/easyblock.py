@@ -2451,7 +2451,8 @@ class EasyBlock(object):
             if install:
                 try:
                     ext.prerun()
-                    txt = ext.run()
+                    with self.module_generator.start_module_creation():
+                        txt = ext.run()
                     if txt:
                         self.module_extra_extensions += txt
                     ext.postrun()
@@ -3222,21 +3223,18 @@ class EasyBlock(object):
         else:
             trace_msg("generating module file @ %s" % self.mod_filepath)
 
-        txt = self.module_generator.MODULE_SHEBANG
-        if txt:
-            txt += '\n'
+        with self.module_generator.start_module_creation() as txt:
+            if self.modules_header:
+                txt += self.modules_header + '\n'
 
-        if self.modules_header:
-            txt += self.modules_header + '\n'
-
-        txt += self.make_module_description()
-        txt += self.make_module_group_check()
-        txt += self.make_module_deppaths()
-        txt += self.make_module_dep()
-        txt += self.make_module_extend_modpath()
-        txt += self.make_module_req()
-        txt += self.make_module_extra()
-        txt += self.make_module_footer()
+            txt += self.make_module_description()
+            txt += self.make_module_group_check()
+            txt += self.make_module_deppaths()
+            txt += self.make_module_dep()
+            txt += self.make_module_extend_modpath()
+            txt += self.make_module_req()
+            txt += self.make_module_extra()
+            txt += self.make_module_footer()
 
         hook_txt = run_hook(MODULE_WRITE, self.hooks, args=[self, mod_filepath, txt])
         if hook_txt is not None:
