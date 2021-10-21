@@ -1743,8 +1743,8 @@ class EasyBlock(object):
             else:
                 progress_info = "Not installing extensions (yet)"
 
-            progress_info += ' '.join(e.name for e in running_exts)
-            progress_info += "(%d/%d done)" % (len(installed_ext_names), exts_cnt)
+            progress_info += ', '.join(e.name for e in running_exts)
+            progress_info += " (%d/%d done)" % (len(installed_ext_names), exts_cnt)
             self.update_exts_progress_bar(progress_info, progress_size=progress_size)
 
         iter_id = 0
