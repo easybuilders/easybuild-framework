@@ -250,22 +250,15 @@ def extensions_progress_bar():
     return progress_bar
 
 
-def get_progress_bar(bar_type, size=None):
+def get_progress_bar(bar_type, ignore_cache=False, size=None):
     """
     Get progress bar of given type.
     """
-    progress_bar_types = {
-        PROGRESS_BAR_DOWNLOAD_ALL: download_all_progress_bar,
-        PROGRESS_BAR_DOWNLOAD_ONE: download_one_progress_bar,
-        PROGRESS_BAR_EXTENSIONS: extensions_progress_bar,
-        PROGRESS_BAR_EASYCONFIG: easyconfig_progress_bar,
-        STATUS_BAR: status_bar,
-    }
 
     if bar_type == PROGRESS_BAR_DOWNLOAD_ONE and not size:
-        pbar = download_one_progress_bar_unknown_size()
-    elif bar_type in progress_bar_types:
-        pbar = progress_bar_types[bar_type]()
+        pbar = download_one_progress_bar_unknown_size(ignore_cache=ignore_cache)
+    elif bar_type in PROGRESS_BAR_TYPES:
+        pbar = PROGRESS_BAR_TYPES[bar_type](ignore_cache=ignore_cache)
     else:
         raise EasyBuildError("Unknown progress bar type: %s", bar_type)
 
@@ -295,27 +288,31 @@ def start_progress_bar(bar_type, size, label=None):
 
 def update_progress_bar(bar_type, label=None, progress_size=1):
     """
-    Update progress bar of given type, add progress of given size.
+    Update progress bar of given type (if it was started), add progress of given size.
 
     :param bar_type: type of progress bar
     :param label: label for progress bar
     :param progress_size: amount of progress made
     """
-    (pbar, task_id) = _progress_bar_cache[bar_type]
-    if label:
-        pbar.update(task_id, description=label)
-    if progress_size:
-        pbar.update(task_id, advance=progress_size)
+    if bar_type in _progress_bar_cache:
+        (pbar, task_id) = _progress_bar_cache[bar_type]
+        if label:
+            pbar.update(task_id, description=label)
+        if progress_size:
+            pbar.update(task_id, advance=progress_size)
 
 
 def stop_progress_bar(bar_type, visible=False):
     """
     Stop progress bar of given type.
     """
-    (pbar, task_id) = _progress_bar_cache[bar_type]
-    pbar.stop_task(task_id)
-    if not visible:
-        pbar.update(task_id, visible=False)
+    if bar_type in _progress_bar_cache:
+        (pbar, task_id) = _progress_bar_cache[bar_type]
+        pbar.stop_task(task_id)
+        if not visible:
+            pbar.update(task_id, visible=False)
+    else:
+        raise EasyBuildError("Failed to stop %s progress bar, since it was never started?!", bar_type)
 
 
 def print_checks(checks_data):
@@ -384,3 +381,13 @@ def print_checks(checks_data):
             console_print(table)
         else:
             print('\n'.join(lines))
+
+
+# this constant must be defined at the end, since functions used as values need to be defined
+PROGRESS_BAR_TYPES = {
+    PROGRESS_BAR_DOWNLOAD_ALL: download_all_progress_bar,
+    PROGRESS_BAR_DOWNLOAD_ONE: download_one_progress_bar,
+    PROGRESS_BAR_EXTENSIONS: extensions_progress_bar,
+    PROGRESS_BAR_EASYCONFIG: easyconfig_progress_bar,
+    STATUS_BAR: status_bar,
+}
