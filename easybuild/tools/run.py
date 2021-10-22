@@ -257,6 +257,7 @@ def check_async_cmd(proc, cmd, owd, start_time, cmd_log, fail_on_error=True, out
     :param owd: original working directory
     :param start_time: start time of command (datetime instance)
     :param cmd_log: log file to print command output to
+    :param fail_on_error: raise EasyBuildError when command exited with an error
     :param output_read_size: number of bytes to read from output
     :param output: already collected output for this command
 
@@ -277,7 +278,7 @@ def check_async_cmd(proc, cmd, owd, start_time, cmd_log, fail_on_error=True, out
     else:
         _log.debug("Asynchronous command '%s' completed!", cmd)
         output, _ = complete_cmd(proc, cmd, owd, start_time, cmd_log, output=output,
-                                 simple=False, trace=False, log_ok=fail_on_error, log_all=fail_on_error)
+                                 simple=False, trace=False, log_ok=fail_on_error)
         done = True
 
     res = {
