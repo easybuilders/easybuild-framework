@@ -388,10 +388,8 @@ class EasyBlock(object):
 
         # check if the sources can be located
         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
-        insecure_download = build_option('insecure_download')
         path = self.obtain_file(filename, extension=extension, download_filename=download_filename,
-                                force_download=force_download, insecure_download=insecure_download,
-                                urls=source_urls, git_config=git_config)
+                                force_download=force_download, urls=source_urls, git_config=git_config)
         if path is None:
             raise EasyBuildError('No file found for source %s', filename)
 
@@ -454,9 +452,7 @@ class EasyBlock(object):
             patch_info = create_patch_info(patch_spec)
 
             force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES]
-            insecure_download = build_option('insecure_download')
-            path = self.obtain_file(patch_info['name'], extension=extension, force_download=force_download,
-                                    insecure_download=insecure_download)
+            path = self.obtain_file(patch_info['name'], extension=extension, force_download=force_download)
             if path:
                 self.log.debug('File %s found for patch %s', path, patch_spec)
                 patch_info['path'] = path
@@ -501,7 +497,6 @@ class EasyBlock(object):
             self.dry_run_msg("\nList of sources/patches for extensions:")
 
         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
-        insecure_download = build_option('insecure_download')
 
         for ext in exts_list:
             if isinstance(ext, (list, tuple)) and ext:
@@ -594,8 +589,7 @@ class EasyBlock(object):
 
                         if fetch_files:
                             src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
-                                                        force_download=force_download,
-                                                        insecure_download=insecure_download)
+                                                        force_download=force_download)
                             if src_path:
                                 ext_src.update({'src': src_path})
                             else:
@@ -669,7 +663,7 @@ class EasyBlock(object):
         return exts_sources
 
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
-                    insecure_download=False, git_config=None):
+                    git_config=None):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -679,7 +673,6 @@ class EasyBlock(object):
         :param urls: list of source URLs where this file may be available
         :param download_filename: filename with which the file should be downloaded, and then renamed to <filename>
         :param force_download: always try to download file, even if it's already available in source path
-        :param insecure_download: don't check the server certificate against the available certificate authorities
         :param git_config: dictionary to define how to download a git repository
         """
         srcpaths = source_paths()
@@ -711,7 +704,7 @@ class EasyBlock(object):
                         self.log.info("Found file %s at %s, no need to download it", filename, filepath)
                         return fullpath
 
-                if download_file(filename, url, fullpath, insecure=insecure_download):
+                if download_file(filename, url, fullpath):
                     return fullpath
 
             except IOError as err:
@@ -838,7 +831,7 @@ class EasyBlock(object):
                         self.log.debug("Trying to download file %s from %s to %s ..." % (filename, fullurl, targetpath))
                         downloaded = False
                         try:
-                            if download_file(filename, fullurl, targetpath, insecure=insecure_download):
+                            if download_file(filename, fullurl, targetpath):
                                 downloaded = True
 
                         except IOError as err:

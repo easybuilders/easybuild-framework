@@ -45,7 +45,7 @@ from unittest import TextTestRunner
 from easybuild.tools import run
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import IGNORE, ERROR, update_build_option
+from easybuild.tools.config import IGNORE, ERROR, build_option, update_build_option
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import StringIO, std_urllib
 
@@ -532,6 +532,9 @@ class FileToolsTest(EnhancedTestCase):
         """
         Test downloading of file via insecure URL
         """
+
+        self.assertFalse(build_option('insecure_download'))
+
         # replace urlopen with function that raises IOError
         def fake_urllib_open(url, *args, **kwargs):
             if kwargs.get('context') is None:
@@ -554,8 +557,9 @@ class FileToolsTest(EnhancedTestCase):
         res = ft.download_file(fn, url, target_path)
         self.assertEqual(res, None)
 
+        update_build_option('insecure_download', True)
         self.mock_stderr(True)
-        res = ft.download_file(fn, url, target_path, insecure=True)
+        res = ft.download_file(fn, url, target_path)
         stderr = self.get_stderr()
         self.mock_stderr(False)
 
@@ -586,11 +590,13 @@ class FileToolsTest(EnhancedTestCase):
 
             ft.requests.get = fake_requests_get
 
+            update_build_option('insecure_download', False)
             res = ft.download_file(fn, url, target_path)
             self.assertEqual(res, None)
 
+            update_build_option('insecure_download', True)
             self.mock_stderr(True)
-            res = ft.download_file(fn, url, target_path, insecure=True)
+            res = ft.download_file(fn, url, target_path)
             stderr = self.get_stderr()
             self.mock_stderr(False)
 

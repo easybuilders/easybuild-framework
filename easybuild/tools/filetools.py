@@ -738,8 +738,10 @@ def det_file_size(http_header):
     return res
 
 
-def download_file(filename, url, path, forced=False, insecure=False):
+def download_file(filename, url, path, forced=False):
     """Download a file from the given URL, to the specified path."""
+
+    insecure = build_option('insecure_download')
 
     _log.debug("Trying to download %s from %s to %s", filename, url, path)
 
