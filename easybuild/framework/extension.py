@@ -40,7 +40,7 @@ from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, raise_nosupport
 from easybuild.tools.filetools import change_dir
-from easybuild.tools.run import check_async_cmd, complete_cmd, run_cmd
+from easybuild.tools.run import check_async_cmd, run_cmd
 from easybuild.tools.py2vs3 import string_type
 
 
