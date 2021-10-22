@@ -31,6 +31,7 @@ import sys
 from unittest import TextTestRunner
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 
+import easybuild.tools.output
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_output_style, update_build_option
 from easybuild.tools.output import PROGRESS_BAR_EXTENSIONS, DummyRich, colorize, get_progress_bar, show_progress_bars
@@ -143,6 +144,9 @@ class OutputTest(EnhancedTestCase):
         """
         Test starting/updating/stopping of progress bars.
         """
+        # clear progress bar cache first, this test assumes we start with a clean slate
+        easybuild.tools.output._progress_bar_cache.clear()
+
         # restore default configuration to show progress bars (disabled to avoid mangled test output)
         update_build_option('show_progress_bar', True)
 
