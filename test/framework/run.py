@@ -609,7 +609,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res, {'done': True, 'exit_code': 0, 'output': 'sleeping...\ntest123\n'})
 
         # check asynchronous running of failing command
-        error_test_cmd = "sleep 2; echo 'FAIL!' >&2; exit 123"
+        error_test_cmd = "echo 'FAIL!' >&2; exit 123"
         cmd_info = run_cmd(error_test_cmd, asynchronous=True)
         error_pattern = 'cmd ".*" exited with exit code 123'
         self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info)
