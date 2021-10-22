@@ -407,8 +407,6 @@ class EasyBuildOptions(GeneralOption):
             'force-download': ("Force re-downloading of sources and/or patches, "
                                "even if they are available already in source path",
                                'choice', 'store_or_None', DEFAULT_FORCE_DOWNLOAD, FORCE_DOWNLOAD_CHOICES),
-            'insecure-download': ("Don't check the server certificate against the available certificate authorities.",
-                                  None, 'store_true', False),
             'generate-devel-module': ("Generate a develop module file, implies --force if disabled",
                                       None, 'store_true', True),
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
@@ -428,6 +426,8 @@ class EasyBuildOptions(GeneralOption):
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-test-failure': ("Ignore a failing test step", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
+            'insecure-download': ("Don't check the server certificate against the available certificate authorities.",
+                                  None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
             'lib-lib64-symlink': ("Automatically create symlinks for lib/ pointing to lib64/ if the former is missing",
                                   None, 'store_true', True),
