@@ -457,7 +457,7 @@ def find_related_easyconfigs(path, ec):
         toolchain_pattern = ''
 
     potential_paths = [glob.glob(ec_path) for ec_path in create_paths(path, name, '*')]
-    potential_paths = sum(potential_paths, [])  # flatten
+    potential_paths = sorted(sum(potential_paths, []), reverse=True)  # flatten
     _log.debug("found these potential paths: %s" % potential_paths)
 
     parsed_version = LooseVersion(version).version
