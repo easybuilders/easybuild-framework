@@ -31,9 +31,12 @@ import sys
 from unittest import TextTestRunner
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 
+import easybuild.tools.output
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_output_style, update_build_option
-from easybuild.tools.output import DummyProgress, create_progress_bar, use_rich
+from easybuild.tools.output import PROGRESS_BAR_EXTENSIONS, PROGRESS_BAR_TYPES
+from easybuild.tools.output import DummyRich, colorize, get_progress_bar, show_progress_bars
+from easybuild.tools.output import start_progress_bar, status_bar, stop_progress_bar, update_progress_bar, use_rich
 
 try:
     import rich.progress
@@ -45,8 +48,8 @@ except ImportError:
 class OutputTest(EnhancedTestCase):
     """Tests for functions controlling terminal output."""
 
-    def test_create_progress_bar(self):
-        """Test create_progress_bar function."""
+    def test_status_bar(self):
+        """Test status_bar function."""
 
         # restore default (was disabled in EnhancedTestCase.setUp to avoid messing up test output)
         update_build_option('show_progress_bar', True)
@@ -54,25 +57,25 @@ class OutputTest(EnhancedTestCase):
         if HAVE_RICH:
             expected_progress_bar_class = rich.progress.Progress
         else:
-            expected_progress_bar_class = DummyProgress
+            expected_progress_bar_class = DummyRich
 
-        progress_bar = create_progress_bar()
+        progress_bar = status_bar(ignore_cache=True)
         error_msg = "%s should be instance of class %s" % (progress_bar, expected_progress_bar_class)
         self.assertTrue(isinstance(progress_bar, expected_progress_bar_class), error_msg)
 
         update_build_option('output_style', 'basic')
-        progress_bar = create_progress_bar()
-        self.assertTrue(isinstance(progress_bar, DummyProgress))
+        progress_bar = status_bar(ignore_cache=True)
+        self.assertTrue(isinstance(progress_bar, DummyRich))
 
         if HAVE_RICH:
             update_build_option('output_style', 'rich')
-            progress_bar = create_progress_bar()
+            progress_bar = status_bar(ignore_cache=True)
             error_msg = "%s should be instance of class %s" % (progress_bar, expected_progress_bar_class)
             self.assertTrue(isinstance(progress_bar, expected_progress_bar_class), error_msg)
 
         update_build_option('show_progress_bar', False)
-        progress_bar = create_progress_bar()
-        self.assertTrue(isinstance(progress_bar, DummyProgress))
+        progress_bar = status_bar(ignore_cache=True)
+        self.assertTrue(isinstance(progress_bar, DummyRich))
 
     def test_get_output_style(self):
         """Test get_output_style function."""
@@ -101,13 +104,82 @@ class OutputTest(EnhancedTestCase):
             error_pattern = "Can't use 'rich' output style, Rich Python package is not available!"
             self.assertErrorRegex(EasyBuildError, error_pattern, get_output_style)
 
-    def test_use_rich(self):
-        """Test use_rich function."""
-        try:
-            import rich  # noqa
+    def test_use_rich_show_progress_bars(self):
+        """Test use_rich and show_progress_bar functions."""
+
+        # restore default configuration to show progress bars (disabled to avoid mangled test output)
+        update_build_option('show_progress_bar', True)
+
+        self.assertEqual(build_option('output_style'), 'auto')
+
+        if HAVE_RICH:
             self.assertTrue(use_rich())
-        except ImportError:
+            self.assertTrue(show_progress_bars())
+
+            update_build_option('output_style', 'rich')
+            self.assertTrue(use_rich())
+            self.assertTrue(show_progress_bars())
+        else:
             self.assertFalse(use_rich())
+            self.assertFalse(show_progress_bars())
+
+        update_build_option('output_style', 'basic')
+        self.assertFalse(use_rich())
+        self.assertFalse(show_progress_bars())
+
+    def test_colorize(self):
+        """
+        Test colorize function
+        """
+        if HAVE_RICH:
+            for color in ('green', 'red', 'yellow'):
+                self.assertEqual(colorize('test', color), '[bold %s]test[/bold %s]' % (color, color))
+        else:
+            self.assertEqual(colorize('test', 'green'), '\x1b[0;32mtest\x1b[0m')
+            self.assertEqual(colorize('test', 'red'), '\x1b[0;31mtest\x1b[0m')
+            self.assertEqual(colorize('test', 'yellow'), '\x1b[1;33mtest\x1b[0m')
+
+        self.assertErrorRegex(EasyBuildError, "Unknown color: nosuchcolor", colorize, 'test', 'nosuchcolor')
+
+    def test_get_progress_bar(self):
+        """
+        Test get_progress_bar.
+        """
+        # restore default configuration to show progress bars (disabled to avoid mangled test output),
+        # to ensure we'll get actual Progress instances when Rich is available
+        update_build_option('show_progress_bar', True)
+
+        for pbar_type in PROGRESS_BAR_TYPES:
+            pbar = get_progress_bar(pbar_type, ignore_cache=True)
+            if HAVE_RICH:
+                self.assertTrue(isinstance(pbar, rich.progress.Progress))
+            else:
+                self.assertTrue(isinstance(pbar, DummyRich))
+
+    def test_get_start_update_stop_progress_bar(self):
+        """
+        Test starting/updating/stopping of progress bars.
+        """
+        # clear progress bar cache first, this test assumes we start with a clean slate
+        easybuild.tools.output._progress_bar_cache.clear()
+
+        # restore default configuration to show progress bars (disabled to avoid mangled test output)
+        update_build_option('show_progress_bar', True)
+
+        # stopping a progress bar that never was started results in an error
+        error_pattern = "Failed to stop extensions progress bar, since it was never started"
+        self.assertErrorRegex(EasyBuildError, error_pattern, stop_progress_bar, PROGRESS_BAR_EXTENSIONS)
+
+        # updating a progress bar that never was started is silently ignored on purpose
+        update_progress_bar(PROGRESS_BAR_EXTENSIONS)
+        update_progress_bar(PROGRESS_BAR_EXTENSIONS, label="foo")
+        update_progress_bar(PROGRESS_BAR_EXTENSIONS, progress_size=100)
+
+        # also test normal cycle: start, update, stop
+        start_progress_bar(PROGRESS_BAR_EXTENSIONS, 100)
+        update_progress_bar(PROGRESS_BAR_EXTENSIONS)  # single step progress
+        update_progress_bar(PROGRESS_BAR_EXTENSIONS, label="test123", progress_size=5)
+        stop_progress_bar(PROGRESS_BAR_EXTENSIONS)
 
 
 def suite():

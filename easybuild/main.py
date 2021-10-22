@@ -68,7 +68,8 @@ from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develo
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
-from easybuild.tools.output import create_progress_bar, print_checks
+from easybuild.tools.output import COLOR_GREEN, COLOR_RED, STATUS_BAR, colorize, print_checks, rich_live_cm
+from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
@@ -101,36 +102,30 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
     return [(ec_file, generated)]
 
 
-def build_and_install_software(ecs, init_session_state, exit_on_failure=True, progress_bar=None):
+def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     """
     Build and install software for all provided parsed easyconfig files.
 
     :param ecs: easyconfig files to install software with
     :param init_session_state: initial session state, to use in test reports
     :param exit_on_failure: whether or not to exit on installation failure
-    :param progress_bar: progress bar to use to report progress
     """
     # obtain a copy of the starting environment so each build can start afresh
     # we shouldn't use the environment from init_session_state, since relevant env vars might have been set since
     # e.g. via easyconfig.handle_allowed_system_deps
     init_env = copy.deepcopy(os.environ)
 
-    # Initialize progress bar with overall installation task
-    if progress_bar:
-        task_id = progress_bar.add_task("", total=len(ecs))
-    else:
-        task_id = None
+    start_progress_bar(STATUS_BAR, size=len(ecs))
 
     res = []
-    for ec in ecs:
+    ec_results = []
+    failed_cnt = 0
 
-        if progress_bar:
-            progress_bar.update(task_id, description=ec['short_mod_name'])
+    for ec in ecs:
 
         ec_res = {}
         try:
-            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env, progress_bar=progress_bar,
-                                                                      task_id=task_id)
+            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
             ec_res['log_file'] = app_log
             if not ec_res['success']:
                 ec_res['err'] = EasyBuildError(err)
@@ -139,6 +134,12 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, pr
             ec_res['success'] = False
             ec_res['err'] = err
             ec_res['traceback'] = traceback.format_exc()
+
+        if ec_res['success']:
+            ec_results.append(ec['full_mod_name'] + ' (' + colorize('OK', COLOR_GREEN) + ')')
+        else:
+            ec_results.append(ec['full_mod_name'] + ' (' + colorize('FAILED', COLOR_RED) + ')')
+            failed_cnt += 1
 
         # keep track of success/total count
         if ec_res['success']:
@@ -168,6 +169,19 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, pr
                 raise EasyBuildError(test_msg)
 
         res.append((ec, ec_res))
+
+        if failed_cnt:
+            # if installations failed: indicate th
+            status_label = ' (%s): ' % colorize('%s failed!' % failed_cnt, COLOR_RED)
+            failed_ecs = [x for x in ec_results[::-1] if 'FAILED' in x]
+            ok_ecs = [x for x in ec_results[::-1] if x not in failed_ecs]
+            status_label += ', '.join(failed_ecs + ok_ecs)
+        else:
+            status_label = ': ' + ', '.join(ec_results[::-1])
+
+        update_progress_bar(STATUS_BAR, label=status_label)
+
+    stop_progress_bar(STATUS_BAR)
 
     return res
 
@@ -540,11 +554,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if not testing or (testing and do_build):
         exit_on_failure = not (options.dump_test_report or options.upload_test_report)
 
-        progress_bar = create_progress_bar()
-        with progress_bar:
+        with rich_live_cm():
             ecs_with_res = build_and_install_software(ordered_ecs, init_session_state,
-                                                      exit_on_failure=exit_on_failure,
-                                                      progress_bar=progress_bar)
+                                                      exit_on_failure=exit_on_failure)
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 

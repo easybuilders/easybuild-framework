@@ -376,6 +376,36 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.normalize_path('/././foo//bar/././baz/'), '/foo/bar/baz')
         self.assertEqual(ft.normalize_path('//././foo//bar/././baz/'), '//foo/bar/baz')
 
+    def test_det_file_size(self):
+        """Test det_file_size function."""
+
+        self.assertEqual(ft.det_file_size({'Content-Length': '12345'}), 12345)
+
+        # missing content length, or invalid value
+        self.assertEqual(ft.det_file_size({}), None)
+        self.assertEqual(ft.det_file_size({'Content-Length': 'foo'}), None)
+
+        test_url = 'https://github.com/easybuilders/easybuild-framework/raw/develop/'
+        test_url += 'test/framework/sandbox/sources/toy/toy-0.0.tar.gz'
+        expected_size = 273
+
+        # also try with actual HTTP header
+        try:
+            fh = std_urllib.urlopen(test_url)
+            self.assertEqual(ft.det_file_size(fh.info()), expected_size)
+            fh.close()
+
+            # also try using requests, which is used as a fallback in download_file
+            try:
+                import requests
+                res = requests.get(test_url)
+                self.assertEqual(ft.det_file_size(res.headers), expected_size)
+                res.close()
+            except ImportError:
+                pass
+        except std_urllib.URLError:
+            print("Skipping online test for det_file_size (working offline)")
+
     def test_download_file(self):
         """Test download_file function."""
         fn = 'toy-0.0.tar.gz'
@@ -1509,6 +1539,23 @@ class FileToolsTest(EnhancedTestCase):
         # no crash on non-existing package
         url = 'https://pypi.python.org/packages/source/n/nosuchpackageonpypiever/nosuchpackageonpypiever-0.0.0.tar.gz'
         self.assertEqual(ft.derive_alt_pypi_url(url), None)
+
+    def test_create_patch_info(self):
+        """Test create_patch_info function."""
+
+        self.assertEqual(ft.create_patch_info('foo.patch'), {'name': 'foo.patch'})
+        self.assertEqual(ft.create_patch_info('foo.txt'), {'name': 'foo.txt'})
+        self.assertEqual(ft.create_patch_info(('foo.patch', 1)), {'name': 'foo.patch', 'level': 1})
+        self.assertEqual(ft.create_patch_info(('foo.patch', 'subdir')), {'name': 'foo.patch', 'sourcepath': 'subdir'})
+        self.assertEqual(ft.create_patch_info(('foo.txt', 'subdir')), {'name': 'foo.txt', 'copy': 'subdir'})
+
+        # faulty input
+        error_msg = "Wrong patch spec"
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, None)
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'name': 'foo.patch'})
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, ('foo.patch', [1, 2]))
+        error_msg = "Unknown patch specification"
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, ('foo.patch', 1, 'subdir'))
 
     def test_apply_patch(self):
         """ Test apply_patch """

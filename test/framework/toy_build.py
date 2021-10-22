@@ -1746,6 +1746,16 @@ class ToyBuildTest(EnhancedTestCase):
         # remove module file so we can try --module-only
         remove_file(toy_mod)
 
+        # make sure that sources for extensions can't be found,
+        # they should not be needed when using --module-only
+        # (cfr. https://github.com/easybuilders/easybuild-framework/issues/3849)
+        del os.environ['EASYBUILD_SOURCEPATH']
+
+        # first try normal --module-only, should work fine
+        self.eb_main([test_ec, '--module-only'], do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
+        remove_file(toy_mod)
+
         # rename file required for barbar extension, so we can check whether sanity check catches it
         libbarbar = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'lib', 'libbarbar.a')
         move_file(libbarbar, libbarbar + '.foobar')
@@ -2902,13 +2912,16 @@ class ToyBuildTest(EnhancedTestCase):
         modify_env(os.environ, self.orig_environ, verbose=False)
         self.modtool.use(test_mod_path)
 
+        # disable showing of progress bars (again), doesn't make sense when running tests
+        os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
+
         write_file(test_ec, test_ec_txt)
 
         # also check behaviour when using 'depends_on' rather than 'load' statements (requires Lmod 7.6.1 or newer)
         if self.modtool.supports_depends_on:
 
             remove_file(toy_mod_file)
-            self.test_toy_build(ec_file=test_ec, extra_args=['--module-depends-on'])
+            self.test_toy_build(ec_file=test_ec, extra_args=['--module-depends-on'], raise_error=True)
 
             toy_mod_txt = read_file(toy_mod_file)
 
