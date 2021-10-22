@@ -250,22 +250,15 @@ def extensions_progress_bar():
     return progress_bar
 
 
-def get_progress_bar(bar_type, size=None):
+def get_progress_bar(bar_type, ignore_cache=False, size=None):
     """
     Get progress bar of given type.
     """
-    progress_bar_types = {
-        PROGRESS_BAR_DOWNLOAD_ALL: download_all_progress_bar,
-        PROGRESS_BAR_DOWNLOAD_ONE: download_one_progress_bar,
-        PROGRESS_BAR_EXTENSIONS: extensions_progress_bar,
-        PROGRESS_BAR_EASYCONFIG: easyconfig_progress_bar,
-        STATUS_BAR: status_bar,
-    }
 
     if bar_type == PROGRESS_BAR_DOWNLOAD_ONE and not size:
-        pbar = download_one_progress_bar_unknown_size()
-    elif bar_type in progress_bar_types:
-        pbar = progress_bar_types[bar_type]()
+        pbar = download_one_progress_bar_unknown_size(ignore_cache=ignore_cache)
+    elif bar_type in PROGRESS_BAR_TYPES:
+        pbar = PROGRESS_BAR_TYPES[bar_type](ignore_cache=ignore_cache)
     else:
         raise EasyBuildError("Unknown progress bar type: %s", bar_type)
 
@@ -388,3 +381,13 @@ def print_checks(checks_data):
             console_print(table)
         else:
             print('\n'.join(lines))
+
+
+# this constant must be defined at the end, since functions used as values need to be defined
+PROGRESS_BAR_TYPES = {
+    PROGRESS_BAR_DOWNLOAD_ALL: download_all_progress_bar,
+    PROGRESS_BAR_DOWNLOAD_ONE: download_one_progress_bar,
+    PROGRESS_BAR_EXTENSIONS: extensions_progress_bar,
+    PROGRESS_BAR_EASYCONFIG: easyconfig_progress_bar,
+    STATUS_BAR: status_bar,
+}

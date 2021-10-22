@@ -34,7 +34,8 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 import easybuild.tools.output
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_output_style, update_build_option
-from easybuild.tools.output import PROGRESS_BAR_EXTENSIONS, DummyRich, colorize, get_progress_bar, show_progress_bars
+from easybuild.tools.output import PROGRESS_BAR_EXTENSIONS, PROGRESS_BAR_TYPES
+from easybuild.tools.output import DummyRich, colorize, get_progress_bar, show_progress_bars
 from easybuild.tools.output import start_progress_bar, status_bar, stop_progress_bar, update_progress_bar, use_rich
 
 try:
@@ -140,6 +141,21 @@ class OutputTest(EnhancedTestCase):
 
         self.assertErrorRegex(EasyBuildError, "Unknown color: nosuchcolor", colorize, 'test', 'nosuchcolor')
 
+    def test_get_progress_bar(self):
+        """
+        Test get_progress_bar.
+        """
+        # restore default configuration to show progress bars (disabled to avoid mangled test output),
+        # to ensure we'll get actual Progress instances when Rich is available
+        update_build_option('show_progress_bar', True)
+
+        for pbar_type in PROGRESS_BAR_TYPES:
+            pbar = get_progress_bar(pbar_type, ignore_cache=True)
+            if HAVE_RICH:
+                self.assertTrue(isinstance(pbar, rich.progress.Progress))
+            else:
+                self.assertTrue(isinstance(pbar, DummyRich))
+
     def test_get_start_update_stop_progress_bar(self):
         """
         Test starting/updating/stopping of progress bars.
@@ -164,12 +180,6 @@ class OutputTest(EnhancedTestCase):
         update_progress_bar(PROGRESS_BAR_EXTENSIONS)  # single step progress
         update_progress_bar(PROGRESS_BAR_EXTENSIONS, label="test123", progress_size=5)
         stop_progress_bar(PROGRESS_BAR_EXTENSIONS)
-
-        pbar = get_progress_bar(PROGRESS_BAR_EXTENSIONS)
-        if HAVE_RICH:
-            self.assertTrue(isinstance(pbar, rich.progress.Progress))
-        else:
-            self.assertTrue(isinstance(pbar, DummyRich))
 
 
 def suite():
