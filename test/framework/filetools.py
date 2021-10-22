@@ -575,7 +575,7 @@ class FileToolsTest(EnhancedTestCase):
             fn = os.path.basename(url)
             target_path = os.path.join(self.test_prefix, fn)
 
-            # replaceurlopen with function that raises HTTP error 403
+            # replace urlopen with function that raises HTTP error 403
             def fake_urllib_open(url, *args, **kwargs):
                 raise ft.std_urllib.HTTPError(url, 403, "Forbidden", "", StringIO())
 
