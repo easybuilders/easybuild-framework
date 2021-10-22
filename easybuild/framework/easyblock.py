@@ -2483,8 +2483,6 @@ class EasyBlock(object):
         """
         exts_list = self.cfg.get_ref('exts_list')
 
-        self.update_exts_progress_bar("creating internal datastructures for extensions")
-
         # early exit if there are no extensions
         if not exts_list:
             return
@@ -2509,6 +2507,8 @@ class EasyBlock(object):
             raise EasyBuildError(error_msg, exts_defaultclass, type(exts_defaultclass))
 
         exts_cnt = len(self.exts)
+
+        self.update_exts_progress_bar("creating internal datastructures for extensions")
 
         for idx, ext in enumerate(self.exts):
             ext_name = ext['name']
