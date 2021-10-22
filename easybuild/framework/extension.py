@@ -40,7 +40,7 @@ from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, raise_nosupport
 from easybuild.tools.filetools import change_dir
-from easybuild.tools.run import complete_cmd, get_output_from_process, run_cmd
+from easybuild.tools.run import check_async_cmd, complete_cmd, run_cmd
 from easybuild.tools.py2vs3 import string_type
 
 
@@ -196,23 +196,21 @@ class Extension(object):
             raise EasyBuildError("No installation command running asynchronously for %s", self.name)
         else:
             self.log.debug("Checking on installation of extension %s...", self.name)
-            proc = self.async_cmd_info[0]
             # use small read size, to avoid waiting for a long time until sufficient output is produced
-            self.async_cmd_output += get_output_from_process(proc, read_size=self.async_cmd_read_size)
-            ec = proc.poll()
-            if ec is None:
-                res = False
+            res = check_async_cmd(*self.async_cmd_info, output_read_size=self.async_cmd_read_size)
+            self.async_cmd_output += res['output']
+            if res['done']:
+                self.log.info("Installation of extension %s completed!", self.name)
+            else:
                 self.async_cmd_check_cnt += 1
+                self.log.debug("Installation of extension %s still running (checked %d times)",
+                               self.name, self.async_cmd_check_cnt)
                 # increase read size after sufficient checks,
                 # to avoid that installation hangs due to output buffer filling up...
                 if self.async_cmd_check_cnt % 10 == 0 and self.async_cmd_read_size < (1024 ** 2):
                     self.async_cmd_read_size *= 2
-            else:
-                self.log.debug("Completing installation of extension %s...", self.name)
-                self.async_cmd_output, _ = complete_cmd(*self.async_cmd_info, output=self.async_cmd_output)
-                res = True
 
-        return res
+            return res['done']
 
     @property
     def required_deps(self):
