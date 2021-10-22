@@ -47,7 +47,7 @@ import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
-from easybuild.tools.run import check_log_for_errors, complete_cmd, get_output_from_process
+from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
 from easybuild.tools.run import parse_log_for_error, run_cmd, run_cmd_qa
 from easybuild.tools.config import ERROR, IGNORE, WARN
 
@@ -575,7 +575,8 @@ class RunTest(EnhancedTestCase):
 
         os.environ['TEST'] = 'test123'
 
-        cmd_info = run_cmd("sleep 2; echo $TEST", asynchronous=True)
+        test_cmd = "echo 'sleeping...'; sleep 2; echo $TEST"
+        cmd_info = run_cmd(test_cmd, asynchronous=True)
         proc = cmd_info[0]
 
         # change value of $TEST to check that command is completed with correct environment
@@ -585,18 +586,51 @@ class RunTest(EnhancedTestCase):
         ec = proc.poll()
         self.assertEqual(ec, None)
 
+        # wait until command is done
         while ec is None:
             time.sleep(1)
             ec = proc.poll()
 
         out, ec = complete_cmd(*cmd_info, simple=False)
         self.assertEqual(ec, 0)
-        self.assertEqual(out, 'test123\n')
+        self.assertEqual(out, 'sleeping...\ntest123\n')
+
+        # also test use of check_async_cmd function
+        os.environ['TEST'] = 'test123'
+        cmd_info = run_cmd(test_cmd, asynchronous=True)
+
+        # first check, only read first 12 output characters
+        # (otherwise we'll be waiting until command is completed)
+        res = check_async_cmd(*cmd_info, output_read_size=12)
+        self.assertEqual(res, {'done': False, 'exit_code': None, 'output': 'sleeping...\n'})
+
+        # 2nd check with default output size (1024) gets full output
+        res = check_async_cmd(*cmd_info, output=res['output'])
+        self.assertEqual(res, {'done': True, 'exit_code': 0, 'output': 'sleeping...\ntest123\n'})
+
+        # check asynchronous running of failing command
+        error_test_cmd = "echo 'FAIL!' >&2; exit 123"
+        cmd_info = run_cmd(error_test_cmd, asynchronous=True)
+        error_pattern = 'cmd ".*" exited with exit code 123'
+        self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info)
+
+        cmd_info = run_cmd(error_test_cmd, asynchronous=True)
+        res = check_async_cmd(*cmd_info, fail_on_error=False)
+        self.assertEqual(res, {'done': True, 'exit_code': 123, 'output': "FAIL!\n"})
 
         # also test with a command that produces a lot of output,
         # since that tends to lock up things unless we frequently grab some output...
-        cmd = "echo start; for i in $(seq 1 50); do sleep 0.1; for j in $(seq 1000); do echo foo; done; done; echo done"
-        cmd_info = run_cmd(cmd, asynchronous=True)
+        verbose_test_cmd = ';'.join([
+            "echo start",
+            "for i in $(seq 1 50)",
+            "do sleep 0.1",
+            "for j in $(seq 1000)",
+            "do echo foo",
+            "done",
+            "done",
+            "echo done",
+        ])
+        cmd_info = run_cmd(verbose_test_cmd, asynchronous=True)
         proc = cmd_info[0]
 
         output = ''
@@ -612,6 +646,32 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         self.assertTrue(out.startswith('start\n'))
         self.assertTrue(out.endswith('\ndone\n'))
+
+        # also test use of check_async_cmd on verbose test command
+        cmd_info = run_cmd(verbose_test_cmd, asynchronous=True)
+
+        error_pattern = r"Number of output bytes to read should be a positive integer value \(or zero\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info, output_read_size=-1)
+        self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info, output_read_size='foo')
+
+        # with output_read_size set to 0, no output is read yet, only status of command is checked
+        res = check_async_cmd(*cmd_info, output_read_size=0)
+        self.assertEqual(res['done'], False)
+        self.assertEqual(res['exit_code'], None)
+        self.assertEqual(res['output'], '')
+
+        res = check_async_cmd(*cmd_info)
+        self.assertEqual(res['done'], False)
+        self.assertEqual(res['exit_code'], None)
+        self.assertTrue(res['output'].startswith('start\n'))
+        self.assertFalse(res['output'].endswith('\ndone\n'))
+        # keep checking until command is complete
+        while not res['done']:
+            res = check_async_cmd(*cmd_info, output=res['output'])
+        self.assertEqual(res['done'], True)
+        self.assertEqual(res['exit_code'], 0)
+        self.assertTrue(res['output'].startswith('start\n'))
+        self.assertTrue(res['output'].endswith('\ndone\n'))
 
     def test_check_log_for_errors(self):
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')

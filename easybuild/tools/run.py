@@ -248,6 +248,47 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
                             regexp=regexp, stream_output=stream_output, trace=trace)
 
 
+def check_async_cmd(proc, cmd, owd, start_time, cmd_log, fail_on_error=True, output_read_size=1024, output=''):
+    """
+    Check status of command that was started asynchronously.
+
+    :param proc: subprocess.Popen instance representing asynchronous command
+    :param cmd: command being run
+    :param owd: original working directory
+    :param start_time: start time of command (datetime instance)
+    :param cmd_log: log file to print command output to
+    :param fail_on_error: raise EasyBuildError when command exited with an error
+    :param output_read_size: number of bytes to read from output
+    :param output: already collected output for this command
+
+    :result: dict value with result of the check (boolean 'done', 'exit_code', 'output')
+    """
+    # use small read size, to avoid waiting for a long time until sufficient output is produced
+    if output_read_size:
+        if not isinstance(output_read_size, int) or output_read_size < 0:
+            raise EasyBuildError("Number of output bytes to read should be a positive integer value (or zero)")
+        add_out = get_output_from_process(proc, read_size=output_read_size)
+        _log.debug("Additional output from asynchronous command '%s': %s" % (cmd, add_out))
+        output += add_out
+
+    exit_code = proc.poll()
+    if exit_code is None:
+        _log.debug("Asynchronous command '%s' still running..." % cmd)
+        done = False
+    else:
+        _log.debug("Asynchronous command '%s' completed!", cmd)
+        output, _ = complete_cmd(proc, cmd, owd, start_time, cmd_log, output=output,
+                                 simple=False, trace=False, log_ok=fail_on_error)
+        done = True
+
+    res = {
+        'done': done,
+        'exit_code': exit_code,
+        'output': output,
+    }
+    return res
+
+
 def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False, simple=False,
                  regexp=True, stream_output=None, trace=True, output=''):
     """
