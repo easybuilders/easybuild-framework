@@ -1743,14 +1743,16 @@ class EasyBlock(object):
             """Helper function to update extensions progress bar."""
             running_exts_cnt = len(running_exts)
             if running_exts_cnt > 1:
-                progress_info = "Installing %d extensions: " % running_exts_cnt
+                progress_info = "Installing %d extensions" % running_exts_cnt
             elif running_exts_cnt == 1:
                 progress_info = "Installing extension "
             else:
                 progress_info = "Not installing extensions (yet)"
 
-            progress_info += ', '.join(e.name for e in running_exts)
-            progress_info += " (%d/%d done)" % (len(installed_ext_names), exts_cnt)
+            if running_exts_cnt:
+                progress_info += " (%d/%d done): " % (len(installed_ext_names), exts_cnt)
+                progress_info += ', '.join(e.name for e in running_exts)
+
             self.update_exts_progress_bar(progress_info, progress_size=progress_size)
 
         iter_id = 0
