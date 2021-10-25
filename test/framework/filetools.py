@@ -45,9 +45,9 @@ from unittest import TextTestRunner
 from easybuild.tools import run
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import IGNORE, ERROR, update_build_option
+from easybuild.tools.config import IGNORE, ERROR, build_option, update_build_option
 from easybuild.tools.multidiff import multidiff
-from easybuild.tools.py2vs3 import std_urllib
+from easybuild.tools.py2vs3 import StringIO, std_urllib
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -66,12 +66,18 @@ class FileToolsTest(EnhancedTestCase):
         super(FileToolsTest, self).setUp()
 
         self.orig_filetools_std_urllib_urlopen = ft.std_urllib.urlopen
+        if ft.HAVE_REQUESTS:
+            self.orig_filetools_requests_get = ft.requests.get
+        self.orig_filetools_HAVE_REQUESTS = ft.HAVE_REQUESTS
 
     def tearDown(self):
         """Cleanup."""
         super(FileToolsTest, self).tearDown()
 
         ft.std_urllib.urlopen = self.orig_filetools_std_urllib_urlopen
+        ft.HAVE_REQUESTS = self.orig_filetools_HAVE_REQUESTS
+        if ft.HAVE_REQUESTS:
+            ft.requests.get = self.orig_filetools_requests_get
 
     def test_extract_cmd(self):
         """Test various extract commands."""
@@ -508,7 +514,6 @@ class FileToolsTest(EnhancedTestCase):
 
         # replaceurlopen with function that raises HTTP error 403
         def fake_urllib_open(*args, **kwargs):
-            from easybuild.tools.py2vs3 import StringIO
             raise ft.std_urllib.HTTPError(url, 403, "Forbidden", "", StringIO())
 
         ft.std_urllib.urlopen = fake_urllib_open
@@ -522,6 +527,82 @@ class FileToolsTest(EnhancedTestCase):
         # without requests being available, error is raised
         ft.HAVE_REQUESTS = False
         self.assertErrorRegex(EasyBuildError, "SSL issues with urllib2", ft.download_file, fn, url, target)
+
+    def test_download_file_insecure(self):
+        """
+        Test downloading of file via insecure URL
+        """
+
+        self.assertFalse(build_option('insecure_download'))
+
+        # replace urlopen with function that raises IOError
+        def fake_urllib_open(url, *args, **kwargs):
+            if kwargs.get('context') is None:
+                error_msg = " <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] "
+                error_msg += "certificate verify failed (_ssl.c:618)>"
+                raise IOError(error_msg)
+
+            return self.orig_filetools_std_urllib_urlopen(url, *args, **kwargs)
+
+        fn = 'toy-0.0.eb'
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        toy_dir = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy')
+        url = 'file://%s/%s' % (toy_dir, fn)
+
+        ft.std_urllib.urlopen = fake_urllib_open
+
+        target_path = os.path.join(self.test_prefix, fn)
+
+        # first try without allowing insecure downloads (default)
+        res = ft.download_file(fn, url, target_path)
+        self.assertEqual(res, None)
+
+        update_build_option('insecure_download', True)
+        self.mock_stderr(True)
+        res = ft.download_file(fn, url, target_path)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+
+        self.assertTrue("WARNING: Not checking server certificates while downloading toy-0.0.eb" in stderr)
+        self.assertTrue(os.path.exists(res))
+        self.assertTrue(ft.read_file(res).startswith("name = 'toy'"))
+
+        # also test insecure download via requests fallback
+        if ft.HAVE_REQUESTS:
+
+            # need to use actual URL here, requests doesn't like file:// URLs
+            url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
+            fn = os.path.basename(url)
+            target_path = os.path.join(self.test_prefix, fn)
+
+            # replace urlopen with function that raises HTTP error 403
+            def fake_urllib_open(url, *args, **kwargs):
+                raise ft.std_urllib.HTTPError(url, 403, "Forbidden", "", StringIO())
+
+            ft.std_urllib.urlopen = fake_urllib_open
+
+            def fake_requests_get(url, *args, **kwargs):
+                verify = kwargs.get('verify')
+                if verify:
+                    raise IOError("failing SSL certificate!")
+
+                return self.orig_filetools_requests_get(url, *args, **kwargs)
+
+            ft.requests.get = fake_requests_get
+
+            update_build_option('insecure_download', False)
+            res = ft.download_file(fn, url, target_path)
+            self.assertEqual(res, None)
+
+            update_build_option('insecure_download', True)
+            self.mock_stderr(True)
+            res = ft.download_file(fn, url, target_path)
+            stderr = self.get_stderr()
+            self.mock_stderr(False)
+
+            self.assertTrue("WARNING: Not checking server certificates while downloading README.rst" in stderr)
+            self.assertTrue(os.path.exists(res))
+            self.assertTrue("https://easybuilders.github.io/easybuild" in ft.read_file(res))
 
     def test_mkdir(self):
         """Test mkdir function."""

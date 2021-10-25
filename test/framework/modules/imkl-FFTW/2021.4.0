@@ -1,0 +1,31 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+FFTW interfaces using Intel oneAPI Math Kernel Library
+
+
+More information
+================
+ - Homepage: https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/onemkl.html
+    }
+}
+
+module-whatis {Description: FFTW interfaces using Intel oneAPI Math Kernel Library}
+module-whatis {Homepage: https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/onemkl.html}
+module-whatis {URL: https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/onemkl.html}
+
+set root /tmp/imkl-FFTW/2021.4.0
+
+conflict imkl-FFTW
+
+prepend-path	CMAKE_PREFIX_PATH		$root
+prepend-path	LD_LIBRARY_PATH		$root/lib
+prepend-path	LIBRARY_PATH		$root/lib
+setenv	EBROOTIMKLMINFFTW		"$root"
+setenv	EBVERSIONIMKLMINFFTW		"2021.4.0"
+setenv	EBDEVELIMKLMINFFTW		"$root/easybuild/imkl-FFTW-2021.4.0-easybuild-devel"
+
+# Built with EasyBuild version 4.5.0dev

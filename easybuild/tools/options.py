@@ -426,6 +426,8 @@ class EasyBuildOptions(GeneralOption):
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-test-failure': ("Ignore a failing test step", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
+            'insecure-download': ("Don't check the server certificate against the available certificate authorities.",
+                                  None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
             'lib-lib64-symlink': ("Automatically create symlinks for lib/ pointing to lib64/ if the former is missing",
                                   None, 'store_true', True),

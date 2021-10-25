@@ -50,6 +50,7 @@ import re
 import shutil
 import signal
 import stat
+import ssl
 import sys
 import tempfile
 import time
@@ -740,6 +741,8 @@ def det_file_size(http_header):
 def download_file(filename, url, path, forced=False):
     """Download a file from the given URL, to the specified path."""
 
+    insecure = build_option('insecure_download')
+
     _log.debug("Trying to download %s from %s to %s", filename, url, path)
 
     timeout = build_option('download_timeout')
@@ -788,14 +791,19 @@ def download_file(filename, url, path, forced=False):
     while not downloaded and attempt_cnt < max_attempts:
         attempt_cnt += 1
         try:
+            if insecure:
+                print_warning("Not checking server certificates while downloading %s from %s." % (filename, url))
             if used_urllib is std_urllib:
                 # urllib2 (Python 2) / urllib.request (Python 3) does the right thing for http proxy setups,
                 # urllib does not!
-                url_fd = std_urllib.urlopen(url_req, timeout=timeout)
+                if insecure:
+                    url_fd = std_urllib.urlopen(url_req, timeout=timeout, context=ssl._create_unverified_context())
+                else:
+                    url_fd = std_urllib.urlopen(url_req, timeout=timeout)
                 status_code = url_fd.getcode()
                 size = det_file_size(url_fd.info())
             else:
-                response = requests.get(url, headers=headers, stream=True, timeout=timeout)
+                response = requests.get(url, headers=headers, stream=True, timeout=timeout, verify=(not insecure))
                 status_code = response.status_code
                 response.raise_for_status()
                 size = det_file_size(response.headers)
