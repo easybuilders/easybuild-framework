@@ -616,6 +616,9 @@ class RunTest(EnhancedTestCase):
 
         cmd_info = run_cmd(error_test_cmd, asynchronous=True)
         res = check_async_cmd(*cmd_info, fail_on_error=False)
+        # keep checking until command is fully done
+        while not res['done']:
+            res = check_async_cmd(*cmd_info, fail_on_error=False)
         self.assertEqual(res, {'done': True, 'exit_code': 123, 'output': "FAIL!\n"})
 
         # also test with a command that produces a lot of output,
