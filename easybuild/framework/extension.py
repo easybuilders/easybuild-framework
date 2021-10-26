@@ -168,9 +168,15 @@ class Extension(object):
 
     def run(self, *args, **kwargs):
         """
-        Actual installation of a extension.
+        Actual installation of an extension.
         """
         pass
+
+    def run_async(self, *args, **kwargs):
+        """
+        Asynchronous installation of an extension.
+        """
+        raise NotImplementedError
 
     def postrun(self):
         """
