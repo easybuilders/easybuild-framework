@@ -2784,6 +2784,7 @@ class FileToolsTest(EnhancedTestCase):
             test_file = os.path.join(target_dir, 'test.tar.gz')
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
+            test_tar_gzs = [os.path.basename(test_file)]
             self.assertEqual(os.listdir(target_dir), ['test.tar.gz'])
             # Check that we indeed downloaded the right tag
             extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
@@ -2805,12 +2806,21 @@ class FileToolsTest(EnhancedTestCase):
             self.assertTrue(os.path.isfile(os.path.join(extracted_repo_dir, 'this-is-a-tag.txt')))
 
             del git_config['tag']
-            git_config['commit'] = '8456f86'
+            git_config['commit'] = '90366ea'
             res = ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
             test_file = os.path.join(target_dir, 'test2.tar.gz')
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
-            self.assertEqual(sorted(os.listdir(target_dir)), ['test.tar.gz', 'test2.tar.gz'])
+            test_tar_gzs.append(os.path.basename(test_file))
+            self.assertEqual(sorted(os.listdir(target_dir)), test_tar_gzs)
+
+            git_config['keep_git_dir'] = True
+            res = ft.get_source_tarball_from_git('test3.tar.gz', target_dir, git_config)
+            test_file = os.path.join(target_dir, 'test3.tar.gz')
+            self.assertEqual(res, test_file)
+            self.assertTrue(os.path.isfile(test_file))
+            test_tar_gzs.append(os.path.basename(test_file))
+            self.assertEqual(sorted(os.listdir(target_dir)), test_tar_gzs)
 
         except EasyBuildError as err:
             if "Network is down" in str(err):
