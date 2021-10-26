@@ -200,6 +200,9 @@ class Extension(object):
         """
         if self.async_cmd_info is None:
             raise EasyBuildError("No installation command running asynchronously for %s", self.name)
+        elif self.async_cmd_info is False:
+            self.log.info("No asynchronous command was started for extension %s", self.name)
+            return True
         else:
             self.log.debug("Checking on installation of extension %s...", self.name)
             # use small read size, to avoid waiting for a long time until sufficient output is produced
@@ -207,6 +210,7 @@ class Extension(object):
             self.async_cmd_output += res['output']
             if res['done']:
                 self.log.info("Installation of extension %s completed!", self.name)
+                self.async_cmd_info = None
             else:
                 self.async_cmd_check_cnt += 1
                 self.log.debug("Installation of extension %s still running (checked %d times)",
