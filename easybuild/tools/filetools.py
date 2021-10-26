@@ -2598,11 +2598,6 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     # compose 'git clone' command, and run it
     clone_cmd = ['git', 'clone']
 
-    if not keep_git_dir:
-        # Speed up cloning by only fetching the most recent commit, not the whole history
-        # When we don't want to keep the .git folder there won't be a difference in the result
-        clone_cmd.extend(['--depth', '1'])
-
     if tag:
         clone_cmd.extend(['--branch', tag])
         if recursive:
