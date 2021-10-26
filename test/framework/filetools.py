@@ -2750,7 +2750,7 @@ class FileToolsTest(EnhancedTestCase):
         del git_config['tag']
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --no-checkout %(git_repo)s"',
+            r'  running command "git clone --no-checkout %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
             r'  running command "git checkout 8456f86 && git submodule update --init --recursive"',
             r"  \(in testrepository\)",
@@ -2761,7 +2761,7 @@ class FileToolsTest(EnhancedTestCase):
 
         del git_config['recursive']
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --no-checkout %(git_repo)s"',
+            r'  running command "git clone --no-checkout %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
             r'  running command "git checkout 8456f86"',
             r"  \(in testrepository\)",
