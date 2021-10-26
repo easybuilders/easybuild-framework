@@ -1642,17 +1642,16 @@ class EasyBlock(object):
 
         self.ext_instances = res
 
-    def install_extensions(self, install=True, parallel=False):
+    def install_extensions(self, install=True):
         """
         Install extensions.
 
         :param install: actually install extensions, don't just prepare environment for installing
-        :param parallel: install extensions in parallel
 
         """
         self.log.debug("List of loaded modules: %s", self.modules_tool.list())
 
-        if build_option('parallel_extensions_install') and parallel:
+        if build_option('parallel_extensions_install'):
             self.log.experimental("installing extensions in parallel")
             self.install_extensions_parallel(install=install)
         else:
