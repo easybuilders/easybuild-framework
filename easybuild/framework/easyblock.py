@@ -91,7 +91,7 @@ from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NA
 from easybuild.tools.modules import Lmod, curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
-from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
+from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
@@ -1775,16 +1775,6 @@ class EasyBlock(object):
                     else:
                         self.log.debug("Installation of %s is still running...", ext.name)
 
-            # print progress info every now and then
-            if iter_id % 1 == 0:
-                msg = "%d out of %d extensions installed (%d queued, %d running: %s)"
-                installed_cnt, queued_cnt, running_cnt = len(installed_ext_names), len(exts_queue), len(running_exts)
-                if running_cnt <= 3:
-                    running_ext_names = ', '.join(x.name for x in running_exts)
-                else:
-                    running_ext_names = ', '.join(x.name for x in running_exts[:3]) + ", ..."
-                print_msg(msg % (installed_cnt, exts_cnt, queued_cnt, running_cnt, running_ext_names), log=self.log)
-
             # try to start as many extension installations as we can, taking into account number of available cores,
             # but only consider first 100 extensions still in the queue
             max_iter = min(100, len(exts_queue))
@@ -1835,6 +1825,16 @@ class EasyBlock(object):
                         running_exts.append(ext)
                         self.log.info("Started installation of extension %s in the background...", ext.name)
                         update_exts_progress_bar_helper(running_exts, 0)
+
+            # print progress info after every iteration (unless that info is already shown via progress bar)
+            if not show_progress_bars():
+                msg = "%d out of %d extensions installed (%d queued, %d running: %s)"
+                installed_cnt, queued_cnt, running_cnt = len(installed_ext_names), len(exts_queue), len(running_exts)
+                if running_cnt <= 3:
+                    running_ext_names = ', '.join(x.name for x in running_exts)
+                else:
+                    running_ext_names = ', '.join(x.name for x in running_exts[:3]) + ", ..."
+                print_msg(msg % (installed_cnt, exts_cnt, queued_cnt, running_cnt, running_ext_names), log=self.log)
 
     #
     # MISCELLANEOUS UTILITY FUNCTIONS
