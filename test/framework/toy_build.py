@@ -1777,6 +1777,45 @@ class ToyBuildTest(EnhancedTestCase):
         self.eb_main([test_ec, '--module-only', '--force'], do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_mod))
 
+    def test_toy_exts_parallel(self):
+        """
+        Test parallel installation of extensions (--parallel-extensions-install)
+        """
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_mod += '.lua'
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\n' + '\n'.join([
+            "exts_list = [",
+            "    ('ls'),",
+            "    ('bar', '0.0'),",
+            "    ('barbar', '0.0', {",
+            "        'start_dir': 'src',",
+            "    }),",
+            "    ('toy', '0.0'),",
+            "]",
+            "sanity_check_commands = ['barbar', 'toy']",
+            "sanity_check_paths = {'files': ['bin/barbar', 'bin/toy'], 'dirs': ['bin']}",
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        args = ['--parallel-extensions-install', '--experimental', '--force']
+        stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
+        self.assertEqual(stderr, '')
+        expected_stdout = '\n'.join([
+            "== 0 out of 4 extensions installed (2 queued, 2 running: ls, bar)",
+            "== 2 out of 4 extensions installed (1 queued, 1 running: barbar)",
+            "== 3 out of 4 extensions installed (0 queued, 1 running: toy)",
+            "== 4 out of 4 extensions installed (0 queued, 0 running: )",
+            '',
+        ])
+        self.assertEqual(stdout, expected_stdout)
+
     def test_backup_modules(self):
         """Test use of backing up of modules with --module-only."""
 

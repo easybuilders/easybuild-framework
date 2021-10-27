@@ -456,6 +456,8 @@ class EasyBuildOptions(GeneralOption):
                              'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),
             'parallel': ("Specify (maximum) level of parallellism used during build procedure",
                          'int', 'store', None),
+            'parallel-extensions-install': ("Install list of extensions in parallel (if supported)",
+                                            None, 'store_true', False),
             'pre-create-installdir': ("Create installation directory before submitting build jobs",
                                       None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
@@ -890,6 +892,10 @@ class EasyBuildOptions(GeneralOption):
 
         # set tmpdir
         self.tmpdir = set_tmpdir(self.options.tmpdir)
+
+        # early check for opt-in to installing extensions in parallel (experimental feature)
+        if self.options.parallel_extensions_install:
+            self.log.experimental("installing extensions in parallel")
 
         # take --include options into account (unless instructed otherwise)
         if self.with_include:
