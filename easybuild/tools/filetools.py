@@ -2365,8 +2365,10 @@ def copy_file(path, target_path, force_in_dry_run=False):
         raise EasyBuildError("Could not copy '%s' it does not exist!", path)
     else:
         try:
+            # check whether path to copy exists (we could be copying a broken symlink, which is supported)
+            path_exists = os.path.exists(path)
             target_exists = os.path.exists(target_path)
-            if target_exists and os.path.samefile(path, target_path):
+            if target_exists and path_exists and os.path.samefile(path, target_path):
                 _log.debug("Not copying %s to %s since files are identical", path, target_path)
             # if target file exists and is owned by someone else than the current user,
             # try using shutil.copyfile to just copy the file contents
@@ -2376,7 +2378,10 @@ def copy_file(path, target_path, force_in_dry_run=False):
                 _log.info("Copied contents of file %s to %s", path, target_path)
             else:
                 mkdir(os.path.dirname(target_path), parents=True)
-                if os.path.islink(path):
+                if path_exists:
+                    shutil.copy2(path, target_path)
+                    _log.info("%s copied to %s", path, target_path)
+                elif os.path.islink(path):
                     if os.path.isdir(target_path):
                         target_path = os.path.join(target_path, os.path.basename(path))
                         _log.info("target_path changed to %s", target_path)
@@ -2385,8 +2390,7 @@ def copy_file(path, target_path, force_in_dry_run=False):
                     symlink(link_target, target_path, use_abspath_source=False)
                     _log.info("created symlink %s to %s", link_target, target_path)
                 else:
-                    shutil.copy2(path, target_path)
-                    _log.info("%s copied to %s", path, target_path)
+                    raise EasyBuildError("Specified path %s is not an existing file or a symbolic link!", path)
         except (IOError, OSError, shutil.Error) as err:
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
