@@ -1739,13 +1739,23 @@ class FileToolsTest(EnhancedTestCase):
         # Make sure it doesn't fail if path is a symlink and target_path is a dir
         toy_link_fn = 'toy-link-0.0.eb'
         toy_link = os.path.join(self.test_prefix, toy_link_fn)
-        ft.symlink(toy_ec, toy_link)
+        ft.symlink(target_path, toy_link)
         dir_target_path = os.path.join(self.test_prefix, 'subdir')
         ft.mkdir(dir_target_path)
         ft.copy_file(toy_link, dir_target_path)
-        self.assertTrue(os.path.islink(os.path.join(dir_target_path, toy_link_fn)))
+        copied_file = os.path.join(dir_target_path, toy_link_fn)
+        # symlinks that point to an existing file are resolved on copy (symlink itself is not copied)
+        self.assertTrue(os.path.exists(copied_file), "%s should exist" % copied_file)
+        self.assertTrue(os.path.isfile(copied_file), "%s should be a file" % copied_file)
+        ft.remove_file(copied_file)
+
+        # test copying of a broken symbolic link: copy_file should not fail, but copy it!
+        ft.remove_file(target_path)
+        ft.copy_file(toy_link, dir_target_path)
+        self.assertTrue(os.path.islink(copied_file), "%s should be a broken symbolic link" % copied_file)
+        self.assertFalse(os.path.exists(copied_file), "%s should be a broken symbolic link" % copied_file)
         self.assertEqual(os.readlink(os.path.join(dir_target_path, toy_link_fn)), os.readlink(toy_link))
-        os.remove(os.path.join(dir_target_path, toy_link))
+        ft.remove_file(copied_file)
 
         # clean error when trying to copy a directory with copy_file
         src, target = os.path.dirname(toy_ec), os.path.join(self.test_prefix, 'toy')
@@ -1781,8 +1791,8 @@ class FileToolsTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        # remove target file, it shouldn't get copied under dry run
-        os.remove(target_path)
+        # make sure target file is not there, it shouldn't get copied under dry run
+        self.assertFalse(os.path.exists(target_path))
 
         self.mock_stdout(True)
         ft.copy_file(toy_ec, target_path)
