@@ -226,7 +226,7 @@ class ModuleGenerator(object):
             filtered_paths = [x for x in paths if x not in added_paths and not added_paths.add(x)]
         if filtered_paths != paths:
             removed_paths = paths if filtered_paths is None else [x for x in paths if x not in filtered_paths]
-            print_warning("Supressed adding the following path(s) to $%s of the module as they were already added: %s",
+            print_warning("Suppressed adding the following path(s) to $%s of the module as they were already added: %s",
                           key, removed_paths,
                           log=self.log)
             if not filtered_paths:

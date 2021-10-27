@@ -719,6 +719,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                               "which only expects relative paths." % self.modgen.app.installdir,
                               append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
+        # check for warning that is printed when same path is added multiple times
+        with self.modgen.start_module_creation():
+            self.modgen.append_paths('TEST', 'path1')
+            self.mock_stderr(True)
+            self.modgen.append_paths('TEST', 'path1')
+            stderr = self.get_stderr()
+            self.mock_stderr(False)
+            expected_warning = "\nWARNING: Suppressed adding the following path(s) to $TEST of the module "
+            expected_warning += "as they were already added: path1\n\n"
+            self.assertEqual(stderr, expected_warning)
+
     def test_module_extensions(self):
         """test the extensions() for extensions"""
         # not supported for Tcl modules
@@ -797,6 +808,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
                                               "which only expects relative paths." % self.modgen.app.installdir,
                               prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+
+        # check for warning that is printed when same path is added multiple times
+        with self.modgen.start_module_creation():
+            self.modgen.prepend_paths('TEST', 'path1')
+            self.mock_stderr(True)
+            self.modgen.prepend_paths('TEST', 'path1')
+            stderr = self.get_stderr()
+            self.mock_stderr(False)
+            expected_warning = "\nWARNING: Suppressed adding the following path(s) to $TEST of the module "
+            expected_warning += "as they were already added: path1\n\n"
+            self.assertEqual(stderr, expected_warning)
 
     def test_det_user_modpath(self):
         """Test for generic det_user_modpath method."""
