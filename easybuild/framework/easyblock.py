@@ -1754,10 +1754,7 @@ class EasyBlock(object):
 
             self.update_exts_progress_bar(progress_info, progress_size=progress_size)
 
-        iter_id = 0
         while exts_queue or running_exts:
-
-            iter_id += 1
 
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)

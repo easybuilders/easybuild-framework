@@ -225,7 +225,7 @@ class Extension(object):
     @property
     def required_deps(self):
         """Return list of required dependencies for this extension."""
-        raise NotImplementedError("Don't know how to determine required dependencies for %s" % self.name)
+        raise NotImplementedError("Don't know how to determine required dependencies for extension '%s'" % self.name)
 
     @property
     def toolchain(self):
