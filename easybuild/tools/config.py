@@ -285,6 +285,7 @@ BUILD_OPTIONS_CMDLINE = {
         'generate_devel_module',
         'sticky_bit',
         'trace',
+        'unit_testing_mode',
         'upload_test_report',
         'update_modules_tool_cache',
         'use_ccache',

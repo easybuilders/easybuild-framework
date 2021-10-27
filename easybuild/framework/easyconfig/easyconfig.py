@@ -837,7 +837,10 @@ class EasyConfig(object):
                 raise EasyBuildError("Wrong type for value of 'deprecated' easyconfig parameter: %s", type(deprecated))
 
         if self.toolchain.is_deprecated():
-            depr_msgs.append("toolchain '%(name)s/%(version)s' is marked as deprecated" % self['toolchain'])
+            # allow use of deprecated toolchains when running unit tests,
+            # because test easyconfigs/modules often use old toolchain versions (and updating them is far from trivial)
+            if not build_option('unit_testing_mode'):
+                depr_msgs.append("toolchain '%(name)s/%(version)s' is marked as deprecated" % self['toolchain'])
 
         if depr_msgs:
             depr_msg = ', '.join(depr_msgs)

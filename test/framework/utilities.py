@@ -289,6 +289,10 @@ class EnhancedTestCase(TestCase):
         """Helper method to call EasyBuild main function."""
         cleanup()
 
+        # always run main in unit testing mode (which for example allows for using deprecated toolchains);
+        # note: don't change 'args' value, which is passed by reference!
+        main_args = args + ['--unit-testing-mode']
+
         myerr = False
         if logfile is None:
             logfile = self.logfile
@@ -306,7 +310,7 @@ class EnhancedTestCase(TestCase):
                 modtool = None
             else:
                 modtool = self.modtool
-            main(args=args, logfile=logfile, do_build=do_build, testing=testing, modtool=modtool)
+            main(args=main_args, logfile=logfile, do_build=do_build, testing=testing, modtool=modtool)
         except SystemExit as err:
             if raise_systemexit:
                 raise err
@@ -476,6 +480,7 @@ def init_config(args=None, build_options=None, with_include=True):
         'local_var_naming_check': 'error',
         'silence_deprecation_warnings': eb_go.options.silence_deprecation_warnings,
         'suffix_modules_path': GENERAL_CLASS,
+        'unit_testing_mode': True,
         'valid_module_classes': module_classes(),
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
     }
