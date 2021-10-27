@@ -46,7 +46,7 @@ class Foss(Gompi, OpenBLAS, FlexiBLAS, ScaLAPACK, Fftw):
         """Toolchain constructor."""
         super(Foss, self).__init__(*args, **kwargs)
 
-        # need to transform a version like '2016a' with something that is safe to compare with '2000'
+        # need to transform a version like '2018b' with something that is safe to compare with '2019'
         # comparing subversions that include letters causes TypeErrors in Python 3
         # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June) (good enough for this purpose)
         version = self.version.replace('a', '.01').replace('b', '.07')
@@ -84,10 +84,8 @@ class Foss(Gompi, OpenBLAS, FlexiBLAS, ScaLAPACK, Fftw):
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
 
-        # foss toolchains older than foss/2016a are deprecated
-        # take into account that foss/2016.x is always < foss/2016a according to LooseVersion;
-        # foss/2016.01 & co are not deprecated yet...
-        if self.looseversion < LooseVersion('2016.01'):
+        # foss toolchains older than foss/2019a are deprecated since EasyBuild v4.5.0;
+        if self.looseversion < LooseVersion('2019'):
             deprecated = True
         else:
             deprecated = False
