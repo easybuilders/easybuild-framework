@@ -2409,7 +2409,7 @@ def sync_with_develop(git_repo, branch_name, github_account, github_repo):
     remote = create_remote(git_repo, github_account, github_repo, https=True)
 
     # fetch latest version of develop branch
-    pull_out = git_repo.git.pull(remote.name, GITHUB_DEVELOP_BRANCH)
+    pull_out = git_repo.git.pull(remote.name, GITHUB_DEVELOP_BRANCH, no_rebase=True)
     _log.debug("Output of 'git pull %s %s': %s", remote.name, GITHUB_DEVELOP_BRANCH, pull_out)
 
     # fetch to make sure we can check out the 'develop' branch
