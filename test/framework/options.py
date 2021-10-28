@@ -2756,9 +2756,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test use of --http-header-fields-urlpat."""
         tmpdir = tempfile.mkdtemp()
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        ec_file = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb')
+        gzip_ec = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb')
+        gzip_ec_txt = read_file(gzip_ec)
+        regex = re.compile('^source_urls = .*', re.M)
+        test_ec_txt = regex.sub("source_urls = ['https://sources.easybuild.io/g/gzip']", gzip_ec_txt)
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
         common_args = [
-            ec_file,
+            test_ec,
             '--stop=fetch',
             '--debug',
             '--force',
@@ -2800,7 +2805,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # A: simple direct case (all is logged because passed directly via EasyBuild configuration options)
         args = list(common_args)
         args.extend([
-            '--http-header-fields-urlpat=gnu.org::%s:%s' % (testdohdr, testdoval),
+            '--http-header-fields-urlpat=easybuild.io::%s:%s' % (testdohdr, testdoval),
             '--http-header-fields-urlpat=nomatch.com::%s:%s' % (testdonthdr, testdontval),
         ])
         # expect to find everything passed on cmdline
@@ -2813,7 +2818,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # B: simple file case (secrets in file are not logged)
         txt = '\n'.join([
-            'gnu.org::%s: %s' % (testdohdr, testdoval),
+            'easybuild.io::%s: %s' % (testdohdr, testdoval),
             'nomatch.com::%s: %s' % (testdonthdr, testdontval),
             '',
         ])
@@ -2825,7 +2830,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # C: recursion one: header value is another file
         txt = '\n'.join([
-            'gnu.org::%s: %s' % (testdohdr, testincfile),
+            'easybuild.io::%s: %s' % (testdohdr, testincfile),
             'nomatch.com::%s: %s' % (testdonthdr, testexcfile),
             '',
         ])
@@ -2839,7 +2844,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         run_and_assert(args, "case C", expected, not_expected)
 
         # D: recursion two: header field+value is another file,
-        write_file(testcmdfile, '\n'.join(['gnu.org::%s' % (testinchdrfile), 'nomatch.com::%s' % (testexchdrfile), '']))
+        write_file(testcmdfile, '\n'.join([
+            'easybuild.io::%s' % (testinchdrfile),
+            'nomatch.com::%s' % (testexchdrfile),
+            '',
+        ]))
         write_file(testinchdrfile, '%s: %s\n' % (testdohdr, testdoval))
         write_file(testexchdrfile, '%s: %s\n' % (testdonthdr, testdontval))
         # expect to find only the header key (and the literal filename) and only for the appropriate url
@@ -2851,7 +2860,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # E: recursion three: url pattern + header field + value in another file
         write_file(testcmdfile, '%s\n' % (testurlpatfile))
         txt = '\n'.join([
-            'gnu.org::%s: %s' % (testdohdr, testdoval),
+            'easybuild.io::%s: %s' % (testdohdr, testdoval),
             'nomatch.com::%s: %s' % (testdonthdr, testdontval),
             '',
         ])
