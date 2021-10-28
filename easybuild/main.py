@@ -498,7 +498,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         elif options.new_pr_from_branch:
             new_pr_from_branch(options.new_pr_from_branch)
         elif options.preview_pr:
-            print(review_pr(paths=determined_paths, colored=use_color(options.color)))
+            print(review_pr(paths=determined_paths, patches=categorized_paths['patch_files'],
+                            colored=use_color(options.color)))
         elif options.sync_branch_with_develop:
             sync_branch_with_develop(options.sync_branch_with_develop)
         elif options.sync_pr_with_develop:

@@ -55,7 +55,7 @@ from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
+from easybuild.tools.filetools import diff_files, find_easyconfigs, is_patch_file, locate_files
 from easybuild.tools.filetools import read_file, resolve_path, which, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import det_pr_labels, download_repo, fetch_easyconfigs_from_pr, fetch_pr_data
@@ -491,15 +491,19 @@ def find_related_easyconfigs(path, ec):
     return sorted(res)
 
 
-def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False):
+def review_pr(paths=None, patches=None, pr=None, colored=True, branch='develop', testing=False):
     """
     Print multi-diff overview between specified easyconfigs or PR and specified branch.
     :param pr: pull request number in easybuild-easyconfigs repo to review
     :param paths: path tuples (path, generated) of easyconfigs to review
+    :param patches: patch paths (used with --preview-pr)
     :param colored: boolean indicating whether a colored multi-diff should be generated
     :param branch: easybuild-easyconfigs branch to compare with
     :param testing: whether to ignore PR labels (used in test_review_pr)
     """
+    if patches is None:
+        patches = []
+
     pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
     if pr_target_repo != GITHUB_EASYCONFIGS_REPO:
         raise EasyBuildError("Reviewing PRs for repositories other than easyconfigs hasn't been implemented yet")
@@ -510,7 +514,9 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False
     repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
 
     if pr:
-        pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
+        fetched_files = fetch_easyconfigs_from_pr(pr)
+        pr_files = [path for path in fetched_files if path.endswith('.eb')]
+        patches = [path for path in fetched_files if path.endswith('.patch')]
     elif paths:
         pr_files = paths
     else:
@@ -529,6 +535,22 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False
             lines.append(multidiff(ec['spec'], files, colored=colored))
         else:
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
+
+        for patch in patches:
+            for ec_patch in ec['ec'].asdict()['patches']:
+                if os.path.basename(patch) == ec_patch:
+                    ec_name = ec['ec']['name']
+                    if pr:
+                        patch_path_in_repo = os.path.join(repo_path, ec_name[0].lower(), ec_name, patch + '.bak')
+                    else:
+                        patch_path_in_repo = os.path.join(repo_path, ec_name[0].lower(), ec_name, patch)
+                    if os.path.exists(patch_path_in_repo):
+                        lines.append("Diff for %s" % patch)
+                        lines.append(diff_files(patch_path_in_repo, os.path.abspath(patch)))
+                    else:
+                        lines.append("New patch file %s\n=====" % patch)
+                        with open(os.path.abspath(patch), 'r') as f:
+                            lines.extend(f.read().splitlines())
 
     if pr:
         file_info = det_file_info(pr_files, download_repo_path)
