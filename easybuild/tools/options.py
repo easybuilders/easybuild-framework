@@ -491,6 +491,7 @@ class EasyBuildOptions(GeneralOption):
                       None, 'store', None),
             'update-modules-tool-cache': ("Update modules tool cache file(s) after generating module file",
                                           None, 'store_true', False),
+            'unit-testing-mode': ("Run in unit test mode", None, 'store_true', False),
             'use-ccache': ("Enable use of ccache to speed up compilation, with specified cache dir",
                            str, 'store', False, {'metavar': "PATH"}),
             'use-f90cache': ("Enable use of f90cache to speed up compilation, with specified cache dir",
