@@ -3745,8 +3745,7 @@ class EasyBlock(object):
         # figure out how many steps will actually be run (not be skipped)
         step_cnt = 0
         for (step_name, _, _, skippable) in steps:
-            if not self.skip_step(step_name, skippable):
-                step_cnt += 1
+            step_cnt += 1
             if self.cfg['stop'] == step_name:
                 break
 
@@ -3793,7 +3792,7 @@ class EasyBlock(object):
                             elif self.logdebug or build_option('trace'):
                                 print_msg("... (took < 1 sec)", log=self.log, silent=self.silent)
 
-                    update_progress_bar(PROGRESS_BAR_EASYCONFIG)
+                update_progress_bar(PROGRESS_BAR_EASYCONFIG)
 
         except StopException:
             pass
