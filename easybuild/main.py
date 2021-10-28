@@ -294,7 +294,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         merge_pr(options.merge_pr)
 
     elif options.review_pr:
-        print(review_pr(pr=options.review_pr, colored=use_color(options.color), testing=testing))
+        print(review_pr(pr=options.review_pr, colored=use_color(options.color), testing=testing,
+                        max_ecs=options.review_pr_max, filter_ecs=options.review_pr_filter))
 
     elif options.add_pr_labels:
         add_pr_labels(options.add_pr_labels)

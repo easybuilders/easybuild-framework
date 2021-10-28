@@ -3786,6 +3786,36 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.assertTrue("This PR should be labelled with 'update'" in txt)
 
+        # test --review-pr-max
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        args = [
+            '--color=never',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--review-pr=5365',
+            '--review-pr-max=1',
+        ]
+        self.eb_main(args, raise_error=True, testing=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertTrue("2016.04" not in txt)
+
+        # test --review-pr-filter
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        args = [
+            '--color=never',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--review-pr=5365',
+            '--review-pr-filter=2016a',
+        ]
+        self.eb_main(args, raise_error=True, testing=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertTrue("2016.04" not in txt)
+
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
         self.purge_environment()
