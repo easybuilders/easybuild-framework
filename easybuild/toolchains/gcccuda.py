@@ -52,7 +52,7 @@ class GccCUDA(GccToolchain, Cuda):
 
         # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
         if re.match('^[0-9]', version):
-            # gompi toolchains older than gompi/2019a are deprecated since EasyBuild v4.5.0
+            # gcccuda toolchains older than gcccuda/2019a are deprecated since EasyBuild v4.5.0
             if LooseVersion(version) < LooseVersion('2019'):
                 deprecated = True
 
