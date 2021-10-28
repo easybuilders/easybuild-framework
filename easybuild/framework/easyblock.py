@@ -3744,7 +3744,7 @@ class EasyBlock(object):
 
         # figure out how many steps will actually be run (not be skipped)
         step_cnt = 0
-        for (step_name, _, _, skippable) in steps:
+        for (step_name, _, _, _) in steps:
             step_cnt += 1
             if self.cfg['stop'] == step_name:
                 break
