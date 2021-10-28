@@ -286,7 +286,7 @@ def start_progress_bar(bar_type, size, label=None):
         pbar.update(task_id, description=label)
 
 
-def update_progress_bar(bar_type, label=None, progress_size=1):
+def update_progress_bar(bar_type, label=None, progress_size=1, total=None):
     """
     Update progress bar of given type (if it was started), add progress of given size.
 
@@ -300,6 +300,8 @@ def update_progress_bar(bar_type, label=None, progress_size=1):
             pbar.update(task_id, description=label)
         if progress_size:
             pbar.update(task_id, advance=progress_size)
+        if total:
+            pbar.update(task_id, total=total)
 
 
 def stop_progress_bar(bar_type, visible=False):

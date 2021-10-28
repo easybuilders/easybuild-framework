@@ -178,6 +178,7 @@ class OutputTest(EnhancedTestCase):
         # also test normal cycle: start, update, stop
         start_progress_bar(PROGRESS_BAR_EXTENSIONS, 100)
         update_progress_bar(PROGRESS_BAR_EXTENSIONS)  # single step progress
+        update_progress_bar(PROGRESS_BAR_EXTENSIONS, total=50)
         update_progress_bar(PROGRESS_BAR_EXTENSIONS, label="test123", progress_size=5)
         stop_progress_bar(PROGRESS_BAR_EXTENSIONS)
 

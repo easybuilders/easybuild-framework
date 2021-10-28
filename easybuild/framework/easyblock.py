@@ -1641,6 +1641,7 @@ class EasyBlock(object):
             self.update_exts_progress_bar("skipping installed extensions (%d/%d checked)" % (idx + 1, exts_cnt))
 
         self.ext_instances = res
+        self.update_exts_progress_bar("already installed extensions filtered out", total=len(self.ext_instances))
 
     def install_extensions(self, install=True):
         """
@@ -2573,11 +2574,11 @@ class EasyBlock(object):
             pbar_label += "(%d/%d done)" % (idx + 1, exts_cnt)
             self.update_exts_progress_bar(pbar_label)
 
-    def update_exts_progress_bar(self, info, progress_size=0):
+    def update_exts_progress_bar(self, info, progress_size=0, total=None):
         """
         Update extensions progress bar with specified info and amount of progress made
         """
-        update_progress_bar(PROGRESS_BAR_EXTENSIONS, label=info, progress_size=progress_size)
+        update_progress_bar(PROGRESS_BAR_EXTENSIONS, label=info, progress_size=progress_size, total=total)
 
     def extensions_step(self, fetch=False, install=True):
         """
@@ -3743,9 +3744,8 @@ class EasyBlock(object):
 
         # figure out how many steps will actually be run (not be skipped)
         step_cnt = 0
-        for (step_name, _, _, skippable) in steps:
-            if not self.skip_step(step_name, skippable):
-                step_cnt += 1
+        for (step_name, _, _, _) in steps:
+            step_cnt += 1
             if self.cfg['stop'] == step_name:
                 break
 
@@ -3792,7 +3792,7 @@ class EasyBlock(object):
                             elif self.logdebug or build_option('trace'):
                                 print_msg("... (took < 1 sec)", log=self.log, silent=self.silent)
 
-                    update_progress_bar(PROGRESS_BAR_EASYCONFIG)
+                update_progress_bar(PROGRESS_BAR_EASYCONFIG)
 
         except StopException:
             pass
