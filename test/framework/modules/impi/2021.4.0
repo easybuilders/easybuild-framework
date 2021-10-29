@@ -1,0 +1,42 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+Intel MPI Library, compatible with MPICH ABI
+
+
+More information
+================
+ - Homepage: https://software.intel.com/content/www/us/en/develop/tools/mpi-library.html
+    }
+}
+
+module-whatis {Description: Intel MPI Library, compatible with MPICH ABI}
+module-whatis {Homepage: https://software.intel.com/content/www/us/en/develop/tools/mpi-library.html}
+module-whatis {URL: https://software.intel.com/content/www/us/en/develop/tools/mpi-library.html}
+
+set root /tmp/impi/2021.4.0
+
+conflict impi
+
+prepend-path	CMAKE_PREFIX_PATH		$root
+prepend-path	CPATH		$root/mpi/2021.4.0/include
+prepend-path	FI_PROVIDER_PATH		$root/mpi/2021.4.0/libfabric/lib/prov
+prepend-path	LD_LIBRARY_PATH		$root/mpi/2021.4.0/lib
+prepend-path	LD_LIBRARY_PATH		$root/mpi/2021.4.0/lib/release
+prepend-path	LD_LIBRARY_PATH		$root/mpi/2021.4.0/libfabric/lib
+prepend-path	LIBRARY_PATH		$root/mpi/2021.4.0/lib
+prepend-path	LIBRARY_PATH		$root/mpi/2021.4.0/lib/release
+prepend-path	LIBRARY_PATH		$root/mpi/2021.4.0/libfabric/lib
+prepend-path	MANPATH		$root/mpi/2021.4.0/man
+prepend-path	PATH		$root/mpi/2021.4.0/bin
+prepend-path	PATH		$root/mpi/2021.4.0/libfabric/bin
+setenv	EBROOTIMPI		"$root"
+setenv	EBVERSIONIMPI		"2021.4.0"
+setenv	EBDEVELIMPI		"$root/easybuild/impi-2021.4.0-easybuild-devel"
+
+setenv	I_MPI_ROOT		"$root/mpi/2021.4.0"
+setenv	UCX_TLS		"all"
+# Built with EasyBuild version 4.5.0dev

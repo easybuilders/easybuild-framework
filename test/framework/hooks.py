@@ -29,7 +29,7 @@ Unit tests for hooks.py
 """
 import os
 import sys
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.hooks
@@ -123,6 +123,8 @@ class HooksTest(EnhancedTestCase):
         """Test for run_hook function."""
 
         hooks = load_hooks(self.test_hooks_pymod)
+
+        init_config(build_options={'debug': True})
 
         self.mock_stdout(True)
         self.mock_stderr(True)

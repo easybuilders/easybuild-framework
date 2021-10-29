@@ -435,7 +435,8 @@ class EasyBlockTest(EnhancedTestCase):
         # this is not a path that should be picked up
         os.mkdir(os.path.join(eb.installdir, 'CPATH'))
 
-        guess = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            guess = eb.make_module_req()
 
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"^prepend-path\s+CLASSPATH\s+\$root/bla.jar$", guess, re.M))
@@ -462,7 +463,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # check that bin is only added to PATH if there are files in there
         write_file(os.path.join(eb.installdir, 'bin', 'test'), 'test')
-        guess = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
             self.assertFalse(re.search(r"^prepend-path\s+PATH\s+\$root/sbin$", guess, re.M))
@@ -481,7 +483,8 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertFalse('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))' in guess)
         # -- With files
         write_file(os.path.join(eb.installdir, 'lib64', 'libfoo.so'), 'test')
-        guess = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
         elif get_module_syntax() == 'Lua':
@@ -490,7 +493,8 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'test')
         shutil.rmtree(os.path.join(eb.installdir, 'lib64'))
         os.symlink('lib', os.path.join(eb.installdir, 'lib64'))
-        guess = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertFalse(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
         elif get_module_syntax() == 'Lua':
@@ -509,7 +513,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # check for behavior when a string value is used as dict value by make_module_req_guesses
         eb.make_module_req_guess = lambda: {'PATH': 'bin'}
-        txt = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.match(r"^\nprepend-path\s+PATH\s+\$root/bin\n$", txt, re.M))
         elif get_module_syntax() == 'Lua':
@@ -520,7 +525,8 @@ class EasyBlockTest(EnhancedTestCase):
         # check for correct behaviour if empty string is specified as one of the values
         # prepend-path statements should be included for both the 'bin' subdir and the install root
         eb.make_module_req_guess = lambda: {'PATH': ['bin', '']}
-        txt = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"\nprepend-path\s+PATH\s+\$root/bin\n", txt, re.M))
             self.assertTrue(re.search(r"\nprepend-path\s+PATH\s+\$root\n", txt, re.M))
@@ -535,7 +541,8 @@ class EasyBlockTest(EnhancedTestCase):
         for path in ['pathA', 'pathB', 'pathC']:
             os.mkdir(os.path.join(eb.installdir, 'lib', path))
             write_file(os.path.join(eb.installdir, 'lib', path, 'libfoo.so'), 'test')
-        txt = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"\nprepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/pathC\n" +
                                       r"prepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/pathA\n" +
@@ -1152,7 +1159,7 @@ class EasyBlockTest(EnhancedTestCase):
         # purposely use a 'nasty' description, that includes (unbalanced) special chars: [, ], {, }
         descr = "This {is a}} [fancy]] [[description]]. {{[[TEST}]"
         modextravars = {'PI': '3.1415', 'FOO': 'bar'}
-        modextrapaths = {'PATH': 'pibin', 'CPATH': 'pi/include'}
+        modextrapaths = {'PATH': ('bin', 'pibin'), 'CPATH': 'pi/include'}
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
@@ -1176,6 +1183,10 @@ class EasyBlockTest(EnhancedTestCase):
         eb.check_readiness_step()
         eb.make_builddir()
         eb.prepare_step()
+
+        # Create a dummy file in bin to test if the duplicate entry of modextrapaths is ignored
+        os.makedirs(os.path.join(eb.installdir, 'bin'))
+        write_file(os.path.join(eb.installdir, 'bin', 'dummy_exe'), 'hello')
 
         modpath = os.path.join(eb.make_module_step(), name, version)
         if get_module_syntax() == 'Lua':
@@ -1210,14 +1221,20 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-        for (key, val) in modextrapaths.items():
-            if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
-            elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
-            else:
-                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
-            self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+        for (key, vals) in modextrapaths.items():
+            if isinstance(vals, string_type):
+                vals = [vals]
+            for val in vals:
+                if get_module_syntax() == 'Tcl':
+                    regex = re.compile(r'^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+                elif get_module_syntax() == 'Lua':
+                    regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
+                else:
+                    self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+                self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+                # Check for duplicates
+                num_prepends = len(regex.findall(txt))
+                self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('GCC', '6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
@@ -1616,6 +1633,65 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(eb.src[0]['path'], expected_path))
 
         self.assertTrue(verify_checksum(expected_path, eb.cfg['checksums'][0]))
+
+    def test_collect_exts_file_info(self):
+        """Test collect_exts_file_info method."""
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_sources = os.path.join(testdir, 'sandbox', 'sources', 'toy')
+        toy_ext_sources = os.path.join(toy_sources, 'extensions')
+        toy_ec_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec = process_easyconfig(toy_ec_file)[0]
+        toy_eb = EasyBlock(toy_ec['ec'])
+
+        exts_file_info = toy_eb.collect_exts_file_info()
+
+        self.assertTrue(isinstance(exts_file_info, list))
+        self.assertEqual(len(exts_file_info), 4)
+
+        self.assertEqual(exts_file_info[0], {'name': 'ls'})
+
+        self.assertEqual(exts_file_info[1]['name'], 'bar')
+        self.assertEqual(exts_file_info[1]['src'], os.path.join(toy_ext_sources, 'bar-0.0.tar.gz'))
+        bar_patch1 = 'bar-0.0_fix-silly-typo-in-printf-statement.patch'
+        self.assertEqual(exts_file_info[1]['patches'][0]['name'], bar_patch1)
+        self.assertEqual(exts_file_info[1]['patches'][0]['path'], os.path.join(toy_ext_sources, bar_patch1))
+        bar_patch2 = 'bar-0.0_fix-very-silly-typo-in-printf-statement.patch'
+        self.assertEqual(exts_file_info[1]['patches'][1]['name'], bar_patch2)
+        self.assertEqual(exts_file_info[1]['patches'][1]['path'], os.path.join(toy_ext_sources, bar_patch2))
+
+        self.assertEqual(exts_file_info[2]['name'], 'barbar')
+        self.assertEqual(exts_file_info[2]['src'], os.path.join(toy_ext_sources, 'barbar-0.0.tar.gz'))
+        self.assertFalse('patches' in exts_file_info[2])
+
+        self.assertEqual(exts_file_info[3]['name'], 'toy')
+        self.assertEqual(exts_file_info[3]['src'], os.path.join(toy_sources, 'toy-0.0.tar.gz'))
+        self.assertFalse('patches' in exts_file_info[3])
+
+        # location of files is missing when fetch_files is set to False
+        exts_file_info = toy_eb.collect_exts_file_info(fetch_files=False, verify_checksums=False)
+
+        self.assertTrue(isinstance(exts_file_info, list))
+        self.assertEqual(len(exts_file_info), 4)
+
+        self.assertEqual(exts_file_info[0], {'name': 'ls'})
+
+        self.assertEqual(exts_file_info[1]['name'], 'bar')
+        self.assertFalse('src' in exts_file_info[1])
+        self.assertEqual(exts_file_info[1]['patches'][0]['name'], bar_patch1)
+        self.assertFalse('path' in exts_file_info[1]['patches'][0])
+        self.assertEqual(exts_file_info[1]['patches'][1]['name'], bar_patch2)
+        self.assertFalse('path' in exts_file_info[1]['patches'][1])
+
+        self.assertEqual(exts_file_info[2]['name'], 'barbar')
+        self.assertFalse('src' in exts_file_info[2])
+        self.assertFalse('patches' in exts_file_info[2])
+
+        self.assertEqual(exts_file_info[3]['name'], 'toy')
+        self.assertFalse('src' in exts_file_info[3])
+        self.assertFalse('patches' in exts_file_info[3])
+
+        error_msg = "Can't verify checksums for extension files if they are not being fetched"
+        self.assertErrorRegex(EasyBuildError, error_msg, toy_eb.collect_exts_file_info, fetch_files=False)
 
     def test_obtain_file_extension(self):
         """Test use of obtain_file method on an extension."""
@@ -2062,9 +2138,16 @@ class EasyBlockTest(EnhancedTestCase):
         error_msg = "Checksum verification for .*/toy-0.0.tar.gz using .* failed"
         self.assertErrorRegex(EasyBuildError, error_msg, eb.checksum_step)
 
-        # also check verification of checksums for extensions, which is part of fetch_extension_sources
+        # also check verification of checksums for extensions, which is part of collect_exts_file_info
         error_msg = "Checksum verification for extension source bar-0.0.tar.gz failed"
+        self.assertErrorRegex(EasyBuildError, error_msg, eb.collect_exts_file_info)
+
+        # also check with deprecated fetch_extension_sources method
+        self.allow_deprecated_behaviour()
+        self.mock_stderr(True)
         self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_extension_sources)
+        self.mock_stderr(False)
+        self.disallow_deprecated_behaviour()
 
         # if --ignore-checksums is enabled, faulty checksums are reported but otherwise ignored (no error)
         build_options = {
@@ -2084,13 +2167,26 @@ class EasyBlockTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        eb.fetch_extension_sources()
+        eb.collect_exts_file_info()
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertEqual(stdout, '')
         self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz")
+
+        # also check with deprecated fetch_extension_sources method
+        self.allow_deprecated_behaviour()
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        eb.fetch_extension_sources()
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stdout, '')
+        self.assertTrue(stderr.strip().endswith("WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz"))
+        self.disallow_deprecated_behaviour()
 
     def test_check_checksums(self):
         """Test for check_checksums_for and check_checksums methods."""

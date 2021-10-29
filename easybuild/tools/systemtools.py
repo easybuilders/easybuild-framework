@@ -42,6 +42,14 @@ import termios
 from ctypes.util import find_library
 from socket import gethostname
 
+# pkg_resources is provided by the setuptools Python package,
+# which we really want to keep as an *optional* dependency
+try:
+    import pkg_resources
+    HAVE_PKG_RESOURCES = True
+except ImportError:
+    HAVE_PKG_RESOURCES = False
+
 try:
     # only needed on macOS, may not be available on Linux
     import ctypes.macholib.dyld
@@ -51,7 +59,7 @@ except ImportError:
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import is_readable, read_file, which
-from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.run import run_cmd
 
 
@@ -151,6 +159,45 @@ ARM_CORTEX_IDS = {
 # OS package handler name constants
 RPM = 'rpm'
 DPKG = 'dpkg'
+
+SYSTEM_TOOLS = {
+    '7z': "extracting sources (.iso)",
+    'bunzip2': "decompressing sources (.bz2, .tbz, .tbz2, ...)",
+    DPKG: "checking OS dependencies (Debian, Ubuntu, ...)",
+    'gunzip': "decompressing source files (.gz, .tgz, ...)",
+    'make': "build tool",
+    'patch': "applying patch files",
+    RPM: "checking OS dependencies (CentOS, RHEL, OpenSuSE, SLES, ...)",
+    'sed': "runtime patching",
+    'Slurm': "backend for --job (sbatch command)",
+    'tar': "unpacking source files (.tar)",
+    'unxz': "decompressing source files (.xz, .txz)",
+    'unzip': "decompressing files (.zip)",
+}
+
+SYSTEM_TOOL_CMDS = {
+    'Slurm': 'sbatch',
+}
+
+EASYBUILD_OPTIONAL_DEPENDENCIES = {
+    'archspec': (None, "determining name of CPU microarchitecture"),
+    'autopep8': (None, "auto-formatting for dumped easyconfigs"),
+    'GC3Pie': ('gc3libs', "backend for --job"),
+    'GitPython': ('git', "GitHub integration + using Git repository as easyconfigs archive"),
+    'graphviz-python': ('gv', "rendering dependency graph with Graphviz: --dep-graph"),
+    'keyring': (None, "storing GitHub token"),
+    'pbs-python': ('pbs', "using Torque as --job backend"),
+    'pep8': (None, "fallback for code style checking: --check-style, --check-contrib"),
+    'pycodestyle': (None, "code style checking: --check-style, --check-contrib"),
+    'pysvn': (None, "using SVN repository as easyconfigs archive"),
+    'python-graph-core': ('pygraph.classes.digraph', "creating dependency graph: --dep-graph"),
+    'python-graph-dot': ('pygraph.readwrite.dot', "saving dependency graph as dot file: --dep-graph"),
+    'python-hglib': ('hglib', "using Mercurial repository as easyconfigs archive"),
+    'requests': (None, "fallback library for downloading files"),
+    'Rich': (None, "eb command rich terminal output"),
+    'PyYAML': ('yaml', "easystack files and .yeb easyconfig format"),
+    'setuptools': ('pkg_resources', "obtaining information on Python packages via pkg_resources module"),
+}
 
 
 class SystemToolsException(Exception):
@@ -527,6 +574,34 @@ def get_cpu_features():
     return cpu_feat
 
 
+def get_gpu_info():
+    """
+    Get the GPU info
+    """
+    gpu_info = {}
+    os_type = get_os_type()
+
+    if os_type == LINUX:
+        try:
+            cmd = "nvidia-smi --query-gpu=gpu_name,driver_version --format=csv,noheader"
+            _log.debug("Trying to determine NVIDIA GPU info on Linux via cmd '%s'", cmd)
+            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+            if ec == 0:
+                for line in out.strip().split('\n'):
+                    nvidia_gpu_info = gpu_info.setdefault('NVIDIA', {})
+                    nvidia_gpu_info.setdefault(line, 0)
+                    nvidia_gpu_info[line] += 1
+            else:
+                _log.debug("None zero exit (%s) from nvidia-smi: %s", ec, out)
+        except Exception as err:
+            _log.debug("Exception was raised when running nvidia-smi: %s", err)
+            _log.info("No NVIDIA GPUs detected")
+    else:
+        _log.info("Only know how to get GPU info on Linux, assuming no GPUs are present")
+
+    return gpu_info
+
+
 def get_kernel_name():
     """NO LONGER SUPPORTED: use get_os_type() instead"""
     _log.nosupport("get_kernel_name() is replaced by get_os_type()", '2.0')
@@ -722,14 +797,14 @@ def check_os_dependency(dep):
     return found
 
 
-def get_tool_version(tool, version_option='--version'):
+def get_tool_version(tool, version_option='--version', ignore_ec=False):
     """
     Get output of running version option for specific command line tool.
     Output is returned as a single-line string (newlines are replaced by '; ').
     """
     out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False, force_in_dry_run=True,
                       trace=False, stream_output=False)
-    if ec:
+    if not ignore_ec and ec:
         _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, out))
         return UNKNOWN
     else:
@@ -1103,3 +1178,100 @@ def pick_dep_version(dep_version):
         raise EasyBuildError("Unknown value type for version: %s (%s), should be string value", typ, dep_version)
 
     return result
+
+
+def det_pypkg_version(pkg_name, imported_pkg, import_name=None):
+    """Determine version of a Python package."""
+
+    version = None
+
+    if HAVE_PKG_RESOURCES:
+        if import_name:
+            try:
+                version = pkg_resources.get_distribution(import_name).version
+            except pkg_resources.DistributionNotFound as err:
+                _log.debug("%s Python package not found: %s", import_name, err)
+
+        if version is None:
+            try:
+                version = pkg_resources.get_distribution(pkg_name).version
+            except pkg_resources.DistributionNotFound as err:
+                _log.debug("%s Python package not found: %s", pkg_name, err)
+
+    if version is None and hasattr(imported_pkg, '__version__'):
+        version = imported_pkg.__version__
+
+    return version
+
+
+def check_easybuild_deps(modtool):
+    """
+    Check presence and version of required and optional EasyBuild dependencies, and report back to terminal.
+    """
+    version_regex = re.compile(r'\s(?P<version>[0-9][0-9.]+[a-z]*)')
+
+    checks_data = OrderedDict()
+
+    def extract_version(tool):
+        """Helper function to extract (only) version for specific command line tool."""
+        out = get_tool_version(tool, ignore_ec=True)
+        res = version_regex.search(out)
+        if res:
+            version = res.group('version')
+        else:
+            version = "UNKNOWN version"
+
+        return version
+
+    python_version = extract_version(sys.executable)
+
+    opt_dep_versions = {}
+    for key in EASYBUILD_OPTIONAL_DEPENDENCIES:
+
+        pkg = EASYBUILD_OPTIONAL_DEPENDENCIES[key][0]
+        if pkg is None:
+            pkg = key.lower()
+
+        try:
+            mod = __import__(pkg)
+        except ImportError:
+            mod = None
+
+        if mod:
+            dep_version = det_pypkg_version(key, mod, import_name=pkg)
+        else:
+            dep_version = False
+
+        opt_dep_versions[key] = dep_version
+
+    checks_data['col_titles'] = ('name', 'version', 'used for')
+
+    req_deps_key = "Required dependencies"
+    checks_data[req_deps_key] = OrderedDict()
+    checks_data[req_deps_key]['Python'] = (python_version, None)
+    checks_data[req_deps_key]['modules tool:'] = (str(modtool), None)
+
+    opt_deps_key = "Optional dependencies"
+    checks_data[opt_deps_key] = {}
+
+    for key in opt_dep_versions:
+        checks_data[opt_deps_key][key] = (opt_dep_versions[key], EASYBUILD_OPTIONAL_DEPENDENCIES[key][1])
+
+    sys_tools_key = "System tools"
+    checks_data[sys_tools_key] = {}
+
+    for tool in SYSTEM_TOOLS:
+        tool_info = None
+        cmd = SYSTEM_TOOL_CMDS.get(tool, tool)
+        if which(cmd):
+            version = extract_version(cmd)
+            if version.startswith('UNKNOWN'):
+                tool_info = None
+            else:
+                tool_info = version
+        else:
+            tool_info = False
+
+        checks_data[sys_tools_key][tool] = (tool_info, None)
+
+    return checks_data

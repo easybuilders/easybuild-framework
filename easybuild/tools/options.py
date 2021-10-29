@@ -69,7 +69,8 @@ from easybuild.tools.config import DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX
 from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_WAIT_ON_LOCK_INTERVAL, DEFAULT_WAIT_ON_LOCK_LIMIT
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, ERROR, FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS
-from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS, WARN
+from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS
+from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
@@ -98,7 +99,7 @@ from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CH
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.systemtools import UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
-from easybuild.tools.systemtools import get_cpu_features, get_system_info
+from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_system_info
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -406,6 +407,8 @@ class EasyBuildOptions(GeneralOption):
             'force-download': ("Force re-downloading of sources and/or patches, "
                                "even if they are available already in source path",
                                'choice', 'store_or_None', DEFAULT_FORCE_DOWNLOAD, FORCE_DOWNLOAD_CHOICES),
+            'generate-devel-module': ("Generate a develop module file, implies --force if disabled",
+                                      None, 'store_true', True),
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'group-writable-installdir': ("Enable group write permissions on installation directory after installation",
                                           None, 'store_true', False),
@@ -423,6 +426,8 @@ class EasyBuildOptions(GeneralOption):
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-test-failure': ("Ignore a failing test step", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
+            'insecure-download': ("Don't check the server certificate against the available certificate authorities.",
+                                  None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
             'lib-lib64-symlink': ("Automatically create symlinks for lib/ pointing to lib64/ if the former is missing",
                                   None, 'store_true', True),
@@ -446,8 +451,13 @@ class EasyBuildOptions(GeneralOption):
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
             'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_TXT, FORMAT_RST]),
+            'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
+                             "with fallback to basic colored output",
+                             'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),
             'parallel': ("Specify (maximum) level of parallellism used during build procedure",
                          'int', 'store', None),
+            'parallel-extensions-install': ("Install list of extensions in parallel (if supported)",
+                                            None, 'store_true', False),
             'pre-create-installdir': ("Create installation directory before submitting build jobs",
                                       None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
@@ -468,13 +478,12 @@ class EasyBuildOptions(GeneralOption):
                                   None, 'store_true', False),
             'set-default-module': ("Set the generated module as default", None, 'store_true', False),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
+            'show-progress-bar': ("Show progress bar in terminal output", None, 'store_true', True),
             'silence-deprecation-warnings': ("Silence specified deprecation warnings", 'strlist', 'extend', None),
-            'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-extensions': ("Skip installation of extensions", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'skip-test-step': ("Skip running the test step (e.g. unit tests)", None, 'store_true', False),
-            'generate-devel-module': ("Generate a develop module file, implies --force if disabled",
-                                      None, 'store_true', True),
+            'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', False, 'T'),
@@ -482,6 +491,7 @@ class EasyBuildOptions(GeneralOption):
                       None, 'store', None),
             'update-modules-tool-cache': ("Update modules tool cache file(s) after generating module file",
                                           None, 'store_true', False),
+            'unit-testing-mode': ("Run in unit test mode", None, 'store_true', False),
             'use-ccache': ("Enable use of ccache to speed up compilation, with specified cache dir",
                            str, 'store', False, {'metavar': "PATH"}),
             'use-f90cache': ("Enable use of f90cache to speed up compilation, with specified cache dir",
@@ -616,6 +626,8 @@ class EasyBuildOptions(GeneralOption):
             'avail-hooks': ("Show list of known hooks", None, 'store_true', False),
             'avail-toolchain-opts': ("Show options for toolchain", 'str', 'store', None),
             'check-conflicts': ("Check for version conflicts in dependency graphs", None, 'store_true', False),
+            'check-eb-deps': ("Check presence and version of (required and optional) EasyBuild dependencies",
+                              None, 'store_true', False),
             'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
             'dump-env-script': ("Dump source script to set up build environment based on toolchain/dependencies",
                                 None, 'store_true', False),
@@ -694,6 +706,9 @@ class EasyBuildOptions(GeneralOption):
             'sync-pr-with-develop': ("Sync pull request with current 'develop' branch",
                                      int, 'store', None, {'metavar': 'PR#'}),
             'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
+            'review-pr-filter': ("Regex used to filter out easyconfigs to diff against in --review-pr",
+                                 None, 'regex', None),
+            'review-pr-max': ("Maximum number of easyconfigs to diff against in --review-pr", int, 'store', None),
             'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
                                        None, 'regex', None),
             'update-branch-github': ("Update specified branch in GitHub", str, 'store', None),
@@ -881,6 +896,10 @@ class EasyBuildOptions(GeneralOption):
         # set tmpdir
         self.tmpdir = set_tmpdir(self.options.tmpdir)
 
+        # early check for opt-in to installing extensions in parallel (experimental feature)
+        if self.options.parallel_extensions_install:
+            self.log.experimental("installing extensions in parallel")
+
         # take --include options into account (unless instructed otherwise)
         if self.with_include:
             self._postprocess_include()
@@ -1046,8 +1065,52 @@ class EasyBuildOptions(GeneralOption):
 
         self.log.info("Checks on configuration options passed")
 
+    def get_cfg_opt_abs_path(self, opt_name, path):
+        """Get path value of configuration option as absolute path."""
+        if os.path.isabs(path):
+            abs_path = path
+        else:
+            abs_path = os.path.abspath(path)
+            self.log.info("Relative path value for '%s' configuration option resolved to absolute path: %s",
+                          opt_name, abs_path)
+        return abs_path
+
+    def _ensure_abs_path(self, opt_name):
+        """Ensure that path value for specified configuration option is an absolute path."""
+
+        opt_val = getattr(self.options, opt_name)
+        if opt_val:
+            if isinstance(opt_val, string_type):
+                setattr(self.options, opt_name, self.get_cfg_opt_abs_path(opt_name, opt_val))
+            elif isinstance(opt_val, list):
+                abs_paths = [self.get_cfg_opt_abs_path(opt_name, p) for p in opt_val]
+                setattr(self.options, opt_name, abs_paths)
+            else:
+                error_msg = "Don't know how to ensure absolute path(s) for '%s' configuration option (value type: %s)"
+                raise EasyBuildError(error_msg, opt_name, type(opt_val))
+
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
+
+        # resolve relative paths for configuration options that specify a location;
+        # ensuring absolute paths for 'robot' is handled separately below,
+        # because we need to be careful with the argument pass to --robot
+        path_opt_names = ['buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
+                          'installpath_modules', 'installpath_software', 'prefix', 'packagepath',
+                          'robot_paths', 'sourcepath']
+
+        # repositorypath is a special case: only first part is a path;
+        # 2nd (optional) part is a relative subdir and should not be resolved to an absolute path!
+        repositorypath = self.options.repositorypath
+        if isinstance(repositorypath, (list, tuple)) and len(repositorypath) == 2:
+            abs_path = self.get_cfg_opt_abs_path('repositorypath', repositorypath[0])
+            self.options.repositorypath = (abs_path, repositorypath[1])
+        else:
+            path_opt_names.append('repositorypath')
+
+        for opt_name in path_opt_names:
+            self._ensure_abs_path(opt_name)
+
         if self.options.prefix is not None:
             # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath in account
             # in the legacy-style configuration, repository is initialised in configuration file itself
@@ -1090,7 +1153,7 @@ class EasyBuildOptions(GeneralOption):
 
             # paths specified to --robot have preference over --robot-paths
             # keep both values in sync if robot is enabled, which implies enabling dependency resolver
-            self.options.robot_paths = [os.path.abspath(path) for path in self.options.robot + self.options.robot_paths]
+            self.options.robot_paths = [os.path.abspath(p) for p in self.options.robot] + self.options.robot_paths
             self.options.robot = self.options.robot_paths
 
         # Update the search_paths (if any) to absolute paths
@@ -1241,6 +1304,7 @@ class EasyBuildOptions(GeneralOption):
         """Show system information."""
         system_info = get_system_info()
         cpu_features = get_cpu_features()
+        gpu_info = get_gpu_info()
         cpu_arch_name = system_info['cpu_arch_name']
         lines = [
             "System information (%s):" % system_info['hostname'],
@@ -1266,6 +1330,19 @@ class EasyBuildOptions(GeneralOption):
             "  -> speed: %s" % system_info['cpu_speed'],
             "  -> cores: %s" % system_info['core_count'],
             "  -> features: %s" % ','.join(cpu_features),
+        ])
+
+        if gpu_info:
+            lines.extend([
+                '',
+                "* GPU:",
+            ])
+            for vendor in gpu_info:
+                lines.append("  -> %s" % vendor)
+                for gpu, num in gpu_info[vendor].items():
+                    lines.append("    -> %sx %s" % (num, gpu))
+
+        lines.extend([
             '',
             "* software:",
             "  -> glibc version: %s" % system_info['glibc_version'],

@@ -47,11 +47,11 @@ class IntelCompilers(IntelIccIfort):
         Compiler._set_compiler_vars(self)
 
         root = self.get_software_root(self.COMPILER_MODULE_NAME)[0]
+        version = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
 
+        libbase = os.path.join('compiler', version, 'linux')
         libpaths = [
-            'lib',
-            os.path.join('lib', 'x64'),
-            os.path.join('compiler', 'lib', 'intel64_lin'),
+            os.path.join(libbase, 'compiler', 'lib', 'intel64'),
         ]
 
         self.variables.append_subdirs("LDFLAGS", root, subdirs=libpaths)

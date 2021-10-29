@@ -95,6 +95,12 @@ class IntelFFTW(Fftw):
         # so make sure libraries are there before FFT_LIB is set
         imklroot = get_software_root(self.FFT_MODULE_NAME[0])
         fft_lib_dirs = [os.path.join(imklroot, d) for d in self.FFT_LIB_DIR]
+        imklfftwroot = get_software_root('imkl-FFTW')
+        if imklfftwroot:
+            # only get cluster_interface_lib from seperate module imkl-FFTW, rest via libmkl_gf/libmkl_intel
+            fft_lib_dirs += [os.path.join(imklfftwroot, 'lib')]
+            fftw_libs.remove(interface_lib)
+            fftw_mt_libs.remove(interface_lib)
 
         def fftw_lib_exists(libname):
             """Helper function to check whether FFTW library with specified name exists."""

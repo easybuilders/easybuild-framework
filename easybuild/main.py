@@ -68,11 +68,15 @@ from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develo
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
+from easybuild.tools.output import COLOR_GREEN, COLOR_RED, STATUS_BAR, colorize, print_checks, rich_live_cm
+from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
+from easybuild.tools.systemtools import check_easybuild_deps
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
+
 
 _log = None
 
@@ -111,8 +115,14 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     # e.g. via easyconfig.handle_allowed_system_deps
     init_env = copy.deepcopy(os.environ)
 
+    start_progress_bar(STATUS_BAR, size=len(ecs))
+
     res = []
+    ec_results = []
+    failed_cnt = 0
+
     for ec in ecs:
+
         ec_res = {}
         try:
             (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
@@ -124,6 +134,12 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             ec_res['success'] = False
             ec_res['err'] = err
             ec_res['traceback'] = traceback.format_exc()
+
+        if ec_res['success']:
+            ec_results.append(ec['full_mod_name'] + ' (' + colorize('OK', COLOR_GREEN) + ')')
+        else:
+            ec_results.append(ec['full_mod_name'] + ' (' + colorize('FAILED', COLOR_RED) + ')')
+            failed_cnt += 1
 
         # keep track of success/total count
         if ec_res['success']:
@@ -153,6 +169,19 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
                 raise EasyBuildError(test_msg)
 
         res.append((ec, ec_res))
+
+        if failed_cnt:
+            # if installations failed: indicate th
+            status_label = ' (%s): ' % colorize('%s failed!' % failed_cnt, COLOR_RED)
+            failed_ecs = [x for x in ec_results[::-1] if 'FAILED' in x]
+            ok_ecs = [x for x in ec_results[::-1] if x not in failed_ecs]
+            status_label += ', '.join(failed_ecs + ok_ecs)
+        else:
+            status_label = ': ' + ', '.join(ec_results[::-1])
+
+        update_progress_bar(STATUS_BAR, label=status_label)
+
+    stop_progress_bar(STATUS_BAR)
 
     return res
 
@@ -245,6 +274,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
                            terse=options.terse)
 
+    if options.check_eb_deps:
+        print_checks(check_easybuild_deps(modtool))
+
     # GitHub options that warrant a silent cleanup & exit
     if options.check_github:
         check_github()
@@ -262,7 +294,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         merge_pr(options.merge_pr)
 
     elif options.review_pr:
-        print(review_pr(pr=options.review_pr, colored=use_color(options.color), testing=testing))
+        print(review_pr(pr=options.review_pr, colored=use_color(options.color), testing=testing,
+                        max_ecs=options.review_pr_max, filter_ecs=options.review_pr_filter))
 
     elif options.add_pr_labels:
         add_pr_labels(options.add_pr_labels)
@@ -283,6 +316,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [
         options.add_pr_labels,
+        options.check_eb_deps,
         options.check_github,
         options.create_index,
         options.install_github_token,
@@ -521,7 +555,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if not testing or (testing and do_build):
         exit_on_failure = not (options.dump_test_report or options.upload_test_report)
 
-        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)
+        with rich_live_cm():
+            ecs_with_res = build_and_install_software(ordered_ecs, init_session_state,
+                                                      exit_on_failure=exit_on_failure)
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 

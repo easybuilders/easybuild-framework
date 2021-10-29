@@ -2756,9 +2756,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test use of --http-header-fields-urlpat."""
         tmpdir = tempfile.mkdtemp()
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        ec_file = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb')
+        gzip_ec = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb')
+        gzip_ec_txt = read_file(gzip_ec)
+        regex = re.compile('^source_urls = .*', re.M)
+        test_ec_txt = regex.sub("source_urls = ['https://sources.easybuild.io/g/gzip']", gzip_ec_txt)
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
         common_args = [
-            ec_file,
+            test_ec,
             '--stop=fetch',
             '--debug',
             '--force',
@@ -2800,7 +2805,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # A: simple direct case (all is logged because passed directly via EasyBuild configuration options)
         args = list(common_args)
         args.extend([
-            '--http-header-fields-urlpat=gnu.org::%s:%s' % (testdohdr, testdoval),
+            '--http-header-fields-urlpat=easybuild.io::%s:%s' % (testdohdr, testdoval),
             '--http-header-fields-urlpat=nomatch.com::%s:%s' % (testdonthdr, testdontval),
         ])
         # expect to find everything passed on cmdline
@@ -2813,7 +2818,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # B: simple file case (secrets in file are not logged)
         txt = '\n'.join([
-            'gnu.org::%s: %s' % (testdohdr, testdoval),
+            'easybuild.io::%s: %s' % (testdohdr, testdoval),
             'nomatch.com::%s: %s' % (testdonthdr, testdontval),
             '',
         ])
@@ -2825,7 +2830,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # C: recursion one: header value is another file
         txt = '\n'.join([
-            'gnu.org::%s: %s' % (testdohdr, testincfile),
+            'easybuild.io::%s: %s' % (testdohdr, testincfile),
             'nomatch.com::%s: %s' % (testdonthdr, testexcfile),
             '',
         ])
@@ -2839,7 +2844,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         run_and_assert(args, "case C", expected, not_expected)
 
         # D: recursion two: header field+value is another file,
-        write_file(testcmdfile, '\n'.join(['gnu.org::%s' % (testinchdrfile), 'nomatch.com::%s' % (testexchdrfile), '']))
+        write_file(testcmdfile, '\n'.join([
+            'easybuild.io::%s' % (testinchdrfile),
+            'nomatch.com::%s' % (testexchdrfile),
+            '',
+        ]))
         write_file(testinchdrfile, '%s: %s\n' % (testdohdr, testdoval))
         write_file(testexchdrfile, '%s: %s\n' % (testdonthdr, testdontval))
         # expect to find only the header key (and the literal filename) and only for the appropriate url
@@ -2851,7 +2860,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # E: recursion three: url pattern + header field + value in another file
         write_file(testcmdfile, '%s\n' % (testurlpatfile))
         txt = '\n'.join([
-            'gnu.org::%s: %s' % (testdohdr, testdoval),
+            'easybuild.io::%s: %s' % (testdohdr, testdoval),
             'nomatch.com::%s: %s' % (testdonthdr, testdontval),
             '',
         ])
@@ -3785,6 +3794,36 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.mock_stderr(False)
         self.assertTrue("This PR should be labelled with 'update'" in txt)
+
+        # test --review-pr-max
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        args = [
+            '--color=never',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--review-pr=5365',
+            '--review-pr-max=1',
+        ]
+        self.eb_main(args, raise_error=True, testing=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertTrue("2016.04" not in txt)
+
+        # test --review-pr-filter
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        args = [
+            '--color=never',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--review-pr=5365',
+            '--review-pr-filter=2016a',
+        ]
+        self.eb_main(args, raise_error=True, testing=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertTrue("2016.04" not in txt)
 
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
@@ -5845,6 +5884,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+    def test_check_eb_deps(self):
+        """Test for --check-eb-deps."""
+        txt, _ = self._run_mock_eb(['--check-eb-deps'], raise_error=True)
+
+        # keep in mind that these patterns should match with both normal output and Rich output!
+        opt_dep_info_pattern = r'([0-9.]+|\(NOT FOUND\)|not found|\(unknown version\))'
+        tool_info_pattern = r'([0-9.]+|\(NOT FOUND\)|not found|\(found, UNKNOWN version\)|version\?\!)'
+        patterns = [
+            r"Required dependencies",
+            r"Python.* [23][0-9.]+",
+            r"modules tool.* [A-Za-z0-9.\s-]+",
+            r"Optional dependencies",
+            r"archspec.* %s.*determining name" % opt_dep_info_pattern,
+            r"GitPython.* %s.*GitHub integration" % opt_dep_info_pattern,
+            r"Rich.* %s.*eb command rich terminal output" % opt_dep_info_pattern,
+            r"setuptools.* %s.*information on Python packages" % opt_dep_info_pattern,
+            r"System tools",
+            r"make.* %s" % tool_info_pattern,
+            r"patch.* %s" % tool_info_pattern,
+            r"sed.* %s" % tool_info_pattern,
+            r"Slurm.* %s" % tool_info_pattern,
+        ]
+
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
     def test_tmp_logdir(self):
         """Test use of --tmp-logdir."""
 
@@ -6232,6 +6298,68 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt + '\naccept_eula = True')
         self.eb_main(args, do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_modfile))
+
+    def test_config_abs_path(self):
+        """Test ensuring of absolute path values for path configuration options."""
+
+        test_topdir = os.path.join(self.test_prefix, 'test_topdir')
+        test_subdir = os.path.join(test_topdir, 'test_middle_dir', 'test_subdir')
+        mkdir(test_subdir, parents=True)
+        change_dir(test_subdir)
+
+        # a relative path specified in a configuration file is positively weird, but fine :)
+        cfgfile = os.path.join(self.test_prefix, 'test.cfg')
+        cfgtxt = '\n'.join([
+            "[config]",
+            "containerpath = ..",
+            "repositorypath = /apps/easyconfigs_archive, somesubdir",
+        ])
+        write_file(cfgfile, cfgtxt)
+
+        # relative paths in environment variables is also weird,
+        # but OK for the sake of testing...
+        os.environ['EASYBUILD_INSTALLPATH'] = '../..'
+        os.environ['EASYBUILD_ROBOT_PATHS'] = '../..'
+
+        args = [
+            '--configfiles=%s' % cfgfile,
+            '--prefix=..',
+            '--sourcepath=.',
+            '--show-config',
+        ]
+
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+
+        patterns = [
+            r"^containerpath\s+\(F\) = /.*/test_topdir/test_middle_dir$",
+            r"^installpath\s+\(E\) = /.*/test_topdir$",
+            r"^prefix\s+\(C\) = /.*/test_topdir/test_middle_dir$",
+            r"^repositorypath\s+\(F\) = \('/apps/easyconfigs_archive', ' somesubdir'\)$",
+            r"^sourcepath\s+\(C\) = /.*/test_topdir/test_middle_dir/test_subdir$",
+            r"^robot-paths\s+\(E\) = /.*/test_topdir$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (pattern, txt))
+
+        # paths specified via --robot have precedence over those specified via $EASYBUILD_ROBOT_PATHS
+        change_dir(test_subdir)
+        args.append('--robot=..:.')
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+
+        patterns.pop(-1)
+        robot_value_pattern = ', '.join([
+            r'/.*/test_topdir/test_middle_dir',  # via --robot (first path)
+            r'/.*/test_topdir/test_middle_dir/test_subdir',  # via --robot (second path)
+            r'/.*/test_topdir',  # via $EASYBUILD_ROBOT_PATHS
+        ])
+        patterns.extend([
+            r"^robot-paths\s+\(C\) = %s$" % robot_value_pattern,
+            r"^robot\s+\(C\) = %s$" % robot_value_pattern,
+        ])
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (pattern, txt))
 
     # end-to-end testing of unknown filename
     def test_easystack_wrong_read(self):

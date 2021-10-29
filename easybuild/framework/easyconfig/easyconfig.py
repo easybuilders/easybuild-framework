@@ -773,6 +773,28 @@ class EasyConfig(object):
         # indicate that this is a parsed easyconfig
         self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
 
+    def count_files(self):
+        """
+        Determine number of files (sources + patches) required for this easyconfig.
+        """
+        cnt = len(self['sources']) + len(self['patches'])
+
+        for ext in self['exts_list']:
+            if isinstance(ext, tuple) and len(ext) >= 3:
+                ext_opts = ext[2]
+                # check for 'sources' first, since that's also considered first by EasyBlock.fetch_extension_sources
+                if 'sources' in ext_opts:
+                    cnt += len(ext_opts['sources'])
+                elif 'source_tmpl' in ext_opts:
+                    cnt += 1
+                else:
+                    # assume there's always one source file;
+                    # for extensions using PythonPackage, no 'source' or 'sources' may be specified
+                    cnt += 1
+                cnt += len(ext_opts.get('patches', []))
+
+        return cnt
+
     def local_var_naming(self, local_var_naming_check):
         """Deal with local variables that do not follow the recommended naming scheme (if any)."""
 
@@ -815,7 +837,10 @@ class EasyConfig(object):
                 raise EasyBuildError("Wrong type for value of 'deprecated' easyconfig parameter: %s", type(deprecated))
 
         if self.toolchain.is_deprecated():
-            depr_msgs.append("toolchain '%(name)s/%(version)s' is marked as deprecated" % self['toolchain'])
+            # allow use of deprecated toolchains when running unit tests,
+            # because test easyconfigs/modules often use old toolchain versions (and updating them is far from trivial)
+            if not build_option('unit_testing_mode'):
+                depr_msgs.append("toolchain '%(name)s/%(version)s' is marked as deprecated" % self['toolchain'])
 
         if depr_msgs:
             depr_msg = ', '.join(depr_msgs)

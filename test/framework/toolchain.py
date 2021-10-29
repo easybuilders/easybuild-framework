@@ -1020,6 +1020,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_fft_env_vars_intel(self):
         """Test setting of $FFT* environment variables using intel toolchain."""
 
+        self.modtool.purge()
         self.setup_sandbox_for_intel_fftw(self.test_prefix)
         self.modtool.prepend_module_path(self.test_prefix)
 
@@ -1079,6 +1080,64 @@ class ToolchainTest(EnhancedTestCase):
         libfft_mt += '-Wl,-Bdynamic -liomp5 -lpthread'
         self.assertEqual(tc.get_variable('LIBFFT_MT'), libfft_mt)
 
+        self.modtool.purge()
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='2021.4.0')
+        tc = self.get_toolchain('intel', version='2021b')
+        tc.prepare()
+
+        fft_static_libs = 'libmkl_intel_lp64.a,libmkl_sequential.a,libmkl_core.a'
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS'), fft_static_libs)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS'), fft_static_libs)
+
+        fft_static_libs_mt = 'libmkl_intel_lp64.a,libmkl_intel_thread.a,libmkl_core.a,'
+        fft_static_libs_mt += 'libiomp5.a,libpthread.a'
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS_MT'), fft_static_libs_mt)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS_MT'), fft_static_libs_mt)
+
+        libfft = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core "
+        libfft += "-Wl,--end-group -Wl,-Bdynamic"
+        self.assertEqual(tc.get_variable('LIBFFT'), libfft)
+
+        libfft_mt = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core "
+        libfft_mt += "-Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread"
+        self.assertEqual(tc.get_variable('LIBFFT_MT'), libfft_mt)
+
+        tc = self.get_toolchain('intel', version='2021b')
+        tc.set_options({'openmp': True})
+        tc.prepare()
+
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS'), fft_static_libs)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS'), fft_static_libs)
+
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS_MT'), fft_static_libs_mt)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS_MT'), fft_static_libs_mt)
+
+        self.assertEqual(tc.get_variable('LIBFFT'), libfft)
+        self.assertEqual(tc.get_variable('LIBFFT_MT'), libfft_mt)
+
+        tc = self.get_toolchain('intel', version='2021b')
+        tc.set_options({'usempi': True})
+        tc.prepare()
+
+        fft_static_libs = 'libfftw3x_cdft_lp64.a,libmkl_cdft_core.a,libmkl_blacs_intelmpi_lp64.a,'
+        fft_static_libs += 'libmkl_intel_lp64.a,libmkl_sequential.a,libmkl_core.a'
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS'), fft_static_libs)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS'), fft_static_libs)
+
+        fft_static_libs_mt = 'libfftw3x_cdft_lp64.a,libmkl_cdft_core.a,libmkl_blacs_intelmpi_lp64.a,'
+        fft_static_libs_mt += 'libmkl_intel_lp64.a,libmkl_intel_thread.a,libmkl_core.a,libiomp5.a,libpthread.a'
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS_MT'), fft_static_libs_mt)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS_MT'), fft_static_libs_mt)
+
+        libfft = '-Wl,-Bstatic -Wl,--start-group -lfftw3x_cdft_lp64 -lmkl_cdft_core '
+        libfft += '-lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -Wl,--end-group -Wl,-Bdynamic'
+        self.assertEqual(tc.get_variable('LIBFFT'), libfft)
+
+        libfft_mt = '-Wl,-Bstatic -Wl,--start-group -lfftw3x_cdft_lp64 -lmkl_cdft_core '
+        libfft_mt += '-lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -Wl,--end-group '
+        libfft_mt += '-Wl,-Bdynamic -liomp5 -lpthread'
+        self.assertEqual(tc.get_variable('LIBFFT_MT'), libfft_mt)
+
     def test_fosscuda(self):
         """Test whether fosscuda is handled properly."""
         tc = self.get_toolchain("fosscuda", version="2018a")
@@ -1124,17 +1183,37 @@ class ToolchainTest(EnhancedTestCase):
         ])
         write_file(imkl_module_path, imkl_mod_txt)
 
-        fftw_libs = ['fftw3xc_intel', 'fftw3xc_pgi', 'mkl_cdft_core', 'mkl_blacs_intelmpi_lp64']
-        fftw_libs += ['mkl_intel_lp64', 'mkl_sequential', 'mkl_core', 'mkl_intel_ilp64']
+        mkl_libs = ['mkl_cdft_core', 'mkl_blacs_intelmpi_lp64']
+        mkl_libs += ['mkl_intel_lp64', 'mkl_sequential', 'mkl_core', 'mkl_intel_ilp64']
+        fftw_libs = ['fftw3xc_intel', 'fftw3xc_pgi']
         if LooseVersion(imklver) >= LooseVersion('11'):
             fftw_libs.extend(['fftw3x_cdft_ilp64', 'fftw3x_cdft_lp64'])
         else:
             fftw_libs.append('fftw3x_cdft')
 
-        for subdir in ['mkl/lib/intel64', 'compiler/lib/intel64', 'lib/em64t']:
+        if LooseVersion(imklver) >= LooseVersion('2021.4.0'):
+            imkl_fftw_module_path = os.path.join(moddir, 'imkl-FFTW', imklver)
+            imkl_fftw_dir = os.path.join(self.test_prefix, 'software', 'imkl-FFTW', imklver)
+            imkl_fftw_mod_txt = '\n'.join([
+                "#%Module",
+                "setenv EBROOTIMKLMINFFTW %s" % imkl_fftw_dir,
+                "setenv EBVERSIONIMKLMINFFTW %s" % imklver,
+            ])
+            write_file(imkl_fftw_module_path, imkl_fftw_mod_txt)
+
+            subdir = 'mkl/%s/lib/intel64' % imklver
             os.makedirs(os.path.join(imkl_dir, subdir))
-            for fftlib in fftw_libs:
+            for fftlib in mkl_libs:
                 write_file(os.path.join(imkl_dir, subdir, 'lib%s.a' % fftlib), 'foo')
+            subdir = 'lib'
+            os.makedirs(os.path.join(imkl_fftw_dir, subdir))
+            for fftlib in fftw_libs:
+                write_file(os.path.join(imkl_fftw_dir, subdir, 'lib%s.a' % fftlib), 'foo')
+        else:
+            for subdir in ['mkl/lib/intel64', 'compiler/lib/intel64', 'lib/em64t']:
+                os.makedirs(os.path.join(imkl_dir, subdir))
+                for fftlib in mkl_libs + fftw_libs:
+                    write_file(os.path.join(imkl_dir, subdir, 'lib%s.a' % fftlib), 'foo')
 
     def test_intel_toolchain(self):
         """Test for intel toolchain."""
@@ -2437,12 +2516,16 @@ class ToolchainTest(EnhancedTestCase):
         # check whether 'stubs' library directory are correctly filtered out
         paths = [
             'prefix/software/CUDA/1.2.3/lib/stubs/',  # should be filtered (no -rpath)
+            'prefix/software/CUDA/1.2.3/stubs/lib/',  # should be filtered (no -rpath)
             'tmp/foo/',
             'prefix/software/stubs/1.2.3/lib',  # should NOT be filtered
             'prefix/software/CUDA/1.2.3/lib/stubs',  # should be filtered (no -rpath)
+            'prefix/software/CUDA/1.2.3/stubs/lib',  # should be filtered (no -rpath)
             'prefix/software/CUDA/1.2.3/lib64/stubs/',  # should be filtered (no -rpath)
+            'prefix/software/CUDA/1.2.3/stubs/lib64/',  # should be filtered (no -rpath)
             'prefix/software/foobar/4.5/notreallystubs',  # should NOT be filtered
             'prefix/software/CUDA/1.2.3/lib64/stubs',  # should be filtered (no -rpath)
+            'prefix/software/CUDA/1.2.3/stubs/lib64',  # should be filtered (no -rpath)
             'prefix/software/zlib/1.2.11/lib',
             'prefix/software/bleh/0/lib/stubs',  # should be filtered (no -rpath)
             'prefix/software/foobar/4.5/stubsbutnotreally',  # should NOT be filtered
@@ -2465,12 +2548,16 @@ class ToolchainTest(EnhancedTestCase):
             '-Wl,-rpath=%s/prefix/software/foobar/4.5/stubsbutnotreally' % self.test_prefix,
             '%(user)s.c',
             '-L%s/prefix/software/CUDA/1.2.3/lib/stubs/' % self.test_prefix,
+            '-L%s/prefix/software/CUDA/1.2.3/stubs/lib/' % self.test_prefix,
             '-L%s/tmp/foo/' % self.test_prefix,
             '-L%s/prefix/software/stubs/1.2.3/lib' % self.test_prefix,
             '-L%s/prefix/software/CUDA/1.2.3/lib/stubs' % self.test_prefix,
+            '-L%s/prefix/software/CUDA/1.2.3/stubs/lib' % self.test_prefix,
             '-L%s/prefix/software/CUDA/1.2.3/lib64/stubs/' % self.test_prefix,
+            '-L%s/prefix/software/CUDA/1.2.3/stubs/lib64/' % self.test_prefix,
             '-L%s/prefix/software/foobar/4.5/notreallystubs' % self.test_prefix,
             '-L%s/prefix/software/CUDA/1.2.3/lib64/stubs' % self.test_prefix,
+            '-L%s/prefix/software/CUDA/1.2.3/stubs/lib64' % self.test_prefix,
             '-L%s/prefix/software/zlib/1.2.11/lib' % self.test_prefix,
             '-L%s/prefix/software/bleh/0/lib/stubs' % self.test_prefix,
             '-L%s/prefix/software/foobar/4.5/stubsbutnotreally' % self.test_prefix,

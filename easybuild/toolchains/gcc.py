@@ -27,6 +27,8 @@ EasyBuild support for GCC compiler toolchain.
 
 :author: Kenneth Hoste (Ghent University)
 """
+from distutils.version import LooseVersion
+import re
 
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
@@ -38,3 +40,14 @@ class GccToolchain(GCCcore):
     COMPILER_MODULE_NAME = [NAME]
     SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
     OPTIONAL = False
+
+    def is_deprecated(self):
+        """Return whether or not this toolchain is deprecated."""
+        # GCC toolchains older than GCC version 8.x are deprecated since EasyBuild v4.5.0
+        # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
+        if re.match('^[0-9]', self.version) and LooseVersion(self.version) < LooseVersion('8.0'):
+            deprecated = True
+        else:
+            deprecated = False
+
+        return deprecated

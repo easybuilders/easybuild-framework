@@ -101,6 +101,7 @@ implement support for installing particular (groups of) software packages.""",
     data_files=[
         ('easybuild/scripts', glob.glob('easybuild/scripts/*')),
         ('etc', glob.glob('etc/*')),
+        ('contrib/hooks', glob.glob('contrib/hooks/*')),
     ],
     long_description=read('README.rst'),
     classifiers=[
