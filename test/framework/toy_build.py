@@ -3198,6 +3198,13 @@ class ToyBuildTest(EnhancedTestCase):
         error_pattern = "Lock .*_software_toy_0.0.lock already exists, aborting!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, raise_error=True, verbose=False)
 
+        # lock should still be there after it was hit
+        self.assertTrue(os.path.exists(toy_lock_path))
+
+        # trying again should give same result
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, raise_error=True, verbose=False)
+        self.assertTrue(os.path.exists(toy_lock_path))
+
         locks_dir = os.path.join(self.test_prefix, 'locks')
 
         # no lock in place, so installation proceeds as normal
@@ -3216,7 +3223,7 @@ class ToyBuildTest(EnhancedTestCase):
         orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
         # define a context manager that remove a lock after a while, so we can check the use of --wait-for-lock
-        class remove_lock_after(object):
+        class RemoveLockAfter(object):
             def __init__(self, seconds, lock_fp):
                 self.seconds = seconds
                 self.lock_fp = lock_fp
@@ -3264,7 +3271,7 @@ class ToyBuildTest(EnhancedTestCase):
             all_args = extra_args + opts
 
             # use context manager to remove lock after 3 seconds
-            with remove_lock_after(3, toy_lock_path):
+            with RemoveLockAfter(3, toy_lock_path):
                 self.mock_stderr(True)
                 self.mock_stdout(True)
                 self.test_toy_build(extra_args=all_args, verify=False, raise_error=True, testing=False)
@@ -3332,7 +3339,7 @@ class ToyBuildTest(EnhancedTestCase):
         orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
         # context manager which stops the function being called with the specified signal
-        class wait_and_signal(object):
+        class WaitAndSignal(object):
             def __init__(self, seconds, signum):
                 self.seconds = seconds
                 self.signum = signum
@@ -3367,7 +3374,7 @@ class ToyBuildTest(EnhancedTestCase):
             # avoid recycling stderr of previous test
             stderr = ''
 
-            with wait_and_signal(1, signum):
+            with WaitAndSignal(1, signum):
 
                 # change back to original working directory before each test
                 change_dir(orig_wd)

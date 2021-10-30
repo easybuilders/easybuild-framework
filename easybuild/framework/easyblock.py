@@ -3756,6 +3756,7 @@ class EasyBlock(object):
 
         ignore_locks = build_option('ignore_locks')
 
+        lock_created = False
         try:
             if ignore_locks:
                 self.log.info("Ignoring locks...")
@@ -3768,6 +3769,7 @@ class EasyBlock(object):
 
                 # create lock to avoid that another installation running in parallel messes things up
                 create_lock(lock_name)
+                lock_created = True
 
             for step_name, descr, step_methods, skippable in steps:
                 if self.skip_step(step_name, skippable):
@@ -3797,7 +3799,8 @@ class EasyBlock(object):
         except StopException:
             pass
         finally:
-            if not ignore_locks:
+            # remove lock, but only if it was created in this session (not if it was there already)
+            if lock_created:
                 remove_lock(lock_name)
 
             stop_progress_bar(PROGRESS_BAR_EASYCONFIG)
