@@ -83,7 +83,7 @@ from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTE
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
 from easybuild.tools.hooks import MODULE_WRITE, load_hooks, run_hook
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import check_async_cmd, run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -1612,9 +1612,10 @@ class EasyBlock(object):
 
     def skip_extensions(self):
         """
-        Called when self.skip is True
-        - use this to detect existing extensions and to remove them from self.ext_instances
-        - based on initial R version
+        Skip already installed extensions,
+        by removing them from list of Extension instances to install (self.ext_instances).
+
+        This is done in parallel when EasyBuild is configured to install extensions in parallel.
         """
         self.update_exts_progress_bar("skipping installed extensions")
 
@@ -1624,24 +1625,90 @@ class EasyBlock(object):
         if not exts_filter or len(exts_filter) == 0:
             raise EasyBuildError("Skipping of extensions, but no exts_filter set in easyconfig")
 
+        if build_option('parallel_extensions_install'):
+            self.skip_extensions_parallel(exts_filter)
+        else:
+            self.skip_extensions_sequential(exts_filter)
+
+    def skip_extensions_sequential(self, exts_filter):
+        """
+        Skip already installed extensions (checking sequentially),
+        by removing them from list of Extension instances to install (self.ext_instances).
+        """
+        print_msg("skipping installed extensions (sequentially)", log=self.log)
+
         exts_cnt = len(self.ext_instances)
 
         res = []
         for idx, ext_inst in enumerate(self.ext_instances):
             cmd, stdin = resolve_exts_filter_template(exts_filter, ext_inst)
-            (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
-            self.log.info("exts_filter result %s %s", cmdstdouterr, ec)
-            if ec:
-                self.log.info("Not skipping %s", ext_inst.name)
-                self.log.debug("exit code: %s, stdout/err: %s", ec, cmdstdouterr)
-                res.append(ext_inst)
-            else:
+            (out, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin,
+                                regexp=False, trace=False)
+            self.log.info("exts_filter result for %s: exit code %s; output: %s", ext_inst.name, ec, out)
+            if ec == 0:
                 print_msg("skipping extension %s" % ext_inst.name, silent=self.silent, log=self.log)
+            else:
+                self.log.info("Not skipping %s", ext_inst.name)
+                res.append(ext_inst)
 
             self.update_exts_progress_bar("skipping installed extensions (%d/%d checked)" % (idx + 1, exts_cnt))
 
         self.ext_instances = res
         self.update_exts_progress_bar("already installed extensions filtered out", total=len(self.ext_instances))
+
+    def skip_extensions_parallel(self, exts_filter):
+        """
+        Skip already installed extensions (checking in parallel),
+        by removing them from list of Extension instances to install (self.ext_instances).
+        """
+        self.log.experimental("Skipping installed extensions in parallel")
+        print_msg("skipping installed extensions (in parallel)", log=self.log)
+
+        async_cmd_info_cache = {}
+        running_checks_ids = []
+        installed_exts_ids = []
+        exts_queue = list(enumerate(self.ext_instances[:]))
+        checked_exts_cnt = 0
+        exts_cnt = len(self.ext_instances)
+
+        # asynchronously run checks to see whether extensions are already installed
+        while exts_queue or running_checks_ids:
+
+            # first handle completed checks
+            for idx in running_checks_ids[:]:
+                ext_name = self.ext_instances[idx].name
+                # don't read any output, just check whether command completed
+                async_cmd_info = check_async_cmd(*async_cmd_info_cache[idx], output_read_size=0, fail_on_error=False)
+                if async_cmd_info['done']:
+                    out, ec = async_cmd_info['output'], async_cmd_info['exit_code']
+                    self.log.info("exts_filter result for %s: exit code %s; output: %s", ext_name, ec, out)
+                    running_checks_ids.remove(idx)
+                    if ec == 0:
+                        print_msg("skipping extension %s" % ext_name, log=self.log)
+                        installed_exts_ids.append(idx)
+
+                    checked_exts_cnt += 1
+                    exts_pbar_label = "skipping installed extensions "
+                    exts_pbar_label += "(%d/%d checked)" % (checked_exts_cnt, exts_cnt)
+                    self.update_exts_progress_bar(exts_pbar_label)
+
+            # start additional checks asynchronously
+            while exts_queue and len(running_checks_ids) < self.cfg['parallel']:
+                idx, ext = exts_queue.pop(0)
+                cmd, stdin = resolve_exts_filter_template(exts_filter, ext)
+                async_cmd_info_cache[idx] = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin,
+                                                    regexp=False, trace=False, asynchronous=True)
+                running_checks_ids.append(idx)
+
+        # compose new list of extensions, skip over the ones that are already installed;
+        # note: original order in extensions list should be preserved!
+        retained_ext_instances = []
+        for idx, ext in enumerate(self.ext_instances):
+            if idx not in installed_exts_ids:
+                retained_ext_instances.append(ext)
+                self.log.info("Not skipping %s", ext.name)
+
+        self.ext_instances = retained_ext_instances
 
     def install_extensions(self, install=True):
         """

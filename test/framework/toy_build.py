@@ -1804,7 +1804,7 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ec_txt)
 
-        args = ['--parallel-extensions-install', '--experimental', '--force']
+        args = ['--parallel-extensions-install', '--experimental', '--force', '--parallel=3']
         stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
         self.assertEqual(stderr, '')
         expected_stdout = '\n'.join([
@@ -1815,6 +1815,20 @@ class ToyBuildTest(EnhancedTestCase):
             '',
         ])
         self.assertEqual(stdout, expected_stdout)
+
+        # also test skipping of extensions in parallel
+        args.append('--skip')
+        stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
+        self.assertEqual(stderr, '')
+        expected_stdout = '\n'.join([
+            "skipping installed extensions (in parallel)",
+            "== skipping extension ls",
+            "== skipping extension bar",
+            "== skipping extension barbar",
+            "== skipping extension toy",
+        ])
+        error_msg = "Expected output '%s' should be found in %s'" % (expected_stdout, stdout)
+        self.assertTrue(expected_stdout in stdout, error_msg)
 
     def test_backup_modules(self):
         """Test use of backing up of modules with --module-only."""
