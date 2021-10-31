@@ -1820,15 +1820,19 @@ class ToyBuildTest(EnhancedTestCase):
         args.append('--skip')
         stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
         self.assertEqual(stderr, '')
-        expected_stdout = '\n'.join([
-            "skipping installed extensions (in parallel)",
-            "== skipping extension ls",
-            "== skipping extension bar",
-            "== skipping extension barbar",
-            "== skipping extension toy",
-        ])
-        error_msg = "Expected output '%s' should be found in %s'" % (expected_stdout, stdout)
-        self.assertTrue(expected_stdout in stdout, error_msg)
+
+        # order in which these patterns occur is not fixed, so check them one by one
+        patterns = [
+            r"^== skipping installed extensions \(in parallel\)$",
+            r"^== skipping extension ls$",
+            r"^== skipping extension bar$",
+            r"^== skipping extension barbar$",
+            r"^== skipping extension toy$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            error_msg = "Expected pattern '%s' should be found in %s'" % (regex.pattern, stdout)
+            self.assertTrue(regex.search(stdout), error_msg)
 
     def test_backup_modules(self):
         """Test use of backing up of modules with --module-only."""
