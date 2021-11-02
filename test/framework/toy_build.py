@@ -2065,6 +2065,23 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue(os.path.exists(reprod_ec))
 
+        # Also check that the dumpenv script is placed alongside it
+        dumpenv_script = '%s.env' % os.path.splitext(reprod_ec)[0]
+        reprod_dumpenv = os.path.join(reprod_dir, dumpenv_script)
+        self.assertTrue(os.path.exists(reprod_dumpenv))
+
+        # Check contents of the dumpenv script
+        patterns = [
+            """#!/bin/bash""",
+            """# usage: source toy-0.0.env""",
+            # defining build env
+            """# (no modules loaded)""",
+            """# (no build environment defined)""",
+        ]
+        env_file = open(reprod_dumpenv, "r").read()
+        for pattern in patterns:
+            self.assertTrue(pattern in env_file)
+
         # Check that the toytoy easyblock is recorded in the reprod easyconfig
         ec = EasyConfig(reprod_ec)
         self.assertEqual(ec.parser.get_config_dict()['easyblock'], 'EB_toytoy')
@@ -2162,6 +2179,24 @@ class ToyBuildTest(EnhancedTestCase):
 
         load1_regex = re.compile('load.*toy/0.0-one', re.M)
         self.assertTrue(load1_regex.search(mod2_txt), "Pattern '%s' found in: %s" % (load1_regex.pattern, mod2_txt))
+
+        # Check the contents of the dumped env in the reprod dir to ensure it contains the dependency load
+        reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0-two', 'easybuild', 'reprod')
+        dumpenv_script = os.path.join(reprod_dir, 'toy-0.0-two.env')
+        reprod_dumpenv = os.path.join(reprod_dir, dumpenv_script)
+        self.assertTrue(os.path.exists(reprod_dumpenv))
+
+        # Check contents of the dumpenv script
+        patterns = [
+            """#!/bin/bash""",
+            """# usage: source toy-0.0-two.env""",
+            # defining build env
+            """module load toy/0.0-one""",
+            """# (no build environment defined)""",
+        ]
+        env_file = open(reprod_dumpenv, "r").read()
+        for pattern in patterns:
+            self.assertTrue(pattern in env_file)
 
     def test_toy_sanity_check_commands(self):
         """Test toy build with extra sanity check commands."""

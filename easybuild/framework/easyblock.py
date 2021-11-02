@@ -59,7 +59,7 @@ from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_di
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
-from easybuild.framework.easyconfig.tools import get_paths_for
+from easybuild.framework.easyconfig.tools import dump_env_easyblock, get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.framework.extension import Extension, resolve_exts_filter_template
 from easybuild.tools import config, run
@@ -3902,6 +3902,14 @@ def build_and_install_one(ecdict, init_env):
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
         if not dry_run:
+            # Copy over the build environment used during the configuraton
+            reprod_spec = os.path.join(reprod_dir, app.cfg.filename())
+            try:
+                dump_env_easyblock(app, ec_path=reprod_spec, silent=True)
+                _log.debug("Created build environment dump for easyconfig %s", reprod_spec)
+            except EasyBuildError as err:
+                _log.warning("Failed to create build environment dump for easyconfig %s: %s", reprod_spec, err)
+
             # also add any extension easyblocks used during the build for reproducibility
             if app.ext_instances:
                 copy_easyblocks_for_reprod(app.ext_instances, reprod_dir)
@@ -4080,9 +4088,9 @@ def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
     for easyblock_instance in easyblock_instances:
         for easyblock_class in inspect.getmro(type(easyblock_instance)):
             easyblock_path = inspect.getsourcefile(easyblock_class)
-            # if we reach EasyBlock or ExtensionEasyBlock class, we are done
-            # (ExtensionEasyblock is hardcoded to avoid a cyclical import)
-            if easyblock_class.__name__ in [EasyBlock.__name__, 'ExtensionEasyBlock']:
+            # if we reach EasyBlock, Extension or ExtensionEasyBlock class, we are done
+            # (Extension and ExtensionEasyblock are hardcoded to avoid a cyclical import)
+            if easyblock_class.__name__ in [EasyBlock.__name__, 'Extension', 'ExtensionEasyBlock']:
                 break
             else:
                 easyblock_paths.add(easyblock_path)

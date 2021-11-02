@@ -557,6 +557,45 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False
     return '\n'.join(lines)
 
 
+def dump_env_easyblock(app, orig_env=None, ec_path=None, script_path=None, silent=False):
+    if orig_env is None:
+        orig_env = copy.deepcopy(os.environ)
+    if ec_path is None:
+        raise EasyBuildError("The path to the easyconfig relevant to this environment dump is required")
+    if script_path is None:
+        # Assume we are placing it alongside the easyconfig path
+        script_path = '%s.env' % os.path.splitext(ec_path)[0]
+    # Compose script
+    ecfile = os.path.basename(ec_path)
+    script_lines = [
+        "#!/bin/bash",
+        "# script to set up build environment as defined by EasyBuild v%s for %s" % (EASYBUILD_VERSION, ecfile),
+        "# usage: source %s" % os.path.basename(script_path),
+    ]
+
+    script_lines.extend(['', "# toolchain & dependency modules"])
+    if app.toolchain.modules:
+        script_lines.extend(["module load %s" % mod for mod in app.toolchain.modules])
+    else:
+        script_lines.append("# (no modules loaded)")
+
+    script_lines.extend(['', "# build environment"])
+    if app.toolchain.vars:
+        env_vars = sorted(app.toolchain.vars.items())
+        script_lines.extend(["export %s='%s'" % (var, val.replace("'", "\\'")) for (var, val) in env_vars])
+    else:
+        script_lines.append("# (no build environment defined)")
+
+    write_file(script_path, '\n'.join(script_lines))
+    msg = "Script to set up build environment for %s dumped to %s" % (ecfile, script_path)
+    if silent:
+        _log.info(msg)
+    else:
+        print_msg(msg, prefix=False)
+
+    restore_env(orig_env)
+
+
 def dump_env_script(easyconfigs):
     """
     Dump source scripts that set up build environment for specified easyconfigs.
@@ -591,31 +630,8 @@ def dump_env_script(easyconfigs):
         app.check_readiness_step()
         app.prepare_step(start_dir=False)
 
-        # compose script
-        ecfile = os.path.basename(ec.path)
-        script_lines = [
-            "#!/bin/bash",
-            "# script to set up build environment as defined by EasyBuild v%s for %s" % (EASYBUILD_VERSION, ecfile),
-            "# usage: source %s" % os.path.basename(script_path),
-        ]
-
-        script_lines.extend(['', "# toolchain & dependency modules"])
-        if app.toolchain.modules:
-            script_lines.extend(["module load %s" % mod for mod in app.toolchain.modules])
-        else:
-            script_lines.append("# (no modules loaded)")
-
-        script_lines.extend(['', "# build environment"])
-        if app.toolchain.vars:
-            env_vars = sorted(app.toolchain.vars.items())
-            script_lines.extend(["export %s='%s'" % (var, val.replace("'", "\\'")) for (var, val) in env_vars])
-        else:
-            script_lines.append("# (no build environment defined)")
-
-        write_file(script_path, '\n'.join(script_lines))
-        print_msg("Script to set up build environment for %s dumped to %s" % (ecfile, script_path), prefix=False)
-
-        restore_env(orig_env)
+        # create the environment dump
+        dump_env_easyblock(app, orig_env=orig_env, ec_path=ec.path, script_path=script_path)
 
 
 def categorize_files_by_type(paths):
