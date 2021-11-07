@@ -6361,6 +6361,25 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (pattern, txt))
 
+    def test_config_repositorypath(self):
+        """Test how special repositorypath values are handled."""
+
+        repositorypath = 'git@github.com:boegel/my_easyconfigs.git'
+        args = [
+            '--repositorypath=%s' % repositorypath,
+            '--show-config',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+
+        regex = re.compile(r'repositorypath\s+\(C\) = %s' % repositorypath, re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        args[0] = '--repositorypath=%s,some/subdir' % repositorypath
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+
+        regex = re.compile(r"repositorypath\s+\(C\) = \('%s', 'some/subdir'\)" % repositorypath, re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
     # end-to-end testing of unknown filename
     def test_easystack_wrong_read(self):
         """Test for --easystack <easystack.yaml> when wrong name is provided"""
