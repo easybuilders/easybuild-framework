@@ -1067,7 +1067,7 @@ class EasyBuildOptions(GeneralOption):
 
     def get_cfg_opt_abs_path(self, opt_name, path):
         """Get path value of configuration option as absolute path."""
-        if os.path.isabs(path):
+        if os.path.isabs(path) or path.startswith('git@'):
             abs_path = path
         else:
             abs_path = os.path.abspath(path)
