@@ -1895,7 +1895,7 @@ class EasyBlock(object):
             self.log.info("EULA for %s is accepted", name)
         else:
             error_lines = [
-                "The End User License Argreement (EULA) for %(name)s is currently not accepted!",
+                "The End User License Agreement (EULA) for %(name)s is currently not accepted!",
             ]
             if more_info:
                 error_lines.append("(see %s for more information)" % more_info)

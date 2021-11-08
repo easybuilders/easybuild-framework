@@ -6242,7 +6242,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # by default, no EULAs are accepted at all
         args = [test_ec, '--force']
-        error_pattern = r"The End User License Argreement \(EULA\) for toy is currently not accepted!"
+        error_pattern = r"The End User License Agreement \(EULA\) for toy is currently not accepted!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
         toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
