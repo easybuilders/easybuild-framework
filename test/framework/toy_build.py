@@ -1804,7 +1804,7 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ec_txt)
 
-        args = ['--parallel-extensions-install', '--experimental', '--force']
+        args = ['--parallel-extensions-install', '--experimental', '--force', '--parallel=3']
         stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
         self.assertEqual(stderr, '')
         expected_stdout = '\n'.join([
@@ -1815,6 +1815,24 @@ class ToyBuildTest(EnhancedTestCase):
             '',
         ])
         self.assertEqual(stdout, expected_stdout)
+
+        # also test skipping of extensions in parallel
+        args.append('--skip')
+        stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
+        self.assertEqual(stderr, '')
+
+        # order in which these patterns occur is not fixed, so check them one by one
+        patterns = [
+            r"^== skipping installed extensions \(in parallel\)$",
+            r"^== skipping extension ls$",
+            r"^== skipping extension bar$",
+            r"^== skipping extension barbar$",
+            r"^== skipping extension toy$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            error_msg = "Expected pattern '%s' should be found in %s'" % (regex.pattern, stdout)
+            self.assertTrue(regex.search(stdout), error_msg)
 
     def test_backup_modules(self):
         """Test use of backing up of modules with --module-only."""
