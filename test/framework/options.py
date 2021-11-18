@@ -6377,7 +6377,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args[0] = '--repositorypath=%s,some/subdir' % repositorypath
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
 
-        regex = re.compile(r"repositorypath\s+\(C\) = \('%s', 'some/subdir'\)" % repositorypath, re.M)
+        regex = re.compile(r"repositorypath\s+\(C\) = %s, some/subdir" % repositorypath, re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
 
     # end-to-end testing of unknown filename
