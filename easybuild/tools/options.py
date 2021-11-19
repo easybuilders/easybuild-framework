@@ -1092,21 +1092,19 @@ class EasyBuildOptions(GeneralOption):
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
 
-        # resolve relative paths for configuration options that specify a location;
+        # resolve relative paths for configuration options that specify a location,
+        # to avoid incorrect paths being used when EasyBuild changes the current working directory
+        # (see https://github.com/easybuilders/easybuild-framework/issues/3619);
         # ensuring absolute paths for 'robot' is handled separately below,
-        # because we need to be careful with the argument pass to --robot
+        # because we need to be careful with the argument pass to --robot;
+        # note: repositorypath is purposely not listed here, because it's a special case:
+        # - the value could consist of a 2-tuple (<path>, <relative_subdir>);
+        # - the <path> could also specify the location of a *remote* (Git( repository,
+        #   which can be done in variety of formats (git@<url>:<org>/<repo>), https://<url>, etc.)
+        #   (see also https://github.com/easybuilders/easybuild-framework/issues/3892);
         path_opt_names = ['buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
                           'installpath_modules', 'installpath_software', 'prefix', 'packagepath',
                           'robot_paths', 'sourcepath']
-
-        # repositorypath is a special case: only first part is a path;
-        # 2nd (optional) part is a relative subdir and should not be resolved to an absolute path!
-        repositorypath = self.options.repositorypath
-        if isinstance(repositorypath, (list, tuple)) and len(repositorypath) == 2:
-            abs_path = self.get_cfg_opt_abs_path('repositorypath', repositorypath[0])
-            self.options.repositorypath = (abs_path, repositorypath[1])
-        else:
-            path_opt_names.append('repositorypath')
 
         for opt_name in path_opt_names:
             self._ensure_abs_path(opt_name)

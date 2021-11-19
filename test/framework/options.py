@@ -6334,7 +6334,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^containerpath\s+\(F\) = /.*/test_topdir/test_middle_dir$",
             r"^installpath\s+\(E\) = /.*/test_topdir$",
             r"^prefix\s+\(C\) = /.*/test_topdir/test_middle_dir$",
-            r"^repositorypath\s+\(F\) = \('/apps/easyconfigs_archive', ' somesubdir'\)$",
+            r"^repositorypath\s+\(F\) = /apps/easyconfigs_archive,\s+somesubdir$",
             r"^sourcepath\s+\(C\) = /.*/test_topdir/test_middle_dir/test_subdir$",
             r"^robot-paths\s+\(E\) = /.*/test_topdir$",
         ]
@@ -6377,7 +6377,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args[0] = '--repositorypath=%s,some/subdir' % repositorypath
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
 
-        regex = re.compile(r"repositorypath\s+\(C\) = \('%s', 'some/subdir'\)" % repositorypath, re.M)
+        regex = re.compile(r"repositorypath\s+\(C\) = %s, some/subdir" % repositorypath, re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
 
     # end-to-end testing of unknown filename
