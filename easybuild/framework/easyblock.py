@@ -268,6 +268,11 @@ class EasyBlock(object):
         # generate build/install directories
         self.gen_builddir()
         self.gen_installdir()
+        if self.build_in_installdir:
+            # self.builddir is set by self.gen_builddir(),
+            # but needs to be correct if the build is performed in the installation directory
+            self.log.info("Changing build dir to %s", self.installdir)
+            self.builddir = self.installdir
 
         self.ignored_errors = False
 
@@ -941,9 +946,6 @@ class EasyBlock(object):
                 raise EasyBuildError("self.builddir not set, make sure gen_builddir() is called first!")
             self.log.debug("Creating the build directory %s (cleanup: %s)", self.builddir, self.cfg['cleanupoldbuild'])
         else:
-            self.log.info("Changing build dir to %s" % self.installdir)
-            self.builddir = self.installdir
-
             self.log.info("Overriding 'cleanupoldinstall' (to False), 'cleanupoldbuild' (to True) "
                           "and 'keeppreviousinstall' because we're building in the installation directory.")
             # force cleanup before installation

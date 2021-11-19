@@ -6037,6 +6037,21 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         stdout = self.mocked_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
 
+        # check whether %(builddir)s value is correct
+        # when build_in_installdir is enabled and --sanity-check-only is used
+        # (see https://github.com/easybuilders/easybuild-framework/issues/3895)
+        test_ec_txt += '\n' + '\n'.join([
+            "buildininstalldir = True",
+            "sanity_check_commands = [",
+            # build and install directory should be the same path
+            "    'test %(builddir)s = %(installdir)s',",
+            # build/install directory must exist (even though step that creates build dir was never run)
+            "    'test -d %(builddir)s',",
+            "]",
+        ])
+        write_file(test_ec, test_ec_txt)
+        self.eb_main(args, do_build=True, raise_error=True)
+
     def test_skip_extensions(self):
         """Test use of --skip-extensions."""
         topdir = os.path.abspath(os.path.dirname(__file__))
