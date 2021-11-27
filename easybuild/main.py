@@ -531,7 +531,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         dump_env_script(easyconfigs)
 
     elif options.inject_checksums:
-        inject_checksums(ordered_ecs, options.inject_checksums)
+        with rich_live_cm():
+            inject_checksums(ordered_ecs, options.inject_checksums)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]
