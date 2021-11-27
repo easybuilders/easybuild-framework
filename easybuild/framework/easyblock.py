@@ -1852,7 +1852,26 @@ class EasyBlock(object):
                 # check whether extension at top of the queue is ready to install
                 ext = exts_queue.pop(0)
 
-                pending_deps = [x for x in ext.required_deps if x not in installed_ext_names]
+                required_deps = ext.required_deps
+                if required_deps is None:
+                    pending_deps = None
+                    self.log.info("Required dependencies for %s are unknown!", ext.name)
+                else:
+                    self.log.info("Required dependencies for %s: %s", ext.name, ', '.join(required_deps))
+                    pending_deps = [x for x in required_deps if x not in installed_ext_names]
+                    self.log.info("Missing required dependencies for %s: %s", ext.name, ', '.join(pending_deps))
+
+                # if required dependencies could not be determined, wait until all preceding extensions are installed
+                if pending_deps is None:
+                    if running_exts:
+                        # add extension back at top of the queue,
+                        # since we need to preverse installation order of extensions;
+                        # break out of for loop since there is no point to keep checking
+                        # until running installations have been completed
+                        exts_queue.insert(0, ext)
+                        break
+                    else:
+                        pending_deps = []
 
                 if self.dry_run:
                     tup = (ext.name, ext.version, ext.__class__.__name__)
@@ -1865,7 +1884,7 @@ class EasyBlock(object):
 
                     # make sure all required dependencies are actually going to be installed,
                     # to avoid getting stuck in an infinite loop!
-                    missing_deps = [x for x in ext.required_deps if x not in all_ext_names]
+                    missing_deps = [x for x in required_deps if x not in all_ext_names]
                     if missing_deps:
                         raise EasyBuildError("Missing required dependencies for %s are not going to be installed: %s",
                                              ext.name, ', '.join(missing_deps))
