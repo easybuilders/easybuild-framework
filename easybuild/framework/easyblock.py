@@ -572,8 +572,12 @@ class EasyBlock(object):
 
                         if fetch_files:
                             src = self.fetch_source(source, checksums, extension=True)
-                            # copy 'path' entry to 'src' for use with extensions
-                            ext_src.update({'src': src['path']})
+                            ext_src.update({
+                                # keep track of custom extract command (if any)
+                                'extract_cmd': src['cmd'],
+                                # copy 'path' entry to 'src' for use with extensions
+                                'src': src['path'],
+                            })
 
                     else:
                         # use default template for name of source file if none is specified

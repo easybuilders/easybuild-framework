@@ -456,11 +456,14 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     _log.debug("Unpacking %s in directory %s", fn, abs_dest)
     cwd = change_dir(abs_dest)
 
-    if not cmd:
-        cmd = extract_cmd(fn, overwrite=overwrite)
-    else:
+    if cmd:
         # complete command template with filename
         cmd = cmd % fn
+        _log.debug("Using specified command to unpack %s: %s", fn, cmd)
+    else:
+        cmd = extract_cmd(fn, overwrite=overwrite)
+        _log.debug("Using command derived from file extension to unpack %s: %s", fn, cmd)
+
     if not cmd:
         raise EasyBuildError("Can't extract file %s with unknown filetype", fn)
 
