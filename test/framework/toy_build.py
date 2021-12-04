@@ -1834,6 +1834,28 @@ class ToyBuildTest(EnhancedTestCase):
             error_msg = "Expected pattern '%s' should be found in %s'" % (regex.pattern, stdout)
             self.assertTrue(regex.search(stdout), error_msg)
 
+        # check behaviour when using Toy_Extension easyblock that doesn't implement required_deps method;
+        # framework should fall back to installing extensions sequentially
+        toy_ext_eb = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'toy_extension.py')
+        copy_file(toy_ext_eb, self.test_prefix)
+        toy_ext_eb = os.path.join(self.test_prefix, 'toy_extension.py')
+        toy_ext_eb_txt = read_file(toy_ext_eb)
+        toy_ext_eb_txt = toy_ext_eb_txt.replace('def required_deps', 'def xxx_required_deps')
+        write_file(toy_ext_eb, toy_ext_eb_txt)
+
+        args[-1] = '--include-easyblocks=%s' % toy_ext_eb
+        stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
+        self.assertEqual(stderr, '')
+        expected_stdout = '\n'.join([
+            "== 0 out of 4 extensions installed (3 queued, 1 running: ls)",
+            "== 1 out of 4 extensions installed (2 queued, 1 running: bar)",
+            "== 2 out of 4 extensions installed (1 queued, 1 running: barbar)",
+            "== 3 out of 4 extensions installed (0 queued, 1 running: toy)",
+            "== 4 out of 4 extensions installed (0 queued, 0 running: )",
+            '',
+        ])
+        self.assertEqual(stdout, expected_stdout)
+
     def test_backup_modules(self):
         """Test use of backing up of modules with --module-only."""
 
