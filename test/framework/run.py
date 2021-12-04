@@ -605,7 +605,9 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res, {'done': False, 'exit_code': None, 'output': 'sleeping...\n'})
 
         # 2nd check with default output size (1024) gets full output
-        res = check_async_cmd(*cmd_info, output=res['output'])
+        # (keep checking until command is fully done)
+        while not res['done']:
+            res = check_async_cmd(*cmd_info, output=res['output'])
         self.assertEqual(res, {'done': True, 'exit_code': 0, 'output': 'sleeping...\ntest123\n'})
 
         # check asynchronous running of failing command
