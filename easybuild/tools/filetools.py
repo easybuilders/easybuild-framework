@@ -1369,7 +1369,7 @@ def find_extension(filename):
     if res:
         ext = res.group('ext')
     else:
-        raise EasyBuildError('Unknown file type for file %s', filename)
+        raise EasyBuildError("%s has unknown file extension", filename)
 
     return ext
 
@@ -1382,7 +1382,9 @@ def extract_cmd(filepath, overwrite=False):
     ext = find_extension(filename)
     target = filename[:-len(ext)]
 
+    # find_extension will either return an extension listed in EXTRACT_CMDS, or raise an error
     cmd_tmpl = EXTRACT_CMDS[ext.lower()]
+
     if overwrite:
         if 'unzip -qq' in cmd_tmpl:
             cmd_tmpl = cmd_tmpl.replace('unzip -qq', 'unzip -qq -o')
