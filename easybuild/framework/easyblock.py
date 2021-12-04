@@ -268,11 +268,6 @@ class EasyBlock(object):
         # generate build/install directories
         self.gen_builddir()
         self.gen_installdir()
-        if self.build_in_installdir:
-            # self.builddir is set by self.gen_builddir(),
-            # but needs to be correct if the build is performed in the installation directory
-            self.log.info("Changing build dir to %s", self.installdir)
-            self.builddir = self.installdir
 
         self.ignored_errors = False
 
@@ -280,6 +275,16 @@ class EasyBlock(object):
             self.init_dry_run()
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
+
+    def post_init(self):
+        """
+        Run post-initialization tasks.
+        """
+        if self.build_in_installdir:
+            # self.builddir is set by self.gen_builddir(),
+            # but needs to be correct if the build is performed in the installation directory
+            self.log.info("Changing build dir to %s", self.installdir)
+            self.builddir = self.installdir
 
     # INIT/CLOSE LOG
     def _init_log(self):
@@ -3839,6 +3844,9 @@ class EasyBlock(object):
                 # create lock to avoid that another installation running in parallel messes things up
                 create_lock(lock_name)
                 lock_created = True
+
+            # run post-initialization tasks first, before running any steps
+            self.post_init()
 
             for step_name, descr, step_methods, skippable in steps:
                 if self.skip_step(step_name, skippable):
