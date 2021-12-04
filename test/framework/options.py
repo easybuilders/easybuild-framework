@@ -6038,7 +6038,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout = self.mocked_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
 
         # check whether %(builddir)s value is correct
-        # when build_in_installdir is enabled and --sanity-check-only is used
+        # when buildininstalldir is enabled in easyconfig and --sanity-check-only is used
         # (see https://github.com/easybuilders/easybuild-framework/issues/3895)
         test_ec_txt += '\n' + '\n'.join([
             "buildininstalldir = True",
@@ -6050,6 +6050,26 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "]",
         ])
         write_file(test_ec, test_ec_txt)
+        self.eb_main(args, do_build=True, raise_error=True)
+
+        # also check when using easyblock that enables build_in_installdir in its constructor
+        test_ebs = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks')
+        toy_eb = os.path.join(test_ebs, 't', 'toy.py')
+        toy_eb_txt = read_file(toy_eb)
+
+        self.assertFalse('self.build_in_installdir = True' in toy_eb_txt)
+
+        regex = re.compile(r'^(\s+)(super\(EB_toy, self\).__init__.*)\n', re.M)
+        toy_eb_txt = regex.sub(r'\1\2\n\1self.build_in_installdir = True', toy_eb_txt)
+        self.assertTrue('self.build_in_installdir = True' in toy_eb_txt)
+
+        toy_eb = os.path.join(self.test_prefix, 'toy.py')
+        write_file(toy_eb, toy_eb_txt)
+
+        test_ec_txt = test_ec_txt.replace('buildininstalldir = True', '')
+        write_file(test_ec, test_ec_txt)
+
+        args.append('--include-easyblocks=%s' % toy_eb)
         self.eb_main(args, do_build=True, raise_error=True)
 
     def test_skip_extensions(self):
