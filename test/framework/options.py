@@ -6072,6 +6072,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args.append('--include-easyblocks=%s' % toy_eb)
         self.eb_main(args, do_build=True, raise_error=True)
 
+        # undo import of the toy easyblock, to avoid problems with other tests
+        del sys.modules['easybuild.easyblocks.toy']
+
     def test_skip_extensions(self):
         """Test use of --skip-extensions."""
         topdir = os.path.abspath(os.path.dirname(__file__))
