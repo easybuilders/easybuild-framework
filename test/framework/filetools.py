@@ -114,6 +114,9 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertEqual("unzip -qq -o test.zip", ft.extract_cmd('test.zip', True))
 
+        error_pattern = "test.foo has unknown file extension"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.extract_cmd, 'test.foo')
+
     def test_find_extension(self):
         """Test find_extension function."""
         tests = [

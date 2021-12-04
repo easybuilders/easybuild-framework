@@ -1362,6 +1362,31 @@ class ToyBuildTest(EnhancedTestCase):
             write_file(test_ec, test_ec_txt)
             self.test_toy_build(ec_file=test_ec, raise_error=True)
 
+    def test_toy_extension_extract_cmd(self):
+        """Test for custom extract_cmd specified for an extension."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = '\n'.join([
+            toy_ec_txt,
+            'exts_list = [',
+            '   ("bar", "0.0", {',
+            # deliberately incorrect custom extract command, just to verify that it's picked up
+            '       "sources": [{',
+            '           "filename": "bar-%(version)s.tar.gz",',
+            '           "extract_cmd": "unzip %s",',
+            '       }],',
+            '   }),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        error_pattern = "unzip .*/bar-0.0.tar.gz.* exited with exit code [1-9]"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                              raise_error=True, verbose=False)
+
     def test_toy_extension_sources_git_config(self):
         """Test install toy that includes extensions with 'sources' spec including 'git_config'."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')

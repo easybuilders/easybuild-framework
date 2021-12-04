@@ -456,11 +456,14 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     _log.debug("Unpacking %s in directory %s", fn, abs_dest)
     cwd = change_dir(abs_dest)
 
-    if not cmd:
-        cmd = extract_cmd(fn, overwrite=overwrite)
-    else:
+    if cmd:
         # complete command template with filename
         cmd = cmd % fn
+        _log.debug("Using specified command to unpack %s: %s", fn, cmd)
+    else:
+        cmd = extract_cmd(fn, overwrite=overwrite)
+        _log.debug("Using command derived from file extension to unpack %s: %s", fn, cmd)
+
     if not cmd:
         raise EasyBuildError("Can't extract file %s with unknown filetype", fn)
 
@@ -1366,7 +1369,7 @@ def find_extension(filename):
     if res:
         ext = res.group('ext')
     else:
-        raise EasyBuildError('Unknown file type for file %s', filename)
+        raise EasyBuildError("%s has unknown file extension", filename)
 
     return ext
 
@@ -1379,7 +1382,9 @@ def extract_cmd(filepath, overwrite=False):
     ext = find_extension(filename)
     target = filename[:-len(ext)]
 
+    # find_extension will either return an extension listed in EXTRACT_CMDS, or raise an error
     cmd_tmpl = EXTRACT_CMDS[ext.lower()]
+
     if overwrite:
         if 'unzip -qq' in cmd_tmpl:
             cmd_tmpl = cmd_tmpl.replace('unzip -qq', 'unzip -qq -o')
