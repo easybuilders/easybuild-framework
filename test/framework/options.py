@@ -6069,11 +6069,20 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_ec_txt = test_ec_txt.replace('buildininstalldir = True', '')
         write_file(test_ec, test_ec_txt)
 
+        orig_local_sys_path = sys.path[:]
         args.append('--include-easyblocks=%s' % toy_eb)
         self.eb_main(args, do_build=True, raise_error=True)
 
         # undo import of the toy easyblock, to avoid problems with other tests
         del sys.modules['easybuild.easyblocks.toy']
+        sys.path = orig_local_sys_path
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.toy
+        reload(easybuild.easyblocks.toy)
+        # need to reload toy_extension, which imports EB_toy, to ensure right EB_toy is picked up in later tests
+        import easybuild.easyblocks.generic.toy_extension
+        reload(easybuild.easyblocks.generic.toy_extension)
 
     def test_skip_extensions(self):
         """Test use of --skip-extensions."""
