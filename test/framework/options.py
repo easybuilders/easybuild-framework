@@ -6037,6 +6037,53 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         stdout = self.mocked_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
 
+        # check whether %(builddir)s value is correct
+        # when buildininstalldir is enabled in easyconfig and --sanity-check-only is used
+        # (see https://github.com/easybuilders/easybuild-framework/issues/3895)
+        test_ec_txt += '\n' + '\n'.join([
+            "buildininstalldir = True",
+            "sanity_check_commands = [",
+            # build and install directory should be the same path
+            "    'test %(builddir)s = %(installdir)s',",
+            # build/install directory must exist (even though step that creates build dir was never run)
+            "    'test -d %(builddir)s',",
+            "]",
+        ])
+        write_file(test_ec, test_ec_txt)
+        self.eb_main(args, do_build=True, raise_error=True)
+
+        # also check when using easyblock that enables build_in_installdir in its constructor
+        test_ebs = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks')
+        toy_eb = os.path.join(test_ebs, 't', 'toy.py')
+        toy_eb_txt = read_file(toy_eb)
+
+        self.assertFalse('self.build_in_installdir = True' in toy_eb_txt)
+
+        regex = re.compile(r'^(\s+)(super\(EB_toy, self\).__init__.*)\n', re.M)
+        toy_eb_txt = regex.sub(r'\1\2\n\1self.build_in_installdir = True', toy_eb_txt)
+        self.assertTrue('self.build_in_installdir = True' in toy_eb_txt)
+
+        toy_eb = os.path.join(self.test_prefix, 'toy.py')
+        write_file(toy_eb, toy_eb_txt)
+
+        test_ec_txt = test_ec_txt.replace('buildininstalldir = True', '')
+        write_file(test_ec, test_ec_txt)
+
+        orig_local_sys_path = sys.path[:]
+        args.append('--include-easyblocks=%s' % toy_eb)
+        self.eb_main(args, do_build=True, raise_error=True)
+
+        # undo import of the toy easyblock, to avoid problems with other tests
+        del sys.modules['easybuild.easyblocks.toy']
+        sys.path = orig_local_sys_path
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.toy
+        reload(easybuild.easyblocks.toy)
+        # need to reload toy_extension, which imports EB_toy, to ensure right EB_toy is picked up in later tests
+        import easybuild.easyblocks.generic.toy_extension
+        reload(easybuild.easyblocks.generic.toy_extension)
+
     def test_skip_extensions(self):
         """Test use of --skip-extensions."""
         topdir = os.path.abspath(os.path.dirname(__file__))
