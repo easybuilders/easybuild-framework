@@ -1335,6 +1335,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
+        eb.post_init()
         eb.make_builddir()
         eb.make_installdir()
         self.assertEqual(eb.builddir, eb.installdir)
