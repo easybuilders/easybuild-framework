@@ -52,6 +52,7 @@ from datetime import datetime
 from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
+import easybuild.tools.toolchain as toolchain
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
@@ -3363,7 +3364,12 @@ class EasyBlock(object):
             if extra_modules:
                 self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
 
-        # chdir to installdir (better environment for running tests)
+        # allow oversubscription of P processes on C cores (P>C) for software installed on top of Open MPI;
+        # this is useful to avoid failing of sanity check commands that involve MPI
+        if self.toolchain.mpi_family() and self.toolchain.mpi_family() in toolchain.OPENMPI:
+            env.setvar('OMPI_MCA_rmaps_base_oversubscribe', '1')
+
+        # change to install directory (better environment for running tests)
         if os.path.isdir(self.installdir):
             change_dir(self.installdir)
 
