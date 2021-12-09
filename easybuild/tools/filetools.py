@@ -2594,6 +2594,9 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     if not tag and not commit_or_branch:
         raise EasyBuildError("No tag, commit, or branch found in git_config parameter")
 
+    if commit and branch:
+        raise EasyBuildError("Commit and branch are mutually exclusive in git_config parameter")
+
     if tag and commit_or_branch:
         raise EasyBuildError("Tag and commit/branch are mutually exclusive in git_config parameter")
 

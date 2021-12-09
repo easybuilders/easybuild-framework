@@ -2801,18 +2801,6 @@ class FileToolsTest(EnhancedTestCase):
         ]) % git_repo
         run_check()
 
-        # if both commit and branch are specified, commit wins
-        git_config['commit'] = '8456f86'
-        expected = '\n'.join([
-            r'  running command "git clone --no-checkout %(git_repo)s"',
-            r"  \(in .*/tmp.*\)",
-            r'  running command "git checkout 8456f86"',
-            r"  \(in testrepository\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in .*/tmp.*\)",
-        ]) % git_repo
-        run_check()
-
         # Test with real data.
         init_config()
         git_config = {
@@ -2917,7 +2905,15 @@ class FileToolsTest(EnhancedTestCase):
         git_config['commit'] = '8456f86'
         error_pattern = "Tag and commit/branch are mutually exclusive in git_config parameter"
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
+
+        del git_config['tag']
+        git_config['branch'] = 'main'
+        error_pattern = "Commit and branch are mutually exclusive in git_config parameter"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
+
+        del git_config['branch']
         del git_config['commit']
+        git_config['tag'] = 'tag_for_tests'
 
         git_config['unknown'] = 'foobar'
         error_pattern = "Found one or more unexpected keys in 'git_config' specification"
