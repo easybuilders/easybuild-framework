@@ -2650,6 +2650,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
             full_url = '%s/%s' % (url, repo_name)
             print_warning("Tag '%s' was not downloaded in the first try due to %s containing a branch "
                           "with the same name.\n"
+                          "Another attempt to download this tag will be made using a different mechanism.\n"
                           "To download a specific branch, use 'branch' rather than 'tag' in 'git_config'.\n"
                           "If you do want to download the tag named '%s' while a tag and branch exist with "
                           "that same name, you should alert the maintainers of %s about that issue.",
