@@ -2727,6 +2727,7 @@ class FileToolsTest(EnhancedTestCase):
             self.assertEqual(os.path.dirname(res), target_dir)
             self.assertEqual(os.path.basename(res), 'test.tar.gz')
 
+        # first test: creating source tarball for a specific tag
         git_config = {
             'repo_name': 'testrepository',
             'url': 'git@github.com:easybuilders',
@@ -2741,6 +2742,7 @@ class FileToolsTest(EnhancedTestCase):
         ]) % git_repo
         run_check()
 
+        # enable recursive checkout
         git_config['recursive'] = True
         expected = '\n'.join([
             r'  running command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
@@ -2750,6 +2752,7 @@ class FileToolsTest(EnhancedTestCase):
         ]) % git_repo
         run_check()
 
+        # keep .git directory
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
             r'  running command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
@@ -2760,6 +2763,7 @@ class FileToolsTest(EnhancedTestCase):
         run_check()
         del git_config['keep_git_dir']
 
+        # use a specific commit rather than a tag
         del git_config['tag']
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
@@ -2772,7 +2776,33 @@ class FileToolsTest(EnhancedTestCase):
         ]) % git_repo
         run_check()
 
+        # disable recursive checkout when using a specific commit
         del git_config['recursive']
+        expected = '\n'.join([
+            r'  running command "git clone --no-checkout %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "git checkout 8456f86"',
+            r"  \(in testrepository\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+
+        # use a branch rather than a commit
+        del git_config['commit']
+        git_config['branch'] = 'test_branch'
+        expected = '\n'.join([
+            r'  running command "git clone --no-checkout %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "git checkout test_branch"',
+            r"  \(in testrepository\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+
+        # if both commit and branch are specified, commit wins
+        git_config['commit'] = '8456f86'
         expected = '\n'.join([
             r'  running command "git clone --no-checkout %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
@@ -2810,7 +2840,7 @@ class FileToolsTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
                 stderr = self.get_stderr()
-            self.assertIn('Tag tag_for_tests was not downloaded in the first try', stderr)
+            self.assertIn("Tag 'tag_for_tests' was not downloaded in the first try", stderr)
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
             # Check that we indeed downloaded the tag and not the branch
@@ -2818,22 +2848,49 @@ class FileToolsTest(EnhancedTestCase):
             extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
             self.assertTrue(os.path.isfile(os.path.join(extracted_repo_dir, 'this-is-a-tag.txt')))
 
+            # using a branch name as value for tag is trouble
+            git_config['tag'] = 'main'
+            error_pattern = r"pathspec 'refs/tags/main' did not match any file\(s\) known to git"
+            with self.mocked_stdout_stderr():
+                self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git,
+                                      'test.tar.gz', target_dir, git_config)
+                stderr = self.get_stderr()
+            self.assertIn("Tag 'main' was not downloaded in the first try", stderr)
+
+            # use a branch name rather than a tag
             del git_config['tag']
-            git_config['commit'] = '90366ea'
-            res = ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
-            test_file = os.path.join(target_dir, 'test2.tar.gz')
+            git_config['branch'] = 'main'
+            res = ft.get_source_tarball_from_git('test2-main.tar.gz', target_dir, git_config)
+            test_file = os.path.join(target_dir, 'test2-main.tar.gz')
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
             test_tar_gzs.append(os.path.basename(test_file))
             self.assertEqual(sorted(os.listdir(target_dir)), test_tar_gzs)
 
-            git_config['keep_git_dir'] = True
-            res = ft.get_source_tarball_from_git('test3.tar.gz', target_dir, git_config)
-            test_file = os.path.join(target_dir, 'test3.tar.gz')
+            # use a commit rather than a branch name
+            del git_config['branch']
+            git_config['commit'] = '90366ea'
+            res = ft.get_source_tarball_from_git('test3-90366ea.tar.gz', target_dir, git_config)
+            test_file = os.path.join(target_dir, 'test3-90366ea.tar.gz')
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
             test_tar_gzs.append(os.path.basename(test_file))
             self.assertEqual(sorted(os.listdir(target_dir)), test_tar_gzs)
+
+            # keep .git directory
+            git_config['keep_git_dir'] = True
+            res = ft.get_source_tarball_from_git('test4.tar.gz', target_dir, git_config)
+            test_file = os.path.join(target_dir, 'test4.tar.gz')
+            self.assertEqual(res, test_file)
+            self.assertTrue(os.path.isfile(test_file))
+            test_tar_gzs.append(os.path.basename(test_file))
+            self.assertEqual(sorted(os.listdir(target_dir)), test_tar_gzs)
+            ft.change_dir(target_dir)
+            self.assertFalse(os.path.exists('testrepository'))
+            ft.extract_file('test4.tar.gz', target_dir, change_into_dir=False)
+            self.assertTrue(os.path.exists('testrepository'))
+            git_subdir = os.path.join('testrepository', '.git')
+            self.assertTrue(os.path.isdir(git_subdir), "%s subdirectory should exist in %s" % (git_subdir, os.getcwd()))
 
         except EasyBuildError as err:
             if "Network is down" in str(err):
@@ -2851,14 +2908,14 @@ class FileToolsTest(EnhancedTestCase):
         for key in ['repo_name', 'url', 'tag']:
             orig_value = git_config.pop(key)
             if key == 'tag':
-                error_pattern = "Neither tag nor commit found in git_config parameter"
+                error_pattern = "No tag, commit, or branch found in git_config parameter"
             else:
                 error_pattern = "%s not specified in git_config parameter" % key
             self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
             git_config[key] = orig_value
 
         git_config['commit'] = '8456f86'
-        error_pattern = "Tag and commit are mutually exclusive in git_config parameter"
+        error_pattern = "Tag and commit/branch are mutually exclusive in git_config parameter"
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
         del git_config['commit']
 
