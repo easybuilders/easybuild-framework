@@ -10,15 +10,14 @@ v4.5.1 (December 13th 2021)
 update/bugfix release
 
 - various enhancements, including:
+  - also dump environment to reprod directory (#3374)
   - determine which extensions can be skipped in parallel (if --parallel-extensions-install is enabled) (#3890)
   - fall back to sequential installation for extensions with unknown dependencies when using --parallel-extensions-install (#3906)
   - allow oversubscription in sanity check for OpenMPI-based toolchains (#3909)
 - various bug fixes, including:
-  - also dump environment to reprod directory (#3374)
-  - take into account that repositorypath could specify remote repository via git@<server>:<org>/<repo>.git (#3893)
+  - don't try to ensure absolute path for path part of repositorypath (#3893, #3899)
   - fix typo in EULA agreement error message (#3894)
   - only remove lock if it was created in the same EasyBuild session (not if it existed already) (#3889)
-  - don't try to ensure absolute path for path part of repositorypath (#3899)
   - introduce EasyBlock.post_init method to correctly define builddir variable when build-in-installdir mode is enabled in easyconfig or easyblock (#3900)
   - also show download progress bar when using --inject-checksums (#3905)
   - pick up custom extract_cmd specified for extension (#3907)
