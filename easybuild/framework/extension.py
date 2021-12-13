@@ -119,6 +119,7 @@ class Extension(object):
 
         # list of source/patch files: we use an empty list as default value like in EasyBlock
         self.src = resolve_template(self.ext.get('src', []), self.cfg.template_values)
+        self.src_extract_cmd = self.ext.get('extract_cmd', None)
         self.patches = resolve_template(self.ext.get('patches', []), self.cfg.template_values)
         self.options = resolve_template(copy.deepcopy(self.ext.get('options', {})), self.cfg.template_values)
 
@@ -225,7 +226,8 @@ class Extension(object):
     @property
     def required_deps(self):
         """Return list of required dependencies for this extension."""
-        raise NotImplementedError("Don't know how to determine required dependencies for extension '%s'" % self.name)
+        self.log.info("Don't know how to determine required dependencies for extension '%s'", self.name)
+        return None
 
     @property
     def toolchain(self):

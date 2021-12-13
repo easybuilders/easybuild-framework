@@ -4854,8 +4854,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'prefix', 'repositorypath']
         self.assertEqual(sorted(regex.findall(txt)), expected)
 
-    def test_dump_env_config(self):
-        """Test for --dump-env-config."""
+    def test_dump_env_script(self):
+        """Test for --dump-env-script."""
 
         fftw = 'FFTW-3.3.7-gompic-2018a'
         gcc = 'GCC-4.9.2'
@@ -6037,6 +6037,53 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         stdout = self.mocked_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
 
+        # check whether %(builddir)s value is correct
+        # when buildininstalldir is enabled in easyconfig and --sanity-check-only is used
+        # (see https://github.com/easybuilders/easybuild-framework/issues/3895)
+        test_ec_txt += '\n' + '\n'.join([
+            "buildininstalldir = True",
+            "sanity_check_commands = [",
+            # build and install directory should be the same path
+            "    'test %(builddir)s = %(installdir)s',",
+            # build/install directory must exist (even though step that creates build dir was never run)
+            "    'test -d %(builddir)s',",
+            "]",
+        ])
+        write_file(test_ec, test_ec_txt)
+        self.eb_main(args, do_build=True, raise_error=True)
+
+        # also check when using easyblock that enables build_in_installdir in its constructor
+        test_ebs = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks')
+        toy_eb = os.path.join(test_ebs, 't', 'toy.py')
+        toy_eb_txt = read_file(toy_eb)
+
+        self.assertFalse('self.build_in_installdir = True' in toy_eb_txt)
+
+        regex = re.compile(r'^(\s+)(super\(EB_toy, self\).__init__.*)\n', re.M)
+        toy_eb_txt = regex.sub(r'\1\2\n\1self.build_in_installdir = True', toy_eb_txt)
+        self.assertTrue('self.build_in_installdir = True' in toy_eb_txt)
+
+        toy_eb = os.path.join(self.test_prefix, 'toy.py')
+        write_file(toy_eb, toy_eb_txt)
+
+        test_ec_txt = test_ec_txt.replace('buildininstalldir = True', '')
+        write_file(test_ec, test_ec_txt)
+
+        orig_local_sys_path = sys.path[:]
+        args.append('--include-easyblocks=%s' % toy_eb)
+        self.eb_main(args, do_build=True, raise_error=True)
+
+        # undo import of the toy easyblock, to avoid problems with other tests
+        del sys.modules['easybuild.easyblocks.toy']
+        sys.path = orig_local_sys_path
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.toy
+        reload(easybuild.easyblocks.toy)
+        # need to reload toy_extension, which imports EB_toy, to ensure right EB_toy is picked up in later tests
+        import easybuild.easyblocks.generic.toy_extension
+        reload(easybuild.easyblocks.generic.toy_extension)
+
     def test_skip_extensions(self):
         """Test use of --skip-extensions."""
         topdir = os.path.abspath(os.path.dirname(__file__))
@@ -6242,7 +6289,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # by default, no EULAs are accepted at all
         args = [test_ec, '--force']
-        error_pattern = r"The End User License Argreement \(EULA\) for toy is currently not accepted!"
+        error_pattern = r"The End User License Agreement \(EULA\) for toy is currently not accepted!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
         toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
@@ -6334,7 +6381,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^containerpath\s+\(F\) = /.*/test_topdir/test_middle_dir$",
             r"^installpath\s+\(E\) = /.*/test_topdir$",
             r"^prefix\s+\(C\) = /.*/test_topdir/test_middle_dir$",
-            r"^repositorypath\s+\(F\) = \('/apps/easyconfigs_archive', ' somesubdir'\)$",
+            r"^repositorypath\s+\(F\) = /apps/easyconfigs_archive,\s+somesubdir$",
             r"^sourcepath\s+\(C\) = /.*/test_topdir/test_middle_dir/test_subdir$",
             r"^robot-paths\s+\(E\) = /.*/test_topdir$",
         ]
@@ -6360,6 +6407,25 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (pattern, txt))
+
+    def test_config_repositorypath(self):
+        """Test how special repositorypath values are handled."""
+
+        repositorypath = 'git@github.com:boegel/my_easyconfigs.git'
+        args = [
+            '--repositorypath=%s' % repositorypath,
+            '--show-config',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+
+        regex = re.compile(r'repositorypath\s+\(C\) = %s' % repositorypath, re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        args[0] = '--repositorypath=%s,some/subdir' % repositorypath
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+
+        regex = re.compile(r"repositorypath\s+\(C\) = %s, some/subdir" % repositorypath, re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
 
     # end-to-end testing of unknown filename
     def test_easystack_wrong_read(self):

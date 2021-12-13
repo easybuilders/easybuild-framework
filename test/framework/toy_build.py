@@ -1362,6 +1362,31 @@ class ToyBuildTest(EnhancedTestCase):
             write_file(test_ec, test_ec_txt)
             self.test_toy_build(ec_file=test_ec, raise_error=True)
 
+    def test_toy_extension_extract_cmd(self):
+        """Test for custom extract_cmd specified for an extension."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = '\n'.join([
+            toy_ec_txt,
+            'exts_list = [',
+            '   ("bar", "0.0", {',
+            # deliberately incorrect custom extract command, just to verify that it's picked up
+            '       "sources": [{',
+            '           "filename": "bar-%(version)s.tar.gz",',
+            '           "extract_cmd": "unzip %s",',
+            '       }],',
+            '   }),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_txt)
+
+        error_pattern = "unzip .*/bar-0.0.tar.gz.* exited with exit code [1-9]"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                              raise_error=True, verbose=False)
+
     def test_toy_extension_sources_git_config(self):
         """Test install toy that includes extensions with 'sources' spec including 'git_config'."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -1804,11 +1829,51 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ec_txt)
 
-        args = ['--parallel-extensions-install', '--experimental', '--force']
+        args = ['--parallel-extensions-install', '--experimental', '--force', '--parallel=3']
         stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
         self.assertEqual(stderr, '')
         expected_stdout = '\n'.join([
             "== 0 out of 4 extensions installed (2 queued, 2 running: ls, bar)",
+            "== 2 out of 4 extensions installed (1 queued, 1 running: barbar)",
+            "== 3 out of 4 extensions installed (0 queued, 1 running: toy)",
+            "== 4 out of 4 extensions installed (0 queued, 0 running: )",
+            '',
+        ])
+        self.assertEqual(stdout, expected_stdout)
+
+        # also test skipping of extensions in parallel
+        args.append('--skip')
+        stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
+        self.assertEqual(stderr, '')
+
+        # order in which these patterns occur is not fixed, so check them one by one
+        patterns = [
+            r"^== skipping installed extensions \(in parallel\)$",
+            r"^== skipping extension ls$",
+            r"^== skipping extension bar$",
+            r"^== skipping extension barbar$",
+            r"^== skipping extension toy$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            error_msg = "Expected pattern '%s' should be found in %s'" % (regex.pattern, stdout)
+            self.assertTrue(regex.search(stdout), error_msg)
+
+        # check behaviour when using Toy_Extension easyblock that doesn't implement required_deps method;
+        # framework should fall back to installing extensions sequentially
+        toy_ext_eb = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'toy_extension.py')
+        copy_file(toy_ext_eb, self.test_prefix)
+        toy_ext_eb = os.path.join(self.test_prefix, 'toy_extension.py')
+        toy_ext_eb_txt = read_file(toy_ext_eb)
+        toy_ext_eb_txt = toy_ext_eb_txt.replace('def required_deps', 'def xxx_required_deps')
+        write_file(toy_ext_eb, toy_ext_eb_txt)
+
+        args[-1] = '--include-easyblocks=%s' % toy_ext_eb
+        stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
+        self.assertEqual(stderr, '')
+        expected_stdout = '\n'.join([
+            "== 0 out of 4 extensions installed (3 queued, 1 running: ls)",
+            "== 1 out of 4 extensions installed (2 queued, 1 running: bar)",
             "== 2 out of 4 extensions installed (1 queued, 1 running: barbar)",
             "== 3 out of 4 extensions installed (0 queued, 1 running: toy)",
             "== 4 out of 4 extensions installed (0 queued, 0 running: )",
@@ -2065,6 +2130,23 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue(os.path.exists(reprod_ec))
 
+        # Also check that the dumpenv script is placed alongside it
+        dumpenv_script = '%s.env' % os.path.splitext(reprod_ec)[0]
+        reprod_dumpenv = os.path.join(reprod_dir, dumpenv_script)
+        self.assertTrue(os.path.exists(reprod_dumpenv))
+
+        # Check contents of the dumpenv script
+        patterns = [
+            """#!/bin/bash""",
+            """# usage: source toy-0.0.env""",
+            # defining build env
+            """# (no modules loaded)""",
+            """# (no build environment defined)""",
+        ]
+        env_file = open(reprod_dumpenv, "r").read()
+        for pattern in patterns:
+            self.assertTrue(pattern in env_file)
+
         # Check that the toytoy easyblock is recorded in the reprod easyconfig
         ec = EasyConfig(reprod_ec)
         self.assertEqual(ec.parser.get_config_dict()['easyblock'], 'EB_toytoy')
@@ -2162,6 +2244,24 @@ class ToyBuildTest(EnhancedTestCase):
 
         load1_regex = re.compile('load.*toy/0.0-one', re.M)
         self.assertTrue(load1_regex.search(mod2_txt), "Pattern '%s' found in: %s" % (load1_regex.pattern, mod2_txt))
+
+        # Check the contents of the dumped env in the reprod dir to ensure it contains the dependency load
+        reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0-two', 'easybuild', 'reprod')
+        dumpenv_script = os.path.join(reprod_dir, 'toy-0.0-two.env')
+        reprod_dumpenv = os.path.join(reprod_dir, dumpenv_script)
+        self.assertTrue(os.path.exists(reprod_dumpenv))
+
+        # Check contents of the dumpenv script
+        patterns = [
+            """#!/bin/bash""",
+            """# usage: source toy-0.0-two.env""",
+            # defining build env
+            """module load toy/0.0-one""",
+            """# (no build environment defined)""",
+        ]
+        env_file = open(reprod_dumpenv, "r").read()
+        for pattern in patterns:
+            self.assertTrue(pattern in env_file)
 
     def test_toy_sanity_check_commands(self):
         """Test toy build with extra sanity check commands."""
@@ -3198,6 +3298,13 @@ class ToyBuildTest(EnhancedTestCase):
         error_pattern = "Lock .*_software_toy_0.0.lock already exists, aborting!"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, raise_error=True, verbose=False)
 
+        # lock should still be there after it was hit
+        self.assertTrue(os.path.exists(toy_lock_path))
+
+        # trying again should give same result
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, raise_error=True, verbose=False)
+        self.assertTrue(os.path.exists(toy_lock_path))
+
         locks_dir = os.path.join(self.test_prefix, 'locks')
 
         # no lock in place, so installation proceeds as normal
@@ -3216,7 +3323,7 @@ class ToyBuildTest(EnhancedTestCase):
         orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
         # define a context manager that remove a lock after a while, so we can check the use of --wait-for-lock
-        class remove_lock_after(object):
+        class RemoveLockAfter(object):
             def __init__(self, seconds, lock_fp):
                 self.seconds = seconds
                 self.lock_fp = lock_fp
@@ -3264,7 +3371,7 @@ class ToyBuildTest(EnhancedTestCase):
             all_args = extra_args + opts
 
             # use context manager to remove lock after 3 seconds
-            with remove_lock_after(3, toy_lock_path):
+            with RemoveLockAfter(3, toy_lock_path):
                 self.mock_stderr(True)
                 self.mock_stdout(True)
                 self.test_toy_build(extra_args=all_args, verify=False, raise_error=True, testing=False)
@@ -3332,7 +3439,7 @@ class ToyBuildTest(EnhancedTestCase):
         orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
         # context manager which stops the function being called with the specified signal
-        class wait_and_signal(object):
+        class WaitAndSignal(object):
             def __init__(self, seconds, signum):
                 self.seconds = seconds
                 self.signum = signum
@@ -3367,7 +3474,7 @@ class ToyBuildTest(EnhancedTestCase):
             # avoid recycling stderr of previous test
             stderr = ''
 
-            with wait_and_signal(1, signum):
+            with WaitAndSignal(1, signum):
 
                 # change back to original working directory before each test
                 change_dir(orig_wd)

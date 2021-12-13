@@ -52,6 +52,7 @@ from datetime import datetime
 from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
+import easybuild.tools.toolchain as toolchain
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
@@ -59,7 +60,7 @@ from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_di
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
-from easybuild.framework.easyconfig.tools import get_paths_for
+from easybuild.framework.easyconfig.tools import dump_env_easyblock, get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.framework.extension import Extension, resolve_exts_filter_template
 from easybuild.tools import config, run
@@ -83,7 +84,7 @@ from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTE
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
 from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
 from easybuild.tools.hooks import MODULE_WRITE, load_hooks, run_hook
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import check_async_cmd, run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -275,6 +276,16 @@ class EasyBlock(object):
             self.init_dry_run()
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
+
+    def post_init(self):
+        """
+        Run post-initialization tasks.
+        """
+        if self.build_in_installdir:
+            # self.builddir is set by self.gen_builddir(),
+            # but needs to be correct if the build is performed in the installation directory
+            self.log.info("Changing build dir to %s", self.installdir)
+            self.builddir = self.installdir
 
     # INIT/CLOSE LOG
     def _init_log(self):
@@ -572,8 +583,12 @@ class EasyBlock(object):
 
                         if fetch_files:
                             src = self.fetch_source(source, checksums, extension=True)
-                            # copy 'path' entry to 'src' for use with extensions
-                            ext_src.update({'src': src['path']})
+                            ext_src.update({
+                                # keep track of custom extract command (if any)
+                                'extract_cmd': src['cmd'],
+                                # copy 'path' entry to 'src' for use with extensions
+                                'src': src['path'],
+                            })
 
                     else:
                         # use default template for name of source file if none is specified
@@ -941,9 +956,6 @@ class EasyBlock(object):
                 raise EasyBuildError("self.builddir not set, make sure gen_builddir() is called first!")
             self.log.debug("Creating the build directory %s (cleanup: %s)", self.builddir, self.cfg['cleanupoldbuild'])
         else:
-            self.log.info("Changing build dir to %s" % self.installdir)
-            self.builddir = self.installdir
-
             self.log.info("Overriding 'cleanupoldinstall' (to False), 'cleanupoldbuild' (to True) "
                           "and 'keeppreviousinstall' because we're building in the installation directory.")
             # force cleanup before installation
@@ -1612,9 +1624,10 @@ class EasyBlock(object):
 
     def skip_extensions(self):
         """
-        Called when self.skip is True
-        - use this to detect existing extensions and to remove them from self.ext_instances
-        - based on initial R version
+        Skip already installed extensions,
+        by removing them from list of Extension instances to install (self.ext_instances).
+
+        This is done in parallel when EasyBuild is configured to install extensions in parallel.
         """
         self.update_exts_progress_bar("skipping installed extensions")
 
@@ -1624,24 +1637,90 @@ class EasyBlock(object):
         if not exts_filter or len(exts_filter) == 0:
             raise EasyBuildError("Skipping of extensions, but no exts_filter set in easyconfig")
 
+        if build_option('parallel_extensions_install'):
+            self.skip_extensions_parallel(exts_filter)
+        else:
+            self.skip_extensions_sequential(exts_filter)
+
+    def skip_extensions_sequential(self, exts_filter):
+        """
+        Skip already installed extensions (checking sequentially),
+        by removing them from list of Extension instances to install (self.ext_instances).
+        """
+        print_msg("skipping installed extensions (sequentially)", log=self.log)
+
         exts_cnt = len(self.ext_instances)
 
         res = []
         for idx, ext_inst in enumerate(self.ext_instances):
             cmd, stdin = resolve_exts_filter_template(exts_filter, ext_inst)
-            (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
-            self.log.info("exts_filter result %s %s", cmdstdouterr, ec)
-            if ec:
-                self.log.info("Not skipping %s", ext_inst.name)
-                self.log.debug("exit code: %s, stdout/err: %s", ec, cmdstdouterr)
-                res.append(ext_inst)
-            else:
+            (out, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin,
+                                regexp=False, trace=False)
+            self.log.info("exts_filter result for %s: exit code %s; output: %s", ext_inst.name, ec, out)
+            if ec == 0:
                 print_msg("skipping extension %s" % ext_inst.name, silent=self.silent, log=self.log)
+            else:
+                self.log.info("Not skipping %s", ext_inst.name)
+                res.append(ext_inst)
 
             self.update_exts_progress_bar("skipping installed extensions (%d/%d checked)" % (idx + 1, exts_cnt))
 
         self.ext_instances = res
         self.update_exts_progress_bar("already installed extensions filtered out", total=len(self.ext_instances))
+
+    def skip_extensions_parallel(self, exts_filter):
+        """
+        Skip already installed extensions (checking in parallel),
+        by removing them from list of Extension instances to install (self.ext_instances).
+        """
+        self.log.experimental("Skipping installed extensions in parallel")
+        print_msg("skipping installed extensions (in parallel)", log=self.log)
+
+        async_cmd_info_cache = {}
+        running_checks_ids = []
+        installed_exts_ids = []
+        exts_queue = list(enumerate(self.ext_instances[:]))
+        checked_exts_cnt = 0
+        exts_cnt = len(self.ext_instances)
+
+        # asynchronously run checks to see whether extensions are already installed
+        while exts_queue or running_checks_ids:
+
+            # first handle completed checks
+            for idx in running_checks_ids[:]:
+                ext_name = self.ext_instances[idx].name
+                # don't read any output, just check whether command completed
+                async_cmd_info = check_async_cmd(*async_cmd_info_cache[idx], output_read_size=0, fail_on_error=False)
+                if async_cmd_info['done']:
+                    out, ec = async_cmd_info['output'], async_cmd_info['exit_code']
+                    self.log.info("exts_filter result for %s: exit code %s; output: %s", ext_name, ec, out)
+                    running_checks_ids.remove(idx)
+                    if ec == 0:
+                        print_msg("skipping extension %s" % ext_name, log=self.log)
+                        installed_exts_ids.append(idx)
+
+                    checked_exts_cnt += 1
+                    exts_pbar_label = "skipping installed extensions "
+                    exts_pbar_label += "(%d/%d checked)" % (checked_exts_cnt, exts_cnt)
+                    self.update_exts_progress_bar(exts_pbar_label)
+
+            # start additional checks asynchronously
+            while exts_queue and len(running_checks_ids) < self.cfg['parallel']:
+                idx, ext = exts_queue.pop(0)
+                cmd, stdin = resolve_exts_filter_template(exts_filter, ext)
+                async_cmd_info_cache[idx] = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin,
+                                                    regexp=False, trace=False, asynchronous=True)
+                running_checks_ids.append(idx)
+
+        # compose new list of extensions, skip over the ones that are already installed;
+        # note: original order in extensions list should be preserved!
+        retained_ext_instances = []
+        for idx, ext in enumerate(self.ext_instances):
+            if idx not in installed_exts_ids:
+                retained_ext_instances.append(ext)
+                self.log.info("Not skipping %s", ext.name)
+
+        self.ext_instances = retained_ext_instances
 
     def install_extensions(self, install=True):
         """
@@ -1785,7 +1864,26 @@ class EasyBlock(object):
                 # check whether extension at top of the queue is ready to install
                 ext = exts_queue.pop(0)
 
-                pending_deps = [x for x in ext.required_deps if x not in installed_ext_names]
+                required_deps = ext.required_deps
+                if required_deps is None:
+                    pending_deps = None
+                    self.log.info("Required dependencies for %s are unknown!", ext.name)
+                else:
+                    self.log.info("Required dependencies for %s: %s", ext.name, ', '.join(required_deps))
+                    pending_deps = [x for x in required_deps if x not in installed_ext_names]
+                    self.log.info("Missing required dependencies for %s: %s", ext.name, ', '.join(pending_deps))
+
+                # if required dependencies could not be determined, wait until all preceding extensions are installed
+                if pending_deps is None:
+                    if running_exts:
+                        # add extension back at top of the queue,
+                        # since we need to preverse installation order of extensions;
+                        # break out of for loop since there is no point to keep checking
+                        # until running installations have been completed
+                        exts_queue.insert(0, ext)
+                        break
+                    else:
+                        pending_deps = []
 
                 if self.dry_run:
                     tup = (ext.name, ext.version, ext.__class__.__name__)
@@ -1798,7 +1896,7 @@ class EasyBlock(object):
 
                     # make sure all required dependencies are actually going to be installed,
                     # to avoid getting stuck in an infinite loop!
-                    missing_deps = [x for x in ext.required_deps if x not in all_ext_names]
+                    missing_deps = [x for x in required_deps if x not in all_ext_names]
                     if missing_deps:
                         raise EasyBuildError("Missing required dependencies for %s are not going to be installed: %s",
                                              ext.name, ', '.join(missing_deps))
@@ -1895,7 +1993,7 @@ class EasyBlock(object):
             self.log.info("EULA for %s is accepted", name)
         else:
             error_lines = [
-                "The End User License Argreement (EULA) for %(name)s is currently not accepted!",
+                "The End User License Agreement (EULA) for %(name)s is currently not accepted!",
             ]
             if more_info:
                 error_lines.append("(see %s for more information)" % more_info)
@@ -3266,7 +3364,12 @@ class EasyBlock(object):
             if extra_modules:
                 self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
 
-        # chdir to installdir (better environment for running tests)
+        # allow oversubscription of P processes on C cores (P>C) for software installed on top of Open MPI;
+        # this is useful to avoid failing of sanity check commands that involve MPI
+        if self.toolchain.mpi_family() and self.toolchain.mpi_family() in toolchain.OPENMPI:
+            env.setvar('OMPI_MCA_rmaps_base_oversubscribe', '1')
+
+        # change to install directory (better environment for running tests)
         if os.path.isdir(self.installdir):
             change_dir(self.installdir)
 
@@ -3756,6 +3859,7 @@ class EasyBlock(object):
 
         ignore_locks = build_option('ignore_locks')
 
+        lock_created = False
         try:
             if ignore_locks:
                 self.log.info("Ignoring locks...")
@@ -3768,6 +3872,10 @@ class EasyBlock(object):
 
                 # create lock to avoid that another installation running in parallel messes things up
                 create_lock(lock_name)
+                lock_created = True
+
+            # run post-initialization tasks first, before running any steps
+            self.post_init()
 
             for step_name, descr, step_methods, skippable in steps:
                 if self.skip_step(step_name, skippable):
@@ -3797,7 +3905,8 @@ class EasyBlock(object):
         except StopException:
             pass
         finally:
-            if not ignore_locks:
+            # remove lock, but only if it was created in this session (not if it was there already)
+            if lock_created:
                 remove_lock(lock_name)
 
             stop_progress_bar(PROGRESS_BAR_EASYCONFIG)
@@ -3902,6 +4011,14 @@ def build_and_install_one(ecdict, init_env):
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
         if not dry_run:
+            # Copy over the build environment used during the configuraton
+            reprod_spec = os.path.join(reprod_dir, app.cfg.filename())
+            try:
+                dump_env_easyblock(app, ec_path=reprod_spec, silent=True)
+                _log.debug("Created build environment dump for easyconfig %s", reprod_spec)
+            except EasyBuildError as err:
+                _log.warning("Failed to create build environment dump for easyconfig %s: %s", reprod_spec, err)
+
             # also add any extension easyblocks used during the build for reproducibility
             if app.ext_instances:
                 copy_easyblocks_for_reprod(app.ext_instances, reprod_dir)
@@ -4080,9 +4197,9 @@ def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
     for easyblock_instance in easyblock_instances:
         for easyblock_class in inspect.getmro(type(easyblock_instance)):
             easyblock_path = inspect.getsourcefile(easyblock_class)
-            # if we reach EasyBlock or ExtensionEasyBlock class, we are done
-            # (ExtensionEasyblock is hardcoded to avoid a cyclical import)
-            if easyblock_class.__name__ in [EasyBlock.__name__, 'ExtensionEasyBlock']:
+            # if we reach EasyBlock, Extension or ExtensionEasyBlock class, we are done
+            # (Extension and ExtensionEasyblock are hardcoded to avoid a cyclical import)
+            if easyblock_class.__name__ in [EasyBlock.__name__, 'Extension', 'ExtensionEasyBlock']:
                 break
             else:
                 easyblock_paths.add(easyblock_path)
