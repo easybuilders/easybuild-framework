@@ -3209,23 +3209,54 @@ class ToyBuildTest(EnhancedTestCase):
             # exact same file as original binary (untouched)
             self.assertEqual(toy_txt, fn_txt)
 
-        regexes_S = {}
-        # no re.M, this should match at start of file!
-        regexes_S['py'] = re.compile(r'^#!/usr/bin/env -S python\n# test$')
-        regexes_S['pl'] = re.compile(r'^#!/usr/bin/env -S perl\n# test$')
-        regexes_S['sh'] = re.compile(r'^#!/usr/bin/env -S bash\n# test$')
+        regexes_shebang = {}
 
-        for ext in ['sh', 'pl', 'py']:
-            for script in scripts[ext]:
-                bin_path = os.path.join(toy_bindir, script)
-                bin_txt = read_file(bin_path)
-                # the scripts b1.py, b1.pl, b1.sh, b2.sh should keep their original shebang
-                if script.startswith('b'):
-                    self.assertTrue(regexes[ext].match(bin_txt),
-                                    "Pattern '%s' found in %s: %s" % (regexes[ext].pattern, bin_path, bin_txt))
-                else:
-                    self.assertTrue(regexes_S[ext].match(bin_txt),
-                                    "Pattern '%s' found in %s: %s" % (regexes_S[ext].pattern, bin_path, bin_txt))
+        def check_shebangs():
+            for ext in ['sh', 'pl', 'py']:
+                for script in scripts[ext]:
+                    bin_path = os.path.join(toy_bindir, script)
+                    bin_txt = read_file(bin_path)
+                    # the scripts b1.py, b1.pl, b1.sh, b2.sh should keep their original shebang
+                    if script.startswith('b'):
+                        self.assertTrue(regexes[ext].match(bin_txt),
+                                        "Pattern '%s' found in %s: %s" % (regexes[ext].pattern, bin_path, bin_txt))
+                    else:
+                        regex_shebang = regexes_shebang[ext]
+                        self.assertTrue(regex_shebang.match(bin_txt),
+                                        "Pattern '%s' found in %s: %s" % (regex_shebang.pattern, bin_path, bin_txt))
+
+        # no re.M, this should match at start of file!
+        regexes_shebang['py'] = re.compile(r'^#!/usr/bin/env -S python\n# test$')
+        regexes_shebang['pl'] = re.compile(r'^#!/usr/bin/env -S perl\n# test$')
+        regexes_shebang['sh'] = re.compile(r'^#!/usr/bin/env -S bash\n# test$')
+
+        check_shebangs()
+
+        # test again with EasyBuild configured with sysroot, which should be prepended
+        # automatically to env-for-shebang value (unless it's prefixed with sysroot already)
+        extra_args = [
+            '--env-for-shebang=/usr/bin/env -S',
+            '--sysroot=/usr/../',  # sysroot must exist, and so must /usr/bin/env when appended to it
+        ]
+        self.test_toy_build(ec_file=test_ec, extra_args=extra_args, raise_error=True)
+
+        regexes_shebang['py'] = re.compile(r'^#!/usr/../usr/bin/env -S python\n# test$')
+        regexes_shebang['pl'] = re.compile(r'^#!/usr/../usr/bin/env -S perl\n# test$')
+        regexes_shebang['sh'] = re.compile(r'^#!/usr/../usr/bin/env -S bash\n# test$')
+
+        check_shebangs()
+
+        extra_args = [
+            '--env-for-shebang=/usr/../usr/../usr/bin/env -S',
+            '--sysroot=/usr/../',  # sysroot must exist, and so must /usr/bin/env when appended to it
+        ]
+        self.test_toy_build(ec_file=test_ec, extra_args=extra_args, raise_error=True)
+
+        regexes_shebang['py'] = re.compile(r'^#!/usr/../usr/../usr/bin/env -S python\n# test$')
+        regexes_shebang['pl'] = re.compile(r'^#!/usr/../usr/../usr/bin/env -S perl\n# test$')
+        regexes_shebang['sh'] = re.compile(r'^#!/usr/../usr/../usr/bin/env -S bash\n# test$')
+
+        check_shebangs()
 
     def test_toy_system_toolchain_alias(self):
         """Test use of 'system' toolchain alias."""
