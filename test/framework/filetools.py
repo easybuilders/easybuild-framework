@@ -1628,10 +1628,13 @@ class FileToolsTest(EnhancedTestCase):
         """Test create_patch_info function."""
 
         self.assertEqual(ft.create_patch_info('foo.patch'), {'name': 'foo.patch'})
-        self.assertEqual(ft.create_patch_info('foo.txt'), {'name': 'foo.txt'})
         self.assertEqual(ft.create_patch_info(('foo.patch', 1)), {'name': 'foo.patch', 'level': 1})
         self.assertEqual(ft.create_patch_info(('foo.patch', 'subdir')), {'name': 'foo.patch', 'sourcepath': 'subdir'})
         self.assertEqual(ft.create_patch_info(('foo.txt', 'subdir')), {'name': 'foo.txt', 'copy': 'subdir'})
+
+        error_pattern = "Add '.patch' suffix to patch file, or use 2-element list/tuple to specify "
+        error_pattern += "path to where non-patch file should be copied: foo.txt"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.create_patch_info, 'foo.txt')
 
         # faulty input
         error_msg = "Wrong patch spec"
