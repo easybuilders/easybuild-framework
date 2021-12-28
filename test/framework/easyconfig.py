@@ -461,7 +461,7 @@ class EasyConfigTest(EnhancedTestCase):
             '   ("ext1", "1.0"),',
             '   ("ext2", "2.0", {',
             '       "source_urls": [("http://example.com", "suffix")],'
-            '       "patches": [("toy-0.0.eb", '.')],',  # dummy patch to avoid downloading fail
+            '       "patches": [("toy-0.0.eb", ".")],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
                         # SHA256 checksum for source (gzip-1.4.eb)
             '           "6a5abcab719cefa95dca4af0db0d2a9d205d68f775a33b452ec0f2b75b6a3a45",',
