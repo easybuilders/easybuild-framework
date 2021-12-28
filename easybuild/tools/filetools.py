@@ -1493,6 +1493,9 @@ def create_patch_info(patch_spec):
                                  str(patch_spec))
 
     elif isinstance(patch_spec, string_type):
+        if not patch_spec.endswith('.patch'):
+            _log.deprecated("Add '.patch' suffix to patch file, or use 2-element list/tuple to specify "
+                            "path to where non-patch file should be copied: %s" % patch_spec, '5.0')
         patch_info = {'name': patch_spec}
     else:
         error_msg = "Wrong patch spec, should be string of 2-tuple with patch name + argument: %s"
