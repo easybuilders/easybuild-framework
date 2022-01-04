@@ -1632,10 +1632,17 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.create_patch_info(('foo.patch', 'subdir')), {'name': 'foo.patch', 'sourcepath': 'subdir'})
         self.assertEqual(ft.create_patch_info(('foo.txt', 'subdir')), {'name': 'foo.txt', 'copy': 'subdir'})
 
-        # deprecation warning (which is an error in this context)
-        error_pattern = "Add '.patch' suffix to patch file, or use 2-element list/tuple to specify "
-        error_pattern += "path to where non-patch file should be copied: foo.txt"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.create_patch_info, 'foo.txt')
+        self.allow_deprecated_behaviour()
+        self.mock_stderr(True)
+        self.assertEqual(ft.create_patch_info('foo.txt'), {'name': 'foo.txt'})
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.disallow_deprecated_behaviour()
+        expected_warning = "Use of patch file with filename that doesn't end with .patch: foo.txt"
+        self.assertTrue(expected_warning in stderr)
+
+        # deprecation warning is treated as an error in context of unit test suite
+        self.assertErrorRegex(EasyBuildError, expected_warning, ft.create_patch_info, 'foo.txt')
 
         # faulty input
         error_msg = "Wrong patch spec"
