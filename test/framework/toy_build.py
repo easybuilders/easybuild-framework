@@ -1832,14 +1832,20 @@ class ToyBuildTest(EnhancedTestCase):
         args = ['--parallel-extensions-install', '--experimental', '--force', '--parallel=3']
         stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
         self.assertEqual(stderr, '')
-        expected_stdout = '\n'.join([
-            "== 0 out of 4 extensions installed (2 queued, 2 running: ls, bar)",
-            "== 2 out of 4 extensions installed (1 queued, 1 running: barbar)",
-            "== 3 out of 4 extensions installed (0 queued, 1 running: toy)",
-            "== 4 out of 4 extensions installed (0 queued, 0 running: )",
+
+        # take into account that each of these lines may appear multiple times,
+        # in case no progress was made between checks
+        patterns = [
+            r"== 0 out of 4 extensions installed \(2 queued, 2 running: ls, bar\)$",
+            r"== 2 out of 4 extensions installed \(1 queued, 1 running: barbar\)$",
+            r"== 3 out of 4 extensions installed \(0 queued, 1 running: toy\)$",
+            r"== 4 out of 4 extensions installed \(0 queued, 0 running: \)$",
             '',
-        ])
-        self.assertEqual(stdout, expected_stdout)
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            error_msg = "Expected pattern '%s' should be found in %s'" % (regex.pattern, stdout)
+            self.assertTrue(regex.search(stdout), error_msg)
 
         # also test skipping of extensions in parallel
         args.append('--skip')
@@ -1871,15 +1877,20 @@ class ToyBuildTest(EnhancedTestCase):
         args[-1] = '--include-easyblocks=%s' % toy_ext_eb
         stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
         self.assertEqual(stderr, '')
-        expected_stdout = '\n'.join([
-            "== 0 out of 4 extensions installed (3 queued, 1 running: ls)",
-            "== 1 out of 4 extensions installed (2 queued, 1 running: bar)",
-            "== 2 out of 4 extensions installed (1 queued, 1 running: barbar)",
-            "== 3 out of 4 extensions installed (0 queued, 1 running: toy)",
-            "== 4 out of 4 extensions installed (0 queued, 0 running: )",
+        # take into account that each of these lines may appear multiple times,
+        # in case no progress was made between checks
+        patterns = [
+            r"^== 0 out of 4 extensions installed \(3 queued, 1 running: ls\)$",
+            r"^== 1 out of 4 extensions installed \(2 queued, 1 running: bar\)$",
+            r"^== 2 out of 4 extensions installed \(1 queued, 1 running: barbar\)$",
+            r"^== 3 out of 4 extensions installed \(0 queued, 1 running: toy\)$",
+            r"^== 4 out of 4 extensions installed \(0 queued, 0 running: \)$",
             '',
-        ])
-        self.assertEqual(stdout, expected_stdout)
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            error_msg = "Expected pattern '%s' should be found in %s'" % (regex.pattern, stdout)
+            self.assertTrue(regex.search(stdout), error_msg)
 
     def test_backup_modules(self):
         """Test use of backing up of modules with --module-only."""
