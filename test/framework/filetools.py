@@ -1628,10 +1628,21 @@ class FileToolsTest(EnhancedTestCase):
         """Test create_patch_info function."""
 
         self.assertEqual(ft.create_patch_info('foo.patch'), {'name': 'foo.patch'})
-        self.assertEqual(ft.create_patch_info('foo.txt'), {'name': 'foo.txt'})
         self.assertEqual(ft.create_patch_info(('foo.patch', 1)), {'name': 'foo.patch', 'level': 1})
         self.assertEqual(ft.create_patch_info(('foo.patch', 'subdir')), {'name': 'foo.patch', 'sourcepath': 'subdir'})
         self.assertEqual(ft.create_patch_info(('foo.txt', 'subdir')), {'name': 'foo.txt', 'copy': 'subdir'})
+
+        self.allow_deprecated_behaviour()
+        self.mock_stderr(True)
+        self.assertEqual(ft.create_patch_info('foo.txt'), {'name': 'foo.txt'})
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.disallow_deprecated_behaviour()
+        expected_warning = "Use of patch file with filename that doesn't end with .patch: foo.txt"
+        self.assertTrue(expected_warning in stderr)
+
+        # deprecation warning is treated as an error in context of unit test suite
+        self.assertErrorRegex(EasyBuildError, expected_warning, ft.create_patch_info, 'foo.txt')
 
         # faulty input
         error_msg = "Wrong patch spec"
