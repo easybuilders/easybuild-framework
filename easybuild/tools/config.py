@@ -590,7 +590,7 @@ def update_build_option(key, value):
     """
     # BuildOptions() is a (singleton) frozen dict, so this is less straightforward that it seems...
     build_options = BuildOptions()
-    orig_value = build_options.__FrozenDict__dict[key]
+    orig_value = build_options._FrozenDict__dict[key]
     build_options._FrozenDict__dict[key] = value
     _log.warning("Build option '%s' was updated to: %s", key, build_option(key))
 
