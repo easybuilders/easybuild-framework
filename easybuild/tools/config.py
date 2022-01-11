@@ -593,6 +593,23 @@ def update_build_option(key, value):
     build_options._FrozenDict__dict[key] = value
     _log.warning("Build option '%s' was updated to: %s", key, build_option(key))
 
+    # Return original value, so they can be restored later if needed
+    return orig_value
+
+def update_build_options(key_value_dict):
+    """
+    Update all build options in the key_value_dict with the value given in that dictionary,
+    by calling update_build_option(key, value) repeatedly.
+    This function can be used e.g. when EasyConfig-specific build options are passed in an EasyStack file.
+    See https://github.com/easybuilders/easybuild-framework/issues/3513#issuecomment-986990195
+    """
+    orig_key_value_dict = {}
+    for key, value in key_value_dict.items():
+        orig_key_value_dict[key] = update_build_option(key, value)
+
+    # Return original key-value pairs in a dictionary.
+    # This way, they can later be restored by a single call to update_build_options(orig_key_value_dict)
+    return orig_key_value_dict
 
 def build_path():
     """
