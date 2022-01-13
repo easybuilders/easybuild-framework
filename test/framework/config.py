@@ -691,6 +691,11 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertFalse(build_option('cleanup_builddir')
         self.assertTrue(orig_cleanup_builddir)
 
+        self.assertEqual(build_option('pr_target_account'), 'easybuilders')
+        orig_pr_target_account = update_build_option('pr_target_account', 'test_pr_target_account')
+        self.assertEqual(build_option('pr_target_account'), 'test_pr_target_account')
+        self.assertEqual(orig_pr_target_account, 'easybuilders')
+
     def test_update_build_options(self):
         """Test updating of a dictionary of build options."""
         # Check if original defaults are as expected:
@@ -704,13 +709,13 @@ class EasyBuildConfigTest(EnhancedTestCase):
             'banned_linked_shared_libs': '/usr/lib64/libssl.so.1.1',
             'filter_env_vars': 'LD_LIBRARY_PATH',
             'cleanup_builddir': False,
-            'pr_target_account': 'john_doe',
+            'pr_target_account': 'test_pr_target_account',
         }
         original_opt_dict = update_build_options(new_opt_dict)
         self.assertEqual(build_option('banned_linked_shared_libs'), '/usr/lib64/libssl.so.1.1')
         self.assertEqual(build_option('filter_env_vars'), 'LD_LIBRARY_PATH')
         self.assertFalse(build_option('cleanup_builddir'))
-        self.assertEqual(build_option('pr_target_account'), 'john_doe')
+        self.assertEqual(build_option('pr_target_account'), 'test_pr_target_account')
 
         # Check the returned dictionary by simply restoring the variables and checking if the build
         # options have their original values again
