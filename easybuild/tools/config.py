@@ -594,7 +594,7 @@ def update_build_option(key, value):
     build_options._FrozenDict__dict[key] = value
     _log.warning("Build option '%s' was updated to: %s", key, build_option(key))
 
-    # Return original value, so they can be restored later if needed
+    # Return original value, so it can be restored later if needed
     return orig_value
 
 
