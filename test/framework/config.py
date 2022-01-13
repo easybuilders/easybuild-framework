@@ -40,7 +40,8 @@ import easybuild.tools.options as eboptions
 from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, build_path, get_build_log_path, get_log_filename, get_repositorypath
-from easybuild.tools.config import install_path, log_file_format, log_path, source_paths, update_build_option, update_build_options
+from easybuild.tools.config import install_path, log_file_format, log_path, source_paths
+from easybuild.tools.config import update_build_option, update_build_options
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, init_build_options
 from easybuild.tools.filetools import copy_dir, mkdir, write_file
