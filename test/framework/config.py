@@ -680,12 +680,11 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def test_update_build_option(self):
         """Test updating of a build option."""
-        # Test if new build option is set:
         self.assertEqual(build_option('banned_linked_shared_libs'), None)
-        update_build_option('banned_linked_shared_libs', '/usr/lib64/libssl.so.1.1')
+        orig_banned_linked_shared_libs = update_build_option('banned_linked_shared_libs', '/usr/lib64/libssl.so.1.1')
         self.assertEqual(build_option('banned_linked_shared_libs'), '/usr/lib64/libssl.so.1.1')
+        self.assertEqual(orig_banned_linked_shared_libs, None)
 
-        # Test also if the correct old value is returned
         self.assertTrue(build_option('cleanup_builddir'))
         orig_cleanup_builddir = update_build_option('cleanup_builddir', False)
         self.assertFalse(build_option('cleanup_builddir')
