@@ -600,8 +600,8 @@ def update_build_option(key, value):
 
 def update_build_options(key_value_dict):
     """
-Update build options as specified by the given dictionary (where keys are assumed to be build option names).
-Returns dictionary with original values for the updated build options.
+    Update build options as specified by the given dictionary (where keys are assumed to be build option names).
+    Returns dictionary with original values for the updated build options.
     """
     orig_key_value_dict = {}
     for key, value in key_value_dict.items():
