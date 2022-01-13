@@ -687,7 +687,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         self.assertTrue(build_option('cleanup_builddir'))
         orig_cleanup_builddir = update_build_option('cleanup_builddir', False)
-        self.assertFalse(build_option('cleanup_builddir')
+        self.assertFalse(build_option('cleanup_builddir'))
         self.assertTrue(orig_cleanup_builddir)
 
         self.assertEqual(build_option('pr_target_account'), 'easybuilders')
@@ -700,7 +700,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         # Check if original defaults are as expected:
         self.assertEqual(build_option('banned_linked_shared_libs'), None)
         self.assertEqual(build_option('filter_env_vars'), None)
-        self.assertTrue(build_option('cleanup_builddir')
+        self.assertTrue(build_option('cleanup_builddir'))
         self.assertEqual(build_option('pr_target_account'), 'easybuilders')
 
         # Update build options based on dictionary
