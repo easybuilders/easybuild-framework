@@ -688,20 +688,20 @@ class EasyBuildConfigTest(EnhancedTestCase):
     def test_update_build_options(self):
         """Test updating of a dictionary of build options."""
         self.assertEqual(build_option('banned_linked_shared_libs'), None)
-	self.assertEqual(build_option('filter_env_vars'), None)
+        self.assertEqual(build_option('filter_env_vars'), None)
 
         new_opt_dict = {
             'banned_linked_shared_libs': '/usr/lib64/libssl.so.1.1',
             'filter_env_vars': 'LD_LIBRARY_PATH',
         }
 
-        original_opt_dict = update_build_options(new_opt_dict) 
+        original_opt_dict = update_build_options(new_opt_dict)
         self.assertEqual(build_option('banned_linked_shared_libs'), '/usr/lib64/libssl.so.1.1')
-	self.assertEqual(build_option('filter_env_vars'), 'LD_LIBRARY_PATH')
+        self.assertEqual(build_option('filter_env_vars'), 'LD_LIBRARY_PATH')
 
         # Check the returned dictionary by simply restoring the variables and checking if the build
         # options have their original values again
-	update_build_options(original_opt_dict)
+        update_build_options(original_opt_dict)
         self.assertEqual(build_option('banned_linked_shared_libs'), None)
         self.assertEqual(build_option('filter_env_vars'), None)
 
