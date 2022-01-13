@@ -600,10 +600,8 @@ def update_build_option(key, value):
 
 def update_build_options(key_value_dict):
     """
-    Update all build options in the key_value_dict with the value given in that dictionary,
-    by calling update_build_option(key, value) repeatedly.
-    This function can be used e.g. when EasyConfig-specific build options are passed in an EasyStack file.
-    See https://github.com/easybuilders/easybuild-framework/issues/3513#issuecomment-986990195
+Update build options as specified by the given dictionary (where keys are assumed to be build option names).
+Returns dictionary with original values for the updated build options.
     """
     orig_key_value_dict = {}
     for key, value in key_value_dict.items():
