@@ -680,31 +680,45 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def test_update_build_option(self):
         """Test updating of a build option."""
+        # Test if new build option is set:
         self.assertEqual(build_option('banned_linked_shared_libs'), None)
-
-        old_val = update_build_option('banned_linked_shared_libs', '/usr/lib64/libssl.so.1.1')
+        update_build_option('banned_linked_shared_libs', '/usr/lib64/libssl.so.1.1')
         self.assertEqual(build_option('banned_linked_shared_libs'), '/usr/lib64/libssl.so.1.1')
-        self.assertEqual(old_val, None)
+
+        # Test also if the correct old value is returned
+        self.assertTrue(build_option('cleanup_builddir'))
+        orig_cleanup_builddir = update_build_option('cleanup_builddir', False)
+        self.assertFalse(build_option('cleanup_builddir')
+        self.assertTrue(orig_cleanup_builddir)
 
     def test_update_build_options(self):
         """Test updating of a dictionary of build options."""
+        # Check if original defaults are as expected:
         self.assertEqual(build_option('banned_linked_shared_libs'), None)
         self.assertEqual(build_option('filter_env_vars'), None)
+        self.assertTrue(build_option('cleanup_builddir')
+        self.assertEqual(build_option('pr_target_account'), 'easybuilders')
 
+        # Update build options based on dictionary
         new_opt_dict = {
             'banned_linked_shared_libs': '/usr/lib64/libssl.so.1.1',
             'filter_env_vars': 'LD_LIBRARY_PATH',
+            'cleanup_builddir': False,
+            'pr_target_account': 'john_doe',
         }
-
         original_opt_dict = update_build_options(new_opt_dict)
         self.assertEqual(build_option('banned_linked_shared_libs'), '/usr/lib64/libssl.so.1.1')
         self.assertEqual(build_option('filter_env_vars'), 'LD_LIBRARY_PATH')
+        self.assertFalse(build_option('cleanup_builddir'))
+        self.assertEqual(build_option('pr_target_account'), 'john_doe')
 
         # Check the returned dictionary by simply restoring the variables and checking if the build
         # options have their original values again
         update_build_options(original_opt_dict)
         self.assertEqual(build_option('banned_linked_shared_libs'), None)
         self.assertEqual(build_option('filter_env_vars'), None)
+        self.assertTrue(build_option('cleanup_builddir'))
+        self.assertEqual(build_option('pr_target_account'), 'easybuilders')
 
 
 def suite():
