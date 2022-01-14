@@ -116,7 +116,7 @@ jobs:
           if [ ! -z $GITHUB_TOKEN ]; then
             if [ "x${{matrix.python}}" == 'x2.6' ];
               then SET_KEYRING="keyring.set_keyring(keyring.backends.file.PlaintextKeyring())";
-              else SET_KEYRING="import keyrings; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
+              else SET_KEYRING="import keyrings.alt.file; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
             fi;
             python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
           fi
