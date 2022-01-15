@@ -197,7 +197,13 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.contents += "\nsyntax_error'"
         self.prep()
-        error_pattern = "Parsing easyconfig file failed: EOL while scanning string literal"
+
+        # exact error message depends on Python version (different starting with Python 3.10)
+        if sys.version_info >= (3, 10):
+            error_pattern = "Parsing easyconfig file failed: unterminated string literal"
+        else:
+            error_pattern = "Parsing easyconfig file failed: EOL while scanning string literal"
+
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
 
         # introduce "TypeError: format requires mapping" issue"
@@ -3588,7 +3594,9 @@ class EasyConfigTest(EnhancedTestCase):
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2383
         not_an_ec = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'not_an_easyconfig.eb')
 
-        error_pattern = "Parsing easyconfig file failed: invalid syntax"
+        # from Python 3.10 onwards: invalid decimal literal
+        # older Python versions: invalid syntax
+        error_pattern = "Parsing easyconfig file failed: invalid"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, not_an_ec)
 
     def test_check_sha256_checksums(self):
