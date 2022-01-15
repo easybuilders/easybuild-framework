@@ -18,12 +18,13 @@ PRECONFIG_CMD=
 
 if [ "$PKG_NAME" == 'modules' ] && [ "$PKG_VERSION" == '3.2.10' ]; then
     PKG_URL="http://prdownloads.sourceforge.net/modules/${PKG}.tar.gz"
-    BACKUP_PKG_URL="https://easybuilders.github.io/easybuild/files/${PKG}.tar.gz"
+    BACKUP_PKG_URL="https://sources.easybuild.io/e/EnvironmentModules/${PKG}.tar.gz"
     export PATH="$PREFIX/Modules/$PKG_VERSION/bin:$PATH"
     export MOD_INIT="$PREFIX/Modules/$PKG_VERSION/init/bash"
 
 elif [ "$PKG_NAME" == 'modules' ]; then
     PKG_URL="http://prdownloads.sourceforge.net/modules/${PKG}.tar.gz"
+    BACKUP_PKG_URL="https://sources.easybuild.io/e/EnvironmentModules/${PKG}.tar.gz"
     export PATH="$PREFIX/bin:$PATH"
     export MOD_INIT="$PREFIX/init/bash"
 
