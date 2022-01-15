@@ -10,9 +10,6 @@ gitdb
 GitPython==3.1.14; python_version >= '3.0' and python_version < '3.6'
 GitPython; python_version >= '3.6' or python_version <= '3.0'
 
-# pydot
-pydot
-
 # autopep8
 autopep8
 
