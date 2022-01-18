@@ -86,6 +86,8 @@ AARCH32 = 'AArch32'
 AARCH64 = 'AArch64'
 POWER = 'POWER'
 X86_64 = 'x86_64'
+RISCV32 = 'RISC-V-32'
+RISCV64 = 'RISC-V-64'
 
 ARCH_KEY_PREFIX = 'arch='
 
@@ -106,6 +108,7 @@ QUALCOMM = 'Qualcomm'
 
 # Family constants
 POWER_LE = 'POWER little-endian'
+RISCV = 'RISC-V'
 
 # OS constants
 LINUX = 'Linux'
@@ -117,8 +120,8 @@ MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
 PROC_CPUINFO_FP = '/proc/cpuinfo'
 PROC_MEMINFO_FP = '/proc/meminfo'
 
-CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, X86_64]
-CPU_FAMILIES = [AMD, ARM, INTEL, POWER, POWER_LE]
+CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, RISCV32, RISCV64, X86_64]
+CPU_FAMILIES = [AMD, ARM, INTEL, POWER, POWER_LE, RISCV]
 CPU_VENDORS = [AMD, APM, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
 # ARM implementer IDs (i.e., the hexadeximal keys) taken from ARMv8-A Architecture Reference Manual
 # (ARM DDI 0487A.j, Section G6.2.102, Page G6-4493)
@@ -312,9 +315,11 @@ def get_cpu_architecture():
 
     :return: a value from the CPU_ARCHITECTURES list
     """
-    power_regex = re.compile("ppc64.*")
-    aarch64_regex = re.compile("aarch64.*")
     aarch32_regex = re.compile("arm.*")
+    aarch64_regex = re.compile("aarch64.*")
+    power_regex = re.compile("ppc64.*")
+    riscv32_regex = re.compile("riscv32.*")
+    riscv64_regex = re.compile("riscv64.*")
 
     system, node, release, version, machine, processor = platform.uname()
 
@@ -327,6 +332,10 @@ def get_cpu_architecture():
         arch = AARCH64
     elif aarch32_regex.match(machine):
         arch = AARCH32
+    elif riscv64_regex.match(machine):
+        arch = RISCV64
+    elif riscv32_regex.match(machine):
+        arch = RISCV32
 
     if arch == UNKNOWN:
         _log.warning("Failed to determine CPU architecture, returning %s", arch)
@@ -409,6 +418,9 @@ def get_cpu_family():
             powerle_regex = re.compile(r"^ppc(\d*)le")
             if powerle_regex.search(machine):
                 family = POWER_LE
+
+        elif arch in [RISCV32, RISCV64]:
+            family = RISCV
 
     if family is None:
         family = UNKNOWN
