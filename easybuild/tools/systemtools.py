@@ -671,11 +671,15 @@ def get_os_name():
         # platform.linux_distribution is more useful, but only available since Python 2.6
         # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
         os_name = platform.linux_distribution()[0].strip()
-    elif HAVE_DISTRO:
+
+    # take into account that on some OSs, platform.distribution returns an empty string as OS name,
+    # for example on OpenSUSE Leap 15.2
+    if not os_name and HAVE_DISTRO:
         # distro package is the recommended alternative to platform.linux_distribution,
         # see https://pypi.org/project/distro
         os_name = distro.name()
-    elif os.path.exists(ETC_OS_RELEASE):
+
+    if not os_name and os.path.exists(ETC_OS_RELEASE):
         os_release_txt = read_file(ETC_OS_RELEASE)
         name_regex = re.compile('^NAME="?(?P<name>[^"\n]+)"?$', re.M)
         res = name_regex.search(os_release_txt)
@@ -705,9 +709,13 @@ def get_os_version():
     # platform.dist was removed in Python 3.8
     if hasattr(platform, 'dist'):
         os_version = platform.dist()[1]
-    elif HAVE_DISTRO:
+
+    # take into account that on some OSs, platform.dist returns an empty string as OS version,
+    # for example on OpenSUSE Leap 15.2
+    if not os_version and HAVE_DISTRO:
         os_version = distro.version()
-    elif os.path.exists(ETC_OS_RELEASE):
+
+    if not os_version and os.path.exists(ETC_OS_RELEASE):
         os_release_txt = read_file(ETC_OS_RELEASE)
         version_regex = re.compile('^VERSION="?(?P<version>[^"\n]+)"?$', re.M)
         res = version_regex.search(os_release_txt)
