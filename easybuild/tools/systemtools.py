@@ -666,14 +666,14 @@ def get_os_name():
 
     # platform.linux_distribution was removed in Python 3.8,
     # see https://docs.python.org/2/library/platform.html#platform.linux_distribution
-    if hasattr(platform, 'linux_distribution'):
-        # platform.linux_distribution is more useful, but only available since Python 2.6
-        # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
-        os_name = platform.linux_distribution()[0].strip().lower()
-    elif HAVE_DISTRO:
+    if HAVE_DISTRO:
         # distro package is the recommended alternative to platform.linux_distribution,
         # see https://pypi.org/project/distro
         os_name = distro.name()
+    elif hasattr(platform, 'linux_distribution'):
+        # platform.linux_distribution is more useful, but only available since Python 2.6
+        # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
+        os_name = platform.linux_distribution()[0].strip().lower()
     else:
         # no easy way to determine name of Linux distribution
         os_name = None
@@ -696,10 +696,10 @@ def get_os_version():
     """Determine system version."""
 
     # platform.dist was removed in Python 3.8
-    if hasattr(platform, 'dist'):
-        os_version = platform.dist()[1]
-    elif HAVE_DISTRO:
+    if HAVE_DISTRO:
         os_version = distro.version()
+    elif hasattr(platform, 'dist'):
+        os_version = platform.dist()[1]
     else:
         os_version = None
 
