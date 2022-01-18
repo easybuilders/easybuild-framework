@@ -706,6 +706,8 @@ def get_os_name():
 def get_os_version():
     """Determine system version."""
 
+    os_version = None
+
     # platform.dist was removed in Python 3.8
     if hasattr(platform, 'dist'):
         os_version = platform.dist()[1]
