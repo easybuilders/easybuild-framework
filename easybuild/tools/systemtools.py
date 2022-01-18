@@ -113,6 +113,7 @@ DARWIN = 'Darwin'
 
 UNKNOWN = 'UNKNOWN'
 
+ETC_OS_RELEASE = '/etc/os-release'
 MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
 PROC_CPUINFO_FP = '/proc/cpuinfo'
 PROC_MEMINFO_FP = '/proc/meminfo'
@@ -669,11 +670,17 @@ def get_os_name():
     if hasattr(platform, 'linux_distribution'):
         # platform.linux_distribution is more useful, but only available since Python 2.6
         # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
-        os_name = platform.linux_distribution()[0].strip().lower()
+        os_name = platform.linux_distribution()[0].strip()
     elif HAVE_DISTRO:
         # distro package is the recommended alternative to platform.linux_distribution,
         # see https://pypi.org/project/distro
         os_name = distro.name()
+    elif os.path.exists(ETC_OS_RELEASE):
+        os_release_txt = read_file(ETC_OS_RELEASE)
+        name_regex = re.compile('^NAME="?(?P<name>[^"\n]+)"?$', re.M)
+        res = name_regex.search(os_release_txt)
+        if res:
+            os_name = res.group('name')
     else:
         # no easy way to determine name of Linux distribution
         os_name = None
@@ -687,7 +694,7 @@ def get_os_name():
     }
 
     if os_name:
-        return os_name_map.get(os_name, os_name)
+        return os_name_map.get(os_name.lower(), os_name)
     else:
         return UNKNOWN
 
@@ -700,6 +707,19 @@ def get_os_version():
         os_version = platform.dist()[1]
     elif HAVE_DISTRO:
         os_version = distro.version()
+    elif os.path.exists(ETC_OS_RELEASE):
+        os_release_txt = read_file(ETC_OS_RELEASE)
+        version_regex = re.compile('^VERSION="?(?P<version>[^"\n]+)"?$', re.M)
+        res = version_regex.search(os_release_txt)
+        if res:
+            os_version = res.group('version')
+        else:
+            # VERSION may not always be defined (for example on Gentoo),
+            # fall back to VERSION_ID in that case
+            version_regex = re.compile('^VERSION_ID="?(?P<version>[^"\n]+)"?$', re.M)
+            res = version_regex.search(os_release_txt)
+            if res:
+                os_version = res.group('version')
     else:
         os_version = None
 
