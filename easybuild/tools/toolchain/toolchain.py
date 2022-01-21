@@ -944,7 +944,7 @@ class Toolchain(object):
         calls_rpath_args = b'rpath_args.py $CMD' in read_file(path, mode='rb')
         return in_rpath_wrappers_dir and calls_rpath_args
 
-    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None):
+    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, new_wrapper_dir=None, single_subdir=False, disable_wrapper_log=False):
         """
         Put RPATH wrapper script in place for compiler and linker commands
 
@@ -967,7 +967,12 @@ class Toolchain(object):
                 rpath_filter_dirs.append(lib_stubs_pattern)
 
         # directory where all wrappers will be placed
-        wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
+        if new_wrapper_dir is None:
+            wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
+        else:
+            wrappers_dir = new_wrapper_dir
+            if not os.path.exists(wrappers_dir):
+                os.mkdir(wrappers_dir)
 
         # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         c_comps, fortran_comps = self.compilers()
@@ -998,11 +1003,14 @@ class Toolchain(object):
                     continue
 
                 # determine location for this wrapper
-                # each wrapper is placed in its own subdirectory to enable $PATH filtering per wrapper separately
-                # avoid '+' character in directory name (for example with 'g++' command), which can cause trouble
-                # (see https://github.com/easybuilders/easybuild-easyconfigs/issues/7339)
-                wrapper_dir_name = '%s_wrapper' % cmd.replace('+', 'x')
-                wrapper_dir = os.path.join(wrappers_dir, wrapper_dir_name)
+                if single_subdir:
+                    wrapper_dir = wrappers_dir
+                else:
+                    # each wrapper is placed in its own subdirectory to enable $PATH filtering per wrapper separately
+                    # avoid '+' character in directory name (for example with 'g++' command), which can cause trouble
+                    # (see https://github.com/easybuilders/easybuild-easyconfigs/issues/7339)
+                    wrapper_dir_name = '%s_wrapper' % cmd.replace('+', 'x')
+                    wrapper_dir = os.path.join(wrappers_dir, wrapper_dir_name)
 
                 cmd_wrapper = os.path.join(wrapper_dir, cmd)
 
@@ -1011,7 +1019,7 @@ class Toolchain(object):
                     raise EasyBuildError("Refusing the create a fork bomb, which(%s) == %s", cmd, orig_cmd)
 
                 # enable debug mode in wrapper script by specifying location for log file
-                if build_option('debug'):
+                if build_option('debug') and not disable_wrapper_log:
                     rpath_wrapper_log = os.path.join(tempfile.gettempdir(), 'rpath_wrapper_%s.log' % cmd)
                 else:
                     rpath_wrapper_log = '/dev/null'
@@ -1027,7 +1035,7 @@ class Toolchain(object):
                     'wrapper_dir': wrapper_dir,
                 }
                 write_file(cmd_wrapper, cmd_wrapper_txt)
-                adjust_permissions(cmd_wrapper, stat.S_IXUSR)
+                adjust_permissions(cmd_wrapper, stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
                 # prepend location to this wrapper to $PATH
                 setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
@@ -1035,6 +1043,8 @@ class Toolchain(object):
                 self.log.info("RPATH wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
             else:
                 self.log.debug("Not installing RPATH wrapper for non-existing command '%s'", cmd)
+
+        return wrappers_dir
 
     def handle_sysroot(self):
         """
