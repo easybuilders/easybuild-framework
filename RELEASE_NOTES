@@ -10,20 +10,19 @@ v4.5.2 (January 24th 2022)
 update/bugfix release
 
 - various enhancements, including:
-  - automatically prepend env-for-shebang value with sysroot (#3919)
-  - add support for update_build_options + enhance update_build_options to return original value (#3923)
-  - fix compatibility with Python 3.10 (#3926)
-  - make intelfftw toolchain component aware of GCCcore (#3929)
+  - automatically prepend value for env-for-shebang configuration setting with sysroot (#3919)
+  - enhance update_build_option to return original value + add support for update_build_options (#3923)
+  - fix compatibility with Python 3.10 (#3926, #3933)
   - also take /etc/os-release into account in get_os_name and get_os_version (#3930)
   - enhance get_cpu_architecture and get_cpu_family to be aware of RISC-V (#3931)
-  - also run tests for 'eb' command with Python 3.10 (#3933)
 - various bug fixes, including:
   - relax pattern checks in test_toy_exts_parallel (#3921)
   - use sources.easybuild.io as backup URL for downloading Environment Modules sources to run test suite (#3928)
+  - make intelfftw toolchain component aware of GCCcore (#3929)
 - other changes:
-  - deprecate use of patch files that don't have a filename ending with .patch (#3920)
+  - deprecate use of (actual) patch files that don't have a filename ending with .patch (#3920)
   - remove version restriction for keyring in requirements.txt to test with latest version (#3925)
-  - simplify requirements.txt by removing python 2.6 support (#3927)
+  - simplify requirements.txt by removing Python 2.6 support (#3927)
 
 
 v4.5.1 (December 13th 2021)
