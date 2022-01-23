@@ -23,6 +23,7 @@ update/bugfix release
   - deprecate use of (actual) patch files that don't have a filename ending with .patch (#3920)
   - remove version restriction for keyring in requirements.txt to test with latest version (#3925)
   - simplify requirements.txt by removing Python 2.6 support (#3927)
+  - only run GitHub tests when testing with Lua module syntax, to avoid hitting GitHub rate limit when running tests (#3938)
 
 
 v4.5.1 (December 13th 2021)
