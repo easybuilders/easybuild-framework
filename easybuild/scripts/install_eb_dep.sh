@@ -16,6 +16,8 @@ PKG_VERSION="${PKG##*-}"
 CONFIG_OPTIONS=
 PRECONFIG_CMD=
 
+BACKUP_PKG_URL=
+
 if [ "$PKG_NAME" == 'modules' ]; then
     PKG_URL="http://prdownloads.sourceforge.net/modules/${PKG}.tar.gz"
     BACKUP_PKG_URL="https://sources.easybuild.io/e/EnvironmentModules/${PKG}.tar.gz"
