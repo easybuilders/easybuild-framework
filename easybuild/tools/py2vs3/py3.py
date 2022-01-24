@@ -36,6 +36,7 @@ import subprocess
 import sys
 import urllib.request as std_urllib  # noqa
 from collections import OrderedDict  # noqa
+from collections.abc import Mapping  # noqa
 from distutils.version import LooseVersion
 from functools import cmp_to_key
 from html.parser import HTMLParser  # noqa

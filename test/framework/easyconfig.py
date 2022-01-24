@@ -197,7 +197,13 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.contents += "\nsyntax_error'"
         self.prep()
-        error_pattern = "Parsing easyconfig file failed: EOL while scanning string literal"
+
+        # exact error message depends on Python version (different starting with Python 3.10)
+        if sys.version_info >= (3, 10):
+            error_pattern = "Parsing easyconfig file failed: unterminated string literal"
+        else:
+            error_pattern = "Parsing easyconfig file failed: EOL while scanning string literal"
+
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
 
         # introduce "TypeError: format requires mapping" issue"
@@ -461,7 +467,7 @@ class EasyConfigTest(EnhancedTestCase):
             '   ("ext1", "1.0"),',
             '   ("ext2", "2.0", {',
             '       "source_urls": [("http://example.com", "suffix")],'
-            '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
+            '       "patches": [("toy-0.0.eb", ".")],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
                         # SHA256 checksum for source (gzip-1.4.eb)
             '           "6a5abcab719cefa95dca4af0db0d2a9d205d68f775a33b452ec0f2b75b6a3a45",',
@@ -488,7 +494,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(exts_sources[1]['options'], {
             'checksums': ['6a5abcab719cefa95dca4af0db0d2a9d205d68f775a33b452ec0f2b75b6a3a45',
                           '2d964e0e8f05a7cce0dd83a3e68c9737da14b87b61b8b8b0291d58d4c8d1031c'],
-            'patches': ['toy-0.0.eb'],
+            'patches': [('toy-0.0.eb', '.')],
             'source_tmpl': 'gzip-1.4.eb',
             'source_urls': [('http://example.com', 'suffix')],
         })
@@ -3588,7 +3594,9 @@ class EasyConfigTest(EnhancedTestCase):
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2383
         not_an_ec = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'not_an_easyconfig.eb')
 
-        error_pattern = "Parsing easyconfig file failed: invalid syntax"
+        # from Python 3.10 onwards: invalid decimal literal
+        # older Python versions: invalid syntax
+        error_pattern = "Parsing easyconfig file failed: invalid"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, not_an_ec)
 
     def test_check_sha256_checksums(self):

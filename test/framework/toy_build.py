@@ -1832,14 +1832,20 @@ class ToyBuildTest(EnhancedTestCase):
         args = ['--parallel-extensions-install', '--experimental', '--force', '--parallel=3']
         stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
         self.assertEqual(stderr, '')
-        expected_stdout = '\n'.join([
-            "== 0 out of 4 extensions installed (2 queued, 2 running: ls, bar)",
-            "== 2 out of 4 extensions installed (1 queued, 1 running: barbar)",
-            "== 3 out of 4 extensions installed (0 queued, 1 running: toy)",
-            "== 4 out of 4 extensions installed (0 queued, 0 running: )",
+
+        # take into account that each of these lines may appear multiple times,
+        # in case no progress was made between checks
+        patterns = [
+            r"== 0 out of 4 extensions installed \(2 queued, 2 running: ls, bar\)$",
+            r"== 2 out of 4 extensions installed \(1 queued, 1 running: barbar\)$",
+            r"== 3 out of 4 extensions installed \(0 queued, 1 running: toy\)$",
+            r"== 4 out of 4 extensions installed \(0 queued, 0 running: \)$",
             '',
-        ])
-        self.assertEqual(stdout, expected_stdout)
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            error_msg = "Expected pattern '%s' should be found in %s'" % (regex.pattern, stdout)
+            self.assertTrue(regex.search(stdout), error_msg)
 
         # also test skipping of extensions in parallel
         args.append('--skip')
@@ -1871,15 +1877,20 @@ class ToyBuildTest(EnhancedTestCase):
         args[-1] = '--include-easyblocks=%s' % toy_ext_eb
         stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
         self.assertEqual(stderr, '')
-        expected_stdout = '\n'.join([
-            "== 0 out of 4 extensions installed (3 queued, 1 running: ls)",
-            "== 1 out of 4 extensions installed (2 queued, 1 running: bar)",
-            "== 2 out of 4 extensions installed (1 queued, 1 running: barbar)",
-            "== 3 out of 4 extensions installed (0 queued, 1 running: toy)",
-            "== 4 out of 4 extensions installed (0 queued, 0 running: )",
+        # take into account that each of these lines may appear multiple times,
+        # in case no progress was made between checks
+        patterns = [
+            r"^== 0 out of 4 extensions installed \(3 queued, 1 running: ls\)$",
+            r"^== 1 out of 4 extensions installed \(2 queued, 1 running: bar\)$",
+            r"^== 2 out of 4 extensions installed \(1 queued, 1 running: barbar\)$",
+            r"^== 3 out of 4 extensions installed \(0 queued, 1 running: toy\)$",
+            r"^== 4 out of 4 extensions installed \(0 queued, 0 running: \)$",
             '',
-        ])
-        self.assertEqual(stdout, expected_stdout)
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            error_msg = "Expected pattern '%s' should be found in %s'" % (regex.pattern, stdout)
+            self.assertTrue(regex.search(stdout), error_msg)
 
     def test_backup_modules(self):
         """Test use of backing up of modules with --module-only."""
@@ -3209,23 +3220,54 @@ class ToyBuildTest(EnhancedTestCase):
             # exact same file as original binary (untouched)
             self.assertEqual(toy_txt, fn_txt)
 
-        regexes_S = {}
-        # no re.M, this should match at start of file!
-        regexes_S['py'] = re.compile(r'^#!/usr/bin/env -S python\n# test$')
-        regexes_S['pl'] = re.compile(r'^#!/usr/bin/env -S perl\n# test$')
-        regexes_S['sh'] = re.compile(r'^#!/usr/bin/env -S bash\n# test$')
+        regexes_shebang = {}
 
-        for ext in ['sh', 'pl', 'py']:
-            for script in scripts[ext]:
-                bin_path = os.path.join(toy_bindir, script)
-                bin_txt = read_file(bin_path)
-                # the scripts b1.py, b1.pl, b1.sh, b2.sh should keep their original shebang
-                if script.startswith('b'):
-                    self.assertTrue(regexes[ext].match(bin_txt),
-                                    "Pattern '%s' found in %s: %s" % (regexes[ext].pattern, bin_path, bin_txt))
-                else:
-                    self.assertTrue(regexes_S[ext].match(bin_txt),
-                                    "Pattern '%s' found in %s: %s" % (regexes_S[ext].pattern, bin_path, bin_txt))
+        def check_shebangs():
+            for ext in ['sh', 'pl', 'py']:
+                for script in scripts[ext]:
+                    bin_path = os.path.join(toy_bindir, script)
+                    bin_txt = read_file(bin_path)
+                    # the scripts b1.py, b1.pl, b1.sh, b2.sh should keep their original shebang
+                    if script.startswith('b'):
+                        self.assertTrue(regexes[ext].match(bin_txt),
+                                        "Pattern '%s' found in %s: %s" % (regexes[ext].pattern, bin_path, bin_txt))
+                    else:
+                        regex_shebang = regexes_shebang[ext]
+                        self.assertTrue(regex_shebang.match(bin_txt),
+                                        "Pattern '%s' found in %s: %s" % (regex_shebang.pattern, bin_path, bin_txt))
+
+        # no re.M, this should match at start of file!
+        regexes_shebang['py'] = re.compile(r'^#!/usr/bin/env -S python\n# test$')
+        regexes_shebang['pl'] = re.compile(r'^#!/usr/bin/env -S perl\n# test$')
+        regexes_shebang['sh'] = re.compile(r'^#!/usr/bin/env -S bash\n# test$')
+
+        check_shebangs()
+
+        # test again with EasyBuild configured with sysroot, which should be prepended
+        # automatically to env-for-shebang value (unless it's prefixed with sysroot already)
+        extra_args = [
+            '--env-for-shebang=/usr/bin/env -S',
+            '--sysroot=/usr/../',  # sysroot must exist, and so must /usr/bin/env when appended to it
+        ]
+        self.test_toy_build(ec_file=test_ec, extra_args=extra_args, raise_error=True)
+
+        regexes_shebang['py'] = re.compile(r'^#!/usr/../usr/bin/env -S python\n# test$')
+        regexes_shebang['pl'] = re.compile(r'^#!/usr/../usr/bin/env -S perl\n# test$')
+        regexes_shebang['sh'] = re.compile(r'^#!/usr/../usr/bin/env -S bash\n# test$')
+
+        check_shebangs()
+
+        extra_args = [
+            '--env-for-shebang=/usr/../usr/../usr/bin/env -S',
+            '--sysroot=/usr/../',  # sysroot must exist, and so must /usr/bin/env when appended to it
+        ]
+        self.test_toy_build(ec_file=test_ec, extra_args=extra_args, raise_error=True)
+
+        regexes_shebang['py'] = re.compile(r'^#!/usr/../usr/../usr/bin/env -S python\n# test$')
+        regexes_shebang['pl'] = re.compile(r'^#!/usr/../usr/../usr/bin/env -S perl\n# test$')
+        regexes_shebang['sh'] = re.compile(r'^#!/usr/../usr/../usr/bin/env -S bash\n# test$')
+
+        check_shebangs()
 
     def test_toy_system_toolchain_alias(self):
         """Test use of 'system' toolchain alias."""

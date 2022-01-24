@@ -590,8 +590,26 @@ def update_build_option(key, value):
     """
     # BuildOptions() is a (singleton) frozen dict, so this is less straightforward that it seems...
     build_options = BuildOptions()
+    orig_value = build_options._FrozenDict__dict[key]
     build_options._FrozenDict__dict[key] = value
     _log.warning("Build option '%s' was updated to: %s", key, build_option(key))
+
+    # Return original value, so it can be restored later if needed
+    return orig_value
+
+
+def update_build_options(key_value_dict):
+    """
+    Update build options as specified by the given dictionary (where keys are assumed to be build option names).
+    Returns dictionary with original values for the updated build options.
+    """
+    orig_key_value_dict = {}
+    for key, value in key_value_dict.items():
+        orig_key_value_dict[key] = update_build_option(key, value)
+
+    # Return original key-value pairs in a dictionary.
+    # This way, they can later be restored by a single call to update_build_options(orig_key_value_dict)
+    return orig_key_value_dict
 
 
 def build_path():

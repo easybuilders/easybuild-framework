@@ -2758,6 +2758,16 @@ class EasyBlock(object):
 
     def fix_shebang(self):
         """Fix shebang lines for specified files."""
+
+        env_for_shebang = build_option('env_for_shebang')
+        sysroot = build_option('sysroot')
+        if sysroot and not env_for_shebang.startswith(sysroot):
+            env_for_shebang = os.path.join(sysroot, env_for_shebang.lstrip('/'))
+        if os.path.exists(env_for_shebang.split(' ')[0]):
+            self.log.info("Path to 'env' command to use in patched shebang lines: %s", env_for_shebang)
+        else:
+            raise EasyBuildError("Path to 'env' command to use in shebang lines does not exist: %s", env_for_shebang)
+
         for lang in ['bash', 'perl', 'python']:
             shebang_regex = re.compile(r'^#![ ]*.*[/ ]%s.*' % lang)
             fix_shebang_for = self.cfg['fix_%s_shebang_for' % lang]
@@ -2765,7 +2775,7 @@ class EasyBlock(object):
                 if isinstance(fix_shebang_for, string_type):
                     fix_shebang_for = [fix_shebang_for]
 
-                shebang = '#!%s %s' % (build_option('env_for_shebang'), lang)
+                shebang = '#!%s %s' % (env_for_shebang, lang)
                 for glob_pattern in fix_shebang_for:
                     paths = glob.glob(os.path.join(self.installdir, glob_pattern))
                     self.log.info("Fixing '%s' shebang to '%s' for files that match '%s': %s",
