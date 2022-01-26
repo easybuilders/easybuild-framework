@@ -697,9 +697,6 @@ def get_os_name():
         res = name_regex.search(os_release_txt)
         if res:
             os_name = res.group('name')
-    else:
-        # no easy way to determine name of Linux distribution
-        os_name = None
 
     os_name_map = {
         'red hat enterprise linux server': 'RHEL',
@@ -742,8 +739,6 @@ def get_os_version():
             res = version_regex.search(os_release_txt)
             if res:
                 os_version = res.group('version')
-    else:
-        os_version = None
 
     if os_version:
         if get_os_name() in ["suse", "SLES"]:
