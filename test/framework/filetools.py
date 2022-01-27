@@ -1638,11 +1638,14 @@ class FileToolsTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stderr(False)
         self.disallow_deprecated_behaviour()
-        expected_warning = "Use of patch file with filename that doesn't end with .patch: foo.txt"
-        self.assertTrue(expected_warning in stderr)
+        expected_warning = "Use of patch file with filename that doesn't end with correct extension: foo.txt "
+        expected_warning += "(should be any of: .patch, .patch.bz2, .patch.gz, .patch.xz)"
+        fail_msg = "Warning '%s' should appear in stderr output: %s" % (expected_warning, stderr)
+        self.assertTrue(expected_warning in stderr, fail_msg)
 
         # deprecation warning is treated as an error in context of unit test suite
-        self.assertErrorRegex(EasyBuildError, expected_warning, ft.create_patch_info, 'foo.txt')
+        expected_error = expected_warning.replace('(', '\\(').replace(')', '\\)')
+        self.assertErrorRegex(EasyBuildError, expected_error, ft.create_patch_info, 'foo.txt')
 
         # faulty input
         error_msg = "Wrong patch spec"
