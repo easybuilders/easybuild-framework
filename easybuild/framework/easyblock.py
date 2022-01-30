@@ -3499,6 +3499,11 @@ class EasyBlock(object):
         else:
             trace_msg("generating module file @ %s" % self.mod_filepath)
 
+        exts_module_extra = []
+        if not self.is_extension:
+            for ext in self.ext_instances:
+                exts_module_extra.append(ext.make_module_extra_ext_only())
+
         with self.module_generator.start_module_creation() as txt:
             if self.modules_header:
                 txt += self.modules_header + '\n'
@@ -3510,6 +3515,7 @@ class EasyBlock(object):
             txt += self.make_module_extend_modpath()
             txt += self.make_module_req()
             txt += self.make_module_extra()
+            txt += ''.join(set(exts_module_extra))
             txt += self.make_module_footer()
 
         hook_txt = run_hook(MODULE_WRITE, self.hooks, args=[self, mod_filepath, txt])

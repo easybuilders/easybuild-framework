@@ -193,3 +193,10 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         if extra is not None:
             txt += extra
         return txt
+
+    def make_module_extra_ext_only(self, extra=None):
+        """Add extension-only custom entries to module."""
+        txt = ""
+        if extra is not None:
+            txt += extra
+        return txt
