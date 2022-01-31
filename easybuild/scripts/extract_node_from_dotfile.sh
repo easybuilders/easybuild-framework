@@ -75,9 +75,9 @@ if [ "$#" -ne 3 ]; then
     exit 1
 fi
 
-local input_dotfile=$1
-local output_dotfile=$2
-local node_to_search_for=$3
+input_dotfile=$1
+output_dotfile=$2
+node_to_search_for=$3
 
 # Begin digraph in output file
 echo digraph graphname \{ > ${output_dotfile}
