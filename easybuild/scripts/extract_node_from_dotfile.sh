@@ -38,9 +38,9 @@
 ##
 
 find_children () {
-    input_dotfile=$1
-    output_dotfile=$2
-    node_to_search_for=$3
+    local input_dotfile=$1
+    local output_dotfile=$2
+    local node_to_search_for=$3
     # The fact that we put the semicolon straight after means we exclude anywhere the module
     # is only required as a build dependency (since these cases have extra formatting the
     # semicolon comes later);
@@ -51,9 +51,9 @@ find_children () {
 }
 
 map_dep () {
-    input_dotfile=$1
-    output_dotfile=$2
-    node_to_search_for=$3
+    local input_dotfile=$1
+    local output_dotfile=$2
+    local node_to_search_for=$3
     # Search for a node that matches the string and add a comment marker at the end
     # to leverage with grep later
     # (if non-installed software had additional formatting they would be ignored)
@@ -75,9 +75,9 @@ if [ "$#" -ne 3 ]; then
     exit 1
 fi
 
-input_dotfile=$1
-output_dotfile=$2
-node_to_search_for=$3
+local input_dotfile=$1
+local output_dotfile=$2
+local node_to_search_for=$3
 
 # Begin digraph in output file
 echo digraph graphname \{ > ${output_dotfile}
