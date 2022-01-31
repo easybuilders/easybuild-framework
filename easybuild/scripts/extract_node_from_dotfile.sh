@@ -62,7 +62,7 @@ map_dep () {
         sed s#/\\.#/#g >> ${output_dotfile}
     if [ $? ]
     then
-        find_children ${input_dotfile} ${output_dot_file} ${node_to_search_for}
+        find_children ${input_dotfile} ${output_dotfile} ${node_to_search_for}
     fi
 }
 
