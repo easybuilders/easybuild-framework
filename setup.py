@@ -84,7 +84,7 @@ setup(
 implement support for installing particular (groups of) software packages.""",
     license="GPLv2",
     keywords="software build building installation installing compilation HPC scientific",
-    url="https://easybuilders.github.io/easybuild",
+    url="https://easybuild.io",
     packages=easybuild_packages,
     package_dir={'test.framework': 'test/framework'},
     package_data={'test.framework': find_rel_test()},
