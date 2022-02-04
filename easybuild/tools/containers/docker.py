@@ -44,9 +44,9 @@ LABEL maintainer=easybuild@lists.ugent.be
 """
 
 DOCKER_INSTALL_EASYBUILD = """\
-RUN pip install -U pip setuptools && \\
-    hash -r pip && \\
-    pip install -U easybuild
+RUN pip3 install -U pip setuptools && \\
+    hash -r pip3&& \\
+    pip3 install -U easybuild
 
 RUN mkdir /app && \\
     mkdir /scratch && \\
@@ -72,9 +72,12 @@ RUN touch ${HOME}/.profile && \\
 CMD ["/bin/bash", "-l"]
 """
 
-DOCKER_UBUNTU1604_INSTALL_DEPS = """\
+DOCKER_UBUNTU2004_INSTALL_DEPS = """\
 RUN apt-get update && \\
-    apt-get install -y python python-pip lmod curl wget
+    apt-get install -y python3 python3-pip lmod curl wget git \\
+        bzip2 gzip tar zip unzip xz-utils \\
+        patch automake git debianutils \\
+        g++ libdata-dump-perl libthread-queue-any-perl libssl-dev
 
 RUN OS_DEPS='%(os_deps)s' && \\
     test -n "${OS_DEPS}" && \\
@@ -83,7 +86,10 @@ RUN OS_DEPS='%(os_deps)s' && \\
 
 DOCKER_CENTOS7_INSTALL_DEPS = """\
 RUN yum install -y epel-release && \\
-    yum install -y python python-pip Lmod curl wget git
+    yum install -y python3 python3-pip Lmod curl wget git \\
+        bzip2 gzip tar zip unzip xz \\
+        patch makefile git which \\
+        gcc-c++ perl-Data-Dumper perl-Thread-Queue openssl-dev
 
 RUN OS_DEPS='%(os_deps)s' && \\
     test -n "${OS_DEPS}" && \\
@@ -91,7 +97,7 @@ RUN OS_DEPS='%(os_deps)s' && \\
 """
 
 DOCKER_OS_INSTALL_DEPS_TMPLS = {
-    DOCKER_BASE_IMAGE_UBUNTU: DOCKER_UBUNTU1604_INSTALL_DEPS,
+    DOCKER_BASE_IMAGE_UBUNTU: DOCKER_UBUNTU2004_INSTALL_DEPS,
     DOCKER_BASE_IMAGE_CENTOS: DOCKER_CENTOS7_INSTALL_DEPS,
 }
 
