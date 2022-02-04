@@ -386,7 +386,7 @@ class ContainersTest(EnhancedTestCase):
                               base_args + ['--container-config=not-supported'],
                               raise_error=True)
 
-        for cont_base in ['ubuntu:16.04', 'centos:7']:
+        for cont_base in ['ubuntu:20.04', 'centos:7']:
             stdout, stderr = self.run_main(base_args + ['--container-config=%s' % cont_base])
             self.assertFalse(stderr)
             regexs = ["^== Dockerfile definition file created at %s/containers/Dockerfile.toy-0.0" % self.test_prefix]
@@ -406,10 +406,10 @@ class ContainersTest(EnhancedTestCase):
         remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
         base_args.insert(1, os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb'))
-        self.run_main(base_args + ['--container-config=ubuntu:16.04'])
+        self.run_main(base_args + ['--container-config=ubuntu:20.04'])
         def_file = read_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
         regexs = [
-            "FROM ubuntu:16.04",
+            "FROM ubuntu:20.04",
             "eb toy-0.0.eb GCC-4.9.2.eb",
             "module load toy/0.0 GCC/4.9.2",
         ]
