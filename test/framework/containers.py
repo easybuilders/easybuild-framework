@@ -141,8 +141,8 @@ class ContainersTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         pip_patterns = [
-            # EasyBuild is installed with pip by default
-            "pip install easybuild",
+            # EasyBuild is installed with pip3 by default
+            "pip3 install easybuild",
         ]
         post_commands_patterns = [
             # easybuild user is added if it doesn't exist yet
