@@ -77,7 +77,7 @@ RUN apt-get update && \\
     apt-get install -y python3 python3-pip lmod curl wget git \\
         bzip2 gzip tar zip unzip xz-utils \\
         patch automake git debianutils \\
-        g++ libdata-dump-perl libthread-queue-any-perl
+        g++ libdata-dump-perl libthread-queue-any-perl libssl-dev
 
 RUN OS_DEPS='%(os_deps)s' && \\
     test -n "${OS_DEPS}" && \\
@@ -89,7 +89,7 @@ RUN yum install -y epel-release && \\
     yum install -y python3 python3-pip Lmod curl wget git \\
         bzip2 gzip tar zip unzip xz \\
         patch makefile git which \\
-        gcc-c++ perl-Data-Dumper perl-Thread-Queue
+        gcc-c++ perl-Data-Dumper perl-Thread-Queue openssl-dev
 
 RUN OS_DEPS='%(os_deps)s' && \\
     test -n "${OS_DEPS}" && \\
