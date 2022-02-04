@@ -435,7 +435,7 @@ class ContainersTest(EnhancedTestCase):
             '-C',  # equivalent with --containerize
             '--experimental',
             '--container-type=docker',
-            '--container-config=ubuntu:16.04',
+            '--container-config=ubuntu:20.04',
             '--container-build-image',
         ]
 
