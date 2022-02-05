@@ -410,7 +410,7 @@ class ContainersTest(EnhancedTestCase):
         def_file = read_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
         regexs = [
             "FROM ubuntu:20.04",
-            "eb toy-0.0.eb GCC-4.9.2.eb",
+            "eb --robot toy-0.0.eb GCC-4.9.2.eb",
             "module load toy/0.0 GCC/4.9.2",
         ]
         self.check_regexs(regexs, def_file)
