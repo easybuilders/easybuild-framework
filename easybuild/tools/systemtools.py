@@ -168,6 +168,7 @@ SYSTEM_TOOLS = {
     '7z': "extracting sources (.iso)",
     'bunzip2': "decompressing sources (.bz2, .tbz, .tbz2, ...)",
     DPKG: "checking OS dependencies (Debian, Ubuntu, ...)",
+    'git': "downloading sources using 'git clone'",
     'gunzip': "decompressing source files (.gz, .tgz, ...)",
     'make': "build tool",
     'patch': "applying patch files",
