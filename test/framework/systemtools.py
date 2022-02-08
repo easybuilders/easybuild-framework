@@ -366,10 +366,13 @@ class SystemToolsTest(EnhancedTestCase):
         self.orig_is_readable = st.is_readable
         self.orig_read_file = st.read_file
         self.orig_run_cmd = st.run_cmd
+        self.orig_platform_dist = st.platform.dist if hasattr(st.platform, 'dist') else None
         self.orig_platform_uname = st.platform.uname
         self.orig_get_tool_version = st.get_tool_version
         self.orig_sys_version_info = st.sys.version_info
         self.orig_HAVE_ARCHSPEC = st.HAVE_ARCHSPEC
+        self.orig_HAVE_DISTRO = st.HAVE_DISTRO
+        self.orig_ETC_OS_RELEASE = st.ETC_OS_RELEASE
         if hasattr(st, 'archspec_cpu_host'):
             self.orig_archspec_cpu_host = st.archspec_cpu_host
         else:
@@ -383,10 +386,14 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_name = self.orig_get_os_name
         st.get_os_type = self.orig_get_os_type
         st.run_cmd = self.orig_run_cmd
+        if self.orig_platform_dist is not None:
+            st.platform.dist = self.orig_platform_dist
         st.platform.uname = self.orig_platform_uname
         st.get_tool_version = self.orig_get_tool_version
         st.sys.version_info = self.orig_sys_version_info
         st.HAVE_ARCHSPEC = self.orig_HAVE_ARCHSPEC
+        st.HAVE_DISTRO = self.orig_HAVE_DISTRO
+        st.ETC_OS_RELEASE = self.orig_ETC_OS_RELEASE
         if self.orig_archspec_cpu_host is not None:
             st.archspec_cpu_host = self.orig_archspec_cpu_host
         super(SystemToolsTest, self).tearDown()
@@ -737,6 +744,21 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting OS version."""
         os_version = get_os_version()
         self.assertTrue(isinstance(os_version, string_type) or os_version == UNKNOWN)
+
+        # make sure that bug fixed in https://github.com/easybuilders/easybuild-framework/issues/3952
+        # does not surface again, by mocking what's needed to make get_os_version fall into SLES-specific path
+
+        if hasattr(st.platform, 'dist'):
+            st.platform.dist = lambda: (None, None)
+        st.HAVE_DISTRO = False
+
+        st.get_os_name = lambda: 'SLES'
+        fake_etc_os_release = os.path.join(self.test_prefix, 'os-release')
+        write_file(fake_etc_os_release, 'VERSION="15-SP1"')
+        st.ETC_OS_RELEASE = fake_etc_os_release
+
+        os_version = get_os_version()
+        self.assertEqual(os_version, '15-SP1')
 
     def test_gcc_version_native(self):
         """Test getting gcc version."""
