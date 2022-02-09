@@ -272,9 +272,9 @@ class SingularityContainer(ContainerGenerator):
                 # EPEL is required for installing Lmod & python-pip
                 'epel-release',
                 # EasyBuild requirements
-                'python setuptools Lmod',
-                # pip is used to install EasyBuild packages
-                'python-pip',
+                'python3 setuptools Lmod',
+                # pip3 is used to install EasyBuild packages
+                'python3-pip',
                 # useful utilities
                 'bzip2 gzip tar zip unzip xz',  # extracting sources
                 'curl wget',  # downloading
@@ -308,13 +308,13 @@ class SingularityContainer(ContainerGenerator):
         template_data['install_os_deps'] = '\n'.join(install_os_deps)
 
         # install (latest) EasyBuild in container image
-        # use 'pip install', unless custom commands are specified via 'install_eb' keyword
+        # use 'pip3 install', unless custom commands are specified via 'install_eb' keyword
         if 'install_eb' not in template_data:
             template_data['install_eb'] = '\n'.join([
-                "# install EasyBuild using pip",
+                "# install EasyBuild using pip3",
                 # upgrade pip
-                "pip install -U pip",
-                "pip install easybuild",
+                "pip3 install -U pip",
+                "pip3 install easybuild",
             ])
 
         # if no custom value is specified for 'post_commands' keyword,
