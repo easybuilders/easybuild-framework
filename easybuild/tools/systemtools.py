@@ -742,40 +742,31 @@ def get_os_version():
                 os_version = res.group('version')
 
     if os_version:
-        if get_os_name() in ["suse", "SLES"]:
+        # older SLES subversions can only be told apart based on kernel version,
+        # see http://wiki.novell.com/index.php/Kernel_versions
+        sles_version_suffixes = {
+            '11': [
+                ('2.6.27', ''),
+                ('2.6.32', '_SP1'),
+                ('3.0.101-63', '_SP4'),
+                # not 100% correct, since early SP3 had 3.0.76 - 3.0.93, but close enough?
+                ('3.0.101', '_SP3'),
+                # SP2 kernel versions range from 3.0.13 - 3.0.101
+                ('3.0', '_SP2'),
+            ],
 
-            # SLES subversions can only be told apart based on kernel version,
-            # see http://wiki.novell.com/index.php/Kernel_versions
-            version_suffixes = {
-                '11': [
-                    ('2.6.27', ''),
-                    ('2.6.32', '_SP1'),
-                    ('3.0.101-63', '_SP4'),
-                    # not 100% correct, since early SP3 had 3.0.76 - 3.0.93, but close enough?
-                    ('3.0.101', '_SP3'),
-                    # SP2 kernel versions range from 3.0.13 - 3.0.101
-                    ('3.0', '_SP2'),
-                ],
-
-                '12': [
-                    ('3.12.28', ''),
-                    ('3.12.49', '_SP1'),
-                ],
-            }
-
+            '12': [
+                ('3.12.28', ''),
+                ('3.12.49', '_SP1'),
+            ],
+        }
+        if get_os_name() in ['suse', 'SLES'] and os_version in sles_version_suffixes:
             # append suitable suffix to system version
-            if os_version in version_suffixes.keys():
-                kernel_version = platform.uname()[2]
-                known_sp = False
-                for (kver, suff) in version_suffixes[os_version]:
-                    if kernel_version.startswith(kver):
-                        os_version += suff
-                        known_sp = True
-                        break
-                if not known_sp:
-                    suff = '_UNKNOWN_SP'
-            else:
-                raise EasyBuildError("Don't know how to determine subversions for SLES %s", os_version)
+            kernel_version = platform.uname()[2]
+            for (kver, suff) in sles_version_suffixes[os_version]:
+                if kernel_version.startswith(kver):
+                    os_version += suff
+                    break
 
         return os_version
     else:
