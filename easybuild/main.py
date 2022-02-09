@@ -474,6 +474,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             ordered_ecs = easyconfigs
     elif pr_options:
         ordered_ecs = None
+    elif options.upload_test_report:
+        raise EasyBuildError("No easyconfigs left to be built (use --rebuild?)")
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
