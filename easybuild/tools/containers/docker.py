@@ -35,6 +35,7 @@ from easybuild.tools.config import DOCKER_BASE_IMAGE_CENTOS, DOCKER_BASE_IMAGE_U
 from easybuild.tools.containers.base import ContainerGenerator
 from easybuild.tools.containers.utils import det_os_deps
 from easybuild.tools.filetools import remove_dir
+from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.run import run_cmd
 
 
@@ -44,9 +45,9 @@ LABEL maintainer=easybuild@lists.ugent.be
 """
 
 DOCKER_INSTALL_EASYBUILD = """\
-RUN pip install -U pip setuptools && \\
-    hash -r pip && \\
-    pip install -U easybuild
+RUN pip3 install -U pip setuptools && \\
+    hash -r pip3&& \\
+    pip3 install -U easybuild
 
 RUN mkdir /app && \\
     mkdir /scratch && \\
@@ -61,29 +62,35 @@ USER easybuild
 
 RUN set -x && \\
     . /usr/share/lmod/lmod/init/sh && \\
-    eb %(eb_opts)s --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp
+    eb --robot %(eb_opts)s --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp
 
-RUN touch ${HOME}/.profile && \\
-    echo '\\n# Added by easybuild docker packaging' >> ${HOME}/.profile && \\
-    echo 'source /usr/share/lmod/lmod/init/bash' >> ${HOME}/.profile && \\
-    echo 'module use %(init_modulepath)s' >> ${HOME}/.profile && \\
-    echo 'module load %(mod_names)s' >> ${HOME}/.profile
+RUN touch ${HOME}/.bashrc && \\
+    echo '' >> ${HOME}/.bashrc && \\
+    echo '# Added by easybuild docker packaging' >> ${HOME}/.bashrc && \\
+    echo 'source /usr/share/lmod/lmod/init/bash' >> ${HOME}/.bashrc && \\
+    echo 'module use %(init_modulepath)s' >> ${HOME}/.bashrc && \\
+    echo 'module load %(mod_names)s' >> ${HOME}/.bashrc
 
 CMD ["/bin/bash", "-l"]
 """
 
-DOCKER_UBUNTU1604_INSTALL_DEPS = """\
+DOCKER_UBUNTU2004_INSTALL_DEPS = """\
 RUN apt-get update && \\
-    apt-get install -y python python-pip lmod curl wget
+    DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip lmod \\
+        curl wget git bzip2 gzip tar zip unzip xz-utils \\
+        patch automake git debianutils \\
+        g++ libdata-dump-perl libthread-queue-any-perl libssl-dev
 
 RUN OS_DEPS='%(os_deps)s' && \\
-    test -n "${OS_DEPS}" && \\
     for dep in ${OS_DEPS}; do apt-get -qq install ${dep} || true; done
 """
 
 DOCKER_CENTOS7_INSTALL_DEPS = """\
 RUN yum install -y epel-release && \\
-    yum install -y python python-pip Lmod curl wget git
+    yum install -y python3 python3-pip Lmod curl wget git \\
+        bzip2 gzip tar zip unzip xz \\
+        patch make git which \\
+        gcc-c++ perl-Data-Dumper perl-Thread-Queue openssl-dev
 
 RUN OS_DEPS='%(os_deps)s' && \\
     test -n "${OS_DEPS}" && \\
@@ -91,7 +98,7 @@ RUN OS_DEPS='%(os_deps)s' && \\
 """
 
 DOCKER_OS_INSTALL_DEPS_TMPLS = {
-    DOCKER_BASE_IMAGE_UBUNTU: DOCKER_UBUNTU1604_INSTALL_DEPS,
+    DOCKER_BASE_IMAGE_UBUNTU: DOCKER_UBUNTU2004_INSTALL_DEPS,
     DOCKER_BASE_IMAGE_CENTOS: DOCKER_CENTOS7_INSTALL_DEPS,
 }
 
@@ -125,9 +132,12 @@ class DockerContainer(ContainerGenerator):
 
         ec = self.easyconfigs[-1]['ec']
 
-        init_modulepath = os.path.join("/app/modules/all", *self.mns.det_init_modulepaths(ec))
+        # We are using the default MNS inside the container
+        docker_mns = EasyBuildMNS()
 
-        mod_names = [e['ec'].full_mod_name for e in self.easyconfigs]
+        init_modulepath = os.path.join("/app/modules/all", *docker_mns.det_init_modulepaths(ec))
+
+        mod_names = [docker_mns.det_full_module_name(e['ec']) for e in self.easyconfigs]
 
         eb_opts = [os.path.basename(e['spec']) for e in self.easyconfigs]
 
