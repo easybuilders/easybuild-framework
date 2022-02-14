@@ -2585,8 +2585,11 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     url = git_config.pop('url', None)
     repo_name = git_config.pop('repo_name', None)
     commit = git_config.pop('commit', None)
+    branch = git_config.pop('branch', None)
     recursive = git_config.pop('recursive', False)
     keep_git_dir = git_config.pop('keep_git_dir', False)
+
+    commit_or_branch = commit or branch
 
     # input validation of git_config dict
     if git_config:
@@ -2595,11 +2598,14 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     if not repo_name:
         raise EasyBuildError("repo_name not specified in git_config parameter")
 
-    if not tag and not commit:
-        raise EasyBuildError("Neither tag nor commit found in git_config parameter")
+    if not tag and not commit_or_branch:
+        raise EasyBuildError("No tag, commit, or branch found in git_config parameter")
 
-    if tag and commit:
-        raise EasyBuildError("Tag and commit are mutually exclusive in git_config parameter")
+    if commit and branch:
+        raise EasyBuildError("Commit and branch are mutually exclusive in git_config parameter")
+
+    if tag and commit_or_branch:
+        raise EasyBuildError("Tag and commit/branch are mutually exclusive in git_config parameter")
 
     if not url:
         raise EasyBuildError("url not specified in git_config parameter")
@@ -2614,7 +2620,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     # compose 'git clone' command, and run it
     clone_cmd = ['git', 'clone']
 
-    if not keep_git_dir and not commit:
+    if not keep_git_dir and not commit_or_branch:
         # Speed up cloning by only fetching the most recent commit, not the whole history
         # When we don't want to keep the .git folder there won't be a difference in the result
         clone_cmd.extend(['--depth', '1'])
@@ -2633,9 +2639,9 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     cwd = change_dir(tmpdir)
     run.run_cmd(' '.join(clone_cmd), log_all=True, simple=True, regexp=False)
 
-    # if a specific commit is asked for, check it out
-    if commit:
-        checkout_cmd = ['git', 'checkout', commit]
+    # if a specific commit or branch is asked for, check it out
+    if commit_or_branch:
+        checkout_cmd = ['git', 'checkout', commit_or_branch]
         if recursive:
             checkout_cmd.extend(['&&', 'git', 'submodule', 'update', '--init', '--recursive'])
 
@@ -2648,9 +2654,14 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         # Note: Disable logging to also disable the error handling in run_cmd
         (out, ec) = run.run_cmd(cmd, log_ok=False, log_all=False, regexp=False, path=repo_name)
         if ec != 0 or tag not in out.splitlines():
-            print_warning('Tag %s was not downloaded in the first try due to %s/%s containing a branch'
-                          ' with the same name. You might want to alert the maintainers of %s about that issue.',
-                          tag, url, repo_name, repo_name)
+            full_url = '%s/%s' % (url, repo_name)
+            print_warning("Tag '%s' was not downloaded in the first try due to %s containing a branch "
+                          "with the same name.\n"
+                          "Another attempt to download this tag will be made using a different mechanism.\n"
+                          "To download a specific branch, use 'branch' rather than 'tag' in 'git_config'.\n"
+                          "If you do want to download the tag named '%s' while a tag and branch exist with "
+                          "that same name, you should alert the maintainers of %s about that issue.",
+                          tag, full_url, tag, full_url)
             cmds = []
 
             if not keep_git_dir:
