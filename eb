@@ -104,7 +104,7 @@ if [ -z $PYTHON ]; then
     echo "(EasyBuild requires Python 2.${REQ_MIN_PY2VER}+ or 3.${REQ_MIN_PY3VER}+)" >&2
     exit 1
 else
-    verbose "Selected Python command: $python_cmd (`which $python_cmd`)"
+    verbose "Selected Python command: $python_cmd (`command -v $python_cmd`)"
 fi
 
 # enable optimization, unless $PYTHONOPTIMIZE is defined (use "export PYTHONOPTIMIZE=0" to disable optimization)

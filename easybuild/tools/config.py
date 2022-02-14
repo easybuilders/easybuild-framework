@@ -48,6 +48,12 @@ from easybuild.base.frozendict import FrozenDictKnownKeys
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
 
+try:
+    import rich  # noqa
+    HAVE_RICH = True
+except ImportError:
+    HAVE_RICH = False
+
 
 _log = fancylogger.getLogger('config', fname=False)
 
@@ -128,13 +134,20 @@ GENERAL_CLASS = 'all'
 JOB_DEPS_TYPE_ABORT_ON_ERROR = 'abort_on_error'
 JOB_DEPS_TYPE_ALWAYS_RUN = 'always_run'
 
-DOCKER_BASE_IMAGE_UBUNTU = 'ubuntu:16.04'
+DOCKER_BASE_IMAGE_UBUNTU = 'ubuntu:20.04'
 DOCKER_BASE_IMAGE_CENTOS = 'centos:7'
 
 LOCAL_VAR_NAMING_CHECK_ERROR = 'error'
 LOCAL_VAR_NAMING_CHECK_LOG = 'log'
 LOCAL_VAR_NAMING_CHECK_WARN = WARN
 LOCAL_VAR_NAMING_CHECKS = [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN]
+
+
+OUTPUT_STYLE_AUTO = 'auto'
+OUTPUT_STYLE_BASIC = 'basic'
+OUTPUT_STYLE_NO_COLOR = 'no_color'
+OUTPUT_STYLE_RICH = 'rich'
+OUTPUT_STYLES = (OUTPUT_STYLE_AUTO, OUTPUT_STYLE_BASIC, OUTPUT_STYLE_NO_COLOR, OUTPUT_STYLE_RICH)
 
 
 class Singleton(ABCMeta):
@@ -180,11 +193,13 @@ BUILD_OPTIONS_CMDLINE = {
         'envvars_user_modules',
         'extra_modules',
         'filter_deps',
+        'filter_ecs',
         'filter_env_vars',
         'hide_deps',
         'hide_toolchains',
         'http_header_fields_urlpat',
         'force_download',
+        'insecure_download',
         'from_pr',
         'git_working_dirs_path',
         'github_user',
@@ -248,12 +263,14 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_checksums',
         'ignore_index',
         'ignore_locks',
+        'ignore_test_failure',
         'install_latest_eb_release',
         'logtostdout',
         'minimal_toolchains',
         'module_extensions',
         'module_only',
         'package',
+        'parallel_extensions_install',
         'read_only_installdir',
         'remove_ghost_install_dirs',
         'rebuild',
@@ -269,6 +286,7 @@ BUILD_OPTIONS_CMDLINE = {
         'generate_devel_module',
         'sticky_bit',
         'trace',
+        'unit_testing_mode',
         'upload_test_report',
         'update_modules_tool_cache',
         'use_ccache',
@@ -290,6 +308,7 @@ BUILD_OPTIONS_CMDLINE = {
         'map_toolchains',
         'modules_tool_version_check',
         'pre_create_installdir',
+        'show_progress_bar',
     ],
     WARN: [
         'check_ebroot_env_vars',
@@ -338,6 +357,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_WAIT_ON_LOCK_INTERVAL: [
         'wait_on_lock_interval',
+    ],
+    OUTPUT_STYLE_AUTO: [
+        'output_style',
     ],
 }
 # build option that do not have a perfectly matching command line option
@@ -568,8 +590,26 @@ def update_build_option(key, value):
     """
     # BuildOptions() is a (singleton) frozen dict, so this is less straightforward that it seems...
     build_options = BuildOptions()
+    orig_value = build_options._FrozenDict__dict[key]
     build_options._FrozenDict__dict[key] = value
     _log.warning("Build option '%s' was updated to: %s", key, build_option(key))
+
+    # Return original value, so it can be restored later if needed
+    return orig_value
+
+
+def update_build_options(key_value_dict):
+    """
+    Update build options as specified by the given dictionary (where keys are assumed to be build option names).
+    Returns dictionary with original values for the updated build options.
+    """
+    orig_key_value_dict = {}
+    for key, value in key_value_dict.items():
+        orig_key_value_dict[key] = update_build_option(key, value)
+
+    # Return original key-value pairs in a dictionary.
+    # This way, they can later be restored by a single call to update_build_options(orig_key_value_dict)
+    return orig_key_value_dict
 
 
 def build_path():
@@ -683,6 +723,22 @@ def get_module_syntax():
     Return module syntax (Lua, Tcl)
     """
     return ConfigurationVariables()['module_syntax']
+
+
+def get_output_style():
+    """Return output style to use."""
+    output_style = build_option('output_style')
+
+    if output_style == OUTPUT_STYLE_AUTO:
+        if HAVE_RICH:
+            output_style = OUTPUT_STYLE_RICH
+        else:
+            output_style = OUTPUT_STYLE_BASIC
+
+    if output_style == OUTPUT_STYLE_RICH and not HAVE_RICH:
+        raise EasyBuildError("Can't use '%s' output style, Rich Python package is not available!", OUTPUT_STYLE_RICH)
+
+    return output_style
 
 
 def log_file_format(return_directory=False, ec=None, date=None, timestamp=None):

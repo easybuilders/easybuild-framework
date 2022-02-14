@@ -48,7 +48,7 @@ from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
 from easybuild.tools import config
-from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes
+from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes, update_build_option
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, mkdir, read_file, which
@@ -136,6 +136,11 @@ class EnhancedTestCase(TestCase):
         self.disallow_deprecated_behaviour()
 
         init_config()
+
+        # disable progress bars when running the tests,
+        # since it messes with test suite progress output when test installations are performed
+        os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
+        update_build_option('show_progress_bar', False)
 
         import easybuild
         # try to import easybuild.easyblocks(.generic) packages
@@ -284,6 +289,10 @@ class EnhancedTestCase(TestCase):
         """Helper method to call EasyBuild main function."""
         cleanup()
 
+        # always run main in unit testing mode (which for example allows for using deprecated toolchains);
+        # note: don't change 'args' value, which is passed by reference!
+        main_args = args + ['--unit-testing-mode']
+
         myerr = False
         if logfile is None:
             logfile = self.logfile
@@ -295,7 +304,13 @@ class EnhancedTestCase(TestCase):
         env_before = copy.deepcopy(os.environ)
 
         try:
-            main(args=args, logfile=logfile, do_build=do_build, testing=testing, modtool=self.modtool)
+            if '--fetch' in args:
+                # The config sets modules_tool to None if --fetch is specified,
+                # so do the same here to keep the behavior consistent
+                modtool = None
+            else:
+                modtool = self.modtool
+            main(args=main_args, logfile=logfile, do_build=do_build, testing=testing, modtool=modtool)
         except SystemExit as err:
             if raise_systemexit:
                 raise err
@@ -465,6 +480,7 @@ def init_config(args=None, build_options=None, with_include=True):
         'local_var_naming_check': 'error',
         'silence_deprecation_warnings': eb_go.options.silence_deprecation_warnings,
         'suffix_modules_path': GENERAL_CLASS,
+        'unit_testing_mode': True,
         'valid_module_classes': module_classes(),
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
     }

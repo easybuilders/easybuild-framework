@@ -16,16 +16,18 @@ PKG_VERSION="${PKG##*-}"
 CONFIG_OPTIONS=
 PRECONFIG_CMD=
 
-if [ "$PKG_NAME" == 'modules' ] && [ "$PKG_VERSION" == '3.2.10' ]; then
-    PKG_URL="http://prdownloads.sourceforge.net/modules/${PKG}.tar.gz"
-    BACKUP_PKG_URL="https://easybuilders.github.io/easybuild/files/${PKG}.tar.gz"
-    export PATH="$PREFIX/Modules/$PKG_VERSION/bin:$PATH"
-    export MOD_INIT="$PREFIX/Modules/$PKG_VERSION/init/bash"
+BACKUP_PKG_URL=
 
-elif [ "$PKG_NAME" == 'modules' ]; then
+if [ "$PKG_NAME" == 'modules' ]; then
     PKG_URL="http://prdownloads.sourceforge.net/modules/${PKG}.tar.gz"
-    export PATH="$PREFIX/bin:$PATH"
-    export MOD_INIT="$PREFIX/init/bash"
+    BACKUP_PKG_URL="https://sources.easybuild.io/e/EnvironmentModules/${PKG}.tar.gz"
+    if [ "$PKG_VERSION" == '3.2.10' ]; then
+        export PATH="$PREFIX/Modules/$PKG_VERSION/bin:$PATH"
+        export MOD_INIT="$PREFIX/Modules/$PKG_VERSION/init/bash"
+    else
+        export PATH="$PREFIX/bin:$PATH"
+        export MOD_INIT="$PREFIX/init/bash"
+    fi
 
 elif [ "$PKG_NAME" == 'lua' ]; then
     PKG_URL="http://downloads.sourceforge.net/project/lmod/${PKG}.tar.gz"

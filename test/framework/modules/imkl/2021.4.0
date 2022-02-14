@@ -1,0 +1,37 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+Intel oneAPI Math Kernel Library
+
+
+More information
+================
+ - Homepage: https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/onemkl.html
+    }
+}
+
+module-whatis {Description: Intel oneAPI Math Kernel Library}
+module-whatis {Homepage: https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/onemkl.html}
+module-whatis {URL: https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/onemkl.html}
+
+set root	/tmp/eb-bI0pBy/eb-DmuEpJ/eb-leoYDw/eb-UtJJqp/tmp8P3FOY
+
+conflict imkl
+
+prepend-path	CMAKE_PREFIX_PATH		$root
+prepend-path	CPATH		$root/mkl/2021.4.0/include
+prepend-path	CPATH		$root/mkl/2021.4.0/include/fftw
+prepend-path	LD_LIBRARY_PATH		$root/compiler/2021.4.0/linux/compiler/lib/intel64_lin
+prepend-path	LD_LIBRARY_PATH		$root/mkl/2021.4.0/lib/intel64
+prepend-path	LIBRARY_PATH		$root/compiler/2021.4.0/linux/compiler/lib/intel64_lin
+prepend-path	LIBRARY_PATH		$root/mkl/2021.4.0/lib/intel64
+setenv	EBROOTIMKL		"$root"
+setenv	EBVERSIONIMKL		"2021.4.0"
+setenv	EBDEVELIMKL		"$root/easybuild/Core-imkl-2021.4.0-easybuild-devel"
+
+setenv	MKL_EXAMPLES		"$root/mkl/2021.4.0/examples"
+setenv	MKLROOT		"$root/mkl/2021.4.0"
+# Built with EasyBuild version 4.5.0dev

@@ -30,6 +30,7 @@ The basic concept is the same as for the Cray Programming Environment.
 :author: Miguel Dias Costa (National University of Singapore)
 """
 import os
+import re
 
 import easybuild.tools.environment as env
 import easybuild.tools.systemtools as systemtools
@@ -87,6 +88,13 @@ class FujitsuCompiler(Compiler):
 
     def prepare(self, *args, **kwargs):
         super(FujitsuCompiler, self).prepare(*args, **kwargs)
+
+        # fcc doesn't accept e.g. -std=c++11 or -std=gnu++11, only -std=c11 or -std=gnu11
+        pattern = r'-std=(gnu|c)\+\+(\d+)'
+        if re.search(pattern, self.vars['CFLAGS']):
+            self.log.debug("Found '-std=(gnu|c)++' in CFLAGS, fcc doesn't accept '++' here, removing it")
+            self.vars['CFLAGS'] = re.sub(pattern, r'-std=\1\2', self.vars['CFLAGS'])
+            self._setenv_variables()
 
         # make sure the fujitsu module libraries are found (and added to rpath by wrapper)
         library_path = os.getenv('LIBRARY_PATH', '')

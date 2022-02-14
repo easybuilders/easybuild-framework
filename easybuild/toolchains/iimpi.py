@@ -53,11 +53,12 @@ class Iimpi(IccIfort, IntelCompilersToolchain, IntelMPI):
 
         # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
         if re.match('^[0-9]', self.version):
-            # need to transform a version like '2016a' with something that is safe to compare with '8.0', '2016.01'
+            # need to transform a version like '2018b' with something that is safe to compare with '2019'
             # comparing subversions that include letters causes TypeErrors in Python 3
             # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June)
             # (good enough for this purpose)
             self.iimpi_ver = self.version.replace('a', '.01').replace('b', '.07')
+
             if LooseVersion(self.iimpi_ver) >= LooseVersion('2020.12'):
                 self.oneapi_gen = True
                 self.SUBTOOLCHAIN = IntelCompilersToolchain.NAME
@@ -77,12 +78,8 @@ class Iimpi(IccIfort, IntelCompilersToolchain, IntelMPI):
 
         # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
         if re.match('^[0-9]', str(self.iimpi_ver)):
-            loosever = LooseVersion(self.iimpi_ver)
-            # iimpi toolchains older than iimpi/2016.01 are deprecated
-            # iimpi 8.1.5 is an exception, since it used in intel/2016a (which is not deprecated yet)
-            if loosever < LooseVersion('8.0'):
-                deprecated = True
-            elif loosever > LooseVersion('2000') and loosever < LooseVersion('2016.01'):
+            # iimpi toolchains older than iimpi/2019a are deprecated since EasyBuild v4.5.0
+            if LooseVersion(self.iimpi_ver) < LooseVersion('2019'):
                 deprecated = True
 
         return deprecated
