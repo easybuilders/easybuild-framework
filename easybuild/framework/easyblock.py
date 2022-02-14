@@ -1487,7 +1487,7 @@ class EasyBlock(object):
                     recursive = keys_requiring_files[key]
                     retained_paths = []
                     for pth in paths:
-                        fullpath = os.path.join(self.installdir, path)
+                        fullpath = os.path.join(self.installdir, pth)
                         if os.path.isdir(fullpath) and dir_contains_files(fullpath, recursive=recursive):
                             retained_paths.append(pth)
                     if retained_paths != paths:
