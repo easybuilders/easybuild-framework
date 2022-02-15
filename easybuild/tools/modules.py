@@ -187,7 +187,6 @@ class ModulesTool(object):
                 self.cmd = env_cmd_path
                 self.log.debug("Set %s command via environment variable %s: %s",
                                self.NAME, self.COMMAND_ENVIRONMENT, self.cmd)
-            # check whether paths obtained via $PATH and $LMOD_CMD are different
             elif cmd_path != env_cmd_path:
                 self.log.debug("Different paths found for %s command '%s' via which/$PATH and $%s: %s vs %s",
                                self.NAME, self.COMMAND, self.COMMAND_ENVIRONMENT, cmd_path, env_cmd_path)
@@ -207,6 +206,15 @@ class ModulesTool(object):
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
         self.supports_depends_on = False
+
+    def __str__(self):
+        """String representation of this ModulesTool instance."""
+        res = self.NAME
+        if self.version:
+            res += ' ' + self.version
+        else:
+            res += ' (unknown version)'
+        return res
 
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
@@ -801,7 +809,7 @@ class ModulesTool(object):
         else:
             args = list(args)
 
-        self.log.debug('Current MODULEPATH: %s' % os.environ.get('MODULEPATH', ''))
+        self.log.debug('Current MODULEPATH: %s' % os.environ.get('MODULEPATH', '<unset>'))
 
         # restore selected original environment variables before running module command
         environ = os.environ.copy()
@@ -1178,7 +1186,7 @@ class ModulesTool(object):
 
 class EnvironmentModulesC(ModulesTool):
     """Interface to (C) environment modules (modulecmd)."""
-    NAME = "Environment Modules v3"
+    NAME = "Environment Modules"
     COMMAND = "modulecmd"
     REQ_VERSION = '3.2.10'
     MAX_VERSION = '3.99'
@@ -1313,8 +1321,9 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
 class EnvironmentModules(EnvironmentModulesTcl):
     """Interface to environment modules 4.0+"""
-    NAME = "Environment Modules v4"
+    NAME = "Environment Modules"
     COMMAND = os.path.join(os.getenv('MODULESHOME', 'MODULESHOME_NOT_DEFINED'), 'libexec', 'modulecmd.tcl')
+    COMMAND_ENVIRONMENT = 'MODULES_CMD'
     REQ_VERSION = '4.0.0'
     MAX_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d\S*)\s'

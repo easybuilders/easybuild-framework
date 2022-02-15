@@ -28,6 +28,7 @@ Dummy easyblock for Makecp.
 @author: Miguel Dias Costa (National University of Singapore)
 """
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig import CUSTOM
 
 
 class PythonBundle(EasyBlock):
@@ -37,4 +38,7 @@ class PythonBundle(EasyBlock):
     def extra_options(extra_vars=None):
         if extra_vars is None:
             extra_vars = {}
+        extra_vars.update({
+            'components': [(), "List of components to install: tuples w/ name, version and easyblock to use", CUSTOM],
+        })
         return EasyBlock.extra_options(extra_vars)

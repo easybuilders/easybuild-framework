@@ -40,7 +40,7 @@ from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, raise_nosupport
 from easybuild.tools.filetools import change_dir
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import check_async_cmd, run_cmd
 from easybuild.tools.py2vs3 import string_type
 
 
@@ -119,6 +119,7 @@ class Extension(object):
 
         # list of source/patch files: we use an empty list as default value like in EasyBlock
         self.src = resolve_template(self.ext.get('src', []), self.cfg.template_values)
+        self.src_extract_cmd = self.ext.get('extract_cmd', None)
         self.patches = resolve_template(self.ext.get('patches', []), self.cfg.template_values)
         self.options = resolve_template(copy.deepcopy(self.ext.get('options', {})), self.cfg.template_values)
 
@@ -139,6 +140,12 @@ class Extension(object):
                                key, name, version, value)
 
         self.sanity_check_fail_msgs = []
+        self.async_cmd_info = None
+        self.async_cmd_output = None
+        self.async_cmd_check_cnt = None
+        # initial read size should be relatively small,
+        # to avoid hanging for a long time until desired output is available in async_cmd_check
+        self.async_cmd_read_size = 1024
 
     @property
     def name(self):
@@ -160,17 +167,67 @@ class Extension(object):
         """
         pass
 
-    def run(self):
+    def run(self, *args, **kwargs):
         """
-        Actual installation of a extension.
+        Actual installation of an extension.
         """
         pass
+
+    def run_async(self, *args, **kwargs):
+        """
+        Asynchronous installation of an extension.
+        """
+        raise NotImplementedError
 
     def postrun(self):
         """
         Stuff to do after installing a extension.
         """
         self.master.run_post_install_commands(commands=self.cfg.get('postinstallcmds', []))
+
+    def async_cmd_start(self, cmd, inp=None):
+        """
+        Start installation asynchronously using specified command.
+        """
+        self.async_cmd_output = ''
+        self.async_cmd_check_cnt = 0
+        self.async_cmd_info = run_cmd(cmd, log_all=True, simple=False, inp=inp, regexp=False, asynchronous=True)
+
+    def async_cmd_check(self):
+        """
+        Check progress of installation command that was started asynchronously.
+
+        :return: True if command completed, False otherwise
+        """
+        if self.async_cmd_info is None:
+            raise EasyBuildError("No installation command running asynchronously for %s", self.name)
+        elif self.async_cmd_info is False:
+            self.log.info("No asynchronous command was started for extension %s", self.name)
+            return True
+        else:
+            self.log.debug("Checking on installation of extension %s...", self.name)
+            # use small read size, to avoid waiting for a long time until sufficient output is produced
+            res = check_async_cmd(*self.async_cmd_info, output_read_size=self.async_cmd_read_size)
+            self.async_cmd_output += res['output']
+            if res['done']:
+                self.log.info("Installation of extension %s completed!", self.name)
+                self.async_cmd_info = None
+            else:
+                self.async_cmd_check_cnt += 1
+                self.log.debug("Installation of extension %s still running (checked %d times)",
+                               self.name, self.async_cmd_check_cnt)
+                # increase read size after sufficient checks,
+                # to avoid that installation hangs due to output buffer filling up...
+                if self.async_cmd_check_cnt % 10 == 0 and self.async_cmd_read_size < (1024 ** 2):
+                    self.async_cmd_read_size *= 2
+
+            return res['done']
+
+    @property
+    def required_deps(self):
+        """Return list of required dependencies for this extension."""
+        self.log.info("Don't know how to determine required dependencies for extension '%s'", self.name)
+        return None
 
     @property
     def toolchain(self):

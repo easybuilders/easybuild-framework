@@ -197,7 +197,13 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.contents += "\nsyntax_error'"
         self.prep()
-        error_pattern = "Parsing easyconfig file failed: EOL while scanning string literal"
+
+        # exact error message depends on Python version (different starting with Python 3.10)
+        if sys.version_info >= (3, 10):
+            error_pattern = "Parsing easyconfig file failed: unterminated string literal"
+        else:
+            error_pattern = "Parsing easyconfig file failed: EOL while scanning string literal"
+
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
 
         # introduce "TypeError: format requires mapping" issue"
@@ -461,7 +467,7 @@ class EasyConfigTest(EnhancedTestCase):
             '   ("ext1", "1.0"),',
             '   ("ext2", "2.0", {',
             '       "source_urls": [("http://example.com", "suffix")],'
-            '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
+            '       "patches": [("toy-0.0.eb", ".")],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
                         # SHA256 checksum for source (gzip-1.4.eb)
             '           "6a5abcab719cefa95dca4af0db0d2a9d205d68f775a33b452ec0f2b75b6a3a45",',
@@ -474,7 +480,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
-        exts_sources = eb.fetch_extension_sources()
+        exts_sources = eb.collect_exts_file_info()
 
         self.assertEqual(len(exts_sources), 2)
         self.assertEqual(exts_sources[0]['name'], 'ext1')
@@ -488,7 +494,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(exts_sources[1]['options'], {
             'checksums': ['6a5abcab719cefa95dca4af0db0d2a9d205d68f775a33b452ec0f2b75b6a3a45',
                           '2d964e0e8f05a7cce0dd83a3e68c9737da14b87b61b8b8b0291d58d4c8d1031c'],
-            'patches': ['toy-0.0.eb'],
+            'patches': [('toy-0.0.eb', '.')],
             'source_tmpl': 'gzip-1.4.eb',
             'source_urls': [('http://example.com', 'suffix')],
         })
@@ -1335,8 +1341,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
-        eb.gen_builddir()
-        eb.gen_installdir()
+        eb.post_init()
         eb.make_builddir()
         eb.make_installdir()
         self.assertEqual(eb.builddir, eb.installdir)
@@ -2807,12 +2812,12 @@ class EasyConfigTest(EnhancedTestCase):
         # tweak version to 4.6.1, GCC/4.6.x easyconfigs are found as closest match
         ec['version'] = '4.6.1'
         res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
-        self.assertEqual(res, ['GCC-4.6.3.eb', 'GCC-4.6.4.eb'])
+        self.assertEqual(res, ['GCC-4.6.4.eb', 'GCC-4.6.3.eb'])
 
         # tweak version to 4.5.0, GCC/4.x easyconfigs are found as closest match
         ec['version'] = '4.5.0'
         res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
-        expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb']
+        expected = ['GCC-4.9.2.eb', 'GCC-4.8.3.eb', 'GCC-4.8.2.eb', 'GCC-4.6.4.eb', 'GCC-4.6.3.eb']
         self.assertEqual(res, expected)
 
         ec_file = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
@@ -2826,7 +2831,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec['toolchain'] = {'name': 'gompi', 'version': '1.5.16'}
         ec['versionsuffix'] = '-foobar'
         res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
-        self.assertEqual(res, ['toy-0.0-gompi-2018a-test.eb', 'toy-0.0-gompi-2018a.eb'])
+        self.assertEqual(res, ['toy-0.0-gompi-2018a.eb', 'toy-0.0-gompi-2018a-test.eb'])
 
         # restore original versionsuffix => matching versionsuffix wins over matching toolchain (name)
         ec['versionsuffix'] = '-deps'
@@ -3052,6 +3057,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(res, expected)
 
         # mock get_avail_core_count which is used by set_parallel -> det_parallelism
+        try:
+            del st.det_parallelism._default_parallelism  # Remove cache value
+        except AttributeError:
+            pass  # Ignore if not present
         orig_get_avail_core_count = st.get_avail_core_count
         st.get_avail_core_count = lambda: 42
 
@@ -3585,7 +3594,9 @@ class EasyConfigTest(EnhancedTestCase):
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2383
         not_an_ec = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'not_an_easyconfig.eb')
 
-        error_pattern = "Parsing easyconfig file failed: invalid syntax"
+        # from Python 3.10 onwards: invalid decimal literal
+        # older Python versions: invalid syntax
+        error_pattern = "Parsing easyconfig file failed: invalid"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, not_an_ec)
 
     def test_check_sha256_checksums(self):
@@ -4482,6 +4493,109 @@ class EasyConfigTest(EnhancedTestCase):
 
         error_pattern = r"Failed to copy '.*' easyconfig parameter"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+
+    def test_get_cuda_cc_template_value(self):
+        """
+        Test getting template value based on --cuda-compute-capabilities / cuda_compute_capabilities.
+        """
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        error_pattern = "foobar is not a template value based on --cuda-compute-capabilities/cuda_compute_capabilities"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ec.get_cuda_cc_template_value, 'foobar')
+
+        error_pattern = r"Template value '%s' is not defined!\n"
+        error_pattern += r"Make sure that either the --cuda-compute-capabilities EasyBuild configuration "
+        error_pattern += "option is set, or that the cuda_compute_capabilities easyconfig parameter is defined."
+        cuda_template_values = {
+            'cuda_compute_capabilities': '6.5,7.0',
+            'cuda_cc_space_sep': '6.5 7.0',
+            'cuda_cc_semicolon_sep': '6.5;7.0',
+            'cuda_sm_comma_sep': 'sm_65,sm_70',
+            'cuda_sm_space_sep': 'sm_65 sm_70',
+        }
+        for key in cuda_template_values:
+            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
+
+        update_build_option('cuda_compute_capabilities', ['6.5', '7.0'])
+        ec = EasyConfig(self.eb_file)
+
+        for key in cuda_template_values:
+            self.assertEqual(ec.get_cuda_cc_template_value(key), cuda_template_values[key])
+
+        update_build_option('cuda_compute_capabilities', None)
+        ec = EasyConfig(self.eb_file)
+
+        for key in cuda_template_values:
+            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
+
+        self.contents += "\ncuda_compute_capabilities = ['6.5', '7.0']"
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        for key in cuda_template_values:
+            self.assertEqual(ec.get_cuda_cc_template_value(key), cuda_template_values[key])
+
+    def test_count_files(self):
+        """Tests for EasyConfig.count_files method."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        foss = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
+        toy = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        toy_exts = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+
+        # no sources or patches for toolchain => 0
+        foss_ec = EasyConfig(foss)
+        self.assertEqual(foss_ec['sources'], [])
+        self.assertEqual(foss_ec['patches'], [])
+        self.assertEqual(foss_ec.count_files(), 0)
+        # 1 source + 2 patches => 3
+        toy_ec = EasyConfig(toy)
+        self.assertEqual(len(toy_ec['sources']), 1)
+        self.assertEqual(len(toy_ec['patches']), 2)
+        self.assertEqual(toy_ec['exts_list'], [])
+        self.assertEqual(toy_ec.count_files(), 3)
+        # 1 source + 1 patch
+        # 4 extensions
+        # * ls: no sources/patches (only name is specified)
+        # * bar: 1 source (implied, using default source_tmpl) + 2 patches
+        # * barbar: 1 source (implied, using default source_tmpl)
+        # * toy: 1 source (implied, using default source_tmpl)
+        # => 7 files in total
+        toy_exts_ec = EasyConfig(toy_exts)
+        self.assertEqual(len(toy_exts_ec['sources']), 1)
+        self.assertEqual(len(toy_exts_ec['patches']), 1)
+        self.assertEqual(len(toy_exts_ec['exts_list']), 4)
+        self.assertEqual(toy_exts_ec.count_files(), 7)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        copy_file(toy_exts, test_ec)
+        # add a couple of additional extensions to verify correct file count
+        test_ec_extra = '\n'.join([
+            'exts_list += [',
+            '    ("test-ext-one", "0.0", {',
+            '        "sources": ["test-ext-one-0.0-part1.tgz", "test-ext-one-0.0-part2.zip"],',
+            # if both 'sources' and 'source_tmpl' are specified, 'source_tmpl' is ignored,
+            # see EasyBlock.fetch_extension_sources, so it should be too when counting files
+            '        "source_tmpl": "test-ext-one-%(version)s.tar.gz",',
+            '    }),',
+            '    ("test-ext-two", "0.0", {',
+            '        "source_tmpl": "test-ext-two-0.0-part1.tgz",',
+            '        "patches": ["test-ext-two.patch"],',
+            '    }),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_extra, append=True)
+        test_ec = EasyConfig(test_ec)
+        self.assertEqual(test_ec.count_files(), 11)
 
 
 def suite():

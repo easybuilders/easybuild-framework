@@ -62,6 +62,12 @@ jobs:
           - python: 3.9
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Tcl
+          - python: '3.10'
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Lua
+          - python: '3.10'
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Tcl
           # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
           # Hence run the tests (again) with LC_ALL=C and Python 3.6 (or any < 3.7)
           - python: 3.6
@@ -110,13 +116,14 @@ jobs:
         GITHUB_TOKEN: ${{secrets.TEST_GITHUB_TOKEN}}
       run: |
         # don't install GitHub token when testing with Lmod 7.x or non-Lmod module tools,
+        # and only when testing with Lua as module syntax,
         # to avoid hitting GitHub rate limit;
         # tests that require a GitHub token are skipped automatically when no GitHub token is available
-        if [[ ! "${{matrix.modules_tool}}" =~ 'Lmod-7' ]] && [[ ! "${{matrix.modules_tool}}" =~ 'modules-' ]]; then
+        if [[ ! "${{matrix.modules_tool}}" =~ 'Lmod-7' ]] && [[ ! "${{matrix.modules_tool}}" =~ 'modules-' ]] && [[ "${{matrix.modules_syntax}}" == 'Lua' ]]; then
           if [ ! -z $GITHUB_TOKEN ]; then
             if [ "x${{matrix.python}}" == 'x2.6' ];
               then SET_KEYRING="keyring.set_keyring(keyring.backends.file.PlaintextKeyring())";
-              else SET_KEYRING="import keyrings; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
+              else SET_KEYRING="import keyrings.alt.file; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
             fi;
             python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
           fi
@@ -193,7 +200,7 @@ jobs:
           # run test suite
           python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
           # try and make sure output of running tests is clean (no printed messages/warnings)
-          IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|requires Lmod as modules tool|stty: 'standard input': Inappropriate ioctl for device|CryptographyDeprecationWarning: Python 3.5|from cryptography.*default_backend|CryptographyDeprecationWarning: Python 2"
+          IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|requires Lmod as modules tool|stty: 'standard input': Inappropriate ioctl for device|CryptographyDeprecationWarning: Python 3.5|from cryptography.*default_backend|CryptographyDeprecationWarning: Python 2|from cryptography.utils import int_from_bytes"
           # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
           PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
           test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite\n${PRINTED_MSG}" && exit 1)

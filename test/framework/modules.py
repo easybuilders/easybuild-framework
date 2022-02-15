@@ -54,7 +54,7 @@ from easybuild.tools.run import run_cmd
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 82
+TEST_MODULES_COUNT = 87
 
 
 class ModulesTest(EnhancedTestCase):
@@ -1096,7 +1096,7 @@ class ModulesTest(EnhancedTestCase):
         mkdir(nonpath)
         self.modtool.use(nonpath)
         modulepaths = [p for p in os.environ.get('MODULEPATH', '').split(os.pathsep) if p]
-        self.assertTrue(any([os.path.samefile(nonpath, mp) for mp in modulepaths]))
+        self.assertTrue(any(os.path.samefile(nonpath, mp) for mp in modulepaths))
         shutil.rmtree(nonpath)
 
         # create symlink to entry in $MODULEPATH we're going to use, and add it to $MODULEPATH
@@ -1136,9 +1136,9 @@ class ModulesTest(EnhancedTestCase):
 
         # invalidate caches with correct path
         modulepaths = [p for p in os.environ.get('MODULEPATH', '').split(os.pathsep) if p]
-        self.assertTrue(any([os.path.exists(mp) and os.path.samefile(test_mods_path, mp) for mp in modulepaths]))
+        self.assertTrue(any(os.path.exists(mp) and os.path.samefile(test_mods_path, mp) for mp in modulepaths))
         paths_in_key = [p for p in avail_cache_key[0].split('=')[1].split(os.pathsep) if p]
-        self.assertTrue(any([os.path.exists(p) and os.path.samefile(test_mods_path, p) for p in paths_in_key]))
+        self.assertTrue(any(os.path.exists(p) and os.path.samefile(test_mods_path, p) for p in paths_in_key))
 
         # verify cache invalidation, caches should be empty again
         invalidate_module_caches_for(test_mods_path)

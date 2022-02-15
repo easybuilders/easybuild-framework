@@ -27,6 +27,8 @@ EasyBuild support for a iimpic compiler toolchain (includes iccifort, impi and C
 
 :author: Ake Sandgren (HPC2N)
 """
+import re
+from distutils.version import LooseVersion
 
 from easybuild.toolchains.iccifortcuda import IccIfortCUDA
 from easybuild.toolchains.mpi.intelmpi import IntelMPI
@@ -36,3 +38,20 @@ class Iimpic(IccIfortCUDA, IntelMPI):
     """Compiler toolchain with Intel compilers (icc/ifort), Intel MPI and CUDA."""
     NAME = 'iimpic'
     SUBTOOLCHAIN = IccIfortCUDA.NAME
+
+    def is_deprecated(self):
+        """Return whether or not this toolchain is deprecated."""
+        # need to transform a version like '2018b' with something that is safe to compare with '2019'
+        # comparing subversions that include letters causes TypeErrors in Python 3
+        # 'a' is assumed to be equivalent with '.01' (January), and 'b' with '.07' (June) (good enough for this purpose)
+        version = self.version.replace('a', '.01').replace('b', '.07')
+
+        deprecated = False
+
+        # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
+        if re.match('^[0-9]', version):
+            # iimpic toolchains older than iimpic/2019a are deprecated since EasyBuild v4.5.0
+            if LooseVersion(version) < LooseVersion('2019'):
+                deprecated = True
+
+        return deprecated

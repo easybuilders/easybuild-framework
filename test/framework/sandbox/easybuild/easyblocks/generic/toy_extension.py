@@ -30,7 +30,8 @@ EasyBuild support for building and installing toy extensions, implemented as an 
 
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
-from easybuild.easyblocks.toy import EB_toy
+from easybuild.easyblocks.toy import EB_toy, compose_toy_build_cmd
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.run import run_cmd
 
 
@@ -45,19 +46,58 @@ class Toy_Extension(ExtensionEasyBlock):
         }
         return ExtensionEasyBlock.extra_options(extra_vars=extra_vars)
 
-    def run(self):
-        """Build toy extension."""
+    @property
+    def required_deps(self):
+        """Return list of required dependencies for this extension."""
+        deps = {
+            'bar': [],
+            'barbar': ['bar'],
+            'ls': [],
+        }
+        if self.name in deps:
+            return deps[self.name]
+        else:
+            raise EasyBuildError("Dependencies for %s are unknown!", self.name)
+
+    def run(self, *args, **kwargs):
+        """
+        Install toy extension.
+        """
         if self.src:
-            super(Toy_Extension, self).run(unpack_src=True)
-            EB_toy.configure_step(self.master, name=self.name)
             EB_toy.build_step(self.master, name=self.name, buildopts=self.cfg['buildopts'])
 
             if self.cfg['toy_ext_param']:
                 run_cmd(self.cfg['toy_ext_param'])
 
-            EB_toy.install_step(self.master, name=self.name)
-
             return self.module_generator.set_environment('TOY_EXT_%s' % self.name.upper(), self.name)
+
+    def prerun(self):
+        """
+        Prepare installation of toy extension.
+        """
+        super(Toy_Extension, self).prerun()
+
+        if self.src:
+            super(Toy_Extension, self).run(unpack_src=True)
+            EB_toy.configure_step(self.master, name=self.name)
+
+    def run_async(self):
+        """
+        Install toy extension asynchronously.
+        """
+        if self.src:
+            cmd = compose_toy_build_cmd(self.cfg, self.name, self.cfg['prebuildopts'], self.cfg['buildopts'])
+            self.async_cmd_start(cmd)
+        else:
+            self.async_cmd_info = False
+
+    def postrun(self):
+        """
+        Wrap up installation of toy extension.
+        """
+        super(Toy_Extension, self).postrun()
+
+        EB_toy.install_step(self.master, name=self.name)
 
     def sanity_check_step(self, *args, **kwargs):
         """Custom sanity check for toy extensions."""

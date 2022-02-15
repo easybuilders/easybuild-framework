@@ -34,6 +34,7 @@ import ConfigParser as configparser  # noqa
 import json
 import subprocess
 import urllib2 as std_urllib  # noqa
+from collections import Mapping, OrderedDict  # noqa
 from HTMLParser import HTMLParser  # noqa
 from string import letters as ascii_letters  # noqa
 from string import lowercase as ascii_lowercase  # noqa
@@ -41,12 +42,6 @@ from StringIO import StringIO  # noqa
 from urllib import urlencode  # noqa
 from urllib2 import HTTPError, HTTPSHandler, Request, URLError, build_opener, urlopen  # noqa
 
-try:
-    # Python 2.7
-    from collections import OrderedDict  # noqa
-except ImportError:
-    # only needed to keep supporting Python 2.6
-    from easybuild.tools.ordereddict import OrderedDict  # noqa
 
 # reload function (built-in in Python 2)
 reload = reload

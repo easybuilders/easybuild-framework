@@ -1,0 +1,36 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and Fortran compilers, Intel MPI & Intel MKL. - Homepage: http://software.intel.com/en-us/intel-cluster-toolkit-compiler/
+    }
+}
+
+module-whatis {Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and Fortran compilers, Intel MPI & Intel MKL. - Homepage: http://software.intel.com/en-us/intel-cluster-toolkit-compiler/}
+
+set root    /tmp/intel/2021b
+
+conflict   intel
+
+if { ![is-loaded intel-compilers/2021.4.0] } {
+    module load intel-compilers/2021.4.0
+}
+
+if { ![is-loaded impi/2021.4.0] } {
+    module load impi/2021.4.0
+}
+
+if { ![is-loaded imkl/2021.4.0] } {
+    module load imkl/2021.4.0
+}
+
+if { ![is-loaded imkl-FFTW/2021.4.0] } {
+    module load imkl-FFTW/2021.4.0
+}
+
+
+setenv	EBROOTINTEL		"$root"
+setenv	EBVERSIONINTEL		"2021b"
+setenv	EBDEVELINTEL		"$root/easybuild/intel-2021b-easybuild-devel"
+
+
+# built with EasyBuild version 4.5.0dev

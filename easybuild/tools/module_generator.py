@@ -37,11 +37,12 @@ import copy
 import os
 import re
 import tempfile
+from contextlib import contextmanager
 from distutils.version import LooseVersion
 from textwrap import wrap
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
@@ -136,17 +137,29 @@ class ModuleGenerator(object):
         self.fake_mod_path = tempfile.mkdtemp()
 
         self.modules_tool = modules_tool()
+        self.added_paths_per_key = None
 
-    def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
+    @contextmanager
+    def start_module_creation(self):
         """
-        Generate append-path statements for the given list of paths.
+        Prepares creating a module and returns the file header (shebang) if any including the newline
 
-        :param key: environment variable to append paths to
-        :param paths: list of paths to append
-        :param allow_abs: allow providing of absolute paths
-        :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        Meant to be used in a with statement:
+            with generator.start_module_creation() as txt:
+                # Write txt
         """
-        return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
+        if self.added_paths_per_key is not None:
+            raise EasyBuildError('Module creation already in process. '
+                                 'You cannot create multiple modules at the same time!')
+        # Mapping of keys/env vars to paths already added
+        self.added_paths_per_key = dict()
+        txt = self.MODULE_SHEBANG
+        if txt:
+            txt += '\n'
+        try:
+            yield txt
+        finally:
+            self.added_paths_per_key = None
 
     def create_symlinks(self, mod_symlink_paths, fake=False):
         """Create moduleclass symlink(s) to actual module file."""
@@ -191,6 +204,49 @@ class ModuleGenerator(object):
 
         return os.path.join(mod_path, mod_path_suffix)
 
+    def _filter_paths(self, key, paths):
+        """Filter out paths already added to key and return the remaining ones"""
+        if self.added_paths_per_key is None:
+            # For compatibility this is only a warning for now and we don't filter any paths
+            print_warning('Module creation has not been started. Call start_module_creation first!')
+            return paths
+
+        added_paths = self.added_paths_per_key.setdefault(key, set())
+        # paths can be a string
+        if isinstance(paths, string_type):
+            if paths in added_paths:
+                filtered_paths = None
+            else:
+                added_paths.add(paths)
+                filtered_paths = paths
+        else:
+            # Coerce any iterable/generator into a list
+            if not isinstance(paths, list):
+                paths = list(paths)
+            filtered_paths = [x for x in paths if x not in added_paths and not added_paths.add(x)]
+        if filtered_paths != paths:
+            removed_paths = paths if filtered_paths is None else [x for x in paths if x not in filtered_paths]
+            print_warning("Suppressed adding the following path(s) to $%s of the module as they were already added: %s",
+                          key, removed_paths,
+                          log=self.log)
+            if not filtered_paths:
+                filtered_paths = None
+        return filtered_paths
+
+    def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
+        """
+        Generate append-path statements for the given list of paths.
+
+        :param key: environment variable to append paths to
+        :param paths: list of paths to append
+        :param allow_abs: allow providing of absolute paths
+        :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        """
+        paths = self._filter_paths(key, paths)
+        if paths is None:
+            return ''
+        return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
+
     def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
         Generate prepend-path statements for the given list of paths.
@@ -200,6 +256,9 @@ class ModuleGenerator(object):
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
+        paths = self._filter_paths(key, paths)
+        if paths is None:
+            return ''
         return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
 
     def _modulerc_check_module_version(self, module_version):

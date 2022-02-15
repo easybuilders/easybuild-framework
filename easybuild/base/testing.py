@@ -35,6 +35,7 @@ import difflib
 import pprint
 import re
 import sys
+from contextlib import contextmanager
 
 try:
     from cStringIO import StringIO  # Python 2
@@ -184,6 +185,26 @@ class TestCase(OrigTestCase):
     def get_stderr(self):
         """Return output captured from stderr until now."""
         return sys.stderr.getvalue()
+
+    @contextmanager
+    def mocked_stdout_stderr(self, mock_stdout=True, mock_stderr=True):
+        """Context manager to mock stdout and stderr"""
+        if mock_stdout:
+            self.mock_stdout(True)
+        if mock_stderr:
+            self.mock_stderr(True)
+        try:
+            if mock_stdout and mock_stderr:
+                yield sys.stdout, sys.stderr
+            elif mock_stdout:
+                yield sys.stdout
+            else:
+                yield sys.stderr
+        finally:
+            if mock_stdout:
+                self.mock_stdout(False)
+            if mock_stderr:
+                self.mock_stderr(False)
 
     def tearDown(self):
         """Cleanup after running a test."""
