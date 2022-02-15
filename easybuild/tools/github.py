@@ -1785,6 +1785,8 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
 
     for ec, ec_path in zip(file_info['ecs'], file_info['paths_in_repo']):
         for patch in ec.asdict()['patches']:
+            if isinstance(patch, tuple):
+                patch = patch[0]
             if patch not in paths['patch_files'] and not os.path.isfile(os.path.join(os.path.dirname(ec_path), patch)):
                 print_warning("new patch file %s, referenced by %s, is not included in this PR" %
                               (patch, ec.filename()))
