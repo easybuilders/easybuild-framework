@@ -1155,12 +1155,14 @@ def check_pr_eligible_to_merge(pr_data):
 
     # check test suite result, Travis must give green light
     msg_tmpl = "* test suite passes: %s"
+    failed_status_last_commit = False
     if pr_data['status_last_commit'] == STATUS_SUCCESS:
         print_msg(msg_tmpl % 'OK', prefix=False)
     elif pr_data['status_last_commit'] == STATUS_PENDING:
         res = not_eligible(msg_tmpl % "pending...")
     else:
         res = not_eligible(msg_tmpl % "(status: %s)" % pr_data['status_last_commit'])
+        failed_status_last_commit = True
 
     if pr_data['base']['repo']['name'] == GITHUB_EASYCONFIGS_REPO:
         # check for successful test report (checked in reverse order)
@@ -1221,13 +1223,18 @@ def check_pr_eligible_to_merge(pr_data):
 
     # check github mergeable state
     msg_tmpl = "* mergeable state is clean: %s"
+    mergeable = False
     if pr_data['merged']:
         print_msg(msg_tmpl % "PR is already merged", prefix=False)
     elif pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN:
         print_msg(msg_tmpl % "OK", prefix=False)
+        mergeable = True
     else:
         reason = "FAILED (mergeable state is '%s')" % pr_data['mergeable_state']
         res = not_eligible(msg_tmpl % reason)
+
+    if failed_status_last_commit and mergeable:
+        print_msg("\nThis PR is mergeable but the test suite has a failed status. Try syncing the PR.", prefix=False)
 
     return res
 
