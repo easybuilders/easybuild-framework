@@ -4568,6 +4568,37 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self._assert_regexs(regexs, txt)
 
+    def test_new_pr_easyblock(self):
+        """
+        Test using --new-pr to open an easyblocks PR
+        """
+
+        if self.github_token is None:
+            print("Skipping test_new_pr_easyblock, no GitHub token available?")
+            return
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_eb = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
+        self.assertTrue(os.path.exists(toy_eb))
+
+        args = [
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--new-pr',
+            toy_eb,
+            '-D',
+        ]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        patterns = [
+            r'target: easybuilders/easybuild-easyblocks:develop',
+            r'from: easybuild_test/easybuild-easyblocks:[0-9]+_new_pr_toy',
+            r'title: "new easyblock for toy"',
+            r'easybuild/easyblocks/t/toy.py',
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
     def test_github_merge_pr(self):
         """
         Test use of --merge-pr (dry run)"""
