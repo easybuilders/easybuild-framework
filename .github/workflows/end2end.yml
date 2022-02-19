@@ -1,0 +1,62 @@
+name: End-to-end test of EasyBuild in different distros
+on: [push, pull_request]
+jobs:
+  build_publish:
+    name: End-to-end test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        container:
+          - centos-7.9
+          - centos-8.4
+          - fedora-35
+          - opensuse-15.4
+          - rockylinux-8.5
+          - ubuntu-20.04
+      fail-fast: false
+    container:
+      image: ghcr.io/easybuilders/${{ matrix.container }}
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: download and unpack easyblocks and easyconfigs repositories
+        run: |
+          cd $HOME
+          for pkg in easyblocks easyconfigs; do
+              curl -OL https://github.com/easybuilders/easybuild-${pkg}/archive/develop.tar.gz
+              tar xfz develop.tar.gz
+              rm -f develop.tar.gz
+          done
+
+      - name: End-to-end test of EasyBuild
+        shell: bash
+        run: |
+          export PATH=$PWD:$PATH
+          export PYTHONPATH=$PWD:$HOME/easybuild-easyblocks-develop:$HOME/easybuild-easyconfigs-develop
+
+          # initialize environment (for Lmod)
+          if [ -f /etc/profile.d/modules.sh ]; then
+              # for Rocky, CentOS 8, Fedora
+              echo ">>> sourcing /etc/profile.d/modules.sh"
+              . /etc/profile.d/modules.sh
+          else
+              echo ">>> sourcing /etc/profile.d/*lmod*.sh"
+              . /etc/profile.d/*lmod*.sh
+          fi
+
+          # tests are run with root privileges, so we need to tell EasyBuild that's OK...
+          export EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1
+
+          cmds=(
+            "env | sort"
+            "eb --version"
+            "eb --show-system-info"
+            "eb --check-eb-deps"
+            "eb --show-config"
+            "eb bzip2-1.0.8.eb --trace --robot"
+          )
+          for cmd in "${cmds[@]}"; do
+              echo ">>> $cmd"
+              eval "$cmd"
+          done
