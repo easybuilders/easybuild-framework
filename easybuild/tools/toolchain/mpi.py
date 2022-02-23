@@ -68,6 +68,7 @@ def get_mpi_cmd_template(mpi_family, params, mpi_version=None):
             toolchain.MVAPICH2: mpirun_n_cmd,
             toolchain.MPICH: mpirun_n_cmd,
             toolchain.MPICH2: mpirun_n_cmd,
+            toolchain.MPITRAMPOLINE: "mpiexec -n %(nr_ranks)s %(cmd)s",
         }
 
     # Intel MPI mpirun needs more work
