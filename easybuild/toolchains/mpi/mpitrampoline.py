@@ -75,6 +75,9 @@ class MPItrampoline(Mpi):
 
         # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
         for var, _ in COMPILER_VARIABLES:
-            self.variables.nappend('MPITRAMPOLINE_%s' % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
+            self.variables.nappend(
+                'MPITRAMPOLINE_%s' % var, str(self.variables[var].get_first()), 
+                var_class=CommandFlagList
+            )
 
         super(MPItrampoline, self)._set_mpi_compiler_variables()
