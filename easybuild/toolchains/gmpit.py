@@ -51,6 +51,6 @@ class Gmpit(GccToolchain, MPItrampoline):
         # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
         if re.match('^[0-9]', version):
             if LooseVersion(version) < LooseVersion('2019'):
-                pass
+                deprecated = True
 
         return deprecated
