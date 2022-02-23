@@ -27,20 +27,15 @@ Support for MPItrampoline as toolchain MPI library.
 
 :author: Alan O'Cais (CECAM)
 """
-import shutil
-import tempfile
-from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
-from easybuild.tools.build_log import print_warning
-from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_VARIABLES
 from easybuild.tools.toolchain.mpi import Mpi
 from easybuild.tools.toolchain.variables import CommandFlagList
 
 
 TC_CONSTANT_MPITRAMPOLINE = "MPItrampoline"
-TC_CONSTANT_MPI_TYPE_MPITRAMPOLINE= "MPI_TYPE_MPITRAMPOLINE"
+TC_CONSTANT_MPI_TYPE_MPITRAMPOLINE = "MPI_TYPE_MPITRAMPOLINE"
 
 
 class MPItrampoline(Mpi):
@@ -75,7 +70,7 @@ class MPItrampoline(Mpi):
         # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
         for var, _ in COMPILER_VARIABLES:
             self.variables.nappend(
-                'MPITRAMPOLINE_%s' % var, str(self.variables[var].get_first()), 
+                'MPITRAMPOLINE_%s' % var, str(self.variables[var].get_first()),
                 var_class=CommandFlagList
             )
 
