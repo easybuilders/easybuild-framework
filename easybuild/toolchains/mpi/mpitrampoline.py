@@ -28,7 +28,6 @@ Support for MPItrampoline as toolchain MPI library.
 :author: Alan O'Cais (CECAM)
 """
 
-import easybuild.tools.environment as env
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_VARIABLES
 from easybuild.tools.toolchain.mpi import Mpi
 from easybuild.tools.toolchain.variables import CommandFlagList
