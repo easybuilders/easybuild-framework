@@ -27,7 +27,6 @@ Support for MPItrampoline as toolchain MPI library.
 
 :author: Alan O'Cais (CECAM)
 """
-import os
 import shutil
 import tempfile
 from distutils.version import LooseVersion
