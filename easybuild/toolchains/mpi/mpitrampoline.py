@@ -45,7 +45,7 @@ class MPItrampoline(Mpi):
 
     MPI_LIBRARY_NAME = 'mpi'
 
-    # version-dependent, so defined at runtime
+    # May be version-dependent, so defined at runtime
     MPI_COMPILER_MPIF77 = None
     MPI_COMPILER_MPIF90 = None
     MPI_COMPILER_MPIFC = None
@@ -60,7 +60,7 @@ class MPItrampoline(Mpi):
         super(MPItrampoline, self).__init__(*args, **kwargs)
 
     def _set_mpi_compiler_variables(self):
-        """Define MPI wrapper commands (depends on OpenMPI version) and add OMPI_* variables to set."""
+        """Define MPI wrapper commands and add MPITRAMPOLINE_* variables to set."""
 
         self.MPI_COMPILER_MPIF77 = 'mpifort'
         self.MPI_COMPILER_MPIF90 = 'mpifort'
