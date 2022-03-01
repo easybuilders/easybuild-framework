@@ -455,12 +455,16 @@ class EasyBlock(object):
         All patches will be checked if a file exists (or can be located)
         """
         if patch_specs is None:
-            patch_specs = self.cfg['patches']
+            post_install_patches = self.cfg['postinstallpatches']
+            patch_specs = self.cfg['patches'] + post_install_patches
+        else:
+            post_install_patches = []
 
         patches = []
         for index, patch_spec in enumerate(patch_specs):
 
             patch_info = create_patch_info(patch_spec)
+            patch_info['postinstall'] = patch_spec in post_install_patches
 
             force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES]
             path = self.obtain_file(patch_info['name'], extension=extension, force_download=force_download)
@@ -2230,7 +2234,7 @@ class EasyBlock(object):
             self.dry_run_msg("\nList of patches:")
 
         # fetch patches
-        if self.cfg['patches']:
+        if self.cfg['patches'] + self.cfg['postinstallpatches']:
             if isinstance(self.cfg['checksums'], (list, tuple)):
                 # if checksums are provided as a list, first entries are assumed to be for sources
                 patches_checksums = self.cfg['checksums'][len(self.cfg['sources']):]
@@ -2402,11 +2406,15 @@ class EasyBlock(object):
             else:
                 raise EasyBuildError("Unpacking source %s failed", src['name'])
 
-    def patch_step(self, beginpath=None):
+    def patch_step(self, beginpath=None, patches=None):
         """
         Apply the patches
         """
-        for patch in self.patches:
+        if patches is None:
+            # if no patches are specified, use all non-post-install patches
+            patches = [p for p in self.patches if not p['postinstall']]
+
+        for patch in patches:
             self.log.info("Applying patch %s" % patch['name'])
             trace_msg("applying patch %s" % patch['name'])
 
@@ -2821,6 +2829,17 @@ class EasyBlock(object):
                     raise EasyBuildError("Invalid element in 'postinstallcmds', not a string: %s", cmd)
                 run_cmd(cmd, simple=True, log_ok=True, log_all=True)
 
+    def apply_post_install_patches(self, patches=None):
+        """
+        Apply post-install patch files that are specified via the 'postinstallpatches' easyconfig parameter.
+        """
+        if patches is None:
+            patches = [p for p in self.patches if p['postinstall']]
+
+        self.log.debug("Post-install patches to apply: %s", patches)
+        if patches:
+            self.patch_step(beginpath=self.installdir, patches=patches)
+
     def post_install_step(self):
         """
         Do some postprocessing
@@ -2828,6 +2847,7 @@ class EasyBlock(object):
         """
 
         self.run_post_install_commands()
+        self.apply_post_install_patches()
 
         self.fix_shebang()
 
