@@ -141,8 +141,8 @@ class ContainersTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         pip_patterns = [
-            # EasyBuild is installed with pip by default
-            "pip install easybuild",
+            # EasyBuild is installed with pip3 by default
+            "pip3 install easybuild",
         ]
         post_commands_patterns = [
             # easybuild user is added if it doesn't exist yet
@@ -386,7 +386,7 @@ class ContainersTest(EnhancedTestCase):
                               base_args + ['--container-config=not-supported'],
                               raise_error=True)
 
-        for cont_base in ['ubuntu:16.04', 'centos:7']:
+        for cont_base in ['ubuntu:20.04', 'centos:7']:
             stdout, stderr = self.run_main(base_args + ['--container-config=%s' % cont_base])
             self.assertFalse(stderr)
             regexs = ["^== Dockerfile definition file created at %s/containers/Dockerfile.toy-0.0" % self.test_prefix]
@@ -406,11 +406,11 @@ class ContainersTest(EnhancedTestCase):
         remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
         base_args.insert(1, os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb'))
-        self.run_main(base_args + ['--container-config=ubuntu:16.04'])
+        self.run_main(base_args + ['--container-config=ubuntu:20.04'])
         def_file = read_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
         regexs = [
-            "FROM ubuntu:16.04",
-            "eb toy-0.0.eb GCC-4.9.2.eb",
+            "FROM ubuntu:20.04",
+            "eb --robot toy-0.0.eb GCC-4.9.2.eb",
             "module load toy/0.0 GCC/4.9.2",
         ]
         self.check_regexs(regexs, def_file)
@@ -435,7 +435,7 @@ class ContainersTest(EnhancedTestCase):
             '-C',  # equivalent with --containerize
             '--experimental',
             '--container-type=docker',
-            '--container-config=ubuntu:16.04',
+            '--container-config=ubuntu:20.04',
             '--container-build-image',
         ]
 

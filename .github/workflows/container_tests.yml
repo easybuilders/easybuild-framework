@@ -1,12 +1,13 @@
 # documentation: https://help.github.com/en/articles/workflow-syntax-for-github-actions
-name: Tests for the 'eb' command
+name: Tests for container support
 on: [push, pull_request]
 jobs:
-  test-eb:
+  build:
+    # stick to Ubuntu 18.04, where we can still easily install yum via 'apt-get install'
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        python: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9, '3.10']
+        python: [2.7, 3.6]
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
@@ -19,12 +20,10 @@ jobs:
 
     - name: install OS & Python packages
       run: |
-        # check Python version
-        python -V
-        # update to latest pip, check version
-        pip install --upgrade pip
-        pip --version
-        # install packages required for modules tool
+        # for building Singularity images
+        sudo apt-get install rpm
+        sudo apt-get install yum
+        # for modules tool
         sudo apt-get install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
         # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
         # needed for Ubuntu 18.04, but not for Ubuntu 20.04, so skipping symlinking if posix.so already exists
@@ -32,29 +31,42 @@ jobs:
             sudo ln -s /usr/lib/x86_64-linux-gnu/lua/5.2/posix_c.so /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so
         fi
 
-    - name: install modules tool
+    - name: install Lmod
       run: |
           # avoid downloading modules tool sources into easybuild-framework dir
           cd $HOME
           export INSTALL_DEP=$GITHUB_WORKSPACE/easybuild/scripts/install_eb_dep.sh
           # install Lmod
-          source $INSTALL_DEP Lmod-8.4.26 $HOME
+          source $INSTALL_DEP Lmod-8.4.27 $HOME
           # changes in environment are not passed to other steps, so need to create files...
           echo $MOD_INIT > mod_init
           echo $PATH > path
           if [ ! -z $MODULESHOME ]; then echo $MODULESHOME > moduleshome; fi
 
-    - name: install EasyBuild framework
+    # see https://github.com/apptainer/singularity/issues/5390#issuecomment-899111181
+    - name: install Singularity
+      run: |
+        # install alien, which can be used to convert RPMs to Debian packages
+        sudo apt-get install alien
+        alien --version
+        # determine latest version of Singularity available in EPEL, and download RPM
+        singularity_rpm=$(curl -sL https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/s/ | grep singularity | sed 's/.*singularity/singularity/g' | sed 's/rpm.*/rpm/g')
+        curl -OL https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/s/${singularity_rpm}
+        # convert Singularity RPM to Debian package, and install it
+        sudo alien -d ${singularity_rpm}
+        sudo apt install ./singularity*.deb
+        singularity --version
+
+    - name: install sources
       run: |
           # install from source distribution tarball, to test release as published on PyPI
           python setup.py sdist
           ls dist
           export PREFIX=/tmp/$USER/$GITHUB_SHA
           pip install --prefix $PREFIX dist/easybuild-framework*tar.gz
+          pip install --prefix $PREFIX https://github.com/easybuilders/easybuild-easyblocks/archive/develop.tar.gz
 
-    - name: run tests for 'eb' command
-      env:
-        EB_VERBOSE: 1
+    - name: run test
       run: |
           # run tests *outside* of checked out easybuild-framework directory,
           # to ensure we're testing installed version (see previous step)
@@ -67,22 +79,15 @@ jobs:
           export PREFIX=/tmp/$USER/$GITHUB_SHA
           export PATH=$PREFIX/bin:$(cat $HOME/path)
           export PYTHONPATH=$PREFIX/lib/python${{matrix.python}}/site-packages:$PYTHONPATH
-          # run --version, capture (verbose) output
-          eb --version | tee eb_version.out 2>&1
-          # determine active Python version
-          pymajver=$(python -c 'import sys; print(sys.version_info[0])')
-          pymajminver=$(python -c 'import sys; print(".".join(str(x) for x in sys.version_info[:2]))')
-          # check patterns in verbose output
-          for pattern in "^>> Considering .python.\.\.\." "^>> .python. version: ${pymajminver}\.[0-9]\+, which matches Python ${pymajver} version requirement" "^>> 'python' is able to import 'easybuild.main', so retaining it" "^>> Selected Python command: python \(.*/bin/python\)" "^This is EasyBuild 4\.[0-9.]\+"; do
-              echo "Looking for pattern \"${pattern}\" in eb_version.out..."
-              grep "$pattern" eb_version.out
-          done
-          # also check when specifying Python command via $EB_PYTHON
-          for eb_python in "python${pymajver}" "python${pymajminver}"; do
-              export EB_PYTHON="${eb_python}"
-              eb --version | tee eb_version.out 2>&1
-              for pattern in "^>> Considering .${eb_python}.\.\.\." "^>> .${eb_python}. version: ${pymajminver}\.[0-9]\+, which matches Python ${pymajver} version requirement" "^>> '${eb_python}' is able to import 'easybuild.main', so retaining it" "^>> Selected Python command: ${eb_python} \(.*/bin/${eb_python}\)" "^This is EasyBuild 4\.[0-9.]\+"; do
-                  echo "Looking for pattern \"${pattern}\" in eb_version.out..."
-                  grep "$pattern" eb_version.out
-              done
-          done
+          eb --version
+          # create $HOME/.rpmmacros, see also https://github.com/apptainer/singularity/issues/241
+          echo '%_var /var' > $HOME/.rpmmacros
+          echo '%_dbpath %{_var}/lib/rpm' >> $HOME/.rpmmacros
+          # build CentOS 7 container image for bzip2 1.0.8 using EasyBuild;
+          # see https://docs.easybuild.io/en/latest/Containers.html
+          curl -OL https://raw.githubusercontent.com/easybuilders/easybuild-easyconfigs/develop/easybuild/easyconfigs/b/bzip2/bzip2-1.0.8.eb
+          export EASYBUILD_CONTAINERPATH=$PWD
+          export EASYBUILD_CONTAINER_CONFIG='bootstrap=yum,osversion=7'
+          eb bzip2-1.0.8.eb --containerize --experimental --container-build-image
+          singularity exec bzip2-1.0.8.sif command -v bzip2 | grep '/app/software/bzip2/1.0.8/bin/bzip2' || (echo "Path to bzip2 '$which_bzip2' is not correct" && exit 1)
+          singularity exec bzip2-1.0.8.sif bzip2 --help

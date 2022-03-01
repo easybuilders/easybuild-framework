@@ -163,6 +163,8 @@ EXTRACT_CMDS = {
     '.sh': "cp -a %(filepath)s .",
 }
 
+ZIPPED_PATCH_EXTS = ('.bz2', '.gz', '.xz')
+
 # global set of names of locks that were created in this session
 global_lock_names = set()
 
@@ -1493,8 +1495,11 @@ def create_patch_info(patch_spec):
                                  str(patch_spec))
 
     elif isinstance(patch_spec, string_type):
-        if not patch_spec.endswith('.patch'):
-            _log.deprecated("Use of patch file with filename that doesn't end with .patch: %s" % patch_spec, '5.0')
+        allowed_patch_exts = ['.patch' + x for x in ('',) + ZIPPED_PATCH_EXTS]
+        if not any(patch_spec.endswith(x) for x in allowed_patch_exts):
+            msg = "Use of patch file with filename that doesn't end with correct extension: %s " % patch_spec
+            msg += "(should be any of: %s)" % (', '.join(allowed_patch_exts))
+            _log.deprecated(msg, '5.0')
         patch_info = {'name': patch_spec}
     else:
         error_msg = "Wrong patch spec, should be string of 2-tuple with patch name + argument: %s"
@@ -1548,7 +1553,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     # split in stem (filename w/o extension) + extension
     patch_stem, patch_extension = os.path.splitext(os.path.split(abs_patch_file)[1])
     # Supports only bz2, gz and xz. zip can be archives which are not supported.
-    if patch_extension in ['.gz', '.bz2', '.xz']:
+    if patch_extension in ZIPPED_PATCH_EXTS:
         # split again to get the second extension
         patch_subextension = os.path.splitext(patch_stem)[1]
         if patch_subextension == ".patch":

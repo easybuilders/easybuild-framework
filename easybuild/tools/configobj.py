@@ -2023,7 +2023,7 @@ class ConfigObj(Section):
             # might need to encode
             # NOTE: This will *screw* UTF16, each line will start with the BOM
             if self.encoding:
-                out = [line.encode(self.encoding) for line in out]
+                out = [lne.encode(self.encoding) for lne in out]
             if (self.BOM and ((self.encoding is None) or
                               (BOM_LIST.get(self.encoding.lower()) == 'utf_8'))):
                 # Add the UTF8 BOM

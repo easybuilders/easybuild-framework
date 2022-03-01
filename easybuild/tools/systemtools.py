@@ -86,6 +86,8 @@ AARCH32 = 'AArch32'
 AARCH64 = 'AArch64'
 POWER = 'POWER'
 X86_64 = 'x86_64'
+RISCV32 = 'RISC-V-32'
+RISCV64 = 'RISC-V-64'
 
 ARCH_KEY_PREFIX = 'arch='
 
@@ -106,6 +108,7 @@ QUALCOMM = 'Qualcomm'
 
 # Family constants
 POWER_LE = 'POWER little-endian'
+RISCV = 'RISC-V'
 
 # OS constants
 LINUX = 'Linux'
@@ -113,12 +116,13 @@ DARWIN = 'Darwin'
 
 UNKNOWN = 'UNKNOWN'
 
+ETC_OS_RELEASE = '/etc/os-release'
 MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
 PROC_CPUINFO_FP = '/proc/cpuinfo'
 PROC_MEMINFO_FP = '/proc/meminfo'
 
-CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, X86_64]
-CPU_FAMILIES = [AMD, ARM, INTEL, POWER, POWER_LE]
+CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, RISCV32, RISCV64, X86_64]
+CPU_FAMILIES = [AMD, ARM, INTEL, POWER, POWER_LE, RISCV]
 CPU_VENDORS = [AMD, APM, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
 # ARM implementer IDs (i.e., the hexadeximal keys) taken from ARMv8-A Architecture Reference Manual
 # (ARM DDI 0487A.j, Section G6.2.102, Page G6-4493)
@@ -164,6 +168,7 @@ SYSTEM_TOOLS = {
     '7z': "extracting sources (.iso)",
     'bunzip2': "decompressing sources (.bz2, .tbz, .tbz2, ...)",
     DPKG: "checking OS dependencies (Debian, Ubuntu, ...)",
+    'git': "downloading sources using 'git clone'",
     'gunzip': "decompressing source files (.gz, .tgz, ...)",
     'make': "build tool",
     'patch': "applying patch files",
@@ -312,9 +317,11 @@ def get_cpu_architecture():
 
     :return: a value from the CPU_ARCHITECTURES list
     """
-    power_regex = re.compile("ppc64.*")
-    aarch64_regex = re.compile("aarch64.*")
     aarch32_regex = re.compile("arm.*")
+    aarch64_regex = re.compile("aarch64.*")
+    power_regex = re.compile("ppc64.*")
+    riscv32_regex = re.compile("riscv32.*")
+    riscv64_regex = re.compile("riscv64.*")
 
     system, node, release, version, machine, processor = platform.uname()
 
@@ -327,6 +334,10 @@ def get_cpu_architecture():
         arch = AARCH64
     elif aarch32_regex.match(machine):
         arch = AARCH32
+    elif riscv64_regex.match(machine):
+        arch = RISCV64
+    elif riscv32_regex.match(machine):
+        arch = RISCV32
 
     if arch == UNKNOWN:
         _log.warning("Failed to determine CPU architecture, returning %s", arch)
@@ -409,6 +420,9 @@ def get_cpu_family():
             powerle_regex = re.compile(r"^ppc(\d*)le")
             if powerle_regex.search(machine):
                 family = POWER_LE
+
+        elif arch in [RISCV32, RISCV64]:
+            family = RISCV
 
     if family is None:
         family = UNKNOWN
@@ -669,14 +683,21 @@ def get_os_name():
     if hasattr(platform, 'linux_distribution'):
         # platform.linux_distribution is more useful, but only available since Python 2.6
         # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
-        os_name = platform.linux_distribution()[0].strip().lower()
-    elif HAVE_DISTRO:
+        os_name = platform.linux_distribution()[0].strip()
+
+    # take into account that on some OSs, platform.distribution returns an empty string as OS name,
+    # for example on OpenSUSE Leap 15.2
+    if not os_name and HAVE_DISTRO:
         # distro package is the recommended alternative to platform.linux_distribution,
         # see https://pypi.org/project/distro
         os_name = distro.name()
-    else:
-        # no easy way to determine name of Linux distribution
-        os_name = None
+
+    if not os_name and os.path.exists(ETC_OS_RELEASE):
+        os_release_txt = read_file(ETC_OS_RELEASE)
+        name_regex = re.compile('^NAME="?(?P<name>[^"\n]+)"?$', re.M)
+        res = name_regex.search(os_release_txt)
+        if res:
+            os_name = res.group('name')
 
     os_name_map = {
         'red hat enterprise linux server': 'RHEL',
@@ -687,7 +708,7 @@ def get_os_name():
     }
 
     if os_name:
-        return os_name_map.get(os_name, os_name)
+        return os_name_map.get(os_name.lower(), os_name)
     else:
         return UNKNOWN
 
@@ -695,49 +716,57 @@ def get_os_name():
 def get_os_version():
     """Determine system version."""
 
+    os_version = None
+
     # platform.dist was removed in Python 3.8
     if hasattr(platform, 'dist'):
         os_version = platform.dist()[1]
-    elif HAVE_DISTRO:
+
+    # take into account that on some OSs, platform.dist returns an empty string as OS version,
+    # for example on OpenSUSE Leap 15.2
+    if not os_version and HAVE_DISTRO:
         os_version = distro.version()
-    else:
-        os_version = None
+
+    if not os_version and os.path.exists(ETC_OS_RELEASE):
+        os_release_txt = read_file(ETC_OS_RELEASE)
+        version_regex = re.compile('^VERSION="?(?P<version>[^"\n]+)"?$', re.M)
+        res = version_regex.search(os_release_txt)
+        if res:
+            os_version = res.group('version')
+        else:
+            # VERSION may not always be defined (for example on Gentoo),
+            # fall back to VERSION_ID in that case
+            version_regex = re.compile('^VERSION_ID="?(?P<version>[^"\n]+)"?$', re.M)
+            res = version_regex.search(os_release_txt)
+            if res:
+                os_version = res.group('version')
 
     if os_version:
-        if get_os_name() in ["suse", "SLES"]:
+        # older SLES subversions can only be told apart based on kernel version,
+        # see http://wiki.novell.com/index.php/Kernel_versions
+        sles_version_suffixes = {
+            '11': [
+                ('2.6.27', ''),
+                ('2.6.32', '_SP1'),
+                ('3.0.101-63', '_SP4'),
+                # not 100% correct, since early SP3 had 3.0.76 - 3.0.93, but close enough?
+                ('3.0.101', '_SP3'),
+                # SP2 kernel versions range from 3.0.13 - 3.0.101
+                ('3.0', '_SP2'),
+            ],
 
-            # SLES subversions can only be told apart based on kernel version,
-            # see http://wiki.novell.com/index.php/Kernel_versions
-            version_suffixes = {
-                '11': [
-                    ('2.6.27', ''),
-                    ('2.6.32', '_SP1'),
-                    ('3.0.101-63', '_SP4'),
-                    # not 100% correct, since early SP3 had 3.0.76 - 3.0.93, but close enough?
-                    ('3.0.101', '_SP3'),
-                    # SP2 kernel versions range from 3.0.13 - 3.0.101
-                    ('3.0', '_SP2'),
-                ],
-
-                '12': [
-                    ('3.12.28', ''),
-                    ('3.12.49', '_SP1'),
-                ],
-            }
-
+            '12': [
+                ('3.12.28', ''),
+                ('3.12.49', '_SP1'),
+            ],
+        }
+        if get_os_name() in ['suse', 'SLES'] and os_version in sles_version_suffixes:
             # append suitable suffix to system version
-            if os_version in version_suffixes.keys():
-                kernel_version = platform.uname()[2]
-                known_sp = False
-                for (kver, suff) in version_suffixes[os_version]:
-                    if kernel_version.startswith(kver):
-                        os_version += suff
-                        known_sp = True
-                        break
-                if not known_sp:
-                    suff = '_UNKNOWN_SP'
-            else:
-                raise EasyBuildError("Don't know how to determine subversions for SLES %s", os_version)
+            kernel_version = platform.uname()[2]
+            for (kver, suff) in sles_version_suffixes[os_version]:
+                if kernel_version.startswith(kver):
+                    os_version += suff
+                    break
 
         return os_version
     else:
