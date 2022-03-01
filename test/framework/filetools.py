@@ -2755,6 +2755,16 @@ class FileToolsTest(EnhancedTestCase):
         ]) % git_repo
         run_check()
 
+        git_config['clone_into'] = 'test123'
+        expected = '\n'.join([
+            r'  running command "git clone --depth 1 --branch tag_for_tests %(git_repo)s test123"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git test123"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+        del git_config['clone_into']
+
         git_config['recursive'] = True
         expected = '\n'.join([
             r'  running command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
