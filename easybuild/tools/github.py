@@ -1234,7 +1234,8 @@ def check_pr_eligible_to_merge(pr_data):
         res = not_eligible(msg_tmpl % reason)
 
     if failed_status_last_commit and mergeable:
-        print_msg("\nThis PR is mergeable but the test suite has a failed status. Try syncing the PR.", prefix=False)
+        print_msg("\nThis PR is mergeable but the test suite has a failed status. Try syncing the PR with the "
+                  "develop branch using 'eb --sync-pr-with-develop %s'" % pr_data['number'], prefix=False)
 
     return res
 
