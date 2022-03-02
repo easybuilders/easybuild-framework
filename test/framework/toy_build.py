@@ -3721,6 +3721,25 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue("Build succeeded (with --ignore-test-failure) for 1 out of 1" in stdout)
         self.assertFalse(stderr)
 
+    def test_toy_post_install_patches(self):
+        """
+        Test use of post-install patches
+        """
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "\npostinstallpatches = ['toy-0.0_fix-README.patch']"
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        self.test_toy_build(ec_file=test_ec)
+
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        toy_readme_txt = read_file(os.path.join(toy_installdir, 'README'))
+        # verify whether patch indeed got applied
+        self.assertEqual(toy_readme_txt, "toy 0.0, a toy test program\n")
+
 
 def suite():
     """ return all the tests in this file """
