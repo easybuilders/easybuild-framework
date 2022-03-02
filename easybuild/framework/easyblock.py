@@ -454,11 +454,11 @@ class EasyBlock(object):
         Add a list of patches.
         All patches will be checked if a file exists (or can be located)
         """
+        post_install_patches = []
         if patch_specs is None:
+            # if no patch_specs are specified, use all pre-install and post-install patches
             post_install_patches = self.cfg['postinstallpatches']
             patch_specs = self.cfg['patches'] + post_install_patches
-        else:
-            post_install_patches = []
 
         patches = []
         for index, patch_spec in enumerate(patch_specs):
