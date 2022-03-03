@@ -32,6 +32,7 @@ Dispatch function for container packages
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
+from easybuild.tools.containers.apptainer import ApptainerContainer  # noqa
 from easybuild.tools.containers.docker import DockerContainer  # noqa
 from easybuild.tools.containers.singularity import SingularityContainer  # noqa
 

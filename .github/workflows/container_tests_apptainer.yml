@@ -80,8 +80,7 @@ jobs:
           curl -OL https://raw.githubusercontent.com/easybuilders/easybuild-easyconfigs/develop/easybuild/easyconfigs/b/bzip2/bzip2-1.0.8.eb
           export EASYBUILD_CONTAINERPATH=$PWD
           export EASYBUILD_CONTAINER_CONFIG='bootstrap=yum,osversion=7'
+          export EASYBUILD_CONTAINER_TYPE='apptainer'
           eb bzip2-1.0.8.eb --containerize --experimental --container-build-image
           apptainer exec bzip2-1.0.8.sif command -v bzip2 | grep '/app/software/bzip2/1.0.8/bin/bzip2' || (echo "Path to bzip2 '$which_bzip2' is not correct" && exit 1)
           apptainer exec bzip2-1.0.8.sif bzip2 --help
-          singularity exec bzip2-1.0.8.sif command -v bzip2 | grep '/app/software/bzip2/1.0.8/bin/bzip2' || (echo "Path to bzip2 '$which_bzip2' is not correct" && exit 1)
-          singularity exec bzip2-1.0.8.sif bzip2 --help
