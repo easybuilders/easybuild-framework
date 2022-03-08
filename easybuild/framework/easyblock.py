@@ -404,15 +404,15 @@ class EasyBlock(object):
                                 download_instructions=download_instructions)
         if path is None:
             if download_instructions is None:
-               download_instructions = self.cfg['download_instructions']
+                download_instructions = self.cfg['download_instructions']
 
             if self.cfg['download_instructions']:
-               print_msg(self.cfg['download_instructions'])
-               print_msg("Please make file available via active"
-               "'sourcepath' configuration setting: %s" % build_option('sourcepath'))
-               raise EasyBuildError("file %s missing, see download instructions above" % source)
+                print_msg(self.cfg['download_instructions'])
+                print_msg("Please make file available via active"
+                "'sourcepath' configuration setting: %s" % build_option('sourcepath'))
+                raise EasyBuildError("file %s missing, see download instructions above" % source)
             else:
-               raise EasyBuildError('No file found for source %s', filename)
+                raise EasyBuildError('No file found for source %s', filename)
 
         self.log.debug('File %s found for source %s' % (path, filename))
 
@@ -597,7 +597,7 @@ class EasyBlock(object):
 
                         if fetch_files:
                             src = self.fetch_source(source, checksums, extension=True,
-                            download_instructions=ext_options.get('download_instructions'))
+                                                    download_instructions=ext_options.get('download_instructions'))
                             ext_src.update({
                                 # keep track of custom extract command (if any)
                                 'extract_cmd': src['cmd'],
@@ -885,10 +885,10 @@ class EasyBlock(object):
                     if download_instructions:
                         print_msg(download_instructions)
                         raise EasyBuildError("Couldn't find file %s, please follow the instructions above. "
-                                            "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
+                                                "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
                     else:
                         raise EasyBuildError("Couldn't find file %s anywhere, and downloading it didn't work either... "
-                                            "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
+                                                "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
 
     #
     # GETTER/SETTER UTILITY FUNCTIONS
