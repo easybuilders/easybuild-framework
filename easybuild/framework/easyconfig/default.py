@@ -90,6 +90,7 @@ DEFAULT_CONFIG = {
     'checksums': [[], "Checksums for sources and patches", BUILD],
     'configopts': ['', 'Extra options passed to configure (default already has --prefix)', BUILD],
     'cuda_compute_capabilities': [[], "List of CUDA compute capabilities to build with (if supported)", BUILD],
+    'download_instructions': ['', "Specify steps to aquire necessary file, if obtaining it is difficult", BUILD],
     'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
                         "based on the software name", BUILD],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
