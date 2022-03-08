@@ -587,7 +587,7 @@ class EasyBlock(object):
 
                         if fetch_files:
                             src = self.fetch_source(source, checksums, extension=True,
-                                download_instructions=ext_options.get('download_instructions'))
+                                    download_instructions=ext_options.get('download_instructions'))
                             ext_src.update({
                                 # keep track of custom extract command (if any)
                                 'extract_cmd': src['cmd'],
