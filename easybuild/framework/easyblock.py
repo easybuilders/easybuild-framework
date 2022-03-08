@@ -402,14 +402,6 @@ class EasyBlock(object):
         path = self.obtain_file(filename, extension=extension, download_filename=download_filename,
                                 force_download=force_download, urls=source_urls, git_config=git_config)
         if path is None:
-            if download_instructions is None:
-                download_instructions = self.cfg['download_instructions']
-
-            if self.cfg['download_instructions']:
-                print_msg(self.cfg['download_instructions'])
-                print_msg("Please make file available via active 'sourcepath' configuration setting: %s" % build_option('sourcepath'))
-                raise EasyBuildError("File %s is missing, see download instructions above" % source)
-            else:
                 raise EasyBuildError('No file found for source %s', filename)
 
         self.log.debug('File %s found for source %s' % (path, filename))
@@ -594,7 +586,8 @@ class EasyBlock(object):
                             source['source_urls'] = source_urls
 
                         if fetch_files:
-                            src = self.fetch_source(source, checksums, extension=True, download_instructions=ext_options.get('download_instructions'))
+                            src = self.fetch_source(source, checksums, extension=True, 
+                            download_instructions=ext_options.get('download_instructions'))
                             ext_src.update({
                                 # keep track of custom extract command (if any)
                                 'extract_cmd': src['cmd'],
@@ -877,7 +870,7 @@ class EasyBlock(object):
                     self.dry_run_msg("  * %s (MISSING)", filename)
                     return filename
                 else:
-                    if self.cfg['download_instructions'] != None:
+                    if self.cfg['download_instructions'] is not None:
                         print_msg(self.cfg['download_instructions'])
                     raise EasyBuildError("Couldn't find file %s anywhere, and downloading it didn't work either... "
                                          "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
