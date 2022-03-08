@@ -402,7 +402,7 @@ class EasyBlock(object):
         path = self.obtain_file(filename, extension=extension, download_filename=download_filename,
                                 force_download=force_download, urls=source_urls, git_config=git_config)
         if path is None:
-                raise EasyBuildError('No file found for source %s', filename)
+            raise EasyBuildError('No file found for source %s', filename)
 
         self.log.debug('File %s found for source %s' % (path, filename))
 
@@ -586,8 +586,8 @@ class EasyBlock(object):
                             source['source_urls'] = source_urls
 
                         if fetch_files:
-                            src = self.fetch_source(source, checksums, extension=True, 
-                            download_instructions=ext_options.get('download_instructions'))
+                            src = self.fetch_source(source, checksums, extension=True,
+                                download_instructions=ext_options.get('download_instructions'))
                             ext_src.update({
                                 # keep track of custom extract command (if any)
                                 'extract_cmd': src['cmd'],
