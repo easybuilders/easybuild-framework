@@ -885,10 +885,10 @@ class EasyBlock(object):
                     if download_instructions:
                         print_msg(download_instructions)
                         raise EasyBuildError("Couldn't find file %s, please follow the instructions above. "
-                                                "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
+                                            "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
                     else:
                         raise EasyBuildError("Couldn't find file %s anywhere, and downloading it didn't work either... "
-                                                "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
+                                            "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
 
     #
     # GETTER/SETTER UTILITY FUNCTIONS
