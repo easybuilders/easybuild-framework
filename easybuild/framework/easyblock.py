@@ -409,7 +409,7 @@ class EasyBlock(object):
             if self.cfg['download_instructions']:
                 print_msg(self.cfg['download_instructions'])
                 print_msg("Please make file available via active"
-                "'sourcepath' configuration setting: %s" % build_option('sourcepath'))
+                          "'sourcepath' configuration setting: %s" % build_option('sourcepath'))
                 raise EasyBuildError("file %s missing, see download instructions above" % source)
             else:
                 raise EasyBuildError('No file found for source %s', filename)
