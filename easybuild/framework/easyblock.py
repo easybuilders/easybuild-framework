@@ -882,7 +882,7 @@ class EasyBlock(object):
                 else:
                     if download_instructions is None:
                         download_instructions = self.cfg['download_instructions']
-                    if download_instructions is not None:
+                    if download_instructions is not None and download_instructions != "":
                         print_msg(download_instructions)
                         raise EasyBuildError("Couldn't find file %s, please follow the instructions above. ", filename)
                     else:
