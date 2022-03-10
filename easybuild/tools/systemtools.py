@@ -624,7 +624,7 @@ def get_gpu_info():
             if ec == 0:
                 for line in out.strip().split('\n')[1:]:
                     amd_card_model = line.split(',')[2]
-                    amd_gpu = ', '.join([amd_card_model,amd_driver])
+                    amd_gpu = ', '.join([amd_card_model, amd_driver])
                     amd_gpu_info = gpu_info.setdefault('AMD', {})
                     amd_gpu_info.setdefault(amd_gpu, 0)
                     amd_gpu_info[amd_gpu] += 1
