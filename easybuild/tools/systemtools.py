@@ -612,7 +612,7 @@ def get_gpu_info():
             _log.info("No NVIDIA GPUs detected")
 
         try:
-             cmd = "rocm-smi --showdriverversion --csv"
+            cmd = "rocm-smi --showdriverversion --csv"
             _log.debug("Trying to determine AMD GPU driver on Linux via cmd '%s'", cmd)
             out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
             if ec == 0:
