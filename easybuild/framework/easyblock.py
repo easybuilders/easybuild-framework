@@ -403,16 +403,7 @@ class EasyBlock(object):
                                 force_download=force_download, urls=source_urls, git_config=git_config,
                                 download_instructions=download_instructions)
         if path is None:
-            if download_instructions is None:
-                download_instructions = self.cfg['download_instructions']
-
-            if self.cfg['download_instructions']:
-                print_msg(self.cfg['download_instructions'])
-                print_msg("Please make file available via active"
-                          "'sourcepath' configuration setting: %s" % build_option('sourcepath'))
-                raise EasyBuildError("file %s missing, see download instructions above" % source)
-            else:
-                raise EasyBuildError('No file found for source %s', filename)
+            raise EasyBuildError('No file found for source %s', filename)
 
         self.log.debug('File %s found for source %s' % (path, filename))
 
@@ -880,14 +871,19 @@ class EasyBlock(object):
                     self.dry_run_msg("  * %s (MISSING)", filename)
                     return filename
                 else:
+                    error_msg = "Couldn't find file %s anywhere, "
                     if download_instructions is None:
                         download_instructions = self.cfg['download_instructions']
                     if download_instructions is not None and download_instructions != "":
-                        print_msg(download_instructions)
-                        raise EasyBuildError("Couldn't find file %s, please follow the instructions above. ", filename)
+                        msg = "\nDownload instructions:\n\n" + download_instructions + '\n'
+                        print_msg(msg, prefix=False, stderr=True)
+                        error_msg += "please follow the download instructions above, and make the file available "
+                        error_msg += "in the active source path (%s)" % ':'.join(source_paths())
                     else:
-                        raise EasyBuildError("Couldn't find file %s anywhere, and downloading it didn't work either... "
-                                             "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
+                        error_msg += "and downloading it didn't work either... "
+                        error_msg += "Paths attempted (in order): %s " % ', '.join(failedpaths)
+
+                    raise EasyBuildError(error_msg, filename)
 
     #
     # GETTER/SETTER UTILITY FUNCTIONS
