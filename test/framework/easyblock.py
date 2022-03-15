@@ -1480,6 +1480,110 @@ class EasyBlockTest(EnhancedTestCase):
         error_pattern = "Found one or more unexpected keys in 'sources' specification: {'nosuchkey': 'foobar'}"
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_sources, sources, checksums=[])
 
+    def test_download_instructions(self):
+        """Test use of download_instructions easyconfig parameter."""
+        orig_test_ec = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'software_with_missing_sources'",
+            "version = '0.0'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "sources = [SOURCE_TAR_GZ]",
+            "exts_list = [",
+            "    ('ext_with_missing_sources', '0.0', {",
+            "         'sources': [SOURCE_TAR_GZ],",
+            "    }),",
+            "]",
+        ])
+        self.contents = orig_test_ec
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        common_error_pattern = "^Couldn't find file software_with_missing_sources-0.0.tar.gz anywhere"
+        error_pattern = common_error_pattern + ", and downloading it didn't work either"
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+
+        download_instructions = "download_instructions = 'Manual download from example.com required'"
+        sources = "sources = [SOURCE_TAR_GZ]"
+        self.contents = self.contents.replace(sources, download_instructions + '\n' + sources)
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        error_pattern = common_error_pattern + ", please follow the download instructions above"
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+        stderr = self.get_stderr().strip()
+        stdout = self.get_stdout().strip()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stderr, "Download instructions:\n\nManual download from example.com required")
+        self.assertEqual(stdout, '')
+
+        # create dummy source file
+        write_file(os.path.join(os.path.dirname(self.eb_file), 'software_with_missing_sources-0.0.tar.gz'), '')
+
+        # now downloading of sources for extension should fail
+        # top-level download instructions are printed (because there's nothing else)
+        error_pattern = "^Couldn't find file ext_with_missing_sources-0.0.tar.gz anywhere"
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+        stderr = self.get_stderr().strip()
+        stdout = self.get_stdout().strip()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stderr, "Download instructions:\n\nManual download from example.com required")
+        self.assertEqual(stdout, '')
+
+        # wipe top-level download instructions, try again
+        self.contents = self.contents.replace(download_instructions, '')
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        # no download instructions printed anymore now
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+        stderr = self.get_stderr().strip()
+        stdout = self.get_stdout().strip()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stdout, '')
+
+        # inject download instructions for extension
+        download_instructions = ' ' * 8 + "'download_instructions': "
+        download_instructions += "'Extension sources must be downloaded via example.com',"
+        sources = "'sources': [SOURCE_TAR_GZ],"
+        self.contents = self.contents.replace(sources, sources + '\n' + download_instructions)
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+        stderr = self.get_stderr().strip()
+        stdout = self.get_stdout().strip()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stderr, "Download instructions:\n\nExtension sources must be downloaded via example.com")
+        self.assertEqual(stdout, '')
+
+        # create dummy source file for extension
+        write_file(os.path.join(os.path.dirname(self.eb_file), 'ext_with_missing_sources-0.0.tar.gz'), '')
+
+        # no more errors, all source files found (so no download instructions printed either)
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        eb.fetch_step()
+        stderr = self.get_stderr().strip()
+        stdout = self.get_stdout().strip()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stderr, '')
+        self.assertEqual(stdout, '')
+
     def test_fetch_patches(self):
         """Test fetch_patches method."""
         testdir = os.path.abspath(os.path.dirname(__file__))
