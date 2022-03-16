@@ -364,7 +364,7 @@ class EasyBlock(object):
         else:
             raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple or None.", type(checksums))
 
-    def fetch_source(self, source, checksum=None, extension=False):
+    def fetch_source(self, source, checksum=None, extension=False, download_instructions=None):
         """
         Get a specific source (tarball, iso, url)
         Will be tested for existence or can be located
@@ -400,7 +400,8 @@ class EasyBlock(object):
         # check if the sources can be located
         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
         path = self.obtain_file(filename, extension=extension, download_filename=download_filename,
-                                force_download=force_download, urls=source_urls, git_config=git_config)
+                                force_download=force_download, urls=source_urls, git_config=git_config,
+                                download_instructions=download_instructions)
         if path is None:
             raise EasyBuildError('No file found for source %s', filename)
 
@@ -586,7 +587,8 @@ class EasyBlock(object):
                             source['source_urls'] = source_urls
 
                         if fetch_files:
-                            src = self.fetch_source(source, checksums, extension=True)
+                            src = self.fetch_source(source, checksums, extension=True,
+                                                    download_instructions=ext_options.get('download_instructions'))
                             ext_src.update({
                                 # keep track of custom extract command (if any)
                                 'extract_cmd': src['cmd'],
@@ -682,7 +684,7 @@ class EasyBlock(object):
         return exts_sources
 
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
-                    git_config=None):
+                    git_config=None, download_instructions=None):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -869,8 +871,19 @@ class EasyBlock(object):
                     self.dry_run_msg("  * %s (MISSING)", filename)
                     return filename
                 else:
-                    raise EasyBuildError("Couldn't find file %s anywhere, and downloading it didn't work either... "
-                                         "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
+                    error_msg = "Couldn't find file %s anywhere, "
+                    if download_instructions is None:
+                        download_instructions = self.cfg['download_instructions']
+                    if download_instructions is not None and download_instructions != "":
+                        msg = "\nDownload instructions:\n\n" + download_instructions + '\n'
+                        print_msg(msg, prefix=False, stderr=True)
+                        error_msg += "please follow the download instructions above, and make the file available "
+                        error_msg += "in the active source path (%s)" % ':'.join(source_paths())
+                    else:
+                        error_msg += "and downloading it didn't work either... "
+                        error_msg += "Paths attempted (in order): %s " % ', '.join(failedpaths)
+
+                    raise EasyBuildError(error_msg, filename)
 
     #
     # GETTER/SETTER UTILITY FUNCTIONS
