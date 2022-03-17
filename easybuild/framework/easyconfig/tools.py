@@ -308,7 +308,7 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     return paths
 
 
-def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None):
+def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None, review_pr=None):
     """Obtain alternative paths for easyconfig files."""
 
     # paths where tweaked easyconfigs will be placed, easyconfigs listed on the command line take priority and will be
@@ -322,6 +322,11 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None):
     # paths where files touched in PRs will be downloaded to,
     # which are picked up via 'pr_paths' build option in fetch_files_from_pr
     pr_paths = None
+    if from_prs and review_pr:
+        from_prs.append(review_pr) if review_pr not in from_prs
+    elif review_pr:
+        from_prs = [review_pr]
+
     if from_prs:
         pr_paths = [os.path.join(tmpdir, 'files_pr%s' % pr) for pr in from_prs]
 
