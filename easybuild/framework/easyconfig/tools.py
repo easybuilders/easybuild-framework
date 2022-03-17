@@ -323,7 +323,7 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None, review_pr=Non
     # which are picked up via 'pr_paths' build option in fetch_files_from_pr
     pr_paths = None
     if from_prs and review_pr:
-        from_prs.append(review_pr) if review_pr not in from_prs
+        from_prs.append(review_pr) if review_pr not in from_prs else from_prs
     elif review_pr:
         from_prs = [review_pr]
 
