@@ -1548,7 +1548,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
         raise EasyBuildError("Argument to --from-pr must be a comma separated list of PR #s.")
 
     try:
-        review_pr = int(eb_go.options.review_pr)
+        review_pr = (lambda x: int(x) if x else None)(eb_go.options.review_pr)
     except ValueError:
         raise EasyBuildError("Argument to --review-pr must be an integer PR #.")
 
