@@ -1570,6 +1570,21 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(stderr, "Download instructions:\n\nExtension sources must be downloaded via example.com")
         self.assertEqual(stdout, '')
 
+        # download instructions should also be printed if 'source_tmpl' is used to specify extension sources
+        self.contents = self.contents.replace(sources, "'source_tmpl': SOURCE_TAR_GZ,")
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+        stderr = self.get_stderr().strip()
+        stdout = self.get_stdout().strip()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stderr, "Download instructions:\n\nExtension sources must be downloaded via example.com")
+        self.assertEqual(stdout, '')
+
         # create dummy source file for extension
         write_file(os.path.join(os.path.dirname(self.eb_file), 'ext_with_missing_sources-0.0.tar.gz'), '')
 
