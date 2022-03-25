@@ -163,6 +163,7 @@ ARM_CORTEX_IDS = {
 # OS package handler name constants
 RPM = 'rpm'
 DPKG = 'dpkg'
+ZYPPER = 'zypper'
 
 SYSTEM_TOOLS = {
     '7z': "extracting sources (.iso)",
@@ -178,6 +179,7 @@ SYSTEM_TOOLS = {
     'tar': "unpacking source files (.tar)",
     'unxz': "decompressing source files (.xz, .txz)",
     'unzip': "decompressing files (.zip)",
+    ZYPPER: "checking OS dependencies (openSUSE)",
 }
 
 SYSTEM_TOOL_CMDS = {
@@ -808,14 +810,17 @@ def check_os_dependency(dep):
     os_to_pkg_cmd_map = {
         'centos': RPM,
         'debian': DPKG,
+        'opensuse': ZYPPER,
         'redhat': RPM,
+        'rhel': RPM,
         'ubuntu': DPKG,
     }
     pkg_cmd_flag = {
         DPKG: '-s',
         RPM: '-q',
+        ZYPPER: 'search -i',
     }
-    os_name = get_os_name()
+    os_name = get_os_name().lower().split(' ')[0]
     if os_name in os_to_pkg_cmd_map:
         pkg_cmds = [os_to_pkg_cmd_map[os_name]]
     else:
