@@ -556,6 +556,8 @@ class EasyBlock(object):
                     source_urls = ext_options.get('source_urls', [])
                     checksums = ext_options.get('checksums', [])
 
+                    download_instructions = ext_options.get('download_instructions')
+
                     if ext_options.get('nosource', None):
                         self.log.debug("No sources for extension %s, as indicated by 'nosource'", ext_name)
 
@@ -588,7 +590,7 @@ class EasyBlock(object):
 
                         if fetch_files:
                             src = self.fetch_source(source, checksums, extension=True,
-                                                    download_instructions=ext_options.get('download_instructions'))
+                                                    download_instructions=download_instructions)
                             ext_src.update({
                                 # keep track of custom extract command (if any)
                                 'extract_cmd': src['cmd'],
@@ -610,7 +612,8 @@ class EasyBlock(object):
 
                         if fetch_files:
                             src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
-                                                        force_download=force_download)
+                                                        force_download=force_download,
+                                                        download_instructions=download_instructions)
                             if src_path:
                                 ext_src.update({'src': src_path})
                             else:
