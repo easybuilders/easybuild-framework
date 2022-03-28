@@ -18,8 +18,7 @@ update/bugfix release
   - use 'zypper search -i' to check whether specified OS dependency is installed on openSUSE + make sure that rpm is considered for checking OS dependencies on RHEL8 (#3973)
   - add support for post-install patches (#3974)
   - support 'download_instructions' easyconfig parameter key to specify some download or installation steps for user in case of complicated way of obtaining needed files (#3976)
-  - add support for collecting GPU info (via rocm-smi) (#3978)
-  - enhance GPU info (via rocm-smi): report card series in addition (#3982)
+  - add support for collecting AMD GPU info (via rocm-smi) (#3978, #3982)
 - various bug fixes, including:
   - only check for patches when using --new-pr if easyconfigs repository is target (#3966)
   - also print download instructions for extensions that use source_tmpl to specify name of source file (#3981)
