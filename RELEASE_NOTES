@@ -4,6 +4,29 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.5.4 (March 28th 2022)
+---------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - warn about potentially missing patches in --new-pr (#3759)
+  - add support for 'clone_into' field in git_config source spec to specify different name for top-level directory (#3949)
+  - add bash completion for easyconfigs from local dir but not robot search path (#3953)
+  - add a 'sync pr' message when the PR has a mergeable state but is showing a failed status for the test suite on the last commit (#3967)
+  - add gmpit toolchain definition (GCC + MPItrampoline) (#3971)
+  - use 'zypper search -i' to check whether specified OS dependency is installed on openSUSE + make sure that rpm is considered for checking OS dependencies on RHEL8 (#3973)
+  - add support for post-install patches (#3974)
+  - support 'download_instructions' easyconfig parameter key to specify some download or installation steps for user in case of complicated way of obtaining needed files (#3976)
+  - add support for collecting GPU info (via rocm-smi) (#3978)
+  - enhance GPU info (via rocm-smi): report card series in addition (#3982)
+- various bug fixes, including:
+  - only check for patches when using --new-pr if easyconfigs repository is target (#3966)
+  - also print download instructions for extensions that use source_tmpl to specify name of source file (#3981)
+- other changes:
+  - enable code linting check for all supported Python versions (#3725)
+
+
 v4.5.3 (February 11th 2022)
 ---------------------------
 
