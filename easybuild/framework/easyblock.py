@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -364,7 +364,7 @@ class EasyBlock(object):
         else:
             raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple or None.", type(checksums))
 
-    def fetch_source(self, source, checksum=None, extension=False):
+    def fetch_source(self, source, checksum=None, extension=False, download_instructions=None):
         """
         Get a specific source (tarball, iso, url)
         Will be tested for existence or can be located
@@ -400,7 +400,8 @@ class EasyBlock(object):
         # check if the sources can be located
         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
         path = self.obtain_file(filename, extension=extension, download_filename=download_filename,
-                                force_download=force_download, urls=source_urls, git_config=git_config)
+                                force_download=force_download, urls=source_urls, git_config=git_config,
+                                download_instructions=download_instructions)
         if path is None:
             raise EasyBuildError('No file found for source %s', filename)
 
@@ -454,13 +455,17 @@ class EasyBlock(object):
         Add a list of patches.
         All patches will be checked if a file exists (or can be located)
         """
+        post_install_patches = []
         if patch_specs is None:
-            patch_specs = self.cfg['patches']
+            # if no patch_specs are specified, use all pre-install and post-install patches
+            post_install_patches = self.cfg['postinstallpatches']
+            patch_specs = self.cfg['patches'] + post_install_patches
 
         patches = []
         for index, patch_spec in enumerate(patch_specs):
 
             patch_info = create_patch_info(patch_spec)
+            patch_info['postinstall'] = patch_spec in post_install_patches
 
             force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES]
             path = self.obtain_file(patch_info['name'], extension=extension, force_download=force_download)
@@ -551,6 +556,8 @@ class EasyBlock(object):
                     source_urls = ext_options.get('source_urls', [])
                     checksums = ext_options.get('checksums', [])
 
+                    download_instructions = ext_options.get('download_instructions')
+
                     if ext_options.get('nosource', None):
                         self.log.debug("No sources for extension %s, as indicated by 'nosource'", ext_name)
 
@@ -582,7 +589,8 @@ class EasyBlock(object):
                             source['source_urls'] = source_urls
 
                         if fetch_files:
-                            src = self.fetch_source(source, checksums, extension=True)
+                            src = self.fetch_source(source, checksums, extension=True,
+                                                    download_instructions=download_instructions)
                             ext_src.update({
                                 # keep track of custom extract command (if any)
                                 'extract_cmd': src['cmd'],
@@ -604,7 +612,8 @@ class EasyBlock(object):
 
                         if fetch_files:
                             src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
-                                                        force_download=force_download)
+                                                        force_download=force_download,
+                                                        download_instructions=download_instructions)
                             if src_path:
                                 ext_src.update({'src': src_path})
                             else:
@@ -678,7 +687,7 @@ class EasyBlock(object):
         return exts_sources
 
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
-                    git_config=None):
+                    git_config=None, download_instructions=None):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -865,8 +874,19 @@ class EasyBlock(object):
                     self.dry_run_msg("  * %s (MISSING)", filename)
                     return filename
                 else:
-                    raise EasyBuildError("Couldn't find file %s anywhere, and downloading it didn't work either... "
-                                         "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
+                    error_msg = "Couldn't find file %s anywhere, "
+                    if download_instructions is None:
+                        download_instructions = self.cfg['download_instructions']
+                    if download_instructions is not None and download_instructions != "":
+                        msg = "\nDownload instructions:\n\n" + download_instructions + '\n'
+                        print_msg(msg, prefix=False, stderr=True)
+                        error_msg += "please follow the download instructions above, and make the file available "
+                        error_msg += "in the active source path (%s)" % ':'.join(source_paths())
+                    else:
+                        error_msg += "and downloading it didn't work either... "
+                        error_msg += "Paths attempted (in order): %s " % ', '.join(failedpaths)
+
+                    raise EasyBuildError(error_msg, filename)
 
     #
     # GETTER/SETTER UTILITY FUNCTIONS
@@ -1485,12 +1505,11 @@ class EasyBlock(object):
                 if key in keys_requiring_files:
                     # only retain paths that contain at least one file
                     recursive = keys_requiring_files[key]
-                    retained_paths = [
-                        path
-                        for path, fullpath in ((path, os.path.join(self.installdir, path)) for path in paths)
-                        if os.path.isdir(fullpath)
-                        and dir_contains_files(fullpath, recursive=recursive)
-                    ]
+                    retained_paths = []
+                    for pth in paths:
+                        fullpath = os.path.join(self.installdir, pth)
+                        if os.path.isdir(fullpath) and dir_contains_files(fullpath, recursive=recursive):
+                            retained_paths.append(pth)
                     if retained_paths != paths:
                         self.log.info("Only retaining paths for %s that contain at least one file: %s -> %s",
                                       key, paths, retained_paths)
@@ -2231,7 +2250,7 @@ class EasyBlock(object):
             self.dry_run_msg("\nList of patches:")
 
         # fetch patches
-        if self.cfg['patches']:
+        if self.cfg['patches'] + self.cfg['postinstallpatches']:
             if isinstance(self.cfg['checksums'], (list, tuple)):
                 # if checksums are provided as a list, first entries are assumed to be for sources
                 patches_checksums = self.cfg['checksums'][len(self.cfg['sources']):]
@@ -2403,11 +2422,15 @@ class EasyBlock(object):
             else:
                 raise EasyBuildError("Unpacking source %s failed", src['name'])
 
-    def patch_step(self, beginpath=None):
+    def patch_step(self, beginpath=None, patches=None):
         """
         Apply the patches
         """
-        for patch in self.patches:
+        if patches is None:
+            # if no patches are specified, use all non-post-install patches
+            patches = [p for p in self.patches if not p['postinstall']]
+
+        for patch in patches:
             self.log.info("Applying patch %s" % patch['name'])
             trace_msg("applying patch %s" % patch['name'])
 
@@ -2822,6 +2845,17 @@ class EasyBlock(object):
                     raise EasyBuildError("Invalid element in 'postinstallcmds', not a string: %s", cmd)
                 run_cmd(cmd, simple=True, log_ok=True, log_all=True)
 
+    def apply_post_install_patches(self, patches=None):
+        """
+        Apply post-install patch files that are specified via the 'postinstallpatches' easyconfig parameter.
+        """
+        if patches is None:
+            patches = [p for p in self.patches if p['postinstall']]
+
+        self.log.debug("Post-install patches to apply: %s", patches)
+        if patches:
+            self.patch_step(beginpath=self.installdir, patches=patches)
+
     def post_install_step(self):
         """
         Do some postprocessing
@@ -2829,6 +2863,7 @@ class EasyBlock(object):
         """
 
         self.run_post_install_commands()
+        self.apply_post_install_patches()
 
         self.fix_shebang()
 

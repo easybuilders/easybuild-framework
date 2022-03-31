@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -2586,6 +2586,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     repo_name = git_config.pop('repo_name', None)
     commit = git_config.pop('commit', None)
     recursive = git_config.pop('recursive', False)
+    clone_into = git_config.pop('clone_into', False)
     keep_git_dir = git_config.pop('keep_git_dir', False)
 
     # input validation of git_config dict
@@ -2629,9 +2630,16 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
 
     clone_cmd.append('%s/%s.git' % (url, repo_name))
 
+    if clone_into:
+        clone_cmd.append('%s' % clone_into)
+
     tmpdir = tempfile.mkdtemp()
     cwd = change_dir(tmpdir)
     run.run_cmd(' '.join(clone_cmd), log_all=True, simple=True, regexp=False)
+
+    # If the clone is done into a specified name, change repo_name
+    if clone_into:
+        repo_name = clone_into
 
     # if a specific commit is asked for, check it out
     if commit:
