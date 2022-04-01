@@ -2534,7 +2534,7 @@ class EasyBlock(object):
                 self.modules_tool.prepend_module_path(full_mod_path)
 
         deps = self.cfg.dependencies()
-        if any(d['name'].lower() == 'cmake' for d in deps):
+        if any(d['name'] and d['name'].lower() == 'cmake' for d in deps):
             msg = "Using CMake is deprecated, please make a request to the developers of %s " % self.name
             msg += "to use another established tool like SCons or Bazel instead"
             self.log.deprecated(msg, '42.0')
