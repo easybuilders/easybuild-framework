@@ -277,6 +277,11 @@ class EasyBlock(object):
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
+        if self.name.lower() == 'cmake':
+            msg = "Installing CMake is deprecated, please consider using another established tool "
+            msg += "like SCons or Bazel instead"
+            self.log.deprecated(msg, '42.0')
+
     def post_init(self):
         """
         Run post-initialization tasks.
@@ -2528,8 +2533,14 @@ class EasyBlock(object):
             if os.path.exists(full_mod_path) and full_mod_path not in curr_modpaths:
                 self.modules_tool.prepend_module_path(full_mod_path)
 
+        deps = self.cfg.dependencies()
+        if any(d['name'].lower() == 'cmake' for d in deps):
+            msg = "Using CMake is deprecated, please make a request to the developers of %s " % self.name
+            msg += "to use another established tool like SCons or Bazel instead"
+            self.log.deprecated(msg, '42.0')
+
         # prepare toolchain: load toolchain module and dependencies, set up build environment
-        self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
+        self.toolchain.prepare(self.cfg['onlytcmod'], deps=deps, silent=self.silent,
                                loadmod=load_tc_deps_modules, rpath_filter_dirs=self.rpath_filter_dirs,
                                rpath_include_dirs=self.rpath_include_dirs)
 
