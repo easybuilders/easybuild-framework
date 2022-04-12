@@ -5,11 +5,11 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,10 +24,9 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for npsmpi compiler toolchain (includes NVHPC and ParaStationMPI).
+EasyBuild support for nvsmpi compiler toolchain (includes NVHPC and ParaStationMPI).
 
-:author: Damian Alvarez (Forschungszentrum Juelich)
-:author: Sebastian Achilles (Forschungszentrum Juelich)
+:author: Robert Mijakovic <robert.mijakovic@lxp.lu> (LuxProvide)
 """
 
 from easybuild.toolchains.nvhpc import NVHPCToolchain
