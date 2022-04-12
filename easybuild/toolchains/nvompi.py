@@ -25,8 +25,7 @@
 """
 EasyBuild support for nvompi compiler toolchain (NVHPC + Open MPI).
 
-:author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+:author: Robert Mijakovic <robert.mijakovic@lxp.lu> (LuxProvide)
 """
 
 from easybuild.toolchains.nvhpc import NVHPCToolchain
