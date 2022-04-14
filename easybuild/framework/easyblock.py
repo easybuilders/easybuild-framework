@@ -373,7 +373,8 @@ class EasyBlock(object):
         :param checksum: checksum corresponding to source
         :param extension: flag if being called from collect_exts_file_info()
         """
-        filename, download_filename, extract_cmd, source_urls, git_config = None, None, None, None, None
+        filename, download_filename, extract_cmd = None, None, None
+        source_urls, git_config, alt_location = None, None, None
 
         if source is None:
             raise EasyBuildError("fetch_source called with empty 'source' argument")
@@ -387,6 +388,7 @@ class EasyBlock(object):
             download_filename = source.pop('download_filename', None)
             source_urls = source.pop('source_urls', None)
             git_config = source.pop('git_config', None)
+            alt_location = source.pop('alt_location', None)
             if source:
                 raise EasyBuildError("Found one or more unexpected keys in 'sources' specification: %s", source)
 
@@ -401,7 +403,7 @@ class EasyBlock(object):
         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
         path = self.obtain_file(filename, extension=extension, download_filename=download_filename,
                                 force_download=force_download, urls=source_urls, git_config=git_config,
-                                download_instructions=download_instructions)
+                                download_instructions=download_instructions, alt_location=alt_location)
         if path is None:
             raise EasyBuildError('No file found for source %s', filename)
 
@@ -468,7 +470,9 @@ class EasyBlock(object):
             patch_info['postinstall'] = patch_spec in post_install_patches
 
             force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES]
-            path = self.obtain_file(patch_info['name'], extension=extension, force_download=force_download)
+            alt_location = patch_info.pop('alt_location', None)
+            path = self.obtain_file(patch_info['name'], extension=extension, force_download=force_download,
+                                    alt_location=alt_location)
             if path:
                 self.log.debug('File %s found for patch %s', path, patch_spec)
                 patch_info['path'] = path
