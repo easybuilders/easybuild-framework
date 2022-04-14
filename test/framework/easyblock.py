@@ -1683,7 +1683,6 @@ class EasyBlockTest(EnhancedTestCase):
         # clean up toy tarballs in tmpdir, so the one in sourcepath is found
         remove_file(os.path.join(tmpdir, toy_tarball))
         remove_file(os.path.join(tmpdir, 't', 'toy', toy_tarball))
-        remove_file(os.path.join(tmpdir, alt_toy_tarball))
         remove_file(os.path.join(tmpdir, 'a', 'alt_toy', toy_tarball))
 
         # enabling force_download results in re-downloading, even if file is already in sourcepath
