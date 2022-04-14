@@ -1644,6 +1644,7 @@ class EasyBlockTest(EnhancedTestCase):
         testdir = os.path.abspath(os.path.dirname(__file__))
         sandbox_sources = os.path.join(testdir, 'sandbox', 'sources')
         toy_tarball_path = os.path.join(sandbox_sources, 'toy', toy_tarball)
+        alt_toy_tarball_path = os.path.join(sandbox_sources, 'alt_toy', toy_tarball)
         tmpdir = tempfile.mkdtemp()
         tmpdir_subdir = os.path.join(tmpdir, 'testing')
         mkdir(tmpdir_subdir, parents=True)
@@ -1658,20 +1659,32 @@ class EasyBlockTest(EnhancedTestCase):
         res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, os.path.join(tmpdir, 't', 'toy', toy_tarball))
 
+        # 'downloading' a file to (first) alternative sourcepath works
+        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
+        self.assertEqual(res, os.path.join(tmpdir, 'a', 'alt_toy', toy_tarball))
+
         # finding a file in sourcepath works
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (sandbox_sources, tmpdir)])
         res = eb.obtain_file(toy_tarball)
         self.assertEqual(res, toy_tarball_path)
 
+        # finding a file in the alternate location works
+        res = eb.obtain_file(toy_tarball, alt_location='alt_toy')
+        self.assertEqual(res, alt_toy_tarball_path)
+
         # sourcepath has preference over downloading
         res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, toy_tarball_path)
+        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
+        self.assertEqual(res, alt_toy_tarball_path)
 
         init_config(args=["--sourcepath=%s:%s" % (tmpdir, sandbox_sources)])
 
         # clean up toy tarballs in tmpdir, so the one in sourcepath is found
         remove_file(os.path.join(tmpdir, toy_tarball))
         remove_file(os.path.join(tmpdir, 't', 'toy', toy_tarball))
+        remove_file(os.path.join(tmpdir, alt_toy_tarball))
+        remove_file(os.path.join(tmpdir, 'a', 'alt_toy', toy_tarball))
 
         # enabling force_download results in re-downloading, even if file is already in sourcepath
         self.mock_stderr(True)

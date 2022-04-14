@@ -687,7 +687,7 @@ class EasyBlock(object):
         return exts_sources
 
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
-                    git_config=None, download_instructions=None):
+                    git_config=None, download_instructions=None, alt_location=None):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -698,10 +698,17 @@ class EasyBlock(object):
         :param download_filename: filename with which the file should be downloaded, and then renamed to <filename>
         :param force_download: always try to download file, even if it's already available in source path
         :param git_config: dictionary to define how to download a git repository
+        :param download_instructions: instructions to manually add source (used for complex cases)
+        :param alt_location: alternative location to use instead of self.name
         """
         srcpaths = source_paths()
 
         update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
+
+        if alt_location is None:
+            location = self.name
+        else:
+            location = alt_location
 
         # should we download or just try and find it?
         if re.match(r"^(https?|ftp)://", filename):
@@ -711,7 +718,7 @@ class EasyBlock(object):
             filename = url.split('/')[-1]
 
             # figure out where to download the file to
-            filepath = os.path.join(srcpaths[0], letter_dir_for(self.name), self.name)
+            filepath = os.path.join(srcpaths[0], letter_dir_for(location), location)
             if extension:
                 filepath = os.path.join(filepath, "extensions")
             self.log.info("Creating path %s to download file to" % filepath)
@@ -750,8 +757,8 @@ class EasyBlock(object):
 
             for path in ebpath + common_filepaths + srcpaths:
                 # create list of candidate filepaths
-                namepath = os.path.join(path, self.name)
-                letterpath = os.path.join(path, letter_dir_for(self.name), self.name)
+                namepath = os.path.join(path, location)
+                letterpath = os.path.join(path, letter_dir_for(location), location)
 
                 # most likely paths
                 candidate_filepaths = [
@@ -790,8 +797,8 @@ class EasyBlock(object):
 
                     break  # no need to try other source paths
 
-            name_letter = self.name.lower()[0]
-            targetdir = os.path.join(srcpaths[0], name_letter, self.name)
+            name_letter = location.lower()[0]
+            targetdir = os.path.join(srcpaths[0], name_letter, location)
 
             if foundfile:
                 if self.dry_run:
@@ -808,7 +815,7 @@ class EasyBlock(object):
                 source_urls.extend(self.cfg['source_urls'])
 
                 # add https://sources.easybuild.io as fallback source URL
-                source_urls.append(EASYBUILD_SOURCES_URL + '/' + os.path.join(name_letter, self.name))
+                source_urls.append(EASYBUILD_SOURCES_URL + '/' + os.path.join(name_letter, location))
 
                 mkdir(targetdir, parents=True)
 
