@@ -1516,8 +1516,7 @@ def create_patch_info(patch_spec):
         else:
             if 'sourcepath' in patch_info.keys() or 'level' in patch_info.keys():
                 raise EasyBuildError("Wrong patch spec '%s', you can't use 'sourcepath' or 'level' with 'copy' (since "
-                                     "this implies you want to copy a file to the 'copy' location)"
-                                     "",
+                                     "this implies you want to copy a file to the 'copy' location)",
                                      str(patch_spec))
     else:
         error_msg = "Wrong patch spec, should be string, 2-tuple with patch name + argument, or a dict " \
