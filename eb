@@ -79,13 +79,13 @@ for python_cmd in ${EB_PYTHON} ${EB_INSTALLPYTHON} 'python' 'python3' 'python2';
         fi
 
         if [ ! -z $PYTHON ]; then
-            # check whether easybuild.main is available for selected python command
-            $PYTHON -c "import $EASYBUILD_MAIN" 2> /dev/null
+            # check whether easybuild is available for selected python command
+            $PYTHON -c "import easybuild" 2> /dev/null
             if [ $? -eq 0 ]; then
-                verbose "'$python_cmd' is able to import '$EASYBUILD_MAIN', so retaining it"
+                verbose "'$python_cmd' is able to import 'easybuild', so retaining it"
             else
-                # if easybuild.main is not available, don't use this python command, keep searching...
-                verbose "'$python_cmd' is NOT able to import '$EASYBUILD_MAIN', so NOT retaining it"
+                # if easybuild is not available, don't use this python command, keep searching...
+                verbose "'$python_cmd' is NOT able to import 'easybuild' so NOT retaining it"
                 unset PYTHON
             fi
         fi
