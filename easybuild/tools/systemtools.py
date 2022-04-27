@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2021 Ghent University
+# Copyright 2011-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -163,6 +163,7 @@ ARM_CORTEX_IDS = {
 # OS package handler name constants
 RPM = 'rpm'
 DPKG = 'dpkg'
+ZYPPER = 'zypper'
 
 SYSTEM_TOOLS = {
     '7z': "extracting sources (.iso)",
@@ -178,6 +179,7 @@ SYSTEM_TOOLS = {
     'tar': "unpacking source files (.tar)",
     'unxz': "decompressing source files (.xz, .txz)",
     'unzip': "decompressing files (.zip)",
+    ZYPPER: "checking OS dependencies (openSUSE)",
 }
 
 SYSTEM_TOOL_CMDS = {
@@ -610,6 +612,30 @@ def get_gpu_info():
         except Exception as err:
             _log.debug("Exception was raised when running nvidia-smi: %s", err)
             _log.info("No NVIDIA GPUs detected")
+
+        try:
+            cmd = "rocm-smi --showdriverversion --csv"
+            _log.debug("Trying to determine AMD GPU driver on Linux via cmd '%s'", cmd)
+            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+            if ec == 0:
+                amd_driver = out.strip().split('\n')[1].split(',')[1]
+
+            cmd = "rocm-smi --showproductname --csv"
+            _log.debug("Trying to determine AMD GPU info on Linux via cmd '%s'", cmd)
+            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+            if ec == 0:
+                for line in out.strip().split('\n')[1:]:
+                    amd_card_series = line.split(',')[1]
+                    amd_card_model = line.split(',')[2]
+                    amd_gpu = "%s (model: %s, driver: %s)" % (amd_card_series, amd_card_model, amd_driver)
+                    amd_gpu_info = gpu_info.setdefault('AMD', {})
+                    amd_gpu_info.setdefault(amd_gpu, 0)
+                    amd_gpu_info[amd_gpu] += 1
+            else:
+                _log.debug("None zero exit (%s) from rocm-smi: %s", ec, out)
+        except Exception as err:
+            _log.debug("Exception was raised when running rocm-smi: %s", err)
+            _log.info("No AMD GPUs detected")
     else:
         _log.info("Only know how to get GPU info on Linux, assuming no GPUs are present")
 
@@ -785,14 +811,17 @@ def check_os_dependency(dep):
     os_to_pkg_cmd_map = {
         'centos': RPM,
         'debian': DPKG,
+        'opensuse': ZYPPER,
         'redhat': RPM,
+        'rhel': RPM,
         'ubuntu': DPKG,
     }
     pkg_cmd_flag = {
         DPKG: '-s',
         RPM: '-q',
+        ZYPPER: 'search -i',
     }
-    os_name = get_os_name()
+    os_name = get_os_name().lower().split(' ')[0]
     if os_name in os_to_pkg_cmd_map:
         pkg_cmds = [os_to_pkg_cmd_map[os_name]]
     else:

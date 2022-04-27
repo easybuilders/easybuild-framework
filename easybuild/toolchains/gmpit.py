@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2022-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,21 +23,20 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gimpi compiler toolchain (includes GCC and Intel MPI).
+EasyBuild support for gmpit compiler toolchain (includes GCC and MPItrampoline).
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+:author: Alan O'Cais (CECAM)
 """
-import re
 from distutils.version import LooseVersion
+import re
 
 from easybuild.toolchains.gcc import GccToolchain
-from easybuild.toolchains.mpi.intelmpi import IntelMPI
+from easybuild.toolchains.mpi.mpitrampoline import MPItrampoline
 
 
-class Gimpi(GccToolchain, IntelMPI):
-    """Compiler toolchain with GCC and Intel MPI."""
-    NAME = 'gimpi'
+class Gmpit(GccToolchain, MPItrampoline):
+    """Compiler toolchain with GCC and MPItrampoline."""
+    NAME = 'gmpit'
     SUBTOOLCHAIN = GccToolchain.NAME
 
     def is_deprecated(self):
@@ -51,7 +50,6 @@ class Gimpi(GccToolchain, IntelMPI):
 
         # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
         if re.match('^[0-9]', version):
-            # gimpi toolchains older than gimpi/2019a are deprecated since EasyBuild v4.5.0
             if LooseVersion(version) < LooseVersion('2019'):
                 deprecated = True
 

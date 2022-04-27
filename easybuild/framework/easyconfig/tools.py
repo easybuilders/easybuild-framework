@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -308,7 +308,7 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     return paths
 
 
-def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None):
+def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None, review_pr=None):
     """Obtain alternative paths for easyconfig files."""
 
     # paths where tweaked easyconfigs will be placed, easyconfigs listed on the command line take priority and will be
@@ -321,9 +321,14 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None):
 
     # paths where files touched in PRs will be downloaded to,
     # which are picked up via 'pr_paths' build option in fetch_files_from_pr
-    pr_paths = None
+    pr_paths = []
     if from_prs:
-        pr_paths = [os.path.join(tmpdir, 'files_pr%s' % pr) for pr in from_prs]
+        pr_paths = from_prs[:]
+    if review_pr and review_pr not in pr_paths:
+        pr_paths.append(review_pr)
+
+    if pr_paths:
+        pr_paths = [os.path.join(tmpdir, 'files_pr%s' % pr) for pr in pr_paths]
 
     return tweaked_ecs_paths, pr_paths
 

@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2022 Ghent University
+# Copyright 2022-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,40 +23,54 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-MPI support for Fujitsu MPI.
+Support for MPItrampoline as toolchain MPI library.
 
-:author: Miguel Dias Costa (National University of Singapore)
+:author: Alan O'Cais (CECAM)
 """
-from easybuild.toolchains.compiler.fujitsu import FujitsuCompiler
-from easybuild.toolchains.mpi.openmpi import TC_CONSTANT_OPENMPI, TC_CONSTANT_MPI_TYPE_OPENMPI
+
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_VARIABLES
 from easybuild.tools.toolchain.mpi import Mpi
 from easybuild.tools.toolchain.variables import CommandFlagList
 
 
-class FujitsuMPI(Mpi):
-    """Generic support for using Fujitsu compiler wrappers"""
-    # MPI support
-    # no separate module, Fujitsu compiler drivers always provide MPI support
-    MPI_MODULE_NAME = None
-    MPI_FAMILY = TC_CONSTANT_OPENMPI
-    MPI_TYPE = TC_CONSTANT_MPI_TYPE_OPENMPI
+TC_CONSTANT_MPITRAMPOLINE = "MPItrampoline"
+TC_CONSTANT_MPI_TYPE_MPITRAMPOLINE = "MPI_TYPE_MPITRAMPOLINE"
 
-    # OpenMPI reads from CC etc env variables
+
+class MPItrampoline(Mpi):
+    """MPItrampoline MPI class"""
+    MPI_MODULE_NAME = ['MPItrampoline']
+    MPI_FAMILY = TC_CONSTANT_MPITRAMPOLINE
+    MPI_TYPE = TC_CONSTANT_MPI_TYPE_MPITRAMPOLINE
+
+    MPI_LIBRARY_NAME = 'mpi'
+
+    # May be version-dependent, so defined at runtime
+    MPI_COMPILER_MPIF77 = None
+    MPI_COMPILER_MPIF90 = None
+    MPI_COMPILER_MPIFC = None
+
+    # MPItrampoline reads from CC etc env variables
     MPI_SHARED_OPTION_MAP = dict([('_opt_%s' % var, '') for var, _ in MPI_COMPILER_VARIABLES])
 
     MPI_LINK_INFO_OPTION = '-showme:link'
 
+    def __init__(self, *args, **kwargs):
+        """Toolchain constructor"""
+        super(MPItrampoline, self).__init__(*args, **kwargs)
+
     def _set_mpi_compiler_variables(self):
-        """Define MPI wrapper commands and add OMPI_* variables to set."""
-        self.MPI_COMPILER_MPICC = 'mpi' + FujitsuCompiler.COMPILER_CC
-        self.MPI_COMPILER_MPICXX = 'mpi' + FujitsuCompiler.COMPILER_CXX
-        self.MPI_COMPILER_MPIF77 = 'mpi' + FujitsuCompiler.COMPILER_F77
-        self.MPI_COMPILER_MPIF90 = 'mpi' + FujitsuCompiler.COMPILER_F90
-        self.MPI_COMPILER_MPIFC = 'mpi' + FujitsuCompiler.COMPILER_FC
+        """Define MPI wrapper commands and add MPITRAMPOLINE_* variables to set."""
+
+        self.MPI_COMPILER_MPIF77 = 'mpifort'
+        self.MPI_COMPILER_MPIF90 = 'mpifort'
+        self.MPI_COMPILER_MPIFC = 'mpifort'
 
         # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
         for var, _ in COMPILER_VARIABLES:
-            self.variables.nappend('OMPI_%s' % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
+            self.variables.nappend(
+                'MPITRAMPOLINE_%s' % var, str(self.variables[var].get_first()),
+                var_class=CommandFlagList
+            )
 
-        super(FujitsuMPI, self)._set_mpi_compiler_variables()
+        super(MPItrampoline, self)._set_mpi_compiler_variables()
