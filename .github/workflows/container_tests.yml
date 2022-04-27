@@ -20,6 +20,8 @@ jobs:
 
     - name: install OS & Python packages
       run: |
+        # ensure package list is up to date to avoid 404's for old packages
+        sudo apt-get update -yqq
         # for building Singularity images
         sudo apt-get install rpm
         sudo apt-get install yum
