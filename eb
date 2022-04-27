@@ -46,6 +46,10 @@ REQ_MIN_PY3VER=5
 
 EASYBUILD_MAIN='easybuild.main'
 
+# easybuild module to import to check whether EasyBuild framework is available;
+# don't use easybuild.main here, since that's a very expensive module to import (it makes the 'eb' command slow)
+EASYBUILD_IMPORT_TEST='easybuild.framework'
+
 function verbose() {
     if [ ! -z ${EB_VERBOSE} ]; then echo ">> $1"; fi
 }
@@ -79,13 +83,13 @@ for python_cmd in ${EB_PYTHON} ${EB_INSTALLPYTHON} 'python' 'python3' 'python2';
         fi
 
         if [ ! -z $PYTHON ]; then
-            # check whether easybuild is available for selected python command
-            $PYTHON -c "import easybuild" 2> /dev/null
+            # check whether EasyBuild framework is available for selected python command
+            $PYTHON -c "import $EASYBUILD_IMPORT_TEST" 2> /dev/null
             if [ $? -eq 0 ]; then
-                verbose "'$python_cmd' is able to import 'easybuild', so retaining it"
+                verbose "'$python_cmd' is able to import '$EASYBUILD_IMPORT_TEST', so retaining it"
             else
-                # if easybuild is not available, don't use this python command, keep searching...
-                verbose "'$python_cmd' is NOT able to import 'easybuild' so NOT retaining it"
+                # if EasyBuild framework is not available, don't use this python command, keep searching...
+                verbose "'$python_cmd' is NOT able to import '$EASYBUILD_IMPORT_TEST' so NOT retaining it"
                 unset PYTHON
             fi
         fi
