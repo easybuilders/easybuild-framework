@@ -3286,7 +3286,7 @@ class EasyBlock(object):
         if self.toolchain.use_rpath:
             self.sanity_check_rpath()
         else:
-            self.log.debug("Skiping RPATH sanity check")
+            self.log.debug("Skipping RPATH sanity check")
 
     def _sanity_check_step_extensions(self):
         """Sanity check on extensions (if any)."""
@@ -3452,7 +3452,7 @@ class EasyBlock(object):
                 self.log.warning("RPATH sanity check failed!")
                 self.sanity_check_fail_msgs.extend(rpath_fails)
         else:
-            self.log.debug("Skiping RPATH sanity check")
+            self.log.debug("Skipping RPATH sanity check")
 
         # pass or fail
         if self.sanity_check_fail_msgs:
