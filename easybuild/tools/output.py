@@ -31,11 +31,13 @@ Tools for controlling output to terminal produced by EasyBuild.
 """
 import functools
 
+from easybuild.external.ctest_log_parser import BuildError, BuildWarning
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
 from easybuild.tools.py2vs3 import OrderedDict
 
 try:
+    from rich import print
     from rich.console import Console, Group
     from rich.live import Live
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
@@ -393,3 +395,47 @@ PROGRESS_BAR_TYPES = {
     PROGRESS_BAR_EASYCONFIG: easyconfig_progress_bar,
     STATUS_BAR: status_bar,
 }
+
+
+def ctest_output(ctype, events):
+    print('Logs parsed and %d %s found' % (len(events), ctype))
+    error_lines = set(e.line_no for e in events)
+    log_events = sorted(events, key=lambda e: e.line_no)
+
+    num_width = len(str(max(error_lines or [0]))) + 4
+    line_fmt = '%%-%dd%%s' % num_width
+    indent = ' ' * (5 + num_width)
+
+    next_line = 1
+    for event in log_events:
+        start = event.start
+
+        color = None
+        if isinstance(event, BuildError):
+            color = COLOR_RED
+        elif isinstance(event, BuildWarning):
+            color = COLOR_YELLOW
+
+        if next_line != 1 and start > next_line:
+            print('     ...')
+            print('')
+            print('')
+
+        if start < next_line:
+            start = next_line
+
+        for i in range(start, event.end):
+            lines = [event[i]]
+            lines[1:] = [indent + ln for ln in lines[1:]]
+            fmt_line = line_fmt % (i, '\n'.join(lines))
+
+            if i in error_lines:
+                msg = '  >> %s' % fmt_line
+                if color and use_rich():
+                    print(colorize(msg, color))
+                else:
+                    print(msg)
+            else:
+                print('     %s' % fmt_line)
+
+        next_line = event.end
