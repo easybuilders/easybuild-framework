@@ -944,7 +944,7 @@ class Toolchain(object):
         calls_rpath_args = b'rpath_args.py $CMD' in read_file(path, mode='rb')
         return in_rpath_wrappers_dir and calls_rpath_args
 
-    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, new_wrapper_dir=None, single_subdir=False, disable_wrapper_log=False):
+    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, new_wrapper_dir=None, disable_wrapper_log=False, cmdDir=None):
         """
         Put RPATH wrapper script in place for compiler and linker commands
 
@@ -994,6 +994,15 @@ class Toolchain(object):
         # create wrappers
         for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold', 'ld.bfd']):
             orig_cmd = which(cmd)
+            if cmdDir is not None and os.path.exists(cmdDir):
+                orig_cmd = os.path.join(cmdDir,cmd)
+
+            # TODO: dirty hack to let module-shipped rpath wrappers point to EESSI software layer's ld
+            if cmdDir is not None and "ld" in cmd:
+                orig_cmd = which(cmd, retain_all=True)
+                orig_cmd = [a for a in orig_cmd if "/tmp" not in a][0]
+
+            self.log.debug("orig_cmd: %s", orig_cmd)
 
             if orig_cmd:
                 # bail out early if command already is a wrapped;
@@ -1003,14 +1012,11 @@ class Toolchain(object):
                     continue
 
                 # determine location for this wrapper
-                if single_subdir:
-                    wrapper_dir = wrappers_dir
-                else:
-                    # each wrapper is placed in its own subdirectory to enable $PATH filtering per wrapper separately
-                    # avoid '+' character in directory name (for example with 'g++' command), which can cause trouble
-                    # (see https://github.com/easybuilders/easybuild-easyconfigs/issues/7339)
-                    wrapper_dir_name = '%s_wrapper' % cmd.replace('+', 'x')
-                    wrapper_dir = os.path.join(wrappers_dir, wrapper_dir_name)
+                # each wrapper is placed in its own subdirectory to enable $PATH filtering per wrapper separately
+                # avoid '+' character in directory name (for example with 'g++' command), which can cause trouble
+                # (see https://github.com/easybuilders/easybuild-easyconfigs/issues/7339)
+                wrapper_dir_name = '%s_wrapper' % cmd.replace('+', 'x')
+                wrapper_dir = os.path.join(wrappers_dir, wrapper_dir_name)
 
                 cmd_wrapper = os.path.join(wrapper_dir, cmd)
 
