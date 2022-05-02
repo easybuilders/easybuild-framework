@@ -91,7 +91,6 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import Lmod, curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
-from easybuild.tools.output import ctest_parse_log
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
 from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.package.utilities import package
@@ -4231,9 +4230,6 @@ def build_and_install_one(ecdict, init_env):
         # there may be multiple log files, or the file name may be different due to zipping
         logs = glob.glob('%s*' % application_log)
         print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=_log, silent=silent)
-
-        for log in logs:
-            ctest_parse_log(log)
 
     del app
 

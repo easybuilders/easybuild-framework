@@ -401,7 +401,8 @@ def ctest_parse_log(log):
     ctest_parser = CTestLogParser()
     ctest_errors, ctest_warnings = ctest_parser.parse(log, 6, None)
 
-    print('Log %s parsed and %d errors and %d warnings found' % (log, len(ctest_errors), len(ctest_warnings)))
+    if ctest_errors or ctest_warnings:
+        print('Log parsed and %d errors and %d warnings found' % (len(ctest_errors), len(ctest_warnings)))
 
     if ctest_errors:
         ctest_output(ctest_errors)
