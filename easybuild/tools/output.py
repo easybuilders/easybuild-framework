@@ -31,7 +31,7 @@ Tools for controlling output to terminal produced by EasyBuild.
 """
 import functools
 
-from easybuild.external.ctest_log_parser import BuildError, BuildWarning
+from easybuild.external.ctest_log_parser import BuildError, BuildWarning, CTestLogParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
 from easybuild.tools.py2vs3 import OrderedDict
@@ -397,8 +397,20 @@ PROGRESS_BAR_TYPES = {
 }
 
 
-def ctest_output(ctype, events):
-    print('Logs parsed and %d %s found' % (len(events), ctype))
+def ctest_parse_log(log):
+    ctest_parser = CTestLogParser()
+    ctest_errors, ctest_warnings = ctest_parser.parse(log, 6, None)
+
+    print('Log %s parsed and %d errors and %d warnings found' % (log, len(ctest_errors), len(ctest_warnings)))
+
+    if ctest_errors:
+        ctest_output(ctest_errors)
+
+    if ctest_warnings and build_option('debug'):
+        ctest_output("WARNINGS", ctest_warnings)
+
+
+def ctest_output(events):
     error_lines = set(e.line_no for e in events)
     log_events = sorted(events, key=lambda e: e.line_no)
 

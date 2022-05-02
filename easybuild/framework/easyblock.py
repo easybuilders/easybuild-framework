@@ -50,12 +50,10 @@ import time
 import traceback
 from datetime import datetime
 from distutils.version import LooseVersion
-from io import StringIO
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
 from easybuild.base import fancylogger
-from easybuild.external.ctest_log_parser import CTestLogParser
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
@@ -93,7 +91,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import Lmod, curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
-from easybuild.tools.output import COLOR_RED, COLOR_YELLOW, colorize, ctest_output
+from easybuild.tools.output import ctest_parse_log
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
 from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.package.utilities import package
@@ -4080,9 +4078,6 @@ def build_and_install_one(ecdict, init_env):
         _log.warning(errormsg)
         result = False
 
-        ctest_parser = CTestLogParser()
-        ctest_errors, ctest_warnings = ctest_parser.parse(StringIO(err.msg), 6, None)
-
     ended = 'ended'
 
     # make sure we're back in original directory before we finish up
@@ -4208,11 +4203,6 @@ def build_and_install_one(ecdict, init_env):
             build_dir = " (build directory: %s)" % (app.builddir)
         succ = "unsuccessfully%s: %s" % (build_dir, errormsg)
 
-        if ctest_errors:
-            ctest_output("ERRORS", ctest_errors)
-        if ctest_warnings and build_option('debug'):
-            ctest_output("WARNINGS", ctest_warnings)
-
         # cleanup logs
         app.close_log()
         application_log = app.logfile
@@ -4241,6 +4231,9 @@ def build_and_install_one(ecdict, init_env):
         # there may be multiple log files, or the file name may be different due to zipping
         logs = glob.glob('%s*' % application_log)
         print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=_log, silent=silent)
+
+        for log in logs:
+            ctest_parse_log(log)
 
     del app
 
