@@ -38,6 +38,7 @@ Authors:
 import copy
 import re
 import sys
+import os
 
 import easybuild.tools.toolchain
 from easybuild.base import fancylogger
@@ -160,7 +161,7 @@ def create_rpath_wrappers(targetdir, toolchain_name, toolchain_version, rpath_fi
             rpath_filter_dirs=rpath_filter_dirs,
             rpath_include_dirs=rpath_include_dirs,
             new_wrapper_dir=targetdir,
-            single_subdir=False,
-            disable_wrapper_log=True
+            disable_wrapper_log=True,
+            cmdDir=os.path.join(targetdir, '..')
             )
-    print("Installed RPATH wrappers in %s" % (str(wrapperpath)))
+    _log.debug("Installed RPATH wrappers in %s" % (str(wrapperpath)))
