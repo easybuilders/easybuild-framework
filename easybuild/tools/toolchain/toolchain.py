@@ -931,7 +931,8 @@ class Toolchain(object):
         # need to use binary mode to read the file, since it may be an actual compiler command (which is a binary file)
         return b'rpath_args.py $CMD' in read_file(path, mode='rb')
 
-    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, new_wrapper_dir=None, disable_wrapper_log=False, cmdDir=None):
+    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, new_wrapper_dir=None,
+                               disable_wrapper_log=False, cmdDir=None):
         """
         Put RPATH wrapper script in place for compiler and linker commands
 
@@ -985,7 +986,7 @@ class Toolchain(object):
                 continue
             orig_cmd = which(cmd)
             if cmdDir is not None and os.path.exists(cmdDir):
-                orig_cmd = os.path.join(cmdDir,cmd)
+                orig_cmd = os.path.join(cmdDir, cmd)
 
             # TODO: dirty hack to let module-shipped rpath wrappers point to EESSI software layer's ld
             if cmdDir is not None and "ld" in cmd:
