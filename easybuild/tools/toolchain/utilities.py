@@ -151,7 +151,8 @@ def get_toolchain(tc, tcopts, mns=None, tcdeps=None, modtool=None):
     return tc_inst
 
 
-def create_rpath_wrappers(targetdir, toolchain_name, toolchain_version, rpath_filter_dirs=[], rpath_include_dirs=[]):
+def create_rpath_wrappers(targetdir, toolchain_name, toolchain_version, rpath_filter_dirs=None,
+                          rpath_include_dirs=None):
     tc = get_toolchain({'name': toolchain_name, 'version': toolchain_version}, {})
 
     wrapperpath = tc.prepare_rpath_wrappers(

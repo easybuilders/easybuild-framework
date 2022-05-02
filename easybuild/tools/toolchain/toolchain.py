@@ -944,7 +944,8 @@ class Toolchain(object):
         calls_rpath_args = b'rpath_args.py $CMD' in read_file(path, mode='rb')
         return in_rpath_wrappers_dir and calls_rpath_args
 
-    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, new_wrapper_dir=None, disable_wrapper_log=False, cmdDir=None):
+    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, new_wrapper_dir=None,
+                               disable_wrapper_log=False, cmdDir=None):
         """
         Put RPATH wrapper script in place for compiler and linker commands
 
@@ -995,7 +996,7 @@ class Toolchain(object):
         for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold', 'ld.bfd']):
             orig_cmd = which(cmd)
             if cmdDir is not None and os.path.exists(cmdDir):
-                orig_cmd = os.path.join(cmdDir,cmd)
+                orig_cmd = os.path.join(cmdDir, cmd)
 
             # TODO: dirty hack to let module-shipped rpath wrappers point to EESSI software layer's ld
             if cmdDir is not None and "ld" in cmd:
