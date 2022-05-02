@@ -42,11 +42,13 @@ import sys
 import tempfile
 import time
 from datetime import datetime
+from io import StringIO
 
 import easybuild.tools.asyncprocess as asyncprocess
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
+from easybuild.tools.output import ctest_parse_log
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import trace_msg
 
@@ -611,6 +613,10 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     # allow for overriding the regexp setting
     if not regexp:
         use_regexp = False
+
+    # process the output
+    # should this be only on configure, build, test, install?
+    ctest_parse_log(StringIO(stdouterr))
 
     if ec and (log_all or log_ok):
         # We don't want to error if the user doesn't care
