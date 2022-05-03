@@ -25,34 +25,91 @@
 """
 Implementation of a different generation specific module naming scheme using release dates.
 :author: Thomas Eylenbosch (Gluo N.V.)
+:author: Thomas Soenen (B-square IT services)
 """
 
 import os
 import json
-from pkgutil import get_data
 
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
-# from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.robot import search_easyconfigs
+from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 
 DUMMY_TOOLCHAIN_NAME = 'dummy'
-DUMMY_TOOLCHAIN_VERSION = 'dummy'
-
 SYSTEM_TOOLCHAIN_NAME = 'system'
 
-# Lookup table for toolchain versions and generations
-GENERATION_LOOKUP = json.loads(get_data(__package__, 'generation_lookup_table.json'))
+GMNS_ENV = "GENERATION_MODULE_NAMING_SCHEME_LOOKUP_TABLE"
+GMNS_PATH = os.environ.get(GMNS_ENV)
 
 class GenerationModuleNamingScheme(ModuleNamingScheme):
-    """Class implementing the categorized module naming scheme."""
+    """Class implementing the generational module naming scheme."""
 
     REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain']
 
+    def __init__(self):
+        """
+        Generate lookup table that maps toolchains on foss generations. Generations (e.g. 2018a,
+        2020b) are fetched from the foss easyconfigs and dynamically mapped on toolchains using
+        get_toolchain_hierarchy. The lookup table can be extended by the user by providing a file.
+
+        Lookup table is a dict with toolchain-generation key-value pairs:{(GCC, 4.8.2): 2016a},
+        with toolchains resembled as a tuple.
+
+        json format of file with custom mappings:
+        {
+          "2018b": [{"name": "GCC", "version": "5.2.0"}, {"name": "GCC", "version": "4.8.2"}],
+          "2019b": [{"name": "GCC", "version": "5.2.4"}, {"name": "GCC", "version": "4.8.4"}],
+        }
+        """
+        super().__init__()
+
+        self.lookup_table = {}
+
+        # Get all generations
+        foss_filenames = search_easyconfigs("^foss-20[0-9]{2}[a-z]\.eb",
+                                            filename_only=True,
+                                            print_result=False)
+        self.generations = [x.split('-')[1].split('.')[0] for x in foss_filenames]
+
+        # map generations on toolchains
+        for generation in self.generations:
+            for tc in get_toolchain_hierarchy({'name':'foss', 'version':generation}):
+                self.lookup_table[(tc['name'], tc['version'])] = generation
+            # include (foss, <generation>) as a toolchain aswell
+            self.lookup_table[('foss', generation)] = generation
+
+        # users can provide custom generation-toolchain mapping through a file
+        if GMNS_PATH:
+            if not os.path.isfile(GMNS_PATH):
+                msg = "value of ENV {} ({}) should be a valid filepath"
+                raise EasyBuildError(msg.format(GMNS_ENV, GMNS_PATH))
+            with open(GMNS_PATH, 'r') as hc_lookup:
+                try:
+                    hc_lookup_data = json.loads(hc_lookup.read())
+                except json.decoder.JSONDecodeError:
+                    raise EasyBuildError("{} can't be decoded as json".format(GMNS_PATH))
+                if not isinstance(hc_lookup_data, dict):
+                    raise EasyBuildError("{} should contain a dict".format(GMNS_PATH))
+                if not set(hc_lookup_data.keys()) <= set(self.generations):
+                    raise EasyBuildError("Keys of {} should be generations".format(GMNS_PATH))
+                for generation, toolchains in hc_lookup_data.items():
+                    if not isinstance(toolchains, list):
+                        raise EasyBuildError("Values of {} should be lists".format(GMNS_PATH))
+                    for tc in toolchains:
+                        if not isinsance(tc, dict):
+                            msg = "Toolchains in {} should be of type dict"
+                            raise EasyBuildError(msg.format(GMNS_PATH))
+                        if set(tc.keys()) != set('name', 'version'):
+                            msg = "Toolchains in {} should have two keys ('name', 'version')"
+                            raise EasyBuildError(msg.format(GMNS_PATH))
+                        self.lookup_table[(tc['name'], tc['version'])] = generation
+
     def det_full_module_name(self, ec):
         """
-        Determine short module name, i.e. the name under which modules will be exposed to users.
-        Examples: GCC/4.8.3, OpenMPI/1.6.5, OpenBLAS/0.2.9, HPL/2.1, Python/2.7.5
+        Determine full module name, relative to the top of the module path.
+        Examples: General/GCC/4.8.3, Releases/2018b/OpenMPI/1.6.5
         """
-
         return os.path.join(self.det_module_subdir(ec), self.det_short_module_name(ec))
 
     def det_short_module_name(self, ec):
@@ -69,22 +126,30 @@ class GenerationModuleNamingScheme(ModuleNamingScheme):
         return versionprefix + ec['version'] + ec['versionsuffix']
 
     def det_module_subdir(self, ec):
-
+        """
+        Determine subdirectory for module file in $MODULEPATH. This determines the separation
+        between module names exposed to users, and what's part of the $MODULEPATH. subdirectory
+        is determined by mapping toolchain on a generation.
+        """
         release = 'releases'
         release_date = ''
 
         if ec['toolchain']['name'] in [DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME]:
             release = 'General'
-
-        elif ec['toolchain']['version'] in GENERATION_LOOKUP['releases']:
-            release_date = ec['toolchain']['version']
-
-        elif ec['toolchain']['name'] in GENERATION_LOOKUP:
-            release_date = GENERATION_LOOKUP[ec['toolchain']['name']].get(ec['toolchain']['version'], 'NOTFOUND')
-
         else:
-            release_date = 'NOTFOUND'
+            if self.lookup_table.get((ec['toolchain']['name'], ec['toolchain']['version'])):
+                release_date = self.lookup_table[(ec['toolchain']['name'], ec['toolchain']['version'])]
+            else:
+                tc_hierarchy = get_toolchain_hierarchy({'name': ec['toolchain']['name'],
+                                                        'version': ec['toolchain']['version']})
+                for tc in tc_hierarchy:
+                    if self.lookup_table.get((tc['name'], tc['version'])):
+                        release_date = self.lookup_table.get((tc['name'], tc['version']))
+                        break
 
-        subdir = os.path.join(release, release_date).rstrip('/')
+            if release_date == '':
+                msg = "Couldn't map software version ({}, {}) to a generation. Provide a custom" \
+                      "toolchain mapping through {}"
+                raise EasyBuildError(msg.format(ec['name'], ec['version'], GMNS_ENV))
 
-        return subdir
+        return os.path.join(release, release_date).rstrip('/')
