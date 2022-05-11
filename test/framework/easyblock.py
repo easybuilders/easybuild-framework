@@ -1694,6 +1694,12 @@ class EasyBlockTest(EnhancedTestCase):
         error_regex = "Couldn't find file %s anywhere, and downloading it didn't work either" % fn
         self.assertErrorRegex(EasyBuildError, error_regex, eb.obtain_file, fn, urls=['file://%s' % tmpdir_subdir])
 
+        # also test triggering error when downloading from a URL that includes URL-encoded characters
+        # cfr. https://github.com/easybuilders/easybuild-framework/pull/4005
+        url = 'file://%s' % os.path.dirname(tmpdir_subdir)
+        url += '%2F' + os.path.basename(tmpdir_subdir)
+        self.assertErrorRegex(EasyBuildError, error_regex, eb.obtain_file, fn, urls=[url])
+
         # file specifications via URL also work, are downloaded to (first) sourcepath
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, sandbox_sources)])
         urls = [

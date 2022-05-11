@@ -883,8 +883,10 @@ class EasyBlock(object):
                         error_msg += "please follow the download instructions above, and make the file available "
                         error_msg += "in the active source path (%s)" % ':'.join(source_paths())
                     else:
+                        # flatten list to string with '%' characters escaped (literal '%' desired in 'sprintf')
+                        failedpaths_msg = ', '.join(failedpaths).replace('%', '%%')
                         error_msg += "and downloading it didn't work either... "
-                        error_msg += "Paths attempted (in order): %s " % ', '.join(failedpaths)
+                        error_msg += "Paths attempted (in order): %s " % failedpaths_msg
 
                     raise EasyBuildError(error_msg, filename)
 
