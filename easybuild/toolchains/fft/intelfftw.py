@@ -98,7 +98,9 @@ class IntelFFTW(Fftw):
         imklfftwroot = get_software_root('imkl-FFTW')
         if imklfftwroot:
             # only get cluster_interface_lib from seperate module imkl-FFTW, rest via libmkl_gf/libmkl_intel
-            fft_lib_dirs += [os.path.join(imklfftwroot, 'lib')]
+            if self.options.get('usempi', False):
+                fft_lib_dirs += [os.path.join(imklfftwroot, 'lib')]
+                self.FFT_LIB_DIR = [os.path.join(imklfftwroot, 'lib')]
             fftw_libs.remove(interface_lib)
             fftw_mt_libs.remove(interface_lib)
 
