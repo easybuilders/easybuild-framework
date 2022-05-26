@@ -103,16 +103,16 @@ class IntelFFTW(Fftw):
                 fft_lib_dirs += [os.path.join(imklfftwroot, 'lib')]
                 self.FFT_LIB_DIR = [os.path.join(imklfftwroot, 'lib')]
 
+        fftw_mt_libs = fftw_libs + [x % self.BLAS_LIB_MAP for x in self.BLAS_LIB_MT]
+
         self.log.debug('fftw_libs %s' % fftw_libs.__repr__())
         fftw_libs.extend(self.variables['LIBBLAS'].flatten())  # add BLAS libs (contains dft)
         self.log.debug('fftw_libs %s' % fftw_libs.__repr__())
 
         # building the FFTW interfaces is optional,
         # so make sure libraries are there before FFT_LIB is set
-        fftw_mt_libs = fftw_libs + [x % self.BLAS_LIB_MAP for x in self.BLAS_LIB_MT]
-
         # filter out libraries from list of FFTW libraries to check for if they are not provided by Intel MKL
-        check_fftw_libs = [lib for lib in fftw_mt_libs if lib not in ['dl', 'gfortran']]
+        check_fftw_libs = [lib for lib in fftw_libs + fftw_mt_libs if lib not in ['dl', 'gfortran']]
 
         missing_fftw_libs = [lib for lib in check_fftw_libs if not fftw_lib_exists(lib)]
         if missing_fftw_libs:
@@ -123,6 +123,5 @@ class IntelFFTW(Fftw):
             else:
                 raise EasyBuildError(msg)
         else:
+            self.FFT_LIB = fftw_libs
             self.FFT_LIB_MT = fftw_mt_libs
-
-        self.FFT_LIB = fftw_libs
