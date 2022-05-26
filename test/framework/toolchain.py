@@ -1191,7 +1191,7 @@ class ToolchainTest(EnhancedTestCase):
 
         mkl_libs = ['mkl_cdft_core', 'mkl_blacs_intelmpi_lp64']
         mkl_libs += ['mkl_intel_lp64', 'mkl_sequential', 'mkl_core', 'mkl_intel_ilp64']
-        mkl_libs += ['mkl_intel_thread']
+        mkl_libs += ['mkl_intel_thread', 'mkl_pgi_thread']
         fftw_libs = ['fftw3xc_intel', 'fftw3xc_pgi']
         if LooseVersion(imklver) >= LooseVersion('11'):
             fftw_libs.extend(['fftw3x_cdft_ilp64', 'fftw3x_cdft_lp64'])
