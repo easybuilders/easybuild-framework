@@ -566,6 +566,7 @@ class SystemToolsTest(EnhancedTestCase):
         machine_names = {
             'aarch64': AARCH64,
             'aarch64_be': AARCH64,
+            'arm64': AARCH64,
             'armv7l': AARCH32,
             'ppc64': POWER,
             'ppc64le': POWER,

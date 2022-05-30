@@ -320,7 +320,7 @@ def get_cpu_architecture():
     :return: a value from the CPU_ARCHITECTURES list
     """
     aarch32_regex = re.compile("arm.*")
-    aarch64_regex = re.compile("aarch64.*")
+    aarch64_regex = re.compile("(aarch64|arm64).*")
     power_regex = re.compile("ppc64.*")
     riscv32_regex = re.compile("riscv32.*")
     riscv64_regex = re.compile("riscv64.*")
