@@ -89,6 +89,7 @@ DEFAULT_ENV_FOR_SHEBANG = '/usr/bin/env'
 DEFAULT_ENVVAR_USERS_MODULES = 'HOME'
 DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
 DEFAULT_JOB_BACKEND = 'GC3Pie'
+DEFAULT_JOB_EB_CMD = 'eb'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
 DEFAULT_MINIMAL_BUILD_ENV = 'CC:gcc,CXX:g++'
@@ -327,6 +328,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_INDEX_MAX_AGE: [
         'index_max_age',
+    ],
+    DEFAULT_JOB_EB_CMD: [
+        'job_eb_cmd',
     ],
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
         'max_fail_ratio_adjust_permissions',

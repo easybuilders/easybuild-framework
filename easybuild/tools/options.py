@@ -61,7 +61,7 @@ from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
 from easybuild.tools.build_log import init_logging, log_start, print_msg, print_warning, raise_easybuilderror
 from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE, DEFAULT_ALLOW_LOADED_MODULES
 from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_ENV_FOR_SHEBANG, DEFAULT_ENVVAR_USERS_MODULES
-from easybuild.tools.config import DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE
+from easybuild.tools.config import DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE, DEFAULT_JOB_EB_CMD
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
 from easybuild.tools.config import DEFAULT_MINIMAL_BUILD_ENV, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL
@@ -798,6 +798,7 @@ class EasyBuildOptions(GeneralOption):
             'cores': ("Number of cores to request per job", 'int', 'store', None),
             'deps-type': ("Type of dependency to set between jobs (default depends on job backend)",
                           'choice', 'store', None, [JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN]),
+            'eb-cmd': ("EasyBuild command to use in jobs", 'str', 'store', DEFAULT_JOB_EB_CMD),
             'max-jobs': ("Maximum number of concurrent jobs (queued and running, 0 = unlimited)", 'int', 'store', 0),
             'max-walltime': ("Maximum walltime for jobs (in hours)", 'int', 'store', 24),
             'output-dir': ("Output directory for jobs (default: current directory)", None, 'store', os.getcwd()),
