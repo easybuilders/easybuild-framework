@@ -1115,6 +1115,9 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('LIBFFT'), libfft)
         self.assertEqual(tc.get_variable('LIBFFT_MT'), libfft_mt)
 
+        fft_lib_dir = os.path.join(modules.get_software_root('imkl'), 'mkl/2021.4.0/lib/intel64')
+        self.assertEqual(tc.get_variable('FFT_LIB_DIR'), fft_lib_dir)
+
         tc = self.get_toolchain('intel', version='2021b')
         tc.set_options({'usempi': True})
         tc.prepare()
@@ -1137,6 +1140,9 @@ class ToolchainTest(EnhancedTestCase):
         libfft_mt += '-lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -Wl,--end-group '
         libfft_mt += '-Wl,-Bdynamic -liomp5 -lpthread'
         self.assertEqual(tc.get_variable('LIBFFT_MT'), libfft_mt)
+
+        fft_lib_dir = os.path.join(modules.get_software_root('imkl-FFTW'), 'lib')
+        self.assertEqual(tc.get_variable('FFT_LIB_DIR'), fft_lib_dir)
 
     def test_fosscuda(self):
         """Test whether fosscuda is handled properly."""
@@ -1185,6 +1191,7 @@ class ToolchainTest(EnhancedTestCase):
 
         mkl_libs = ['mkl_cdft_core', 'mkl_blacs_intelmpi_lp64']
         mkl_libs += ['mkl_intel_lp64', 'mkl_sequential', 'mkl_core', 'mkl_intel_ilp64']
+        mkl_libs += ['mkl_intel_thread', 'mkl_pgi_thread']
         fftw_libs = ['fftw3xc_intel', 'fftw3xc_pgi']
         if LooseVersion(imklver) >= LooseVersion('11'):
             fftw_libs.extend(['fftw3x_cdft_ilp64', 'fftw3x_cdft_lp64'])
