@@ -623,13 +623,16 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
                 self.modtool.purge()
 
-        value = '--see-if-this-propagates'
+        extra_flag = '--see-if-this-propagates'
         for var in flag_vars:
             opt = 'extra_' + var.lower()
             tc = self.get_toolchain('foss', version='2018a')
-            tc.set_options({opt: value})
+            tc.set_options({opt: extra_flag, 'linker': 'test'})
             tc.prepare()
-            self.assertTrue(tc.get_variable(var).endswith(' ' + value))
+            val = tc.get_variable(var)
+            self.assertTrue(val.endswith(' ' + extra_flag), "'%s' should end with '%s'" % (val, extra_flag))
+            expected_ld_opt = '-fuse-ld=test'
+            self.assertTrue(' %s ' % expected_ld_opt in val, "'%s' should be found in '%s'" % (expected_ld_opt, val))
             self.modtool.purge()
 
         value = '--only-in-cxxflags'
