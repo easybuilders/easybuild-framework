@@ -42,9 +42,23 @@ _log = fancylogger.getLogger('easyconfig.constants', fname=False)
 
 EXTERNAL_MODULE_MARKER = 'EXTERNAL_MODULE'
 
+
+def _get_arch_constant():
+    """
+    Get value for ARCH constant.
+    """
+    arch = platform.uname()[4]
+
+    # macOS on Arm produces 'arm64' rather than 'aarch64'
+    if arch == 'arm64':
+        arch = 'aarch64'
+
+    return arch
+
+
 # constants that can be used in easyconfig
 EASYCONFIG_CONSTANTS = {
-    'ARCH': (platform.uname()[4], "CPU architecture of current system (aarch64, x86_64, ppc64le, ...)"),
+    'ARCH': (_get_arch_constant(), "CPU architecture of current system (aarch64, x86_64, ppc64le, ...)"),
     'EXTERNAL_MODULE': (EXTERNAL_MODULE_MARKER, "External module marker"),
     'HOME': (os.path.expanduser('~'), "Home directory ($HOME)"),
     'OS_TYPE': (get_os_type(), "System type (e.g. 'Linux' or 'Darwin')"),

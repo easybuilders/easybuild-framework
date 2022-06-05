@@ -4597,6 +4597,12 @@ class EasyConfigTest(EnhancedTestCase):
         test_ec = EasyConfig(test_ec)
         self.assertEqual(test_ec.count_files(), 11)
 
+    def test_ARCH(self):
+        """Test ARCH easyconfig constant."""
+        arch = easyconfig.constants.EASYCONFIG_CONSTANTS['ARCH'][0]
+        known_arch_values = ('aarch64', 'ppc64le', 'riscv64', 'x86_64')
+        self.assertTrue(arch in known_arch_values, "Unexpected value for ARCH constant: %s" % arch)
+
 
 def suite():
     """ returns all the testcases in this module """
