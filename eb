@@ -66,8 +66,7 @@ for python_cmd in ${EB_PYTHON} ${EB_INSTALLPYTHON} 'python' 'python3' 'python2';
 
     # check whether python* command being considered is available
     # (using 'command -v', since 'which' implies an extra dependency)
-    command -v $python_cmd &> /dev/null
-    if [ $? -eq 0 ]; then
+    if { command -v $python_cmd && $python_cmd -V; } &> /dev/null; then
 
         # make sure Python version being used is compatible
         pyver=`$python_cmd -V 2>&1 | cut -f2 -d' '`
