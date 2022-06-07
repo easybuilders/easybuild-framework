@@ -4,6 +4,27 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.5.5 (June 8th 2022)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add toolchain definitions for nvompi (NVHPC + OpenMPI) (#3969), nvpsmpi (NVHPC + ParaStationMPI) (#3970), gfbf (GCC, FlexiBLAS, FFTW) (#4006)
+  - add support for FFTW.MPI toolchain component ($FFT*DIR variables) (#4012)
+  - add support for customizing EasyBuild command used in jobs via --job-eb-cmd (#4016)
+- various bug fixes, including:
+  - fix copying of easyconfig file with --copy-ec without --rebuild if module is already installed (#3993)
+  - ignore deprecation warnings regarding cryptography in Python 3.6 + Blowfish with Python 3.10 in test suite output (#3999)
+  - fix typo in debug log message in easyblock.py (#4000)
+  - fix printing of list of attempted download URLs when url-encoded characters are used in URL (#4005)
+  - set $FFT(W)_LIB_DIR to imkl-FFTW's lib path in build environment if usempi toolchain option is enabled (#4011)
+  - correctly identify Apple Silicon M1 as Arm 64-bit by also considering arm64 next to aarch64 (#4014)
+  - fix 'eb --show-system-info' on Apple M1 system (#4015)
+- other changes:
+  - change 'eb' command to import easybuild.framework to check if EasyBuild framework is available (#3995, #3998)
+
+
 v4.5.4 (March 31st 2022)
 ------------------------
 

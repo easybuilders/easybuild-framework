@@ -883,8 +883,10 @@ class EasyBlock(object):
                         error_msg += "please follow the download instructions above, and make the file available "
                         error_msg += "in the active source path (%s)" % ':'.join(source_paths())
                     else:
+                        # flatten list to string with '%' characters escaped (literal '%' desired in 'sprintf')
+                        failedpaths_msg = ', '.join(failedpaths).replace('%', '%%')
                         error_msg += "and downloading it didn't work either... "
-                        error_msg += "Paths attempted (in order): %s " % ', '.join(failedpaths)
+                        error_msg += "Paths attempted (in order): %s " % failedpaths_msg
 
                     raise EasyBuildError(error_msg, filename)
 
@@ -3286,7 +3288,7 @@ class EasyBlock(object):
         if self.toolchain.use_rpath:
             self.sanity_check_rpath()
         else:
-            self.log.debug("Skiping RPATH sanity check")
+            self.log.debug("Skipping RPATH sanity check")
 
     def _sanity_check_step_extensions(self):
         """Sanity check on extensions (if any)."""
@@ -3452,7 +3454,7 @@ class EasyBlock(object):
                 self.log.warning("RPATH sanity check failed!")
                 self.sanity_check_fail_msgs.extend(rpath_fails)
         else:
-            self.log.debug("Skiping RPATH sanity check")
+            self.log.debug("Skipping RPATH sanity check")
 
         # pass or fail
         if self.sanity_check_fail_msgs:

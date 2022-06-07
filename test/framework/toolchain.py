@@ -1017,6 +1017,60 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('LIBFFT'), '-lfftw3_mpi -lfftw3')
         self.assertEqual(tc.get_variable('LIBFFT_MT'), '-lfftw3 -lpthread')
 
+        self.modtool.purge()
+        self.setup_sandbox_for_foss_fftw(self.test_prefix)
+        self.modtool.prepend_module_path(self.test_prefix)
+
+        tc = self.get_toolchain('foss', version='2018a-FFTW.MPI')
+        tc.prepare()
+
+        fft_static_libs = 'libfftw3.a'
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS'), fft_static_libs)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS'), fft_static_libs)
+
+        fft_static_libs_mt = 'libfftw3.a,libpthread.a'
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS_MT'), fft_static_libs_mt)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS_MT'), fft_static_libs_mt)
+
+        self.assertEqual(tc.get_variable('LIBFFT'), '-lfftw3')
+        self.assertEqual(tc.get_variable('LIBFFT_MT'), '-lfftw3 -lpthread')
+
+        fft_lib_dir = os.path.join(modules.get_software_root('FFTW'), 'lib')
+        self.assertEqual(tc.get_variable('FFT_LIB_DIR'), fft_lib_dir)
+
+        tc = self.get_toolchain('foss', version='2018a-FFTW.MPI')
+        tc.set_options({'openmp': True})
+        tc.prepare()
+
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS'), fft_static_libs)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS'), fft_static_libs)
+
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS_MT'), 'libfftw3_omp.a,' + fft_static_libs_mt)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS_MT'), 'libfftw3_omp.a,' + fft_static_libs_mt)
+
+        self.assertEqual(tc.get_variable('LIBFFT'), '-lfftw3')
+        self.assertEqual(tc.get_variable('LIBFFT_MT'), '-lfftw3_omp -lfftw3 -lpthread')
+
+        fft_lib_dir = os.path.join(modules.get_software_root('FFTW'), 'lib')
+        self.assertEqual(tc.get_variable('FFT_LIB_DIR'), fft_lib_dir)
+
+        tc = self.get_toolchain('foss', version='2018a-FFTW.MPI')
+        tc.set_options({'usempi': True})
+        tc.prepare()
+
+        fft_static_libs = 'libfftw3_mpi.a,libfftw3.a'
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS'), fft_static_libs)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS'), fft_static_libs)
+
+        self.assertEqual(tc.get_variable('FFT_STATIC_LIBS_MT'), fft_static_libs_mt)
+        self.assertEqual(tc.get_variable('FFTW_STATIC_LIBS_MT'), fft_static_libs_mt)
+
+        self.assertEqual(tc.get_variable('LIBFFT'), '-lfftw3_mpi -lfftw3')
+        self.assertEqual(tc.get_variable('LIBFFT_MT'), '-lfftw3 -lpthread')
+
+        fft_lib_dir = os.path.join(modules.get_software_root('FFTW.MPI'), 'lib')
+        self.assertEqual(tc.get_variable('FFT_LIB_DIR'), fft_lib_dir)
+
     def test_fft_env_vars_intel(self):
         """Test setting of $FFT* environment variables using intel toolchain."""
 
@@ -1115,6 +1169,9 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('LIBFFT'), libfft)
         self.assertEqual(tc.get_variable('LIBFFT_MT'), libfft_mt)
 
+        fft_lib_dir = os.path.join(modules.get_software_root('imkl'), 'mkl/2021.4.0/lib/intel64')
+        self.assertEqual(tc.get_variable('FFT_LIB_DIR'), fft_lib_dir)
+
         tc = self.get_toolchain('intel', version='2021b')
         tc.set_options({'usempi': True})
         tc.prepare()
@@ -1137,6 +1194,9 @@ class ToolchainTest(EnhancedTestCase):
         libfft_mt += '-lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -Wl,--end-group '
         libfft_mt += '-Wl,-Bdynamic -liomp5 -lpthread'
         self.assertEqual(tc.get_variable('LIBFFT_MT'), libfft_mt)
+
+        fft_lib_dir = os.path.join(modules.get_software_root('imkl-FFTW'), 'lib')
+        self.assertEqual(tc.get_variable('FFT_LIB_DIR'), fft_lib_dir)
 
     def test_fosscuda(self):
         """Test whether fosscuda is handled properly."""
@@ -1168,6 +1228,33 @@ class ToolchainTest(EnhancedTestCase):
         # check CUDA runtime lib
         self.assertTrue("-lrt -lcudart" in tc.get_variable('LIBS'))
 
+    def setup_sandbox_for_foss_fftw(self, moddir, fftwver='3.3.7'):
+        """Set up sandbox for foss FFTW and FFTW.MPI"""
+        # hack to make foss FFTW lib check pass
+        # create dummy FFTW and FFTW.MPI modules
+
+        fftw_module_path = os.path.join(moddir, 'FFTW', fftwver)
+        fftw_dir = os.path.join(self.test_prefix, 'software', 'FFTW', fftwver)
+
+        fftw_mod_txt = '\n'.join([
+            "#%Module",
+            "setenv EBROOTFFTW %s" % fftw_dir,
+            "setenv EBVERSIONFFTW %s" % fftwver,
+        ])
+        write_file(fftw_module_path, fftw_mod_txt)
+
+        fftw_mpi_module_path = os.path.join(moddir, 'FFTW.MPI', fftwver)
+        fftw_mpi_dir = os.path.join(self.test_prefix, 'software', 'FFTW.MPI', fftwver)
+        fftw_mpi_mod_txt = '\n'.join([
+            "#%Module",
+            "setenv EBROOTFFTWMPI %s" % fftw_mpi_dir,
+            "setenv EBVERSIONFFTWMPI %s" % fftwver,
+        ])
+        write_file(fftw_mpi_module_path, fftw_mpi_mod_txt)
+
+        os.makedirs(os.path.join(fftw_dir, 'lib'))
+        os.makedirs(os.path.join(fftw_mpi_dir, 'lib'))
+
     def setup_sandbox_for_intel_fftw(self, moddir, imklver='2018.1.163'):
         """Set up sandbox for Intel FFTW"""
         # hack to make Intel FFTW lib check pass
@@ -1185,6 +1272,7 @@ class ToolchainTest(EnhancedTestCase):
 
         mkl_libs = ['mkl_cdft_core', 'mkl_blacs_intelmpi_lp64']
         mkl_libs += ['mkl_intel_lp64', 'mkl_sequential', 'mkl_core', 'mkl_intel_ilp64']
+        mkl_libs += ['mkl_intel_thread', 'mkl_pgi_thread']
         fftw_libs = ['fftw3xc_intel', 'fftw3xc_pgi']
         if LooseVersion(imklver) >= LooseVersion('11'):
             fftw_libs.extend(['fftw3x_cdft_ilp64', 'fftw3x_cdft_lp64'])

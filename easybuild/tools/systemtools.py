@@ -94,6 +94,7 @@ ARCH_KEY_PREFIX = 'arch='
 # Vendor constants
 AMD = 'AMD'
 APM = 'Applied Micro'
+APPLE = 'Apple'
 ARM = 'ARM'
 BROADCOM = 'Broadcom'
 CAVIUM = 'Cavium'
@@ -123,7 +124,7 @@ PROC_MEMINFO_FP = '/proc/meminfo'
 
 CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, RISCV32, RISCV64, X86_64]
 CPU_FAMILIES = [AMD, ARM, INTEL, POWER, POWER_LE, RISCV]
-CPU_VENDORS = [AMD, APM, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
+CPU_VENDORS = [AMD, APM, APPLE, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
 # ARM implementer IDs (i.e., the hexadeximal keys) taken from ARMv8-A Architecture Reference Manual
 # (ARM DDI 0487A.j, Section G6.2.102, Page G6-4493)
 VENDOR_IDS = {
@@ -320,7 +321,7 @@ def get_cpu_architecture():
     :return: a value from the CPU_ARCHITECTURES list
     """
     aarch32_regex = re.compile("arm.*")
-    aarch64_regex = re.compile("aarch64.*")
+    aarch64_regex = re.compile("(aarch64|arm64).*")
     power_regex = re.compile("ppc64.*")
     riscv32_regex = re.compile("riscv32.*")
     riscv64_regex = re.compile("riscv64.*")
@@ -384,11 +385,18 @@ def get_cpu_vendor():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.vendor"
-        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, log_ok=False)
         out = out.strip()
         if ec == 0 and out in VENDOR_IDS:
             vendor = VENDOR_IDS[out]
             _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
+        else:
+            cmd = "sysctl -n machdep.cpu.brand_string"
+            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, log_ok=False)
+            out = out.strip().split(' ')[0]
+            if ec == 0 and out in CPU_VENDORS:
+                vendor = out
+                _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
 
     if vendor is None:
         vendor = UNKNOWN
@@ -533,9 +541,11 @@ def get_cpu_speed():
         cmd = "sysctl -n hw.cpufrequency_max"
         _log.debug("Trying to determine CPU frequency on Darwin via cmd '%s'" % cmd)
         out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
-        if ec == 0:
+        out = out.strip()
+        cpu_freq = None
+        if ec == 0 and out:
             # returns clock frequency in cycles/sec, but we want MHz
-            cpu_freq = float(out.strip()) // (1000 ** 2)
+            cpu_freq = float(out) // (1000 ** 2)
 
     else:
         raise SystemToolsException("Could not determine CPU clock frequency (OS: %s)." % os_type)
@@ -578,7 +588,7 @@ def get_cpu_features():
         for feature_set in ['extfeatures', 'features', 'leaf7_features']:
             cmd = "sysctl -n machdep.cpu.%s" % feature_set
             _log.debug("Trying to determine CPU features on Darwin via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, log_ok=False)
             if ec == 0:
                 cpu_feat.extend(out.strip().lower().split())
 

@@ -447,7 +447,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     forced = options.force or options.rebuild
     dry_run_mode = options.dry_run or options.dry_run_short or options.missing_modules
 
-    keep_available_modules = forced or dry_run_mode or options.extended_dry_run or pr_options
+    keep_available_modules = forced or dry_run_mode or options.extended_dry_run or pr_options or options.copy_ec
     keep_available_modules = keep_available_modules or options.inject_checksums or options.sanity_check_only
 
     # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
