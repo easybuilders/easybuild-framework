@@ -64,14 +64,19 @@ def check_value(value, context):
 class EasyStack(object):
     """One class instance per easystack. General options + list of all SoftwareSpecs instances"""
 
-    def __init__(self):
+    def __init__(self, easyconfigs=None):
         self.easybuild_version = None
         self.robot = False
         self.software_list = []
+        self.easyconfigs = []
+        if easyconfigs is not None:
+            self.easyconfigs.extend(easyconfigs)
 
     def compose_ec_filenames(self):
         """Returns a list of all easyconfig names"""
         ec_filenames = []
+
+        # entries specified via 'software' top-level key
         for sw in self.software_list:
             full_ec_version = det_full_ec_version({
                 'toolchain': {'name': sw.toolchain_name, 'version': sw.toolchain_version},
@@ -80,6 +85,11 @@ class EasyStack(object):
             })
             ec_filename = '%s-%s.eb' % (sw.name, full_ec_version)
             ec_filenames.append(ec_filename)
+
+        # entries specified via 'easyconfigs' top-level key
+        for ec in self.easyconfigs:
+            ec_filenames.append(ec + '.eb')
+
         return ec_filenames
 
     # flags applicable to all sw (i.e. robot)
@@ -108,7 +118,8 @@ class EasyStackParser(object):
 
     @staticmethod
     def parse(filepath):
-        """Parses YAML file and assigns obtained values to SW config instances as well as general config instance"""
+        """
+        Parses YAML file and assigns obtained values to SW config instances as well as general config instance"""
         yaml_txt = read_file(filepath)
 
         try:
@@ -116,13 +127,44 @@ class EasyStackParser(object):
         except yaml.YAMLError as err:
             raise EasyBuildError("Failed to parse %s: %s" % (filepath, err))
 
-        easystack = EasyStack()
+        easystack_data = None
+        top_keys = ('easyconfigs', 'software')
+        for key in top_keys:
+            if key in easystack_raw:
+                easystack_data = easystack_raw[key]
+                break
 
-        try:
-            software = easystack_raw["software"]
-        except KeyError:
-            wrong_structure_file = "Not a valid EasyStack YAML file: no 'software' key found"
-            raise EasyBuildError(wrong_structure_file)
+        if easystack_data is None:
+            msg = "Not a valid EasyStack YAML file: no 'easyconfigs' or 'software' top-level key found"
+            raise EasyBuildError(msg)
+        else:
+            parse_method_name = 'parse_by_' + key
+            parse_method = getattr(EasyStackParser, 'parse_by_%s' % key, None)
+            if parse_method is None:
+                raise EasyBuildError("Easystack parse method '%s' not found!", parse_method_name)
+
+        # assign general easystack attributes
+        easybuild_version = easystack_raw.get('easybuild_version', None)
+        robot = easystack_raw.get('robot', False)
+
+        return parse_method(filepath, easystack_data, easybuild_version=easybuild_version, robot=robot)
+
+    @staticmethod
+    def parse_by_easyconfigs(filepath, easyconfigs, easybuild_version=None, robot=False):
+        """
+        Parse easystack file with 'easyconfigs' as top-level key.
+        """
+        easystack = EasyStack(easyconfigs=easyconfigs)
+
+        return easystack
+
+    @staticmethod
+    def parse_by_software(filepath, software, easybuild_version=None, robot=False):
+        """
+        Parse easystack file with 'software' as top-level key.
+        """
+
+        easystack = EasyStack()
 
         # assign software-specific easystack attributes
         for name in software:
@@ -224,8 +266,8 @@ class EasyStackParser(object):
                     easystack.software_list.append(sw)
 
             # assign general easystack attributes
-            easystack.easybuild_version = easystack_raw.get('easybuild_version', None)
-            easystack.robot = easystack_raw.get('robot', False)
+            easystack.easybuild_version = easybuild_version
+            easystack.robot = robot
 
         return easystack
 
