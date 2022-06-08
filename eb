@@ -92,12 +92,12 @@ for python_cmd in "${EB_PYTHON}" "${EB_INSTALLPYTHON}" 'python' 'python3' 'pytho
             fi
         fi
 
-        # break out of for loop if we've found a valid python command
+        # break out of for loop if we've found a working python command
         if [ -n "${PYTHON}" ]; then
             break
         fi
     else
-        verbose "No valid '${python_cmd}' found in \$PATH, skipping..."
+        verbose "No working '${python_cmd}' found in \$PATH, skipping..."
     fi
 done
 
