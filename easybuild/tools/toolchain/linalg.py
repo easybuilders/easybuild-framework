@@ -86,7 +86,7 @@ class LinAlg(Toolchain):
         super(LinAlg, self).__init__(*args, **kwargs)
 
     def set_variables(self):
-        """Set the variables"""
+        """Set environment variables that define build environment."""
         # TODO is link order fully preserved with this order ?
         self._set_blas_variables()
         self._set_lapack_variables()

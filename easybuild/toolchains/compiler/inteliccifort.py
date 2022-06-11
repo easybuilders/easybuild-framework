@@ -132,7 +132,7 @@ class IntelIccIfort(Compiler):
         self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
 
     def set_variables(self):
-        """Set the variables."""
+        """Set environment variables that define build environment."""
         # -fopenmp is not supported in old versions (11.x)
         icc_version, _ = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
         if LooseVersion(icc_version) < LooseVersion('12'):

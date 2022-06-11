@@ -365,9 +365,7 @@ class Toolchain(object):
         return res
 
     def set_variables(self):
-        """Do nothing? Everything should have been set by others
-            Needs to be defined for super() relations
-        """
+        """Set environment variables that define build environment."""
         if self.options.option('packed-linker-options'):
             self.log.devel("set_variables: toolchain variables. packed-linker-options.")
             self.variables.try_function_on_element('set_packed_linker_options')

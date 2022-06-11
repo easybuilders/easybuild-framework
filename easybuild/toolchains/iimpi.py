@@ -101,7 +101,7 @@ class Iimpi(IccIfort, IntelCompilersToolchain, IntelMPI):
             IccIfort._set_compiler_vars(self)
 
     def set_variables(self):
-        """Intel compilers-specific adjustments after setting compiler variables."""
+        """Set environment variables that define build environment."""
         if self.oneapi_gen:
             IntelCompilersToolchain.set_variables(self)
         else:

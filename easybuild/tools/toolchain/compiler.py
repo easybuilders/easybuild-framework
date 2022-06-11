@@ -169,7 +169,7 @@ class Compiler(Toolchain):
         super(Compiler, self).set_options(options)
 
     def set_variables(self):
-        """Set the variables"""
+        """Set environment variables that define build environment."""
         self._set_compiler_vars()
         self._set_optimal_architecture()
         self._set_compiler_flags()

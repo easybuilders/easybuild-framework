@@ -111,7 +111,7 @@ class FujitsuSSL(LinAlg):
         return tc_def
 
     def set_variables(self):
-        """Set the variables"""
+        """Set environment variables that define build environment."""
         self._set_blas_variables()
         self._set_lapack_variables()
         self._set_scalapack_variables()
