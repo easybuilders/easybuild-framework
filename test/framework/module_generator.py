@@ -958,7 +958,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             txt += '\n'
         txt += self.modgen.get_description()
         test_envvar = 'TEST_FLAGS'
-        test_flags = '-Xflags1="foo bar" -Xflags2="more flags" '
+        test_flags = '-Xflags1="foo bar" -Xflags2="more flags"'
         txt += self.modgen.set_environment(test_envvar, test_flags)
 
         version_one = '1.0'
