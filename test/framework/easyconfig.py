@@ -73,7 +73,8 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
 from easybuild.tools.py2vs3 import OrderedDict, reload
 from easybuild.tools.robot import resolve_dependencies
-from easybuild.tools.systemtools import AARCH64, POWER, X86_64, get_cpu_architecture, get_shared_lib_ext
+from easybuild.tools.systemtools import AARCH64, KNOWN_ARCH_CONSTANTS, POWER, X86_64
+from easybuild.tools.systemtools import get_cpu_architecture, get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str, quote_py_str
 from test.framework.utilities import find_full_path
@@ -4600,8 +4601,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_ARCH(self):
         """Test ARCH easyconfig constant."""
         arch = easyconfig.constants.EASYCONFIG_CONSTANTS['ARCH'][0]
-        known_arch_values = ('aarch64', 'ppc64le', 'riscv64', 'x86_64')
-        self.assertTrue(arch in known_arch_values, "Unexpected value for ARCH constant: %s" % arch)
+        self.assertTrue(arch in KNOWN_ARCH_CONSTANTS, "Unexpected value for ARCH constant: %s" % arch)
 
 
 def suite():

@@ -34,7 +34,8 @@ import os
 import platform
 
 from easybuild.base import fancylogger
-from easybuild.tools.systemtools import get_os_name, get_os_type, get_os_version
+from easybuild.tools.build_log import print_warning
+from easybuild.tools.systemtools import KNOWN_ARCH_CONSTANTS, get_os_name, get_os_type, get_os_version
 
 
 _log = fancylogger.getLogger('easyconfig.constants', fname=False)
@@ -52,6 +53,9 @@ def _get_arch_constant():
     # macOS on Arm produces 'arm64' rather than 'aarch64'
     if arch == 'arm64':
         arch = 'aarch64'
+
+    if arch not in KNOWN_ARCH_CONSTANTS:
+        print_warning("Using unknown value for ARCH constant: %s", arch)
 
     return arch
 
