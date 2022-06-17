@@ -1493,7 +1493,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # test error for examples without toolchain-generation mapping in lookup table. EasyConfig() calls
         # det_module_subdir() of the generationModuleNamingScheme object for the toolchain (binutils)
         with self.assertRaises(EasyBuildError) as cm:
-            ec = EasyConfig(glob.glob(os.path.join(ecs_dir, '*', '*', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb'))[0])
+            EasyConfig(glob.glob(os.path.join(ecs_dir, '*', '*', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb'))[0])
 
         msg = "Couldn't map software version (binutils, 2.26) to a generation. Provide a customtoolchain " \
               "mapping through GENERATION_MODULE_NAMING_SCHEME_LOOKUP_TABLE"
