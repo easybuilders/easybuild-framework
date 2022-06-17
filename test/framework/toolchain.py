@@ -47,8 +47,8 @@ from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir
-from easybuild.tools.filetools import read_file, symlink, write_file, which
+from easybuild.tools.filetools import adjust_permissions, apply_regex_substitutions, copy_dir, copy_file
+from easybuild.tools.filetools import find_eb_script, mkdir, read_file, symlink, write_file, which
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -2769,6 +2769,79 @@ class ToolchainTest(EnhancedTestCase):
         res = env_vars_external_module('test', None, {})
         expected = {}
         self.assertEqual(res, expected)
+
+    def test_linker_toolchainopt(self):
+        """
+        Test use of 'linker' toolchain option.
+        """
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+
+        # create module file for GCC 11.x and 12.x, since using mold linker with it is hanled differently in GCC 12.x
+        test_mod_dir = os.path.join(self.test_prefix, 'modules')
+        mkdir(test_mod_dir, parents=True)
+
+        gcc11_mod_file = os.path.join(test_mod_dir, 'GCC', '11.3.0')
+        copy_file(os.path.join(test_dir, 'modules', 'GCC', '7.3.0-2.30'), gcc11_mod_file)
+        apply_regex_substitutions(gcc11_mod_file, [(r'7\.3\.0-2\.30', r'11.3.0')], on_missing_match='error')
+
+        gcc12_mod_file = os.path.join(test_mod_dir, 'GCC', '12.1.0')
+        copy_file(os.path.join(test_dir, 'modules', 'GCC', '7.3.0-2.30'), gcc12_mod_file)
+        apply_regex_substitutions(gcc12_mod_file, [(r'7\.3\.0-2\.30', r'12.1.0')], on_missing_match='error')
+
+        self.modtool.use(test_mod_dir)
+
+        # for old GCC versions, 'mold' is assumed to be available via a module,
+        # and 'ld' should be in $EBROOTMOLD/libexec/mold/
+        os.environ['EBROOTMOLD'] = os.path.join(self.test_prefix, 'path', 'to', 'mold')
+        ld_path = os.path.join(os.environ['EBROOTMOLD'], 'libexec', 'mold', 'ld')
+        write_file(ld_path, "#!/bin/bash\necho this-is-ld")
+        adjust_permissions(ld_path, stat.S_IRUSR | stat.S_IXUSR)
+
+        comp_flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
+        # make sure we start with a clean slate
+        for var in comp_flag_vars:
+            if var in os.environ:
+                del os.environ[var]
+
+        # flags are different for older versions of GCC (< 12.0) for mold linker
+        tcs = [
+            ('GCCcore', '6.2.0'),
+            ('GCC', '11.3.0'),
+        ]
+        for tcname, tcver in tcs:
+            tc = self.get_toolchain(tcname, version=tcver)
+            tc.set_options({'linker': 'mold'})
+            tc.prepare()
+            expected_flags = "-B%s" % os.path.dirname(ld_path)
+            for var in comp_flag_vars:
+                val = os.environ[var]
+                msg = "Expected flags '%s' should be found in $%s: %s" % (expected_flags, var, val)
+                self.assertTrue(expected_flags in val, msg)
+                del os.environ[var]
+            self.modtool.purge()
+
+        # normal case: -fuse-ld=...
+        tcs.extend([
+            ('GCC', '12.1.0'),
+            ('intel-compilers', '2021.4.0'),
+        ])
+        for linker in ('test', 'mold'):
+            for tcname, tcver in tcs:
+
+                # skip special case (are handled separately above)
+                if linker == 'mold' and tcname in ('GCC', 'GCCcore') and 'tcver' != '12.10':
+                    continue
+
+                tc = self.get_toolchain(tcname, version=tcver)
+                tc.set_options({'linker': linker})
+                tc.prepare()
+                expected_flags = "-fuse-ld=%s" % linker
+                for var in comp_flag_vars:
+                    val = os.environ[var]
+                    msg = "Flags '%s' should be found in $%s for %s/%s: %s" % (expected_flags, var, tcname, tcver, val)
+                    self.assertTrue(expected_flags in val, msg)
+                    del os.environ[var]
+                self.modtool.purge()
 
 
 def suite():
