@@ -26,6 +26,7 @@
 Implementation of a different generation specific module naming scheme using release dates.
 :author: Thomas Eylenbosch (Gluo N.V.)
 :author: Thomas Soenen (B-square IT services)
+:author: Alan O'Cais (CECAM)
 """
 
 import os
@@ -34,13 +35,11 @@ import json
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.robot import search_easyconfigs
+from easybuild.tools.config import ConfigurationVariables
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
-
-DUMMY_TOOLCHAIN_NAME = 'dummy'
-SYSTEM_TOOLCHAIN_NAME = 'system'
+from easybuild.tools.toolchain.toolchain import is_system_toolchain
 
 GMNS_ENV = "GENERATION_MODULE_NAMING_SCHEME_LOOKUP_TABLE"
-GMNS_PATH = os.environ.get(GMNS_ENV)
 
 class GenerationModuleNamingScheme(ModuleNamingScheme):
     """Class implementing the generational module naming scheme."""
@@ -72,6 +71,11 @@ class GenerationModuleNamingScheme(ModuleNamingScheme):
                                             print_result=False)
         self.generations = [x.split('-')[1].split('.')[0] for x in foss_filenames]
 
+        # get_toolchain_hierarchy() depends on ActiveMNS(), which can't point to 
+        # GenerationModuleNamingScheme to prevent circular reference errors. For that purpose, the MNS
+        # that ActiveMNS() points to is tweaked while get_toolchain_hierarchy() is used.
+        ConfigurationVariables()._FrozenDict__dict['module_naming_scheme'] = 'EasyBuildMNS'
+
         # map generations on toolchains
         for generation in self.generations:
             for tc in get_toolchain_hierarchy({'name':'foss', 'version':generation}):
@@ -79,30 +83,34 @@ class GenerationModuleNamingScheme(ModuleNamingScheme):
             # include (foss, <generation>) as a toolchain aswell
             self.lookup_table[('foss', generation)] = generation
 
+        # Force config to point to other MNS
+        ConfigurationVariables()._FrozenDict__dict['module_naming_scheme'] = 'GenerationModuleNamingScheme'
+
         # users can provide custom generation-toolchain mapping through a file
-        if GMNS_PATH:
-            if not os.path.isfile(GMNS_PATH):
+        path = os.environ.get(GMNS_ENV)
+        if path:
+            if not os.path.isfile(path):
                 msg = "value of ENV {} ({}) should be a valid filepath"
-                raise EasyBuildError(msg.format(GMNS_ENV, GMNS_PATH))
-            with open(GMNS_PATH, 'r') as hc_lookup:
+                raise EasyBuildError(msg.format(GMNS_ENV, path))
+            with open(path, 'r') as hc_lookup:
                 try:
                     hc_lookup_data = json.loads(hc_lookup.read())
                 except json.decoder.JSONDecodeError:
-                    raise EasyBuildError("{} can't be decoded as json".format(GMNS_PATH))
+                    raise EasyBuildError("{} can't be decoded as json".format(path))
                 if not isinstance(hc_lookup_data, dict):
-                    raise EasyBuildError("{} should contain a dict".format(GMNS_PATH))
+                    raise EasyBuildError("{} should contain a dict".format(path))
                 if not set(hc_lookup_data.keys()) <= set(self.generations):
-                    raise EasyBuildError("Keys of {} should be generations".format(GMNS_PATH))
+                    raise EasyBuildError("Keys of {} should be generations".format(path))
                 for generation, toolchains in hc_lookup_data.items():
                     if not isinstance(toolchains, list):
-                        raise EasyBuildError("Values of {} should be lists".format(GMNS_PATH))
+                        raise EasyBuildError("Values of {} should be lists".format(path))
                     for tc in toolchains:
-                        if not isinsance(tc, dict):
+                        if not isinstance(tc, dict):
                             msg = "Toolchains in {} should be of type dict"
-                            raise EasyBuildError(msg.format(GMNS_PATH))
-                        if set(tc.keys()) != set('name', 'version'):
+                            raise EasyBuildError(msg.format(path))
+                        if set(tc.keys()) != {'name', 'version'}:
                             msg = "Toolchains in {} should have two keys ('name', 'version')"
-                            raise EasyBuildError(msg.format(GMNS_PATH))
+                            raise EasyBuildError(msg.format(path))
                         self.lookup_table[(tc['name'], tc['version'])] = generation
 
     def det_full_module_name(self, ec):
@@ -132,24 +140,24 @@ class GenerationModuleNamingScheme(ModuleNamingScheme):
         is determined by mapping toolchain on a generation.
         """
         release = 'releases'
-        release_date = ''
+        release_version = ''
 
-        if ec['toolchain']['name'] in [DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME]:
+        if is_system_toolchain(ec['toolchain']['name']):
             release = 'General'
         else:
             if self.lookup_table.get((ec['toolchain']['name'], ec['toolchain']['version'])):
-                release_date = self.lookup_table[(ec['toolchain']['name'], ec['toolchain']['version'])]
+                release_version = self.lookup_table[(ec['toolchain']['name'], ec['toolchain']['version'])]
             else:
                 tc_hierarchy = get_toolchain_hierarchy({'name': ec['toolchain']['name'],
                                                         'version': ec['toolchain']['version']})
                 for tc in tc_hierarchy:
                     if self.lookup_table.get((tc['name'], tc['version'])):
-                        release_date = self.lookup_table.get((tc['name'], tc['version']))
+                        release_version = self.lookup_table.get((tc['name'], tc['version']))
                         break
 
-            if release_date == '':
+            if release_version == '':
                 msg = "Couldn't map software version ({}, {}) to a generation. Provide a custom" \
                       "toolchain mapping through {}"
                 raise EasyBuildError(msg.format(ec['name'], ec['version'], GMNS_ENV))
 
-        return os.path.join(release, release_date).rstrip('/')
+        return os.path.join(release, release_version).rstrip('/')
