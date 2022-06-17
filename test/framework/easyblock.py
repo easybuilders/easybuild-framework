@@ -2126,8 +2126,10 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(ec['ec'])
         eb.silent = True
 
-        # $EBROOTGCC and $EBROOTHWLOC must be set to set up build environment
+        # $EBROOTGCC and $EBROOTHWLOC must be set to set up build environment;
+        # $EBVERSIONGCC is also required
         os.environ['EBROOTGCC'] = self.test_prefix
+        os.environ['EBVERSIONGCC'] = '6.4.0'
         os.environ['EBROOTHWLOC'] = self.test_prefix
 
         # loaded of modules for toolchain + dependencies can be disabled via load_tc_deps_modules=False
@@ -2135,6 +2137,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(self.modtool.list(), [])
 
         del os.environ['EBROOTGCC']
+        del os.environ['EBVERSIONGCC']
         del os.environ['EBROOTHWLOC']
 
         # modules for toolchain + dependencies are still loaded by default
