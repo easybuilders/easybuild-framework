@@ -41,6 +41,7 @@ from easybuild.tools.toolchain.toolchain import is_system_toolchain
 
 GMNS_ENV = "GENERATION_MODULE_NAMING_SCHEME_LOOKUP_TABLE"
 
+
 class GenerationModuleNamingScheme(ModuleNamingScheme):
     """Class implementing the generational module naming scheme."""
 
@@ -71,14 +72,14 @@ class GenerationModuleNamingScheme(ModuleNamingScheme):
                                             print_result=False)
         self.generations = [x.split('-')[1].split('.')[0] for x in foss_filenames]
 
-        # get_toolchain_hierarchy() depends on ActiveMNS(), which can't point to 
+        # get_toolchain_hierarchy() depends on ActiveMNS(), which can't point to
         # GenerationModuleNamingScheme to prevent circular reference errors. For that purpose, the MNS
         # that ActiveMNS() points to is tweaked while get_toolchain_hierarchy() is used.
         ConfigurationVariables()._FrozenDict__dict['module_naming_scheme'] = 'EasyBuildMNS'
 
         # map generations on toolchains
         for generation in self.generations:
-            for tc in get_toolchain_hierarchy({'name':'foss', 'version':generation}):
+            for tc in get_toolchain_hierarchy({'name': 'foss', 'version': generation}):
                 self.lookup_table[(tc['name'], tc['version'])] = generation
             # include (foss, <generation>) as a toolchain aswell
             self.lookup_table[('foss', generation)] = generation
