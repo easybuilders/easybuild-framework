@@ -32,6 +32,7 @@ import glob
 import os
 import re
 import sys
+import json
 import tempfile
 from distutils.version import LooseVersion
 from unittest import TextTestRunner, TestSuite
@@ -47,7 +48,6 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import EnvironmentModulesC, EnvironmentModulesTcl, Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
-
 
 class ModuleGeneratorTest(EnhancedTestCase):
     """Tests for module_generator module."""
@@ -1456,9 +1456,20 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'valid_module_classes': moduleclasses,
         }
 
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'GenerationModuleNamingScheme'
+        os.environ['GENERATION_MODULE_NAMING_SCHEME_LOOKUP_TABLE'] = '/tmp/gmns_hardcoded_data.json'
+
+        gmns_hardcoded_data = {"2018a": [{"name": "GCC", "version": "4.9.2"}]}
+        with open('/tmp/gmns_hardcoded_data.json', 'w') as f:
+            f.write(json.dumps(gmns_hardcoded_data))
+            f.close()
+
+        init_config(build_options=build_options)
+
         def test_ec(ecfile, short_modname, mod_subdir, modpath_exts, user_modpath_exts, init_modpaths):
             """Test whether active module naming scheme returns expected values."""
             ec = EasyConfig(glob.glob(os.path.join(ecs_dir, '*', '*', ecfile))[0])
+
             self.assertEqual(ActiveMNS().det_full_module_name(ec), os.path.join(mod_subdir, short_modname))
             self.assertEqual(ActiveMNS().det_short_module_name(ec), short_modname)
             self.assertEqual(ActiveMNS().det_module_subdir(ec), mod_subdir)
@@ -1466,36 +1477,35 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(ActiveMNS().det_user_modpath_extensions(ec), user_modpath_exts)
             self.assertEqual(ActiveMNS().det_init_modulepaths(ec), init_modpaths)
 
-        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'GenerationModuleNamingScheme'
-        init_config(build_options=build_options)
-
+        # test examples that are resolved by the dynamically generated generation lookup table
         # format: easyconfig_file: (short_mod_name, mod_subdir, modpath_exts, user_modpath_exts, init_modpaths)
         test_ecs = {
+            'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb': ('OpenMPI/2.1.2', 'releases/2018a', [], [], []),
             'GCCcore-4.9.3.eb': ('GCCcore/4.9.3', 'General', [], [], []),
             'gcccuda-2018a.eb': ('gcccuda/2018a', 'General', [], [], []),
-            'binutils-2.25-GCCcore-4.9.3.eb': ('binutils/2.25', 'releases/2016a', [], [], []),
-            'GCC-6.4.0-2.28.eb': ('GCC/6.4.0-2.28', 'General', [], [], []),
-            'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb': ('OpenMPI/2.1.2', 'releases/2018a', [], [], []),
-            'gzip-1.5-foss-2018a.eb': ('gzip/1.5', 'releases/2018a', [], [], []),
-            'gzip-1.5-intel-2018a.eb': ('gzip/1.5', 'releases/2018a', [], [], []),
-            'foss-2018a.eb': ('foss/2018a', 'General', [], [], []),
-            'ifort-2016.1.150.eb': ('ifort/2016.1.150', 'General', [], [], []),
-            'iccifort-2019.4.243.eb': ('iccifort/2019.4.243', 'General', [], [], []),
-            'imkl-2019.4.243-iimpi-2019.08.eb': ('imkl/2019.4.243', 'releases/TBD', [], [], []),
-            'CUDA-9.1.85-GCC-6.4.0-2.28.eb': ('CUDA/9.1.85', 'releases/2018a', [], [], []),
-            'CUDA-5.5.22.eb': ('CUDA/5.5.22', 'General', [], [], []),
-            'CUDA-5.5.22-iccifort-2016.1.150-GCC-4.9.3-2.25.eb': ('CUDA/5.5.22', 'releases/TBD', [], [], []),
-            'CUDA-10.1.243-iccifort-2019.4.243.eb': ('CUDA/10.1.243', 'releases/NOTFOUND', [], [], []),
-            'impi-5.1.2.150-iccifortcuda-2016.1.150.eb': ('impi/5.1.2.150', 'releases/2016a', [], [], []),
-            'CrayCCE-5.1.29.eb': ('CrayCCE/5.1.29', 'General', [], [], []),
-            'HPL-2.1-CrayCCE-5.1.29.eb': ('HPL/2.1', 'releases/NOTFOUND', [], [], []),
-            'FFTW-3.3.7-gompi-2018a.eb': ('FFTW/3.3.7', 'releases/2018a', [], [], []),
-            'FFTW-3.3.7-gompic-2018a.eb': ('FFTW/3.3.7', 'releases/2018a', [], [], []),
-            'hwloc-1.8-gcccuda-2018a.eb': ('hwloc/1.8', 'releases/2018a', [], [], []),
-            'imkl-2019.4.243-iimpi-2019.08.eb': ('imkl/2019.4.243', 'releases/TBD', [], [], [])
+            'toy-0.0-gompi-2018a.eb': ('toy/0.0', 'releases/2018a', [], [], []),
+            'foss-2018a.eb': ('foss/2018a', 'General', [], [], [])
         }
 
         for ecfile, mns_vals in test_ecs.items():
+            test_ec(ecfile, *mns_vals)
+
+        # test error for examples without toolchain-generation mapping in lookup table. EasyConfig() calls
+        # det_module_subdir() of the generationModuleNamingScheme object for the toolchain (binutils)
+        with self.assertRaises(EasyBuildError) as cm:
+            ec = EasyConfig(glob.glob(os.path.join(ecs_dir, '*', '*', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb'))[0])
+
+        msg = "Couldn't map software version (binutils, 2.26) to a generation. Provide a customtoolchain " \
+              "mapping through GENERATION_MODULE_NAMING_SCHEME_LOOKUP_TABLE"
+        self.assertIn(msg, cm.exception.args[0])
+
+        # test lookup table extension with user-provided input. User-provided input (GCC 4.9.2 maps on 2018a)
+        # is provided through a file during setup at the start of the test case.
+        test_ecs_2 = {
+            'bzip2-1.0.6-GCC-4.9.2.eb': ('bzip2/1.0.6', 'releases/2018a', [], [], [])
+        }
+
+        for ecfile, mns_vals in test_ecs_2.items():
             test_ec(ecfile, *mns_vals)
 
     def test_dependencies_for(self):
