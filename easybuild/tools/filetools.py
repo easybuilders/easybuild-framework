@@ -65,7 +65,7 @@ from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
-from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
+from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars, trace_msg
 
 try:
     import requests
@@ -856,9 +856,11 @@ def download_file(filename, url, path, forced=False):
 
     if downloaded:
         _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
+        trace_msg("download succeeded: %s" % url)
         return path
     else:
         _log.warning("Download of %s to %s failed, done trying" % (url, path))
+        trace_msg("download failed: %s" % url)
         return None
 
 
