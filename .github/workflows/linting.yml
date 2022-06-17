@@ -3,13 +3,17 @@ on: [push, pull_request]
 jobs:
   python-linting:
     runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        python-version: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9, '3.10']
+        
     steps:
     - uses: actions/checkout@v2
 
     - name: set up Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
-        python-version: 3.8
+        python-version: ${{ matrix.python-version }}
 
     - name: install Python packages
       run: |
@@ -18,4 +22,10 @@ jobs:
 
     - name: Run flake8 to verify PEP8-compliance of Python code
       run: |
-        flake8
+        # don't check py2vs3/py3.py when testing with Python 2, and vice versa
+        if [[ "${{ matrix.python-version }}" =~ "2." ]]; then
+            py_excl=py3
+        else
+            py_excl=py2
+        fi
+        flake8 --exclude ./easybuild/tools/py2vs3/${py_excl}.py

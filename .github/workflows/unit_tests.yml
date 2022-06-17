@@ -2,55 +2,78 @@
 name: EasyBuild framework unit tests
 on: [push, pull_request]
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+        lmod7: Lmod-7.8.22
+        lmod8: Lmod-8.4.27
+        modulesTcl: modules-tcl-1.147
+        modules3: modules-3.2.10
+        modules4: modules-4.1.4
+    steps:
+      - run: "true"
   build:
+    needs: setup
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        python: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9]
-        modules_tool: [Lmod-7.8.22, Lmod-8.2.9, modules-tcl-1.147, modules-3.2.10, modules-4.1.4]
+        python: [2.7, 3.6]
+        modules_tool:
+          # use variables defined by 'setup' job above, see also
+          # https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#needs-context
+          - ${{needs.setup.outputs.lmod7}}
+          - ${{needs.setup.outputs.lmod8}}
+          - ${{needs.setup.outputs.modulesTcl}}
+          - ${{needs.setup.outputs.modules3}}
+          - ${{needs.setup.outputs.modules4}}
         module_syntax: [Lua, Tcl]
-        # exclude some configuration for non-Lmod modules tool:
-        # - don't test with Lua module syntax (only supported in Lmod)
-        # - exclude Python 3.x versions other than 3.6, to limit test configurations
+        lc_all: [""]
+        # don't test with Lua module syntax (only supported in Lmod)
         exclude:
-          - modules_tool: modules-tcl-1.147
+          - modules_tool: ${{needs.setup.outputs.modulesTcl}}
             module_syntax: Lua
-          - modules_tool: modules-3.2.10
+          - modules_tool: ${{needs.setup.outputs.modules3}}
             module_syntax: Lua
-          - modules_tool: modules-4.1.4
+          - modules_tool: ${{needs.setup.outputs.modules4}}
             module_syntax: Lua
-          - modules_tool: modules-tcl-1.147
-            python: 3.5
-          - modules_tool: modules-tcl-1.147
-            python: 3.7
-          - modules_tool: modules-tcl-1.147
-            python: 3.8
-          - modules_tool: modules-tcl-1.147
-            python: 3.9
-          - modules_tool: modules-3.2.10
-            python: 3.5
-          - modules_tool: modules-3.2.10
-            python: 3.7
-          - modules_tool: modules-3.2.10
-            python: 3.8
-          - modules_tool: modules-3.2.10
-            python: 3.9
-          - modules_tool: modules-4.1.4
-            python: 3.5
-          - modules_tool: modules-4.1.4
-            python: 3.7
-          - modules_tool: modules-4.1.4
-            python: 3.8
-          - modules_tool: modules-4.1.4
-            python: 3.9
-          - modules_tool: Lmod-7.8.22
-            python: 3.5
-          - modules_tool: Lmod-7.8.22
-            python: 3.7
-          - modules_tool: Lmod-7.8.22
-            python: 3.8
-          - modules_tool: Lmod-7.8.22
-            python: 3.9
+        include:
+          # Test different Python 3 versions with Lmod 8.x (with both Lua and Tcl module syntax)
+          - python: 3.5
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Lua
+          - python: 3.5
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Tcl
+          - python: 3.7
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Lua
+          - python: 3.7
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Tcl
+          - python: 3.8
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Lua
+          - python: 3.8
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Tcl
+          - python: 3.9
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Lua
+          - python: 3.9
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Tcl
+          - python: '3.10'
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Lua
+          - python: '3.10'
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Tcl
+          # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
+          # Hence run the tests (again) with LC_ALL=C and Python 3.6 (or any < 3.7)
+          - python: 3.6
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Lua
+            lc_all: C
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
@@ -69,7 +92,10 @@ jobs:
         # for modules tool
         sudo apt-get install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
         # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
-        sudo ln -s /usr/lib/x86_64-linux-gnu/lua/5.2/posix_c.so /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so
+        # needed for Ubuntu 18.04, but not for Ubuntu 20.04, so skipping symlinking if posix.so already exists
+        if [ ! -e /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so ] ; then
+            sudo ln -s /usr/lib/x86_64-linux-gnu/lua/5.2/posix_c.so /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so
+        fi
         # for GitPython, python-hglib
         sudo apt-get install git mercurial
         # dep for GC3Pie
@@ -89,12 +115,21 @@ jobs:
         # see https://github.com/<username>/easybuild-framework/settings/secrets
         GITHUB_TOKEN: ${{secrets.TEST_GITHUB_TOKEN}}
       run: |
-        if [ ! -z $GITHUB_TOKEN ]; then
-          if [ "x${{matrix.python}}" == 'x2.6' ];
+        # don't install GitHub token when testing with Lmod 7.x or non-Lmod module tools,
+        # and only when testing with Lua as module syntax,
+        # to avoid hitting GitHub rate limit;
+        # tests that require a GitHub token are skipped automatically when no GitHub token is available
+        if [[ ! "${{matrix.modules_tool}}" =~ 'Lmod-7' ]] && [[ ! "${{matrix.modules_tool}}" =~ 'modules-' ]] && [[ "${{matrix.modules_syntax}}" == 'Lua' ]]; then
+          if [ ! -z $GITHUB_TOKEN ]; then
+            if [ "x${{matrix.python}}" == 'x2.6' ];
               then SET_KEYRING="keyring.set_keyring(keyring.backends.file.PlaintextKeyring())";
-              else SET_KEYRING="import keyrings; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
-          fi;
-          python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
+              else SET_KEYRING="import keyrings.alt.file; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
+            fi;
+            python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
+          fi
+          echo "GitHub token installed!"
+        else
+          echo "Installation of GitHub token skipped!"
         fi
 
     - name: install modules tool
@@ -129,6 +164,7 @@ jobs:
         EB_VERBOSE: 1
         EASYBUILD_MODULE_SYNTAX: ${{matrix.module_syntax}}
         TEST_EASYBUILD_MODULE_SYNTAX: ${{matrix.module_syntax}}
+        LC_ALL: ${{matrix.lc_all}}
       run: |
           # run tests *outside* of checked out easybuild-framework directory,
           # to ensure we're testing installed version (see previous step)
@@ -164,40 +200,7 @@ jobs:
           # run test suite
           python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
           # try and make sure output of running tests is clean (no printed messages/warnings)
-          IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|requires Lmod as modules tool|stty: 'standard input': Inappropriate ioctl for device|CryptographyDeprecationWarning: Python 3.5|from cryptography.*default_backend|CryptographyDeprecationWarning: Python 2"
+          IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|requires Lmod as modules tool|stty: 'standard input': Inappropriate ioctl for device|CryptographyDeprecationWarning: Python 3.[56]|from cryptography.*default_backend|CryptographyDeprecationWarning: Python 2|from cryptography.utils import int_from_bytes|Blowfish"
           # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
           PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
           test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite\n${PRINTED_MSG}" && exit 1)
-
-    - name: test bootstrap script
-      run: |
-          # (re)initialize environment for modules tool
-          if [ -f $HOME/moduleshome ]; then export MODULESHOME=$(cat $HOME/moduleshome); fi
-          source $(cat $HOME/mod_init); type module
-          # also pick up changes to $PATH set by sourcing $HOME/mod_init
-          export PATH=$(cat $HOME/path)
-
-          # define $EASYBUILD_MODULES_TOOL only for oldest module tools
-          # (for Lmod and EnvironmentModules 4.x the bootstrap script should correctly auto-detect the modules tool)
-          if [[ ${{matrix.modules_tool}} =~ ^modules-tcl- ]]; then
-            export EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
-          elif [[ ${{matrix.modules_tool}} =~ ^modules-3 ]]; then
-            export EASYBUILD_MODULES_TOOL=EnvironmentModulesC
-          fi
-
-          # version and SHA256 checksum are hardcoded below to avoid forgetting to update the version in the script along with contents
-          EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
-          EB_BOOTSTRAP_SHA256SUM=$(sha256sum easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
-          EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-          EB_BOOTSTRAP_EXPECTED="20210106.01 c2d93de0dd91123eb4f51cfc16d1f5efb80f1d238b3d6cd100994086887a1ae0"
-          test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
-
-          # test bootstrap script
-          export PREFIX=/tmp/$USER/$GITHUB_SHA/eb_bootstrap
-          python easybuild/scripts/bootstrap_eb.py $PREFIX
-          # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
-          unset PYTHONPATH
-          # simple sanity check on bootstrapped EasyBuild module
-          module use $PREFIX/modules/all
-          module load EasyBuild
-          eb --version

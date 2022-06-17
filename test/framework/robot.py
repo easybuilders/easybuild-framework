@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -670,6 +670,23 @@ class RobotTest(EnhancedTestCase):
         regex = re.compile(r"^ \* \[.\] .*/__archive__/.*/intel-2012a.eb \(module: intel/2012a\)", re.M)
         self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
+        args = [
+            os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
+            os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'),
+            os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0-gompi-2018a.eb'),
+            '--dry-run',
+            '--robot',
+            '--tmpdir=%s' % self.test_prefix,
+            '--filter-ecs=*oy-0.0.eb,*-test.eb',
+        ]
+        outtxt = self.eb_main(args, raise_error=True)
+
+        regex = re.compile(r"^ \* \[.\] .*/toy-0.0-gompi-2018a.eb \(module: toy/0.0-gompi-2018a\)", re.M)
+        self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+        for ec in ('toy-0.0.eb', 'toy-0.0-gompi-2018a-test.eb'):
+            regex = re.compile(r"^ \* \[.\] .*/%s \(module:" % ec, re.M)
+            self.assertFalse(regex.search(outtxt), "%s should be fitered in %s" % (ec, outtxt))
+
     def test_search_paths(self):
         """Test search_paths command line argument."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -696,7 +713,7 @@ class RobotTest(EnhancedTestCase):
         regex = re.compile(r"^ \* %s$" % os.path.join(self.test_prefix, test_ec), re.M)
         self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
-    def test_det_easyconfig_paths_from_pr(self):
+    def test_github_det_easyconfig_paths_from_pr(self):
         """Test det_easyconfig_paths function, with --from-pr enabled as well."""
         if self.github_token is None:
             print("Skipping test_from_pr, no GitHub token available?")
@@ -1029,7 +1046,7 @@ class RobotTest(EnhancedTestCase):
         ordered_ecs, new_easyconfigs, new_avail_modules = find_resolved_modules(ecs, mods, self.modtool)
 
         # all dependencies are resolved for easyconfigs included in ordered_ecs
-        self.assertFalse(any([ec['dependencies'] for ec in ordered_ecs]))
+        self.assertFalse(any(ec['dependencies'] for ec in ordered_ecs))
 
         # nodeps/ondep easyconfigs have all dependencies resolved
         self.assertEqual(len(ordered_ecs), 2)
@@ -1065,8 +1082,8 @@ class RobotTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         # Create directories to store the tweaked easyconfigs
-        tweaked_ecs_paths, pr_path = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
-        robot_path = det_robot_path([test_easyconfigs], tweaked_ecs_paths, pr_path, auto_robot=True)
+        tweaked_ecs_paths, pr_paths = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
+        robot_path = det_robot_path([test_easyconfigs], tweaked_ecs_paths, pr_paths, auto_robot=True)
 
         init_config(build_options={
             'valid_module_classes': module_classes(),
@@ -1513,10 +1530,10 @@ class RobotTest(EnhancedTestCase):
 
         paths = search_easyconfigs('8-gcc', consider_extra_paths=False, print_result=False)
         ref_paths = [
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-4.6.4.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-7.3.0-2.30.eb'),
-            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb'),
             os.path.join(test_ecs, 'o', 'OpenBLAS', 'OpenBLAS-0.2.8-GCC-4.8.2-LAPACK-3.4.2.eb')
         ]
         self.assertEqual(paths, ref_paths)

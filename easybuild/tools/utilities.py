@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -300,19 +300,23 @@ def time2str(delta):
     if not isinstance(delta, datetime.timedelta):
         raise EasyBuildError("Incorrect value type provided to time2str, should be datetime.timedelta: %s", type(delta))
 
-    delta_secs = delta.days * 3600 * 24 + delta.seconds + delta.microseconds / 10**6
+    delta_secs = delta.total_seconds()
 
-    if delta_secs < 60:
-        res = '%d sec' % int(delta_secs)
-    elif delta_secs < 3600:
-        mins = int(delta_secs / 60)
-        secs = int(delta_secs - (mins * 60))
-        res = '%d min %d sec' % (mins, secs)
-    else:
-        hours = int(delta_secs / 3600)
-        mins = int((delta_secs - hours * 3600) / 60)
-        secs = int(delta_secs - (hours * 3600) - (mins * 60))
-        hours_str = 'hours' if hours > 1 else 'hour'
-        res = '%d %s %d min %d sec' % (hours, hours_str, mins, secs)
+    hours, remainder = divmod(delta_secs, 3600)
+    mins, secs = divmod(remainder, 60)
 
-    return res
+    res = []
+    if hours:
+        res.append('%d %s' % (hours, 'hour' if hours == 1 else 'hours'))
+    if mins or hours:
+        res.append('%d %s' % (mins, 'min' if mins == 1 else 'mins'))
+    res.append('%d %s' % (secs, 'sec' if secs == 1 else 'secs'))
+
+    return ' '.join(res)
+
+
+def natural_keys(key):
+    """Can be used as the sort key in list.sort(key=natural_keys) to sort in natural order (i.e. respecting numbers)"""
+    def try_to_int(key_part):
+        return int(key_part) if key_part.isdigit() else key_part
+    return [try_to_int(key_part) for key_part in re.split(r'(\d+)', key)]

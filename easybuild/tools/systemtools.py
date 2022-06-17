@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2021 Ghent University
+# Copyright 2011-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,6 +29,7 @@ Module with useful functions for getting system information
 @auther: Ward Poelmans (Ghent University)
 """
 import ctypes
+import errno
 import fcntl
 import grp  # @UnresolvedImport
 import os
@@ -41,11 +42,24 @@ import termios
 from ctypes.util import find_library
 from socket import gethostname
 
+# pkg_resources is provided by the setuptools Python package,
+# which we really want to keep as an *optional* dependency
+try:
+    import pkg_resources
+    HAVE_PKG_RESOURCES = True
+except ImportError:
+    HAVE_PKG_RESOURCES = False
+
+try:
+    # only needed on macOS, may not be available on Linux
+    import ctypes.macholib.dyld
+except ImportError:
+    pass
+
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
 from easybuild.tools.filetools import is_readable, read_file, which
-from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.run import run_cmd
 
 
@@ -72,10 +86,18 @@ AARCH32 = 'AArch32'
 AARCH64 = 'AArch64'
 POWER = 'POWER'
 X86_64 = 'x86_64'
+RISCV32 = 'RISC-V-32'
+RISCV64 = 'RISC-V-64'
+
+# known values for ARCH constant (determined by _get_arch_constant in easybuild.framework.easyconfig.constants)
+KNOWN_ARCH_CONSTANTS = ('aarch64', 'ppc64le', 'riscv64', 'x86_64')
+
+ARCH_KEY_PREFIX = 'arch='
 
 # Vendor constants
 AMD = 'AMD'
 APM = 'Applied Micro'
+APPLE = 'Apple'
 ARM = 'ARM'
 BROADCOM = 'Broadcom'
 CAVIUM = 'Cavium'
@@ -90,6 +112,7 @@ QUALCOMM = 'Qualcomm'
 
 # Family constants
 POWER_LE = 'POWER little-endian'
+RISCV = 'RISC-V'
 
 # OS constants
 LINUX = 'Linux'
@@ -97,13 +120,14 @@ DARWIN = 'Darwin'
 
 UNKNOWN = 'UNKNOWN'
 
+ETC_OS_RELEASE = '/etc/os-release'
 MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
 PROC_CPUINFO_FP = '/proc/cpuinfo'
 PROC_MEMINFO_FP = '/proc/meminfo'
 
-CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, X86_64]
-CPU_FAMILIES = [AMD, ARM, INTEL, POWER, POWER_LE]
-CPU_VENDORS = [AMD, APM, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
+CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, RISCV32, RISCV64, X86_64]
+CPU_FAMILIES = [AMD, ARM, INTEL, POWER, POWER_LE, RISCV]
+CPU_VENDORS = [AMD, APM, APPLE, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
 # ARM implementer IDs (i.e., the hexadeximal keys) taken from ARMv8-A Architecture Reference Manual
 # (ARM DDI 0487A.j, Section G6.2.102, Page G6-4493)
 VENDOR_IDS = {
@@ -143,6 +167,48 @@ ARM_CORTEX_IDS = {
 # OS package handler name constants
 RPM = 'rpm'
 DPKG = 'dpkg'
+ZYPPER = 'zypper'
+
+SYSTEM_TOOLS = {
+    '7z': "extracting sources (.iso)",
+    'bunzip2': "decompressing sources (.bz2, .tbz, .tbz2, ...)",
+    DPKG: "checking OS dependencies (Debian, Ubuntu, ...)",
+    'git': "downloading sources using 'git clone'",
+    'gunzip': "decompressing source files (.gz, .tgz, ...)",
+    'make': "build tool",
+    'patch': "applying patch files",
+    RPM: "checking OS dependencies (CentOS, RHEL, OpenSuSE, SLES, ...)",
+    'sed': "runtime patching",
+    'Slurm': "backend for --job (sbatch command)",
+    'tar': "unpacking source files (.tar)",
+    'unxz': "decompressing source files (.xz, .txz)",
+    'unzip': "decompressing files (.zip)",
+    ZYPPER: "checking OS dependencies (openSUSE)",
+}
+
+SYSTEM_TOOL_CMDS = {
+    'Slurm': 'sbatch',
+}
+
+EASYBUILD_OPTIONAL_DEPENDENCIES = {
+    'archspec': (None, "determining name of CPU microarchitecture"),
+    'autopep8': (None, "auto-formatting for dumped easyconfigs"),
+    'GC3Pie': ('gc3libs', "backend for --job"),
+    'GitPython': ('git', "GitHub integration + using Git repository as easyconfigs archive"),
+    'graphviz-python': ('gv', "rendering dependency graph with Graphviz: --dep-graph"),
+    'keyring': (None, "storing GitHub token"),
+    'pbs-python': ('pbs', "using Torque as --job backend"),
+    'pep8': (None, "fallback for code style checking: --check-style, --check-contrib"),
+    'pycodestyle': (None, "code style checking: --check-style, --check-contrib"),
+    'pysvn': (None, "using SVN repository as easyconfigs archive"),
+    'python-graph-core': ('pygraph.classes.digraph', "creating dependency graph: --dep-graph"),
+    'python-graph-dot': ('pygraph.readwrite.dot', "saving dependency graph as dot file: --dep-graph"),
+    'python-hglib': ('hglib', "using Mercurial repository as easyconfigs archive"),
+    'requests': (None, "fallback library for downloading files"),
+    'Rich': (None, "eb command rich terminal output"),
+    'PyYAML': ('yaml', "easystack files and .yeb easyconfig format"),
+    'setuptools': ('pkg_resources', "obtaining information on Python packages via pkg_resources module"),
+}
 
 
 class SystemToolsException(Exception):
@@ -152,24 +218,35 @@ class SystemToolsException(Exception):
 def sched_getaffinity():
     """Determine list of available cores for current process."""
     cpu_mask_t = ctypes.c_ulong
-    cpu_setsize = 1024
     n_cpu_bits = 8 * ctypes.sizeof(cpu_mask_t)
-    n_mask_bits = cpu_setsize // n_cpu_bits
-
-    class cpu_set_t(ctypes.Structure):
-        """Class that implements the cpu_set_t struct."""
-        _fields_ = [('bits', cpu_mask_t * n_mask_bits)]
 
     _libc_lib = find_library('c')
-    _libc = ctypes.cdll.LoadLibrary(_libc_lib)
+    _libc = ctypes.CDLL(_libc_lib, use_errno=True)
 
     pid = os.getpid()
-    cs = cpu_set_t()
-    ec = _libc.sched_getaffinity(os.getpid(), ctypes.sizeof(cpu_set_t), ctypes.pointer(cs))
-    if ec == 0:
-        _log.debug("sched_getaffinity for pid %s successful", pid)
-    else:
-        raise EasyBuildError("sched_getaffinity failed for pid %s ec %s", pid, ec)
+
+    cpu_setsize = 1024  # Max number of CPUs currently detectable
+    max_cpu_setsize = cpu_mask_t(-1).value // 4  # (INT_MAX / 2)
+    # Limit it to something reasonable but still big enough
+    max_cpu_setsize = min(max_cpu_setsize, 1e9)
+    while cpu_setsize < max_cpu_setsize:
+        n_mask_bits = cpu_setsize // n_cpu_bits
+
+        class cpu_set_t(ctypes.Structure):
+            """Class that implements the cpu_set_t struct."""
+            _fields_ = [('bits', cpu_mask_t * n_mask_bits)]
+
+        cs = cpu_set_t()
+        ec = _libc.sched_getaffinity(pid, ctypes.sizeof(cpu_set_t), ctypes.pointer(cs))
+        if ec == 0:
+            _log.debug("sched_getaffinity for pid %s successful", pid)
+            break
+        elif ctypes.get_errno() != errno.EINVAL:
+            raise EasyBuildError("sched_getaffinity failed for pid %s errno %s", pid, ctypes.get_errno())
+        cpu_setsize *= 2
+
+    if ec != 0:
+        raise EasyBuildError("sched_getaffinity failed finding a large enough cpuset for pid %s", pid)
 
     cpus = []
     for bitmask in cs.bits:
@@ -246,9 +323,11 @@ def get_cpu_architecture():
 
     :return: a value from the CPU_ARCHITECTURES list
     """
-    power_regex = re.compile("ppc64.*")
-    aarch64_regex = re.compile("aarch64.*")
     aarch32_regex = re.compile("arm.*")
+    aarch64_regex = re.compile("(aarch64|arm64).*")
+    power_regex = re.compile("ppc64.*")
+    riscv32_regex = re.compile("riscv32.*")
+    riscv64_regex = re.compile("riscv64.*")
 
     system, node, release, version, machine, processor = platform.uname()
 
@@ -261,6 +340,10 @@ def get_cpu_architecture():
         arch = AARCH64
     elif aarch32_regex.match(machine):
         arch = AARCH32
+    elif riscv64_regex.match(machine):
+        arch = RISCV64
+    elif riscv32_regex.match(machine):
+        arch = RISCV32
 
     if arch == UNKNOWN:
         _log.warning("Failed to determine CPU architecture, returning %s", arch)
@@ -305,11 +388,18 @@ def get_cpu_vendor():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.vendor"
-        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, log_ok=False)
         out = out.strip()
         if ec == 0 and out in VENDOR_IDS:
             vendor = VENDOR_IDS[out]
             _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
+        else:
+            cmd = "sysctl -n machdep.cpu.brand_string"
+            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, log_ok=False)
+            out = out.strip().split(' ')[0]
+            if ec == 0 and out in CPU_VENDORS:
+                vendor = out
+                _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
 
     if vendor is None:
         vendor = UNKNOWN
@@ -343,6 +433,9 @@ def get_cpu_family():
             powerle_regex = re.compile(r"^ppc(\d*)le")
             if powerle_regex.search(machine):
                 family = POWER_LE
+
+        elif arch in [RISCV32, RISCV64]:
+            family = RISCV
 
     if family is None:
         family = UNKNOWN
@@ -451,9 +544,11 @@ def get_cpu_speed():
         cmd = "sysctl -n hw.cpufrequency_max"
         _log.debug("Trying to determine CPU frequency on Darwin via cmd '%s'" % cmd)
         out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
-        if ec == 0:
+        out = out.strip()
+        cpu_freq = None
+        if ec == 0 and out:
             # returns clock frequency in cycles/sec, but we want MHz
-            cpu_freq = float(out.strip()) // (1000 ** 2)
+            cpu_freq = float(out) // (1000 ** 2)
 
     else:
         raise SystemToolsException("Could not determine CPU clock frequency (OS: %s)." % os_type)
@@ -496,7 +591,7 @@ def get_cpu_features():
         for feature_set in ['extfeatures', 'features', 'leaf7_features']:
             cmd = "sysctl -n machdep.cpu.%s" % feature_set
             _log.debug("Trying to determine CPU features on Darwin via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, log_ok=False)
             if ec == 0:
                 cpu_feat.extend(out.strip().lower().split())
 
@@ -506,6 +601,58 @@ def get_cpu_features():
         raise SystemToolsException("Could not determine CPU features (OS: %s)" % os_type)
 
     return cpu_feat
+
+
+def get_gpu_info():
+    """
+    Get the GPU info
+    """
+    gpu_info = {}
+    os_type = get_os_type()
+
+    if os_type == LINUX:
+        try:
+            cmd = "nvidia-smi --query-gpu=gpu_name,driver_version --format=csv,noheader"
+            _log.debug("Trying to determine NVIDIA GPU info on Linux via cmd '%s'", cmd)
+            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+            if ec == 0:
+                for line in out.strip().split('\n'):
+                    nvidia_gpu_info = gpu_info.setdefault('NVIDIA', {})
+                    nvidia_gpu_info.setdefault(line, 0)
+                    nvidia_gpu_info[line] += 1
+            else:
+                _log.debug("None zero exit (%s) from nvidia-smi: %s", ec, out)
+        except Exception as err:
+            _log.debug("Exception was raised when running nvidia-smi: %s", err)
+            _log.info("No NVIDIA GPUs detected")
+
+        try:
+            cmd = "rocm-smi --showdriverversion --csv"
+            _log.debug("Trying to determine AMD GPU driver on Linux via cmd '%s'", cmd)
+            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+            if ec == 0:
+                amd_driver = out.strip().split('\n')[1].split(',')[1]
+
+            cmd = "rocm-smi --showproductname --csv"
+            _log.debug("Trying to determine AMD GPU info on Linux via cmd '%s'", cmd)
+            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+            if ec == 0:
+                for line in out.strip().split('\n')[1:]:
+                    amd_card_series = line.split(',')[1]
+                    amd_card_model = line.split(',')[2]
+                    amd_gpu = "%s (model: %s, driver: %s)" % (amd_card_series, amd_card_model, amd_driver)
+                    amd_gpu_info = gpu_info.setdefault('AMD', {})
+                    amd_gpu_info.setdefault(amd_gpu, 0)
+                    amd_gpu_info[amd_gpu] += 1
+            else:
+                _log.debug("None zero exit (%s) from rocm-smi: %s", ec, out)
+        except Exception as err:
+            _log.debug("Exception was raised when running rocm-smi: %s", err)
+            _log.info("No AMD GPUs detected")
+    else:
+        _log.info("Only know how to get GPU info on Linux, assuming no GPUs are present")
+
+    return gpu_info
 
 
 def get_kernel_name():
@@ -575,14 +722,21 @@ def get_os_name():
     if hasattr(platform, 'linux_distribution'):
         # platform.linux_distribution is more useful, but only available since Python 2.6
         # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
-        os_name = platform.linux_distribution()[0].strip().lower()
-    elif HAVE_DISTRO:
+        os_name = platform.linux_distribution()[0].strip()
+
+    # take into account that on some OSs, platform.distribution returns an empty string as OS name,
+    # for example on OpenSUSE Leap 15.2
+    if not os_name and HAVE_DISTRO:
         # distro package is the recommended alternative to platform.linux_distribution,
         # see https://pypi.org/project/distro
         os_name = distro.name()
-    else:
-        # no easy way to determine name of Linux distribution
-        os_name = None
+
+    if not os_name and os.path.exists(ETC_OS_RELEASE):
+        os_release_txt = read_file(ETC_OS_RELEASE)
+        name_regex = re.compile('^NAME="?(?P<name>[^"\n]+)"?$', re.M)
+        res = name_regex.search(os_release_txt)
+        if res:
+            os_name = res.group('name')
 
     os_name_map = {
         'red hat enterprise linux server': 'RHEL',
@@ -593,7 +747,7 @@ def get_os_name():
     }
 
     if os_name:
-        return os_name_map.get(os_name, os_name)
+        return os_name_map.get(os_name.lower(), os_name)
     else:
         return UNKNOWN
 
@@ -601,49 +755,57 @@ def get_os_name():
 def get_os_version():
     """Determine system version."""
 
+    os_version = None
+
     # platform.dist was removed in Python 3.8
     if hasattr(platform, 'dist'):
         os_version = platform.dist()[1]
-    elif HAVE_DISTRO:
+
+    # take into account that on some OSs, platform.dist returns an empty string as OS version,
+    # for example on OpenSUSE Leap 15.2
+    if not os_version and HAVE_DISTRO:
         os_version = distro.version()
-    else:
-        os_version = None
+
+    if not os_version and os.path.exists(ETC_OS_RELEASE):
+        os_release_txt = read_file(ETC_OS_RELEASE)
+        version_regex = re.compile('^VERSION="?(?P<version>[^"\n]+)"?$', re.M)
+        res = version_regex.search(os_release_txt)
+        if res:
+            os_version = res.group('version')
+        else:
+            # VERSION may not always be defined (for example on Gentoo),
+            # fall back to VERSION_ID in that case
+            version_regex = re.compile('^VERSION_ID="?(?P<version>[^"\n]+)"?$', re.M)
+            res = version_regex.search(os_release_txt)
+            if res:
+                os_version = res.group('version')
 
     if os_version:
-        if get_os_name() in ["suse", "SLES"]:
+        # older SLES subversions can only be told apart based on kernel version,
+        # see http://wiki.novell.com/index.php/Kernel_versions
+        sles_version_suffixes = {
+            '11': [
+                ('2.6.27', ''),
+                ('2.6.32', '_SP1'),
+                ('3.0.101-63', '_SP4'),
+                # not 100% correct, since early SP3 had 3.0.76 - 3.0.93, but close enough?
+                ('3.0.101', '_SP3'),
+                # SP2 kernel versions range from 3.0.13 - 3.0.101
+                ('3.0', '_SP2'),
+            ],
 
-            # SLES subversions can only be told apart based on kernel version,
-            # see http://wiki.novell.com/index.php/Kernel_versions
-            version_suffixes = {
-                '11': [
-                    ('2.6.27', ''),
-                    ('2.6.32', '_SP1'),
-                    ('3.0.101-63', '_SP4'),
-                    # not 100% correct, since early SP3 had 3.0.76 - 3.0.93, but close enough?
-                    ('3.0.101', '_SP3'),
-                    # SP2 kernel versions range from 3.0.13 - 3.0.101
-                    ('3.0', '_SP2'),
-                ],
-
-                '12': [
-                    ('3.12.28', ''),
-                    ('3.12.49', '_SP1'),
-                ],
-            }
-
+            '12': [
+                ('3.12.28', ''),
+                ('3.12.49', '_SP1'),
+            ],
+        }
+        if get_os_name() in ['suse', 'SLES'] and os_version in sles_version_suffixes:
             # append suitable suffix to system version
-            if os_version in version_suffixes.keys():
-                kernel_version = platform.uname()[2]
-                known_sp = False
-                for (kver, suff) in version_suffixes[os_version]:
-                    if kernel_version.startswith(kver):
-                        os_version += suff
-                        known_sp = True
-                        break
-                if not known_sp:
-                    suff = '_UNKNOWN_SP'
-            else:
-                raise EasyBuildError("Don't know how to determine subversions for SLES %s", os_version)
+            kernel_version = platform.uname()[2]
+            for (kver, suff) in sles_version_suffixes[os_version]:
+                if kernel_version.startswith(kver):
+                    os_version += suff
+                    break
 
         return os_version
     else:
@@ -662,14 +824,17 @@ def check_os_dependency(dep):
     os_to_pkg_cmd_map = {
         'centos': RPM,
         'debian': DPKG,
+        'opensuse': ZYPPER,
         'redhat': RPM,
+        'rhel': RPM,
         'ubuntu': DPKG,
     }
     pkg_cmd_flag = {
         DPKG: '-s',
         RPM: '-q',
+        ZYPPER: 'search -i',
     }
-    os_name = get_os_name()
+    os_name = get_os_name().lower().split(' ')[0]
     if os_name in os_to_pkg_cmd_map:
         pkg_cmds = [os_to_pkg_cmd_map[os_name]]
     else:
@@ -703,14 +868,14 @@ def check_os_dependency(dep):
     return found
 
 
-def get_tool_version(tool, version_option='--version'):
+def get_tool_version(tool, version_option='--version', ignore_ec=False):
     """
     Get output of running version option for specific command line tool.
     Output is returned as a single-line string (newlines are replaced by '; ').
     """
     out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False, force_in_dry_run=True,
                       trace=False, stream_output=False)
-    if ec:
+    if not ignore_ec and ec:
         _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, out))
         return UNKNOWN
     else:
@@ -770,6 +935,140 @@ def get_glibc_version():
     return glibc_ver
 
 
+def check_linked_shared_libs(path, required_patterns=None, banned_patterns=None):
+    """
+    Check for (lack of) patterns in linked shared libraries for binary/library at specified path.
+    Uses 'ldd' on Linux and 'otool -L' on macOS to determine linked shared libraries.
+
+    Returns True or False for dynamically linked binaries and shared libraries to indicate
+    whether all patterns match and antipatterns don't match.
+
+    Returns None if given path is not a dynamically linked binary or library.
+    """
+    if required_patterns is None:
+        required_regexs = []
+    else:
+        required_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in required_patterns]
+
+    if banned_patterns is None:
+        banned_regexs = []
+    else:
+        banned_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in banned_patterns]
+
+    # resolve symbolic links (unless they're broken)
+    if os.path.islink(path) and os.path.exists(path):
+        path = os.path.realpath(path)
+
+    file_cmd_out, _ = run_cmd("file %s" % path, simple=False, trace=False)
+
+    os_type = get_os_type()
+
+    # check whether specified path is a dynamically linked binary or a shared library
+    if os_type == LINUX:
+        # example output for dynamically linked binaries:
+        #   /usr/bin/ls: ELF 64-bit LSB executable, x86-64, ..., dynamically linked (uses shared libs), ...
+        # example output for shared libraries:
+        #   /lib64/libc-2.17.so: ELF 64-bit LSB shared object, x86-64, ..., dynamically linked (uses shared libs), ...
+        if "dynamically linked" in file_cmd_out:
+            linked_libs_out, _ = run_cmd("ldd %s" % path, simple=False, trace=False)
+        else:
+            return None
+
+    elif os_type == DARWIN:
+        # example output for dynamically linked binaries:
+        #   /bin/ls: Mach-O 64-bit executable x86_64
+        # example output for shared libraries:
+        #   /usr/lib/libz.dylib: Mach-O 64-bit dynamically linked shared library x86_64
+        bin_lib_regex = re.compile('(Mach-O .* executable)|(dynamically linked)', re.M)
+        if bin_lib_regex.search(file_cmd_out):
+            linked_libs_out, _ = run_cmd("otool -L %s" % path, simple=False, trace=False)
+        else:
+            return None
+    else:
+        raise EasyBuildError("Unknown OS type: %s", os_type)
+
+    found_banned_patterns = []
+    missing_required_patterns = []
+    for regex in required_regexs:
+        if not regex.search(linked_libs_out):
+            missing_required_patterns.append(regex.pattern)
+
+    for regex in banned_regexs:
+        if regex.search(linked_libs_out):
+            found_banned_patterns.append(regex.pattern)
+
+    if missing_required_patterns:
+        patterns = ', '.join("'%s'" % p for p in missing_required_patterns)
+        _log.warning("Required patterns not found in linked libraries output for %s: %s", path, patterns)
+
+    if found_banned_patterns:
+        patterns = ', '.join("'%s'" % p for p in found_banned_patterns)
+        _log.warning("Banned patterns found in linked libraries output for %s: %s", path, patterns)
+
+    return not (found_banned_patterns or missing_required_patterns)
+
+
+def locate_solib(libobj):
+    """
+    Return absolute path to loaded library using dlinfo
+    Based on https://stackoverflow.com/a/35683698
+
+    :params libobj: ctypes CDLL object
+    """
+    # early return if we're not on a Linux system
+    if get_os_type() != LINUX:
+        return None
+
+    class LINKMAP(ctypes.Structure):
+        _fields_ = [
+            ("l_addr", ctypes.c_void_p),
+            ("l_name", ctypes.c_char_p)
+        ]
+
+    libdl = ctypes.cdll.LoadLibrary(ctypes.util.find_library('dl'))
+
+    dlinfo = libdl.dlinfo
+    dlinfo.argtypes = ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p
+    dlinfo.restype = ctypes.c_int
+
+    libpointer = ctypes.c_void_p()
+    dlinfo(libobj._handle, 2, ctypes.byref(libpointer))
+    libpath = ctypes.cast(libpointer, ctypes.POINTER(LINKMAP)).contents.l_name
+
+    return libpath.decode('utf-8')
+
+
+def find_library_path(lib_filename):
+    """
+    Search library by file name in the system
+    Return absolute path to existing libraries
+
+    :params lib_filename: name of library file
+    """
+
+    lib_abspath = None
+    os_type = get_os_type()
+
+    try:
+        lib_obj = ctypes.cdll.LoadLibrary(lib_filename)
+    except OSError:
+        _log.info("Library '%s' not found in host system", lib_filename)
+    else:
+        # ctypes.util.find_library only accepts unversioned library names
+        if os_type == LINUX:
+            # find path to library with dlinfo
+            lib_abspath = locate_solib(lib_obj)
+        elif os_type == DARWIN:
+            # ctypes.macholib.dyld.dyld_find accepts file names and returns full path
+            lib_abspath = ctypes.macholib.dyld.dyld_find(lib_filename)
+        else:
+            raise EasyBuildError("Unknown host OS type: %s", os_type)
+
+        _log.info("Found absolute path to %s: %s", lib_filename, lib_abspath)
+
+    return lib_abspath
+
+
 def get_system_info():
     """Return a dictionary with system information."""
     python_version = '; '.join(sys.version.split('\n'))
@@ -823,31 +1122,42 @@ def det_parallelism(par=None, maxpar=None):
     Determine level of parallelism that should be used.
     Default: educated guess based on # cores and 'ulimit -u' setting: min(# cores, ((ulimit -u) - 15) // 6)
     """
-    if par is not None:
-        if not isinstance(par, int):
-            try:
-                par = int(par)
-            except ValueError as err:
-                raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
-    else:
-        par = get_avail_core_count()
-        # check ulimit -u
-        out, ec = run_cmd('ulimit -u', force_in_dry_run=True, trace=False, stream_output=False)
+    def get_default_parallelism():
         try:
-            if out.startswith("unlimited"):
-                out = 2 ** 32 - 1
-            maxuserproc = int(out)
+            # Get cache value if any
+            par = det_parallelism._default_parallelism
+        except AttributeError:
+            # No cache -> Calculate value from current system values
+            par = get_avail_core_count()
+            # check ulimit -u
+            out, ec = run_cmd('ulimit -u', force_in_dry_run=True, trace=False, stream_output=False)
+            try:
+                if out.startswith("unlimited"):
+                    maxuserproc = 2 ** 32 - 1
+                else:
+                    maxuserproc = int(out)
+            except ValueError as err:
+                raise EasyBuildError("Failed to determine max user processes (%s, %s): %s", ec, out, err)
             # assume 6 processes per build thread + 15 overhead
-            par_guess = int((maxuserproc - 15) // 6)
+            par_guess = (maxuserproc - 15) // 6
             if par_guess < par:
                 par = par_guess
-                _log.info("Limit parallel builds to %s because max user processes is %s" % (par, out))
+                _log.info("Limit parallel builds to %s because max user processes is %s", par, out)
+            # Cache value
+            det_parallelism._default_parallelism = par
+        return par
+
+    if par is None:
+        par = get_default_parallelism()
+    else:
+        try:
+            par = int(par)
         except ValueError as err:
-            raise EasyBuildError("Failed to determine max user processes (%s, %s): %s", ec, out, err)
+            raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
 
     if maxpar is not None and maxpar < par:
-        _log.info("Limiting parallellism from %s to %s" % (par, maxpar))
-        par = min(par, maxpar)
+        _log.info("Limiting parallellism from %s to %s", par, maxpar)
+        par = maxpar
 
     return par
 
@@ -878,17 +1188,9 @@ def check_python_version():
     python_ver = '%d.%d' % (python_maj_ver, python_min_ver)
     _log.info("Found Python version %s", python_ver)
 
-    silence_deprecation_warnings = build_option('silence_deprecation_warnings') or []
-
     if python_maj_ver == 2:
-        if python_min_ver < 6:
-            raise EasyBuildError("Python 2.6 or higher is required when using Python 2, found Python %s", python_ver)
-        elif python_min_ver == 6:
-            depr_msg = "Running EasyBuild with Python 2.6 is deprecated"
-            if 'Python26' in silence_deprecation_warnings:
-                _log.warning(depr_msg)
-            else:
-                _log.deprecated(depr_msg, '5.0')
+        if python_min_ver < 7:
+            raise EasyBuildError("Python 2.7 is required when using Python 2, found Python %s", python_ver)
         else:
             _log.info("Running EasyBuild with Python 2 (version %s)", python_ver)
 
@@ -921,20 +1223,126 @@ def pick_dep_version(dep_version):
         result = None
 
     elif isinstance(dep_version, dict):
-        # figure out matches based on dict keys (after splitting on '=')
-        my_arch_key = 'arch=%s' % get_cpu_architecture()
-        arch_keys = [x for x in dep_version.keys() if x.startswith('arch=')]
+        arch_keys = [x for x in dep_version.keys() if x.startswith(ARCH_KEY_PREFIX)]
         other_keys = [x for x in dep_version.keys() if x not in arch_keys]
         if other_keys:
-            raise EasyBuildError("Unexpected keys in version: %s. Only 'arch=' keys are supported", other_keys)
+            other_keys = ','.join(sorted(other_keys))
+            raise EasyBuildError("Unexpected keys in version: %s (only 'arch=' keys are supported)", other_keys)
         if arch_keys:
-            if my_arch_key in dep_version:
-                result = dep_version[my_arch_key]
-                _log.info("Version selected from %s using key %s: %s", dep_version, my_arch_key, result)
+            host_arch_key = ARCH_KEY_PREFIX + get_cpu_architecture()
+            star_arch_key = ARCH_KEY_PREFIX + '*'
+            # check for specific 'arch=' key first
+            if host_arch_key in dep_version:
+                result = dep_version[host_arch_key]
+                _log.info("Version selected from %s using key %s: %s", dep_version, host_arch_key, result)
+            # fall back to 'arch=*'
+            elif star_arch_key in dep_version:
+                result = dep_version[star_arch_key]
+                _log.info("Version selected for %s using fallback key %s: %s", dep_version, star_arch_key, result)
             else:
-                raise EasyBuildError("No matches for version in %s (looking for %s)", dep_version, my_arch_key)
+                raise EasyBuildError("No matches for version in %s (looking for %s)", dep_version, host_arch_key)
+        else:
+            raise EasyBuildError("Found empty dict as version!")
 
     else:
-        raise EasyBuildError("Unknown value type for version: %s", dep_version)
+        typ = type(dep_version)
+        raise EasyBuildError("Unknown value type for version: %s (%s), should be string value", typ, dep_version)
 
     return result
+
+
+def det_pypkg_version(pkg_name, imported_pkg, import_name=None):
+    """Determine version of a Python package."""
+
+    version = None
+
+    if HAVE_PKG_RESOURCES:
+        if import_name:
+            try:
+                version = pkg_resources.get_distribution(import_name).version
+            except pkg_resources.DistributionNotFound as err:
+                _log.debug("%s Python package not found: %s", import_name, err)
+
+        if version is None:
+            try:
+                version = pkg_resources.get_distribution(pkg_name).version
+            except pkg_resources.DistributionNotFound as err:
+                _log.debug("%s Python package not found: %s", pkg_name, err)
+
+    if version is None and hasattr(imported_pkg, '__version__'):
+        version = imported_pkg.__version__
+
+    return version
+
+
+def check_easybuild_deps(modtool):
+    """
+    Check presence and version of required and optional EasyBuild dependencies, and report back to terminal.
+    """
+    version_regex = re.compile(r'\s(?P<version>[0-9][0-9.]+[a-z]*)')
+
+    checks_data = OrderedDict()
+
+    def extract_version(tool):
+        """Helper function to extract (only) version for specific command line tool."""
+        out = get_tool_version(tool, ignore_ec=True)
+        res = version_regex.search(out)
+        if res:
+            version = res.group('version')
+        else:
+            version = "UNKNOWN version"
+
+        return version
+
+    python_version = extract_version(sys.executable)
+
+    opt_dep_versions = {}
+    for key in EASYBUILD_OPTIONAL_DEPENDENCIES:
+
+        pkg = EASYBUILD_OPTIONAL_DEPENDENCIES[key][0]
+        if pkg is None:
+            pkg = key.lower()
+
+        try:
+            mod = __import__(pkg)
+        except ImportError:
+            mod = None
+
+        if mod:
+            dep_version = det_pypkg_version(key, mod, import_name=pkg)
+        else:
+            dep_version = False
+
+        opt_dep_versions[key] = dep_version
+
+    checks_data['col_titles'] = ('name', 'version', 'used for')
+
+    req_deps_key = "Required dependencies"
+    checks_data[req_deps_key] = OrderedDict()
+    checks_data[req_deps_key]['Python'] = (python_version, None)
+    checks_data[req_deps_key]['modules tool:'] = (str(modtool), None)
+
+    opt_deps_key = "Optional dependencies"
+    checks_data[opt_deps_key] = {}
+
+    for key in opt_dep_versions:
+        checks_data[opt_deps_key][key] = (opt_dep_versions[key], EASYBUILD_OPTIONAL_DEPENDENCIES[key][1])
+
+    sys_tools_key = "System tools"
+    checks_data[sys_tools_key] = {}
+
+    for tool in SYSTEM_TOOLS:
+        tool_info = None
+        cmd = SYSTEM_TOOL_CMDS.get(tool, tool)
+        if which(cmd):
+            version = extract_version(cmd)
+            if version.startswith('UNKNOWN'):
+                tool_info = None
+            else:
+                tool_info = version
+        else:
+            tool_info = False
+
+        checks_data[sys_tools_key][tool] = (tool_info, None)
+
+    return checks_data

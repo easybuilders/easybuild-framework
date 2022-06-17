@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,6 +30,7 @@ Toolchain specific variables
 """
 
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.variables import StrList, AbsPathList
 
 
@@ -111,8 +112,16 @@ class LibraryList(StrList):
                 self.END.PREFIX = prefix_begin_end
 
 
+class CommaSharedLibs(LibraryList):
+    """Comma-separated list of shared libraries"""
+    SEPARATOR = ','
+
+    PREFIX = 'lib'
+    SUFFIX = '.' + get_shared_lib_ext()
+
+
 class CommaStaticLibs(LibraryList):
-    """Comma-separated list"""
+    """Comma-separated list of static libraries"""
     SEPARATOR = ','
 
     PREFIX = 'lib'

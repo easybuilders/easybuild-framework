@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -296,10 +296,10 @@ class Compiler(Toolchain):
                 self.variables.nextend(var, fflags)
             extra = 'extra_' + var.lower()
             if self.options.get(extra):
-                flags = self.options.option(extra)
-                if not flags or flags[0] != '-':
-                    raise EasyBuildError("toolchainopts %s: '%s' must start with a '-'." % (extra, flags))
-                self.variables.nappend_el(var, flags[1:])
+                extraflags = self.options.option(extra)
+                if not extraflags or extraflags[0] != '-':
+                    raise EasyBuildError("toolchainopts %s: '%s' must start with a '-'." % (extra, extraflags))
+                self.variables.nappend_el(var, extraflags[1:])
 
     def _set_optimal_architecture(self, default_optarch=None):
         """

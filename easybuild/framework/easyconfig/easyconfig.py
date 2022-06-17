@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -59,7 +59,7 @@ from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION, is_y
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
+from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
@@ -220,7 +220,7 @@ def toolchain_hierarchy_cache(func):
     return cache_aware_func
 
 
-def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands, incl_capabilities=False):
+def det_subtoolchain_version(current_tc, subtoolchain_names, optional_toolchains, cands, incl_capabilities=False):
     """
     Returns unique version for subtoolchain, in tc dict.
     If there is no unique version:
@@ -229,30 +229,46 @@ def det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains,
       optional toolchains or system toolchain without add_system_to_minimal_toolchains.
     * in all other cases, raises an exception.
     """
-    uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
     # init with "skipped"
     subtoolchain_version = None
 
-    # system toolchain: bottom of the hierarchy
-    if is_system_toolchain(subtoolchain_name):
-        add_system_to_minimal_toolchains = build_option('add_system_to_minimal_toolchains')
-        if not add_system_to_minimal_toolchains and build_option('add_dummy_to_minimal_toolchains'):
-            depr_msg = "Use --add-system-to-minimal-toolchains instead of --add-dummy-to-minimal-toolchains"
-            _log.deprecated(depr_msg, '5.0')
-            add_system_to_minimal_toolchains = True
+    # ensure we always have a tuple of alternative subtoolchain names, which makes things easier below
+    if isinstance(subtoolchain_names, string_type):
+        subtoolchain_names = (subtoolchain_names,)
 
-        if add_system_to_minimal_toolchains and not incl_capabilities:
-            subtoolchain_version = ''
-    elif len(uniq_subtc_versions) == 1:
-        subtoolchain_version = list(uniq_subtc_versions)[0]
-    elif len(uniq_subtc_versions) == 0:
-        if subtoolchain_name not in optional_toolchains:
+    system_subtoolchain = False
+
+    for subtoolchain_name in subtoolchain_names:
+
+        uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
+
+        # system toolchain: bottom of the hierarchy
+        if is_system_toolchain(subtoolchain_name):
+            add_system_to_minimal_toolchains = build_option('add_system_to_minimal_toolchains')
+            if not add_system_to_minimal_toolchains and build_option('add_dummy_to_minimal_toolchains'):
+                depr_msg = "Use --add-system-to-minimal-toolchains instead of --add-dummy-to-minimal-toolchains"
+                _log.deprecated(depr_msg, '5.0')
+                add_system_to_minimal_toolchains = True
+
+            system_subtoolchain = True
+
+            if add_system_to_minimal_toolchains and not incl_capabilities:
+                subtoolchain_version = ''
+        elif len(uniq_subtc_versions) == 1:
+            subtoolchain_version = list(uniq_subtc_versions)[0]
+        elif len(uniq_subtc_versions) > 1:
+            raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
+                                 subtoolchain_name, current_tc['name'], ', '.join(sorted(uniq_subtc_versions)))
+
+        if subtoolchain_version is not None:
+            break
+
+    if not system_subtoolchain and subtoolchain_version is None:
+        if not all(n in optional_toolchains for n in subtoolchain_names):
+            subtoolchain_names = ' or '.join(subtoolchain_names)
             # raise error if the subtoolchain considered now is not optional
             raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
-                                 subtoolchain_name, current_tc['name'])
-    else:
-        raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
-                             subtoolchain_name, current_tc['name'], ', '.join(sorted(uniq_subtc_versions)))
+                                 subtoolchain_names, current_tc['name'])
 
     return subtoolchain_version
 
@@ -356,11 +372,16 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
                     cands.append({'name': dep, 'version': current_tc_version})
 
         # only retain candidates that match subtoolchain names
-        cands = [c for c in cands if c['name'] in subtoolchain_names]
+        cands = [c for c in cands if any(c['name'] == x or c['name'] in x for x in subtoolchain_names)]
 
         for subtoolchain_name in subtoolchain_names:
             subtoolchain_version = det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands,
                                                             incl_capabilities=incl_capabilities)
+
+            # narrow down alternative subtoolchain names to a single one, based on the selected version
+            if isinstance(subtoolchain_name, tuple):
+                subtoolchain_name = [cand['name'] for cand in cands if cand['version'] == subtoolchain_version][0]
+
             # add to hierarchy and move to next
             if subtoolchain_version is not None and subtoolchain_name not in visited:
                 tc = {'name': subtoolchain_name, 'version': subtoolchain_version}
@@ -394,12 +415,9 @@ def disable_templating(ec):
             # Do what you want without templating
         # Templating set to previous value
     """
-    old_enable_templating = ec.enable_templating
-    ec.enable_templating = False
-    try:
-        yield old_enable_templating
-    finally:
-        ec.enable_templating = old_enable_templating
+    _log.deprecated("disable_templating(ec) was replaced by ec.disable_templating()", '5.0')
+    with ec.disable_templating() as old_value:
+        yield old_value
 
 
 class EasyConfig(object):
@@ -525,6 +543,29 @@ class EasyConfig(object):
 
         self.software_license = None
 
+    @contextmanager
+    def disable_templating(self):
+        """Temporarily disable templating on the given EasyConfig
+
+        Usage:
+            with ec.disable_templating():
+                # Do what you want without templating
+            # Templating set to previous value
+        """
+        old_enable_templating = self.enable_templating
+        self.enable_templating = False
+        try:
+            yield old_enable_templating
+        finally:
+            self.enable_templating = old_enable_templating
+
+    def __str__(self):
+        """Return a string representation of this EasyConfig instance"""
+        if self.path:
+            return '%s EasyConfig @ %s' % (self.name, self.path)
+        else:
+            return 'Raw %s EasyConfig' % self.name
+
     def filename(self):
         """Determine correct filename for this easyconfig file."""
 
@@ -634,7 +675,7 @@ class EasyConfig(object):
         """
         # disable templating when setting easyconfig parameters
         # required to avoid problems with values that need more parsing to be done (e.g. dependencies)
-        with disable_templating(self):
+        with self.disable_templating():
             for key in sorted(params.keys()):
                 # validations are skipped, just set in the config
                 if key in self._config.keys():
@@ -686,7 +727,7 @@ class EasyConfig(object):
 
         # templating is disabled when parse_hook is called to allow for easy updating of mutable easyconfig parameters
         # (see also comment in resolve_template)
-        with disable_templating(self):
+        with self.disable_templating():
             # if any lists of dependency versions are specified over which we should iterate,
             # deal with them now, before calling parse hook, parsing of dependencies & iterative easyconfig parameters
             self.handle_multi_deps()
@@ -702,10 +743,13 @@ class EasyConfig(object):
             # parse dependency specifications
             # it's important that templating is still disabled at this stage!
             self.log.info("Parsing dependency specifications...")
-            self['dependencies'] = [self._parse_dependency(dep) for dep in self['dependencies']]
-            self['hiddendependencies'] = [
-                self._parse_dependency(dep, hidden=True) for dep in self['hiddendependencies']
-            ]
+
+            def remove_false_versions(deps):
+                return [dep for dep in deps if not (isinstance(dep, dict) and dep['version'] is False)]
+
+            self['dependencies'] = remove_false_versions(self._parse_dependency(dep) for dep in self['dependencies'])
+            self['hiddendependencies'] = remove_false_versions(self._parse_dependency(dep, hidden=True) for dep in
+                                                               self['hiddendependencies'])
 
             # need to take into account that builddependencies may need to be iterated over,
             # i.e. when the value is a list of lists of tuples
@@ -715,7 +759,7 @@ class EasyConfig(object):
                 builddeps = [[self._parse_dependency(dep, build_only=True) for dep in x] for x in builddeps]
             else:
                 builddeps = [self._parse_dependency(dep, build_only=True) for dep in builddeps]
-            self['builddependencies'] = builddeps
+            self['builddependencies'] = remove_false_versions(builddeps)
 
             # keep track of parsed multi deps, they'll come in handy during sanity check & module steps...
             self.multi_deps = self.get_parsed_multi_deps()
@@ -728,6 +772,28 @@ class EasyConfig(object):
 
         # indicate that this is a parsed easyconfig
         self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
+
+    def count_files(self):
+        """
+        Determine number of files (sources + patches) required for this easyconfig.
+        """
+        cnt = len(self['sources']) + len(self['patches'])
+
+        for ext in self['exts_list']:
+            if isinstance(ext, tuple) and len(ext) >= 3:
+                ext_opts = ext[2]
+                # check for 'sources' first, since that's also considered first by EasyBlock.fetch_extension_sources
+                if 'sources' in ext_opts:
+                    cnt += len(ext_opts['sources'])
+                elif 'source_tmpl' in ext_opts:
+                    cnt += 1
+                else:
+                    # assume there's always one source file;
+                    # for extensions using PythonPackage, no 'source' or 'sources' may be specified
+                    cnt += 1
+                cnt += len(ext_opts.get('patches', []))
+
+        return cnt
 
     def local_var_naming(self, local_var_naming_check):
         """Deal with local variables that do not follow the recommended naming scheme (if any)."""
@@ -771,7 +837,10 @@ class EasyConfig(object):
                 raise EasyBuildError("Wrong type for value of 'deprecated' easyconfig parameter: %s", type(deprecated))
 
         if self.toolchain.is_deprecated():
-            depr_msgs.append("toolchain '%(name)s/%(version)s' is marked as deprecated" % self['toolchain'])
+            # allow use of deprecated toolchains when running unit tests,
+            # because test easyconfigs/modules often use old toolchain versions (and updating them is far from trivial)
+            if not build_option('unit_testing_mode'):
+                depr_msgs.append("toolchain '%(name)s/%(version)s' is marked as deprecated" % self['toolchain'])
 
         if depr_msgs:
             depr_msg = ', '.join(depr_msgs)
@@ -844,7 +913,7 @@ class EasyConfig(object):
                 raise EasyBuildError("Non-tuple value type for OS dependency specification: %s (type %s)",
                                      dep, type(dep))
 
-            if not any([check_os_dependency(cand_dep) for cand_dep in dep]):
+            if not any(check_os_dependency(cand_dep) for cand_dep in dep):
                 not_found.append(dep)
 
         if not_found:
@@ -1145,7 +1214,7 @@ class EasyConfig(object):
         :param backup: create backup of existing file before overwriting it
         """
         # templated values should be dumped unresolved
-        with disable_templating(self):
+        with self.disable_templating():
             # build dict of default values
             default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
             default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
@@ -1289,12 +1358,19 @@ class EasyConfig(object):
 
                 # if a version is already set in the available metadata, we retain it
                 if 'version' not in existing_metadata:
-                    res['version'] = [version]
+                    # Use name of environment variable as value, not the current value of that environment variable.
+                    # This is important in case the value of the environment variables changes by the time we really
+                    # use it, for example by a loaded module being swapped with another version of that module.
+                    # This is particularly important w.r.t. integration with the Cray Programming Environment,
+                    # cfr. https://github.com/easybuilders/easybuild-framework/pull/3559.
+                    res['version'] = [version_var_name]
                     self.log.info('setting external module %s version to be %s', mod_name, version)
 
                 # if a prefix is already set in the available metadata, we retain it
                 if 'prefix' not in existing_metadata:
-                    res['prefix'] = prefix
+                    # Use name of environment variable as value, not the current value of that environment variable.
+                    # (see above for more info)
+                    res['prefix'] = prefix_var_name
                     self.log.info('setting external module %s prefix to be %s', mod_name, prefix_var_name)
                 break
 
@@ -1636,7 +1712,7 @@ class EasyConfig(object):
 
         # step 1-3 work with easyconfig.templates constants
         # disable templating with creating dict with template values to avoid looping back to here via __getitem__
-        with disable_templating(self):
+        with self.disable_templating():
             if self.template_values is None:
                 # if no template values are set yet, initiate with a minimal set of template values;
                 # this is important for easyconfig that use %(version_minor)s to define 'toolchain',
@@ -1649,7 +1725,7 @@ class EasyConfig(object):
 
         # get updated set of template values, now with toolchain instance
         # (which is used to define the %(mpi_cmd_prefix)s template)
-        with disable_templating(self):
+        with self.disable_templating():
             template_values = template_constant_dict(self, ignore=ignore, toolchain=toolchain)
 
         # update the template_values dict
@@ -1693,7 +1769,7 @@ class EasyConfig(object):
         # see also comments in resolve_template
 
         # temporarily disable templating
-        with disable_templating(self):
+        with self.disable_templating():
             ref = self[key]
 
         return ref
@@ -1758,6 +1834,25 @@ class EasyConfig(object):
                 value = resolve_template(value, self.template_values)
             res[key] = value
         return res
+
+    def get_cuda_cc_template_value(self, key):
+        """
+        Get template value based on --cuda-compute-capabilities EasyBuild configuration option
+        and cuda_compute_capabilities easyconfig parameter.
+        Returns user-friendly error message in case neither are defined,
+        or if an unknown key is used.
+        """
+        if key.startswith('cuda_') and any(x[0] == key for x in TEMPLATE_NAMES_DYNAMIC):
+            try:
+                return self.template_values[key]
+            except KeyError:
+                error_msg = "Template value '%s' is not defined!\n"
+                error_msg += "Make sure that either the --cuda-compute-capabilities EasyBuild configuration "
+                error_msg += "option is set, or that the cuda_compute_capabilities easyconfig parameter is defined."
+                raise EasyBuildError(error_msg, key)
+        else:
+            error_msg = "%s is not a template value based on --cuda-compute-capabilities/cuda_compute_capabilities"
+            raise EasyBuildError(error_msg, key)
 
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):
@@ -1928,9 +2023,8 @@ def resolve_template(value, tmpl_dict):
         # self['x'] is a get, will return a reference to a templated version of self._config['x']
         # and the ['y] = z part will be against this new reference
         # you will need to do
-        # self.enable_templating = False
-        # self['x']['y'] = z
-        # self.enable_templating = True
+        # with self.disable_templating():
+        #     self['x']['y'] = z
         # or (direct but evil)
         # self._config['x']['y'] = z
         # it can not be intercepted with __setitem__ because the set is done at a deeper level

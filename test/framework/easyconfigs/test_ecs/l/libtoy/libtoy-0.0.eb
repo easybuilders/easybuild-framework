@@ -1,0 +1,17 @@
+name = 'libtoy'
+version = '0.0'
+
+homepage = 'https://easybuild.io'
+description = "Toy C library."
+
+toolchain = SYSTEM
+
+sources = [SOURCE_TAR_GZ]
+checksums = ['1523195c806fb511c3f0b60de1e53890c39cb783c7061c2736e40a31a38fd017']
+
+sanity_check_paths = {
+    'files': ['bin/toy', 'lib/libtoy.%s' % SHLIB_EXT],
+    'dirs': [],
+}
+
+moduleclass = 'lib'

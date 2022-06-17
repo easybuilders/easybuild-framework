@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,6 +37,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 :author: Ward Poelmans (Ghent University)
 """
 import copy
+import fnmatch
 import glob
 import os
 import re
@@ -47,7 +48,8 @@ from distutils.version import LooseVersion
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
-from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_info, get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
@@ -55,7 +57,9 @@ from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
 from easybuild.tools.filetools import read_file, resolve_path, which, write_file
-from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_files_from_pr, download_repo
+from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
+from easybuild.tools.github import det_pr_labels, download_repo, fetch_easyconfigs_from_pr, fetch_pr_data
+from easybuild.tools.github import fetch_files_from_pr
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
@@ -304,7 +308,7 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     return paths
 
 
-def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_pr=False):
+def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None, review_pr=None):
     """Obtain alternative paths for easyconfig files."""
 
     # paths where tweaked easyconfigs will be placed, easyconfigs listed on the command line take priority and will be
@@ -315,12 +319,18 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_pr=False):
         tweaked_ecs_paths = (os.path.join(tmpdir, 'tweaked_easyconfigs'),
                              os.path.join(tmpdir, 'tweaked_dep_easyconfigs'))
 
-    # path where files touched in PR will be downloaded to
-    pr_path = None
-    if from_pr:
-        pr_path = os.path.join(tmpdir, "files_pr%s" % from_pr)
+    # paths where files touched in PRs will be downloaded to,
+    # which are picked up via 'pr_paths' build option in fetch_files_from_pr
+    pr_paths = []
+    if from_prs:
+        pr_paths = from_prs[:]
+    if review_pr and review_pr not in pr_paths:
+        pr_paths.append(review_pr)
 
-    return tweaked_ecs_paths, pr_path
+    if pr_paths:
+        pr_paths = [os.path.join(tmpdir, 'files_pr%s' % pr) for pr in pr_paths]
+
+    return tweaked_ecs_paths, pr_paths
 
 
 def det_easyconfig_paths(orig_paths):
@@ -329,14 +339,22 @@ def det_easyconfig_paths(orig_paths):
     :param orig_paths: list of original easyconfig paths
     :return: list of paths to easyconfig files
     """
-    from_pr = build_option('from_pr')
+    try:
+        from_prs = [int(x) for x in build_option('from_pr')]
+    except ValueError:
+        raise EasyBuildError("Argument to --from-pr must be a comma separated list of PR #s.")
+
     robot_path = build_option('robot_path')
 
     # list of specified easyconfig files
     ec_files = orig_paths[:]
 
-    if from_pr is not None:
-        pr_files = fetch_easyconfigs_from_pr(from_pr)
+    if from_prs:
+        pr_files = []
+        for pr in from_prs:
+            # path to where easyconfig files should be downloaded is determined via 'pr_paths' build option,
+            # which corresponds to the list of PR paths returned by alt_easyconfig_paths
+            pr_files.extend(fetch_easyconfigs_from_pr(pr))
 
         if ec_files:
             # replace paths for specified easyconfigs that are touched in PR
@@ -348,6 +366,10 @@ def det_easyconfig_paths(orig_paths):
             # if no easyconfigs are specified, use all the ones touched in the PR
             ec_files = [path for path in pr_files if path.endswith('.eb')]
 
+    filter_ecs = build_option('filter_ecs')
+    if filter_ecs:
+        ec_files = [ec for ec in ec_files
+                    if not any(fnmatch.fnmatch(ec, filter_spec) for filter_spec in filter_ecs)]
     if ec_files and robot_path:
         ignore_subdirs = build_option('ignore_dirs')
         if not build_option('consider_archived_easyconfigs'):
@@ -440,7 +462,7 @@ def find_related_easyconfigs(path, ec):
         toolchain_pattern = ''
 
     potential_paths = [glob.glob(ec_path) for ec_path in create_paths(path, name, '*')]
-    potential_paths = sum(potential_paths, [])  # flatten
+    potential_paths = sorted(sum(potential_paths, []), reverse=True)  # flatten
     _log.debug("found these potential paths: %s" % potential_paths)
 
     parsed_version = LooseVersion(version).version
@@ -471,17 +493,22 @@ def find_related_easyconfigs(path, ec):
         else:
             _log.debug("No related easyconfigs in potential paths using '%s'" % regex)
 
-    return sorted(res)
+    return res
 
 
-def review_pr(paths=None, pr=None, colored=True, branch='develop'):
+def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False, max_ecs=None, filter_ecs=None):
     """
     Print multi-diff overview between specified easyconfigs or PR and specified branch.
     :param pr: pull request number in easybuild-easyconfigs repo to review
     :param paths: path tuples (path, generated) of easyconfigs to review
     :param colored: boolean indicating whether a colored multi-diff should be generated
     :param branch: easybuild-easyconfigs branch to compare with
+    :param testing: whether to ignore PR labels (used in test_review_pr)
     """
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
+    if pr_target_repo != GITHUB_EASYCONFIGS_REPO:
+        raise EasyBuildError("Reviewing PRs for repositories other than easyconfigs hasn't been implemented yet")
+
     tmpdir = tempfile.mkdtemp()
 
     download_repo_path = download_repo(branch=branch, path=tmpdir)
@@ -504,11 +531,74 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
             pr_msg = "new PR"
         _log.debug("File in %s %s has these related easyconfigs: %s" % (pr_msg, ec['spec'], files))
         if files:
+            if filter_ecs is not None:
+                files = [x for x in files if filter_ecs.search(x)]
+            if max_ecs is not None:
+                files = files[:max_ecs]
             lines.append(multidiff(ec['spec'], files, colored=colored))
         else:
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
 
+    if pr:
+        file_info = det_file_info(pr_files, download_repo_path)
+
+        pr_target_account = build_option('pr_target_account')
+        github_user = build_option('github_user')
+        pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
+        pr_labels = [label['name'] for label in pr_data['labels']] if not testing else []
+
+        expected_labels = det_pr_labels(file_info, pr_target_repo)
+        missing_labels = [label for label in expected_labels if label not in pr_labels]
+
+        if missing_labels:
+            lines.extend(['', "This PR should be labelled with %s" % ', '.join(["'%s'" % ml for ml in missing_labels])])
+
+        if not pr_data['milestone']:
+            lines.extend(['', "This PR should be associated with a milestone"])
+        elif '.x' in pr_data['milestone']['title']:
+            lines.extend(['', "This PR is associated with a generic '.x' milestone, "
+                              "it should be associated to the next release milestone once merged"])
+
     return '\n'.join(lines)
+
+
+def dump_env_easyblock(app, orig_env=None, ec_path=None, script_path=None, silent=False):
+    if orig_env is None:
+        orig_env = copy.deepcopy(os.environ)
+    if ec_path is None:
+        raise EasyBuildError("The path to the easyconfig relevant to this environment dump is required")
+    if script_path is None:
+        # Assume we are placing it alongside the easyconfig path
+        script_path = '%s.env' % os.path.splitext(ec_path)[0]
+    # Compose script
+    ecfile = os.path.basename(ec_path)
+    script_lines = [
+        "#!/bin/bash",
+        "# script to set up build environment as defined by EasyBuild v%s for %s" % (EASYBUILD_VERSION, ecfile),
+        "# usage: source %s" % os.path.basename(script_path),
+    ]
+
+    script_lines.extend(['', "# toolchain & dependency modules"])
+    if app.toolchain.modules:
+        script_lines.extend(["module load %s" % mod for mod in app.toolchain.modules])
+    else:
+        script_lines.append("# (no modules loaded)")
+
+    script_lines.extend(['', "# build environment"])
+    if app.toolchain.vars:
+        env_vars = sorted(app.toolchain.vars.items())
+        script_lines.extend(["export %s='%s'" % (var, val.replace("'", "\\'")) for (var, val) in env_vars])
+    else:
+        script_lines.append("# (no build environment defined)")
+
+    write_file(script_path, '\n'.join(script_lines))
+    msg = "Script to set up build environment for %s dumped to %s" % (ecfile, script_path)
+    if silent:
+        _log.info(msg)
+    else:
+        print_msg(msg, prefix=False)
+
+    restore_env(orig_env)
 
 
 def dump_env_script(easyconfigs):
@@ -545,31 +635,8 @@ def dump_env_script(easyconfigs):
         app.check_readiness_step()
         app.prepare_step(start_dir=False)
 
-        # compose script
-        ecfile = os.path.basename(ec.path)
-        script_lines = [
-            "#!/bin/bash",
-            "# script to set up build environment as defined by EasyBuild v%s for %s" % (EASYBUILD_VERSION, ecfile),
-            "# usage: source %s" % os.path.basename(script_path),
-        ]
-
-        script_lines.extend(['', "# toolchain & dependency modules"])
-        if app.toolchain.modules:
-            script_lines.extend(["module load %s" % mod for mod in app.toolchain.modules])
-        else:
-            script_lines.append("# (no modules loaded)")
-
-        script_lines.extend(['', "# build environment"])
-        if app.toolchain.vars:
-            env_vars = sorted(app.toolchain.vars.items())
-            script_lines.extend(["export %s='%s'" % (var, val.replace("'", "\\'")) for (var, val) in env_vars])
-        else:
-            script_lines.append("# (no build environment defined)")
-
-        write_file(script_path, '\n'.join(script_lines))
-        print_msg("Script to set up build environment for %s dumped to %s" % (ecfile, script_path), prefix=False)
-
-        restore_env(orig_env)
+        # create the environment dump
+        dump_env_easyblock(app, orig_env=orig_env, ec_path=ec.path, script_path=script_path)
 
 
 def categorize_files_by_type(paths):
@@ -592,6 +659,14 @@ def categorize_files_by_type(paths):
         # file must exist in order to check whether it's a patch file
         elif os.path.isfile(path) and is_patch_file(path):
             res['patch_files'].append(path)
+        elif path.endswith('.patch'):
+            if not os.path.exists(path):
+                raise EasyBuildError('File %s does not exist, did you mistype the path?', path)
+            elif not os.path.isfile(path):
+                raise EasyBuildError('File %s is expected to be a regular file, but is a folder instead', path)
+            else:
+                raise EasyBuildError('%s is not detected as a valid patch file. Please verify its contents!',
+                                     path)
         else:
             # anything else is considered to be an easyconfig file
             res['easyconfigs'].append(path)
@@ -703,6 +778,9 @@ def avail_easyblocks():
 def det_copy_ec_specs(orig_paths, from_pr):
     """Determine list of paths + target directory for --copy-ec."""
 
+    if from_pr is not None and not isinstance(from_pr, list):
+        from_pr = [from_pr]
+
     target_path, paths = None, []
 
     # if only one argument is specified, use current directory as target directory
@@ -724,8 +802,10 @@ def det_copy_ec_specs(orig_paths, from_pr):
         # to avoid potential trouble with already existing files in the working tmpdir
         # (note: we use a fixed subdirectory in the working tmpdir here rather than a unique random subdirectory,
         #  to ensure that the caching for fetch_files_from_pr works across calls for the same PR)
-        tmpdir = os.path.join(tempfile.gettempdir(), 'fetch_files_from_pr_%s' % from_pr)
-        pr_paths = fetch_files_from_pr(pr=from_pr, path=tmpdir)
+        tmpdir = os.path.join(tempfile.gettempdir(), 'fetch_files_from_pr_%s' % '_'.join(str(pr) for pr in from_pr))
+        pr_paths = []
+        for pr in from_pr:
+            pr_paths.extend(fetch_files_from_pr(pr=pr, path=tmpdir))
 
         # assume that files need to be copied to current working directory for now
         target_path = os.getcwd()

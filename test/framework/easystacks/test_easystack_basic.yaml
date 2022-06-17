@@ -3,8 +3,8 @@ software:
     toolchains:
       GCCcore-4.9.3:
         versions:
-          2.25:
-          2.26:
+          '2.25':
+          '2.26':
   foss:
     toolchains:
       SYSTEM:
@@ -13,5 +13,5 @@ software:
     toolchains:
       gompi-2018a:
         versions:
-          0.0:
+          '0.0':
             versionsuffix: '-test'

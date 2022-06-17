@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -616,7 +616,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
         else:
             expected = '\n'.join([
                 '',
-                'swap("foo", "bar")',
+                'unload("foo")',
+                'load("bar")',
                 '',
             ])
 
@@ -637,7 +638,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             expected = '\n'.join([
                 '',
                 'if isloaded("foo") then',
-                '    swap("foo", "bar")',
+                '    unload("foo")',
+                '    load("bar")',
                 'else',
                 '    load("bar")',
                 'end',
@@ -668,6 +670,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_append_paths(self):
         """Test generating append-paths statements."""
         # test append_paths
+        def append_paths(*args, **kwargs):
+            """Wrap this into start_module_creation which need to be called prior to append_paths"""
+            with self.modgen.start_module_creation():
+                return self.modgen.append_paths(*args, **kwargs)
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = ''.join([
@@ -676,17 +682,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 "append-path\tkey\t\t$root\n",
             ])
             paths = ['path1', 'path2', '']
-            self.assertEqual(expected, self.modgen.append_paths("key", paths))
+            self.assertEqual(expected, append_paths("key", paths))
             # 2nd call should still give same result, no side-effects like manipulating passed list 'paths'!
-            self.assertEqual(expected, self.modgen.append_paths("key", paths))
+            self.assertEqual(expected, append_paths("key", paths))
 
             expected = "append-path\tbar\t\t$root/foo\n"
-            self.assertEqual(expected, self.modgen.append_paths("bar", "foo"))
+            self.assertEqual(expected, append_paths("bar", "foo"))
 
-            res = self.modgen.append_paths("key", ["/abs/path"], allow_abs=True)
+            res = append_paths("key", ["/abs/path"], allow_abs=True)
             self.assertEqual("append-path\tkey\t\t/abs/path\n", res)
 
-            res = self.modgen.append_paths('key', ['1234@example.com'], expand_relpaths=False)
+            res = append_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual("append-path\tkey\t\t1234@example.com\n", res)
 
         else:
@@ -696,22 +702,33 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'append_path("key", root)\n',
             ])
             paths = ['path1', 'path2', '']
-            self.assertEqual(expected, self.modgen.append_paths("key", paths))
+            self.assertEqual(expected, append_paths("key", paths))
             # 2nd call should still give same result, no side-effects like manipulating passed list 'paths'!
-            self.assertEqual(expected, self.modgen.append_paths("key", paths))
+            self.assertEqual(expected, append_paths("key", paths))
 
             expected = 'append_path("bar", pathJoin(root, "foo"))\n'
-            self.assertEqual(expected, self.modgen.append_paths("bar", "foo"))
+            self.assertEqual(expected, append_paths("bar", "foo"))
 
             expected = 'append_path("key", "/abs/path")\n'
-            self.assertEqual(expected, self.modgen.append_paths("key", ["/abs/path"], allow_abs=True))
+            self.assertEqual(expected, append_paths("key", ["/abs/path"], allow_abs=True))
 
-            res = self.modgen.append_paths('key', ['1234@example.com'], expand_relpaths=False)
+            res = append_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('append_path("key", "1234@example.com")\n', res)
 
         self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
                                               "which only expects relative paths." % self.modgen.app.installdir,
-                              self.modgen.append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+                              append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+
+        # check for warning that is printed when same path is added multiple times
+        with self.modgen.start_module_creation():
+            self.modgen.append_paths('TEST', 'path1')
+            self.mock_stderr(True)
+            self.modgen.append_paths('TEST', 'path1')
+            stderr = self.get_stderr()
+            self.mock_stderr(False)
+            expected_warning = "\nWARNING: Suppressed adding the following path(s) to $TEST of the module "
+            expected_warning += "as they were already added: path1\n\n"
+            self.assertEqual(stderr, expected_warning)
 
     def test_module_extensions(self):
         """test the extensions() for extensions"""
@@ -743,6 +760,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
         # test prepend_paths
+        def prepend_paths(*args, **kwargs):
+            """Wrap this into start_module_creation which need to be called prior to append_paths"""
+            with self.modgen.start_module_creation():
+                return self.modgen.prepend_paths(*args, **kwargs)
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = ''.join([
@@ -751,17 +772,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 "prepend-path\tkey\t\t$root\n",
             ])
             paths = ['path1', 'path2', '']
-            self.assertEqual(expected, self.modgen.prepend_paths("key", paths))
+            self.assertEqual(expected, prepend_paths("key", paths))
             # 2nd call should still give same result, no side-effects like manipulating passed list 'paths'!
-            self.assertEqual(expected, self.modgen.prepend_paths("key", paths))
+            self.assertEqual(expected, prepend_paths("key", paths))
 
             expected = "prepend-path\tbar\t\t$root/foo\n"
-            self.assertEqual(expected, self.modgen.prepend_paths("bar", "foo"))
+            self.assertEqual(expected, prepend_paths("bar", "foo"))
 
-            res = self.modgen.prepend_paths("key", ["/abs/path"], allow_abs=True)
+            res = prepend_paths("key", ["/abs/path"], allow_abs=True)
             self.assertEqual("prepend-path\tkey\t\t/abs/path\n", res)
 
-            res = self.modgen.prepend_paths('key', ['1234@example.com'], expand_relpaths=False)
+            res = prepend_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual("prepend-path\tkey\t\t1234@example.com\n", res)
 
         else:
@@ -771,22 +792,33 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'prepend_path("key", root)\n',
             ])
             paths = ['path1', 'path2', '']
-            self.assertEqual(expected, self.modgen.prepend_paths("key", paths))
+            self.assertEqual(expected, prepend_paths("key", paths))
             # 2nd call should still give same result, no side-effects like manipulating passed list 'paths'!
-            self.assertEqual(expected, self.modgen.prepend_paths("key", paths))
+            self.assertEqual(expected, prepend_paths("key", paths))
 
             expected = 'prepend_path("bar", pathJoin(root, "foo"))\n'
-            self.assertEqual(expected, self.modgen.prepend_paths("bar", "foo"))
+            self.assertEqual(expected, prepend_paths("bar", "foo"))
 
             expected = 'prepend_path("key", "/abs/path")\n'
-            self.assertEqual(expected, self.modgen.prepend_paths("key", ["/abs/path"], allow_abs=True))
+            self.assertEqual(expected, prepend_paths("key", ["/abs/path"], allow_abs=True))
 
-            res = self.modgen.prepend_paths('key', ['1234@example.com'], expand_relpaths=False)
+            res = prepend_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('prepend_path("key", "1234@example.com")\n', res)
 
         self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
                                               "which only expects relative paths." % self.modgen.app.installdir,
-                              self.modgen.prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+                              prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+
+        # check for warning that is printed when same path is added multiple times
+        with self.modgen.start_module_creation():
+            self.modgen.prepend_paths('TEST', 'path1')
+            self.mock_stderr(True)
+            self.modgen.prepend_paths('TEST', 'path1')
+            stderr = self.get_stderr()
+            self.mock_stderr(False)
+            expected_warning = "\nWARNING: Suppressed adding the following path(s) to $TEST of the module "
+            expected_warning += "as they were already added: path1\n\n"
+            self.assertEqual(stderr, expected_warning)
 
     def test_det_user_modpath(self):
         """Test for generic det_user_modpath method."""
@@ -853,12 +885,43 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_getenv_cmd(self):
         """Test getting value of environment variable."""
+
+        test_mod_file = os.path.join(self.test_prefix, 'test', '1.2.3')
+
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            # can't have $LMOD_QUIET set when testing with Tcl syntax,
+            # otherwise we won't get the output produced by the test module file...
+            if 'LMOD_QUIET' in os.environ:
+                del os.environ['LMOD_QUIET']
+
             self.assertEqual('$::env(HOSTNAME)', self.modgen.getenv_cmd('HOSTNAME'))
             self.assertEqual('$::env(HOME)', self.modgen.getenv_cmd('HOME'))
+
+            expected = '[if { [info exists ::env(TEST)] } { concat $::env(TEST) } else { concat "foobar" } ]'
+            getenv_txt = self.modgen.getenv_cmd('TEST', default='foobar')
+            self.assertEqual(getenv_txt, expected)
+
+            write_file(test_mod_file, '#%%Module\nputs stderr %s' % getenv_txt)
         else:
             self.assertEqual('os.getenv("HOSTNAME")', self.modgen.getenv_cmd('HOSTNAME'))
             self.assertEqual('os.getenv("HOME")', self.modgen.getenv_cmd('HOME'))
+
+            expected = 'os.getenv("TEST") or "foobar"'
+            getenv_txt = self.modgen.getenv_cmd('TEST', default='foobar')
+            self.assertEqual(getenv_txt, expected)
+
+            test_mod_file += '.lua'
+            write_file(test_mod_file, "io.stderr:write(%s)" % getenv_txt)
+
+        # only test loading of test module in Lua syntax when using Lmod
+        if isinstance(self.modtool, Lmod) or not test_mod_file.endswith('.lua'):
+            self.modtool.use(self.test_prefix)
+            out = self.modtool.run_module('load', 'test/1.2.3', return_stderr=True)
+            self.assertEqual(out.strip(), 'foobar')
+
+            os.environ['TEST'] = 'test_value_that_is_not_foobar'
+            out = self.modtool.run_module('load', 'test/1.2.3', return_stderr=True)
+            self.assertEqual(out.strip(), 'test_value_that_is_not_foobar')
 
     def test_alias(self):
         """Test setting of alias in modulefiles."""
@@ -1268,6 +1331,14 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                        ['Compiler/intel/2019.4.243'], ['Core']),
             'imkl-2019.4.243-iimpi-2019.08.eb': ('imkl/2019.4.243',
                                                  'MPI/intel/2019.4.243/impi/2019.4.243', [], [], ['Core']),
+            'intel-compilers-2021.2.0.eb': ('intel-compilers/2021.2.0', 'Core',
+                                            ['Compiler/intel/2021.2.0'], ['Compiler/intel/2021.2.0'], ['Core']),
+            'impi-2021.2.0-intel-compilers-2021.2.0.eb': ('impi/2021.2.0', 'Compiler/intel/2021.2.0',
+                                                          ['MPI/intel/2021.2.0/impi/2021.2.0'],
+                                                          ['MPI/intel/2021.2.0/impi/2021.2.0'],
+                                                          ['Core']),
+            'imkl-2021.2.0-iimpi-2021a.eb': ('imkl/2021.2.0', 'MPI/intel/2021.2.0/impi/2021.2.0',
+                                             [], [], ['Core']),
             'CUDA-9.1.85-GCC-6.4.0-2.28.eb': ('CUDA/9.1.85', 'Compiler/GCC/6.4.0-2.28',
                                               ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85'],
                                               ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85'], ['Core']),
@@ -1295,6 +1366,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                   ['Toolchain/CrayCCE/5.1.29'],
                                   ['Toolchain/CrayCCE/5.1.29'],
                                   ['Core']),
+            'cpeGNU-21.04.eb': ('cpeGNU/21.04', 'Core',
+                                ['Toolchain/cpeGNU/21.04'],
+                                ['Toolchain/cpeGNU/21.04'],
+                                ['Core']),
             'HPL-2.1-CrayCCE-5.1.29.eb': ('HPL/2.1', 'Toolchain/CrayCCE/5.1.29', [], [], ['Core']),
         }
         for ecfile, mns_vals in test_ecs.items():
@@ -1484,6 +1559,48 @@ class ModuleGeneratorTest(EnhancedTestCase):
         expected = self.modgen.app.installdir
 
         self.assertEqual(self.modgen.det_installdir(test_modfile), expected)
+
+    def test_generated_module_file_swap(self):
+        """Test loading a generated module file that includes swap statements."""
+
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
+            mod_ext = '.lua'
+
+            if not isinstance(self.modtool, Lmod):
+                # Lua module files are only supported by Lmod,
+                # so early exit if that's not the case in the test setup
+                return
+
+        else:
+            mod_ext = ''
+
+        # empty test modules
+        for modname in ('one/1.0', 'one/1.1'):
+            modfile = os.path.join(self.test_prefix, modname + mod_ext)
+            write_file(modfile, self.modgen.MODULE_SHEBANG)
+
+        modulepath = os.getenv('MODULEPATH')
+        if modulepath:
+            self.modtool.unuse(modulepath)
+
+        test_mod = os.path.join(self.test_prefix, 'test', '1.0' + mod_ext)
+        test_mod_txt = '\n'.join([
+            self.modgen.MODULE_SHEBANG,
+            self.modgen.swap_module('one', 'one/1.1'),
+        ])
+        write_file(test_mod, test_mod_txt)
+
+        # prepare environment for loading test module
+        self.modtool.use(self.test_prefix)
+        self.modtool.load(['one/1.0'])
+
+        self.modtool.load(['test/1.0'])
+
+        # check whether resulting environment is correct
+        loaded_mods = self.modtool.list()
+        self.assertEqual(loaded_mods[-1]['mod_name'], 'test/1.0')
+        # one/1.0 module was swapped for one/1.1
+        self.assertEqual(loaded_mods[-2]['mod_name'], 'one/1.1')
 
 
 class TclModuleGeneratorTest(ModuleGeneratorTest):
