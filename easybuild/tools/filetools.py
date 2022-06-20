@@ -1469,6 +1469,9 @@ def create_patch_info(patch_spec):
     """
     Create info dictionary from specified patch spec.
     """
+    # Valid keys that can be used in a patch spec dict
+    valid_keys = ['name', 'copy', 'level', 'sourcepath', 'alt_location']
+    
     if isinstance(patch_spec, (list, tuple)):
         if not len(patch_spec) == 2:
             error_msg = "Unknown patch specification '%s', only 2-element lists/tuples are supported!"
@@ -1498,7 +1501,6 @@ def create_patch_info(patch_spec):
         validate_patch_spec(patch_spec)
         patch_info = {'name': patch_spec}
     elif isinstance(patch_spec, dict):
-        valid_keys = ['name', 'copy', 'level', 'sourcepath', 'alt_location']
         patch_info = {}
         for key in patch_spec.keys():
             if key in valid_keys:
@@ -1520,8 +1522,8 @@ def create_patch_info(patch_spec):
                                      str(patch_spec))
     else:
         error_msg = "Wrong patch spec, should be string, 2-tuple with patch name + argument, or a dict " \
-                    "(with possible keys ['name', 'copy', 'level', 'sourcepath', 'alt_location']): %s"
-        raise EasyBuildError(error_msg, patch_spec)
+                    "(with possible keys %s): %s" % (valid_keys, patch_spec)
+        raise EasyBuildError(error_msg)
 
     return patch_info
 
