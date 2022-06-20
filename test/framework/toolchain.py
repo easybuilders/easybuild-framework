@@ -705,12 +705,16 @@ class ToolchainTest(EnhancedTestCase):
             tcs = {
                 'gompi': ('2018a', "-march=x86-64 -mtune=generic"),
                 'iccifort': ('2018.1.163', "-xSSE2 -ftz -fp-speculation=safe -fp-model source"),
+                'intel-compilers': ('2021.4.0', "-xSSE2 -ftz -fp-speculation=safe -fp-model precise"),
             }
             for tcopt_optarch in [False, True]:
                 for tcname in tcs:
                     tcversion, generic_flags = tcs[tcname]
                     tc = self.get_toolchain(tcname, version=tcversion)
-                    tc.set_options({'optarch': tcopt_optarch})
+                    if tcname == 'intel-compilers':
+                        tc.set_options({'optarch': tcopt_optarch, 'oneapi': True})
+                    else:
+                        tc.set_options({'optarch': tcopt_optarch})
                     tc.prepare()
                     for var in flag_vars:
                         if generic:
@@ -1879,6 +1883,7 @@ class ToolchainTest(EnhancedTestCase):
             'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
             'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -fopenmp",
             'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
+            'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -fiopenmp",
         }
 
         toolchains = [
@@ -1887,6 +1892,7 @@ class ToolchainTest(EnhancedTestCase):
             ('CrayIntel', '2015.06-XC'),
             ('GCC', '6.4.0-2.28'),
             ('iccifort', '2018.1.163'),
+            ('intel-compilers', '2021.4.0'),
         ]
 
         # purposely obtain toolchains several times in a row, value for $CFLAGS should not change
@@ -1895,7 +1901,11 @@ class ToolchainTest(EnhancedTestCase):
                 tc = get_toolchain({'name': tcname, 'version': tcversion}, {},
                                    mns=ActiveMNS(), modtool=self.modtool)
                 # also check whether correct compiler flag for OpenMP is used while we're at it
-                tc.set_options({'openmp': True})
+                # and options for oneAPI compiler for Intel
+                if tcname == 'intel-compilers':
+                    tc.set_options({'oneapi': True, 'openmp': True})
+                else:
+                    tc.set_options({'openmp': True})
                 tc.prepare()
                 expected_cflags = tc_cflags[tcname]
                 msg = "Expected $CFLAGS found for toolchain %s: %s" % (tcname, expected_cflags)
