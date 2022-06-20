@@ -1471,7 +1471,7 @@ def create_patch_info(patch_spec):
     """
     # Valid keys that can be used in a patch spec dict
     valid_keys = ['name', 'copy', 'level', 'sourcepath', 'alt_location']
-    
+
     if isinstance(patch_spec, (list, tuple)):
         if not len(patch_spec) == 2:
             error_msg = "Unknown patch specification '%s', only 2-element lists/tuples are supported!"
