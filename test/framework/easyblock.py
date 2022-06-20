@@ -1619,11 +1619,12 @@ class EasyBlockTest(EnhancedTestCase):
             (toy_patch, 4),   # should be level 4
             (toy_patch, 'foobar'),  # sourcepath should be set to 'foobar'
             ('toy-0.0.tar.gz', 'some/path'),  # copy mode (not a .patch file)
+            {'name': toy_patch, 'level': 0, 'alt_location': 'alt_toy'},
         ]
         # check if patch levels are parsed correctly
         eb.fetch_patches(patch_specs=patches)
 
-        self.assertEqual(len(eb.patches), 4)
+        self.assertEqual(len(eb.patches), 5)
         self.assertEqual(eb.patches[0]['name'], toy_patch)
         self.assertEqual(eb.patches[0]['level'], 0)
         self.assertEqual(eb.patches[1]['name'], toy_patch)
@@ -1632,6 +1633,11 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.patches[2]['sourcepath'], 'foobar')
         self.assertEqual(eb.patches[3]['name'], 'toy-0.0.tar.gz'),
         self.assertEqual(eb.patches[3]['copy'], 'some/path')
+        self.assertEqual(eb.patches[4]['name'], toy_patch)
+        self.assertEqual(eb.patches[4]['level'], 0)
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        sandbox_sources = os.path.join(testdir, 'sandbox', 'sources')
+        self.assertEqual(eb.patches[4]['path'], os.path.join(sandbox_sources, 'alt_toy', toy_patch))
 
         patches = [
             ('toy-0.0_level4.patch', False),  # should throw an error, only int's an strings allowed here
@@ -1644,6 +1650,7 @@ class EasyBlockTest(EnhancedTestCase):
         testdir = os.path.abspath(os.path.dirname(__file__))
         sandbox_sources = os.path.join(testdir, 'sandbox', 'sources')
         toy_tarball_path = os.path.join(sandbox_sources, 'toy', toy_tarball)
+        alt_toy_tarball_path = os.path.join(sandbox_sources, 'alt_toy', toy_tarball)
         tmpdir = tempfile.mkdtemp()
         tmpdir_subdir = os.path.join(tmpdir, 'testing')
         mkdir(tmpdir_subdir, parents=True)
@@ -1658,20 +1665,31 @@ class EasyBlockTest(EnhancedTestCase):
         res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, os.path.join(tmpdir, 't', 'toy', toy_tarball))
 
+        # 'downloading' a file to (first) alternative sourcepath works
+        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
+        self.assertEqual(res, os.path.join(tmpdir, 'a', 'alt_toy', toy_tarball))
+
         # finding a file in sourcepath works
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (sandbox_sources, tmpdir)])
         res = eb.obtain_file(toy_tarball)
         self.assertEqual(res, toy_tarball_path)
 
+        # finding a file in the alternate location works
+        res = eb.obtain_file(toy_tarball, alt_location='alt_toy')
+        self.assertEqual(res, alt_toy_tarball_path)
+
         # sourcepath has preference over downloading
         res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, toy_tarball_path)
+        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
+        self.assertEqual(res, alt_toy_tarball_path)
 
         init_config(args=["--sourcepath=%s:%s" % (tmpdir, sandbox_sources)])
 
         # clean up toy tarballs in tmpdir, so the one in sourcepath is found
         remove_file(os.path.join(tmpdir, toy_tarball))
         remove_file(os.path.join(tmpdir, 't', 'toy', toy_tarball))
+        remove_file(os.path.join(tmpdir, 'a', 'alt_toy', toy_tarball))
 
         # enabling force_download results in re-downloading, even if file is already in sourcepath
         self.mock_stderr(True)

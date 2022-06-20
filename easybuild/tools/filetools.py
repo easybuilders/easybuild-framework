@@ -1471,6 +1471,9 @@ def create_patch_info(patch_spec):
     """
     Create info dictionary from specified patch spec.
     """
+    # Valid keys that can be used in a patch spec dict
+    valid_keys = ['name', 'copy', 'level', 'sourcepath', 'alt_location']
+
     if isinstance(patch_spec, (list, tuple)):
         if not len(patch_spec) == 2:
             error_msg = "Unknown patch specification '%s', only 2-element lists/tuples are supported!"
@@ -1497,17 +1500,42 @@ def create_patch_info(patch_spec):
                                  str(patch_spec))
 
     elif isinstance(patch_spec, string_type):
-        allowed_patch_exts = ['.patch' + x for x in ('',) + ZIPPED_PATCH_EXTS]
-        if not any(patch_spec.endswith(x) for x in allowed_patch_exts):
-            msg = "Use of patch file with filename that doesn't end with correct extension: %s " % patch_spec
-            msg += "(should be any of: %s)" % (', '.join(allowed_patch_exts))
-            _log.deprecated(msg, '5.0')
+        validate_patch_spec(patch_spec)
         patch_info = {'name': patch_spec}
+    elif isinstance(patch_spec, dict):
+        patch_info = {}
+        for key in patch_spec.keys():
+            if key in valid_keys:
+                patch_info[key] = patch_spec[key]
+            else:
+                raise EasyBuildError("Wrong patch spec '%s', use of unknown key %s in dict (valid keys are %s)",
+                                     str(patch_spec), key, valid_keys)
+
+        # Dict must contain at least the patchfile name
+        if 'name' not in patch_info.keys():
+            raise EasyBuildError("Wrong patch spec '%s', when using a dict 'name' entry must be supplied",
+                                 str(patch_spec))
+        if 'copy' not in patch_info.keys():
+            validate_patch_spec(patch_info['name'])
+        else:
+            if 'sourcepath' in patch_info.keys() or 'level' in patch_info.keys():
+                raise EasyBuildError("Wrong patch spec '%s', you can't use 'sourcepath' or 'level' with 'copy' (since "
+                                     "this implies you want to copy a file to the 'copy' location)",
+                                     str(patch_spec))
     else:
-        error_msg = "Wrong patch spec, should be string of 2-tuple with patch name + argument: %s"
-        raise EasyBuildError(error_msg, patch_spec)
+        error_msg = "Wrong patch spec, should be string, 2-tuple with patch name + argument, or a dict " \
+                    "(with possible keys %s): %s" % (valid_keys, patch_spec)
+        raise EasyBuildError(error_msg)
 
     return patch_info
+
+
+def validate_patch_spec(patch_spec):
+    allowed_patch_exts = ['.patch' + x for x in ('',) + ZIPPED_PATCH_EXTS]
+    if not any(patch_spec.endswith(x) for x in allowed_patch_exts):
+        msg = "Use of patch file with filename that doesn't end with correct extension: %s " % patch_spec
+        msg += "(should be any of: %s)" % (', '.join(allowed_patch_exts))
+        _log.deprecated(msg, '5.0')
 
 
 def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=False, use_git=False):

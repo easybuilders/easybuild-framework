@@ -1631,6 +1631,15 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.create_patch_info(('foo.patch', 1)), {'name': 'foo.patch', 'level': 1})
         self.assertEqual(ft.create_patch_info(('foo.patch', 'subdir')), {'name': 'foo.patch', 'sourcepath': 'subdir'})
         self.assertEqual(ft.create_patch_info(('foo.txt', 'subdir')), {'name': 'foo.txt', 'copy': 'subdir'})
+        self.assertEqual(ft.create_patch_info({'name': 'foo.patch'}), {'name': 'foo.patch'})
+        self.assertEqual(ft.create_patch_info({'name': 'foo.patch', 'sourcepath': 'subdir'}),
+                         {'name': 'foo.patch', 'sourcepath': 'subdir'})
+        self.assertEqual(ft.create_patch_info({'name': 'foo.txt', 'copy': 'subdir'}),
+                         {'name': 'foo.txt', 'copy': 'subdir'})
+        self.assertEqual(ft.create_patch_info({'name': 'foo.patch', 'sourcepath': 'subdir', 'alt_location': 'alt'}),
+                         {'name': 'foo.patch', 'sourcepath': 'subdir', 'alt_location': 'alt'})
+        self.assertEqual(ft.create_patch_info({'name': 'foo.txt', 'copy': 'subdir', 'alt_location': 'alt'}),
+                         {'name': 'foo.txt', 'copy': 'subdir', 'alt_location': 'alt'})
 
         self.allow_deprecated_behaviour()
         self.mock_stderr(True)
@@ -1650,7 +1659,12 @@ class FileToolsTest(EnhancedTestCase):
         # faulty input
         error_msg = "Wrong patch spec"
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, None)
-        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'name': 'foo.patch'})
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'copy': 'subdir'})
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'name': 'foo.txt', 'random': 'key'})
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info,
+                              {'name': 'foo.txt', 'copy': 'subdir', 'sourcepath': 'subdir'})
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info,
+                              {'name': 'foo.txt', 'copy': 'subdir', 'level': 1})
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, ('foo.patch', [1, 2]))
         error_msg = "Unknown patch specification"
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, ('foo.patch', 1, 'subdir'))
