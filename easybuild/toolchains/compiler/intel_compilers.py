@@ -71,6 +71,8 @@ class IntelCompilers(IntelIccIfort):
             self.options.options_map['defaultprec'] = ['ftz', 'fp-speculation=safe', 'fp-model precise']
             # icx doesn't like -fp-model fast=1; fp-model fast is equivalent
             self.options.options_map['loose'] = ['fp-model fast']
+            # fp-model fast=2 gives "warning: overriding '-ffp-model=fast=2' option with '-ffp-model=fast'"
+            self.options.options_map['veryloose'] = ['fp-model fast']
             # recommended in porting guide
             self.options.options_map['openmp'] = ['fiopenmp']
 
