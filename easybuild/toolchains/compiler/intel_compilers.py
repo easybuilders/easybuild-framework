@@ -40,7 +40,7 @@ class IntelCompilers(IntelIccIfort):
 
     COMPILER_MODULE_NAME = ['intel-compilers']
     COMPILER_UNIQUE_OPTS = dict(IntelIccIfort.COMPILER_UNIQUE_OPTS,
-                                oneapi = (False, "Use oneAPI compilers icx/icpx/ifx instead of classic compilers"))
+                                oneapi=(False, "Use oneAPI compilers icx/icpx/ifx instead of classic compilers"))
 
     def _set_compiler_vars(self):
         """Intel compilers-specific adjustments after setting compiler variables."""
