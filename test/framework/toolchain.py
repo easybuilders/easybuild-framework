@@ -1376,6 +1376,63 @@ class ToolchainTest(EnhancedTestCase):
         for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
             self.assertTrue('-openmp' in tc.get_variable(var))
 
+        # with compiler-only toolchain the $MPI* variables are not defined
+        tc = self.get_toolchain('intel-compilers', version='2021.4.0')
+        tc.set_options({})
+        tc.prepare()
+
+        self.assertEqual(os.getenv('CC'), 'icc')
+        self.assertEqual(os.getenv('CXX'), 'icpc')
+        self.assertEqual(os.getenv('F77'), 'ifort')
+        self.assertEqual(os.getenv('F90'), 'ifort')
+        self.assertEqual(os.getenv('FC'), 'ifort')
+
+        self.assertEqual(os.getenv('MPICC'), None)
+        self.assertEqual(os.getenv('MPICXX'), None)
+        self.assertEqual(os.getenv('MPIF77'), None)
+        self.assertEqual(os.getenv('MPIF90'), None)
+        self.assertEqual(os.getenv('MPIFC'), None)
+
+    def test_intel_toolchain_oneapi(self):
+        """Test for opt-in to oneAPI with intel toolchain"""
+
+        # for recent versions of intel toolchain, we can opt in to using the new oneAPI compilers
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='2021.4.0')
+        self.modtool.prepend_module_path(self.test_prefix)
+        tc = self.get_toolchain('intel', version='2021b')
+        tc.set_options({})
+        tc.prepare()
+
+        # default remains classic compilers for now
+        self.assertEqual(os.getenv('CC'), 'icc')
+        self.assertEqual(os.getenv('CXX'), 'icpc')
+        self.assertEqual(os.getenv('F77'), 'ifort')
+        self.assertEqual(os.getenv('F90'), 'ifort')
+        self.assertEqual(os.getenv('FC'), 'ifort')
+
+        self.assertEqual(os.getenv('MPICC'), 'mpiicc')
+        self.assertEqual(os.getenv('MPICXX'), 'mpiicpc')
+        self.assertEqual(os.getenv('MPIF77'), 'mpiifort')
+        self.assertEqual(os.getenv('MPIF90'), 'mpiifort')
+        self.assertEqual(os.getenv('MPIFC'), 'mpiifort')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel', version='2021b')
+        tc.set_options({'oneapi': True})
+        tc.prepare()
+
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpx')
+        self.assertEqual(os.getenv('F77'), 'ifx')
+        self.assertEqual(os.getenv('F90'), 'ifx')
+        self.assertEqual(os.getenv('FC'), 'ifx')
+
+        self.assertEqual(os.getenv('MPICC'), 'mpiicc')
+        self.assertEqual(os.getenv('MPICXX'), 'mpiicpc')
+        self.assertEqual(os.getenv('MPIF77'), 'mpiifort')
+        self.assertEqual(os.getenv('MPIF90'), 'mpiifort')
+        self.assertEqual(os.getenv('MPIFC'), 'mpiifort')
+
     def test_toolchain_verification(self):
         """Test verification of toolchain definition."""
         tc = self.get_toolchain('foss', version='2018a')
