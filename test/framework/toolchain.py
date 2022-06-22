@@ -1377,6 +1377,13 @@ class ToolchainTest(EnhancedTestCase):
             self.assertTrue('-openmp' in tc.get_variable(var))
 
         # with compiler-only toolchain the $MPI* variables are not defined
+        mpi_vars = ('MPICC', 'MPICXX', 'MPIF77', 'MPIF90', 'MPIFC')
+
+        # make sure environment variables are undefined before preparing build environment
+        for var in mpi_vars:
+            if os.getenv(var):
+                del os.environ[var]
+
         tc = self.get_toolchain('intel-compilers', version='2021.4.0')
         tc.set_options({})
         tc.prepare()
@@ -1387,11 +1394,8 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('F90'), 'ifort')
         self.assertEqual(os.getenv('FC'), 'ifort')
 
-        self.assertEqual(os.getenv('MPICC'), None)
-        self.assertEqual(os.getenv('MPICXX'), None)
-        self.assertEqual(os.getenv('MPIF77'), None)
-        self.assertEqual(os.getenv('MPIF90'), None)
-        self.assertEqual(os.getenv('MPIFC'), None)
+        for var in mpi_vars:
+            self.assertEqual(os.getenv(var), None)
 
     def test_intel_toolchain_oneapi(self):
         """Test for opt-in to oneAPI with intel toolchain"""
