@@ -1769,7 +1769,8 @@ class EasyBlock(object):
                 self.install_extensions_parallel(install=install)
             except NotImplementedError:
                 # If parallel extension install is not supported for this type of extension then install sequentially
-                self.log.experimental("parallel extensions install is not supported for ..., so install sequentially.")
+                msg = "Parallel extensions install not supported for %s - using sequential install" % self.name
+                self.log.experimental(msg)
                 self.install_extensions_sequential(install=install)
         else:
             self.install_extensions_sequential(install=install)
