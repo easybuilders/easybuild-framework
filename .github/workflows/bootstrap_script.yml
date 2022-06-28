@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
         lmod7: Lmod-7.8.22
-        lmod8: Lmod-8.7.4
+        lmod8: Lmod-8.7.6
         modulesTcl: modules-tcl-1.147
         modules3: modules-3.2.10
         modules4: modules-4.1.4
