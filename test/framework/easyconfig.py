@@ -567,9 +567,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(patches, [os.path.join(self.test_prefix, toy_patch_fn)])
         # define actual installation dir
         pi_installdir = os.path.join(self.test_installpath, 'software', 'pi', '3.14-test')
-        pi_start_dir = os.path.join(self.test_buildpath, 'pi', '3.14-test')
+        pi_start_dir = self.test_buildpath
         expected_prebuildopts = ('gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy # echo installdir is %s,'
-                                 ' start_dir is %s #' % (pi_installdir, pi_star_dir))
+                                 ' start_dir is %s #' % (pi_installdir, pi_start_dir))
         expected = {
             'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
             'prebuildopts': expected_prebuildopts,
