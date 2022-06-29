@@ -539,7 +539,8 @@ class EasyConfigTest(EnhancedTestCase):
             '       "patches": ["%(name)s-%(version)s_fix-silly-typo-in-printf-statement.patch"],',
             # use hacky prebuildopts that is picked up by 'EB_Toy' easyblock, to check whether templates are resolved
             '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version)s &&' +
-            ' mv toy-%(version)s toy # echo installdir is %(installdir)s #",',
+            ' mv toy-%(version)s toy # echo installdir is %(installdir)s,' +
+            ' start_dir is %(start_dir)s #",',
             '   }),',
             ']',
         ])
@@ -566,7 +567,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(patches, [os.path.join(self.test_prefix, toy_patch_fn)])
         # define actual installation dir
         pi_installdir = os.path.join(self.test_installpath, 'software', 'pi', '3.14-test')
-        expected_prebuildopts = 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy # echo installdir is %s #' % pi_installdir
+        pi_start_dir = os.path.join(self.test_buildpath, 'pi', '3.14-test')
+        expected_prebuildopts = ('gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy # echo installdir is %s,'
+                                 ' start_dir is %s #' % (pi_installdir, pi_star_dir))
         expected = {
             'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
             'prebuildopts': expected_prebuildopts,
