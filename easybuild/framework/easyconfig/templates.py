@@ -73,6 +73,8 @@ TEMPLATE_NAMES_LOWER = [
 TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
     ('builddir', "Build directory"),
     ('installdir', "Installation directory"),
+    ('srcdir', "Source directory"),
+    ('start_dir', "Directory to start make in"),
 ]
 # software names for which to define <pref>ver and <pref>shortver templates
 TEMPLATE_SOFTWARE_VERSIONS = [
