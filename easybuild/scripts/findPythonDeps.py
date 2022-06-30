@@ -31,6 +31,13 @@ def extract_pkg_name(package_spec):
     return re.split('<|>|=|~', args.package, 1)[0]
 
 
+def can_run(cmd, argument):
+    """Check if the given cmd and argument can be run successfully"""
+    try:
+        return subprocess.call([cmd, argument]) == 0
+    except (subprocess.CalledProcessError, OSError):
+        return False
+
 def run_cmd(arguments, action_desc, **kwargs):
     """Run the command and return the return code and output"""
     extra_args = kwargs or {}
@@ -129,6 +136,9 @@ parser.add_argument('--verbose', help='Verbose output', action='store_true')
 args = parser.parse_args()
 
 if args.ec:
+    if not can_run('eb', '--version'):
+        print('EasyBuild not found or executable. Make sure it is in your $PATH when using --ec!')
+        sys.exit(1)
     with temporary_directory() as tmp_dir:
         old_dir = os.getcwd()
         os.chdir(tmp_dir)
@@ -145,4 +155,8 @@ if args.ec:
         out = run_cmd(cmd, action_desc='Run in new environment', shell=True, executable='/bin/bash')
         print(out)
 else:
+    if not can_run('virtualenv', '--version'):
+        print('Virtualenv not found or executable. ' +
+              'Make sure it is installed (e.g. in the currently loaded Python module)!')
+        sys.exit(1)
     print_deps(args.package, args.verbose)
