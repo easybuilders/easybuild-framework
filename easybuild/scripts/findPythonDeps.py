@@ -44,7 +44,7 @@ def run_cmd(arguments, action_desc, **kwargs):
 
 
 def run_in_venv(cmd, venv_path, action_desc):
-    """Run the givven command in the virtualenv at the given path"""
+    """Run the given command in the virtualenv at the given path"""
     cmd = 'source %s/bin/activate && %s' % (venv_path, cmd)
     return run_cmd(cmd, action_desc, shell=True, executable='/bin/bash')
 
