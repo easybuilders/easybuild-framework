@@ -38,6 +38,7 @@ def can_run(cmd, argument):
     except (subprocess.CalledProcessError, OSError):
         return False
 
+
 def run_cmd(arguments, action_desc, **kwargs):
     """Run the command and return the return code and output"""
     extra_args = kwargs or {}
