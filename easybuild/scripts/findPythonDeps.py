@@ -57,15 +57,18 @@ def run_in_venv(cmd, venv_path, action_desc):
     return run_cmd(cmd, action_desc, shell=True, executable='/bin/bash')
 
 
-def get_dep_tree(package_spec):
+def get_dep_tree(package_spec, verbose):
     """Get the dep-tree for installing the given Python package spec"""
     package_name = extract_pkg_name(package_spec)
     with temporary_directory(suffix=package_name + '-deps') as tmp_dir:
         # prevent pip from (ab)using $HOME/.cache/pip
         os.environ['XDG_CACHE_HOME'] = os.path.join(tmp_dir, 'pip-cache')
         venv_dir = os.path.join(tmp_dir, 'venv')
-        # create virtualenv, install package in it
+        if verbose:
+            print('Creating virtualenv at ' + venv_dir)
         run_cmd(['virtualenv', '--system-site-packages', venv_dir], action_desc='create virtualenv')
+        if verbose:
+            print('Installing %s into virtualenv' % package_spec)
         out = run_in_venv('pip install "%s"' % package_spec, venv_dir, action_desc='install ' + package_spec)
         print('%s installed: %s' % (package_spec, out))
         # install pipdeptree, figure out dependency tree for installed package
@@ -95,7 +98,7 @@ def find_deps(pkgs, dep_tree):
 def print_deps(package, verbose):
     if verbose:
         print('Getting dep tree of ' + package)
-    dep_tree = get_dep_tree(package)
+    dep_tree = get_dep_tree(package, verbose)
     if verbose:
         print('Extracting dependencies of ' + package)
     deps = find_deps([extract_pkg_name(package)], dep_tree)
