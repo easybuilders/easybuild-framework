@@ -68,6 +68,9 @@ def get_dep_tree(package_spec, verbose):
             print('Creating virtualenv at ' + venv_dir)
         run_cmd(['virtualenv', '--system-site-packages', venv_dir], action_desc='create virtualenv')
         if verbose:
+            print('Updating pip in virtualenv')
+        run_in_venv('pip install --upgrade pip', venv_dir, action_desc='update pip')
+        if verbose:
             print('Installing %s into virtualenv' % package_spec)
         out = run_in_venv('pip install "%s"' % package_spec, venv_dir, action_desc='install ' + package_spec)
         print('%s installed: %s' % (package_spec, out))
