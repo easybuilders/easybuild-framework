@@ -521,11 +521,13 @@ class EasyBlock(object):
         for ext in exts_list:
             if isinstance(ext, (list, tuple)) and ext:
                 # expected format: (name, version, options (dict))
-                ext_name = ext[0]
+                # name and version can use templates, resolved via parent EC
+
+                ext_name = resolve_template(ext[0], self.cfg.template_values)
                 if len(ext) == 1:
                     exts_sources.append({'name': ext_name})
                 else:
-                    ext_version = ext[1]
+                    ext_version = resolve_template(ext[1], self.cfg.template_values)
 
                     # make sure we grab *raw* dict of default options for extension,
                     # since it may use template values like %(name)s & %(version)s
