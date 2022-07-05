@@ -2855,7 +2855,7 @@ class EasyBlock(object):
 
             fake_mod_data = self.load_fake_module(purge=True, extra_modules=build_dep_mods)
 
-        start_progress_bar(PROGRESS_BAR_EXTENSIONS, len(self.cfg['exts_list']))
+        start_progress_bar(PROGRESS_BAR_EXTENSIONS, len(self.cfg.get_ref('exts_list')))
 
         self.prepare_for_extensions()
 

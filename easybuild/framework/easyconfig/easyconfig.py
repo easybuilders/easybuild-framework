@@ -779,9 +779,13 @@ class EasyConfig(object):
         """
         Determine number of files (sources + patches) required for this easyconfig.
         """
-        cnt = len(self['sources']) + len(self['patches'])
 
-        for ext in self['exts_list']:
+        # No need to resolve templates as we only need a count not the names
+        with self.disable_templating():
+            cnt = len(self['sources']) + len(self['patches'])
+            exts = self['exts_list']
+
+        for ext in exts:
             if isinstance(ext, tuple) and len(ext) >= 3:
                 ext_opts = ext[2]
                 # check for 'sources' first, since that's also considered first by EasyBlock.fetch_extension_sources
