@@ -1622,7 +1622,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
         else:
             _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
-        patch_cmd = "patch -b -p%s -i %s" % (level, abs_patch_file)
+        backup_option = '-b ' if build_option('backup_patched_files') else ''
+        patch_cmd = "patch " + backup_option + "-p%s -i %s" % (level, abs_patch_file)
 
     out, ec = run.run_cmd(patch_cmd, simple=False, path=abs_dest, log_ok=False, trace=False)
 
