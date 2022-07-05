@@ -1844,7 +1844,8 @@ class EasyConfig(object):
             if self.enable_templating:
                 if not self.template_values:
                     self.generate_template_values()
-                value = resolve_template(value, self.template_values)
+                # Not all values can be resolved, e.g. %(installdir)s
+                value = resolve_template(value, self.template_values, expect_resolved=False)
             res[key] = value
         return res
 
