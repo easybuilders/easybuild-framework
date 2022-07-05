@@ -1645,8 +1645,9 @@ class EasyConfig(object):
         filter_deps_specs = self.parse_filter_deps()
 
         for key in DEPENDENCY_PARAMETERS:
-            # loop over a *copy* of dependency dicts (with resolved templates);
-            deps = self[key]
+            # loop over a *copy* of dependency dicts with resolved templates,
+            # although some templates may not resolve yet (e.g. those relying on dependencies like %(pyver)s)
+            deps = resolve_template(self.get_ref(key), self.template_values, expect_resolved=False)
 
             # to update the original dep dict, we need to get a reference with templating disabled...
             deps_ref = self.get_ref(key)
@@ -1855,7 +1856,8 @@ class EasyConfig(object):
             if self.enable_templating:
                 if not self.template_values:
                     self.generate_template_values()
-                value = resolve_template(value, self.template_values)
+                # Not all values can be resolved, e.g. %(installdir)s
+                value = resolve_template(value, self.template_values, expect_resolved=False)
             res[key] = value
         return res
 
@@ -2005,10 +2007,11 @@ def get_module_path(name, generic=None, decode=True):
     return '.'.join(modpath + [module_name])
 
 
-def resolve_template(value, tmpl_dict):
+def resolve_template(value, tmpl_dict, expect_resolved=True):
     """Given a value, try to susbstitute the templated strings with actual values.
         - value: some python object (supported are string, tuple/list, dict or some mix thereof)
         - tmpl_dict: template dictionary
+        - expect_resolved: Expects that all templates get resolved
     """
     if isinstance(value, string_type):
         # simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
@@ -2040,9 +2043,10 @@ def resolve_template(value, tmpl_dict):
             try:
                 value = value % tmpl_dict
             except KeyError:
-                depr_msg = ('Ignoring failure to resolve template value %s with dict %s.' % (value, tmpl_dict) +
-                            '\n\tThis is deprecated and will lead to build failure. Check for correct escaping.')
-                _log.deprecated(depr_msg, '5.0')
+                if expect_resolved:
+                    depr_msg = ('Ignoring failure to resolve template value %s with dict %s.' % (value, tmpl_dict) +
+                                '\n\tThis is deprecated and will lead to build failure. Check for correct escaping.')
+                    _log.deprecated(depr_msg, '5.0')
                 value = orig_value  # Undo "%"-escaping
     else:
         # this block deals with references to objects and returns other references
@@ -2057,11 +2061,12 @@ def resolve_template(value, tmpl_dict):
         # self._config['x']['y'] = z
         # it can not be intercepted with __setitem__ because the set is done at a deeper level
         if isinstance(value, list):
-            value = [resolve_template(val, tmpl_dict) for val in value]
+            value = [resolve_template(val, tmpl_dict, expect_resolved) for val in value]
         elif isinstance(value, tuple):
-            value = tuple(resolve_template(list(value), tmpl_dict))
+            value = tuple(resolve_template(list(value), tmpl_dict, expect_resolved))
         elif isinstance(value, dict):
-            value = {resolve_template(k, tmpl_dict): resolve_template(v, tmpl_dict) for k, v in value.items()}
+            value = {resolve_template(k, tmpl_dict, expect_resolved): resolve_template(v, tmpl_dict, expect_resolved)
+                     for k, v in value.items()}
 
     return value
 
