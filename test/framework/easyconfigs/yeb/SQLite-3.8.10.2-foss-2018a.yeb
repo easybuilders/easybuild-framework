@@ -1,5 +1,5 @@
 _internal_variables_:
-    - &versionstr 3081002
+    - &versionstr '%(version_major)s081002'
 
 easyblock: ConfigureMake
 

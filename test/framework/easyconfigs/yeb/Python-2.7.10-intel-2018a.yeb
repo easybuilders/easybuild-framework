@@ -15,7 +15,7 @@ description: |
 toolchain: {name: intel, version: 2018a}
 toolchainopts: {pic: True, opt: True, optarch: True}
 
-source_urls: ['http://www.python.org/ftp/python/%(version)s/']
+source_urls: ['http://www.python.org/ftp/%(namelower)s/%(version)s/']
 sources: [*SOURCE_TGZ]
 
 # python needs bzip2 to build the bz2 package
