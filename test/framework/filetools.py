@@ -1689,7 +1689,7 @@ class FileToolsTest(EnhancedTestCase):
                 self.assertTrue(os.path.exists(backup_file))
                 self.assertTrue(pattern not in ft.read_file(backup_file))
                 # Restore file to original after first(!) iteration
-                os.replace(backup_file, src_file)
+                ft.move_file(backup_file, src_file)
             else:
                 self.assertFalse(os.path.exists(backup_file))
 
