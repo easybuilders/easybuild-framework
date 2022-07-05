@@ -33,6 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
+from distutils.version import LooseVersion
 from inspect import cleandoc
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -48,7 +49,7 @@ from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_file
 from easybuild.tools.filetools import verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
-from easybuild.tools.modules import reset_module_caches
+from easybuild.tools.modules import EnvironmentModules, Lmod, reset_module_caches
 from easybuild.tools.version import get_git_revision, this_is_easybuild
 from easybuild.tools.py2vs3 import string_type
 
@@ -1158,8 +1159,20 @@ class EasyBlockTest(EnhancedTestCase):
         version = "3.14"
         # purposely use a 'nasty' description, that includes (unbalanced) special chars: [, ], {, }
         descr = "This {is a}} [fancy]] [[description]]. {{[[TEST}]"
-        modextravars = {'PI': '3.1415', 'FOO': 'bar'}
-        modextrapaths = {'PATH': ('bin', 'pibin'), 'CPATH': 'pi/include'}
+        modextravars = {
+            'PI': '3.1415',
+            'FOO': 'bar',
+        }
+
+        # also test setting environment variables via pushenv for Lmod or recent Environment Modules
+        is_modtool_ver51 = LooseVersion(self.modtool.version) >= LooseVersion('5.1')
+        if isinstance(self.modtool, Lmod) or (isinstance(self.modtool, EnvironmentModules) and is_modtool_ver51):
+            modextravars['TEST_PUSHENV'] = {'value': '123', 'pushenv': True}
+
+        modextrapaths = {
+            'PATH': ('xbin', 'pibin'),
+            'CPATH': 'pi/include',
+        }
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
@@ -1213,10 +1226,17 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
         for (key, val) in modextravars.items():
+            pushenv = False
+            if isinstance(val, dict):
+                pushenv = val.get('pushenv', False)
+                val = val['value']
+
+            env_setter = 'pushenv' if pushenv else 'setenv'
+
             if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^setenv\s+%s\s+"%s"$' % (key, val), re.M)
+                regex = re.compile(r'^%s\s+%s\s+"%s"$' % (env_setter, key, val), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^setenv\("%s", "%s"\)$' % (key, val), re.M)
+                regex = re.compile(r'^%s\("%s", "%s"\)$' % (env_setter, key, val), re.M)
             else:
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
@@ -1263,9 +1283,17 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertFalse(regex.search(txt), "Pattern '%s' *not* found in %s" % (regex.pattern, txt))
 
+        os.environ['TEST_PUSHENV'] = '0'
+
         # also check whether generated module can be loaded
         self.modtool.load(['pi/3.14'])
+
+        # check value for $TEST_PUSHENV
+        if 'TEST_PUSHENV' in modextravars:
+            self.assertEqual(os.environ['TEST_PUSHENV'], '123')
+
         self.modtool.unload(['pi/3.14'])
+        self.assertEqual(os.environ['TEST_PUSHENV'], '0')
 
         # [==[ or ]==] in description is fatal
         if get_module_syntax() == 'Lua':
