@@ -705,7 +705,7 @@ class ToolchainTest(EnhancedTestCase):
             tcs = {
                 'gompi': ('2018a', "-march=x86-64 -mtune=generic"),
                 'iccifort': ('2018.1.163', "-xSSE2 -ftz -fp-speculation=safe -fp-model source"),
-                'intel-compilers': ('2021.4.0', "-xSSE2 -ftz -fp-speculation=safe -fp-model precise"),
+                'intel-compilers': ('2021.4.0', "-xSSE2 -fp-speculation=safe -fp-model precise"),
             }
             for tcopt_optarch in [False, True]:
                 for tcname in tcs:
@@ -1953,7 +1953,7 @@ class ToolchainTest(EnhancedTestCase):
             ('CrayIntel', '2015.06-XC'),
             ('GCC', '6.4.0-2.28'),
             ('iccifort', '2018.1.163'),
-            ('intel-compilers', '2021.4.0'),
+            ('intel-compilers', '2022.1.0'),
         ]
 
         # purposely obtain toolchains several times in a row, value for $CFLAGS should not change
