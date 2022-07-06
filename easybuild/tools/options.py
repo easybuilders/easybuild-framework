@@ -351,6 +351,8 @@ class EasyBuildOptions(GeneralOption):
                                                           None, 'store_true', False),
             'backup-modules': ("Back up an existing module file, if any. Only works when using --module-only",
                                None, 'store_true', None),  # default None to allow auto-enabling if not disabled
+            'backup-patched-files': ("Create a backup (*.orig) file when applying a patch",
+                                     None, 'store_true', False),
             'banned-linked-shared-libs': ("Comma-separated list of shared libraries (names, file names, or paths) "
                                           "which are not allowed to be linked in any installed binary/library",
                                           'strlist', 'extend', None),
