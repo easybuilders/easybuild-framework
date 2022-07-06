@@ -453,37 +453,40 @@ class EasyConfigTest(EnhancedTestCase):
             os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy'),
         ])
         init_config()
-        self.contents = '\n'.join([
-            'easyblock = "ConfigureMake"',
-            'name = "pi"',
-            'version = "3.14"',
-            'homepage = "http://example.com"',
-            'description = "test easyconfig"',
-            'toolchain = SYSTEM',
-            'exts_default_options = {',
-            '    "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
-            '    "source_urls": ["http://example.com/%(name)s/%(version)s"]',
-            '}',
-            'exts_list = [',
-            '   ("ext1", "1.0"),',
-            '   ("ext2", "2.0", {',
-            '       "source_urls": [("http://example.com", "suffix")],'
-            '       "patches": [("toy-0.0.eb", ".")],',  # dummy patch to avoid downloading fail
-            '       "checksums": [',
-                        # SHA256 checksum for source (gzip-1.4.eb)
-            '           "6a5abcab719cefa95dca4af0db0d2a9d205d68f775a33b452ec0f2b75b6a3a45",',
-                        # SHA256 checksum for 'patch' (toy-0.0.eb)
-            '           "2d964e0e8f05a7cce0dd83a3e68c9737da14b87b61b8b8b0291d58d4c8d1031c",',
-            '       ],',
-            '   }),',
-            ']',
-        ])
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "PI"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig"
+            toolchain = SYSTEM
+            exts_default_options = {
+                "source_tmpl": "gzip-1.4.eb", # dummy source template to avoid download fail
+                "source_urls": ["http://example.com/%(name)s/%(version)s"]
+            }
+            exts_list = [
+               ("ext1", "1.0"),
+               ("ext2", "2.0", {
+                   "source_urls": [("http://example.com", "suffix")],
+                   "patches": [("toy-0.0.eb", ".")], # dummy patch to avoid download fail
+                   "checksums": [
+                       # SHA256 checksum for source (gzip-1.4.eb)
+                       "6a5abcab719cefa95dca4af0db0d2a9d205d68f775a33b452ec0f2b75b6a3a45",
+                       # SHA256 checksum for 'patch' (toy-0.0.eb)
+                       "2d964e0e8f05a7cce0dd83a3e68c9737da14b87b61b8b8b0291d58d4c8d1031c",
+                   ],
+               }),
+               # Can use templates in name and version
+               ("ext-%(name)s", "%(version)s"),
+               ("ext-%(namelower)s", "%(version_major)s.0"),
+            ]
+        """)
         self.prep()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
         exts_sources = eb.collect_exts_file_info()
 
-        self.assertEqual(len(exts_sources), 2)
+        self.assertEqual(len(exts_sources), 4)
         self.assertEqual(exts_sources[0]['name'], 'ext1')
         self.assertEqual(exts_sources[0]['version'], '1.0')
         self.assertEqual(exts_sources[0]['options'], {
@@ -499,8 +502,12 @@ class EasyConfigTest(EnhancedTestCase):
             'source_tmpl': 'gzip-1.4.eb',
             'source_urls': [('http://example.com', 'suffix')],
         })
+        self.assertEqual(exts_sources[2]['name'], 'ext-PI')
+        self.assertEqual(exts_sources[2]['version'], '3.14')
+        self.assertEqual(exts_sources[3]['name'], 'ext-pi')
+        self.assertEqual(exts_sources[3]['version'], '3.0')
 
-        modfile = os.path.join(eb.make_module_step(), 'pi', '3.14' + eb.module_generator.MODULE_FILE_EXTENSION)
+        modfile = os.path.join(eb.make_module_step(), 'PI', '3.14' + eb.module_generator.MODULE_FILE_EXTENSION)
         modtxt = read_file(modfile)
         regex = re.compile('EBEXTSLISTPI.*ext1-1.0,ext2-2.0')
         self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
