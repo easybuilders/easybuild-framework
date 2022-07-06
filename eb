@@ -51,7 +51,7 @@ EASYBUILD_MAIN='easybuild.main'
 EASYBUILD_IMPORT_TEST='easybuild.framework'
 
 function verbose() {
-    if [ ! -z ${EB_VERBOSE} ]; then echo ">> $1"; fi
+    if [ -n "${EB_VERBOSE}" ]; then echo ">> $1"; fi
 }
 
 PYTHON=
@@ -60,71 +60,69 @@ PYTHON=
 # - EB_INSTALLPYTHON is set when EasyBuild is installed as a module (by EasyBuild). It is set to the PYTHON
 #   used during that installation (for example, you could override PYTHON using EB_PYTHON at installation
 #   time, this variable preserves that choice).
-for python_cmd in ${EB_PYTHON} ${EB_INSTALLPYTHON} 'python' 'python3' 'python2'; do
+for python_cmd in "${EB_PYTHON}" "${EB_INSTALLPYTHON}" 'python' 'python3' 'python2'; do
 
-    verbose "Considering '$python_cmd'..."
+    verbose "Considering '${python_cmd}'..."
 
     # check whether python* command being considered is available
     # (using 'command -v', since 'which' implies an extra dependency)
-    command -v $python_cmd &> /dev/null
-    if [ $? -eq 0 ]; then
+    if { command -v "${python_cmd}" && "${python_cmd}" -V; } &> /dev/null; then
 
         # make sure Python version being used is compatible
-        pyver=`$python_cmd -V 2>&1 | cut -f2 -d' '`
-        pyver_maj=`echo $pyver | cut -f1 -d'.'`
-        pyver_min=`echo $pyver | cut -f2 -d'.'`
+        pyver=$("${python_cmd}" -V 2>&1 | cut -f2 -d' ')
+        pyver_maj=$(echo "${pyver}" | cut -f1 -d'.')
+        pyver_min=$(echo "${pyver}" | cut -f2 -d'.')
 
-        if [ $pyver_maj -eq 2 ] && [ $pyver_min -ge $REQ_MIN_PY2VER ]; then
-            verbose "'$python_cmd' version: $pyver, which matches Python 2 version requirement (>= 2.$REQ_MIN_PY2VER)"
-            PYTHON=$python_cmd
-        elif [ $pyver_maj -eq 3 ] && [ $pyver_min -ge $REQ_MIN_PY3VER ]; then
-            verbose "'$python_cmd' version: $pyver, which matches Python 3 version requirement (>= 3.$REQ_MIN_PY3VER)"
-            PYTHON=$python_cmd
+        if [ "${pyver_maj}" -eq 2 ] && [ "${pyver_min}" -ge "${REQ_MIN_PY2VER}" ]; then
+            verbose "'${python_cmd}' version: ${pyver}, which matches Python 2 version requirement (>= 2.${REQ_MIN_PY2VER})"
+            PYTHON="${python_cmd}"
+        elif [ "${pyver_maj}" -eq 3 ] && [ "${pyver_min}" -ge "${REQ_MIN_PY3VER}" ]; then
+            verbose "'${python_cmd}' version: ${pyver}, which matches Python 3 version requirement (>= 3.${REQ_MIN_PY3VER})"
+            PYTHON="${python_cmd}"
         fi
 
-        if [ ! -z $PYTHON ]; then
+        if [ -n "${PYTHON}" ]; then
             # check whether EasyBuild framework is available for selected python command
-            $PYTHON -c "import $EASYBUILD_IMPORT_TEST" 2> /dev/null
-            if [ $? -eq 0 ]; then
-                verbose "'$python_cmd' is able to import '$EASYBUILD_IMPORT_TEST', so retaining it"
+            if "${PYTHON}" -c "import ${EASYBUILD_IMPORT_TEST}" 2> /dev/null; then
+                verbose "'${python_cmd}' is able to import '${EASYBUILD_IMPORT_TEST}', so retaining it"
             else
                 # if EasyBuild framework is not available, don't use this python command, keep searching...
-                verbose "'$python_cmd' is NOT able to import '$EASYBUILD_IMPORT_TEST' so NOT retaining it"
+                verbose "'${python_cmd}' is NOT able to import '${EASYBUILD_IMPORT_TEST}' so NOT retaining it"
                 unset PYTHON
             fi
         fi
 
-        # break out of for loop if we've found a valid python command
-        if [ ! -z $PYTHON ]; then
+        # break out of for loop if we've found a working python command
+        if [ -n "${PYTHON}" ]; then
             break
         fi
     else
-        verbose "No '$python_cmd' found in \$PATH, skipping..."
+        verbose "No working '${python_cmd}' found in \$PATH, skipping..."
     fi
 done
 
-if [ -z $PYTHON ]; then
+if [ -z "${PYTHON}" ]; then
     echo -n "ERROR: No compatible 'python' command found via \$PATH " >&2
     echo "(EasyBuild requires Python 2.${REQ_MIN_PY2VER}+ or 3.${REQ_MIN_PY3VER}+)" >&2
     exit 1
 else
-    verbose "Selected Python command: $python_cmd (`command -v $python_cmd`)"
+    verbose "Selected Python command: ${python_cmd} ($(command -v "${python_cmd}"))"
 fi
 
 # enable optimization, unless $PYTHONOPTIMIZE is defined (use "export PYTHONOPTIMIZE=0" to disable optimization)
-if [ -z $PYTHONOPTIMIZE ]
+if [ -z "${PYTHONOPTIMIZE}" ]
 then
     # instruct Python to turn on basic optimizations (equivalent to using 'python -O')
     export PYTHONOPTIMIZE=1
 fi
 
-if [ -z $FANCYLOGGER_IGNORE_MPI4PY ]
+if [ -z "${FANCYLOGGER_IGNORE_MPI4PY}" ]
 then
     # avoid that fancylogger tries to import mpi4py to determine MPI rank
     export FANCYLOGGER_IGNORE_MPI4PY=1
 fi
 
-export EB_SCRIPT_PATH=$0
+export EB_SCRIPT_PATH="${0}"
 
-verbose "$PYTHON -m $EASYBUILD_MAIN `echo \"$@\"`"
-$PYTHON -m $EASYBUILD_MAIN "$@"
+verbose "${PYTHON} -m ${EASYBUILD_MAIN} ${*}"
+"${PYTHON}" -m "${EASYBUILD_MAIN}" "${@}"
