@@ -29,6 +29,8 @@ Support for Intel compilers (icc, ifort) as toolchain compilers, version 2021.x 
 """
 import os
 
+from distutils.version import LooseVersion
+
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
 from easybuild.tools.toolchain.compiler import Compiler
 
@@ -68,7 +70,9 @@ class IntelCompilers(IntelIccIfort):
             self.COMPILER_F90 = 'ifx'
             self.COMPILER_FC = 'ifx'
             # fp-model source is not supported by icx but is equivalent to precise
-            self.options.options_map['defaultprec'] = ['ftz', 'fp-speculation=safe', 'fp-model precise']
+            self.options.options_map['defaultprec'] = ['fp-speculation=safe', 'fp-model precise']
+            if LooseVersion(self.get_software_version(self.COMPILER_MODULE_NAME)[0]) >= LooseVersion('2022'):
+                self.options.options_map['defaultprec'].insert(0, 'ftz')
             # icx doesn't like -fp-model fast=1; fp-model fast is equivalent
             self.options.options_map['loose'] = ['fp-model fast']
             # fp-model fast=2 gives "warning: overriding '-ffp-model=fast=2' option with '-ffp-model=fast'"
