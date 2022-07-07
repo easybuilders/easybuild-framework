@@ -155,7 +155,7 @@ if args.ec:
         run_cmd(['eb', args.ec, '--dump-env', '--force'], action_desc='Dump build environment')
         os.chdir(old_dir)
 
-        cmd = 'source %s/*.env && %s "%s"' % (tmp_dir, sys.argv[0], args.package)
+        cmd = 'source %s/*.env && %s %s "%s"' % (tmp_dir, sys.executable, sys.argv[0], args.package)
         if args.verbose:
             cmd += ' --verbose'
             print('Restarting script in new build environment')
