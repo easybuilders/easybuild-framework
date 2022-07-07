@@ -138,7 +138,8 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument('package', metavar='python-pkg-spec',
                     help='Python package spec, e.g. tensorflow==2.3.4')
-parser.add_argument('--ec', metavar='easyconfig', help='EasyConfig to use as the build environment')
+parser.add_argument('--ec', metavar='easyconfig', help='EasyConfig to use as the build environment. '
+                                                       'You need to have dependency modules installed already!')
 parser.add_argument('--verbose', help='Verbose output', action='store_true')
 args = parser.parse_args()
 
