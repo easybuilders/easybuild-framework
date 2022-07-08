@@ -184,4 +184,7 @@ else:
         print('Virtualenv not found or executable. ' +
               'Make sure it is installed (e.g. in the currently loaded Python module)!')
         sys.exit(1)
+    if 'PIP_PREFIX' in os.environ:
+        print("$PIP_PREFIX is set. Unsetting it as it doesn't work well with virtualenv.")
+        del os.environ['PIP_PREFIX']
     print_deps(args.package, args.verbose)
