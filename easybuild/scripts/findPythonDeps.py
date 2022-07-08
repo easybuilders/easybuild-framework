@@ -155,6 +155,15 @@ if args.ec:
     if not can_run('eb', '--version'):
         print('EasyBuild not found or executable. Make sure it is in your $PATH when using --ec!')
         sys.exit(1)
+    if args.verbose:
+        print('Checking with EasyBuild for missing dependencies')
+    missing_dep_out = run_cmd(['eb', args.ec, '--missing'], action_desc='Get missing dependencies')
+    missing_deps = [dep for dep in missing_dep_out.split('\n') if dep.startswith('*') and '(%s)' % args.ec not in dep]
+    if missing_deps:
+        print('You need to install all modules on which %s depends first!' % args.ec)
+        print('\n\t'.join(['Missing:'] + missing_deps))
+        sys.exit(1)
+
     with temporary_directory() as tmp_dir:
         old_dir = os.getcwd()
         os.chdir(tmp_dir)
