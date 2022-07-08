@@ -1018,9 +1018,13 @@ def is_patch_for(patch_name, ec):
 
     with ec.disable_templating():
         # take into account both list of extensions (via exts_list) and components (cfr. Bundle easyblock)
-        for entry in itertools.chain(ec['exts_list'], ec.get('components', [])):
+        for entry in itertools.chain(ec['exts_list'], ec.get('components') or []):
             if isinstance(entry, (list, tuple)) and len(entry) == 3 and isinstance(entry[2], dict):
-                templates = {'name': entry[0], 'version': entry[1]}
+                templates = {
+                    'name': entry[0],
+                    'namelower': entry[0].lower(),
+                    'version': entry[1],
+                }
                 options = entry[2]
                 patches.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
                                for p in options.get('patches', []))

@@ -1037,6 +1037,33 @@ class SystemToolsTest(EnhancedTestCase):
                 error_msg = "Check on linked libs should fail for %s with %s" % (path, pattern_named_args)
                 self.assertFalse(check_linked_shared_libs(path, **pattern_named_args), error_msg)
 
+        if get_os_type() == LINUX:
+            # inject fake 'file' command which always reports that the file is "dynamically linked"
+            file_cmd = os.path.join(self.test_prefix, 'bin', 'file')
+            write_file(file_cmd, "echo '(dynamically linked)'")
+            adjust_permissions(file_cmd, stat.S_IXUSR, add=True)
+
+            os.environ['PATH'] = os.path.join(self.test_prefix, 'bin') + ':' + os.getenv('PATH')
+
+            test_file = os.path.join(self.test_prefix, 'test.txt')
+            write_file(test_file, 'test')
+
+            warning_regex = re.compile(r"WARNING: Determining linked libraries.* via 'ldd .*/test.txt' failed!", re.M)
+
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            res = check_linked_shared_libs(test_file, banned_patterns=['/lib'])
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex.pattern, stderr)
+            self.assertTrue(warning_regex.search(stderr), fail_msg)
+            self.assertFalse(stdout)
+
+            self.assertEqual(res, None)
+
     def test_locate_solib(self):
         """Test locate_solib function (Linux only)."""
         if get_os_type() == LINUX:

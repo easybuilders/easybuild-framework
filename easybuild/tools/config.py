@@ -250,6 +250,7 @@ BUILD_OPTIONS_CMDLINE = {
         'add_dummy_to_minimal_toolchains',
         'add_system_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
+        'backup_patched_files',
         'consider_archived_easyconfigs',
         'container_build_image',
         'debug',

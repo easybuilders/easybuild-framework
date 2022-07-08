@@ -33,6 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
+from distutils.version import LooseVersion
 from inspect import cleandoc
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -44,11 +45,11 @@ from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyc
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import get_module_syntax
+from easybuild.tools.config import get_module_syntax, update_build_option
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_file
 from easybuild.tools.filetools import verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
-from easybuild.tools.modules import reset_module_caches
+from easybuild.tools.modules import EnvironmentModules, Lmod, reset_module_caches
 from easybuild.tools.version import get_git_revision, this_is_easybuild
 from easybuild.tools.py2vs3 import string_type
 
@@ -1158,8 +1159,20 @@ class EasyBlockTest(EnhancedTestCase):
         version = "3.14"
         # purposely use a 'nasty' description, that includes (unbalanced) special chars: [, ], {, }
         descr = "This {is a}} [fancy]] [[description]]. {{[[TEST}]"
-        modextravars = {'PI': '3.1415', 'FOO': 'bar'}
-        modextrapaths = {'PATH': ('bin', 'pibin'), 'CPATH': 'pi/include'}
+        modextravars = {
+            'PI': '3.1415',
+            'FOO': 'bar',
+        }
+
+        # also test setting environment variables via pushenv for Lmod or recent Environment Modules
+        is_modtool_ver51 = LooseVersion(self.modtool.version) >= LooseVersion('5.1')
+        if isinstance(self.modtool, Lmod) or (isinstance(self.modtool, EnvironmentModules) and is_modtool_ver51):
+            modextravars['TEST_PUSHENV'] = {'value': '123', 'pushenv': True}
+
+        modextrapaths = {
+            'PATH': ('xbin', 'pibin'),
+            'CPATH': 'pi/include',
+        }
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
@@ -1213,10 +1226,17 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
         for (key, val) in modextravars.items():
+            pushenv = False
+            if isinstance(val, dict):
+                pushenv = val.get('pushenv', False)
+                val = val['value']
+
+            env_setter = 'pushenv' if pushenv else 'setenv'
+
             if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^setenv\s+%s\s+"%s"$' % (key, val), re.M)
+                regex = re.compile(r'^%s\s+%s\s+"%s"$' % (env_setter, key, val), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^setenv\("%s", "%s"\)$' % (key, val), re.M)
+                regex = re.compile(r'^%s\("%s", "%s"\)$' % (env_setter, key, val), re.M)
             else:
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
@@ -1263,9 +1283,17 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertFalse(regex.search(txt), "Pattern '%s' *not* found in %s" % (regex.pattern, txt))
 
+        os.environ['TEST_PUSHENV'] = '0'
+
         # also check whether generated module can be loaded
         self.modtool.load(['pi/3.14'])
+
+        # check value for $TEST_PUSHENV
+        if 'TEST_PUSHENV' in modextravars:
+            self.assertEqual(os.environ['TEST_PUSHENV'], '123')
+
         self.modtool.unload(['pi/3.14'])
+        self.assertEqual(os.environ['TEST_PUSHENV'], '0')
 
         # [==[ or ]==] in description is fatal
         if get_module_syntax() == 'Lua':
@@ -1619,11 +1647,12 @@ class EasyBlockTest(EnhancedTestCase):
             (toy_patch, 4),   # should be level 4
             (toy_patch, 'foobar'),  # sourcepath should be set to 'foobar'
             ('toy-0.0.tar.gz', 'some/path'),  # copy mode (not a .patch file)
+            {'name': toy_patch, 'level': 0, 'alt_location': 'alt_toy'},
         ]
         # check if patch levels are parsed correctly
         eb.fetch_patches(patch_specs=patches)
 
-        self.assertEqual(len(eb.patches), 4)
+        self.assertEqual(len(eb.patches), 5)
         self.assertEqual(eb.patches[0]['name'], toy_patch)
         self.assertEqual(eb.patches[0]['level'], 0)
         self.assertEqual(eb.patches[1]['name'], toy_patch)
@@ -1632,6 +1661,11 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.patches[2]['sourcepath'], 'foobar')
         self.assertEqual(eb.patches[3]['name'], 'toy-0.0.tar.gz'),
         self.assertEqual(eb.patches[3]['copy'], 'some/path')
+        self.assertEqual(eb.patches[4]['name'], toy_patch)
+        self.assertEqual(eb.patches[4]['level'], 0)
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        sandbox_sources = os.path.join(testdir, 'sandbox', 'sources')
+        self.assertEqual(eb.patches[4]['path'], os.path.join(sandbox_sources, 'alt_toy', toy_patch))
 
         patches = [
             ('toy-0.0_level4.patch', False),  # should throw an error, only int's an strings allowed here
@@ -1644,6 +1678,7 @@ class EasyBlockTest(EnhancedTestCase):
         testdir = os.path.abspath(os.path.dirname(__file__))
         sandbox_sources = os.path.join(testdir, 'sandbox', 'sources')
         toy_tarball_path = os.path.join(sandbox_sources, 'toy', toy_tarball)
+        alt_toy_tarball_path = os.path.join(sandbox_sources, 'alt_toy', toy_tarball)
         tmpdir = tempfile.mkdtemp()
         tmpdir_subdir = os.path.join(tmpdir, 'testing')
         mkdir(tmpdir_subdir, parents=True)
@@ -1658,20 +1693,31 @@ class EasyBlockTest(EnhancedTestCase):
         res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, os.path.join(tmpdir, 't', 'toy', toy_tarball))
 
+        # 'downloading' a file to (first) alternative sourcepath works
+        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
+        self.assertEqual(res, os.path.join(tmpdir, 'a', 'alt_toy', toy_tarball))
+
         # finding a file in sourcepath works
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (sandbox_sources, tmpdir)])
         res = eb.obtain_file(toy_tarball)
         self.assertEqual(res, toy_tarball_path)
 
+        # finding a file in the alternate location works
+        res = eb.obtain_file(toy_tarball, alt_location='alt_toy')
+        self.assertEqual(res, alt_toy_tarball_path)
+
         # sourcepath has preference over downloading
         res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, toy_tarball_path)
+        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
+        self.assertEqual(res, alt_toy_tarball_path)
 
         init_config(args=["--sourcepath=%s:%s" % (tmpdir, sandbox_sources)])
 
         # clean up toy tarballs in tmpdir, so the one in sourcepath is found
         remove_file(os.path.join(tmpdir, toy_tarball))
         remove_file(os.path.join(tmpdir, 't', 'toy', toy_tarball))
+        remove_file(os.path.join(tmpdir, 'a', 'alt_toy', toy_tarball))
 
         # enabling force_download results in re-downloading, even if file is already in sourcepath
         self.mock_stderr(True)
@@ -1953,8 +1999,21 @@ class EasyBlockTest(EnhancedTestCase):
         eb.patch_step()
         # verify that patches were applied
         toydir = os.path.join(eb.builddir, 'toy-0.0')
+        self.assertEqual(sorted(os.listdir(toydir)), ['toy-extra.txt', 'toy.source'])
+        self.assertTrue("and very proud of it" in read_file(os.path.join(toydir, 'toy.source')))
+        self.assertEqual(read_file(os.path.join(toydir, 'toy-extra.txt')), 'moar!\n')
+
+        # check again with backup of patched files enabled
+        update_build_option('backup_patched_files', True)
+        eb = EasyBlock(ec['ec'])
+        eb.fetch_step()
+        eb.extract_step()
+        eb.patch_step()
+        # verify that patches were applied
+        toydir = os.path.join(eb.builddir, 'toy-0.0')
         self.assertEqual(sorted(os.listdir(toydir)), ['toy-extra.txt', 'toy.source', 'toy.source.orig'])
         self.assertTrue("and very proud of it" in read_file(os.path.join(toydir, 'toy.source')))
+        self.assertFalse("and very proud of it" in read_file(os.path.join(toydir, 'toy.source.orig')))
         self.assertEqual(read_file(os.path.join(toydir, 'toy-extra.txt')), 'moar!\n')
 
     def test_extensions_sanity_check(self):
