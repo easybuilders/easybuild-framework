@@ -129,12 +129,19 @@ def print_deps(package, verbose):
     pprint(sorted(res), indent=4)
 
 
+examples = [
+    'Example usage with EasyBuild (after installing dependency modules):',
+    '\t' + sys.argv[0] + ' --ec TensorFlow-2.3.4.eb tensorflow==2.3.4',
+    'Which is the same as:',
+    '\t' + ' && '.join(['eb TensorFlow-2.3.4.eb --dump-env',
+                        'source TensorFlow-2.3.4.env',
+                        sys.argv[0] + ' tensorflow==2.3.4',
+                        ]),
+]
 parser = argparse.ArgumentParser(
     description='Find dependencies of Python packages by installing it in a temporary virtualenv. ',
-    epilog=' && '.join(['Example usage with EasyBuild: '
-                        'eb TensorFlow-2.3.4.eb --dump-env',
-                        'source TensorFlow-2.3.4.env',
-                        sys.argv[0] + ' tensorflow==2.3.4'])
+    epilog='\n'.join(examples),
+    formatter_class=argparse.RawDescriptionHelpFormatter
 )
 parser.add_argument('package', metavar='python-pkg-spec',
                     help='Python package spec, e.g. tensorflow==2.3.4')
