@@ -40,12 +40,13 @@ def can_run(cmd, argument):
             return False
 
 
-def run_cmd(arguments, action_desc, **kwargs):
+def run_cmd(arguments, action_desc, capture_stderr=True, **kwargs):
     """Run the command and return the return code and output"""
     extra_args = kwargs or {}
     if sys.version_info[0] >= 3:
         extra_args['universal_newlines'] = True
-    p = subprocess.Popen(arguments, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **extra_args)
+    stderr = subprocess.STDOUT if capture_stderr else subprocess.PIPE
+    p = subprocess.Popen(arguments, stdout=subprocess.PIPE, stderr=stderr, **extra_args)
     out, _ = p.communicate()
     if p.returncode != 0:
         raise RuntimeError('Failed to %s: %s' % (action_desc, out))
@@ -157,8 +158,13 @@ if args.ec:
         sys.exit(1)
     if args.verbose:
         print('Checking with EasyBuild for missing dependencies')
-    missing_dep_out = run_cmd(['eb', args.ec, '--missing'], action_desc='Get missing dependencies')
-    missing_deps = [dep for dep in missing_dep_out.split('\n') if dep.startswith('*') and '(%s)' % args.ec not in dep]
+    missing_dep_out = run_cmd(['eb', args.ec, '--missing'],
+                              capture_stderr=False,
+                              action_desc='Get missing dependencies'
+                              )
+    missing_deps = [dep for dep in missing_dep_out.split('\n')
+                    if dep.startswith('*') and '(%s)' % args.ec not in dep
+                    ]
     if missing_deps:
         print('You need to install all modules on which %s depends first!' % args.ec)
         print('\n\t'.join(['Missing:'] + missing_deps))
