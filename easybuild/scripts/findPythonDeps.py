@@ -33,10 +33,11 @@ def extract_pkg_name(package_spec):
 
 def can_run(cmd, argument):
     """Check if the given cmd and argument can be run successfully"""
-    try:
-        return subprocess.call([cmd, argument]) == 0
-    except (subprocess.CalledProcessError, OSError):
-        return False
+    with open(os.devnull, 'w') as FNULL:
+        try:
+            return subprocess.call([cmd, argument], stdout=FNULL, stderr=subprocess.STDOUT) == 0
+        except (subprocess.CalledProcessError, OSError):
+            return False
 
 
 def run_cmd(arguments, action_desc, **kwargs):
