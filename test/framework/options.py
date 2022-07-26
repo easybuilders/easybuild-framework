@@ -176,7 +176,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                         "Not all option groups included in short help (2)")
 
         # for boolean options, we mention in the help text how to disable them
-        regex = re.compile("default: True; disable with --disable-cleanup-builddir", re.M)
+        regex = re.compile(r"default: True; disable with\s*--disable-\s*cleanup-\s*builddir", re.M)
         self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
 
     def test_help_rst(self):
