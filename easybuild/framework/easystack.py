@@ -68,7 +68,7 @@ class EasyStack(object):
         self.easybuild_version = None
         self.robot = False
         self.software_list = []
-        self.easyconfigs = [] # A list of easyconfig names. May or may not include .eb extension
+        self.easyconfigs = []  # A list of easyconfig names. May or may not include .eb extension
 
     def compose_ec_filenames(self):
         """Returns a list of all easyconfig names"""
