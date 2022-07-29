@@ -64,13 +64,11 @@ def check_value(value, context):
 class EasyStack(object):
     """One class instance per easystack. General options + list of all SoftwareSpecs instances"""
 
-    def __init__(self, easyconfigs=None):
+    def __init__(self):
         self.easybuild_version = None
         self.robot = False
         self.software_list = []
-        self.easyconfigs = []
-        if easyconfigs is not None:
-            self.easyconfigs.extend(easyconfigs)
+        self.easyconfigs = [] # A list of easyconfig names. May or may not include .eb extension
 
     def compose_ec_filenames(self):
         """Returns a list of all easyconfig names"""
@@ -163,8 +161,23 @@ class EasyStackParser(object):
         """
         Parse easystack file with 'easyconfigs' as top-level key.
         """
-        easystack = EasyStack(easyconfigs=easyconfigs)
 
+        easystack = EasyStack()
+
+        for easyconfig in easyconfigs:
+            if isinstance(easyconfig, str):
+                easystack.easyconfigs.append(easyconfig)
+            elif isinstance(easyconfig, dict):
+                if len(easyconfig) == 1:
+                    # Get single key from dictionary 'easyconfig'
+                    easyconf_name = list(easyconfig.keys())[0]
+                    easystack.easyconfigs.append(easyconf_name)
+                else:
+                    dict_keys = ', '.join(easyconfig.keys())
+                    msg = "Failed to parse easystack file: expected a dictionary with one key (the EasyConfig name). "
+                    msg += "Instead found keys: %s" % dict_keys
+                    raise EasyBuildError(msg)
+        
         return easystack
 
     @staticmethod
