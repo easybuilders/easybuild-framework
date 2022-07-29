@@ -69,6 +69,8 @@ class EasyStack(object):
         self.robot = False
         self.software_list = []
         self.easyconfigs = []  # A list of easyconfig names. May or may not include .eb extension
+        # A dict where keys are easyconfig names, values are dictionary of options that should be applied for that easyconfig
+        self.ec_opts = {}
 
     def compose_ec_filenames(self):
         """Returns a list of all easyconfig names"""
@@ -171,7 +173,11 @@ class EasyStackParser(object):
                 if len(easyconfig) == 1:
                     # Get single key from dictionary 'easyconfig'
                     easyconf_name = list(easyconfig.keys())[0]
+                    # Add easyconfig name to the list
                     easystack.easyconfigs.append(easyconf_name)
+                    # Add options to the ec_opts dict
+                    if 'options' in easyconfig[easyconf_name].keys():
+                        easystack.ec_opts[easyconf_name] = easyconfig[easyconf_name]['options']
                 else:
                     dict_keys = ', '.join(easyconfig.keys())
                     msg = "Failed to parse easystack file: expected a dictionary with one key (the EasyConfig name). "
@@ -307,12 +313,16 @@ def parse_easystack(filepath):
 
     easyconfig_names = easystack.compose_ec_filenames()
 
-    general_options = easystack.get_general_options()
+    # Disabled general options for now. We weren't using them, and first want support for EasyConfig-specific options.
+    # Then, we need a method to resolve conflicts (specific options should win)
+    # general_options = easystack.get_general_options()
 
     _log.debug("EasyStack parsed. Proceeding to install these Easyconfigs: %s" % ', '.join(sorted(easyconfig_names)))
-    if len(general_options) != 0:
-        _log.debug("General options for installation are: \n%s" % str(general_options))
-    else:
-        _log.debug("No general options were specified in easystack")
+    _log.debug("Using EasyConfig specific options based on the following dict:")
+    _log.debug(easystack.ec_opts)
+    # if len(general_options) != 0:
+    #    _log.debug("General options for installation are: \n%s" % str(general_options))
+    # else:
+    #    _log.debug("No general options were specified in easystack")
 
-    return easyconfig_names, general_options
+    return easyconfig_names, easystack.ec_opts

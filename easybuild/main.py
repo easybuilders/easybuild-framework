@@ -43,7 +43,7 @@ import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, stop_logging
+from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, stop_logging, print_warning
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
@@ -261,7 +261,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         # TODO add general_options (i.e. robot) to build options
         orig_paths, general_options = parse_easystack(options.easystack)
         if general_options:
-            raise EasyBuildError("Specifying general configuration options in easystack file is not supported yet.")
+            print_warning("Specifying options in easystack files is not supported yet. They are parsed, but ignored.")
 
     # check whether packaging is supported when it's being used
     if options.package:
