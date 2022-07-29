@@ -88,8 +88,10 @@ class EasyStack(object):
 
         # entries specified via 'easyconfigs' top-level key
         for ec in self.easyconfigs:
-            ec_filenames.append(ec + '.eb')
-
+            if not ec.endswith('.eb'):
+                ec_filenames.append(ec + '.eb')
+            else:
+                ec_filenames.append(ec)
         return ec_filenames
 
     # flags applicable to all sw (i.e. robot)
