@@ -141,19 +141,16 @@ class EasyStackParser(object):
             msg = "Specifying multiple top level keys (%s) in one EasyStack file is not supported." % keys_string
             raise EasyBuildError(msg)
         elif len(keys_found) == 0:
-            raise EasyBuildError("An EasyStack file needs to contain at least one of the keys: %s" % (top_keys,))
+            msg = "Not a valid EasyStack YAML file: no 'easyconfigs' or 'software' top-level key found"
+            raise EasyBuildError(msg)
         else:
             key = keys_found[0]
             easystack_data = easystack_raw[key]
 
-        if easystack_data is None:
-            msg = "Not a valid EasyStack YAML file: no 'easyconfigs' or 'software' top-level key found"
-            raise EasyBuildError(msg)
-        else:
-            parse_method_name = 'parse_by_' + key
-            parse_method = getattr(EasyStackParser, 'parse_by_%s' % key, None)
-            if parse_method is None:
-                raise EasyBuildError("Easystack parse method '%s' not found!", parse_method_name)
+        parse_method_name = 'parse_by_' + key
+        parse_method = getattr(EasyStackParser, 'parse_by_%s' % key, None)
+        if parse_method is None:
+            raise EasyBuildError("Easystack parse method '%s' not found!", parse_method_name)
 
         # assign general easystack attributes
         easybuild_version = easystack_raw.get('easybuild_version', None)
