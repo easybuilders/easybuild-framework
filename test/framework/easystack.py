@@ -102,7 +102,7 @@ class EasyStackTest(EnhancedTestCase):
         self.assertEqual(opts, {})
 
     def test_easystack_easyconfig_opts(self):
-        """Teast an easystack file using the 'easyconfigs' key, where additonal options are defined for some easyconfigs"""
+        """Test an easystack file using the 'easyconfigs' key, with additonal options for some easyconfigs"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_opts.yaml')
 
