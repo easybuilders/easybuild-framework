@@ -69,7 +69,7 @@ class EasyStack(object):
         self.robot = False
         self.software_list = []
         self.easyconfigs = []  # A list of easyconfig names. May or may not include .eb extension
-        # A dict where keys are easyconfig names, values are dictionary of options that should be 
+        # A dict where keys are easyconfig names, values are dictionary of options that should be
         # applied for that easyconfig
         self.ec_opts = {}
 
