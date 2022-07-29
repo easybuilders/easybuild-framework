@@ -86,6 +86,21 @@ class EasyStackTest(EnhancedTestCase):
         self.assertEqual(sorted(ec_fns), sorted(expected))
         self.assertEqual(opts, {})
 
+    def test_easystack_easyconfigs_with_eb_ext(self):
+        """Test for easystack file using 'easyconfigs' key, where eb extension is included in the easystack file"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_with_eb_ext.yaml')
+
+        ec_fns, opts = parse_easystack(test_easystack)
+        expected = [
+            'binutils-2.25-GCCcore-4.9.3.eb',
+            'binutils-2.26-GCCcore-4.9.3.eb',
+            'foss-2018a.eb',
+            'toy-0.0-gompi-2018a-test.eb',
+        ]
+        self.assertEqual(sorted(ec_fns), sorted(expected))
+        self.assertEqual(opts, {})
+
     def test_parse_fail(self):
         """Test for clean error when easystack file fails to parse."""
         test_yml = os.path.join(self.test_prefix, 'test.yml')

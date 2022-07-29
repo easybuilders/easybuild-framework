@@ -131,10 +131,20 @@ class EasyStackParser(object):
 
         easystack_data = None
         top_keys = ('easyconfigs', 'software')
+        keys_found = []
         for key in top_keys:
             if key in easystack_raw:
-                easystack_data = easystack_raw[key]
-                break
+                keys_found.append(key)
+        # For now, we don't support mixing multiple top_keys, so check that only one was defined
+        if len(keys_found) > 1:
+            keys_string = ', '.join(keys_found)
+            msg = "Specifying multiple top level keys (%s) in one EasyStack file is not supported." % keys_string
+            raise EasyBuildError(msg)
+        elif len(keys_found) == 0:
+            raise EasyBuildError("An EasyStack file needs to contain at least one of the keys: %s" % (top_keys,))
+        else:
+            key = keys_found[0]
+            easystack_data = easystack_raw[key]
 
         if easystack_data is None:
             msg = "Not a valid EasyStack YAML file: no 'easyconfigs' or 'software' top-level key found"
