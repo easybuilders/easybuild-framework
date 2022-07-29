@@ -183,7 +183,7 @@ class EasyStackParser(object):
                     msg = "Failed to parse easystack file: expected a dictionary with one key (the EasyConfig name). "
                     msg += "Instead found keys: %s" % dict_keys
                     raise EasyBuildError(msg)
- 
+
         return easystack
 
     @staticmethod
