@@ -96,7 +96,8 @@ from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_shared_lib_ext, use_group
+from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_linked_libs_raw
+from easybuild.tools.systemtools import get_shared_lib_ext, use_group
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -2994,24 +2995,13 @@ class EasyBlock(object):
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
                     self.log.debug("Sanity checking RPATH for %s", path)
 
-                    out, ec = run_cmd("file %s" % path, simple=False, trace=False)
-                    if ec:
-                        fail_msg = "Failed to run 'file %s': %s" % (path, out)
-                        self.log.warning(fail_msg)
-                        fails.append(fail_msg)
+                    out = get_linked_libs_raw(path)
 
-                    # only run ldd/readelf on dynamically linked executables/libraries
-                    # example output:
-                    # ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked (uses shared libs), ...
-                    # ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, not stripped
-                    if "dynamically linked" in out:
+                    if out is None:
+                        self.log.debug("%s is not dynamically linked, so skipping it in RPATH sanity check", path)
+                    else:
                         # check whether all required libraries are found via 'ldd'
-                        out, ec = run_cmd("ldd %s" % path, simple=False, trace=False)
-                        if ec:
-                            fail_msg = "Failed to run 'ldd %s': %s" % (path, out)
-                            self.log.warning(fail_msg)
-                            fails.append(fail_msg)
-                        elif not_found_regex.search(out):
+                        if not_found_regex.search(out):
                             fail_msg = "One or more required libraries not found for %s: %s" % (path, out)
                             self.log.warning(fail_msg)
                             fails.append(fail_msg)
@@ -3030,9 +3020,6 @@ class EasyBlock(object):
                             fails.append(fail_msg)
                         else:
                             self.log.debug("Output of 'readelf -d %s' checked, looks OK", path)
-
-                    else:
-                        self.log.debug("%s is not dynamically linked, so skipping it in RPATH sanity check", path)
             else:
                 self.log.debug("Not sanity checking files in non-existing directory %s", dirpath)
 
