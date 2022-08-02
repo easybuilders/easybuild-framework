@@ -53,7 +53,7 @@ from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
-from easybuild.tools.config import build_option, update_build_option
+from easybuild.tools.config import build_option, update_build_option, update_build_options
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
 from easybuild.tools.filetools import read_file, resolve_path, which, write_file
@@ -416,7 +416,7 @@ def det_easyconfig_paths(orig_paths, opts_per_ec={}):
     return ec_files
 
 
-def parse_easyconfigs(paths, validate=True):
+def parse_easyconfigs(paths, validate=True, opts_per_ec={}):
     """
     Parse easyconfig files
     :param paths: paths to easyconfigs
@@ -425,7 +425,13 @@ def parse_easyconfigs(paths, validate=True):
     generated_ecs = False
 
     for (path, generated) in paths:
+        print(f'parse_easyconfigs: path: {path} generated: {generated}')
         path = os.path.abspath(path)
+        # Get EasyConfig specific build options if they have been specified in an EasyStack file
+        opts_current_ec =  opts_per_ec.get(os.path.basename(path), None)
+        # Apply custom build options if needed
+        if opts_current_ec is not None:
+            orig_build_options = update_build_options(opts_current_ec)
         # keep track of whether any files were generated
         generated_ecs |= generated
         if not os.path.exists(path):
@@ -433,7 +439,7 @@ def parse_easyconfigs(paths, validate=True):
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
-                kwargs = {'validate': validate}
+                kwargs = {'validate': validate, 'custom_build_opts': opts_current_ec}
                 # only pass build specs when not generating easyconfig files
                 if not build_option('try_to_generate'):
                     kwargs['build_specs'] = build_option('build_specs')
@@ -442,6 +448,10 @@ def parse_easyconfigs(paths, validate=True):
 
         except IOError as err:
             raise EasyBuildError("Processing easyconfigs in path %s failed: %s", path, err)
+
+        # Restore original build options
+        if opts_current_ec is not None:
+            update_build_options(orig_build_options)
 
     return easyconfigs, generated_ecs
 

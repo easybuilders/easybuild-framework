@@ -426,7 +426,7 @@ class EasyConfig(object):
     """
 
     def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None,
-                 auto_convert_value_types=True, local_var_naming_check=None):
+                 auto_convert_value_types=True, local_var_naming_check=None, custom_build_opts=None):
         """
         initialize an easyconfig.
         :param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
@@ -438,6 +438,7 @@ class EasyConfig(object):
         :param auto_convert_value_types: indicates wether types of easyconfig values should be automatically converted
                                          in case they are wrong
         :param local_var_naming_check: mode to use when checking if local variables use the recommended naming scheme
+        :param custom_build_opts: custom build options passed for this specific EasyConfig in an EasyStack file
         """
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
@@ -542,6 +543,9 @@ class EasyConfig(object):
         self.set_default_module = False
 
         self.software_license = None
+
+        # Set custom build options from EasyStack file
+        self.custom_build_opts = custom_build_opts
 
     @contextmanager
     def disable_templating(self):
@@ -2038,7 +2042,7 @@ def resolve_template(value, tmpl_dict):
     return value
 
 
-def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, hidden=None):
+def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, hidden=None, custom_build_opts=None):
     """
     Process easyconfig, returning some information for each block
     :param path: path to easyconfig file
@@ -2046,6 +2050,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     :param validate: whether or not to perform validation
     :param parse_only: only parse easyconfig superficially (faster, but results in partial info)
     :param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
+    :param custom_build_opts: custom build options passed for this EasyConfig through an EasyStack file
     """
     blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
 
@@ -2066,7 +2071,8 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
 
         # create easyconfig
         try:
-            ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
+            ec = EasyConfig(spec, build_specs=build_specs, validate=validate,
+                            hidden=hidden, custom_build_opts=custom_build_opts)
         except EasyBuildError as err:
             raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg)
 

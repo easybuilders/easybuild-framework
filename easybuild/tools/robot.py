@@ -36,13 +36,14 @@ Dependency resolution functionality, a.k.a. robot.
 import copy
 import os
 import sys
+import tempfile
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, process_easyconfig
 from easybuild.framework.easyconfig.easyconfig import robot_find_easyconfig, verify_easyconfig_filename
-from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
+from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available, alt_easyconfig_paths
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
+from easybuild.tools.config import build_option, update_build_option, update_build_options
 from easybuild.tools.filetools import det_common_path_prefix, search_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -333,6 +334,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
                             retain all deps when True, check matching build option when False
     :param raise_error_missing_ecs: raise an error when one or more easyconfig files could not be found
     """
+    print(f'resolve_dependencies: easyconfigs: {easyconfigs}')
     robot = build_option('robot_path')
     # retain all dependencies if specified by either the resp. build option or the dedicated named argument
     retain_all_deps = build_option('retain_all_deps') or retain_all_deps
@@ -394,6 +396,21 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
 
             additional = []
             for entry in easyconfigs:
+                print(f"resolve_dependencies: entry: {entry['full_mod_name']}")
+                orig_build_opts = None
+                custom_build_opts = entry['ec'].custom_build_opts
+                if custom_build_opts is not None:
+                    print(f"Applying easyconfig specific options for entry: {entry['full_mod_name']}:")
+                    print(custom_build_opts)
+                    orig_build_opts = update_build_options(custom_build_opts)
+                    # Re-determine robot-path from options (borrowed from easybuild/tools/options)
+                    tweaked_ecs = build_option('try_to_generate') and build_option('build_specs')
+                    tweaked_ecs_paths, pr_paths = alt_easyconfig_paths(tempfile.gettempdir(), tweaked_ecs=tweaked_ecs,
+                                                                       from_prs=build_option('from_pr'))
+                    robot_path = det_robot_path(build_option('robot_path'), tweaked_ecs_paths, pr_paths)
+                    update_build_option('robot_path', robot_path)
+                    _log.debug("Full robot path used to find dependencies of %s: %s", entry['spec'], robot_path)
+
                 # do not choose an entry that is being installed in the current run
                 # if they depend, you probably want to rebuild them using the new dependency
                 deps = entry['dependencies']
@@ -402,6 +419,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
                     cand_dep = candidates[0]
                     # find easyconfig, might not find any
                     _log.debug("Looking for easyconfig for %s" % str(cand_dep))
+                    print(f"resolve_dependencies: looking for cand_dep: {cand_dep['full_mod_name']}")
                     # note: robot_find_easyconfig may return None
                     path = robot_find_easyconfig(cand_dep['name'], det_full_ec_version(cand_dep))
 
@@ -443,10 +461,13 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
                             if ec not in easyconfigs + additional:
                                 additional.append(ec)
                                 _log.debug("Added %s as dependency of %s" % (ec, entry))
+                                print(f"Added {ec['full_mod_name']} as a dependency of {entry['full_mod_name']}")
                 else:
                     mod_name = EasyBuildMNS().det_full_module_name(entry['ec'])
                     _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
-
+                # Restore original build options if needed:
+                if orig_build_opts is not None:
+                    update_build_options(orig_build_opts)
             # add additional (new) easyconfigs to list of stuff to process
             easyconfigs.extend(additional)
             _log.debug("Unprocessed dependencies: %s", easyconfigs)
