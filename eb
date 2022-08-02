@@ -125,4 +125,4 @@ fi
 export EB_SCRIPT_PATH="${0}"
 
 verbose "${PYTHON} -m ${EASYBUILD_MAIN} ${*}"
-"${PYTHON}" -m "${EASYBUILD_MAIN}" "${@}"
+exec "${PYTHON}" -m "${EASYBUILD_MAIN}" "${@}"
