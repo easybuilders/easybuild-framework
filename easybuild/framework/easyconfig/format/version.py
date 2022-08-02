@@ -117,7 +117,7 @@ class VersionOperator(object):
 
     def is_valid(self):
         """Check if this is a valid VersionOperator. Suffix can be anything."""
-        return not(self.version is None or self.operator is None)
+        return not (self.version is None or self.operator is None)
 
     def set(self, versop_str):
         """
