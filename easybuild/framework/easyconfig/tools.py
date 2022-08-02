@@ -53,7 +53,7 @@ from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
-from easybuild.tools.config import build_option
+from easybuild.tools.config import build_option, update_build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
 from easybuild.tools.filetools import read_file, resolve_path, which, write_file
@@ -333,12 +333,47 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None, review_pr=Non
     return tweaked_ecs_paths, pr_paths
 
 
-def det_easyconfig_paths(orig_paths):
+def det_easyconfig_paths(orig_paths, opts_per_ec={}):
     """
     Determine paths to easyconfig files.
     :param orig_paths: list of original easyconfig paths
     :return: list of paths to easyconfig files
     """
+    # list of specified easyconfig files
+    ec_files = orig_paths[:]
+
+    # Get PRs that need to be fetched from EasyConfig specific options in EasyStack file:
+    print(f"orig_paths: {orig_paths}")
+    print(f"global from_pr: {build_option('from_pr')}")
+    print(f"build_option('pr_paths'): {build_option('pr_paths')}")
+    # Find out if opts_per_ec has been defined, and if so, if it contains a from_pr
+    from_prs_easystack = {}
+    tmpdir = tempfile.gettempdir()
+    for i, ec_file in enumerate(ec_files):
+        print(f"Checking ec_file {ec_file}")
+        if ec_file in opts_per_ec:
+            opts_current_ec = opts_per_ec[ec_file]
+            print(f"opts_current_ec: {opts_current_ec}")
+            if 'from_pr' in opts_current_ec:
+                # Should we do a similar 'try' check as for the general from_pr option?
+                # from_prs_easystack[path] = [int(x) for x in opts_current_ec['from_pr']]
+                from_prs_per_ec = [int(x) for x in opts_current_ec['from_pr']]
+                # mimic alt_easyconfig_paths for EasyConfig specific options
+                pr_paths = [os.path.join(tmpdir, 'files_pr%s' % pr) for pr in from_prs_per_ec]
+                orig_pr_paths = update_build_option('pr_paths', pr_paths)
+                pr_files = []
+                for pr in from_prs_per_ec:
+                    print(f"Fetching pr {pr}")
+                    pr_files.extend(fetch_easyconfigs_from_pr(pr))
+                    print(f"pr_files: {pr_files}")
+                # replace paths
+                for pr_file in pr_files:
+                    if ec_file == os.path.basename(pr_file):
+                        print(f"Setting ec_files[i]: {ec_files[i]} to pr_file {pr_file}")
+                        ec_files[i] = pr_file
+                update_build_option('pr_paths', orig_pr_paths)
+                
+    # Get PRs from general options
     try:
         from_prs = [int(x) for x in build_option('from_pr')]
     except ValueError:
@@ -346,15 +381,13 @@ def det_easyconfig_paths(orig_paths):
 
     robot_path = build_option('robot_path')
 
-    # list of specified easyconfig files
-    ec_files = orig_paths[:]
-
     if from_prs:
         pr_files = []
         for pr in from_prs:
             # path to where easyconfig files should be downloaded is determined via 'pr_paths' build option,
             # which corresponds to the list of PR paths returned by alt_easyconfig_paths
             pr_files.extend(fetch_easyconfigs_from_pr(pr))
+            print(f"pr_files: {pr_files}")
 
         if ec_files:
             # replace paths for specified easyconfigs that are touched in PR
@@ -365,6 +398,8 @@ def det_easyconfig_paths(orig_paths):
         else:
             # if no easyconfigs are specified, use all the ones touched in the PR
             ec_files = [path for path in pr_files if path.endswith('.eb')]
+
+    print(f"ec_files: {ec_files}")
 
     filter_ecs = build_option('filter_ecs')
     if filter_ecs:
@@ -377,6 +412,7 @@ def det_easyconfig_paths(orig_paths):
 
         ec_files = locate_files(ec_files, robot_path, ignore_subdirs=ignore_subdirs)
 
+    print(f"Returning ec_files: {ec_files}")
     return ec_files
 
 

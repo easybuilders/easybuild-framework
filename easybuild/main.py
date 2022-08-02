@@ -257,10 +257,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         print_msg(last_log, log=_log, prefix=False)
 
     # if easystack is provided with the command, commands with arguments from it will be executed
+    opts_per_ec = {}
     if options.easystack:
         # TODO add general_options (i.e. robot) to build options
-        orig_paths, general_options = parse_easystack(options.easystack)
-        if general_options:
+        orig_paths, opts_per_ec = parse_easystack(options.easystack)
+        print(f"opts_per_ec:")
+        print(opts_per_ec)
+        if opts_per_ec:
             print_warning("Specifying options in easystack files is not supported yet. They are parsed, but ignored.")
 
     # check whether packaging is supported when it's being used
@@ -373,7 +376,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query]
 
     # determine paths to easyconfigs
-    determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
+    determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'], opts_per_ec)
+    print(f"determined_paths: {determined_paths}")
 
     # only copy easyconfigs here if we're not using --try-* (that's handled below)
     copy_ec = options.copy_ec and not tweaked_ecs_paths
