@@ -944,7 +944,7 @@ def get_linked_libs_raw(path):
     file_cmd_out, ec = run_cmd("file %s" % path, simple=False, trace=False)
     if ec:
         fail_msg = "Failed to run 'file %s': %s" % (path, file_cmd_out)
-        self.log.warning(fail_msg)
+        _log.warning(fail_msg)
 
     os_type = get_os_type()
 
