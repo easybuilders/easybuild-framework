@@ -341,36 +341,33 @@ def det_easyconfig_paths(orig_paths, opts_per_ec={}):
     """
     # list of specified easyconfig files
     ec_files = orig_paths[:]
+    _log.debug("Determining EasyConfig paths for: %s" % ec_files)
 
-    # Get PRs that need to be fetched from EasyConfig specific options in EasyStack file:
-    print(f"orig_paths: {orig_paths}")
-    print(f"global from_pr: {build_option('from_pr')}")
-    print(f"build_option('pr_paths'): {build_option('pr_paths')}")
-    # Find out if opts_per_ec has been defined, and if so, if it contains a from_pr
+    # Find out if opts_per_ec has been defined for specific ec_file's, and if so, if it contains a from_pr
+    # If it does, we should try and resolve the EasyConfig file in the checkout of that (set of) pr(s)
     from_prs_easystack = {}
     tmpdir = tempfile.gettempdir()
     for i, ec_file in enumerate(ec_files):
-        print(f"Checking ec_file {ec_file}")
         if ec_file in opts_per_ec:
             opts_current_ec = opts_per_ec[ec_file]
-            print(f"opts_current_ec: {opts_current_ec}")
+            _log.debug("Custom options %s where specified for EasyConfig %s" % (str(opts_current_ec), ec_file))
             if 'from_pr' in opts_current_ec:
                 # Should we do a similar 'try' check as for the general from_pr option?
                 # from_prs_easystack[path] = [int(x) for x in opts_current_ec['from_pr']]
                 from_prs_per_ec = [int(x) for x in opts_current_ec['from_pr']]
                 # mimic alt_easyconfig_paths for EasyConfig specific options
                 pr_paths = [os.path.join(tmpdir, 'files_pr%s' % pr) for pr in from_prs_per_ec]
+                _log.debug("A from_pr (%s) was specified for EasyConfig %s as part of easyconfig-specific options. Updating pr_path to %s" % (opts_current_ec['from_pr'], ec_file, pr_paths))
                 orig_pr_paths = update_build_option('pr_paths', pr_paths)
                 pr_files = []
                 for pr in from_prs_per_ec:
-                    print(f"Fetching pr {pr}")
                     pr_files.extend(fetch_easyconfigs_from_pr(pr))
-                    print(f"pr_files: {pr_files}")
                 # replace paths
                 for pr_file in pr_files:
                     if ec_file == os.path.basename(pr_file):
-                        print(f"Setting ec_files[i]: {ec_files[i]} to pr_file {pr_file}")
+                        _log.info("Resolved %s to %s", ec_file, pr_file)
                         ec_files[i] = pr_file
+                _log.debug("Restoring original pr_path")
                 update_build_option('pr_paths', orig_pr_paths)
                 
     # Get PRs from general options
@@ -387,7 +384,6 @@ def det_easyconfig_paths(orig_paths, opts_per_ec={}):
             # path to where easyconfig files should be downloaded is determined via 'pr_paths' build option,
             # which corresponds to the list of PR paths returned by alt_easyconfig_paths
             pr_files.extend(fetch_easyconfigs_from_pr(pr))
-            print(f"pr_files: {pr_files}")
 
         if ec_files:
             # replace paths for specified easyconfigs that are touched in PR
@@ -398,8 +394,6 @@ def det_easyconfig_paths(orig_paths, opts_per_ec={}):
         else:
             # if no easyconfigs are specified, use all the ones touched in the PR
             ec_files = [path for path in pr_files if path.endswith('.eb')]
-
-    print(f"ec_files: {ec_files}")
 
     filter_ecs = build_option('filter_ecs')
     if filter_ecs:
@@ -412,7 +406,7 @@ def det_easyconfig_paths(orig_paths, opts_per_ec={}):
 
         ec_files = locate_files(ec_files, robot_path, ignore_subdirs=ignore_subdirs)
 
-    print(f"Returning ec_files: {ec_files}")
+    _log.debug("Determined easyconfig files: %s", ec_files)
     return ec_files
 
 
@@ -425,13 +419,14 @@ def parse_easyconfigs(paths, validate=True, opts_per_ec={}):
     generated_ecs = False
 
     for (path, generated) in paths:
-        print(f'parse_easyconfigs: path: {path} generated: {generated}')
         path = os.path.abspath(path)
         # Get EasyConfig specific build options if they have been specified in an EasyStack file
         opts_current_ec =  opts_per_ec.get(os.path.basename(path), None)
         # Apply custom build options if needed
         if opts_current_ec is not None:
+            _log.debug("Applying easyconfig-specific build options %s to %s" % (opts_current_ec, path))
             orig_build_options = update_build_options(opts_current_ec)
+            # TODO: we should probably also update the pr_path (?) since process_easyconfig calls EasyConfig(...) which I'm pretty sure uses pr_path when parsing dependencies...
         # keep track of whether any files were generated
         generated_ecs |= generated
         if not os.path.exists(path):

@@ -400,14 +400,13 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
                 custom_build_opts = entry['ec'].custom_build_opts
                 if custom_build_opts is not None:
                     _log.debug("Applying easyconfig specific options %s" % str(custom_build_opts))
-#                    print(f"Applying easyconfig specific options for entry: {entry['full_mod_name']}:")
-#                    print(custom_build_opts)
                     orig_build_opts = update_build_options(custom_build_opts)
                     # Re-determine robot-path from options (borrowed from easybuild/tools/options)
                     tweaked_ecs = build_option('try_to_generate') and build_option('build_specs')
                     tweaked_ecs_paths, pr_paths = alt_easyconfig_paths(tempfile.gettempdir(), tweaked_ecs=tweaked_ecs,
                                                                        from_prs=build_option('from_pr'))
                     robot_path = det_robot_path(build_option('robot_path'), tweaked_ecs_paths, pr_paths)
+                    # Since we redetermined robot_path, we have to update it
                     orig_robot_path = update_build_option('robot_path', robot_path)
                     _log.debug("Full robot path used to find dependencies of %s: %s", entry['spec'], robot_path)
 
@@ -419,7 +418,6 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
                     cand_dep = candidates[0]
                     # find easyconfig, might not find any
                     _log.debug("Looking for easyconfig for %s" % str(cand_dep))
-                    print(f"resolve_dependencies: looking for cand_dep: {cand_dep['full_mod_name']}")
                     # note: robot_find_easyconfig may return None
                     path = robot_find_easyconfig(cand_dep['name'], det_full_ec_version(cand_dep))
 
@@ -460,12 +458,11 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
                         for ec in processed_ecs:
                             if ec not in easyconfigs + additional:
                                 # Make dependency inherit custom build opts
-                                if ec['ec'].custom_build_opts is None:
-                                    print(f"Copying custom build opts from {entry['ec']} to {ec['ec']}")
+                                if (ec['ec'].custom_build_opts is None) and (entry['ec'].custom_build_opts is not None) :
                                     ec['ec'].custom_build_opts = entry['ec'].custom_build_opts
+                                    _log.debug("Copied custom build opts (%s) from %s to %s" % (str(custom_build_opts), entry['ec'], ec['ec']))
                                 additional.append(ec)
                                 _log.debug("Added %s as dependency of %s" % (ec, entry))
-                                print(f"Added {ec['full_mod_name']} as a dependency of {entry['full_mod_name']}")
                 else:
                     mod_name = EasyBuildMNS().det_full_module_name(entry['ec'])
                     _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
