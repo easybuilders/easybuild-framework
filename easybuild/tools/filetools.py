@@ -2870,7 +2870,7 @@ def copy_framework_files(paths, target_dir):
         if framework_topdir in dirnames:
             # construct subdirectory by grabbing last entry in dirnames until we hit 'easybuild-framework' dir
             subdirs = []
-            while(dirnames[-1] != framework_topdir):
+            while dirnames[-1] != framework_topdir:
                 subdirs.insert(0, dirnames.pop())
 
             parent_dir = os.path.join(*subdirs) if subdirs else ''
