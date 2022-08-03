@@ -48,7 +48,7 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_MERGEABLE_STATE_CLEAN
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
-from easybuild.tools.github import pick_default_branch
+from easybuild.tools.github import is_patch_for, pick_default_branch
 from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
@@ -1189,6 +1189,43 @@ class GithubTest(EnhancedTestCase):
             self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['overview']))
 
         self.assertTrue("**SUCCESS** _test.eb_" in res['overview'])
+
+    def test_is_patch_for(self):
+        """Test for is_patch_for function."""
+        ectxt = '\n'.join([
+            "easyblock = 'PythonBundle'",
+            "name = 'pi'",
+            "version = '3.14'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+        ])
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, ectxt)
+        ec = EasyConfig(test_ec)
+        self.assertFalse(is_patch_for('pi.patch', ec))
+
+        for patch_fn in ('pi.patch', '%(name)s.patch', '%(namelower)s.patch'):
+            ec['patches'] = [patch_fn]
+            self.assertTrue(is_patch_for('pi.patch', ec))
+            self.assertFalse(is_patch_for('foo.patch', ec))
+
+        ec['patches'] = ['%(name)s-%(version)s.patch']
+        self.assertFalse(is_patch_for('pi.patch', ec))
+        self.assertTrue(is_patch_for('pi-3.14.patch', ec))
+
+        ec['patches'] = []
+
+        for patch_fn in ('foo.patch', '%(name)s.patch', '%(namelower)s.patch'):
+            ec['exts_list'] = [('foo', '1.2.3', {'patches': [patch_fn]})]
+            self.assertTrue(is_patch_for('foo.patch', ec))
+            self.assertFalse(is_patch_for('pi.patch', ec))
+
+        ec['components'] = None
+        self.assertFalse(is_patch_for('pi.patch', ec))
+
+        ec['components'] = [('foo', '1.2.3', {'patches': ['pi.patch']})]
+        self.assertTrue(is_patch_for('pi.patch', ec))
 
 
 def suite():
