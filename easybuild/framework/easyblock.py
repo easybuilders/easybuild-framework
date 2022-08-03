@@ -373,7 +373,8 @@ class EasyBlock(object):
         :param checksum: checksum corresponding to source
         :param extension: flag if being called from collect_exts_file_info()
         """
-        filename, download_filename, extract_cmd, source_urls, git_config = None, None, None, None, None
+        filename, download_filename, extract_cmd = None, None, None
+        source_urls, git_config, alt_location = None, None, None
 
         if source is None:
             raise EasyBuildError("fetch_source called with empty 'source' argument")
@@ -387,6 +388,7 @@ class EasyBlock(object):
             download_filename = source.pop('download_filename', None)
             source_urls = source.pop('source_urls', None)
             git_config = source.pop('git_config', None)
+            alt_location = source.pop('alt_location', None)
             if source:
                 raise EasyBuildError("Found one or more unexpected keys in 'sources' specification: %s", source)
 
@@ -401,7 +403,7 @@ class EasyBlock(object):
         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
         path = self.obtain_file(filename, extension=extension, download_filename=download_filename,
                                 force_download=force_download, urls=source_urls, git_config=git_config,
-                                download_instructions=download_instructions)
+                                download_instructions=download_instructions, alt_location=alt_location)
         if path is None:
             raise EasyBuildError('No file found for source %s', filename)
 
@@ -468,7 +470,9 @@ class EasyBlock(object):
             patch_info['postinstall'] = patch_spec in post_install_patches
 
             force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES]
-            path = self.obtain_file(patch_info['name'], extension=extension, force_download=force_download)
+            alt_location = patch_info.pop('alt_location', None)
+            path = self.obtain_file(patch_info['name'], extension=extension, force_download=force_download,
+                                    alt_location=alt_location)
             if path:
                 self.log.debug('File %s found for patch %s', path, patch_spec)
                 patch_info['path'] = path
@@ -517,11 +521,13 @@ class EasyBlock(object):
         for ext in exts_list:
             if isinstance(ext, (list, tuple)) and ext:
                 # expected format: (name, version, options (dict))
-                ext_name = ext[0]
+                # name and version can use templates, resolved via parent EC
+
+                ext_name = resolve_template(ext[0], self.cfg.template_values)
                 if len(ext) == 1:
                     exts_sources.append({'name': ext_name})
                 else:
-                    ext_version = ext[1]
+                    ext_version = resolve_template(ext[1], self.cfg.template_values)
 
                     # make sure we grab *raw* dict of default options for extension,
                     # since it may use template values like %(name)s & %(version)s
@@ -687,7 +693,7 @@ class EasyBlock(object):
         return exts_sources
 
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
-                    git_config=None, download_instructions=None):
+                    git_config=None, download_instructions=None, alt_location=None):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -698,10 +704,17 @@ class EasyBlock(object):
         :param download_filename: filename with which the file should be downloaded, and then renamed to <filename>
         :param force_download: always try to download file, even if it's already available in source path
         :param git_config: dictionary to define how to download a git repository
+        :param download_instructions: instructions to manually add source (used for complex cases)
+        :param alt_location: alternative location to use instead of self.name
         """
         srcpaths = source_paths()
 
         update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
+
+        if alt_location is None:
+            location = self.name
+        else:
+            location = alt_location
 
         # should we download or just try and find it?
         if re.match(r"^(https?|ftp)://", filename):
@@ -711,7 +724,7 @@ class EasyBlock(object):
             filename = url.split('/')[-1]
 
             # figure out where to download the file to
-            filepath = os.path.join(srcpaths[0], letter_dir_for(self.name), self.name)
+            filepath = os.path.join(srcpaths[0], letter_dir_for(location), location)
             if extension:
                 filepath = os.path.join(filepath, "extensions")
             self.log.info("Creating path %s to download file to" % filepath)
@@ -750,8 +763,8 @@ class EasyBlock(object):
 
             for path in ebpath + common_filepaths + srcpaths:
                 # create list of candidate filepaths
-                namepath = os.path.join(path, self.name)
-                letterpath = os.path.join(path, letter_dir_for(self.name), self.name)
+                namepath = os.path.join(path, location)
+                letterpath = os.path.join(path, letter_dir_for(location), location)
 
                 # most likely paths
                 candidate_filepaths = [
@@ -790,8 +803,8 @@ class EasyBlock(object):
 
                     break  # no need to try other source paths
 
-            name_letter = self.name.lower()[0]
-            targetdir = os.path.join(srcpaths[0], name_letter, self.name)
+            name_letter = location.lower()[0]
+            targetdir = os.path.join(srcpaths[0], name_letter, location)
 
             if foundfile:
                 if self.dry_run:
@@ -808,7 +821,7 @@ class EasyBlock(object):
                 source_urls.extend(self.cfg['source_urls'])
 
                 # add https://sources.easybuild.io as fallback source URL
-                source_urls.append(EASYBUILD_SOURCES_URL + '/' + os.path.join(name_letter, self.name))
+                source_urls.append(EASYBUILD_SOURCES_URL + '/' + os.path.join(name_letter, location))
 
                 mkdir(targetdir, parents=True)
 
@@ -960,7 +973,7 @@ class EasyBlock(object):
         if not self.cfg.get('cleanupoldbuild', False):
             uniq_builddir = builddir
             suff = 0
-            while(os.path.isdir(uniq_builddir)):
+            while os.path.isdir(uniq_builddir):
                 uniq_builddir = "%s.%d" % (builddir, suff)
                 suff += 1
             builddir = uniq_builddir
@@ -1754,7 +1767,13 @@ class EasyBlock(object):
 
         if build_option('parallel_extensions_install'):
             self.log.experimental("installing extensions in parallel")
-            self.install_extensions_parallel(install=install)
+            try:
+                self.install_extensions_parallel(install=install)
+            except NotImplementedError:
+                # If parallel extension install is not supported for this type of extension then install sequentially
+                msg = "Parallel extensions install not supported for %s - using sequential install" % self.name
+                self.log.experimental(msg)
+                self.install_extensions_sequential(install=install)
         else:
             self.install_extensions_sequential(install=install)
 

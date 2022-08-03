@@ -54,7 +54,7 @@ from easybuild.tools.run import run_cmd
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 90
+TEST_MODULES_COUNT = 91
 
 
 class ModulesTest(EnhancedTestCase):

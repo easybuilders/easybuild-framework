@@ -65,7 +65,7 @@ from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
-from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
+from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars, trace_msg
 
 try:
     import requests
@@ -856,9 +856,11 @@ def download_file(filename, url, path, forced=False):
 
     if downloaded:
         _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
+        trace_msg("download succeeded: %s" % url)
         return path
     else:
         _log.warning("Download of %s to %s failed, done trying" % (url, path))
+        trace_msg("download failed: %s" % url)
         return None
 
 
@@ -1469,6 +1471,9 @@ def create_patch_info(patch_spec):
     """
     Create info dictionary from specified patch spec.
     """
+    # Valid keys that can be used in a patch spec dict
+    valid_keys = ['name', 'copy', 'level', 'sourcepath', 'alt_location']
+
     if isinstance(patch_spec, (list, tuple)):
         if not len(patch_spec) == 2:
             error_msg = "Unknown patch specification '%s', only 2-element lists/tuples are supported!"
@@ -1495,17 +1500,42 @@ def create_patch_info(patch_spec):
                                  str(patch_spec))
 
     elif isinstance(patch_spec, string_type):
-        allowed_patch_exts = ['.patch' + x for x in ('',) + ZIPPED_PATCH_EXTS]
-        if not any(patch_spec.endswith(x) for x in allowed_patch_exts):
-            msg = "Use of patch file with filename that doesn't end with correct extension: %s " % patch_spec
-            msg += "(should be any of: %s)" % (', '.join(allowed_patch_exts))
-            _log.deprecated(msg, '5.0')
+        validate_patch_spec(patch_spec)
         patch_info = {'name': patch_spec}
+    elif isinstance(patch_spec, dict):
+        patch_info = {}
+        for key in patch_spec.keys():
+            if key in valid_keys:
+                patch_info[key] = patch_spec[key]
+            else:
+                raise EasyBuildError("Wrong patch spec '%s', use of unknown key %s in dict (valid keys are %s)",
+                                     str(patch_spec), key, valid_keys)
+
+        # Dict must contain at least the patchfile name
+        if 'name' not in patch_info.keys():
+            raise EasyBuildError("Wrong patch spec '%s', when using a dict 'name' entry must be supplied",
+                                 str(patch_spec))
+        if 'copy' not in patch_info.keys():
+            validate_patch_spec(patch_info['name'])
+        else:
+            if 'sourcepath' in patch_info.keys() or 'level' in patch_info.keys():
+                raise EasyBuildError("Wrong patch spec '%s', you can't use 'sourcepath' or 'level' with 'copy' (since "
+                                     "this implies you want to copy a file to the 'copy' location)",
+                                     str(patch_spec))
     else:
-        error_msg = "Wrong patch spec, should be string of 2-tuple with patch name + argument: %s"
-        raise EasyBuildError(error_msg, patch_spec)
+        error_msg = "Wrong patch spec, should be string, 2-tuple with patch name + argument, or a dict " \
+                    "(with possible keys %s): %s" % (valid_keys, patch_spec)
+        raise EasyBuildError(error_msg)
 
     return patch_info
+
+
+def validate_patch_spec(patch_spec):
+    allowed_patch_exts = ['.patch' + x for x in ('',) + ZIPPED_PATCH_EXTS]
+    if not any(patch_spec.endswith(x) for x in allowed_patch_exts):
+        msg = "Use of patch file with filename that doesn't end with correct extension: %s " % patch_spec
+        msg += "(should be any of: %s)" % (', '.join(allowed_patch_exts))
+        _log.deprecated(msg, '5.0')
 
 
 def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=False, use_git=False):
@@ -1592,7 +1622,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
         else:
             _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
-        patch_cmd = "patch -b -p%s -i %s" % (level, abs_patch_file)
+        backup_option = '-b ' if build_option('backup_patched_files') else ''
+        patch_cmd = "patch " + backup_option + "-p%s -i %s" % (level, abs_patch_file)
 
     out, ec = run.run_cmd(patch_cmd, simple=False, path=abs_dest, log_ok=False, trace=False)
 
@@ -2839,7 +2870,7 @@ def copy_framework_files(paths, target_dir):
         if framework_topdir in dirnames:
             # construct subdirectory by grabbing last entry in dirnames until we hit 'easybuild-framework' dir
             subdirs = []
-            while(dirnames[-1] != framework_topdir):
+            while dirnames[-1] != framework_topdir:
                 subdirs.insert(0, dirnames.pop())
 
             parent_dir = os.path.join(*subdirs) if subdirs else ''

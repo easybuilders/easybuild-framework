@@ -69,7 +69,7 @@ class Toy_Extension(ExtensionEasyBlock):
             if self.cfg['toy_ext_param']:
                 run_cmd(self.cfg['toy_ext_param'])
 
-            return self.module_generator.set_environment('TOY_EXT_%s' % self.name.upper(), self.name)
+            return self.module_generator.set_environment('TOY_EXT_%s' % self.name.upper().replace('-', '_'), self.name)
 
     def prerun(self):
         """

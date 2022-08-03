@@ -380,9 +380,9 @@ class FancyLogger(logging.getLoggerClass()):
 
         def write_and_flush_stream(hdlr, data=None):
             """Write to stream and flush the handler"""
-            if (not hasattr(hdlr, 'stream')) or hdlr.stream is None:
+            if getattr(hdlr, 'stream', None) is None:
                 # no stream or not initialised.
-                raise("write_and_flush_stream failed. No active stream attribute.")
+                raise ValueError("write_and_flush_stream failed. No active stream attribute.")
             if data is not None:
                 hdlr.stream.write(data)
                 hdlr.flush()

@@ -38,7 +38,7 @@ jobs:
           cd $HOME
           export INSTALL_DEP=$GITHUB_WORKSPACE/easybuild/scripts/install_eb_dep.sh
           # install Lmod
-          source $INSTALL_DEP Lmod-8.4.26 $HOME
+          source $INSTALL_DEP Lmod-8.7.6 $HOME
           # changes in environment are not passed to other steps, so need to create files...
           echo $MOD_INIT > mod_init
           echo $PATH > path

@@ -57,7 +57,7 @@ except ImportError:
     pass
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.filetools import is_readable, read_file, which
 from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.run import run_cmd
@@ -88,6 +88,9 @@ POWER = 'POWER'
 X86_64 = 'x86_64'
 RISCV32 = 'RISC-V-32'
 RISCV64 = 'RISC-V-64'
+
+# known values for ARCH constant (determined by _get_arch_constant in easybuild.framework.easyconfig.constants)
+KNOWN_ARCH_CONSTANTS = ('aarch64', 'ppc64le', 'riscv64', 'x86_64')
 
 ARCH_KEY_PREFIX = 'arch='
 
@@ -967,7 +970,10 @@ def check_linked_shared_libs(path, required_patterns=None, banned_patterns=None)
         # example output for shared libraries:
         #   /lib64/libc-2.17.so: ELF 64-bit LSB shared object, x86-64, ..., dynamically linked (uses shared libs), ...
         if "dynamically linked" in file_cmd_out:
-            linked_libs_out, _ = run_cmd("ldd %s" % path, simple=False, trace=False)
+            # determine linked libraries via 'ldd', but take into account that 'ldd' may fail for strange reasons,
+            # like printing 'not a dynamic executable' when not enough memory is available
+            # (see also https://bugzilla.redhat.com/show_bug.cgi?id=1817111)
+            linked_libs_cmd = "ldd %s" % path
         else:
             return None
 
@@ -978,11 +984,18 @@ def check_linked_shared_libs(path, required_patterns=None, banned_patterns=None)
         #   /usr/lib/libz.dylib: Mach-O 64-bit dynamically linked shared library x86_64
         bin_lib_regex = re.compile('(Mach-O .* executable)|(dynamically linked)', re.M)
         if bin_lib_regex.search(file_cmd_out):
-            linked_libs_out, _ = run_cmd("otool -L %s" % path, simple=False, trace=False)
+            linked_libs_cmd = "otool -L %s" % path
         else:
             return None
     else:
         raise EasyBuildError("Unknown OS type: %s", os_type)
+
+    out, ec = run_cmd(linked_libs_cmd, simple=False, trace=False, log_ok=False, log_all=False)
+    if ec == 0:
+        linked_libs_out = out
+    else:
+        print_warning("Determining linked libraries for %s via '%s' failed! Output: '%s'", path, linked_libs_cmd, out)
+        return None
 
     found_banned_patterns = []
     missing_required_patterns = []

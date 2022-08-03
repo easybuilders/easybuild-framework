@@ -705,12 +705,16 @@ class ToolchainTest(EnhancedTestCase):
             tcs = {
                 'gompi': ('2018a', "-march=x86-64 -mtune=generic"),
                 'iccifort': ('2018.1.163', "-xSSE2 -ftz -fp-speculation=safe -fp-model source"),
+                'intel-compilers': ('2021.4.0', "-xSSE2 -fp-speculation=safe -fp-model precise"),
             }
             for tcopt_optarch in [False, True]:
                 for tcname in tcs:
                     tcversion, generic_flags = tcs[tcname]
                     tc = self.get_toolchain(tcname, version=tcversion)
-                    tc.set_options({'optarch': tcopt_optarch})
+                    if tcname == 'intel-compilers':
+                        tc.set_options({'optarch': tcopt_optarch, 'oneapi': True})
+                    else:
+                        tc.set_options({'optarch': tcopt_optarch})
                     tc.prepare()
                     for var in flag_vars:
                         if generic:
@@ -1372,6 +1376,67 @@ class ToolchainTest(EnhancedTestCase):
         for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
             self.assertTrue('-openmp' in tc.get_variable(var))
 
+        # with compiler-only toolchain the $MPI* variables are not defined
+        mpi_vars = ('MPICC', 'MPICXX', 'MPIF77', 'MPIF90', 'MPIFC')
+
+        # make sure environment variables are undefined before preparing build environment
+        for var in mpi_vars:
+            if os.getenv(var):
+                del os.environ[var]
+
+        tc = self.get_toolchain('intel-compilers', version='2021.4.0')
+        tc.set_options({})
+        tc.prepare()
+
+        self.assertEqual(os.getenv('CC'), 'icc')
+        self.assertEqual(os.getenv('CXX'), 'icpc')
+        self.assertEqual(os.getenv('F77'), 'ifort')
+        self.assertEqual(os.getenv('F90'), 'ifort')
+        self.assertEqual(os.getenv('FC'), 'ifort')
+
+        for var in mpi_vars:
+            self.assertEqual(os.getenv(var), None)
+
+    def test_intel_toolchain_oneapi(self):
+        """Test for opt-in to oneAPI with intel toolchain"""
+
+        # for recent versions of intel toolchain, we can opt in to using the new oneAPI compilers
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='2021.4.0')
+        self.modtool.prepend_module_path(self.test_prefix)
+        tc = self.get_toolchain('intel', version='2021b')
+        tc.set_options({})
+        tc.prepare()
+
+        # default remains classic compilers for now
+        self.assertEqual(os.getenv('CC'), 'icc')
+        self.assertEqual(os.getenv('CXX'), 'icpc')
+        self.assertEqual(os.getenv('F77'), 'ifort')
+        self.assertEqual(os.getenv('F90'), 'ifort')
+        self.assertEqual(os.getenv('FC'), 'ifort')
+
+        self.assertEqual(os.getenv('MPICC'), 'mpiicc')
+        self.assertEqual(os.getenv('MPICXX'), 'mpiicpc')
+        self.assertEqual(os.getenv('MPIF77'), 'mpiifort')
+        self.assertEqual(os.getenv('MPIF90'), 'mpiifort')
+        self.assertEqual(os.getenv('MPIFC'), 'mpiifort')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel', version='2021b')
+        tc.set_options({'oneapi': True})
+        tc.prepare()
+
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpx')
+        self.assertEqual(os.getenv('F77'), 'ifx')
+        self.assertEqual(os.getenv('F90'), 'ifx')
+        self.assertEqual(os.getenv('FC'), 'ifx')
+
+        self.assertEqual(os.getenv('MPICC'), 'mpiicc')
+        self.assertEqual(os.getenv('MPICXX'), 'mpiicpc')
+        self.assertEqual(os.getenv('MPIF77'), 'mpiifort')
+        self.assertEqual(os.getenv('MPIF90'), 'mpiifort')
+        self.assertEqual(os.getenv('MPIFC'), 'mpiifort')
+
     def test_toolchain_verification(self):
         """Test verification of toolchain definition."""
         tc = self.get_toolchain('foss', version='2018a')
@@ -1879,6 +1944,7 @@ class ToolchainTest(EnhancedTestCase):
             'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
             'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -fopenmp",
             'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
+            'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -fiopenmp",
         }
 
         toolchains = [
@@ -1887,6 +1953,7 @@ class ToolchainTest(EnhancedTestCase):
             ('CrayIntel', '2015.06-XC'),
             ('GCC', '6.4.0-2.28'),
             ('iccifort', '2018.1.163'),
+            ('intel-compilers', '2022.1.0'),
         ]
 
         # purposely obtain toolchains several times in a row, value for $CFLAGS should not change
@@ -1895,7 +1962,11 @@ class ToolchainTest(EnhancedTestCase):
                 tc = get_toolchain({'name': tcname, 'version': tcversion}, {},
                                    mns=ActiveMNS(), modtool=self.modtool)
                 # also check whether correct compiler flag for OpenMP is used while we're at it
-                tc.set_options({'openmp': True})
+                # and options for oneAPI compiler for Intel
+                if tcname == 'intel-compilers':
+                    tc.set_options({'oneapi': True, 'openmp': True})
+                else:
+                    tc.set_options({'openmp': True})
                 tc.prepare()
                 expected_cflags = tc_cflags[tcname]
                 msg = "Expected $CFLAGS found for toolchain %s: %s" % (tcname, expected_cflags)

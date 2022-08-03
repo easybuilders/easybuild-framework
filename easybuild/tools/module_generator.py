@@ -407,6 +407,29 @@ class ModuleGenerator(object):
 
         return res
 
+    def unpack_setenv_value(self, env_var_name, env_var_val):
+        """
+        Unpack value that specifies how to define an environment variable with specified name.
+        """
+        use_pushenv = False
+
+        # value may be specified as a string, or as a dict for special cases
+        if isinstance(env_var_val, string_type):
+            value = env_var_val
+
+        elif isinstance(env_var_val, dict):
+            use_pushenv = env_var_val.get('pushenv', False)
+            try:
+                value = env_var_val['value']
+            except KeyError:
+                raise EasyBuildError("Required key 'value' is missing in dict that specifies how to set $%s: %s",
+                                     env_var_name, env_var_val)
+        else:
+            raise EasyBuildError("Incorrect value type for setting $%s environment variable (%s): %s",
+                                 env_var_name, type(env_var_val), env_var_val)
+
+        return value, use_pushenv
+
     # From this point on just not implemented methods
 
     def check_group(self, group, error_msg=None):
@@ -1019,6 +1042,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.info("Not including statement to define environment variable $%s, as specified", key)
             return ''
 
+        value, use_pushenv = self.unpack_setenv_value(key, value)
+
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         if relpath:
             if value:
@@ -1027,7 +1052,9 @@ class ModuleGeneratorTcl(ModuleGenerator):
                 val = '"$root"'
         else:
             val = quote_str(value, tcl=True)
-        return 'setenv\t%s\t\t%s\n' % (key, val)
+
+        env_setter = 'pushenv' if use_pushenv else 'setenv'
+        return '%s\t%s\t\t%s\n' % (env_setter, key, val)
 
     def swap_module(self, mod_name_out, mod_name_in, guarded=True):
         """
@@ -1482,6 +1509,8 @@ class ModuleGeneratorLua(ModuleGenerator):
             self.log.info("Not including statement to define environment variable $%s, as specified", key)
             return ''
 
+        value, use_pushenv = self.unpack_setenv_value(key, value)
+
         if relpath:
             if value:
                 val = self.PATH_JOIN_TEMPLATE % value
@@ -1489,7 +1518,10 @@ class ModuleGeneratorLua(ModuleGenerator):
                 val = 'root'
         else:
             val = quote_str(value)
-        return 'setenv("%s", %s)\n' % (key, val)
+
+        env_setter = 'pushenv' if use_pushenv else 'setenv'
+
+        return '%s("%s", %s)\n' % (env_setter, key, val)
 
     def swap_module(self, mod_name_out, mod_name_in, guarded=True):
         """

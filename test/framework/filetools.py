@@ -1631,6 +1631,15 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.create_patch_info(('foo.patch', 1)), {'name': 'foo.patch', 'level': 1})
         self.assertEqual(ft.create_patch_info(('foo.patch', 'subdir')), {'name': 'foo.patch', 'sourcepath': 'subdir'})
         self.assertEqual(ft.create_patch_info(('foo.txt', 'subdir')), {'name': 'foo.txt', 'copy': 'subdir'})
+        self.assertEqual(ft.create_patch_info({'name': 'foo.patch'}), {'name': 'foo.patch'})
+        self.assertEqual(ft.create_patch_info({'name': 'foo.patch', 'sourcepath': 'subdir'}),
+                         {'name': 'foo.patch', 'sourcepath': 'subdir'})
+        self.assertEqual(ft.create_patch_info({'name': 'foo.txt', 'copy': 'subdir'}),
+                         {'name': 'foo.txt', 'copy': 'subdir'})
+        self.assertEqual(ft.create_patch_info({'name': 'foo.patch', 'sourcepath': 'subdir', 'alt_location': 'alt'}),
+                         {'name': 'foo.patch', 'sourcepath': 'subdir', 'alt_location': 'alt'})
+        self.assertEqual(ft.create_patch_info({'name': 'foo.txt', 'copy': 'subdir', 'alt_location': 'alt'}),
+                         {'name': 'foo.txt', 'copy': 'subdir', 'alt_location': 'alt'})
 
         self.allow_deprecated_behaviour()
         self.mock_stderr(True)
@@ -1650,7 +1659,12 @@ class FileToolsTest(EnhancedTestCase):
         # faulty input
         error_msg = "Wrong patch spec"
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, None)
-        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'name': 'foo.patch'})
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'copy': 'subdir'})
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'name': 'foo.txt', 'random': 'key'})
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info,
+                              {'name': 'foo.txt', 'copy': 'subdir', 'sourcepath': 'subdir'})
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info,
+                              {'name': 'foo.txt', 'copy': 'subdir', 'level': 1})
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, ('foo.patch', [1, 2]))
         error_msg = "Unknown patch specification"
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, ('foo.patch', 1, 'subdir'))
@@ -1663,10 +1677,21 @@ class FileToolsTest(EnhancedTestCase):
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
 
-        self.assertTrue(ft.apply_patch(toy_patch, path))
-        patched = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
-        pattern = "I'm a toy, and very proud of it"
-        self.assertTrue(pattern in patched)
+        for with_backup in (True, False):
+            update_build_option('backup_patched_files', with_backup)
+            self.assertTrue(ft.apply_patch(toy_patch, path))
+            src_file = os.path.join(path, 'toy-0.0', 'toy.source')
+            backup_file = src_file + '.orig'
+            patched = ft.read_file(src_file)
+            pattern = "I'm a toy, and very proud of it"
+            self.assertTrue(pattern in patched)
+            if with_backup:
+                self.assertTrue(os.path.exists(backup_file))
+                self.assertTrue(pattern not in ft.read_file(backup_file))
+                # Restore file to original after first(!) iteration
+                ft.move_file(backup_file, src_file)
+            else:
+                self.assertFalse(os.path.exists(backup_file))
 
         # This patch is dependent on the previous one
         toy_patch_gz = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_gzip.patch.gz')
