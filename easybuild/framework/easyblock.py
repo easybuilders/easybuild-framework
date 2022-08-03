@@ -973,7 +973,7 @@ class EasyBlock(object):
         if not self.cfg.get('cleanupoldbuild', False):
             uniq_builddir = builddir
             suff = 0
-            while(os.path.isdir(uniq_builddir)):
+            while os.path.isdir(uniq_builddir):
                 uniq_builddir = "%s.%d" % (builddir, suff)
                 suff += 1
             builddir = uniq_builddir
