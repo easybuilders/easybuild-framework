@@ -334,7 +334,6 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
                             retain all deps when True, check matching build option when False
     :param raise_error_missing_ecs: raise an error when one or more easyconfig files could not be found
     """
-    print(f'resolve_dependencies: easyconfigs: {easyconfigs}')
     robot = build_option('robot_path')
     # retain all dependencies if specified by either the resp. build option or the dedicated named argument
     retain_all_deps = build_option('retain_all_deps') or retain_all_deps
@@ -396,19 +395,20 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
 
             additional = []
             for entry in easyconfigs:
-                print(f"resolve_dependencies: entry: {entry['full_mod_name']}")
-                orig_build_opts = None
+                _log.debug("Resolving dependencies for %s" % str(entry))
+                orig_build_opts = orig_robot_path = None
                 custom_build_opts = entry['ec'].custom_build_opts
                 if custom_build_opts is not None:
-                    print(f"Applying easyconfig specific options for entry: {entry['full_mod_name']}:")
-                    print(custom_build_opts)
+                    _log.debug("Applying easyconfig specific options %s" % str(custom_build_opts))
+#                    print(f"Applying easyconfig specific options for entry: {entry['full_mod_name']}:")
+#                    print(custom_build_opts)
                     orig_build_opts = update_build_options(custom_build_opts)
                     # Re-determine robot-path from options (borrowed from easybuild/tools/options)
                     tweaked_ecs = build_option('try_to_generate') and build_option('build_specs')
                     tweaked_ecs_paths, pr_paths = alt_easyconfig_paths(tempfile.gettempdir(), tweaked_ecs=tweaked_ecs,
                                                                        from_prs=build_option('from_pr'))
                     robot_path = det_robot_path(build_option('robot_path'), tweaked_ecs_paths, pr_paths)
-                    update_build_option('robot_path', robot_path)
+                    orig_robot_path = update_build_option('robot_path', robot_path)
                     _log.debug("Full robot path used to find dependencies of %s: %s", entry['spec'], robot_path)
 
                 # do not choose an entry that is being installed in the current run
@@ -459,13 +459,20 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
 
                         for ec in processed_ecs:
                             if ec not in easyconfigs + additional:
+                                # Make dependency inherit custom build opts
+                                if ec['ec'].custom_build_opts is None:
+                                    print(f"Copying custom build opts from {entry['ec']} to {ec['ec']}")
+                                    ec['ec'].custom_build_opts = entry['ec'].custom_build_opts
                                 additional.append(ec)
                                 _log.debug("Added %s as dependency of %s" % (ec, entry))
                                 print(f"Added {ec['full_mod_name']} as a dependency of {entry['full_mod_name']}")
                 else:
                     mod_name = EasyBuildMNS().det_full_module_name(entry['ec'])
                     _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
+
                 # Restore original build options if needed:
+                if orig_robot_path is not None:
+                    update_build_option('robot_path', orig_robot_path)
                 if orig_build_opts is not None:
                     update_build_options(orig_build_opts)
             # add additional (new) easyconfigs to list of stuff to process
