@@ -422,7 +422,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             sys.exit(31)  # exit -> 3x1t -> 31
 
     # read easyconfig files
-    easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums, opts_per_ec = opts_per_ec)
+    easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums,
+                                                   opts_per_ec=opts_per_ec)
 
     # handle --check-contrib & --check-style options
     if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):

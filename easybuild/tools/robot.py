@@ -458,9 +458,11 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
                         for ec in processed_ecs:
                             if ec not in easyconfigs + additional:
                                 # Make dependency inherit custom build opts
-                                if (ec['ec'].custom_build_opts is None) and (entry['ec'].custom_build_opts is not None) :
+                                if (ec['ec'].custom_build_opts is None) and (entry['ec'].custom_build_opts is not None):
                                     ec['ec'].custom_build_opts = entry['ec'].custom_build_opts
-                                    _log.debug("Copied custom build opts (%s) from %s to %s" % (str(custom_build_opts), entry['ec'], ec['ec']))
+                                    msg = "Copied custom build opts (%s) " % str(custom_build_opts)
+                                    msg += "from %s to %s" % (entry['ec'], ec['ec'])
+                                    _log.debug(msg)
                                 additional.append(ec)
                                 _log.debug("Added %s as dependency of %s" % (ec, entry))
                 else:
