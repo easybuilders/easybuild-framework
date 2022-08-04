@@ -89,10 +89,7 @@ class EasyStack(object):
 
         # entries specified via 'easyconfigs' top-level key
         for ec in self.easyconfigs:
-            if not ec.endswith('.eb'):
-                ec_filenames.append(ec + '.eb')
-            else:
-                ec_filenames.append(ec)
+            ec_filenames.append(ec)
         return ec_filenames
 
     # flags applicable to all sw (i.e. robot)
@@ -169,12 +166,16 @@ class EasyStackParser(object):
 
         for easyconfig in easyconfigs:
             if isinstance(easyconfig, str):
+                if not easyconfig.endswith('.eb'):
+                    easyconfig = easyconfig + '.eb'
                 easystack.easyconfigs.append(easyconfig)
             elif isinstance(easyconfig, dict):
                 if len(easyconfig) == 1:
                     # Get single key from dictionary 'easyconfig'
                     easyconf_name = list(easyconfig.keys())[0]
                     # Add easyconfig name to the list
+                    if not easyconf_name.endswith('.eb'):
+                        easyconf_name = easyconf_name + '.eb'
                     easystack.easyconfigs.append(easyconf_name)
                     # Add options to the ec_opts dict
                     if 'options' in easyconfig[easyconf_name].keys():
