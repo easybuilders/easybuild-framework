@@ -175,11 +175,11 @@ class EasyStackParser(object):
                     easyconf_name = list(easyconfig.keys())[0]
                     # Add easyconfig name to the list
                     if not easyconf_name.endswith('.eb'):
-                        easyconf_name = easyconf_name + '.eb'
-                    easystack.easyconfigs.append(easyconf_name)
+                        easyconf_name_with_eb = easyconf_name + '.eb'
+                    easystack.easyconfigs.append(easyconf_name_with_eb)
                     # Add options to the ec_opts dict
                     if 'options' in easyconfig[easyconf_name].keys():
-                        easystack.ec_opts[easyconf_name] = easyconfig[easyconf_name]['options']
+                        easystack.ec_opts[easyconf_name_with_eb] = easyconfig[easyconf_name]['options']
                 else:
                     dict_keys = ', '.join(easyconfig.keys())
                     msg = "Failed to parse easystack file: expected a dictionary with one key (the EasyConfig name). "
