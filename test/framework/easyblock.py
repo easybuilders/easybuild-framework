@@ -2350,17 +2350,25 @@ class EasyBlockTest(EnhancedTestCase):
         toy_sources = os.path.join(testdir, 'sandbox', 'sources', 'toy')
         toy_ext_sources = os.path.join(toy_sources, 'extensions')
         toy_ec_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
-        toy_ec = process_easyconfig(toy_ec_file)[0]
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        new_ext_txt = "('baz', '0.0', {'nosource': True}),"  # With nosource option
+        new_ext_txt += "('barbar', '0.0', {'sources': [SOURCE_TAR_GZ]}),"  # With sources containing a list
+        test_ectxt = re.sub(r'\(name, version', new_ext_txt+r"\g<0>", read_file(toy_ec_file))
+        write_file(test_ec, test_ectxt)
+
+        toy_ec = process_easyconfig(test_ec)[0]
         toy_eb = EasyBlock(toy_ec['ec'])
 
         exts_file_info = toy_eb.collect_exts_file_info()
 
         self.assertIsInstance(exts_file_info, list)
-        self.assertEqual(len(exts_file_info), 4)
+        self.assertEqual(len(exts_file_info), 6)
 
         self.assertEqual(exts_file_info[0], {'name': 'ulimit'})
 
         self.assertEqual(exts_file_info[1]['name'], 'bar')
+        self.assertEqual(exts_file_info[1]['sources'], ['bar-0.0.tar.gz'])
         self.assertEqual(exts_file_info[1]['src'], os.path.join(toy_ext_sources, 'bar-0.0.tar.gz'))
         bar_patch1 = 'bar-0.0_fix-silly-typo-in-printf-statement.patch'
         self.assertEqual(exts_file_info[1]['patches'][0]['name'], bar_patch1)
@@ -2371,24 +2379,38 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(len(exts_file_info[1]['checksums']), 1)
 
         self.assertEqual(exts_file_info[2]['name'], 'barbar')
+        self.assertEqual(exts_file_info[2]['sources'], ['barbar-1.2.tar.gz'])
         self.assertEqual(exts_file_info[2]['src'], os.path.join(toy_ext_sources, 'barbar-1.2.tar.gz'))
         self.assertNotIn('patches', exts_file_info[2])
         self.assertEqual(len(exts_file_info[2]['checksums']), 0)
 
-        self.assertEqual(exts_file_info[3]['name'], 'toy')
-        self.assertEqual(exts_file_info[3]['src'], os.path.join(toy_sources, 'toy-0.0.tar.gz'))
+        self.assertEqual(exts_file_info[3]['name'], 'baz')
+        self.assertNotIn('sources', exts_file_info[3])
+        self.assertNotIn('sources', exts_file_info[3]['options'])
+        self.assertNotIn('src', exts_file_info[3])
         self.assertNotIn('patches', exts_file_info[3])
         self.assertEqual(len(exts_file_info[3]['checksums']), 0)
+
+        self.assertEqual(exts_file_info[4]['name'], 'barbar')
+        self.assertEqual(exts_file_info[4]['sources'], ['barbar-0.0.tar.gz'])
+        self.assertEqual(exts_file_info[4]['src'], os.path.join(toy_ext_sources, 'barbar-0.0.tar.gz'))
+        self.assertNotIn('patches', exts_file_info[4])
+
+        self.assertEqual(exts_file_info[5]['name'], 'toy')
+        self.assertEqual(exts_file_info[5]['sources'], ['toy-0.0.tar.gz'])
+        self.assertEqual(exts_file_info[5]['src'], os.path.join(toy_sources, 'toy-0.0.tar.gz'))
+        self.assertNotIn('patches', exts_file_info[5])
 
         # location of files is missing when fetch_files is set to False
         exts_file_info = toy_eb.collect_exts_file_info(fetch_files=False, verify_checksums=False)
 
         self.assertIsInstance(exts_file_info, list)
-        self.assertEqual(len(exts_file_info), 4)
+        self.assertEqual(len(exts_file_info), 6)
 
         self.assertEqual(exts_file_info[0], {'name': 'ulimit'})
 
         self.assertEqual(exts_file_info[1]['name'], 'bar')
+        self.assertEqual(exts_file_info[1]['sources'], ['bar-0.0.tar.gz'])
         self.assertNotIn('src', exts_file_info[1])
         self.assertEqual(exts_file_info[1]['patches'][0]['name'], bar_patch1)
         self.assertNotIn('path', exts_file_info[1]['patches'][0])
@@ -2396,12 +2418,25 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertNotIn('path', exts_file_info[1]['patches'][1])
 
         self.assertEqual(exts_file_info[2]['name'], 'barbar')
+        self.assertEqual(exts_file_info[2]['sources'], ['barbar-1.2.tar.gz'])
         self.assertNotIn('src', exts_file_info[2])
         self.assertNotIn('patches', exts_file_info[2])
 
-        self.assertEqual(exts_file_info[3]['name'], 'toy')
+        self.assertEqual(exts_file_info[3]['name'], 'baz')
+        self.assertNotIn('sources', exts_file_info[3])
+        self.assertNotIn('sources', exts_file_info[3]['options'])
         self.assertNotIn('src', exts_file_info[3])
         self.assertNotIn('patches', exts_file_info[3])
+
+        self.assertEqual(exts_file_info[4]['name'], 'barbar')
+        self.assertEqual(exts_file_info[4]['sources'], ['barbar-0.0.tar.gz'])
+        self.assertNotIn('src', exts_file_info[4])
+        self.assertNotIn('patches', exts_file_info[4])
+
+        self.assertEqual(exts_file_info[5]['name'], 'toy')
+        self.assertEqual(exts_file_info[5]['sources'], ['toy-0.0.tar.gz'])
+        self.assertNotIn('src', exts_file_info[5])
+        self.assertNotIn('patches', exts_file_info[5])
 
         error_msg = "Can't verify checksums for extension files if they are not being fetched"
         self.assertErrorRegex(EasyBuildError, error_msg, toy_eb.collect_exts_file_info, fetch_files=False)
