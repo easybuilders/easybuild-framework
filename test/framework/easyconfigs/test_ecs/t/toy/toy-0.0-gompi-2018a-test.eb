@@ -45,6 +45,7 @@ exts_list = [
     }),
     ('barbar', '1.2', {
         'start_dir': 'src',
+        'sources': {'filename': SOURCE_TAR_GZ},
     }),
     (name, version, {
         'sanity_check_paths': {'files': ['lib/libtoy.a'], 'dirs': []},
