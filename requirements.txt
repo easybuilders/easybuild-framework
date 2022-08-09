@@ -8,7 +8,9 @@ GitPython==3.1.14; python_version >= '3.0' and python_version < '3.6'
 GitPython; python_version >= '3.6' or python_version <= '3.0'
 
 # autopep8
-autopep8
+# stick to older autopep8 with Python 2.7, since autopep8 1.7.0 requires pycodestyle>=2.9.1 (which is Python 3 only)
+autopep8<1.7.0; python_version < '3.0'
+autopep8; python_version >= '3.0'
 
 # PyYAML
 PyYAML
