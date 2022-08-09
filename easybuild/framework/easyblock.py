@@ -2998,7 +2998,9 @@ class EasyBlock(object):
                     out = get_linked_libs_raw(path)
 
                     if out is None:
-                        self.log.debug("%s is not dynamically linked, so skipping it in RPATH sanity check", path)
+                        msg = "Failed to determine dynamically linked libraries for %s, "
+                        msg += "so skipping it in RPATH sanity check"
+                        self.log.debug(msg, path)
                     else:
                         # check whether all required libraries are found via 'ldd'
                         if not_found_regex.search(out):
