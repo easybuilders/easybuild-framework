@@ -176,6 +176,8 @@ class EasyStackParser(object):
                     # Add easyconfig name to the list
                     if not easyconf_name.endswith('.eb'):
                         easyconf_name_with_eb = easyconf_name + '.eb'
+                    else:
+                        easyconf_name_with_eb = easyconf_name
                     easystack.easyconfigs.append(easyconf_name_with_eb)
                     # Add options to the ec_opts dict
                     if 'options' in easyconfig[easyconf_name].keys():
