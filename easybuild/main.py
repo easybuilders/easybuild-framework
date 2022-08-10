@@ -212,152 +212,14 @@ def clean_exit(logfile, tmpdir, testing, silent=False):
     cleanup(logfile, tmpdir, testing, silent=silent)
     sys.exit(0)
 
+    
+def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks):
 
-def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
-    """
-    Main function: parse command line options, and act accordingly.
-    :param args: command line arguments to use
-    :param logfile: log file to use
-    :param do_build: whether or not to actually perform the build
-    :param testing: enable testing mode
-    """
-
-    register_lock_cleanup_signal_handlers()
-
-    # if $CDPATH is set, unset it, it'll only cause trouble...
-    # see https://github.com/easybuilders/easybuild-framework/issues/2944
-    if 'CDPATH' in os.environ:
-        del os.environ['CDPATH']
-
-    # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
-    init_session_state = session_state()
-
-    eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
-    options, orig_paths = eb_go.options, eb_go.args
-
-    global _log
+    # Unpack cfg_settings
     (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
-     from_pr_list, tweaked_ecs_paths) = cfg_settings
+          from_pr_list, tweaked_ecs_paths) = cfg_settings
 
-    # load hook implementations (if any)
-    hooks = load_hooks(options.hooks)
-
-    run_hook(START, hooks)
-
-    if modtool is None:
-        modtool = modules_tool(testing=testing)
-
-    # check whether any (EasyBuild-generated) modules are loaded already in the current session
-    modtool.check_loaded_modules()
-
-    if options.last_log:
-        # print location to last log file, and exit
-        last_log = find_last_log(logfile) or '(none)'
-        print_msg(last_log, log=_log, prefix=False)
-
-    # if easystack is provided with the command, commands with arguments from it will be executed
-    if options.easystack:
-        # TODO add general_options (i.e. robot) to build options
-        orig_paths, general_options = parse_easystack(options.easystack)
-        if general_options:
-            print_warning("Specifying options in easystack files is not supported yet. They are parsed, but ignored.")
-
-    # check whether packaging is supported when it's being used
-    if options.package:
-        check_pkg_support()
-    else:
-        _log.debug("Packaging not enabled, so not checking for packaging support.")
-
-    # search for easyconfigs, if a query is specified
-    if search_query:
-        search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
-                           terse=options.terse)
-
-    if options.check_eb_deps:
-        print_checks(check_easybuild_deps(modtool))
-
-    # GitHub options that warrant a silent cleanup & exit
-    if options.check_github:
-        check_github()
-
-    elif options.install_github_token:
-        install_github_token(options.github_user, silent=build_option('silent'))
-
-    elif options.close_pr:
-        close_pr(options.close_pr, motivation_msg=options.close_pr_msg)
-
-    elif options.list_prs:
-        print(list_prs(options.list_prs))
-
-    elif options.merge_pr:
-        merge_pr(options.merge_pr)
-
-    elif options.review_pr:
-        print(review_pr(pr=options.review_pr, colored=use_color(options.color), testing=testing,
-                        max_ecs=options.review_pr_max, filter_ecs=options.review_pr_filter))
-
-    elif options.add_pr_labels:
-        add_pr_labels(options.add_pr_labels)
-
-    elif options.list_installed_software:
-        detailed = options.list_installed_software == 'detailed'
-        print(list_software(output_format=options.output_format, detailed=detailed, only_installed=True))
-
-    elif options.list_software:
-        print(list_software(output_format=options.output_format, detailed=options.list_software == 'detailed'))
-
-    elif options.create_index:
-        print_msg("Creating index for %s..." % options.create_index, prefix=False)
-        index_fp = dump_index(options.create_index, max_age_sec=options.index_max_age)
-        index = load_index(options.create_index)
-        print_msg("Index created at %s (%d files)" % (index_fp, len(index)), prefix=False)
-
-    # non-verbose cleanup after handling GitHub integration stuff or printing terse info
-    early_stop_options = [
-        options.add_pr_labels,
-        options.check_eb_deps,
-        options.check_github,
-        options.create_index,
-        options.install_github_token,
-        options.list_installed_software,
-        options.list_software,
-        options.close_pr,
-        options.list_prs,
-        options.merge_pr,
-        options.review_pr,
-        options.terse,
-        search_query,
-    ]
-    if any(early_stop_options):
-        clean_exit(logfile, eb_tmpdir, testing, silent=True)
-
-    # update session state
-    eb_config = eb_go.generate_cmd_line(add_default=True)
-    modlist = modtool.list()  # build options must be initialized first before 'module list' works
-    init_session_state.update({'easybuild_configuration': eb_config})
-    init_session_state.update({'module_list': modlist})
-    _log.debug("Initial session state: %s" % init_session_state)
-
-    if options.skip_test_step:
-        if options.ignore_test_failure:
-            raise EasyBuildError("Found both ignore-test-failure and skip-test-step enabled. "
-                                 "Please use only one of them.")
-        else:
-            print_warning("Will not run the test step as requested via skip-test-step. "
-                          "Consider using ignore-test-failure instead and verify the results afterwards")
-
-    # determine easybuild-easyconfigs package install path
-    easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
-    if not easyconfigs_pkg_paths:
-        _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
-
-    if options.install_latest_eb_release:
-        if orig_paths:
-            raise EasyBuildError("Installing the latest EasyBuild release can not be combined with installing "
-                                 "other easyconfigs")
-        else:
-            eb_file = find_easybuild_easyconfig()
-            orig_paths.append(eb_file)
+    # Reload hooks, they may have changed in case of EasyConfig specific options in an EasyStack file
 
     if options.copy_ec:
         # figure out list of files to copy + target location (taking into account --from-pr)
@@ -584,6 +446,196 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             os.remove(ec['spec'])
 
     run_hook(END, hooks)
+
+    return overall_success
+
+
+def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
+    """
+    Main function: parse command line options, and act accordingly.
+    :param args: command line arguments to use
+    :param logfile: log file to use
+    :param do_build: whether or not to actually perform the build
+    :param testing: enable testing mode
+    """
+
+    register_lock_cleanup_signal_handlers()
+
+    # if $CDPATH is set, unset it, it'll only cause trouble...
+    # see https://github.com/easybuilders/easybuild-framework/issues/2944
+    if 'CDPATH' in os.environ:
+        del os.environ['CDPATH']
+
+    # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
+    init_session_state = session_state()
+    print(f"first time: args={args}")
+    eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
+    options, orig_paths = eb_go.options, eb_go.args
+    print(f"eb_go.args: {eb_go.args}")
+    print(f"options: {options}")
+
+    global _log
+    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
+     from_pr_list, tweaked_ecs_paths) = cfg_settings
+
+    # load hook implementations (if any)
+    hooks = load_hooks(options.hooks)
+
+    run_hook(START, hooks)
+
+    if modtool is None:
+        modtool = modules_tool(testing=testing)
+
+    # check whether any (EasyBuild-generated) modules are loaded already in the current session
+    modtool.check_loaded_modules()
+
+    if options.last_log:
+        # print location to last log file, and exit
+        last_log = find_last_log(logfile) or '(none)'
+        print_msg(last_log, log=_log, prefix=False)
+
+    # if easystack is provided with the command, commands with arguments from it will be executed
+    if options.easystack:
+        # TODO add general_options (i.e. robot) to build options
+        orig_paths, opts_per_ec = parse_easystack(options.easystack)
+        if opts_per_ec:
+            print_warning("Specifying options in easystack files is not supported yet. They are parsed, but ignored.")
+
+    # check whether packaging is supported when it's being used
+    if options.package:
+        check_pkg_support()
+    else:
+        _log.debug("Packaging not enabled, so not checking for packaging support.")
+
+    # search for easyconfigs, if a query is specified
+    if search_query:
+        search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
+                           terse=options.terse)
+
+    if options.check_eb_deps:
+        print_checks(check_easybuild_deps(modtool))
+
+    # GitHub options that warrant a silent cleanup & exit
+    if options.check_github:
+        check_github()
+
+    elif options.install_github_token:
+        install_github_token(options.github_user, silent=build_option('silent'))
+
+    elif options.close_pr:
+        close_pr(options.close_pr, motivation_msg=options.close_pr_msg)
+
+    elif options.list_prs:
+        print(list_prs(options.list_prs))
+
+    elif options.merge_pr:
+        merge_pr(options.merge_pr)
+
+    elif options.review_pr:
+        print(review_pr(pr=options.review_pr, colored=use_color(options.color), testing=testing,
+                        max_ecs=options.review_pr_max, filter_ecs=options.review_pr_filter))
+
+    elif options.add_pr_labels:
+        add_pr_labels(options.add_pr_labels)
+
+    elif options.list_installed_software:
+        detailed = options.list_installed_software == 'detailed'
+        print(list_software(output_format=options.output_format, detailed=detailed, only_installed=True))
+
+    elif options.list_software:
+        print(list_software(output_format=options.output_format, detailed=options.list_software == 'detailed'))
+
+    elif options.create_index:
+        print_msg("Creating index for %s..." % options.create_index, prefix=False)
+        index_fp = dump_index(options.create_index, max_age_sec=options.index_max_age)
+        index = load_index(options.create_index)
+        print_msg("Index created at %s (%d files)" % (index_fp, len(index)), prefix=False)
+
+    # non-verbose cleanup after handling GitHub integration stuff or printing terse info
+    early_stop_options = [
+        options.add_pr_labels,
+        options.check_eb_deps,
+        options.check_github,
+        options.create_index,
+        options.install_github_token,
+        options.list_installed_software,
+        options.list_software,
+        options.close_pr,
+        options.list_prs,
+        options.merge_pr,
+        options.review_pr,
+        options.terse,
+        search_query,
+    ]
+    if any(early_stop_options):
+        clean_exit(logfile, eb_tmpdir, testing, silent=True)
+
+    # update session state
+    eb_config = eb_go.generate_cmd_line(add_default=True)
+    modlist = modtool.list()  # build options must be initialized first before 'module list' works
+    init_session_state.update({'easybuild_configuration': eb_config})
+    init_session_state.update({'module_list': modlist})
+    _log.debug("Initial session state: %s" % init_session_state)
+
+    if options.skip_test_step:
+        if options.ignore_test_failure:
+            raise EasyBuildError("Found both ignore-test-failure and skip-test-step enabled. "
+                                 "Please use only one of them.")
+        else:
+            print_warning("Will not run the test step as requested via skip-test-step. "
+                          "Consider using ignore-test-failure instead and verify the results afterwards")
+
+    # determine easybuild-easyconfigs package install path
+    easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
+    if not easyconfigs_pkg_paths:
+        _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
+
+    if options.install_latest_eb_release:
+        if orig_paths:
+            raise EasyBuildError("Installing the latest EasyBuild release can not be combined with installing "
+                                 "other easyconfigs")
+        else:
+            eb_file = find_easybuild_easyconfig()
+            orig_paths.append(eb_file)
+
+    if options.easystack:
+        # TODO: insert fast loop that validates if all command line options are valid
+        # for path in orig_paths:
+            # validate_command_opts(args, opts_per_ec[path])
+        print(f"Looping over {orig_paths}")
+        # Loop over each item in the EasyStack file, each time updating the config
+        # This is because each item in an EasyStack file can have options associated with it
+        for path in orig_paths:
+            print(f"Running on {path} from EasyStack file")
+            # NOTE: not sure if this is needed. Is the EasyConfigs cache preserved throughout loops of this iteration?
+            # Current 'path' may have different options associated with it. Thus, resolution of EasyConfigs
+            # to full paths should not be read from cache, but redetermined. Thus, we wipe the cache
+            # wipe_cache()  # Wipes the easyconfig cache with _easyconfigs_cache.clear()
+
+            # EasyBuild configuration is a singleton, since it should _normally_ only be set up once
+            # For EasyStack files, it needs to be set up once _per entry_ in the EasyStack file
+            # Thus, we need to wipe the singleton
+            # wipe_build_options_singleton()  # Should do BuildOptions.__class__.instances.clear()
+
+            # Determine new arguments by merging the command line options with the easyconfig-specific options
+            # from the EasyStack file. Some commands may be overwritten (easyconfig-specific wins),
+            # some may be appended (e.g. --from-pr)
+            # new_args = merge_command_line_opts(args, opts_per_ec[path])
+            # set_up_configuration(new_args)
+            # NOTE: for now just call with original arguments to see if we can get this new logic to work
+
+            # HARDCODED FOR TESTING
+            args = sys.argv[1:]
+#            print(f"args: {args}")
+            args.extend(['--filter-deps', 'Bison', '--hidden'])
+#            print(f"New args: {args}")
+            eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing, reconfigure=True)
+#            print(f"eb_go.options: {eb_go.options}")
+
+            hooks = load_hooks(options.hooks)
+            overall_success = rest_of_main([path], eb_go.options, cfg_settings, modtool, testing, init_session_state, hooks)
+    else:
+        overall_success = rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks)
 
     # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
