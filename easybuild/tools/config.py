@@ -197,6 +197,7 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_ecs',
         'filter_env_vars',
         'hide_deps',
+        'hide_all_deps',
         'hide_toolchains',
         'http_header_fields_urlpat',
         'force_download',

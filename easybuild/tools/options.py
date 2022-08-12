@@ -418,6 +418,7 @@ class EasyBuildOptions(GeneralOption):
                        None, 'store_true', False),
             'hide-deps': ("Comma separated list of dependencies that you want automatically hidden, "
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
+            'hide-all-deps': ("Hide all dependencies", None, 'store_true', False),
             'hide-toolchains': ("Comma separated list of toolchains that you want automatically hidden, "
                                 "(e.g. --hide-toolchains=GCCcore)", 'strlist', 'extend', None),
             'http-header-fields-urlpat': ("Set extra HTTP header FIELDs when downloading files from URL PATterns. "
