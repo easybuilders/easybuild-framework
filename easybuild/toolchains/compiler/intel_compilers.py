@@ -69,6 +69,11 @@ class IntelCompilers(IntelIccIfort):
             self.COMPILER_F77 = 'ifx'
             self.COMPILER_F90 = 'ifx'
             self.COMPILER_FC = 'ifx'
+            self.COMPILER_MPICXX = 'mpiicpc -cxx=icpx'
+            self.COMPILER_MPICC = 'mpiicc -cc=icx'
+            self.COMPILER_MPIF77 = 'mpiifort -fc=ifx'
+            self.COMPILER_MPIF90 = 'mpiifort -fc=ifx'
+            self.COMPILER_MPIFC = 'mpiifort -fc=ifx'
             # fp-model source is not supported by icx but is equivalent to precise
             self.options.options_map['defaultprec'] = ['fp-speculation=safe', 'fp-model precise']
             if LooseVersion(self.get_software_version(self.COMPILER_MODULE_NAME)[0]) >= LooseVersion('2022'):

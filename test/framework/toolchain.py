@@ -1431,11 +1431,11 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('F90'), 'ifx')
         self.assertEqual(os.getenv('FC'), 'ifx')
 
-        self.assertEqual(os.getenv('MPICC'), 'mpiicc')
-        self.assertEqual(os.getenv('MPICXX'), 'mpiicpc')
-        self.assertEqual(os.getenv('MPIF77'), 'mpiifort')
-        self.assertEqual(os.getenv('MPIF90'), 'mpiifort')
-        self.assertEqual(os.getenv('MPIFC'), 'mpiifort')
+        self.assertEqual(os.getenv('MPICC'), 'mpiicc -cc=icx')
+        self.assertEqual(os.getenv('MPICXX'), 'mpiicpc -cxx=icpx')
+        self.assertEqual(os.getenv('MPIF77'), 'mpiifort -fc=ifx')
+        self.assertEqual(os.getenv('MPIF90'), 'mpiifort -fc=ifx')
+        self.assertEqual(os.getenv('MPIFC'), 'mpiifort -fc=ifx')
 
     def test_toolchain_verification(self):
         """Test verification of toolchain definition."""
