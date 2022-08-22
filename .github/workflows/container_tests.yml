@@ -87,6 +87,8 @@ jobs:
           ls -ld $HOME/.rpmmacros
           echo "contents of $HOME/.rpmmacros:"
           cat $HOME/.rpmmacros
+          sudo echo '%_var /var' > /root/.rpmmacros
+          sudo echo '%_dbpath %{_var}/lib/rpm' >> /root/.rpmmacros
           # build CentOS 7 container image for bzip2 1.0.8 using EasyBuild;
           # see https://docs.easybuild.io/en/latest/Containers.html
           curl -OL https://raw.githubusercontent.com/easybuilders/easybuild-easyconfigs/develop/easybuild/easyconfigs/b/bzip2/bzip2-1.0.8.eb
