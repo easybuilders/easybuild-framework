@@ -3,7 +3,6 @@ name: Tests for container support
 on: [push, pull_request]
 jobs:
   build:
-    # stick to Ubuntu 18.04, where we can still easily install yum via 'apt-get install'
     runs-on: ubuntu-20.04
     strategy:
       matrix:
@@ -24,7 +23,7 @@ jobs:
         sudo apt-get update -yqq
         # for building Singularity images
         sudo apt-get install rpm
-        sudo apt-get install yum
+        sudo apt-get install dnf
         # for modules tool
         sudo apt-get install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
         # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
