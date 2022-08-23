@@ -2036,11 +2036,56 @@ class EasyConfigTest(EnhancedTestCase):
     def test_quote_py_str(self):
         """Test quote_py_str function."""
 
-        res = quote_py_str('description = """Example of\n multi-line\n description with \' quotes"""')
-        self.assertEqual(res, '"""description = """Example of\n multi-line\n description with \' quotes""""""')
+        def eval_quoted_string(quoted_val, val):
+            """
+            Helper function to sanity check we can use the quoted string in Python contexts.
+            Returns the evaluated (i.e. unquoted) string
+            """
+            globals = dict()
+            try:
+                exec('res = %s' % quoted_val, globals)
+            except Exception as e:  # pylint: disable=broad-except
+                self.fail('Failed to evaluate %s (from %s): %s' % (quoted_val, val, e))
+            return globals['res']
 
-        res = quote_py_str('preconfigopts = "sed -i \'s/`which \\([a-z_]*\\)`/\\1/g;s/`//g\' foo.c && "')
-        self.assertEqual(res, '"""preconfigopts = "sed -i \'s/`which \\\\([a-z_]*\\\\)`/\\\\1/g;s/`//g\' foo.c && """"')
+        def assertEqual_unquoted(quoted_val, val):
+            """Assert that evaluating the quoted_val yields the val"""
+            self.assertEqual(eval_quoted_string(quoted_val, val), val)
+
+        def subtest_quote_py_str(val):
+            """Quote `val`, check that it roundtrips and return the quoted value"""
+            quoted_val = quote_py_str(val)
+            assertEqual_unquoted(quoted_val, val)
+            return quoted_val
+
+        res = subtest_quote_py_str('Simple')
+        self.assertEqual(res, "'Simple'")
+
+        res = subtest_quote_py_str('double "quote"')
+        self.assertEqual(res, "'double \"quote\"'")
+
+        res = subtest_quote_py_str("single 'quote'")
+        self.assertEqual(res, '"single \'quote\'"')
+
+        res = subtest_quote_py_str("\"Both \"quotes'")
+        self.assertEqual(res, '""""Both "quotes\'"""')
+
+        # Some more complex examples based on real-world values of EasyConfig parameters
+
+        res = subtest_quote_py_str('Example of\n multi-line\n description with \' "quotes')
+        self.assertEqual(res, '"""Example of\n multi-line\n description with \' "quotes"""')
+
+        res = subtest_quote_py_str('sed -i \'s/`which \\([a-z_]*\\)`/\\1/g;s/`//g\' "foo.c" && ')
+        self.assertEqual(res, '"""sed -i \'s/`which \\\\([a-z_]*\\\\)`/\\\\1/g;s/`//g\' "foo.c" && """')
+
+        res = subtest_quote_py_str('echo \'key=val\' >> "$TMP/db.conf"')
+        self.assertEqual(res, '"""echo \'key=val\' >> "$TMP/db.conf\\""""')
+
+        res = subtest_quote_py_str('echo \'empty double quotes\' && echo ""')
+        self.assertEqual(res, '"""echo \'empty double quotes\' && echo "\\""""')
+
+        res = subtest_quote_py_str('echo -e "key=val\nkey2=val2" >> "$TMP/db.conf"')
+        self.assertEqual(res, '"""echo -e "key=val\nkey2=val2" >> "$TMP/db.conf\\""""')
 
     def test_dump(self):
         """Test EasyConfig's dump() method."""
