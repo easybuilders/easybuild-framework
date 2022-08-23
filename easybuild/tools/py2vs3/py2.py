@@ -55,7 +55,8 @@ json_loads = json.loads
 
 def subprocess_popen_text(cmd, **kwargs):
     """Call subprocess.Popen with specified named arguments."""
-    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+    kwargs.setdefault('stderr', subprocess.PIPE)
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE, **kwargs)
 
 
 def raise_with_traceback(exception_class, message, traceback):
