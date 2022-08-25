@@ -2110,6 +2110,7 @@ class EasyConfigTest(EnhancedTestCase):
 
             dependencies = [
                 ('toy', '0.0', '', True),
+                ('GCC', '4.9.2', '', SYSTEM),
             ]
 
             moduleclass = 'tools'
@@ -2122,7 +2123,12 @@ class EasyConfigTest(EnhancedTestCase):
         dumped_ec = os.path.join(self.test_prefix, 'dumped.eb')
         ec.dump(dumped_ec)
         dumped_ec_txt = read_file(dumped_ec)
-        self.assertTrue("('toy', '0.0', '', SYSTEM)" in dumped_ec_txt)
+        patterns = [
+            "('toy', '0.0', '', SYSTEM)",
+            "('GCC', '4.9.2', '', SYSTEM)",
+        ]
+        for pattern in patterns:
+            self.assertTrue(pattern in dumped_ec_txt, "Pattern '%s' should be found in: %s" % (pattern, dumped_ec_txt))
 
     def test_toolchain_hierarchy_aware_dump(self):
         """Test that EasyConfig's dump() method is aware of the toolchain hierarchy."""
