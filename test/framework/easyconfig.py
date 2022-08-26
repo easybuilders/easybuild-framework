@@ -2094,6 +2094,42 @@ class EasyConfigTest(EnhancedTestCase):
                 if param in ec:
                     self.assertEqual(ec[param], dumped_ec[param])
 
+        ec_txt = textwrap.dedent("""
+            easyblock = 'EB_toy'
+
+            name = 'foo'
+            version = '0.0.1'
+
+            toolchain = {'name': 'GCC', 'version': '4.6.3'}
+
+            homepage = 'http://foo.com/'
+            description = "foo description"
+
+            sources = [SOURCE_TAR_GZ]
+            source_urls = ["http://example.com"]
+
+            dependencies = [
+                ('toy', '0.0', '', True),
+                ('GCC', '4.9.2', '', SYSTEM),
+            ]
+
+            moduleclass = 'tools'
+        """)
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, ec_txt)
+        ec = EasyConfig(test_ec)
+
+        # verify whether SYSTEM constant is used for dependency that uses system toolchain in dumped easyconfig
+        dumped_ec = os.path.join(self.test_prefix, 'dumped.eb')
+        ec.dump(dumped_ec)
+        dumped_ec_txt = read_file(dumped_ec)
+        patterns = [
+            "('toy', '0.0', '', SYSTEM)",
+            "('GCC', '4.9.2', '', SYSTEM)",
+        ]
+        for pattern in patterns:
+            self.assertTrue(pattern in dumped_ec_txt, "Pattern '%s' should be found in: %s" % (pattern, dumped_ec_txt))
+
     def test_toolchain_hierarchy_aware_dump(self):
         """Test that EasyConfig's dump() method is aware of the toolchain hierarchy."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
