@@ -351,7 +351,7 @@ def to_list_of_strings_and_tuples(spec):
 
 def to_list_of_strings_and_tuples_and_dicts(spec):
     """
-    Convert a 'list of lists and strings' to a 'list of dicts and tuples and strings'
+    Convert a 'list of dicts and tuples/lists and strings' to a 'list of dicts and tuples and strings'
 
     Example:
         ['foo', ['bar', 'baz']]
@@ -369,7 +369,8 @@ def to_list_of_strings_and_tuples_and_dicts(spec):
         elif isinstance(elem, list):
             str_tup_list.append(tuple(elem))
         else:
-            raise EasyBuildError("Expected elements to be of type string, tuple, dict or list, got %s (%s)", elem, type(elem))
+            raise EasyBuildError("Expected elements to be of type string, tuple, dict or list, got %s (%s)",
+                                 elem, type(elem))
 
     return str_tup_list
 
