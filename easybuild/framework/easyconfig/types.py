@@ -526,6 +526,7 @@ STRING_DICT = (dict, as_hashable(
         'key_types': [str],
     }
 ))
+STRING_OR_TUPLE_OR_DICT_LIST = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS, STRING_DICT]}))
 SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
     'elem_types': {
         SANITY_CHECK_PATHS_FILES: [STRING_OR_TUPLE_LIST],
@@ -544,7 +545,8 @@ CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT]}))
 CHECKSUMS = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT, CHECKSUM_LIST]}))
 
 CHECKABLE_TYPES = [CHECKSUM_LIST, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
-                   SANITY_CHECK_PATHS_DICT, STRING_DICT, STRING_OR_TUPLE_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
+                   SANITY_CHECK_PATHS_DICT, STRING_DICT, STRING_OR_TUPLE_LIST, STRING_OR_TUPLE_OR_DICT_LIST,
+                   TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [string_type, bool, dict, int, list, str, tuple]
@@ -555,7 +557,7 @@ PARAMETER_TYPES = {
     'docurls': LIST_OF_STRINGS,
     'name': string_type,
     'osdependencies': STRING_OR_TUPLE_LIST,
-    'patches': STRING_OR_TUPLE_LIST,
+    'patches': STRING_OR_TUPLE_OR_DICT_LIST,
     'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
     'toolchain': TOOLCHAIN_DICT,
     'version': string_type,
