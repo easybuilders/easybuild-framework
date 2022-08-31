@@ -1806,7 +1806,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                         patch_info[key] = patch[key]
                     if 'name' not in patch_info.keys():
                         raise EasyBuildError("Wrong patch spec '%s', when using a dict 'name' entry must be supplied",
-                                             str(patch_spec))
+                                             str(patch))
                     patch = patch_info['name']
 
                 if patch not in paths['patch_files'] and not os.path.isfile(os.path.join(os.path.dirname(ec_path),
