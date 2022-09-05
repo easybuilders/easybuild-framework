@@ -1890,7 +1890,7 @@ class EasyBlock(object):
         exts_cnt = len(self.ext_instances)
         cmds = [resolve_exts_filter_template(exts_filter, ext) for ext in self.ext_instances]
 
-        with ThreadPoolExecutor(max_workers=self.cfg['parallel']) as thread_pool:
+        with ThreadPoolExecutor(max_workers=self.cfg.parallel) as thread_pool:
 
             # list of command to run asynchronously
             async_cmds = [thread_pool.submit(run_shell_cmd, cmd, stdin=stdin, hidden=True, fail_on_error=False,
@@ -2020,7 +2020,7 @@ class EasyBlock(object):
         """
         self.log.info("Installing extensions in parallel...")
 
-        thread_pool = ThreadPoolExecutor(max_workers=self.cfg['parallel'])
+        thread_pool = ThreadPoolExecutor(max_workers=self.cfg.parallel)
 
         running_exts = []
         installed_ext_names = []
@@ -2082,7 +2082,7 @@ class EasyBlock(object):
 
             for _ in range(max_iter):
 
-                if not (exts_queue and len(running_exts) < self.cfg['parallel']):
+                if not (exts_queue and len(running_exts) < self.cfg.parallel):
                     break
 
                 # check whether extension at top of the queue is ready to install
