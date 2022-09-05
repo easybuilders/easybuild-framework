@@ -1833,7 +1833,7 @@ class EasyBlock(object):
                     self.update_exts_progress_bar(exts_pbar_label)
 
             # start additional checks asynchronously
-            while exts_queue and len(running_checks_ids) < self.cfg['parallel']:
+            while exts_queue and len(running_checks_ids) < self.cfg.parallel:
                 idx, ext = exts_queue.pop(0)
                 cmd, stdin = resolve_exts_filter_template(exts_filter, ext)
                 async_cmd_info_cache[idx] = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin,
@@ -1996,7 +1996,7 @@ class EasyBlock(object):
 
             for _ in range(max_iter):
 
-                if not (exts_queue and len(running_exts) < self.cfg['parallel']):
+                if not (exts_queue and len(running_exts) < self.cfg.parallel):
                     break
 
                 # check whether extension at top of the queue is ready to install
