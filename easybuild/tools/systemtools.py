@@ -1281,14 +1281,14 @@ def pick_dep_version(dep_version):
     * a string value (or None)
     * a dict with options to choose from
 
-    Return value is the version to use.
+    Return value is the version to use or False to skip this dependency.
     """
     if dep_version is None:
         _log.debug("Version is None, OK")
         result = None
     else:
         result = pick_system_specific_value("version", dep_version)
-        if not isinstance(result, string_type):
+        if not isinstance(result, string_type) and result is not False:
             typ = type(dep_version)
             raise EasyBuildError("Unknown value type for version: %s (%s), should be string value", typ, dep_version)
 
