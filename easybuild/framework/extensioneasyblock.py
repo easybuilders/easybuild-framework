@@ -84,9 +84,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # name and version properties of EasyBlock are used, so make sure name and version are correct
             self.cfg['name'] = self.ext.get('name', None)
             self.cfg['version'] = self.ext.get('version', None)
-            # We can't inherit the 'start_dir' value from the parent (which will be set, and will most likely be wrong).
-            # It should be specified for the extension specifically, or be empty (so it is auto-derived).
-            self.cfg['start_dir'] = self.ext.get('options', {}).get('start_dir', None)
+
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
@@ -122,8 +120,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         if ext_start_dir and os.path.isdir(ext_start_dir):
             ext_start_dir = ext_start_dir.rstrip(os.sep) or os.sep
-            self.cfg['start_dir'] = ext_start_dir
             self.log.debug("Using extension start dir: %s", ext_start_dir)
+            self.cfg['start_dir'] = ext_start_dir
+            self.cfg.template_values['start_dir'] = ext_start_dir
         elif ext_start_dir is None:
             # This may be on purpose, e.g. for Python WHL files which do not get extracted
             self.log.debug("Start dir is not set.")
