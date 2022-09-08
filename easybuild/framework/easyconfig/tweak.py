@@ -41,7 +41,7 @@ import glob
 import os
 import re
 import tempfile
-from distutils.version import LooseVersion
+from packaging.version import parse
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
@@ -433,12 +433,12 @@ def pick_version(req_ver, avail_vers):
         if len(avail_vers) == 1:
             selected_ver = avail_vers[0]
         else:
-            retained_vers = [v for v in avail_vers if LooseVersion(v) <= LooseVersion(ver)]
+            retained_vers = [v for v in avail_vers if parse(v) <= parse(ver)]
             if retained_vers:
-                selected_ver = sorted(retained_vers, key=LooseVersion)[-1]
+                selected_ver = sorted(retained_vers, key=parse)[-1]
             else:
                 # if no versions are available that are less recent, take the least recent version
-                selected_ver = sorted(avail_vers, key=LooseVersion)[0]
+                selected_ver = sorted(avail_vers, key=parse)[0]
     else:
         # if no desired version is specified, just use last version
         ver = avail_vers[-1]
@@ -583,7 +583,7 @@ def select_or_generate_ec(fp, paths, specs):
 
     # TOOLCHAIN VERSION
     tcvers = unique([x[0]['toolchain']['version'] for x in ecs_and_files if x[0]['toolchain']['version']],
-                    sortkey=LooseVersion)
+                    sortkey=parse)
     _log.debug("Found %d unique toolchain versions: %s" % (len(tcvers), tcvers))
 
     tcver = specs.pop('toolchain_version', None)
@@ -606,7 +606,7 @@ def select_or_generate_ec(fp, paths, specs):
 
     # SOFTWARE VERSION
 
-    vers = unique([x[0]['version'] for x in ecs_and_files if x[0]['version']], sortkey=LooseVersion)
+    vers = unique([x[0]['version'] for x in ecs_and_files if x[0]['version']], sortkey=parse)
 
     _log.debug("Found %d unique software versions: %s" % (len(vers), vers))
 
@@ -925,7 +925,7 @@ def map_common_versionsuffixes(software_name, original_toolchain, toolchain_mapp
             version_matches = find_potential_version_mappings(software_as_dep, toolchain_mapping, quiet=True)
             if version_matches:
                 target_version = version_matches[0]['version']
-                if LooseVersion(target_version) > LooseVersion(version):
+                if parse(target_version) > parse(version):
                     original_suffix = '-%s-%s' % (software_name, version)
                     mapped_suffix = '-%s-%s' % (software_name, target_version)
                     # Make sure mapping is unique
@@ -1068,7 +1068,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                 if potential_version_mappings:
                     highest_version_match = potential_version_mappings[0]['version']
                     highest_versionsuffix_match = potential_version_mappings[0]['versionsuffix']
-                    if LooseVersion(highest_version_match) > LooseVersion(dep['version']):
+                    if parse(highest_version_match) > parse(dep['version']):
                         _log.info("Updating version of %s dependency from %s to %s", dep['name'], dep['version'],
                                   highest_version_match)
                         _log.info("Depending on your configuration, this will be resolved with one of the following "
@@ -1210,17 +1210,20 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
 
                 # add what is left to the possibilities
                 for path in cand_paths:
-                    version, newversionsuffix = fetch_parameters_from_easyconfig(read_file(path), ['version',
-                                                                                                   'versionsuffix'])
-                    if not newversionsuffix:
-                        newversionsuffix = ''
+                    ec = process_easyconfig(path)[0]['ec']
+
+                    version, newversionsuffix = (
+                        ec.get('version', None),
+                        ec.get('versionsuffix', ''),
+                    )
+
                     if version:
                         if versionsuffix == newversionsuffix:
-                            if highest_version is None or LooseVersion(version) > LooseVersion(highest_version):
+                            if highest_version is None or parse(version) > parse(highest_version):
                                 highest_version = version
                         else:
                             if highest_version_ignoring_versionsuffix is None or \
-                                    LooseVersion(version) > LooseVersion(highest_version_ignoring_versionsuffix):
+                                    parse(version) > parse(highest_version_ignoring_versionsuffix):
                                 highest_version_ignoring_versionsuffix = version
                     else:
                         raise EasyBuildError("Failed to determine version from contents of %s", path)
@@ -1231,7 +1234,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
     ignored_versionsuffix_greater = \
         highest_version_ignoring_versionsuffix is not None and highest_version is None or \
         (highest_version_ignoring_versionsuffix is not None and highest_version is not None and
-         LooseVersion(highest_version_ignoring_versionsuffix) > LooseVersion(highest_version))
+         parse(highest_version_ignoring_versionsuffix) > parse(highest_version))
 
     exclude_alternate_versionsuffixes = False
     if ignored_versionsuffix_greater:

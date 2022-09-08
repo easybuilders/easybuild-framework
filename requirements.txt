@@ -33,5 +33,9 @@ archspec
 cryptography==3.3.2; python_version == '2.7'
 cryptography; python_version >= '3.5'
 
+# packaging>=21.0 no longer supports Python <= 3.5
+packaging==20.9; python_version <= '3.5'
+packaging; python_version >= '3.6'
+
 # rich is only supported for Python 3.6+
 rich; python_version >= '3.6'
