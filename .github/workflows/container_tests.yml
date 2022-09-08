@@ -3,7 +3,7 @@ name: Tests for container support
 on: [push, pull_request]
 jobs:
   build:
-    # stick to Ubuntu 18.04, where we can still easily install yum via 'apt-get install'
+    # stick to Ubuntu 18.04, where we can still easily install yum via 'apt install'
     runs-on: ubuntu-18.04
     strategy:
       matrix:
@@ -21,12 +21,12 @@ jobs:
     - name: install OS & Python packages
       run: |
         # ensure package list is up to date to avoid 404's for old packages
-        sudo apt-get update -yqq
+        sudo apt update -yqq
         # for building Singularity images
-        sudo apt-get install rpm
-        sudo apt-get install yum
+        sudo apt install rpm
+        sudo apt install yum
         # for modules tool
-        sudo apt-get install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
+        sudo apt install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
         # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
         # needed for Ubuntu 18.04, but not for Ubuntu 20.04, so skipping symlinking if posix.so already exists
         if [ ! -e /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so ] ; then
@@ -49,7 +49,7 @@ jobs:
     - name: install Singularity
       run: |
         # install alien, which can be used to convert RPMs to Debian packages
-        sudo apt-get install alien
+        sudo apt install alien
         alien --version
         # determine latest version of Singularity available in EPEL, and download RPM
         singularity_rpm=$(curl -sL https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/s/ | grep singularity | sed 's/.*singularity/singularity/g' | sed 's/rpm.*/rpm/g')
