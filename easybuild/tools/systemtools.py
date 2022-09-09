@@ -41,6 +41,7 @@ import sys
 import termios
 from ctypes.util import find_library
 from socket import gethostname
+from easybuild.tools.py2vs3 import subprocess_popen_text
 
 # pkg_resources is provided by the setuptools Python package,
 # which we really want to keep as an *optional* dependency
@@ -1201,7 +1202,7 @@ def det_terminal_size():
     except Exception as err:
         _log.warning("First attempt to determine terminal size failed: %s", err)
         try:
-            height, width = [int(x) for x in os.popen("stty size").read().strip().split()]
+            height, width = [int(x) for x in subprocess_popen_text("stty size").communicate()[0].strip().split()]
         except Exception as err:
             _log.warning("Second attempt to determine terminal size failed, going to return defaults: %s", err)
             height, width = 25, 80
