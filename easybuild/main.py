@@ -233,7 +233,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # When EB is run via `exec` the special bash variable $_ is not set
     # So emulate this here to allow (module) scripts depending on that to work
     if '_' not in os.environ:
-        os.environ['_'] = os.path.basename(sys.executable or 'python')
+        os.environ['_'] = sys.executable
 
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
