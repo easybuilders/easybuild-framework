@@ -2876,7 +2876,9 @@ class EasyBlock(object):
 
         self.log.debug("Post-install patches to apply: %s", patches)
         if patches:
-            self.patch_step(beginpath=self.installdir, patches=patches)
+            # self may be inherited from the Bundle easyblock and that patch_step is a no-op
+            # To allow postinstallpatches for Bundle, and derived, easyblocks we directly call EasyBlock.patch_step
+            EasyBlock.patch_step(self, beginpath=self.installdir, patches=patches)
 
     def post_install_step(self):
         """
