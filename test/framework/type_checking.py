@@ -37,8 +37,9 @@ from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, 
 from easybuild.framework.easyconfig.types import LIST_OF_STRINGS, SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST
 from easybuild.framework.easyconfig.types import TOOLCHAIN_DICT
 from easybuild.framework.easyconfig.types import is_value_of_type, to_checksums, to_dependencies, to_dependency
-from easybuild.framework.easyconfig.types import to_list_of_strings, to_list_of_strings_and_tuples, to_toolchain_dict
-from easybuild.framework.easyconfig.types import to_sanity_check_paths_dict
+from easybuild.framework.easyconfig.types import to_list_of_strings, to_list_of_strings_and_tuples
+from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples_and_dicts
+from easybuild.framework.easyconfig.types import to_sanity_check_paths_dict, to_toolchain_dict
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.py2vs3 import string_type
 
@@ -614,10 +615,46 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(to_list_of_strings_and_tuples(('foo', ['bar', 'baz'])), ['foo', ('bar', 'baz')])
 
         # conversion failures
-        self.assertErrorRegex(EasyBuildError, "Expected value to be a list", to_list_of_strings_and_tuples, 'foo')
+        error_regex = "Expected value to be a list"
+        self.assertErrorRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples, 'foo')
+        self.assertErrorRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples, 1)
+        self.assertErrorRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples, {'foo': 'bar'})
         error_msg = "Expected elements to be of type string, tuple or list"
         self.assertErrorRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples, ['foo', 1])
         self.assertErrorRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples, (1,))
+
+    def test_to_list_of_strings_and_tuples_and_dicts(self):
+        """Test to_list_of_strings_and_tuples_and_dicts function."""
+
+        # no conversion, already right type
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts([]), [])
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts([()]), [()])
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts(['foo']), ['foo'])
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts([{}]), [{}])
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts([('foo', 'bar')]), [('foo', 'bar')])
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts([('foo', 'bar'), 'baz']), [('foo', 'bar'), 'baz'])
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts([('x',), 'y', {'z': 1}]), [('x',), 'y', {'z': 1}])
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts(['y', {'z': 1}]), ['y', {'z': 1}])
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts([{'z': 1}, ('x',)]), [{'z': 1}, ('x',)])
+
+        # actual conversion
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts(()), [])
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts(('foo',)), ['foo'])
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts([['bar', 'baz']]), [('bar', 'baz')])
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts((['bar', 'baz'],)), [('bar', 'baz')])
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts(['foo', ['bar', 'baz']]), ['foo', ('bar', 'baz')])
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts(('foo', ['bar', 'baz'])), ['foo', ('bar', 'baz')])
+        self.assertEqual(to_list_of_strings_and_tuples_and_dicts(('x', ['y'], {'z': 1})), ['x', ('y',), {'z': 1}])
+
+        # conversion failures
+        error_regex = "Expected value to be a list"
+        self.assertErrorRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples_and_dicts, 'foo')
+        self.assertErrorRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples_and_dicts, 1)
+        self.assertErrorRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples_and_dicts, {'foo': 'bar'})
+        error_msg = "Expected elements to be of type string, tuple, dict or list"
+        self.assertErrorRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples_and_dicts, ['foo', 1])
+        self.assertErrorRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples_and_dicts, (1,))
+        self.assertErrorRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples_and_dicts, (1, {'foo': 'bar'}))
 
     def test_to_sanity_check_paths_dict(self):
         """Test to_sanity_check_paths_dict function."""
