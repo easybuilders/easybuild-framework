@@ -226,6 +226,25 @@ class TypeCheckingTest(EnhancedTestCase):
         for inp in inputs:
             self.assertEqual(check_type_of_param_value('checksums', inp), (True, inp))
 
+    def test_check_type_of_param_value_patches(self):
+        """Test check_type_of_param_value function for patches."""
+
+        # patches values that do not need to be converted
+        inputs = (
+            [],  # empty list of patches
+            # single patch, different types
+            ['foo.patch'],  # only filename
+            [('foo.patch', '1')],  # filename + patch level
+            [('foo.patch', 'subdir')],  # filename + subdir to apply patch in
+            [{'name': 'foo.patch', 'level': '1'}],  # filename + patch level, as dict value
+            # multiple patches, mix of different types
+            ['1.patch', '2.patch', '3.patch'],
+            ['1.patch', ('2.patch', '2'), {'name': '3.patch'}],
+            ['1.patch', {'name': '2.patch', 'level': '2'}, ('3.patch', '3')],
+        )
+        for inp in inputs:
+            self.assertEqual(check_type_of_param_value('patches', inp), (True, inp))
+
     def test_convert_value_type(self):
         """Test convert_value_type function."""
         # to string
