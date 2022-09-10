@@ -1800,6 +1800,15 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
             for patch in ec.asdict()['patches']:
                 if isinstance(patch, tuple):
                     patch = patch[0]
+                elif isinstance(patch, dict):
+                    patch_info = {}
+                    for key in patch.keys():
+                        patch_info[key] = patch[key]
+                    if 'name' not in patch_info.keys():
+                        raise EasyBuildError("Wrong patch spec '%s', when using a dict 'name' entry must be supplied",
+                                             str(patch))
+                    patch = patch_info['name']
+
                 if patch not in paths['patch_files'] and not os.path.isfile(os.path.join(os.path.dirname(ec_path),
                                                                             patch)):
                     print_warning("new patch file %s, referenced by %s, is not included in this PR" %
