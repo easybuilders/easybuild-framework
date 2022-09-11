@@ -3750,6 +3750,24 @@ class EasyConfigTest(EnhancedTestCase):
         # multiple checksums listed for source tarball, while exactly one (SHA256) checksum is expected
         self.assertTrue(res[1].startswith("Non-SHA256 checksum(s) found for toy-0.0.tar.gz: "))
 
+        checksums_dict = textwrap.dedent("""checksums = [{
+            'toy-0.0-aarch64.tar.gz': 'not_really_a_sha256_checksum',
+            'toy-0.0-x86_64.tar.gz': '%s',
+        }]""" % toy_sha256)
+
+        test_ec_txt = checksums_regex.sub(checksums_dict, toy_ec_txt)
+        test_ec_txt = re.sub(r'patches = \[(.|\n)*\]', '', test_ec_txt)
+
+        test_ec = os.path.join(self.test_prefix, 'toy-checksums-dict.eb')
+        write_file(test_ec, test_ec_txt)
+        ecs, _ = parse_easyconfigs([(test_ec, False)])
+        ecs = [ec['ec'] for ec in ecs]
+
+        res = check_sha256_checksums(ecs)
+        self.assertTrue(len(res) == 1)
+        regex = re.compile(r"Non-SHA256 checksum\(s\) found for toy-0.0.tar.gz:.*not_really_a_sha256_checksum")
+        self.assertTrue(regex.match(res[0]), "Pattern '%s' found in: %s" % (regex.pattern, res[0]))
+
     def test_deprecated(self):
         """Test use of 'deprecated' easyconfig parameter."""
         topdir = os.path.dirname(os.path.abspath(__file__))
