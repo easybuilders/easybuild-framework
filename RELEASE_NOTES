@@ -4,6 +4,29 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.6.1 (September 14th 2022)
+----------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add script to find dependencies of Python packages (#3839)
+  - add 'ai' default module class (#4053)
+- various bug fixes, including:
+  - fix code style issues reported by recent flake8 linter (#4049)
+  - stick to autopep8 < 1.7.0 with Python 2.7 (#4055)
+  - ensure we call EasyBlock.patch_step for postinstallpatches (#4063)
+  - fix leaked handles in set_columns, complete_cmd, run_cmd_qa, det_terminal_size functions + tests (#4066)
+  - fix `quote_str` when string with both ' and " ends with a double quote (#4068)
+  - fix type-checking of patches to allow dict values + correctly handle patches specified as dict values in --new-pr (#4070)
+  - relax toolchain test by accepting both -march=native (x86_64) and -mcpu=native (aarch64) (#4071)
+- other changes:
+  - run python in the same process as `eb` wrapper script by using `exec` (#4048)
+  - add get_linked_libs_raw function, and use it from both check_linked_shared_libs and sanity_check_rpath (#4051)
+  - update CI workflows (except container tests) to use Ubuntu 20.04, since Ubuntu 18.04 is deprecated (#4064)
+  - use SYSTEM constant for dependency that uses system toolchain in dumped easyconfig (#4069)
+
+
 v4.6.0 (July 8th 2022)
 ----------------------
 
