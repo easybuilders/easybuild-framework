@@ -399,6 +399,7 @@ BUILD_OPTIONS_OTHER = {
 MODULECLASS_BASE = 'base'
 DEFAULT_MODULECLASSES = [
     (MODULECLASS_BASE, "Default module class"),
+    ('ai', "Artificial Intelligence (incl. Machine Learning)"),
     ('astro', "Astronomy, Astrophysics and Cosmology"),
     ('bio', "Bioinformatics, biology and biomedical"),
     ('cae', "Computer Aided Engineering (incl. CFD)"),

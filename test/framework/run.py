@@ -30,6 +30,7 @@ Unit tests for filetools.py
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 """
+import contextlib
 import glob
 import os
 import re
@@ -50,6 +51,7 @@ from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
 from easybuild.tools.run import parse_log_for_error, run_cmd, run_cmd_qa
 from easybuild.tools.config import ERROR, IGNORE, WARN
+from easybuild.tools.py2vs3 import subprocess_terminate
 
 
 class RunTest(EnhancedTestCase):
@@ -70,6 +72,7 @@ class RunTest(EnhancedTestCase):
     def test_get_output_from_process(self):
         """Test for get_output_from_process utility function."""
 
+        @contextlib.contextmanager
         def get_proc(cmd, asynchronous=False):
             if asynchronous:
                 proc = asyncprocess.Popen(cmd, shell=True, stdout=asyncprocess.PIPE, stderr=asyncprocess.STDOUT,
@@ -78,56 +81,60 @@ class RunTest(EnhancedTestCase):
                 proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                         stdin=subprocess.PIPE, close_fds=True, executable='/bin/bash')
 
-            return proc
+            try:
+                yield proc
+            finally:
+                # Make sure to close the process and its pipes
+                subprocess_terminate(proc, timeout=1)
 
         # get all output at once
-        proc = get_proc("echo hello")
-        out = get_output_from_process(proc)
-        self.assertEqual(out, 'hello\n')
+        with get_proc("echo hello") as proc:
+            out = get_output_from_process(proc)
+            self.assertEqual(out, 'hello\n')
 
         # first get 100 bytes, then get the rest all at once
-        proc = get_proc("echo hello")
-        out = get_output_from_process(proc, read_size=100)
-        self.assertEqual(out, 'hello\n')
-        out = get_output_from_process(proc)
-        self.assertEqual(out, '')
+        with get_proc("echo hello") as proc:
+            out = get_output_from_process(proc, read_size=100)
+            self.assertEqual(out, 'hello\n')
+            out = get_output_from_process(proc)
+            self.assertEqual(out, '')
 
         # get output in small bits, keep trying to get output (which shouldn't fail)
-        proc = get_proc("echo hello")
-        out = get_output_from_process(proc, read_size=1)
-        self.assertEqual(out, 'h')
-        out = get_output_from_process(proc, read_size=3)
-        self.assertEqual(out, 'ell')
-        out = get_output_from_process(proc, read_size=2)
-        self.assertEqual(out, 'o\n')
-        out = get_output_from_process(proc, read_size=1)
-        self.assertEqual(out, '')
-        out = get_output_from_process(proc, read_size=10)
-        self.assertEqual(out, '')
-        out = get_output_from_process(proc)
-        self.assertEqual(out, '')
+        with get_proc("echo hello") as proc:
+            out = get_output_from_process(proc, read_size=1)
+            self.assertEqual(out, 'h')
+            out = get_output_from_process(proc, read_size=3)
+            self.assertEqual(out, 'ell')
+            out = get_output_from_process(proc, read_size=2)
+            self.assertEqual(out, 'o\n')
+            out = get_output_from_process(proc, read_size=1)
+            self.assertEqual(out, '')
+            out = get_output_from_process(proc, read_size=10)
+            self.assertEqual(out, '')
+            out = get_output_from_process(proc)
+            self.assertEqual(out, '')
 
         # can also get output asynchronously (read_size is *ignored* in that case)
         async_cmd = "echo hello; read reply; echo $reply"
 
-        proc = get_proc(async_cmd, asynchronous=True)
-        out = get_output_from_process(proc, asynchronous=True)
-        self.assertEqual(out, 'hello\n')
-        asyncprocess.send_all(proc, 'test123\n')
-        out = get_output_from_process(proc)
-        self.assertEqual(out, 'test123\n')
+        with get_proc(async_cmd, asynchronous=True) as proc:
+            out = get_output_from_process(proc, asynchronous=True)
+            self.assertEqual(out, 'hello\n')
+            asyncprocess.send_all(proc, 'test123\n')
+            out = get_output_from_process(proc)
+            self.assertEqual(out, 'test123\n')
 
-        proc = get_proc(async_cmd, asynchronous=True)
-        out = get_output_from_process(proc, asynchronous=True, read_size=1)
-        # read_size is ignored when getting output asynchronously, we're getting more than 1 byte!
-        self.assertEqual(out, 'hello\n')
-        asyncprocess.send_all(proc, 'test123\n')
-        out = get_output_from_process(proc, read_size=3)
-        self.assertEqual(out, 'tes')
-        out = get_output_from_process(proc, read_size=2)
-        self.assertEqual(out, 't1')
-        out = get_output_from_process(proc)
-        self.assertEqual(out, '23\n')
+        with get_proc(async_cmd, asynchronous=True) as proc:
+            out = get_output_from_process(proc, asynchronous=True, read_size=1)
+            # read_size is ignored when getting output asynchronously, we're getting more than 1 byte!
+            self.assertEqual(out, 'hello\n')
+            asyncprocess.send_all(proc, 'test123\n')
+            out = get_output_from_process(proc, read_size=3)
+            self.assertEqual(out, 'tes')
+            out = get_output_from_process(proc, read_size=2)
+            self.assertEqual(out, 't1')
+            out = get_output_from_process(proc)
+            self.assertEqual(out, '23\n')
 
     def test_run_cmd(self):
         """Basic test for run_cmd function."""

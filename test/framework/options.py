@@ -4390,6 +4390,53 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt, assert_true=False)
 
+    def test_new_pr_warning_missing_patch(self):
+        """Test warning printed by --new-pr (dry run only) when a specified patch file could not be found."""
+
+        if self.github_token is None:
+            print("Skipping test_new_pr_warning_missing_patch, no GitHub token available?")
+            return
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_ecs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        copy_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'), test_ec)
+
+        patches_regex = re.compile(r'^patches = .*', re.M)
+        test_ec_txt = read_file(test_ec)
+
+        patch_fn = 'this_patch_does_not_exist.patch'
+        test_ec_txt = patches_regex.sub('patches = ["%s"]' % patch_fn, test_ec_txt)
+        write_file(test_ec, test_ec_txt)
+
+        new_pr_out_regex = re.compile(r"Opening pull request", re.M)
+        warning_regex = re.compile("new patch file %s, referenced by .*, is not included in this PR" % patch_fn, re.M)
+
+        args = [
+            '--new-pr',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            test_ec,
+            '-D',
+        ]
+        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        new_pr_out_error_msg = "Pattern '%s' should be found in: %s" % (new_pr_out_regex.pattern, stdout)
+        self.assertTrue(new_pr_out_regex.search(stdout), new_pr_out_error_msg)
+
+        warning_error_msg = "Pattern '%s' should be found in: %s" % (warning_regex.pattern, stderr)
+        self.assertTrue(warning_regex.search(stderr), warning_error_msg)
+
+        # try again with patch specified via a dict value
+        test_ec_txt = patches_regex.sub('patches = [{"name": "%s", "alt_location": "foo"}]' % patch_fn, test_ec_txt)
+        write_file(test_ec, test_ec_txt)
+
+        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        new_pr_out_error_msg = "Pattern '%s' should be found in: %s" % (new_pr_out_regex.pattern, stdout)
+        self.assertTrue(new_pr_out_regex.search(stdout), new_pr_out_error_msg)
+        warning_error_msg = "Pattern '%s' should be found in: %s" % (warning_regex.pattern, stderr)
+        self.assertTrue(warning_regex.search(stderr), warning_error_msg)
+
     def test_github_sync_pr_with_develop(self):
         """Test use of --sync-pr-with-develop (dry run only)."""
         if self.github_token is None:
@@ -4923,7 +4970,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "module load hwloc/1.11.8-GCC-4.6.4",  # loading of dependency module
             # defining build env
             "export FC='gfortran'",
-            "export CFLAGS='-O2 -ftree-vectorize -march=native -fno-math-errno'",
+            "export CFLAGS='-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno'",
         ]
         for pattern in patterns:
             regex = re.compile("^%s$" % pattern, re.M)

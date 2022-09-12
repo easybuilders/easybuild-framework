@@ -76,6 +76,11 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False, escape_back
             val = val.replace('\\', '\\\\')
         # forced triple double quotes
         if ("'" in val and '"' in val) or (escape_newline and '\n' in val):
+            # Triple double quoted string cannot end in double quote.
+            # So escape it if we also escape backslashes
+            # and hence can assume escaping works.
+            if val.endswith('"') and escape_backslash:
+                val = val[:-1] + '\\"'
             return '"""%s"""' % val
         # escape double quote(s) used in strings
         elif '"' in val:
