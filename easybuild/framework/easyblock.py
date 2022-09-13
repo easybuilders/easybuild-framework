@@ -106,8 +106,6 @@ from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
-EASYBUILD_SOURCES_URL = 'https://sources.easybuild.io'
-
 DEFAULT_BIN_LIB_SUBDIRS = ('bin', 'lib', 'lib64')
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANITYCHECK_STEP]
@@ -897,8 +895,13 @@ class EasyBlock(object):
                     source_urls = []
                 source_urls.extend(self.cfg['source_urls'])
 
-                # add https://sources.easybuild.io as fallback source URL
-                source_urls.append(EASYBUILD_SOURCES_URL + '/' + os.path.join(name_letter, location))
+                # add extra-source-urls CLI as either a first check, or a fallback.
+                self.log.warning("[extra_source_urls] %s", build_option('extra_source_urls'))
+                for url in build_option("extra_source_urls"):
+                    url += "/" + name_letter + "/" + location
+                    self.log.warning("[extra_source_urls] url is %s", url)
+                    source_urls.extend([url])
+                    self.log.warning("[extra_source_urls] %s", source_urls)
 
                 mkdir(targetdir, parents=True)
 
