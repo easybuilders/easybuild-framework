@@ -66,7 +66,7 @@ from easybuild.tools.github import new_pr_from_branch
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import set_up_configuration, use_color
+from easybuild.tools.options import set_up_configuration, use_color, merge_command_line_opts, dict_to_argslist
 from easybuild.tools.output import COLOR_GREEN, COLOR_RED, STATUS_BAR, colorize, print_checks, rich_live_cm
 from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
@@ -213,13 +213,23 @@ def clean_exit(logfile, tmpdir, testing, silent=False):
     sys.exit(0)
 
     
-def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks):
+def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks, skip_clean_exit=False):
+    """
+    Remainder of the main function, after orig_paths has been determined
 
+    :param orig_paths: list of EasyConfig names
+    :param options: eb_go.options, as returned by set_up_configuration
+    :param cfg_settings: as returned by set_up_configuration
+    :param modtool: the modules tool, as returned by modules_tool()
+    :param testing: bool whether we're running in test mode
+    :param init_session_state: initial session state, to use in test reports
+    :param hooks: hooks, as loaded by load_hooks from the options
+    :param skip_clean_exit: normally, rest_of_main calls sys.exit(0) whenever certain runs (e.g. a dry-run) have completed. When rest_of_main is called as part of a loop, you don't want to exit, but want to return instead. This boolean controls that behaviour. 
+
+    """
     # Unpack cfg_settings
     (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
           from_pr_list, tweaked_ecs_paths) = cfg_settings
-
-    # Reload hooks, they may have changed in case of EasyConfig specific options in an EasyStack file
 
     if options.copy_ec:
         # figure out list of files to copy + target location (taking into account --from-pr)
@@ -256,7 +266,10 @@ def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_sessi
                 print_msg("Contents of %s:" % path)
                 print_msg(read_file(path), prefix=False)
 
-        clean_exit(logfile, eb_tmpdir, testing)
+        if not skip_clean_exit:
+            clean_exit(logfile, eb_tmpdir, testing)
+        else:
+            return
 
     if determined_paths:
         # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
@@ -286,7 +299,10 @@ def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_sessi
 
     # handle --check-contrib & --check-style options
     if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):
-        clean_exit(logfile, eb_tmpdir, testing)
+        if not skip_clean_exit:
+            clean_exit(logfile, eb_tmpdir, testing)
+        else:
+            return
 
     # verify easyconfig filenames, if desired
     if options.verify_easyconfig_filenames:
@@ -303,7 +319,10 @@ def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_sessi
     if options.containerize:
         # if --containerize/-C create a container recipe (and optionally container image), and stop
         containerize(easyconfigs)
-        clean_exit(logfile, eb_tmpdir, testing)
+        if not skip_clean_exit:
+            clean_exit(logfile, eb_tmpdir, testing)
+        else:
+            return
 
     forced = options.force or options.rebuild
     dry_run_mode = options.dry_run or options.dry_run_short or options.missing_modules
@@ -349,7 +368,10 @@ def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_sessi
             clean_up_easyconfigs(tweaked_ecs_in_all_ecs)
             copy_files(tweaked_ecs_in_all_ecs, target_path, allow_empty=False, verbose=True)
 
-        clean_exit(logfile, eb_tmpdir, testing)
+        if not skip_clean_exit:
+            clean_exit(logfile, eb_tmpdir, testing)
+        else:
+            return
 
     # creating/updating PRs
     if pr_options:
@@ -398,20 +420,29 @@ def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_sessi
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]
     if any(no_ec_opts) or any(stop_options):
-        clean_exit(logfile, eb_tmpdir, testing)
+        if not skip_clean_exit:
+            clean_exit(logfile, eb_tmpdir, testing)
+        else:
+            return
 
     # create dependency graph and exit
     if options.dep_graph:
         _log.info("Creating dependency graph %s" % options.dep_graph)
         dep_graph(options.dep_graph, ordered_ecs)
-        clean_exit(logfile, eb_tmpdir, testing, silent=True)
+        if not skip_clean_exit:
+            clean_exit(logfile, eb_tmpdir, testing, silent=True)
+        else:
+            return
 
     # submit build as job(s), clean up and exit
     if options.job:
         submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
         if not testing:
             print_msg("Submitted parallel build jobs, exiting now")
-            clean_exit(logfile, eb_tmpdir, testing)
+            if not skip_clean_exit:
+                clean_exit(logfile, eb_tmpdir, testing)
+            else:
+                return
 
     # build software, will exit when errors occurs (except when testing)
     if not testing or (testing and do_build):
@@ -603,6 +634,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         # for path in orig_paths:
             # validate_command_opts(args, opts_per_ec[path])
         print(f"Looping over {orig_paths}")
+        print(f"With opts_per_ec: {opts_per_ec}")
         # Loop over each item in the EasyStack file, each time updating the config
         # This is because each item in an EasyStack file can have options associated with it
         for path in orig_paths:
@@ -610,30 +642,36 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             # NOTE: not sure if this is needed. Is the EasyConfigs cache preserved throughout loops of this iteration?
             # Current 'path' may have different options associated with it. Thus, resolution of EasyConfigs
             # to full paths should not be read from cache, but redetermined. Thus, we wipe the cache
-            # wipe_cache()  # Wipes the easyconfig cache with _easyconfigs_cache.clear()
+            # wipe_cache()  # Wipes the easyconfig cache with _easyconfigs_cache.clear()  # TODO: implement
 
             # EasyBuild configuration is a singleton, since it should _normally_ only be set up once
             # For EasyStack files, it needs to be set up once _per entry_ in the EasyStack file
             # Thus, we need to wipe the singleton
-            # wipe_build_options_singleton()  # Should do BuildOptions.__class__.instances.clear()
+            # wipe_build_options_singleton()  # Should do BuildOptions.__class__.instances.clear()  # TODO: impelement
 
             # Determine new arguments by merging the command line options with the easyconfig-specific options
             # from the EasyStack file. Some commands may be overwritten (easyconfig-specific wins),
             # some may be appended (e.g. --from-pr)
-            # new_args = merge_command_line_opts(args, opts_per_ec[path])
-            # set_up_configuration(new_args)
-            # NOTE: for now just call with original arguments to see if we can get this new logic to work
+            # TODO: probably, we shouldn't try to merge argument lists, as this is difficult. We should probably merge two EasyBuildOptions objects instead, as those are fully defined. That way, it's much easier to determine what 'merging' should actually do, as we don't have to first match arguments based on string matching.
+            if path in opts_per_ec:
+                print(f"Calling merge_command_line_opts with args: {args} and new_args: {opts_per_ec}")
+                if args is None:
+                    args = sys.argv[1:]
+                ec_args = dict_to_argslist(opts_per_ec[path])
+                # By appending ec_args to args, ec_args take priority
+                # We could create an additional EB option to give the user control over which of the two gets priority
+                new_args = args + ec_args
+                # new_args = ec_args + args
+            else:
+                # If no EasyConfig specific arguments are defined, sse original args.
+                # That way,set_up_configuration restores the original config
+                new_args = args
+            print(f"Calling set_up_configuration with args: {new_args}")
+            eb_go, cfg_settings = set_up_configuration(args=new_args, logfile=logfile, testing=testing, reconfigure=True)
 
-            # HARDCODED FOR TESTING
-            args = sys.argv[1:]
-#            print(f"args: {args}")
-            args.extend(['--filter-deps', 'Bison', '--hidden'])
-#            print(f"New args: {args}")
-            eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing, reconfigure=True)
-#            print(f"eb_go.options: {eb_go.options}")
-
+            print(f"eb_go.options.from_pr: {eb_go.options.from_pr}")
             hooks = load_hooks(options.hooks)
-            overall_success = rest_of_main([path], eb_go.options, cfg_settings, modtool, testing, init_session_state, hooks)
+            overall_success = rest_of_main([path], eb_go.options, cfg_settings, modtool, testing, init_session_state, hooks, skip_clean_exit=True)
     else:
         overall_success = rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks)
 

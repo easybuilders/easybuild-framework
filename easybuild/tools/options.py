@@ -1445,16 +1445,7 @@ class EasyBuildOptions(GeneralOption):
         pretty_print_opts(opts_dict)
 
 
-def parse_options(args=None, with_include=True):
-    """wrapper function for option parsing"""
-    if os.environ.get('DEBUG_EASYBUILD_OPTIONS', '0').lower() in ('1', 'true', 'yes', 'y'):
-        # very early debug, to debug the generaloption itself
-        fancylogger.logToScreen(enable=True)
-        fancylogger.setLogLevel('DEBUG')
-
-    if args is None:
-        args = sys.argv[1:]
-
+def unroll_arguments(args):
     # unroll arguments that correspond to a combo of single-letter options
     # this is done to avoid interpreting -rD like "--robot D" instead of "--robot -D"
     eb_args = []
@@ -1465,6 +1456,21 @@ def parse_options(args=None, with_include=True):
                 eb_args.append('-' + letter)
         else:
             eb_args.append(arg)
+
+    return eb_args
+
+
+def parse_options(args=None, with_include=True):
+    """wrapper function for option parsing"""
+    if os.environ.get('DEBUG_EASYBUILD_OPTIONS', '0').lower() in ('1', 'true', 'yes', 'y'):
+        # very early debug, to debug the generaloption itself
+        fancylogger.logToScreen(enable=True)
+        fancylogger.setLogLevel('DEBUG')
+
+    if args is None:
+        args = sys.argv[1:]
+
+    eb_args = unroll_arguments(args)
 
     usage = "%prog [options] easyconfig [...]"
     description = ("Builds software based on easyconfig (or parse a directory).\n"
@@ -1887,3 +1893,85 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             raise EasyBuildError("Failed to test whether temporary directory allows to execute files: %s", err)
 
     return current_tmpdir
+
+
+def dict_to_argslist(args_dict):
+    """
+    Convert a dictionary with key-value arguments to a list similar to sys.argv[1:].
+    Can by used to convert e.g. EasyConfig specific options from an EasyStack file to an argument list
+    
+    :param args_dict: dictionary with options (keys) and parameters (values), e.g. {'from_pr': [1234], 'robot': True}
+    :return: a list of arguments, similar to what sys.argv[1:] would return
+    """
+
+    print(f"args_dict: {args_dict}")
+    args = []
+    for arg in args_dict:
+        if len(arg) == 1:
+           prefix = '-'
+        else:
+           prefix = '--'
+        option = prefix + arg
+        value = args_dict[arg]
+        args.append(option)
+        if value is not None:
+            args.append(value)
+
+    print(f"Constructed args list: {args}")
+    return args
+
+def argslist_to_dict(args):
+    """
+    Convert a list of arguments (similar to sys.argv[1:]) to a dictionary where the argument names are keys,
+    and the argument values are dictionary values.
+
+    :param args: list of arguments, e.g. '--from-pr 1234'
+    :return: a dictionary of arguments, e.g. {from-pr: 1234}
+    """
+    # Should we implement this? Or continue down the route where we make an EasyBuildOptions object for the global arguments, one for the global arguments, and one for the EasyConfig-specific args in the EasyStack file?
+    # The problem with the second appraoch is that you can check for differences, but you don't know where the difference comes from: is it different because e.g. a command line arg overwrote some default? Because in that case, you probably want to _keep_ what the command line arg did (e.g. a -D on the command line with an EasyStack file should probably apply -D on _all_ easyconfigs in the EasyStack file...)
+
+
+# TODO: probably, we should not try to merge args, it's a mess
+# This issue is that it is difficult to merge e.g.
+# ['--dry-run'] and ['--disable-dry-run']
+# or
+# ['--from-pr', '4567']  and ['--from-pr', '1234']
+# The first would have to recognize that --dry-run and --disable-dry-run are essentially 'the same option'
+# The second one would have to overwrite or append the value, if the option is find in args_orig.
+# Similary, a
+# ['-r']
+# is difficult since t has no parameter value.
+# In short: it's tricky. Porbably, it's much easier to compare two EasyBuildOption objects, and overwrite behaviour here. These two objects fully specify _all_ option values, meaning there is _always_ something to overwrite, and the disable / enable options will just have parameter values true/false.
+def merge_command_line_opts(args_orig, args_new):
+    """
+    Merge two sets of command line options. For now, all command line options for args_new take priority.
+    In the future, we'll likely merge specific arguments like --from-pr differently, as these can be merged
+    simply by extending the list of arguments.
+    E.g. --from-pr=1234 in args_orig and --from-pr=5678 in args_new can be merged to --from-pr=1234,5678
+
+    :param args_orig: original set of command line arguments
+    :param args_new: new set of command line arguments, to be merged with the original set
+    :return: a single, valid, args object
+    """
+
+    print(f"merge_command_line_opts with args_orig: {args_orig}")
+    print(f"merge_command_line_opts with args_new: {args_new}")
+    args_orig = unroll_arguments(args_orig)
+    args_new = unroll_arguments(args_new)
+
+    for arg in args_new:
+        print(f"Argument: {arg}")
+
+    return args_new
+
+
+def arg_is_option(arg):
+    """
+    Check if arg starts with a dash. Can be used to check if an argument is an option, or a parameter
+    """
+    if len(arg) > 0 and arg[0] == '-':
+        print(f"arg: {arg} is an option")
+        return True
+    else:
+        return False
