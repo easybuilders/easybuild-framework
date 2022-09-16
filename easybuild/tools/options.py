@@ -1511,7 +1511,8 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
     :param logfile: log file to use
     :param testing: enable testing mode
     :param silent: stay silent (no printing)
-    :param reconfigure: reconfigure singletons that hold configuration dictionaries. Use with care: normally, configuration shouldn't be changed during a run. Exceptions are when looping over items in EasyStack files
+    :param reconfigure: reconfigure singletons that hold configuration dictionaries. Use with care: normally, 
+    configuration shouldn't be changed during a run. Exceptions are when looping over items in EasyStack files
     """
 
     # set up fake 'vsc' Python package, to catch easyblocks/scripts that still import from vsc.* namespace
@@ -1594,7 +1595,11 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
     if reconfigure:
         BuildOptions.__class__._instances.clear()
     elif len(BuildOptions.__class__._instances) > 0:
-        log.warn("set_up_configuration is about to call init() and init_build_options(). However, the singletons that these functions normally initialize already exist. If configuration should be changed, this may lead to unexpected behavior, as the existing singletons will be returned. If you intended to reconfigure, you should probably pass reconfigure=True to set_up_configuration().")
+        log.warn("set_up_configuration is about to call init() and init_build_options(). "
+                 "However, the singletons that these functions normally initialize already exist. "
+                 "If configuration should be changed, this may lead to unexpected behavior, as the existing "
+                 "singletons will be returned. If you intended to reconfigure, you should probably pass "
+                 "reconfigure=True to set_up_configuration().")
 
     # initialise the EasyBuild configuration & build options
     init(options, config_options_dict)
@@ -1899,7 +1904,6 @@ def dict_to_argslist(args_dict):
     """
     Convert a dictionary with key-value arguments to a list similar to sys.argv[1:].
     Can by used to convert e.g. EasyConfig specific options from an EasyStack file to an argument list
-    
     :param args_dict: dictionary with options (keys) and parameters (values), e.g. {'from_pr': [1234], 'robot': True}
     :return: a list of arguments, similar to what sys.argv[1:] would return
     """
@@ -1908,9 +1912,9 @@ def dict_to_argslist(args_dict):
     args = []
     for arg in args_dict:
         if len(arg) == 1:
-           prefix = '-'
+            prefix = '-'
         else:
-           prefix = '--'
+            prefix = '--'
         option = prefix + arg
         value = args_dict[arg]
         args.append(option)

@@ -625,13 +625,14 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     if options.easystack:
         _log.debug("Start build loop over items in the EasyStack file: %s" % orig_paths)
-        # TODO: insert fast loop that validates if all command line options are valid. If there are errors in options, we want to know early on, and this loop potentially builds a lot of packages and could take very long
+        # TODO: insert fast loop that validates if all command line options are valid. If there are errors in options,
+        # we want to know early on, and this loop potentially builds a lot of packages and could take very long
         # for path in orig_paths:
-            # validate_command_opts(args, opts_per_ec[path])
+        #     validate_command_opts(args, opts_per_ec[path])
         # Loop over each item in the EasyStack file, each time updating the config
         # This is because each item in an EasyStack file can have options associated with it
         for path in orig_paths:
-            _log.debug("Starting build for %s" % path) 
+            _log.debug("Starting build for %s" % path)
             # NOTE: not sure if this is needed. Is the EasyConfigs cache preserved throughout loops of this iteration?
             # Current 'path' may have different options associated with it. Thus, resolution of EasyConfigs
             # to full paths should not be read from cache, but redetermined. Thus, we wipe the cache
@@ -647,7 +648,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             # some may be appended (e.g. --from-pr)
             # TODO: probably, we shouldn't try to merge argument lists, as this is difficult. We should probably merge two EasyBuildOptions objects instead, as those are fully defined. That way, it's much easier to determine what 'merging' should actually do, as we don't have to first match arguments based on string matching.
             if path in opts_per_ec:
-                _log.debug("EasyConfig specific options have been specified for %s in the EasyStack file: %s" % (path, opts_per_ec[path]))
+                _log.debug("EasyConfig specific options have been specified for "
+                           "%s in the EasyStack file: %s" % (path, opts_per_ec[path]))
                 if args is None:
                     args = sys.argv[1:]
                 ec_args = dict_to_argslist(opts_per_ec[path])
@@ -655,7 +657,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                 # We could create an additional EB option to give the user control over which of the two gets priority
                 new_args = args + ec_args
                 # new_args = ec_args + args
-                _log.info("Argument list for %s after merging command line arguments with EasyConfig specific options from the EasyStack file: %s" % (path, new_args))
+                _log.info("Argument list for %s after merging command line arguments with EasyConfig specific "
+                          "options from the EasyStack file: %s" % (path, new_args))
             else:
                 # If no EasyConfig specific arguments are defined, sse original args.
                 # That way,set_up_configuration restores the original config
