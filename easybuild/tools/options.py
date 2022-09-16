@@ -1511,7 +1511,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
     :param logfile: log file to use
     :param testing: enable testing mode
     :param silent: stay silent (no printing)
-    :param reconfigure: reconfigure singletons that hold configuration dictionaries. Use with care: normally, 
+    :param reconfigure: reconfigure singletons that hold configuration dictionaries. Use with care: normally,
     configuration shouldn't be changed during a run. Exceptions are when looping over items in EasyStack files
     """
 
