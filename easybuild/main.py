@@ -672,7 +672,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         if overall_success or overall_success is None:
             cleanup(logfile, eb_tmpdir, testing)
     else:
-        overall_success = rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks, do_build)
+        overall_success = rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks,
+                                       do_build)
     # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
     if overall_success:
