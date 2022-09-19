@@ -641,11 +641,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             # to full paths should not be read from cache, but redetermined. Thus, we wipe the cache
             # wipe_cache()  # Wipes the easyconfig cache with _easyconfigs_cache.clear()  # TODO: implement
 
-            # EasyBuild configuration is a singleton, since it should _normally_ only be set up once
-            # For EasyStack files, it needs to be set up once _per entry_ in the EasyStack file
-            # Thus, we need to wipe the singleton
-            # wipe_build_options_singleton()  # Should do BuildOptions.__class__.instances.clear()  # TODO: impelement
-
             # If EasyConfig specific arguments were supplied in EasyStack file
             # merge arguments with original command line args
             if path in opts_per_ec:
