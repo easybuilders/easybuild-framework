@@ -212,8 +212,9 @@ def clean_exit(logfile, tmpdir, testing, silent=False):
     cleanup(logfile, tmpdir, testing, silent=silent)
     sys.exit(0)
 
-    
-def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks, skip_clean_exit=False):
+
+def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks, do_build,
+                 skip_clean_exit=False):
     """
     Remainder of the main function, after orig_paths has been determined
 
@@ -224,8 +225,10 @@ def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_sessi
     :param testing: bool whether we're running in test mode
     :param init_session_state: initial session state, to use in test reports
     :param hooks: hooks, as loaded by load_hooks from the options
-    :param skip_clean_exit: normally, rest_of_main calls sys.exit(0) whenever certain runs (e.g. a dry-run) have completed. When rest_of_main is called as part of a loop, you don't want to exit, but want to return instead. This boolean controls that behaviour. 
-
+    :param do_build: whether or not to actually perform the build
+    :param skip_clean_exit: normally, rest_of_main calls sys.exit(0) whenever certain runs (e.g. a dry-run) have
+    completed. When rest_of_main is called as part of a loop, you don't want to exit, but want to return instead.
+    This boolean controls that behaviour.
     """
     # Unpack cfg_settings
     (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
@@ -643,10 +646,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             # Thus, we need to wipe the singleton
             # wipe_build_options_singleton()  # Should do BuildOptions.__class__.instances.clear()  # TODO: impelement
 
-            # Determine new arguments by merging the command line options with the easyconfig-specific options
-            # from the EasyStack file. Some commands may be overwritten (easyconfig-specific wins),
-            # some may be appended (e.g. --from-pr)
-            # TODO: probably, we shouldn't try to merge argument lists, as this is difficult. We should probably merge two EasyBuildOptions objects instead, as those are fully defined. That way, it's much easier to determine what 'merging' should actually do, as we don't have to first match arguments based on string matching.
+            # If EasyConfig specific arguments were supplied in EasyStack file
+            # merge arguments with original command line args
             if path in opts_per_ec:
                 _log.debug("EasyConfig specific options have been specified for "
                            "%s in the EasyStack file: %s" % (path, opts_per_ec[path]))
@@ -654,9 +655,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                     args = sys.argv[1:]
                 ec_args = dict_to_argslist(opts_per_ec[path])
                 # By appending ec_args to args, ec_args take priority
-                # We could create an additional EB option to give the user control over which of the two gets priority
                 new_args = args + ec_args
-                # new_args = ec_args + args
                 _log.info("Argument list for %s after merging command line arguments with EasyConfig specific "
                           "options from the EasyStack file: %s" % (path, new_args))
             else:
@@ -666,13 +665,14 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             eb_go, cfg_settings = set_up_configuration(args=new_args, logfile=logfile, testing=testing, reconfigure=True)
 
             hooks = load_hooks(options.hooks)
-            overall_success = rest_of_main([path], eb_go.options, cfg_settings, modtool, testing, init_session_state, hooks, skip_clean_exit=True)
+            overall_success = rest_of_main([path], eb_go.options, cfg_settings, modtool, testing, init_session_state,
+                                           hooks, do_build, skip_clean_exit=True)
 
         # Loop done. If overall_success is not false, cleanup
         if overall_success or overall_success is None:
             cleanup(logfile, eb_tmpdir, testing)
     else:
-        overall_success = rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks)
+        overall_success = rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks, do_build)
     # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
     if overall_success:
