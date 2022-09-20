@@ -77,6 +77,10 @@ jobs:
               echo "Looking for pattern \"${pattern}\" in eb_version.out..."
               grep "$pattern" eb_version.out
           done
+          if grep -q "Considering ''" eb_version.out; then
+              echo '`eb` did wrongly consider an empty command'
+              false
+          fi
           # also check when specifying Python command via $EB_PYTHON
           for eb_python in "python${pymajver}" "python${pymajminver}"; do
               export EB_PYTHON="${eb_python}"
