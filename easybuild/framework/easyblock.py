@@ -2375,33 +2375,34 @@ class EasyBlock(object):
             checksum_issues.append(msg)
 
         for fn, checksum in zip(sources + patches, checksums):
+
+            # a checksum may be specified as a dictionary which maps filename to actual checksum
+            # for example when different source files are used for different CPU architectures
             if isinstance(checksum, dict):
-                # sources entry may be a dictionary rather than just a string value with filename
-                if isinstance(fn, dict):
-                    filename = fn['filename']
-                else:
-                    filename = fn
-                checksum = checksum.get(filename)
-
-            # take into account that we may encounter a tuple of valid SHA256 checksums
-            # (see https://github.com/easybuilders/easybuild-framework/pull/2958)
-            if isinstance(checksum, tuple):
-                # 1st tuple item may indicate checksum type, must be SHA256 or else it's blatently ignored here
-                if len(checksum) == 2 and checksum[0] == CHECKSUM_TYPE_SHA256:
-                    valid_checksums = (checksum[1],)
-                else:
-                    valid_checksums = checksum
+                checksums_to_check = checksum.values()
             else:
-                valid_checksums = (checksum,)
+                checksums_to_check = [checksum]
 
-            non_sha256_checksums = [c for c in valid_checksums if not is_sha256_checksum(c)]
-            if non_sha256_checksums:
-                if all(c is None for c in non_sha256_checksums):
-                    print_warning("Found %d None checksum value(s), please make sure this is intended!" %
-                                  len(non_sha256_checksums))
+            for checksum in checksums_to_check:
+                # take into account that we may encounter a tuple of valid SHA256 checksums
+                # (see https://github.com/easybuilders/easybuild-framework/pull/2958)
+                if isinstance(checksum, tuple):
+                    # 1st tuple item may indicate checksum type, must be SHA256 or else it's blatently ignored here
+                    if len(checksum) == 2 and checksum[0] == CHECKSUM_TYPE_SHA256:
+                        valid_checksums = (checksum[1],)
+                    else:
+                        valid_checksums = checksum
                 else:
-                    msg = "Non-SHA256 checksum(s) found for %s: %s" % (fn, valid_checksums)
-                    checksum_issues.append(msg)
+                    valid_checksums = (checksum,)
+
+                non_sha256_checksums = [c for c in valid_checksums if not is_sha256_checksum(c)]
+                if non_sha256_checksums:
+                    if all(c is None for c in non_sha256_checksums):
+                        print_warning("Found %d None checksum value(s), please make sure this is intended!" %
+                                      len(non_sha256_checksums))
+                    else:
+                        msg = "Non-SHA256 checksum(s) found for %s: %s" % (fn, valid_checksums)
+                        checksum_issues.append(msg)
 
         return checksum_issues
 
