@@ -62,6 +62,9 @@ PYTHON=
 #   time, this variable preserves that choice).
 for python_cmd in "${EB_PYTHON}" "${EB_INSTALLPYTHON}" 'python' 'python3' 'python2'; do
 
+    # Only consider non-empty values, i.e. continue if e.g. $EB_PYTHON is not set
+    [ -n "${python_cmd}" ] || continue
+
     verbose "Considering '${python_cmd}'..."
 
     # check whether python* command being considered is available
