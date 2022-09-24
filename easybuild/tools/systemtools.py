@@ -41,6 +41,7 @@ import sys
 import termios
 from ctypes.util import find_library
 from socket import gethostname
+from easybuild.tools.py2vs3 import subprocess_popen_text
 
 # pkg_resources is provided by the setuptools Python package,
 # which we really want to keep as an *optional* dependency
@@ -935,6 +936,58 @@ def get_glibc_version():
     return glibc_ver
 
 
+def get_linked_libs_raw(path):
+    """
+    Get raw output from command that reports linked libraries for dynamically linked executables/libraries,
+    or None for other types of files.
+    """
+
+    file_cmd_out, ec = run_cmd("file %s" % path, simple=False, trace=False)
+    if ec:
+        fail_msg = "Failed to run 'file %s': %s" % (path, file_cmd_out)
+        _log.warning(fail_msg)
+
+    os_type = get_os_type()
+
+    # check whether specified path is a dynamically linked binary or a shared library
+    if os_type == LINUX:
+        # example output for dynamically linked binaries:
+        #   /usr/bin/ls: ELF 64-bit LSB executable, x86-64, ..., dynamically linked (uses shared libs), ...
+        # example output for shared libraries:
+        #   /lib64/libc-2.17.so: ELF 64-bit LSB shared object, x86-64, ..., dynamically linked (uses shared libs), ...
+        if "dynamically linked" in file_cmd_out:
+            # determine linked libraries via 'ldd'
+            linked_libs_cmd = "ldd %s" % path
+        else:
+            return None
+
+    elif os_type == DARWIN:
+        # example output for dynamically linked binaries:
+        #   /bin/ls: Mach-O 64-bit executable x86_64
+        # example output for shared libraries:
+        #   /usr/lib/libz.dylib: Mach-O 64-bit dynamically linked shared library x86_64
+        bin_lib_regex = re.compile('(Mach-O .* executable)|(dynamically linked)', re.M)
+        if bin_lib_regex.search(file_cmd_out):
+            linked_libs_cmd = "otool -L %s" % path
+        else:
+            return None
+    else:
+        raise EasyBuildError("Unknown OS type: %s", os_type)
+
+    # take into account that 'ldd' may fail for strange reasons,
+    # like printing 'not a dynamic executable' when not enough memory is available
+    # (see also https://bugzilla.redhat.com/show_bug.cgi?id=1817111)
+    out, ec = run_cmd(linked_libs_cmd, simple=False, trace=False, log_ok=False, log_all=False)
+    if ec == 0:
+        linked_libs_out = out
+    else:
+        fail_msg = "Determining linked libraries for %s via '%s' failed! Output: '%s'" % (path, linked_libs_cmd, out)
+        print_warning(fail_msg)
+        linked_libs_out = None
+
+    return linked_libs_out
+
+
 def check_linked_shared_libs(path, required_patterns=None, banned_patterns=None):
     """
     Check for (lack of) patterns in linked shared libraries for binary/library at specified path.
@@ -959,42 +1012,8 @@ def check_linked_shared_libs(path, required_patterns=None, banned_patterns=None)
     if os.path.islink(path) and os.path.exists(path):
         path = os.path.realpath(path)
 
-    file_cmd_out, _ = run_cmd("file %s" % path, simple=False, trace=False)
-
-    os_type = get_os_type()
-
-    # check whether specified path is a dynamically linked binary or a shared library
-    if os_type == LINUX:
-        # example output for dynamically linked binaries:
-        #   /usr/bin/ls: ELF 64-bit LSB executable, x86-64, ..., dynamically linked (uses shared libs), ...
-        # example output for shared libraries:
-        #   /lib64/libc-2.17.so: ELF 64-bit LSB shared object, x86-64, ..., dynamically linked (uses shared libs), ...
-        if "dynamically linked" in file_cmd_out:
-            # determine linked libraries via 'ldd', but take into account that 'ldd' may fail for strange reasons,
-            # like printing 'not a dynamic executable' when not enough memory is available
-            # (see also https://bugzilla.redhat.com/show_bug.cgi?id=1817111)
-            linked_libs_cmd = "ldd %s" % path
-        else:
-            return None
-
-    elif os_type == DARWIN:
-        # example output for dynamically linked binaries:
-        #   /bin/ls: Mach-O 64-bit executable x86_64
-        # example output for shared libraries:
-        #   /usr/lib/libz.dylib: Mach-O 64-bit dynamically linked shared library x86_64
-        bin_lib_regex = re.compile('(Mach-O .* executable)|(dynamically linked)', re.M)
-        if bin_lib_regex.search(file_cmd_out):
-            linked_libs_cmd = "otool -L %s" % path
-        else:
-            return None
-    else:
-        raise EasyBuildError("Unknown OS type: %s", os_type)
-
-    out, ec = run_cmd(linked_libs_cmd, simple=False, trace=False, log_ok=False, log_all=False)
-    if ec == 0:
-        linked_libs_out = out
-    else:
-        print_warning("Determining linked libraries for %s via '%s' failed! Output: '%s'", path, linked_libs_cmd, out)
+    linked_libs_out = get_linked_libs_raw(path)
+    if linked_libs_out is None:
         return None
 
     found_banned_patterns = []
@@ -1183,7 +1202,7 @@ def det_terminal_size():
     except Exception as err:
         _log.warning("First attempt to determine terminal size failed: %s", err)
         try:
-            height, width = [int(x) for x in os.popen("stty size").read().strip().split()]
+            height, width = [int(x) for x in subprocess_popen_text("stty size").communicate()[0].strip().split()]
         except Exception as err:
             _log.warning("Second attempt to determine terminal size failed, going to return defaults: %s", err)
             height, width = 25, 80

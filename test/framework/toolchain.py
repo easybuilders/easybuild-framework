@@ -43,6 +43,7 @@ import easybuild.tools.modules as modules
 import easybuild.tools.toolchain as toolchain
 import easybuild.tools.toolchain.compiler
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
+from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
@@ -407,8 +408,10 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('OMPI_F77'), 'gfortran')
         self.assertEqual(os.getenv('OMPI_FC'), 'gfortran')
 
+        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno")
         for key in ['CFLAGS', 'CXXFLAGS', 'F90FLAGS', 'FCFLAGS', 'FFLAGS']:
-            self.assertEqual(os.getenv(key), "-O2 -ftree-vectorize -march=native -fno-math-errno")
+            val = os.getenv(key)
+            self.assertTrue(flags_regex.match(val), "'%s' should match pattern '%s'" % (val, flags_regex.pattern))
 
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""
@@ -886,17 +889,17 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({})
         tc.prepare()
+        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno")
         for var in flag_vars:
-            self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native -fno-math-errno")
+            val = os.getenv(var)
+            self.assertTrue(flags_regex.match(val), "'%s' should match pattern '%s'" % (val, flags_regex.pattern))
 
         # check other precision flags
-        prec_flags = {
-            'ieee': "-fno-math-errno -mieee-fp -fno-trapping-math",
-            'strict': "-mieee-fp -mno-recip",
-            'precise': "-mno-recip",
-            'loose': "-fno-math-errno -mrecip -mno-ieee-fp",
-            'veryloose': "-fno-math-errno -mrecip=all -mno-ieee-fp",
-        }
+        precs = ['strict', 'precise', 'loose', 'veryloose']
+        prec_flags = {}
+        for prec in precs:
+            prec_flags[prec] = ' '.join('-%s' % x for x in Gcc.COMPILER_UNIQUE_OPTION_MAP[prec])
+
         for prec in prec_flags:
             for enable in [True, False]:
                 tc = self.get_toolchain('foss', version='2018a')
@@ -904,9 +907,12 @@ class ToolchainTest(EnhancedTestCase):
                 tc.prepare()
                 for var in flag_vars:
                     if enable:
-                        self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native %s" % prec_flags[prec])
+                        regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native %s" % prec_flags[prec])
                     else:
-                        self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native -fno-math-errno")
+                        regex = flags_regex
+                    val = os.getenv(var)
+                    self.assertTrue(regex.match(val), "%s: '%s' should match pattern '%s'" % (prec, val, regex.pattern))
+
                 self.modtool.purge()
 
     def test_cgoolf_toolchain(self):

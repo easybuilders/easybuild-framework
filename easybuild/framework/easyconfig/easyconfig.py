@@ -50,7 +50,7 @@ from contextlib import contextmanager
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import MANDATORY
-from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
+from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS, EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
@@ -1589,7 +1589,7 @@ class EasyConfig(object):
 
         # (true) boolean value simply indicates that a system toolchain is used
         elif isinstance(tc_spec, bool) and tc_spec:
-            tc = {'name': SYSTEM_TOOLCHAIN_NAME, 'version': ''}
+            tc = EASYCONFIG_CONSTANTS['SYSTEM'][0]
 
         # two-element list/tuple value indicates custom toolchain specification
         elif isinstance(tc_spec, (list, tuple,)):
