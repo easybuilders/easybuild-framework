@@ -136,10 +136,12 @@ class EasyStackParser(object):
         # For now, we don't support mixing multiple top_keys, so check that only one was defined
         if len(keys_found) > 1:
             keys_string = ', '.join(keys_found)
-            msg = "Specifying multiple top level keys (%s) in one EasyStack file is not supported." % keys_string
+            msg = "Specifying multiple top level keys (%s) " % keys_string
+            msg += "in one EasyStack file is currently not supported."
             raise EasyBuildError(msg)
         elif len(keys_found) == 0:
             msg = "Not a valid EasyStack YAML file: no 'easyconfigs' or 'software' top-level key found"
+            msg += ", see https://docs.easybuild.io/en/latest/Easystack-files.html for documentation."
             raise EasyBuildError(msg)
         else:
             key = keys_found[0]
@@ -184,8 +186,9 @@ class EasyStackParser(object):
                         easystack.ec_opts[easyconf_name_with_eb] = easyconfig[easyconf_name]['options']
                 else:
                     dict_keys = ', '.join(easyconfig.keys())
-                    msg = "Failed to parse easystack file: expected a dictionary with one key (the EasyConfig name). "
-                    msg += "Instead found keys: %s" % dict_keys
+                    msg = "Failed to parse easystack file: expected a dictionary with one key (the EasyConfig name), "
+                    msg += "instead found keys: %s" % dict_keys
+                    msg += "; see https://docs.easybuild.io/en/latest/Easystack-files.html for documentation."
                     raise EasyBuildError(msg)
 
         return easystack
