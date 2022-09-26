@@ -140,6 +140,9 @@ class Extension(object):
                                key, name, version, value)
 
         self.sanity_check_fail_msgs = []
+        self.sanity_check_module_loaded = False
+        self.fake_mod_data = None
+
         self.async_cmd_info = None
         self.async_cmd_output = None
         self.async_cmd_check_cnt = None
