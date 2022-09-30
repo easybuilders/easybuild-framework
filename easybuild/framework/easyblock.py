@@ -4420,7 +4420,7 @@ def inject_checksums(ecs, checksum_type):
             if len(checksum_line) > MAX_LINE_LENGTH:
                 checksum_lines.extend([
                     "%s{'%s':" % (line_indent, fn),
-                    "%s%s'%s'}," % (line_indent, INDENT_4SPACES, checksum),
+                    "%s '%s'}," % (line_indent, checksum),
                 ])
             else:
                 checksum_lines.append(checksum_line)

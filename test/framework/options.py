@@ -5849,7 +5849,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected_checksums = [
             {'toy-0.0.tar.gz': '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'},
             {'toy-0.0_fix-silly-typo-in-printf-statement.patch':
-                 '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'},
+             '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'},
             {'toy-extra.txt': '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'}
         ]
         self.assertEqual(ec['checksums'], expected_checksums)
