@@ -4416,11 +4416,11 @@ def inject_checksums(ecs, checksum_type):
         line_indent = INDENT_4SPACES * indent_level
         checksum_lines = []
         for fn, checksum in checksums:
-            checksum_line = "%s'%s',  # %s" % (line_indent, checksum, fn)
+            checksum_line = "%s{'%s': '%s'}," % (line_indent, fn, checksum)
             if len(checksum_line) > MAX_LINE_LENGTH:
                 checksum_lines.extend([
-                    "%s# %s" % (line_indent, fn),
-                    "%s'%s'," % (line_indent, checksum),
+                    "%s{'%s':" % (line_indent, fn),
+                    "%s '%s'}," % (line_indent, checksum),
                 ])
             else:
                 checksum_lines.append(checksum_line)
