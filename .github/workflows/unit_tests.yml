@@ -68,6 +68,12 @@ jobs:
           - python: '3.10'
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Tcl
+          - python: '3.11'
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Lua
+          - python: '3.11'
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Tcl
           # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
           # Hence run the tests (again) with LC_ALL=C and Python 3.6 (or any < 3.7)
           - python: 3.6
