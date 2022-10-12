@@ -47,6 +47,7 @@ from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, pr
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
+from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easystack import parse_easystack
 from easybuild.framework.easyconfig.easyconfig import clean_up_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import fix_deprecated_easyconfigs, verify_easyconfig_filename
@@ -213,12 +214,12 @@ def clean_exit(logfile, tmpdir, testing, silent=False):
     sys.exit(0)
 
 
-def process_eb_args(args, options, cfg_settings, modtool, testing, init_session_state, hooks, do_build):
+def process_eb_args(eb_args, options, cfg_settings, modtool, testing, init_session_state, hooks, do_build):
     """
     Remainder of main function, actually process provided arguments (list of files/paths),
     according to specified options.
 
-    :param args: list of arguments that were specified to 'eb' command (or an easystack file);
+    :param eb_args: list of arguments that were specified to 'eb' command (or an easystack file);
                  includes filenames/paths of files to process
                  (mostly easyconfig files, but can also includes patch files, etc.)
     :param options: eb_go.options, as returned by set_up_configuration
@@ -231,12 +232,12 @@ def process_eb_args(args, options, cfg_settings, modtool, testing, init_session_
     """
 
     if options.install_latest_eb_release:
-        if orig_paths:
+        if eb_args:
             raise EasyBuildError("Installing the latest EasyBuild release can not be combined with installing "
                                  "other easyconfigs")
         else:
             eb_file = find_easybuild_easyconfig()
-            orig_paths.append(eb_file)
+            eb_args.append(eb_file)
 
     # Unpack cfg_settings
     (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
@@ -244,9 +245,9 @@ def process_eb_args(args, options, cfg_settings, modtool, testing, init_session_
 
     if options.copy_ec:
         # figure out list of files to copy + target location (taking into account --from-pr)
-        orig_paths, target_path = det_copy_ec_specs(orig_paths, from_pr_list)
+        eb_args, target_path = det_copy_ec_specs(eb_args, from_pr_list)
 
-    categorized_paths = categorize_files_by_type(orig_paths)
+    categorized_paths = categorize_files_by_type(eb_args)
 
     # command line options that do not require any easyconfigs to be specified
     pr_options = options.new_branch_github or options.new_pr or options.new_pr_from_branch or options.preview_pr
@@ -265,7 +266,7 @@ def process_eb_args(args, options, cfg_settings, modtool, testing, init_session_
         if options.copy_ec:
             # at this point some paths may still just be filenames rather than absolute paths,
             # so try to determine full path for those too via robot search path
-            paths = locate_files(orig_paths, robot_path)
+            paths = locate_files(eb_args, robot_path)
 
             copy_files(paths, target_path, target_single_file=True, allow_empty=False, verbose=True)
 
@@ -621,10 +622,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         do_cleanup = True
         for path in orig_paths:
             _log.debug("Starting build for %s" % path)
-            # NOTE: not sure if this is needed. Is the EasyConfigs cache preserved throughout loops of this iteration?
-            # Current 'path' may have different options associated with it. Thus, resolution of EasyConfigs
-            # to full paths should not be read from cache, but redetermined. Thus, we wipe the cache
-            # wipe_cache()  # Wipes the easyconfig cache with _easyconfigs_cache.clear()  # TODO: implement
+            # Whipe easyconfig caches
+            easyconfig._easyconfigs_cache.clear()
+            easyconfig._easyconfig_files_cache.clear()
 
             # If EasyConfig specific arguments were supplied in EasyStack file
             # merge arguments with original command line args
@@ -639,7 +639,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                 _log.info("Argument list for %s after merging command line arguments with EasyConfig specific "
                           "options from the EasyStack file: %s" % (path, new_args))
             else:
-                # If no EasyConfig specific arguments are defined, sse original args.
+                # If no EasyConfig specific arguments are defined, use original args.
                 # That way,set_up_configuration restores the original config
                 new_args = args
             eb_go, cfg_settings = set_up_configuration(args=new_args, logfile=logfile, testing=testing,
@@ -648,10 +648,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             hooks = load_hooks(options.hooks)
             do_cleanup &= process_eb_args([path], eb_go.options, cfg_settings, modtool, testing, init_session_state,
                                           hooks, do_build)
-
-        # Loop done. If overall_success is not false, cleanup
-        # if overall_success or overall_success is None:
-        #     cleanup(logfile, eb_tmpdir, testing)
     else:
         do_cleanup = process_eb_args(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks,
                                      do_build)
