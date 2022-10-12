@@ -90,6 +90,7 @@ TEMPLATE_NAMES_DYNAMIC = [
     ('mpi_cmd_prefix', "Prefix command for running MPI programs (with default number of ranks)"),
     ('cuda_compute_capabilities', "Comma-separated list of CUDA compute capabilities, as specified via "
      "--cuda-compute-capabilities configuration option or via cuda_compute_capabilities easyconfig parameter"),
+    ('cuda_cc_cmake', "List of CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+"),
     ('cuda_cc_space_sep', "Space-separated list of CUDA compute capabilities"),
     ('cuda_cc_semicolon_sep', "Semicolon-separated list of CUDA compute capabilities"),
     ('cuda_sm_comma_sep', "Comma-separated list of sm_* values that correspond with CUDA compute capabilities"),
@@ -353,6 +354,7 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
         template_values['cuda_compute_capabilities'] = ','.join(cuda_compute_capabilities)
         template_values['cuda_cc_space_sep'] = ' '.join(cuda_compute_capabilities)
         template_values['cuda_cc_semicolon_sep'] = ';'.join(cuda_compute_capabilities)
+        template_values['cuda_cc_cmake'] = ';'.join(cc.replace('.', '') for cc in cuda_compute_capabilities)
         sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_compute_capabilities]
         template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
         template_values['cuda_sm_space_sep'] = ' '.join(sm_values)
