@@ -48,9 +48,9 @@ from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIO
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, robot_find_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import DEFAULT_MODULECLASSES
-from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
+from easybuild.tools.build_log import EasyBuildError, EasyBuildLog
+from easybuild.tools.config import DEFAULT_MODULECLASSES, BuildOptions, ConfigurationVariables
+from easybuild.tools.config import build_option, find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_dir, copy_file, download_file
 from easybuild.tools.filetools import is_patch_file, mkdir, move_file, parse_http_header_fields_urlpat
@@ -58,13 +58,14 @@ from easybuild.tools.filetools import read_file, remove_dir, remove_file, which,
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
-from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir, use_color
+from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata
+from easybuild.tools.options import set_up_configuration, set_tmpdir, use_color
 from easybuild.tools.py2vs3 import URLError, reload, sort_looseversions
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import HAVE_ARCHSPEC
 from easybuild.tools.version import VERSION
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup, init_config
 
 try:
     import pycodestyle  # noqa
@@ -6541,6 +6542,87 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for pattern in patterns:
             regex = re.compile(pattern)
             self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+    def test_set_up_configuration(self):
+        """Tests for set_up_configuration function."""
+
+        # check default configuration first
+        self.assertFalse(build_option('debug'))
+        self.assertEqual(get_module_syntax(), 'Lua')
+        self.assertFalse(build_option('hidden'))
+
+        # start with a clean slate, reset all configuration done by setUp method that prepares each test
+        cleanup()
+
+        os.environ['EASYBUILD_PREFIX'] = self.test_prefix
+        eb_go, settings = set_up_configuration(args=['--debug', '--module-syntax=Tcl'], silent=True)
+
+        # 2nd part of return value is a tuple with various settings
+        self.assertTrue(isinstance(settings, tuple))
+        self.assertEqual(len(settings), 9)
+        self.assertEqual(settings[0], {})  # build specs
+        self.assertTrue(isinstance(settings[1], EasyBuildLog))  # EasyBuildLog instance
+        self.assertTrue(settings[2].endswith('.log'))  # path to log file
+        self.assertTrue(os.path.exists(settings[2]))
+        self.assertTrue(isinstance(settings[3], list))  # list of robot paths
+        self.assertEqual(len(settings[3]), 1)
+        self.assertTrue(os.path.samefile(settings[3][0], os.environ['EASYBUILD_ROBOT_PATHS']))
+        self.assertEqual(settings[4], None)  # search query
+        self.assertTrue(os.path.samefile(settings[5], tempfile.gettempdir()))  # tmpdir
+        self.assertEqual(settings[6], False)  # try_to_generate
+        self.assertEqual(settings[7], [])  # from_prs list
+        self.assertEqual(settings[8], None)  # list of paths for tweaked ecs
+
+        self.assertEqual(eb_go.options.prefix, self.test_prefix)
+        self.assertTrue(eb_go.options.debug)
+        self.assertEqual(eb_go.options.module_syntax, 'Tcl')
+
+        # set_up_configuration also initializes build options and configuration variables (both Singleton classes)
+        self.assertTrue(build_option('debug'))
+        self.assertTrue(BuildOptions()['debug'])
+
+        self.assertEqual(ConfigurationVariables()['module_syntax'], 'Tcl')
+        self.assertEqual(get_module_syntax(), 'Tcl')
+
+        self.assertFalse(BuildOptions()['hidden'])
+        self.assertFalse(build_option('hidden'))
+
+        # calling set_up_configuration again triggers a warning being printed,
+        # because build options and configuration variables will not be re-configured by default!
+        self.mock_stderr(True)
+        eb_go, _ = set_up_configuration(args=['--hidden'], silent=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+
+        self.assertTrue("WARNING: set_up_configuration is about to call init() and init_build_options()" in stderr)
+
+        # 'hidden' option is enabled, but corresponding build option is still set to False!
+        self.assertTrue(eb_go.options.hidden)
+        self.assertFalse(BuildOptions()['hidden'])
+        self.assertFalse(build_option('hidden'))
+
+        self.assertEqual(eb_go.options.prefix, self.test_prefix)
+
+        self.assertTrue(build_option('debug'))
+        self.assertTrue(BuildOptions()['debug'])
+
+        self.assertEqual(ConfigurationVariables()['module_syntax'], 'Tcl')
+        self.assertEqual(get_module_syntax(), 'Tcl')
+
+        # build options and configuration variables are only re-initialized on demand
+        eb_go, _ = set_up_configuration(args=['--hidden'], silent=True, reconfigure=True)
+
+        self.assertTrue(eb_go.options.hidden)
+        self.assertTrue(BuildOptions()['hidden'])
+        self.assertTrue(build_option('hidden'))
+
+        self.assertEqual(eb_go.options.prefix, self.test_prefix)
+
+        self.assertFalse(build_option('debug'))
+        self.assertFalse(BuildOptions()['debug'])
+
+        self.assertEqual(ConfigurationVariables()['module_syntax'], 'Lua')
+        self.assertEqual(get_module_syntax(), 'Lua')
 
 
 def suite():
