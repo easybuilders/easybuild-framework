@@ -753,8 +753,11 @@ class EasyBlock(object):
             foundfile = None
             failedpaths = []
 
-            # always look first in the dir of the current eb file
-            ebpath = [os.path.dirname(self.cfg.path)]
+            # always look first in the dir of the current eb file unless alt_location is set
+            if alt_location is None:
+                ebpath = [os.path.dirname(self.cfg.path)]
+            else:
+                ebpath = []
 
             # always consider robot + easyconfigs install paths as a fall back (e.g. for patch files, test cases, ...)
             common_filepaths = []
