@@ -1898,26 +1898,33 @@ def set_tmpdir(tmpdir=None, raise_error=False):
     return current_tmpdir
 
 
-def dict_to_argslist(args_dict):
+def opts_dict_to_eb_opts(args_dict):
     """
-    Convert a dictionary with key-value arguments to a list similar to sys.argv[1:].
-    Can by used to convert e.g. EasyConfig specific options from an EasyStack file to an argument list
-    :param args_dict: dictionary with options (keys) and parameters (values), e.g. {'from_pr': [1234], 'robot': True}
-    :return: a list of arguments, similar to what sys.argv[1:] would return
+    Convert a dictionary with configuration option values to command-line options for the 'eb' command.
+    Can by used to convert e.g. easyconfig-specific options from an easystack file to a list of strings
+    that can be fed into the EasyBuild option parser
+    :param args_dict: dictionary with configuration option values
+    :return: a list of strings representing command-line options for the 'eb' command
     """
 
     _log.debug("Converting dictionary %s to argument list" % args_dict)
     args = []
-    for arg in args_dict:
+    for arg in sorted(args_dict):
         if len(arg) == 1:
             prefix = '-'
         else:
             prefix = '--'
-        option = prefix + arg
+        option = prefix + str(arg)
         value = args_dict[arg]
-        args.append(option)
-        if value is not None:
-            args.append(value)
+        if isinstance(value, (list, tuple)):
+            value = ','.join(str(x) for x in value)
+
+        if value in [True, None]:
+            args.append(option)
+        elif value is False:
+            args.append('--disable-' + option[2:])
+        elif value is not None:
+            args.append(option + '=' + str(value))
 
     _log.debug("Converted dictionary %s to argument list %s" % (args_dict, args))
     return args

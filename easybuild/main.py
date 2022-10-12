@@ -67,7 +67,7 @@ from easybuild.tools.github import new_pr_from_branch
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import set_up_configuration, use_color, dict_to_argslist
+from easybuild.tools.options import opts_dict_to_eb_opts, set_up_configuration, use_color
 from easybuild.tools.output import COLOR_GREEN, COLOR_RED, STATUS_BAR, colorize, print_checks, rich_live_cm
 from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
@@ -250,7 +250,7 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
                        "%s in the EasyStack file: %s" % (path, opts_per_ec[path]))
             if args is None:
                 args = sys.argv[1:]
-            ec_args = dict_to_argslist(opts_per_ec[path])
+            ec_args = opts_dict_to_eb_opts(opts_per_ec[path])
             # By appending ec_args to args, ec_args take priority
             new_args = args + ec_args
             _log.info("Argument list for %s after merging command line arguments with EasyConfig specific "

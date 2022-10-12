@@ -58,7 +58,7 @@ from easybuild.tools.filetools import read_file, remove_dir, remove_file, which,
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.modules import Lmod
-from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata
+from easybuild.tools.options import EasyBuildOptions, opts_dict_to_eb_opts, parse_external_modules_metadata
 from easybuild.tools.options import set_up_configuration, set_tmpdir, use_color
 from easybuild.tools.py2vs3 import URLError, reload, sort_looseversions
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
@@ -6623,6 +6623,31 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertEqual(ConfigurationVariables()['module_syntax'], 'Lua')
         self.assertEqual(get_module_syntax(), 'Lua')
+
+    def test_opts_dict_to_eb_opts(self):
+        """Tests for opts_dict_to_eb_opts."""
+
+        self.assertEqual(opts_dict_to_eb_opts({}), [])
+        self.assertEqual(opts_dict_to_eb_opts({'foo': '123'}), ['--foo=123'])
+
+        opts_dict = {
+            'module-syntax': 'Tcl',
+            # multi-value option
+            'from-pr': [1234, 2345],
+            # enabled boolean options
+            'robot': None,
+            'force': True,
+            # disabled boolean option
+            'debug': False,
+        }
+        expected = [
+            '--disable-debug',
+            '--force',
+            '--from-pr=1234,2345',
+            '--module-syntax=Tcl',
+            '--robot',
+        ]
+        self.assertEqual(opts_dict_to_eb_opts(opts_dict), expected)
 
 
 def suite():
