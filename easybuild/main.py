@@ -669,6 +669,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # if EasyStack file is provided, parse it, and loop over the items in the EasyStack file
     if options.easystack:
+        if len(orig_paths) > 0:
+            msg = '\n'.join([
+                "Passing additional arguments when building from an EasyStack file is not supported.",
+                "The following arguments will be ignored:",
+                *orig_paths,
+            ])
+            print_warning(msg)
         do_cleanup = process_easystack(options.easystack, args, logfile, testing, init_session_state, do_build)
     else:
         do_cleanup = process_eb_args(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks,
