@@ -57,6 +57,7 @@ from easybuild.tools.filetools import is_patch_file, mkdir, move_file, parse_htt
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
+from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, opts_dict_to_eb_opts, parse_external_modules_metadata
 from easybuild.tools.options import set_up_configuration, set_tmpdir, use_color
@@ -6542,6 +6543,65 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for pattern in patterns:
             regex = re.compile(pattern)
             self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+    def test_easystack_opts(self):
+        """Test for easystack file that specifies options for specific easyconfigs."""
+
+        robot_paths = os.environ['EASYBUILD_ROBOT_PATHS']
+        hidden_installpath = os.path.join(self.test_installpath, 'hidden')
+
+        test_es_txt = '\n'.join([
+            "easyconfigs:",
+            "  - toy-0.0:",
+            "      options:",
+            "        force: True",
+            "        hidden: True",
+            "        installpath: %s" % hidden_installpath,
+            "  - libtoy-0.0:",
+            "      options:",
+            "        force: True",
+            "        robot: ~",
+            "        robot-paths: %s:%s" % (robot_paths, self.test_prefix),
+        ])
+        test_es_path = os.path.join(self.test_prefix, 'test.yml')
+        write_file(test_es_path, test_es_txt)
+
+        mod_dir = os.path.join(self.test_installpath, 'modules', 'all')
+
+        # touch module file for libtoy, so we can check whether the existing module is replaced
+        libtoy_mod = os.path.join(mod_dir, 'libtoy', '0.0')
+        write_file(libtoy_mod, ModuleGeneratorTcl.MODULE_SHEBANG)
+
+        del os.environ['EASYBUILD_INSTALLPATH']
+        args = [
+            '--experimental',
+            '--easystack', test_es_path,
+            '--installpath', self.test_installpath,
+        ]
+        self.eb_main(args, do_build=True, raise_error=True, redo_init_config=False)
+
+        mod_ext = '.lua' if get_module_syntax() == 'Lua' else ''
+
+        # make sure that $EBROOTLIBTOY is not defined
+        if 'EBROOTLIBTOY' in os.environ:
+            del os.environ['EBROOTLIBTOY']
+
+        # libtoy module should be installed, module file should at least set EBROOTLIBTOY
+        mod_dir = os.path.join(self.test_installpath, 'modules', 'all')
+        mod_path = os.path.join(mod_dir, 'libtoy', '0.0') + mod_ext
+        self.assertTrue(os.path.exists(mod_path))
+        self.modtool.use(mod_dir)
+        self.modtool.load(['libtoy'])
+        self.assertTrue(os.path.exists(os.environ['EBROOTLIBTOY']))
+
+        # module should be hidden and in different install path
+        mod_path = os.path.join(hidden_installpath, 'modules', 'all', 'toy', '.0.0') + mod_ext
+        self.assertTrue(os.path.exists(mod_path))
+
+        # check build options that were put in place for last easyconfig
+        self.assertFalse(build_option('hidden'))
+        self.assertTrue(build_option('force'))
+        self.assertEqual(build_option('robot'), [robot_paths, self.test_prefix])
 
     def test_set_up_configuration(self):
         """Tests for set_up_configuration function."""
