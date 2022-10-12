@@ -114,8 +114,8 @@ class EasyStackTest(EnhancedTestCase):
             'toy-0.0-gompi-2018a-test.eb',
         ]
         expected_opts = {
-            'binutils-2.25-GCCcore-4.9.3.eb': {'debug': True},
-            'foss-2018a.eb': {'robot': True},
+            'binutils-2.25-GCCcore-4.9.3.eb': {'debug': True, 'from-pr': 12345},
+            'foss-2018a.eb': {'enforce-checksums': True, 'robot': True},
         }
         self.assertEqual(sorted(ec_fns), sorted(expected))
         self.assertEqual(opts, expected_opts)

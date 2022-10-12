@@ -1800,6 +1800,15 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
             for patch in ec.asdict()['patches']:
                 if isinstance(patch, tuple):
                     patch = patch[0]
+                elif isinstance(patch, dict):
+                    patch_info = {}
+                    for key in patch.keys():
+                        patch_info[key] = patch[key]
+                    if 'name' not in patch_info.keys():
+                        raise EasyBuildError("Wrong patch spec '%s', when using a dict 'name' entry must be supplied",
+                                             str(patch))
+                    patch = patch_info['name']
+
                 if patch not in paths['patch_files'] and not os.path.isfile(os.path.join(os.path.dirname(ec_path),
                                                                             patch)):
                     print_warning("new patch file %s, referenced by %s, is not included in this PR" %
@@ -2077,7 +2086,8 @@ def check_github():
     elif github_user:
         if 'git' in sys.modules:
             ver, req_ver = git.__version__, '1.0'
-            if LooseVersion(ver) < LooseVersion(req_ver):
+            version_regex = re.compile('^[0-9.]+$')
+            if version_regex.match(ver) and LooseVersion(ver) < LooseVersion(req_ver):
                 check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (ver, req_ver)
             elif "Could not read from remote repository" in str(push_err):
                 check_res = "FAIL (GitHub SSH key missing? %s)" % push_err

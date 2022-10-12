@@ -2154,7 +2154,7 @@ class ToyBuildTest(EnhancedTestCase):
             """# (no modules loaded)""",
             """# (no build environment defined)""",
         ]
-        env_file = open(reprod_dumpenv, "r").read()
+        env_file = read_file(reprod_dumpenv)
         for pattern in patterns:
             self.assertTrue(pattern in env_file)
 
@@ -2270,7 +2270,7 @@ class ToyBuildTest(EnhancedTestCase):
             """module load toy/0.0-one""",
             """# (no build environment defined)""",
         ]
-        env_file = open(reprod_dumpenv, "r").read()
+        env_file = read_file(reprod_dumpenv)
         for pattern in patterns:
             self.assertTrue(pattern in env_file)
 

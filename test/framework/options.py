@@ -4390,6 +4390,53 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt, assert_true=False)
 
+    def test_new_pr_warning_missing_patch(self):
+        """Test warning printed by --new-pr (dry run only) when a specified patch file could not be found."""
+
+        if self.github_token is None:
+            print("Skipping test_new_pr_warning_missing_patch, no GitHub token available?")
+            return
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_ecs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        copy_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'), test_ec)
+
+        patches_regex = re.compile(r'^patches = .*', re.M)
+        test_ec_txt = read_file(test_ec)
+
+        patch_fn = 'this_patch_does_not_exist.patch'
+        test_ec_txt = patches_regex.sub('patches = ["%s"]' % patch_fn, test_ec_txt)
+        write_file(test_ec, test_ec_txt)
+
+        new_pr_out_regex = re.compile(r"Opening pull request", re.M)
+        warning_regex = re.compile("new patch file %s, referenced by .*, is not included in this PR" % patch_fn, re.M)
+
+        args = [
+            '--new-pr',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            test_ec,
+            '-D',
+        ]
+        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        new_pr_out_error_msg = "Pattern '%s' should be found in: %s" % (new_pr_out_regex.pattern, stdout)
+        self.assertTrue(new_pr_out_regex.search(stdout), new_pr_out_error_msg)
+
+        warning_error_msg = "Pattern '%s' should be found in: %s" % (warning_regex.pattern, stderr)
+        self.assertTrue(warning_regex.search(stderr), warning_error_msg)
+
+        # try again with patch specified via a dict value
+        test_ec_txt = patches_regex.sub('patches = [{"name": "%s", "alt_location": "foo"}]' % patch_fn, test_ec_txt)
+        write_file(test_ec, test_ec_txt)
+
+        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+        new_pr_out_error_msg = "Pattern '%s' should be found in: %s" % (new_pr_out_regex.pattern, stdout)
+        self.assertTrue(new_pr_out_regex.search(stdout), new_pr_out_error_msg)
+        warning_error_msg = "Pattern '%s' should be found in: %s" % (warning_regex.pattern, stderr)
+        self.assertTrue(warning_regex.search(stderr), warning_error_msg)
+
     def test_github_sync_pr_with_develop(self):
         """Test use of --sync-pr-with-develop (dry run only)."""
         if self.github_token is None:
@@ -4923,7 +4970,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "module load hwloc/1.11.8-GCC-4.6.4",  # loading of dependency module
             # defining build env
             "export FC='gfortran'",
-            "export CFLAGS='-O2 -ftree-vectorize -march=native -fno-math-errno'",
+            "export CFLAGS='-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno'",
         ]
         for pattern in patterns:
             regex = re.compile("^%s$" % pattern, re.M)
@@ -5652,13 +5699,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue("'checksums': ['d5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838']," in ec_txt)
 
         # single-line checksum entry for bar source tarball
-        regex = re.compile("^[ ]*'%s',  # bar-0.0.tar.gz$" % bar_tar_gz_sha256, re.M)
+        regex = re.compile("^[ ]*{'bar-0.0.tar.gz': '%s'},$" % bar_tar_gz_sha256, re.M)
         self.assertTrue(regex.search(ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, ec_txt))
 
         # no single-line checksum entry for bar patches, since line would be > 120 chars
         bar_patch_patterns = [
-            r"^[ ]*# %s\n[ ]*'%s',$" % (bar_patch, bar_patch_sha256),
-            r"^[ ]*# %s\n[ ]*'%s',$" % (bar_patch_bis, bar_patch_bis_sha256),
+            r"^[ ]*{'%s':\n[ ]*'%s'},$" % (bar_patch, bar_patch_sha256),
+            r"^[ ]*{'%s':\n[ ]*'%s'},$" % (bar_patch_bis, bar_patch_bis_sha256),
         ]
         for pattern in bar_patch_patterns:
             regex = re.compile(pattern, re.M)
@@ -5689,15 +5736,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ec = EasyConfigParser(test_ec).get_config_dict()
         self.assertEqual(ec['sources'], ['%(name)s-%(version)s.tar.gz'])
         self.assertEqual(ec['patches'], ['toy-0.0_fix-silly-typo-in-printf-statement.patch'])
-        self.assertEqual(ec['checksums'], [toy_source_sha256, toy_patch_sha256])
+        self.assertEqual(ec['checksums'], [{'toy-0.0.tar.gz': toy_source_sha256},
+                                           {'toy-0.0_fix-silly-typo-in-printf-statement.patch': toy_patch_sha256}])
         self.assertEqual(ec['exts_default_options'], {'source_urls': ['http://example.com/%(name)s']})
         self.assertEqual(ec['exts_list'][0], 'ls')
         self.assertEqual(ec['exts_list'][1], ('bar', '0.0', {
             'buildopts': " && gcc bar.c -o anotherbar",
             'checksums': [
-                bar_tar_gz_sha256,
-                bar_patch_sha256,
-                bar_patch_bis_sha256,
+                {'bar-0.0.tar.gz': bar_tar_gz_sha256},
+                {'bar-0.0_fix-silly-typo-in-printf-statement.patch': bar_patch_sha256},
+                {'bar-0.0_fix-very-silly-typo-in-printf-statement.patch': bar_patch_bis_sha256},
             ],
             'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
             'patches': [bar_patch, bar_patch_bis],
@@ -5723,13 +5771,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # if any checksums are present already, it doesn't matter if they're wrong (since they will be replaced)
         ectxt = read_file(test_ec)
         for chksum in ec['checksums'] + [c for e in ec['exts_list'][1:] for c in e[2]['checksums']]:
+            if isinstance(chksum, dict):
+                chksum = list(chksum.values())[0]
             ectxt = ectxt.replace(chksum, chksum[::-1])
         write_file(test_ec, ectxt)
 
         stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
 
         ec = EasyConfigParser(test_ec).get_config_dict()
-        self.assertEqual(ec['checksums'], [toy_source_sha256, toy_patch_sha256])
+        self.assertEqual(ec['checksums'], [{'toy-0.0.tar.gz': toy_source_sha256},
+                                           {'toy-0.0_fix-silly-typo-in-printf-statement.patch': toy_patch_sha256}])
 
         ec_backups = glob.glob(test_ec + '.bak_*')
         self.assertEqual(len(ec_backups), 1)
@@ -5772,9 +5823,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # no parse errors for updated easyconfig file...
         ec = EasyConfigParser(test_ec).get_config_dict()
         checksums = [
-            'be662daa971a640e40be5c804d9d7d10',
-            'a99f2a72cee1689a2f7e3ace0356efb1',
-            '3b0787b3bf36603ae1398c4a49097893',
+            {'toy-0.0.tar.gz': 'be662daa971a640e40be5c804d9d7d10'},
+            {'toy-0.0_fix-silly-typo-in-printf-statement.patch': 'a99f2a72cee1689a2f7e3ace0356efb1'},
+            {'toy-extra.txt': '3b0787b3bf36603ae1398c4a49097893'},
         ]
         self.assertEqual(ec['checksums'], checksums)
 
@@ -5796,9 +5847,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         ec = EasyConfigParser(test_ec).get_config_dict()
         expected_checksums = [
-            '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
-            '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487',
-            '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'
+            {'toy-0.0.tar.gz': '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'},
+            {'toy-0.0_fix-silly-typo-in-printf-statement.patch':
+             '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'},
+            {'toy-extra.txt': '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'}
         ]
         self.assertEqual(ec['checksums'], expected_checksums)
 

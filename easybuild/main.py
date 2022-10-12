@@ -43,7 +43,7 @@ import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, stop_logging, print_warning
+from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning, stop_logging
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
@@ -483,6 +483,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # see https://github.com/easybuilders/easybuild-framework/issues/2944
     if 'CDPATH' in os.environ:
         del os.environ['CDPATH']
+
+    # When EB is run via `exec` the special bash variable $_ is not set
+    # So emulate this here to allow (module) scripts depending on that to work
+    if '_' not in os.environ:
+        os.environ['_'] = sys.executable
 
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()

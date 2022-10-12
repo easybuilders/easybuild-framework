@@ -96,7 +96,8 @@ from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_shared_lib_ext, use_group
+from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_linked_libs_raw
+from easybuild.tools.systemtools import get_shared_lib_ext, use_group
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -2374,33 +2375,34 @@ class EasyBlock(object):
             checksum_issues.append(msg)
 
         for fn, checksum in zip(sources + patches, checksums):
+
+            # a checksum may be specified as a dictionary which maps filename to actual checksum
+            # for example when different source files are used for different CPU architectures
             if isinstance(checksum, dict):
-                # sources entry may be a dictionary rather than just a string value with filename
-                if isinstance(fn, dict):
-                    filename = fn['filename']
-                else:
-                    filename = fn
-                checksum = checksum.get(filename)
-
-            # take into account that we may encounter a tuple of valid SHA256 checksums
-            # (see https://github.com/easybuilders/easybuild-framework/pull/2958)
-            if isinstance(checksum, tuple):
-                # 1st tuple item may indicate checksum type, must be SHA256 or else it's blatently ignored here
-                if len(checksum) == 2 and checksum[0] == CHECKSUM_TYPE_SHA256:
-                    valid_checksums = (checksum[1],)
-                else:
-                    valid_checksums = checksum
+                checksums_to_check = checksum.values()
             else:
-                valid_checksums = (checksum,)
+                checksums_to_check = [checksum]
 
-            non_sha256_checksums = [c for c in valid_checksums if not is_sha256_checksum(c)]
-            if non_sha256_checksums:
-                if all(c is None for c in non_sha256_checksums):
-                    print_warning("Found %d None checksum value(s), please make sure this is intended!" %
-                                  len(non_sha256_checksums))
+            for checksum in checksums_to_check:
+                # take into account that we may encounter a tuple of valid SHA256 checksums
+                # (see https://github.com/easybuilders/easybuild-framework/pull/2958)
+                if isinstance(checksum, tuple):
+                    # 1st tuple item may indicate checksum type, must be SHA256 or else it's blatently ignored here
+                    if len(checksum) == 2 and checksum[0] == CHECKSUM_TYPE_SHA256:
+                        valid_checksums = (checksum[1],)
+                    else:
+                        valid_checksums = checksum
                 else:
-                    msg = "Non-SHA256 checksum(s) found for %s: %s" % (fn, valid_checksums)
-                    checksum_issues.append(msg)
+                    valid_checksums = (checksum,)
+
+                non_sha256_checksums = [c for c in valid_checksums if not is_sha256_checksum(c)]
+                if non_sha256_checksums:
+                    if all(c is None for c in non_sha256_checksums):
+                        print_warning("Found %d None checksum value(s), please make sure this is intended!" %
+                                      len(non_sha256_checksums))
+                    else:
+                        msg = "Non-SHA256 checksum(s) found for %s: %s" % (fn, valid_checksums)
+                        checksum_issues.append(msg)
 
         return checksum_issues
 
@@ -2875,7 +2877,9 @@ class EasyBlock(object):
 
         self.log.debug("Post-install patches to apply: %s", patches)
         if patches:
-            self.patch_step(beginpath=self.installdir, patches=patches)
+            # self may be inherited from the Bundle easyblock and that patch_step is a no-op
+            # To allow postinstallpatches for Bundle, and derived, easyblocks we directly call EasyBlock.patch_step
+            EasyBlock.patch_step(self, beginpath=self.installdir, patches=patches)
 
     def post_install_step(self):
         """
@@ -2994,24 +2998,15 @@ class EasyBlock(object):
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
                     self.log.debug("Sanity checking RPATH for %s", path)
 
-                    out, ec = run_cmd("file %s" % path, simple=False, trace=False)
-                    if ec:
-                        fail_msg = "Failed to run 'file %s': %s" % (path, out)
-                        self.log.warning(fail_msg)
-                        fails.append(fail_msg)
+                    out = get_linked_libs_raw(path)
 
-                    # only run ldd/readelf on dynamically linked executables/libraries
-                    # example output:
-                    # ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked (uses shared libs), ...
-                    # ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, not stripped
-                    if "dynamically linked" in out:
+                    if out is None:
+                        msg = "Failed to determine dynamically linked libraries for %s, "
+                        msg += "so skipping it in RPATH sanity check"
+                        self.log.debug(msg, path)
+                    else:
                         # check whether all required libraries are found via 'ldd'
-                        out, ec = run_cmd("ldd %s" % path, simple=False, trace=False)
-                        if ec:
-                            fail_msg = "Failed to run 'ldd %s': %s" % (path, out)
-                            self.log.warning(fail_msg)
-                            fails.append(fail_msg)
-                        elif not_found_regex.search(out):
+                        if not_found_regex.search(out):
                             fail_msg = "One or more required libraries not found for %s: %s" % (path, out)
                             self.log.warning(fail_msg)
                             fails.append(fail_msg)
@@ -3030,9 +3025,6 @@ class EasyBlock(object):
                             fails.append(fail_msg)
                         else:
                             self.log.debug("Output of 'readelf -d %s' checked, looks OK", path)
-
-                    else:
-                        self.log.debug("%s is not dynamically linked, so skipping it in RPATH sanity check", path)
             else:
                 self.log.debug("Not sanity checking files in non-existing directory %s", dirpath)
 
@@ -4424,11 +4416,11 @@ def inject_checksums(ecs, checksum_type):
         line_indent = INDENT_4SPACES * indent_level
         checksum_lines = []
         for fn, checksum in checksums:
-            checksum_line = "%s'%s',  # %s" % (line_indent, checksum, fn)
+            checksum_line = "%s{'%s': '%s'}," % (line_indent, fn, checksum)
             if len(checksum_line) > MAX_LINE_LENGTH:
                 checksum_lines.extend([
-                    "%s# %s" % (line_indent, fn),
-                    "%s'%s'," % (line_indent, checksum),
+                    "%s{'%s':" % (line_indent, fn),
+                    "%s '%s'}," % (line_indent, checksum),
                 ])
             else:
                 checksum_lines.append(checksum_line)
