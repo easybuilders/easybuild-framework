@@ -230,6 +230,15 @@ def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_sessi
     completed. When rest_of_main is called as part of a loop, you don't want to exit, but want to return instead.
     This boolean controls that behaviour.
     """
+
+    if options.install_latest_eb_release:
+        if orig_paths:
+            raise EasyBuildError("Installing the latest EasyBuild release can not be combined with installing "
+                                 "other easyconfigs")
+        else:
+            eb_file = find_easybuild_easyconfig()
+            orig_paths.append(eb_file)
+
     # Unpack cfg_settings
     (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
           from_pr_list, tweaked_ecs_paths) = cfg_settings
@@ -525,9 +534,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         last_log = find_last_log(logfile) or '(none)'
         print_msg(last_log, log=_log, prefix=False)
 
-    # if easystack is provided with the command, commands with arguments from it will be executed
-    if options.easystack:
-        orig_paths, opts_per_ec = parse_easystack(options.easystack)
 
     # check whether packaging is supported when it's being used
     if options.package:
@@ -618,15 +624,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if not easyconfigs_pkg_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
-    if options.install_latest_eb_release:
-        if orig_paths:
-            raise EasyBuildError("Installing the latest EasyBuild release can not be combined with installing "
-                                 "other easyconfigs")
-        else:
-            eb_file = find_easybuild_easyconfig()
-            orig_paths.append(eb_file)
 
-    if options.easystack:
+   # if EasyStack file is provided, parse it, and loop over the items in the EasyStack file
+   if options.easystack:
+        orig_paths, opts_per_ec = parse_easystack(options.easystack)
+
         _log.debug("Start build loop over items in the EasyStack file: %s" % orig_paths)
         # TODO: insert fast loop that validates if all command line options are valid. If there are errors in options,
         # we want to know early on, and this loop potentially builds a lot of packages and could take very long
