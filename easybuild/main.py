@@ -213,11 +213,14 @@ def clean_exit(logfile, tmpdir, testing, silent=False):
     sys.exit(0)
 
 
-def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks, do_build):
+def process_eb_args(args, options, cfg_settings, modtool, testing, init_session_state, hooks, do_build):
     """
-    Remainder of the main function, after orig_paths has been determined
+    Remainder of main function, actually process provided arguments (list of files/paths),
+    according to specified options.
 
-    :param orig_paths: list of EasyConfig names
+    :param args: list of arguments that were specified to 'eb' command (or an easystack file);
+                 includes filenames/paths of files to process
+                 (mostly easyconfig files, but can also includes patch files, etc.)
     :param options: eb_go.options, as returned by set_up_configuration
     :param cfg_settings: as returned by set_up_configuration
     :param modtool: the modules tool, as returned by modules_tool()
@@ -514,7 +517,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         last_log = find_last_log(logfile) or '(none)'
         print_msg(last_log, log=_log, prefix=False)
 
-
     # check whether packaging is supported when it's being used
     if options.package:
         check_pkg_support()
@@ -641,18 +643,18 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                 # That way,set_up_configuration restores the original config
                 new_args = args
             eb_go, cfg_settings = set_up_configuration(args=new_args, logfile=logfile, testing=testing,
-                                  reconfigure=True)
+                                                       reconfigure=True)
 
             hooks = load_hooks(options.hooks)
-            do_cleanup &= rest_of_main([path], eb_go.options, cfg_settings, modtool, testing, init_session_state,
-                                       hooks, do_build)
+            do_cleanup &= process_eb_args([path], eb_go.options, cfg_settings, modtool, testing, init_session_state,
+                                          hooks, do_build)
 
         # Loop done. If overall_success is not false, cleanup
         # if overall_success or overall_success is None:
         #     cleanup(logfile, eb_tmpdir, testing)
     else:
-        do_cleanup = rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks,
-                                  do_build)
+        do_cleanup = process_eb_args(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks,
+                                     do_build)
     # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
     if do_cleanup:
