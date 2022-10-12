@@ -870,7 +870,7 @@ class EasyBlockTest(EnhancedTestCase):
             'description = "test easyconfig"',
             "toolchain = {'name': 'foss', 'version': '2018a'}",
             'dependencies = [',
-            "   ('GCC', '6.4.0-2.28', '', True),"
+            "   ('GCC', '6.4.0-2.28', '', SYSTEM),"
             "   ('hwloc', '1.11.8', '', ('GCC', '6.4.0-2.28')),",
             "   ('OpenMPI', '2.1.2', '', ('GCC', '6.4.0-2.28')),"
             ']',
