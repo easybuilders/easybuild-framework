@@ -214,6 +214,66 @@ def clean_exit(logfile, tmpdir, testing, silent=False):
     sys.exit(0)
 
 
+def process_easystack(easystack_path, args, logfile, testing, init_session_state, do_build):
+    """
+    Process an EasyStack file. That means, parsing, looping over all items in the EasyStack file
+    building (where requested) the individual items, etc
+
+    :param easystack_path: path to EasyStack file to be processed
+    :param args: original command line arguments as received by main()
+    :param logfile: log file to use
+    :param testing: enable testing mode
+    :param init_session_state: initial session state, to use in test reports
+    :param do_build: whether or not to actually perform the build
+    """
+    orig_paths, opts_per_ec = parse_easystack(easystack_path)
+
+    _log.debug("Start build loop over items in the EasyStack file: %s" % orig_paths)
+    # TODO: insert fast loop that validates if all command line options are valid. If there are errors in options,
+    # we want to know early on, and this loop potentially builds a lot of packages and could take very long
+    # for path in orig_paths:
+    #     validate_command_opts(args, opts_per_ec[path])
+
+    # Loop over each item in the EasyStack file, each time updating the config
+    # This is because each item in an EasyStack file can have options associated with it
+    do_cleanup = True
+    for path in orig_paths:
+        _log.debug("Starting build for %s" % path)
+        # Whipe easyconfig caches
+        easyconfig._easyconfigs_cache.clear()
+        easyconfig._easyconfig_files_cache.clear()
+
+        # If EasyConfig specific arguments were supplied in EasyStack file
+        # merge arguments with original command line args
+        if path in opts_per_ec:
+            _log.debug("EasyConfig specific options have been specified for "
+                       "%s in the EasyStack file: %s" % (path, opts_per_ec[path]))
+            if args is None:
+                args = sys.argv[1:]
+            ec_args = dict_to_argslist(opts_per_ec[path])
+            # By appending ec_args to args, ec_args take priority
+            new_args = args + ec_args
+            _log.info("Argument list for %s after merging command line arguments with EasyConfig specific "
+                      "options from the EasyStack file: %s" % (path, new_args))
+        else:
+            # If no EasyConfig specific arguments are defined, use original args.
+            # That way,set_up_configuration restores the original config
+            new_args = args
+
+        # Reconfigure
+        eb_go, cfg_settings = set_up_configuration(args=new_args, logfile=logfile, testing=testing,
+                                                   reconfigure=True)
+        # Since we reconfigure, we should also reload hooks and get current module tools
+        hooks = load_hooks(eb_go.options.hooks)
+        modtool = modules_tool(testing=testing)
+
+        # Process actual item in the EasyStack file
+        do_cleanup &= process_eb_args([path], eb_go.options, cfg_settings, modtool, testing, init_session_state,
+                                      hooks, do_build)
+
+    return do_cleanup
+
+
 def process_eb_args(eb_args, options, cfg_settings, modtool, testing, init_session_state, hooks, do_build):
     """
     Remainder of main function, actually process provided arguments (list of files/paths),
@@ -609,45 +669,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # if EasyStack file is provided, parse it, and loop over the items in the EasyStack file
     if options.easystack:
-        orig_paths, opts_per_ec = parse_easystack(options.easystack)
-
-        _log.debug("Start build loop over items in the EasyStack file: %s" % orig_paths)
-        # TODO: insert fast loop that validates if all command line options are valid. If there are errors in options,
-        # we want to know early on, and this loop potentially builds a lot of packages and could take very long
-        # for path in orig_paths:
-        #     validate_command_opts(args, opts_per_ec[path])
-
-        # Loop over each item in the EasyStack file, each time updating the config
-        # This is because each item in an EasyStack file can have options associated with it
-        do_cleanup = True
-        for path in orig_paths:
-            _log.debug("Starting build for %s" % path)
-            # Whipe easyconfig caches
-            easyconfig._easyconfigs_cache.clear()
-            easyconfig._easyconfig_files_cache.clear()
-
-            # If EasyConfig specific arguments were supplied in EasyStack file
-            # merge arguments with original command line args
-            if path in opts_per_ec:
-                _log.debug("EasyConfig specific options have been specified for "
-                           "%s in the EasyStack file: %s" % (path, opts_per_ec[path]))
-                if args is None:
-                    args = sys.argv[1:]
-                ec_args = dict_to_argslist(opts_per_ec[path])
-                # By appending ec_args to args, ec_args take priority
-                new_args = args + ec_args
-                _log.info("Argument list for %s after merging command line arguments with EasyConfig specific "
-                          "options from the EasyStack file: %s" % (path, new_args))
-            else:
-                # If no EasyConfig specific arguments are defined, use original args.
-                # That way,set_up_configuration restores the original config
-                new_args = args
-            eb_go, cfg_settings = set_up_configuration(args=new_args, logfile=logfile, testing=testing,
-                                                       reconfigure=True)
-
-            hooks = load_hooks(options.hooks)
-            do_cleanup &= process_eb_args([path], eb_go.options, cfg_settings, modtool, testing, init_session_state,
-                                          hooks, do_build)
+        do_cleanup = process_easystack(options.easystack, args, logfile, testing, init_session_state, do_build)
     else:
         do_cleanup = process_eb_args(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks,
                                      do_build)
