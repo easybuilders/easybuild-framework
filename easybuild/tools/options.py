@@ -1445,21 +1445,6 @@ class EasyBuildOptions(GeneralOption):
         pretty_print_opts(opts_dict)
 
 
-def unroll_arguments(args):
-    # unroll arguments that correspond to a combo of single-letter options
-    # this is done to avoid interpreting -rD like "--robot D" instead of "--robot -D"
-    eb_args = []
-    letters_regex = re.compile('^[a-zA-Z]+$')
-    for arg in args:
-        if len(arg) > 2 and arg.startswith('-') and letters_regex.match(arg[1:]):
-            for letter in arg[1:]:
-                eb_args.append('-' + letter)
-        else:
-            eb_args.append(arg)
-
-    return eb_args
-
-
 def parse_options(args=None, with_include=True):
     """wrapper function for option parsing"""
     if os.environ.get('DEBUG_EASYBUILD_OPTIONS', '0').lower() in ('1', 'true', 'yes', 'y'):
@@ -1470,7 +1455,16 @@ def parse_options(args=None, with_include=True):
     if args is None:
         args = sys.argv[1:]
 
-    eb_args = unroll_arguments(args)
+    # unroll arguments that correspond to a combo of single-letter options
+    # this is done to avoid interpreting -rD like "--robot D" instead of "--robot -D"
+    eb_args = []
+    letters_regex = re.compile('^[a-zA-Z]+$')
+    for arg in args:
+        if len(arg) > 2 and arg.startswith('-') and letters_regex.match(arg[1:]):
+            for letter in arg[1:]:
+                eb_args.append('-' + letter)
+        else:
+            eb_args.append(arg)
 
     usage = "%prog [options] easyconfig [...]"
     description = ("Builds software based on easyconfig (or parse a directory).\n"
