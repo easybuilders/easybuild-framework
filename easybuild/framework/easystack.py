@@ -41,6 +41,8 @@ except ImportError:
     pass
 _log = fancylogger.getLogger('easystack', fname=False)
 
+EASYSTACK_DOC_URL = 'https://docs.easybuild.io/en/latest/Easystack-files.html'
+
 
 def check_value(value, context):
     """
@@ -137,11 +139,12 @@ class EasyStackParser(object):
         if len(keys_found) > 1:
             keys_string = ', '.join(keys_found)
             msg = "Specifying multiple top level keys (%s) " % keys_string
-            msg += "in one EasyStack file is currently not supported."
+            msg += "in one EasyStack file is currently not supported"
+            msg += ", see %s for documentation." % EASYSTACK_DOC_URL
             raise EasyBuildError(msg)
         elif len(keys_found) == 0:
             msg = "Not a valid EasyStack YAML file: no 'easyconfigs' or 'software' top-level key found"
-            msg += ", see https://docs.easybuild.io/en/latest/Easystack-files.html for documentation."
+            msg += ", see %s for documentation." % EASYSTACK_DOC_URL
             raise EasyBuildError(msg)
         else:
             key = keys_found[0]
@@ -188,7 +191,7 @@ class EasyStackParser(object):
                     dict_keys = ', '.join(easyconfig.keys())
                     msg = "Failed to parse easystack file: expected a dictionary with one key (the EasyConfig name), "
                     msg += "instead found keys: %s" % dict_keys
-                    msg += "; see https://docs.easybuild.io/en/latest/Easystack-files.html for documentation."
+                    msg += ", see %s for documentation." % EASYSTACK_DOC_URL
                     raise EasyBuildError(msg)
 
         return easystack
