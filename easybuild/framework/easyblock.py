@@ -757,6 +757,8 @@ class EasyBlock(object):
             if alt_location is None:
                 ebpath = [os.path.dirname(self.cfg.path)]
             else:
+                self.log.info("Directory of the easyconfig file ignored when searching for %s "
+                              "because alt_location is set to %s", filename, alt_location)
                 ebpath = []
 
             # always consider robot + easyconfigs install paths as a fall back (e.g. for patch files, test cases, ...)
