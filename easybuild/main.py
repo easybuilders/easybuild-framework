@@ -604,7 +604,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if not easyconfigs_pkg_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
-
     # if EasyStack file is provided, parse it, and loop over the items in the EasyStack file
     if options.easystack:
         orig_paths, opts_per_ec = parse_easystack(options.easystack)
@@ -641,18 +640,19 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                 # If no EasyConfig specific arguments are defined, sse original args.
                 # That way,set_up_configuration restores the original config
                 new_args = args
-            eb_go, cfg_settings = set_up_configuration(args=new_args, logfile=logfile, testing=testing, reconfigure=True)
+            eb_go, cfg_settings = set_up_configuration(args=new_args, logfile=logfile, testing=testing,
+                                  reconfigure=True)
 
             hooks = load_hooks(options.hooks)
             do_cleanup &= rest_of_main([path], eb_go.options, cfg_settings, modtool, testing, init_session_state,
-                                           hooks, do_build)
+                                       hooks, do_build)
 
         # Loop done. If overall_success is not false, cleanup
         # if overall_success or overall_success is None:
         #     cleanup(logfile, eb_tmpdir, testing)
     else:
         do_cleanup = rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks,
-                                       do_build)
+                                  do_build)
     # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
     if do_cleanup:
