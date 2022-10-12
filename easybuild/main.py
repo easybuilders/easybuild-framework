@@ -213,8 +213,7 @@ def clean_exit(logfile, tmpdir, testing, silent=False):
     sys.exit(0)
 
 
-def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks, do_build,
-                 skip_clean_exit=False):
+def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks, do_build):
     """
     Remainder of the main function, after orig_paths has been determined
 
@@ -226,9 +225,6 @@ def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_sessi
     :param init_session_state: initial session state, to use in test reports
     :param hooks: hooks, as loaded by load_hooks from the options
     :param do_build: whether or not to actually perform the build
-    :param skip_clean_exit: normally, rest_of_main calls sys.exit(0) whenever certain runs (e.g. a dry-run) have
-    completed. When rest_of_main is called as part of a loop, you don't want to exit, but want to return instead.
-    This boolean controls that behaviour.
     """
 
     if options.install_latest_eb_release:
@@ -278,10 +274,7 @@ def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_sessi
                 print_msg("Contents of %s:" % path)
                 print_msg(read_file(path), prefix=False)
 
-        if not skip_clean_exit:
-            clean_exit(logfile, eb_tmpdir, testing)
-        else:
-            return
+        return True
 
     if determined_paths:
         # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
@@ -311,10 +304,7 @@ def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_sessi
 
     # handle --check-contrib & --check-style options
     if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):
-        if not skip_clean_exit:
-            clean_exit(logfile, eb_tmpdir, testing)
-        else:
-            return
+        return True
 
     # verify easyconfig filenames, if desired
     if options.verify_easyconfig_filenames:
@@ -331,10 +321,7 @@ def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_sessi
     if options.containerize:
         # if --containerize/-C create a container recipe (and optionally container image), and stop
         containerize(easyconfigs)
-        if not skip_clean_exit:
-            clean_exit(logfile, eb_tmpdir, testing)
-        else:
-            return
+        return True
 
     forced = options.force or options.rebuild
     dry_run_mode = options.dry_run or options.dry_run_short or options.missing_modules
@@ -380,10 +367,7 @@ def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_sessi
             clean_up_easyconfigs(tweaked_ecs_in_all_ecs)
             copy_files(tweaked_ecs_in_all_ecs, target_path, allow_empty=False, verbose=True)
 
-        if not skip_clean_exit:
-            clean_exit(logfile, eb_tmpdir, testing)
-        else:
-            return
+        return True
 
     # creating/updating PRs
     if pr_options:
@@ -432,29 +416,20 @@ def rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_sessi
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]
     if any(no_ec_opts) or any(stop_options):
-        if not skip_clean_exit:
-            clean_exit(logfile, eb_tmpdir, testing)
-        else:
-            return
+        return True
 
     # create dependency graph and exit
     if options.dep_graph:
         _log.info("Creating dependency graph %s" % options.dep_graph)
         dep_graph(options.dep_graph, ordered_ecs)
-        if not skip_clean_exit:
-            clean_exit(logfile, eb_tmpdir, testing, silent=True)
-        else:
-            return
+        return True
 
     # submit build as job(s), clean up and exit
     if options.job:
         submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
         if not testing:
             print_msg("Submitted parallel build jobs, exiting now")
-            if not skip_clean_exit:
-                clean_exit(logfile, eb_tmpdir, testing)
-            else:
-                return
+            return True
 
     # build software, will exit when errors occurs (except when testing)
     if not testing or (testing and do_build):
@@ -625,8 +600,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
 
-   # if EasyStack file is provided, parse it, and loop over the items in the EasyStack file
-   if options.easystack:
+    # if EasyStack file is provided, parse it, and loop over the items in the EasyStack file
+    if options.easystack:
         orig_paths, opts_per_ec = parse_easystack(options.easystack)
 
         _log.debug("Start build loop over items in the EasyStack file: %s" % orig_paths)
@@ -634,8 +609,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         # we want to know early on, and this loop potentially builds a lot of packages and could take very long
         # for path in orig_paths:
         #     validate_command_opts(args, opts_per_ec[path])
+
         # Loop over each item in the EasyStack file, each time updating the config
         # This is because each item in an EasyStack file can have options associated with it
+        do_cleanup = True
         for path in orig_paths:
             _log.debug("Starting build for %s" % path)
             # NOTE: not sure if this is needed. Is the EasyConfigs cache preserved throughout loops of this iteration?
@@ -662,20 +639,20 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             eb_go, cfg_settings = set_up_configuration(args=new_args, logfile=logfile, testing=testing, reconfigure=True)
 
             hooks = load_hooks(options.hooks)
-            overall_success = rest_of_main([path], eb_go.options, cfg_settings, modtool, testing, init_session_state,
-                                           hooks, do_build, skip_clean_exit=True)
+            do_cleanup &= rest_of_main([path], eb_go.options, cfg_settings, modtool, testing, init_session_state,
+                                           hooks, do_build)
 
         # Loop done. If overall_success is not false, cleanup
-        if overall_success or overall_success is None:
-            cleanup(logfile, eb_tmpdir, testing)
+        # if overall_success or overall_success is None:
+        #     cleanup(logfile, eb_tmpdir, testing)
     else:
-        overall_success = rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks,
+        do_cleanup = rest_of_main(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks,
                                        do_build)
     # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
-    if overall_success:
+    if do_cleanup:
         print("Running cleanup")
-        cleanup(logfile, eb_tmpdir, testing)
+        clean_exit(logfile, eb_tmpdir, testing, silent=False)
 
 
 if __name__ == "__main__":
