@@ -1594,12 +1594,15 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
     # Remove existing singletons if reconfigure==True (allows reconfiguration when looping over EasyStack items)
     if reconfigure:
         BuildOptions.__class__._instances.clear()
-    elif len(BuildOptions.__class__._instances) > 0:
-        log.warn("set_up_configuration is about to call init() and init_build_options(). "
-                 "However, the singletons that these functions normally initialize already exist. "
-                 "If configuration should be changed, this may lead to unexpected behavior, as the existing "
-                 "singletons will be returned. If you intended to reconfigure, you should probably pass "
-                 "reconfigure=True to set_up_configuration().")
+        ConfigurationVariables.__class__._instances.clear()
+    elif len(BuildOptions.__class__._instances) + len(ConfigurationVariables.__class__._instance) > 0:
+        msg = '\n'.join([
+                "set_up_configuration is about to call init() and init_build_options().",
+                "However, the singletons that these functions normally initialize already exist.",
+                "If configuration should be changed, this may lead to unexpected behavior,"
+                "as the existing singletons will be returned. If you intended to reconfigure",
+                "you should probably pass reconfigure=True to set_up_configuration().")
+        print_warning(msg, log=log)
 
     # initialise the EasyBuild configuration & build options
     init(options, config_options_dict)
