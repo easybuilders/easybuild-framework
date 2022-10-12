@@ -41,6 +41,8 @@ except ImportError:
     pass
 _log = fancylogger.getLogger('easystack', fname=False)
 
+EASYSTACK_DOC_URL = 'https://docs.easybuild.io/en/latest/Easystack-files.html'
+
 
 def check_value(value, context):
     """
@@ -68,10 +70,16 @@ class EasyStack(object):
         self.easybuild_version = None
         self.robot = False
         self.software_list = []
+        self.easyconfigs = []  # A list of easyconfig names. May or may not include .eb extension
+        # A dict where keys are easyconfig names, values are dictionary of options that should be
+        # applied for that easyconfig
+        self.ec_opts = {}
 
     def compose_ec_filenames(self):
         """Returns a list of all easyconfig names"""
         ec_filenames = []
+
+        # entries specified via 'software' top-level key
         for sw in self.software_list:
             full_ec_version = det_full_ec_version({
                 'toolchain': {'name': sw.toolchain_name, 'version': sw.toolchain_version},
@@ -80,6 +88,10 @@ class EasyStack(object):
             })
             ec_filename = '%s-%s.eb' % (sw.name, full_ec_version)
             ec_filenames.append(ec_filename)
+
+        # entries specified via 'easyconfigs' top-level key
+        for ec in self.easyconfigs:
+            ec_filenames.append(ec)
         return ec_filenames
 
     # flags applicable to all sw (i.e. robot)
@@ -108,7 +120,8 @@ class EasyStackParser(object):
 
     @staticmethod
     def parse(filepath):
-        """Parses YAML file and assigns obtained values to SW config instances as well as general config instance"""
+        """
+        Parses YAML file and assigns obtained values to SW config instances as well as general config instance"""
         yaml_txt = read_file(filepath)
 
         try:
@@ -116,13 +129,80 @@ class EasyStackParser(object):
         except yaml.YAMLError as err:
             raise EasyBuildError("Failed to parse %s: %s" % (filepath, err))
 
+        easystack_data = None
+        top_keys = ('easyconfigs', 'software')
+        keys_found = []
+        for key in top_keys:
+            if key in easystack_raw:
+                keys_found.append(key)
+        # For now, we don't support mixing multiple top_keys, so check that only one was defined
+        if len(keys_found) > 1:
+            keys_string = ', '.join(keys_found)
+            msg = "Specifying multiple top level keys (%s) " % keys_string
+            msg += "in one EasyStack file is currently not supported"
+            msg += ", see %s for documentation." % EASYSTACK_DOC_URL
+            raise EasyBuildError(msg)
+        elif len(keys_found) == 0:
+            msg = "Not a valid EasyStack YAML file: no 'easyconfigs' or 'software' top-level key found"
+            msg += ", see %s for documentation." % EASYSTACK_DOC_URL
+            raise EasyBuildError(msg)
+        else:
+            key = keys_found[0]
+            easystack_data = easystack_raw[key]
+
+        parse_method_name = 'parse_by_' + key
+        parse_method = getattr(EasyStackParser, 'parse_by_%s' % key, None)
+        if parse_method is None:
+            raise EasyBuildError("Easystack parse method '%s' not found!", parse_method_name)
+
+        # assign general easystack attributes
+        easybuild_version = easystack_raw.get('easybuild_version', None)
+        robot = easystack_raw.get('robot', False)
+
+        return parse_method(filepath, easystack_data, easybuild_version=easybuild_version, robot=robot)
+
+    @staticmethod
+    def parse_by_easyconfigs(filepath, easyconfigs, easybuild_version=None, robot=False):
+        """
+        Parse easystack file with 'easyconfigs' as top-level key.
+        """
+
         easystack = EasyStack()
 
-        try:
-            software = easystack_raw["software"]
-        except KeyError:
-            wrong_structure_file = "Not a valid EasyStack YAML file: no 'software' key found"
-            raise EasyBuildError(wrong_structure_file)
+        for easyconfig in easyconfigs:
+            if isinstance(easyconfig, str):
+                if not easyconfig.endswith('.eb'):
+                    easyconfig = easyconfig + '.eb'
+                easystack.easyconfigs.append(easyconfig)
+            elif isinstance(easyconfig, dict):
+                if len(easyconfig) == 1:
+                    # Get single key from dictionary 'easyconfig'
+                    easyconf_name = list(easyconfig.keys())[0]
+                    # Add easyconfig name to the list
+                    if not easyconf_name.endswith('.eb'):
+                        easyconf_name_with_eb = easyconf_name + '.eb'
+                    else:
+                        easyconf_name_with_eb = easyconf_name
+                    easystack.easyconfigs.append(easyconf_name_with_eb)
+                    # Add options to the ec_opts dict
+                    if 'options' in easyconfig[easyconf_name].keys():
+                        easystack.ec_opts[easyconf_name_with_eb] = easyconfig[easyconf_name]['options']
+                else:
+                    dict_keys = ', '.join(easyconfig.keys())
+                    msg = "Failed to parse easystack file: expected a dictionary with one key (the EasyConfig name), "
+                    msg += "instead found keys: %s" % dict_keys
+                    msg += ", see %s for documentation." % EASYSTACK_DOC_URL
+                    raise EasyBuildError(msg)
+
+        return easystack
+
+    @staticmethod
+    def parse_by_software(filepath, software, easybuild_version=None, robot=False):
+        """
+        Parse easystack file with 'software' as top-level key.
+        """
+
+        easystack = EasyStack()
 
         # assign software-specific easystack attributes
         for name in software:
@@ -224,8 +304,8 @@ class EasyStackParser(object):
                     easystack.software_list.append(sw)
 
             # assign general easystack attributes
-            easystack.easybuild_version = easystack_raw.get('easybuild_version', None)
-            easystack.robot = easystack_raw.get('robot', False)
+            easystack.easybuild_version = easybuild_version
+            easystack.robot = robot
 
         return easystack
 
@@ -243,12 +323,16 @@ def parse_easystack(filepath):
 
     easyconfig_names = easystack.compose_ec_filenames()
 
-    general_options = easystack.get_general_options()
+    # Disabled general options for now. We weren't using them, and first want support for EasyConfig-specific options.
+    # Then, we need a method to resolve conflicts (specific options should win)
+    # general_options = easystack.get_general_options()
 
     _log.debug("EasyStack parsed. Proceeding to install these Easyconfigs: %s" % ', '.join(sorted(easyconfig_names)))
-    if len(general_options) != 0:
-        _log.debug("General options for installation are: \n%s" % str(general_options))
-    else:
-        _log.debug("No general options were specified in easystack")
+    _log.debug("Using EasyConfig specific options based on the following dict:")
+    _log.debug(easystack.ec_opts)
+    # if len(general_options) != 0:
+    #    _log.debug("General options for installation are: \n%s" % str(general_options))
+    # else:
+    #    _log.debug("No general options were specified in easystack")
 
-    return easyconfig_names, general_options
+    return easyconfig_names, easystack.ec_opts
