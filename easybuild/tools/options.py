@@ -72,7 +72,7 @@ from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_A
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS
 from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
-from easybuild.tools.config import BuildOptions
+from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
@@ -1589,7 +1589,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
     if reconfigure:
         BuildOptions.__class__._instances.clear()
         ConfigurationVariables.__class__._instances.clear()
-    elif len(BuildOptions.__class__._instances) + len(ConfigurationVariables.__class__._instance) > 0:
+    elif len(BuildOptions.__class__._instances) + len(ConfigurationVariables.__class__._instances) > 0:
         msg = '\n'.join([
             "set_up_configuration is about to call init() and init_build_options().",
             "However, the singletons that these functions normally initialize already exist.",
