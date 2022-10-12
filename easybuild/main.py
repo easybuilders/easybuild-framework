@@ -654,7 +654,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
     if do_cleanup:
-        print("Running cleanup")
         clean_exit(logfile, eb_tmpdir, testing, silent=False)
 
 
