@@ -1063,7 +1063,7 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com/%%(nameletter)s/%%(nameletterlower)s/v%%(version_major)s/"',
             'description = "test easyconfig %%(name)s"',
             'toolchain = SYSTEM',
-            'source_urls = [GOOGLECODE_SOURCE, GITHUB_SOURCE]',
+            'source_urls = [GOOGLECODE_SOURCE, GITHUB_SOURCE, GITHUB_RELEASE, GITHUB_LOWER_RELEASE]',
             'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_BZ2, "%(cmd)s")]',
             'sanity_check_paths = {',
             '   "files": ["bin/pi_%%(version_major)s_%%(version_minor)s", "lib/python%%(pyshortver)s/site-packages"],',
@@ -1090,43 +1090,56 @@ class EasyConfigTest(EnhancedTestCase):
             "github_account = 'easybuilders'",
         ]) % inp
         self.prep()
-        eb = EasyConfig(self.eb_file, validate=False)
-        eb.validate()
+        ec = EasyConfig(self.eb_file, validate=False)
+        ec.validate()
 
         # temporarily disable templating, just so we can check later whether it's *still* disabled
-        with eb.disable_templating():
-            eb.generate_template_values()
-            self.assertFalse(eb.enable_templating)
+        with ec.disable_templating():
+            ec.generate_template_values()
+            self.assertFalse(ec.enable_templating)
 
-        self.assertEqual(eb['description'], "test easyconfig PI")
-        self.assertEqual(eb['sources'][0], 'PI-3.04.tar.gz')
-        self.assertEqual(eb['sources'][1], ('pi-3.04.tar.bz2', "tar xfvz %s"))
-        self.assertEqual(eb['source_urls'][0], 'http://pi.googlecode.com/files')
-        self.assertEqual(eb['source_urls'][1], 'https://github.com/easybuilders/PI/archive')
-        self.assertEqual(eb['versionsuffix'], '-Python-2.7.10')
-        self.assertEqual(eb['sanity_check_paths']['files'][0], 'bin/pi_3_04')
-        self.assertEqual(eb['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
-        self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
+        self.assertEqual(ec['description'], "test easyconfig PI")
+        self.assertEqual(ec['sources'][0], 'PI-3.04.tar.gz')
+        self.assertEqual(ec['sources'][1], ('pi-3.04.tar.bz2', "tar xfvz %s"))
+        self.assertEqual(ec['source_urls'][0], 'http://pi.googlecode.com/files')
+        self.assertEqual(ec['source_urls'][1], 'https://github.com/easybuilders/PI/archive')
+        self.assertEqual(ec['source_urls'][2], 'https://github.com/easybuilders/PI/releases/download/v3.04')
+        self.assertEqual(ec['source_urls'][3], 'https://github.com/easybuilders/pi/releases/download/v3.04')
+
+        self.assertEqual(ec['versionsuffix'], '-Python-2.7.10')
+        self.assertEqual(ec['sanity_check_paths']['files'][0], 'bin/pi_3_04')
+        self.assertEqual(ec['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
+        self.assertEqual(ec['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
         # should match lib/x86_64/2.7.18, lib/aarch64/3.8.6, lib/ppc64le/3.9.2, etc.
         lib_arch_regex = re.compile(r'^lib/[a-z0-9_]+/[23]\.[0-9]+\.[0-9]+$')
-        dirs1 = eb['sanity_check_paths']['dirs'][1]
+        dirs1 = ec['sanity_check_paths']['dirs'][1]
         self.assertTrue(lib_arch_regex.match(dirs1), "Pattern '%s' should match '%s'" % (lib_arch_regex.pattern, dirs1))
         inc_regex = re.compile('^include/(aarch64|ppc64le|x86_64)$')
-        dirs2 = eb['sanity_check_paths']['dirs'][2]
+        dirs2 = ec['sanity_check_paths']['dirs'][2]
         self.assertTrue(inc_regex.match(dirs2), "Pattern '%s' should match '%s'" % (inc_regex, dirs2))
-        self.assertEqual(eb['homepage'], "http://example.com/P/p/v3/")
+        self.assertEqual(ec['homepage'], "http://example.com/P/p/v3/")
         expected = ("CUDA: 10.1.105, 10, 1, 10.1; "
                     "Java: 1.7.80, 1, 7, 1.7; "
                     "Python: 2.7.10, 2, 7, 2.7; "
                     "Perl: 5.22.0, 5, 22, 5.22; "
                     "R: 3.2.3, 3, 2, 3.2")
-        self.assertEqual(eb['modloadmsg'], expected)
-        self.assertEqual(eb['modextrapaths'], {'PI_MOD_NAME': 'PI/3.04-Python-2.7.10'})
-        self.assertEqual(eb['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
+        self.assertEqual(ec['modloadmsg'], expected)
+        self.assertEqual(ec['modextrapaths'], {'PI_MOD_NAME': 'PI/3.04-Python-2.7.10'})
+        self.assertEqual(ec['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
-        eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
-        self.assertEqual(eb['description'], "test easyconfig % %% %s% %%% PI %(name)s %PI %%(name)s")
+        ec['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
+        self.assertEqual(ec['description'], "test easyconfig % %% %s% %%% PI %(name)s %PI %%(name)s")
+
+        # Remove github_account
+        self.contents = re.sub(r'github_account =.*$', '', self.contents, flags=re.MULTILINE)
+        self.prep()
+        ec = EasyConfig(self.eb_file, validate=False)
+        ec.generate_template_values()
+        # and retest GITHUB_* templates that namelower is used instead
+        self.assertEqual(ec['source_urls'][1], 'https://github.com/pi/PI/archive')
+        self.assertEqual(ec['source_urls'][2], 'https://github.com/pi/PI/releases/download/v3.04')
+        self.assertEqual(ec['source_urls'][3], 'https://github.com/pi/pi/releases/download/v3.04')
 
         # test use of %(mpi_cmd_prefix)s template
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
