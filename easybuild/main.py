@@ -292,6 +292,11 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     """
     options = eb_go.options
 
+    # determine easybuild-easyconfigs package install path
+    easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
+    if not easyconfigs_pkg_paths:
+        _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
+
     if options.install_latest_eb_release:
         if eb_args:
             raise EasyBuildError("Installing the latest EasyBuild release can not be combined with installing "
@@ -374,8 +379,8 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     # verify easyconfig filenames, if desired
     if options.verify_easyconfig_filenames:
         _log.info("Verifying easyconfig filenames...")
-        for easyconfig in easyconfigs:
-            verify_easyconfig_filename(easyconfig['spec'], easyconfig['ec'], parsed_ec=easyconfig['ec'])
+        for ec in easyconfigs:
+            verify_easyconfig_filename(ec['spec'], ec['ec'], parsed_ec=ec['ec'])
 
     # tweak obtained easyconfig files, if requested
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
@@ -404,8 +409,8 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     # keep track for which easyconfigs we should set the corresponding module as default
     if options.set_default_module:
-        for easyconfig in easyconfigs:
-            easyconfig['ec'].set_default_module = True
+        for ec in easyconfigs:
+            ec['ec'].set_default_module = True
 
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
@@ -662,11 +667,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         else:
             print_warning("Will not run the test step as requested via skip-test-step. "
                           "Consider using ignore-test-failure instead and verify the results afterwards")
-
-    # determine easybuild-easyconfigs package install path
-    easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
-    if not easyconfigs_pkg_paths:
-        _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     # if EasyStack file is provided, parse it, and loop over the items in the EasyStack file
     if options.easystack:
