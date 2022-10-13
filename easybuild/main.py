@@ -301,7 +301,7 @@ def process_eb_args(eb_args, options, cfg_settings, modtool, testing, init_sessi
 
     # Unpack cfg_settings
     (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
-          from_pr_list, tweaked_ecs_paths) = cfg_settings
+     from_pr_list, tweaked_ecs_paths) = cfg_settings
 
     if options.copy_ec:
         # figure out list of files to copy + target location (taking into account --from-pr)
@@ -673,8 +673,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             msg = '\n'.join([
                 "Passing additional arguments when building from an EasyStack file is not supported.",
                 "The following arguments will be ignored:",
-                *orig_paths,
-            ])
+            ] + orig_paths)
             print_warning(msg)
         do_cleanup = process_easystack(options.easystack, args, logfile, testing, init_session_state, do_build)
     else:
