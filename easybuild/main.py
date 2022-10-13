@@ -274,7 +274,7 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     return do_cleanup
 
 
-def process_eb_args(eb_args, options, cfg_settings, modtool, testing, init_session_state, hooks, do_build):
+def process_eb_args(eb_args, eb_go, options, cfg_settings, modtool, testing, init_session_state, hooks, do_build):
     """
     Remainder of main function, actually process provided arguments (list of files/paths),
     according to specified options.
@@ -282,7 +282,8 @@ def process_eb_args(eb_args, options, cfg_settings, modtool, testing, init_sessi
     :param eb_args: list of arguments that were specified to 'eb' command (or an easystack file);
                  includes filenames/paths of files to process
                  (mostly easyconfig files, but can also includes patch files, etc.)
-    :param options: eb_go.options, as returned by set_up_configuration
+    :param eb_go: EasyBuildOptions instance (option parser)
+    :param options: parsed options, as returned by set_up_configuration
     :param cfg_settings: as returned by set_up_configuration
     :param modtool: the modules tool, as returned by modules_tool()
     :param testing: bool whether we're running in test mode
@@ -677,8 +678,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             print_warning(msg)
         do_cleanup = process_easystack(options.easystack, args, logfile, testing, init_session_state, do_build)
     else:
-        do_cleanup = process_eb_args(orig_paths, options, cfg_settings, modtool, testing, init_session_state, hooks,
-                                     do_build)
+        do_cleanup = process_eb_args(orig_paths, eb_go, options, cfg_settings, modtool, testing, init_session_state,
+                                     hooks, do_build)
     # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
     if do_cleanup:

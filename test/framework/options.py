@@ -439,7 +439,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 eb_file,
                 '--job',
             ] + job_args
-            outtxt = self.eb_main(args)
+            outtxt = self.eb_main(args, raise_error=True)
 
             job_msg = r"INFO.* Command template for jobs: .* && eb %%\(spec\)s.* %s.*\n" % ' .*'.join(passed_args)
             assertmsg = "Info log msg with job command template for --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
