@@ -56,6 +56,7 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.mpi import get_mpi_cmd_template
 from easybuild.tools.toolchain.toolchain import env_vars_external_module
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
+from easybuild.toolchains.compiler.clang import Clang
 
 easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
 
@@ -2622,8 +2623,8 @@ class ToolchainTest(EnhancedTestCase):
         fake_clang = os.path.join(self.test_prefix, 'fake', 'clang')
         write_file(fake_clang, '#!/bin/bash\necho "$@"')
         adjust_permissions(fake_clang, stat.S_IXUSR)
-        tc_clang = self.get_toolchain('ClangGCC', version='0.0.0')
-        tc_clang.prepare()
+        tc_clang = Clang(name='Clang', version='1')
+        tc_clang.prepare_rpath_wrappers()
 
         # Check that the clang wrapper is indeed in place
         res = which('clang', retain_all=True)
