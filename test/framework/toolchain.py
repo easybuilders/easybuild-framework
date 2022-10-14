@@ -2617,6 +2617,26 @@ class ToolchainTest(EnhancedTestCase):
         # any other available 'g++' commands should not be a wrapper or our fake g++
         self.assertFalse(any(os.path.samefile(x, fake_gxx) for x in res[2:]))
 
+        # Check that we can create a wrapper for a toolchain for which self.compilers() returns 'None' for the Fortran
+        # compilers (i.e. Clang)
+        fake_clang = os.path.join(self.test_prefix, 'fake', 'clang')
+        write_file(fake_clang, '#!/bin/bash\necho "$@"')
+        adjust_permissions(fake_clang, stat.S_IXUSR)
+        tc_clang = self.get_toolchain('clang', version='13.0.1')
+        tc_clang.prepare()
+
+        # Check that the clang wrapper is indeed in place
+        res = which('clang', retain_all=True)
+        # there should be at least 2 hits: the RPATH wrapper, and our fake 'clang' command (there may be real ones too)
+        self.assertTrue(len(res) >= 2)
+        self.assertTrue(tc_clang.is_rpath_wrapper(res[0]))
+        self.assertEqual(os.path.basename(res[0]), 'clang')
+        self.assertEqual(os.path.basename(os.path.dirname(res[0])), 'clang_wrapper')
+        self.assertFalse(any(tc_clang.is_rpath_wrapper(x) for x in res[1:]))
+        self.assertTrue(os.path.samefile(res[1], fake_clang))
+        # any other available 'clang' commands should not be a wrapper or our fake clang
+        self.assertFalse(any(os.path.samefile(x, fake_clang) for x in res[2:]))
+
         # RPATH wrapper should be robust against Python environment variables & site-packages magic,
         # so we set up a weird environment here to verify that
         # (see https://github.com/easybuilders/easybuild-framework/issues/3421)
