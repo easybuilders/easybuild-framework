@@ -2622,7 +2622,7 @@ class ToolchainTest(EnhancedTestCase):
         fake_clang = os.path.join(self.test_prefix, 'fake', 'clang')
         write_file(fake_clang, '#!/bin/bash\necho "$@"')
         adjust_permissions(fake_clang, stat.S_IXUSR)
-        tc_clang = self.get_toolchain('Clang', version='13.0.1')
+        tc_clang = self.get_toolchain('ClangGCC', version='0.0.0')
         tc_clang.prepare()
 
         # Check that the clang wrapper is indeed in place
