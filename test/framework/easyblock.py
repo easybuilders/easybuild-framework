@@ -2377,7 +2377,14 @@ class EasyBlockTest(EnhancedTestCase):
 
         # also check verification of checksums for extensions, which is part of fetch_extension_sources
         error_msg = "Checksum verification for extension source bar-0.0.tar.gz failed"
+        self.assertErrorRegex(EasyBuildError, error_msg, eb.collect_exts_file_info)
+
+        # also check with deprecated fetch_extension_sources method
+        self.allow_deprecated_behaviour()
+        self.mock_stderr(True)
         self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_extension_sources)
+        self.mock_stderr(False)
+        self.disallow_deprecated_behaviour()
 
         # if --ignore-checksums is enabled, faulty checksums are reported but otherwise ignored (no error)
         build_options = {
