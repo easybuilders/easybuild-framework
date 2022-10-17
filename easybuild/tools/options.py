@@ -300,6 +300,10 @@ class EasyBuildOptions(GeneralOption):
             'amend': (("Specify additional search and build parameters (can be used multiple times); "
                        "for example: versionprefix=foo or patches=one.patch,two.patch)"),
                       None, 'append', None, {'metavar': 'VAR=VALUE[,VALUE]'}),
+            'builddependencies': (("Specify dependencies to replace or add."),
+                                   None, 'append', None, {'metavar': 'VAR=VALUE[,VALUE]'}),
+            'dependencies': (("Specify dependencies to replace or add."),
+                              None, 'append', None, {'metavar': 'VAR=VALUE[,VALUE]'}),
             'software': ("Search and build software with given name and version",
                          'strlist', 'extend', None, {'metavar': 'NAME,VERSION'}),
             'software-name': ("Search and build software with given name",
@@ -1661,6 +1665,8 @@ def process_software_build_specs(options):
         'toolchain_version': options.try_toolchain_version,
         'update_deps': options.try_update_deps,
         'ignore_versionsuffixes': options.try_ignore_versionsuffixes,
+        'dependencies': options.try_dependencies,
+        'builddependencies': options.try_builddependencies,
     }
 
     # process easy options
