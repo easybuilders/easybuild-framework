@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -57,21 +57,23 @@ class UtilitiesTest(EnhancedTestCase):
         start = datetime(2019, 7, 30, 5, 14, 23)
 
         test_cases = [
-            (start, "0 sec"),
-            (datetime(2019, 7, 30, 5, 14, 37), "14 sec"),
-            (datetime(2019, 7, 30, 5, 15, 22), "59 sec"),
-            (datetime(2019, 7, 30, 5, 15, 23), "1 min 0 sec"),
-            (datetime(2019, 7, 30, 5, 16, 22), "1 min 59 sec"),
-            (datetime(2019, 7, 30, 5, 37, 26), "23 min 3 sec"),
-            (datetime(2019, 7, 30, 6, 14, 22), "59 min 59 sec"),
-            (datetime(2019, 7, 30, 6, 14, 23), "1 hour 0 min 0 sec"),
-            (datetime(2019, 7, 30, 6, 49, 14), "1 hour 34 min 51 sec"),
-            (datetime(2019, 7, 30, 7, 14, 23), "2 hours 0 min 0 sec"),
-            (datetime(2019, 7, 30, 8, 35, 59), "3 hours 21 min 36 sec"),
-            (datetime(2019, 7, 30, 16, 29, 24), "11 hours 15 min 1 sec"),
-            (datetime(2019, 7, 31, 5, 14, 22), "23 hours 59 min 59 sec"),
-            (datetime(2019, 7, 31, 5, 14, 23), "24 hours 0 min 0 sec"),
-            (datetime(2019, 8, 5, 20, 39, 44), "159 hours 25 min 21 sec"),
+            (start, "0 secs"),
+            (datetime(2019, 7, 30, 5, 14, 37), "14 secs"),
+            (datetime(2019, 7, 30, 5, 15, 22), "59 secs"),
+            (datetime(2019, 7, 30, 5, 15, 23), "1 min 0 secs"),
+            (datetime(2019, 7, 30, 5, 16, 22), "1 min 59 secs"),
+            (datetime(2019, 7, 30, 5, 16, 24), "2 mins 1 sec"),
+            (datetime(2019, 7, 30, 5, 37, 26), "23 mins 3 secs"),
+            (datetime(2019, 7, 30, 6, 14, 22), "59 mins 59 secs"),
+            (datetime(2019, 7, 30, 6, 14, 23), "1 hour 0 mins 0 secs"),
+            (datetime(2019, 7, 30, 6, 49, 14), "1 hour 34 mins 51 secs"),
+            (datetime(2019, 7, 30, 7, 14, 23), "2 hours 0 mins 0 secs"),
+            (datetime(2019, 7, 30, 8, 35, 59), "3 hours 21 mins 36 secs"),
+            (datetime(2019, 7, 30, 16, 29, 24), "11 hours 15 mins 1 sec"),
+            (datetime(2019, 7, 31, 5, 14, 22), "23 hours 59 mins 59 secs"),
+            (datetime(2019, 7, 31, 5, 14, 23), "24 hours 0 mins 0 secs"),
+            (datetime(2019, 7, 31, 5, 15, 24), "24 hours 1 min 1 sec"),
+            (datetime(2019, 8, 5, 20, 39, 44), "159 hours 25 mins 21 secs"),
         ]
         for end, expected in test_cases:
             self.assertEqual(time2str(end - start), expected)

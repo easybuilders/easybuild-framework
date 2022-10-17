@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -118,7 +118,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         if unpack_src:
             targetdir = os.path.join(self.master.builddir, remove_unwanted_chars(self.name))
             self.ext_dir = extract_file(self.src, targetdir, extra_options=self.unpack_options,
-                                        change_into_dir=False)
+                                        change_into_dir=False, cmd=self.src_extract_cmd)
 
             # setting start dir must be done from unpacked source directory for extension,
             # because start_dir value is usually a relative path (if it is set)

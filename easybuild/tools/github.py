@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,6 +34,7 @@ import copy
 import getpass
 import glob
 import functools
+import itertools
 import os
 import random
 import re
@@ -839,7 +840,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # copy easyconfig files to right place
     target_dir = os.path.join(git_working_dir, pr_target_repo)
     print_msg("copying files to %s..." % target_dir)
-    file_info = COPY_FUNCTIONS[pr_target_repo](ec_paths, os.path.join(git_working_dir, pr_target_repo))
+    file_info = COPY_FUNCTIONS[pr_target_repo](ec_paths, target_dir)
 
     # figure out commit message to use
     if commit_msg:
@@ -901,6 +902,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if pr_branch is None:
         if ec_paths and pr_target_repo == GITHUB_EASYCONFIGS_REPO:
             label = file_info['ecs'][0].name + re.sub('[.-]', '', file_info['ecs'][0].version)
+        elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and paths.get('py_files'):
+            label = os.path.splitext(os.path.basename(paths['py_files'][0]))[0]
         else:
             label = ''.join(random.choice(ascii_letters) for _ in range(10))
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), label)
@@ -1013,10 +1016,18 @@ def is_patch_for(patch_name, ec):
 
     patches = copy.copy(ec['patches'])
 
-    for ext in ec['exts_list']:
-        if isinstance(ext, (list, tuple)) and len(ext) == 3 and isinstance(ext[2], dict):
-            ext_options = ext[2]
-            patches.extend(ext_options.get('patches', []))
+    with ec.disable_templating():
+        # take into account both list of extensions (via exts_list) and components (cfr. Bundle easyblock)
+        for entry in itertools.chain(ec['exts_list'], ec.get('components') or []):
+            if isinstance(entry, (list, tuple)) and len(entry) == 3 and isinstance(entry[2], dict):
+                templates = {
+                    'name': entry[0],
+                    'namelower': entry[0].lower(),
+                    'version': entry[1],
+                }
+                options = entry[2]
+                patches.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
+                               for p in options.get('patches', []))
 
     for patch in patches:
         if isinstance(patch, (tuple, list)):
@@ -1069,21 +1080,43 @@ def find_software_name_for_patch(patch_name, ec_dirs):
 
     soft_name = None
 
+    ignore_dirs = build_option('ignore_dirs')
     all_ecs = []
     for ec_dir in ec_dirs:
-        for (dirpath, _, filenames) in os.walk(ec_dir):
+        for (dirpath, dirnames, filenames) in os.walk(ec_dir):
+            # Exclude ignored dirs
+            if ignore_dirs:
+                dirnames[:] = [i for i in dirnames if i not in ignore_dirs]
             for fn in filenames:
-                if fn != 'TEMPLATE.eb' and not fn.endswith('.py'):
+                # TODO: In EasyBuild 5.x only check for '*.eb' files
+                if fn != 'TEMPLATE.eb' and os.path.splitext(fn)[1] not in ('.py', '.patch'):
                     path = os.path.join(dirpath, fn)
                     rawtxt = read_file(path)
                     if 'patches' in rawtxt:
                         all_ecs.append(path)
 
+    # Usual patch names are <software>-<version>_fix_foo.patch
+    # So search those ECs first
+    patch_stem = os.path.splitext(patch_name)[0]
+    # Extract possible sw name and version according to above scheme
+    # Those might be the same as the whole patch stem, which is OK
+    possible_sw_name = patch_stem.split('-')[0].lower()
+    possible_sw_name_version = patch_stem.split('_')[0].lower()
+
+    def ec_key(path):
+        filename = os.path.basename(path).lower()
+        # Put files with one of those as the prefix first, then sort by name
+        return (
+            not filename.startswith(possible_sw_name_version),
+            not filename.startswith(possible_sw_name),
+            filename
+        )
+    all_ecs.sort(key=ec_key)
+
     nr_of_ecs = len(all_ecs)
     for idx, path in enumerate(all_ecs):
         if soft_name:
             break
-        rawtxt = read_file(path)
         try:
             ecs = process_easyconfig(path, validate=False)
             for ec in ecs:
@@ -1126,12 +1159,14 @@ def check_pr_eligible_to_merge(pr_data):
 
     # check test suite result, Travis must give green light
     msg_tmpl = "* test suite passes: %s"
+    failed_status_last_commit = False
     if pr_data['status_last_commit'] == STATUS_SUCCESS:
         print_msg(msg_tmpl % 'OK', prefix=False)
     elif pr_data['status_last_commit'] == STATUS_PENDING:
         res = not_eligible(msg_tmpl % "pending...")
     else:
         res = not_eligible(msg_tmpl % "(status: %s)" % pr_data['status_last_commit'])
+        failed_status_last_commit = True
 
     if pr_data['base']['repo']['name'] == GITHUB_EASYCONFIGS_REPO:
         # check for successful test report (checked in reverse order)
@@ -1183,19 +1218,28 @@ def check_pr_eligible_to_merge(pr_data):
     # check whether a milestone is set
     msg_tmpl = "* milestone is set: %s"
     if pr_data['milestone']:
-        print_msg(msg_tmpl % "OK (%s)" % pr_data['milestone']['title'], prefix=False)
+        milestone = pr_data['milestone']['title']
+        if '.x' in milestone:
+            milestone += ", please change to the next release milestone once the PR is merged"
+        print_msg(msg_tmpl % "OK (%s)" % milestone, prefix=False)
     else:
         res = not_eligible(msg_tmpl % 'no milestone found')
 
     # check github mergeable state
     msg_tmpl = "* mergeable state is clean: %s"
+    mergeable = False
     if pr_data['merged']:
         print_msg(msg_tmpl % "PR is already merged", prefix=False)
     elif pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN:
         print_msg(msg_tmpl % "OK", prefix=False)
+        mergeable = True
     else:
         reason = "FAILED (mergeable state is '%s')" % pr_data['mergeable_state']
         res = not_eligible(msg_tmpl % reason)
+
+    if failed_status_last_commit and mergeable:
+        print_msg("\nThis PR is mergeable but the test suite has a failed status. Try syncing the PR with the "
+                  "develop branch using 'eb --sync-pr-with-develop %s'" % pr_data['number'], prefix=False)
 
     return res
 
@@ -1232,7 +1276,7 @@ def reasons_for_closing(pr_data):
 
     robot_paths = build_option('robot_path')
 
-    pr_files = [path for path in fetch_easyconfigs_from_pr(pr_data['number']) if path.endswith('.eb')]
+    pr_files = [p for p in fetch_easyconfigs_from_pr(pr_data['number']) if p.endswith('.eb')]
 
     obsoleted = []
     uses_archived_tc = []
@@ -1272,7 +1316,7 @@ def reasons_for_closing(pr_data):
     if uses_archived_tc:
         possible_reasons.append('archived')
 
-    if any([e['name'] in pr_data['title'] for e in obsoleted]):
+    if any(e['name'] in pr_data['title'] for e in obsoleted):
         possible_reasons.append('obsolete')
 
     return possible_reasons
@@ -1491,17 +1535,17 @@ def add_pr_labels(pr, branch=GITHUB_DEVELOP_BRANCH):
 
     download_repo_path = download_repo(branch=branch, path=tmpdir)
 
-    pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
+    pr_files = [p for p in fetch_easyconfigs_from_pr(pr) if p.endswith('.eb')]
 
     file_info = det_file_info(pr_files, download_repo_path)
 
     pr_target_account = build_option('pr_target_account')
     github_user = build_option('github_user')
     pr_data, _ = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
-    pr_labels = [label['name'] for label in pr_data['labels']]
+    pr_labels = [x['name'] for x in pr_data['labels']]
 
     expected_labels = det_pr_labels(file_info, pr_target_repo)
-    missing_labels = [label for label in expected_labels if label not in pr_labels]
+    missing_labels = [x for x in expected_labels if x not in pr_labels]
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
@@ -1751,6 +1795,25 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     res = new_branch_github(paths, ecs, commit_msg=commit_msg)
     file_info, deleted_paths, _, branch_name, diff_stat, pr_target_repo = res
 
+    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+        for ec, ec_path in zip(file_info['ecs'], file_info['paths_in_repo']):
+            for patch in ec.asdict()['patches']:
+                if isinstance(patch, tuple):
+                    patch = patch[0]
+                elif isinstance(patch, dict):
+                    patch_info = {}
+                    for key in patch.keys():
+                        patch_info[key] = patch[key]
+                    if 'name' not in patch_info.keys():
+                        raise EasyBuildError("Wrong patch spec '%s', when using a dict 'name' entry must be supplied",
+                                             str(patch))
+                    patch = patch_info['name']
+
+                if patch not in paths['patch_files'] and not os.path.isfile(os.path.join(os.path.dirname(ec_path),
+                                                                            patch)):
+                    print_warning("new patch file %s, referenced by %s, is not included in this PR" %
+                                  (patch, ec.filename()))
+
     new_pr_from_branch(branch_name, title=title, descr=descr, pr_target_repo=pr_target_repo,
                        pr_metadata=(file_info, deleted_paths, diff_stat), commit_msg=commit_msg)
 
@@ -1801,7 +1864,7 @@ def det_pr_target_repo(paths):
 
             # if all Python files are easyblocks, target repo should be easyblocks;
             # otherwise, target repo is assumed to be framework
-            if all([get_easyblock_class_name(path) for path in py_files]):
+            if all(get_easyblock_class_name(path) for path in py_files):
                 pr_target_repo = GITHUB_EASYBLOCKS_REPO
                 _log.info("All Python files are easyblocks, target repository is assumed to be %s", pr_target_repo)
             else:
@@ -2023,9 +2086,10 @@ def check_github():
     elif github_user:
         if 'git' in sys.modules:
             ver, req_ver = git.__version__, '1.0'
-            if LooseVersion(ver) < LooseVersion(req_ver):
+            version_regex = re.compile('^[0-9.]+$')
+            if version_regex.match(ver) and LooseVersion(ver) < LooseVersion(req_ver):
                 check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (ver, req_ver)
-            elif "Could not read from remote repository" in push_err.msg:
+            elif "Could not read from remote repository" in str(push_err):
                 check_res = "FAIL (GitHub SSH key missing? %s)" % push_err
             else:
                 check_res = "FAIL (unexpected exception: %s)" % push_err
@@ -2377,7 +2441,7 @@ def sync_with_develop(git_repo, branch_name, github_account, github_repo):
     remote = create_remote(git_repo, github_account, github_repo, https=True)
 
     # fetch latest version of develop branch
-    pull_out = git_repo.git.pull(remote.name, GITHUB_DEVELOP_BRANCH)
+    pull_out = git_repo.git.pull(remote.name, GITHUB_DEVELOP_BRANCH, no_rebase=True)
     _log.debug("Output of 'git pull %s %s': %s", remote.name, GITHUB_DEVELOP_BRANCH, pull_out)
 
     # fetch to make sure we can check out the 'develop' branch

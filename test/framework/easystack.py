@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -55,6 +55,70 @@ class EasyStackTest(EnhancedTestCase):
         """Clean up after test."""
         easybuild.tools.build_log.EXPERIMENTAL = self.orig_experimental
         super(EasyStackTest, self).tearDown()
+
+    def test_easystack_basic(self):
+        """Test for basic easystack file."""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_basic.yaml')
+
+        ec_fns, opts = parse_easystack(test_easystack)
+        expected = [
+            'binutils-2.25-GCCcore-4.9.3.eb',
+            'binutils-2.26-GCCcore-4.9.3.eb',
+            'foss-2018a.eb',
+            'toy-0.0-gompi-2018a-test.eb',
+        ]
+        self.assertEqual(sorted(ec_fns), sorted(expected))
+        self.assertEqual(opts, {})
+
+    def test_easystack_easyconfigs(self):
+        """Test for easystack file using 'easyconfigs' key."""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs.yaml')
+
+        ec_fns, opts = parse_easystack(test_easystack)
+        expected = [
+            'binutils-2.25-GCCcore-4.9.3.eb',
+            'binutils-2.26-GCCcore-4.9.3.eb',
+            'foss-2018a.eb',
+            'toy-0.0-gompi-2018a-test.eb',
+        ]
+        self.assertEqual(sorted(ec_fns), sorted(expected))
+        self.assertEqual(opts, {})
+
+    def test_easystack_easyconfigs_with_eb_ext(self):
+        """Test for easystack file using 'easyconfigs' key, where eb extension is included in the easystack file"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_with_eb_ext.yaml')
+
+        ec_fns, opts = parse_easystack(test_easystack)
+        expected = [
+            'binutils-2.25-GCCcore-4.9.3.eb',
+            'binutils-2.26-GCCcore-4.9.3.eb',
+            'foss-2018a.eb',
+            'toy-0.0-gompi-2018a-test.eb',
+        ]
+        self.assertEqual(sorted(ec_fns), sorted(expected))
+        self.assertEqual(opts, {})
+
+    def test_easystack_easyconfig_opts(self):
+        """Test an easystack file using the 'easyconfigs' key, with additonal options for some easyconfigs"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_opts.yaml')
+
+        ec_fns, opts = parse_easystack(test_easystack)
+        expected = [
+            'binutils-2.25-GCCcore-4.9.3.eb',
+            'binutils-2.26-GCCcore-4.9.3.eb',
+            'foss-2018a.eb',
+            'toy-0.0-gompi-2018a-test.eb',
+        ]
+        expected_opts = {
+            'binutils-2.25-GCCcore-4.9.3.eb': {'debug': True, 'from-pr': 12345},
+            'foss-2018a.eb': {'enforce-checksums': True, 'robot': True},
+        }
+        self.assertEqual(sorted(ec_fns), sorted(expected))
+        self.assertEqual(opts, expected_opts)
 
     def test_parse_fail(self):
         """Test for clean error when easystack file fails to parse."""
@@ -120,15 +184,17 @@ class EasyStackTest(EnhancedTestCase):
         versions = ('1.2.3', '1.2.30', '2021a', '1.2.3')
         for version in versions:
             write_file(test_easystack, tmpl_easystack_txt + ' ' + version)
-            ec_fns, _ = parse_easystack(test_easystack)
+            ec_fns, opts = parse_easystack(test_easystack)
             self.assertEqual(ec_fns, ['foo-%s.eb' % version])
+            self.assertEqual(opts, {})
 
         # multiple versions as a list
         test_easystack_txt = tmpl_easystack_txt + " [1.2.3, 3.2.1]"
         write_file(test_easystack, test_easystack_txt)
-        ec_fns, _ = parse_easystack(test_easystack)
+        ec_fns, opts = parse_easystack(test_easystack)
         expected = ['foo-1.2.3.eb', 'foo-3.2.1.eb']
         self.assertEqual(sorted(ec_fns), sorted(expected))
+        self.assertEqual(opts, {})
 
         # multiple versions listed with more info
         test_easystack_txt = '\n'.join([
@@ -139,9 +205,10 @@ class EasyStackTest(EnhancedTestCase):
             "                 versionsuffix: -foo",
         ])
         write_file(test_easystack, test_easystack_txt)
-        ec_fns, _ = parse_easystack(test_easystack)
+        ec_fns, opts = parse_easystack(test_easystack)
         expected = ['foo-1.2.3.eb', 'foo-2021a.eb', 'foo-3.2.1-foo.eb']
         self.assertEqual(sorted(ec_fns), sorted(expected))
+        self.assertEqual(opts, {})
 
         # versions that get interpreted by YAML as float or int, single quotes required
         for version in ('1.2', '123', '3.50', '100', '2.44_01'):
@@ -152,8 +219,9 @@ class EasyStackTest(EnhancedTestCase):
 
             # all is fine when wrapping the value in single quotes
             write_file(test_easystack, tmpl_easystack_txt + " '" + version + "'")
-            ec_fns, _ = parse_easystack(test_easystack)
+            ec_fns, opts = parse_easystack(test_easystack)
             self.assertEqual(ec_fns, ['foo-%s.eb' % version])
+            self.assertEqual(opts, {})
 
             # one rotten apple in the basket is enough
             test_easystack_txt = tmpl_easystack_txt + " [1.2.3, %s, 3.2.1]" % version
@@ -179,9 +247,10 @@ class EasyStackTest(EnhancedTestCase):
                 "                 versionsuffix: -foo",
             ])
             write_file(test_easystack, test_easystack_txt)
-            ec_fns, _ = parse_easystack(test_easystack)
+            ec_fns, opts = parse_easystack(test_easystack)
             expected = ['foo-1.2.3.eb', 'foo-%s.eb' % version, 'foo-3.2.1-foo.eb']
             self.assertEqual(sorted(ec_fns), sorted(expected))
+            self.assertEqual(opts, {})
 
         # also check toolchain version that could be interpreted as a non-string value...
         test_easystack_txt = '\n'.join([
@@ -192,9 +261,10 @@ class EasyStackTest(EnhancedTestCase):
             "        versions: [1.2.3, '2.3']",
         ])
         write_file(test_easystack, test_easystack_txt)
-        ec_fns, _ = parse_easystack(test_easystack)
+        ec_fns, opts = parse_easystack(test_easystack)
         expected = ['test-1.2.3-intel-2021.03.eb', 'test-2.3-intel-2021.03.eb']
         self.assertEqual(sorted(ec_fns), sorted(expected))
+        self.assertEqual(opts, {})
 
 
 def suite():

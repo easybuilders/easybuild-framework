@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -117,7 +117,7 @@ class VersionOperator(object):
 
     def is_valid(self):
         """Check if this is a valid VersionOperator. Suffix can be anything."""
-        return not(self.version is None or self.operator is None)
+        return not (self.version is None or self.operator is None)
 
     def set(self, versop_str):
         """

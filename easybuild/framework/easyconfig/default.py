@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -90,11 +90,14 @@ DEFAULT_CONFIG = {
     'checksums': [[], "Checksums for sources and patches", BUILD],
     'configopts': ['', 'Extra options passed to configure (default already has --prefix)', BUILD],
     'cuda_compute_capabilities': [[], "List of CUDA compute capabilities to build with (if supported)", BUILD],
+    'download_instructions': ['', "Specify steps to aquire necessary file, if obtaining it is difficult", BUILD],
     'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
                         "based on the software name", BUILD],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
     'enhance_sanity_check': [False, "Indicate that additional sanity check commands & paths should enhance "
                              "the existin sanity check, not replace it", BUILD],
+    'fix_bash_shebang_for': [None, "List of files for which Bash shebang should be fixed "
+                                   "to '#!/usr/bin/env bash' (glob patterns supported)", BUILD],
     'fix_perl_shebang_for': [None, "List of files for which Perl shebang should be fixed "
                                    "to '#!/usr/bin/env perl' (glob patterns supported)", BUILD],
     'fix_python_shebang_for': [None, "List of files for which Python shebang should be fixed "
@@ -112,6 +115,7 @@ DEFAULT_CONFIG = {
     'preinstallopts': ['', 'Extra prefix options for installation.', BUILD],
     'pretestopts': ['', 'Extra prefix options for test.', BUILD],
     'postinstallcmds': [[], 'Commands to run after the install step.', BUILD],
+    'postinstallpatches': [[], 'Patch files to apply after running the install step.', BUILD],
     'required_linked_shared_libs': [[], "List of shared libraries (names, file names, or paths) which must be "
                                         "linked in all installed binaries/libraries", BUILD],
     'runtest': [None, ('Indicates if a test should be run after make; should specify argument '

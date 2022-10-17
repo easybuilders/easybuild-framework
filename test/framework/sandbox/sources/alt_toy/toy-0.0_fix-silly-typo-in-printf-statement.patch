@@ -1,0 +1,10 @@
+--- a/toy-0.0.orig/toy.source	2014-03-06 18:48:16.000000000 +0100
++++ b/toy-0.0/toy.source	2020-08-18 12:19:35.000000000 +0200
+@@ -2,6 +2,6 @@
+ 
+ int main(int argc, char* argv[]){
+ 
+-    printf("I'm a toy, and proud of it.\n");
++    printf("I'm a toy, and very proud of it.\n");
+     return 0;
+ }

@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -127,7 +127,7 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     curdir = os.getcwd()
 
     # regex pattern for options to ignore (help options can't reach here)
-    ignore_opts = re.compile('^--robot$|^--job|^--try-.*$')
+    ignore_opts = re.compile('^--robot$|^--job|^--try-.*$|^--easystack$')
 
     # generate_cmd_line returns the options in form --longopt=value
     opts = [o for o in cmd_line_opts if not ignore_opts.match(o.split('=')[0])]
@@ -141,8 +141,14 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     # compose string with command line options, properly quoted and with '%' characters escaped
     opts_str = ' '.join(opts).replace('%', '%%')
 
-    command = "unset TMPDIR && cd %s && eb %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s" % (curdir, opts_str)
-    _log.info("Command template for jobs: %s" % command)
+    eb_cmd = build_option('job_eb_cmd')
+
+    command = ' && '.join([
+        "unset TMPDIR",
+        "cd %s" % curdir,
+        "%s %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s" % (eb_cmd, opts_str),
+    ])
+    _log.info("Command template for jobs: %s", command)
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
         return command

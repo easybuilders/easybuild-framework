@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -76,16 +76,19 @@ def dump_dependency(dep, toolchain, toolchain_hierarchy=None):
     else:
         # minimal spec: (name, version)
         tup = (dep['name'], dep['version'])
+        res = None
         if all(dep['toolchain'] != subtoolchain for subtoolchain in toolchain_hierarchy):
             if dep[SYSTEM_TOOLCHAIN_NAME]:
-                tup += (dep['versionsuffix'], True)
+                # use SYSTEM constant to indicate that system toolchain should be used for this dependency
+                res = re.sub(r'\)$', ', SYSTEM)', str(tup + (dep['versionsuffix'],)))
             else:
                 tup += (dep['versionsuffix'], (dep['toolchain']['name'], dep['toolchain']['version']))
 
         elif dep['versionsuffix']:
             tup += (dep['versionsuffix'],)
 
-        res = str(tup)
+        if res is None:
+            res = str(tup)
     return res
 
 
@@ -135,8 +138,14 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         # we can't use copy.deepcopy() directly because in Python 2 copying the (irrelevant) __builtins__ key fails...
         cfg_copy = {}
         for key in cfg:
-            if key != '__builtins__':
-                cfg_copy[key] = copy.deepcopy(cfg[key])
+            # skip special variables like __builtins__, and imported modules (like 'os')
+            if key != '__builtins__' and "'module'" not in str(type(cfg[key])):
+                try:
+                    cfg_copy[key] = copy.deepcopy(cfg[key])
+                except Exception as err:
+                    raise EasyBuildError("Failed to copy '%s' easyconfig parameter: %s" % (key, err))
+            else:
+                self.log.debug("Not copying '%s' variable from parsed easyconfig", key)
 
         return cfg_copy
 

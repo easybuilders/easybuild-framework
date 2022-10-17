@@ -1,6 +1,6 @@
 # #
 # -*- coding: utf-8 -*-
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,6 +30,7 @@ Unit tests for filetools.py
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 """
+import contextlib
 import glob
 import os
 import re
@@ -47,9 +48,10 @@ import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
-from easybuild.tools.run import check_log_for_errors, complete_cmd, get_output_from_process
+from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
 from easybuild.tools.run import parse_log_for_error, run_cmd, run_cmd_qa
 from easybuild.tools.config import ERROR, IGNORE, WARN
+from easybuild.tools.py2vs3 import subprocess_terminate
 
 
 class RunTest(EnhancedTestCase):
@@ -70,6 +72,7 @@ class RunTest(EnhancedTestCase):
     def test_get_output_from_process(self):
         """Test for get_output_from_process utility function."""
 
+        @contextlib.contextmanager
         def get_proc(cmd, asynchronous=False):
             if asynchronous:
                 proc = asyncprocess.Popen(cmd, shell=True, stdout=asyncprocess.PIPE, stderr=asyncprocess.STDOUT,
@@ -78,56 +81,60 @@ class RunTest(EnhancedTestCase):
                 proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                         stdin=subprocess.PIPE, close_fds=True, executable='/bin/bash')
 
-            return proc
+            try:
+                yield proc
+            finally:
+                # Make sure to close the process and its pipes
+                subprocess_terminate(proc, timeout=1)
 
         # get all output at once
-        proc = get_proc("echo hello")
-        out = get_output_from_process(proc)
-        self.assertEqual(out, 'hello\n')
+        with get_proc("echo hello") as proc:
+            out = get_output_from_process(proc)
+            self.assertEqual(out, 'hello\n')
 
         # first get 100 bytes, then get the rest all at once
-        proc = get_proc("echo hello")
-        out = get_output_from_process(proc, read_size=100)
-        self.assertEqual(out, 'hello\n')
-        out = get_output_from_process(proc)
-        self.assertEqual(out, '')
+        with get_proc("echo hello") as proc:
+            out = get_output_from_process(proc, read_size=100)
+            self.assertEqual(out, 'hello\n')
+            out = get_output_from_process(proc)
+            self.assertEqual(out, '')
 
         # get output in small bits, keep trying to get output (which shouldn't fail)
-        proc = get_proc("echo hello")
-        out = get_output_from_process(proc, read_size=1)
-        self.assertEqual(out, 'h')
-        out = get_output_from_process(proc, read_size=3)
-        self.assertEqual(out, 'ell')
-        out = get_output_from_process(proc, read_size=2)
-        self.assertEqual(out, 'o\n')
-        out = get_output_from_process(proc, read_size=1)
-        self.assertEqual(out, '')
-        out = get_output_from_process(proc, read_size=10)
-        self.assertEqual(out, '')
-        out = get_output_from_process(proc)
-        self.assertEqual(out, '')
+        with get_proc("echo hello") as proc:
+            out = get_output_from_process(proc, read_size=1)
+            self.assertEqual(out, 'h')
+            out = get_output_from_process(proc, read_size=3)
+            self.assertEqual(out, 'ell')
+            out = get_output_from_process(proc, read_size=2)
+            self.assertEqual(out, 'o\n')
+            out = get_output_from_process(proc, read_size=1)
+            self.assertEqual(out, '')
+            out = get_output_from_process(proc, read_size=10)
+            self.assertEqual(out, '')
+            out = get_output_from_process(proc)
+            self.assertEqual(out, '')
 
         # can also get output asynchronously (read_size is *ignored* in that case)
         async_cmd = "echo hello; read reply; echo $reply"
 
-        proc = get_proc(async_cmd, asynchronous=True)
-        out = get_output_from_process(proc, asynchronous=True)
-        self.assertEqual(out, 'hello\n')
-        asyncprocess.send_all(proc, 'test123\n')
-        out = get_output_from_process(proc)
-        self.assertEqual(out, 'test123\n')
+        with get_proc(async_cmd, asynchronous=True) as proc:
+            out = get_output_from_process(proc, asynchronous=True)
+            self.assertEqual(out, 'hello\n')
+            asyncprocess.send_all(proc, 'test123\n')
+            out = get_output_from_process(proc)
+            self.assertEqual(out, 'test123\n')
 
-        proc = get_proc(async_cmd, asynchronous=True)
-        out = get_output_from_process(proc, asynchronous=True, read_size=1)
-        # read_size is ignored when getting output asynchronously, we're getting more than 1 byte!
-        self.assertEqual(out, 'hello\n')
-        asyncprocess.send_all(proc, 'test123\n')
-        out = get_output_from_process(proc, read_size=3)
-        self.assertEqual(out, 'tes')
-        out = get_output_from_process(proc, read_size=2)
-        self.assertEqual(out, 't1')
-        out = get_output_from_process(proc)
-        self.assertEqual(out, '23\n')
+        with get_proc(async_cmd, asynchronous=True) as proc:
+            out = get_output_from_process(proc, asynchronous=True, read_size=1)
+            # read_size is ignored when getting output asynchronously, we're getting more than 1 byte!
+            self.assertEqual(out, 'hello\n')
+            asyncprocess.send_all(proc, 'test123\n')
+            out = get_output_from_process(proc, read_size=3)
+            self.assertEqual(out, 'tes')
+            out = get_output_from_process(proc, read_size=2)
+            self.assertEqual(out, 't1')
+            out = get_output_from_process(proc)
+            self.assertEqual(out, '23\n')
 
     def test_run_cmd(self):
         """Basic test for run_cmd function."""
@@ -524,7 +531,10 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_list(self):
         """Test run_cmd with command specified as a list rather than a string"""
-        (out, ec) = run_cmd(['/bin/sh', '-c', "echo hello"], shell=False)
+        cmd = ['/bin/sh', '-c', "echo hello"]
+        self.assertErrorRegex(EasyBuildError, "When passing cmd as a list then `shell` must be set explictely!",
+                              run_cmd, cmd)
+        (out, ec) = run_cmd(cmd, shell=False)
         self.assertEqual(out, "hello\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
@@ -572,7 +582,8 @@ class RunTest(EnhancedTestCase):
 
         os.environ['TEST'] = 'test123'
 
-        cmd_info = run_cmd("sleep 2; echo $TEST", asynchronous=True)
+        test_cmd = "echo 'sleeping...'; sleep 2; echo $TEST"
+        cmd_info = run_cmd(test_cmd, asynchronous=True)
         proc = cmd_info[0]
 
         # change value of $TEST to check that command is completed with correct environment
@@ -582,18 +593,57 @@ class RunTest(EnhancedTestCase):
         ec = proc.poll()
         self.assertEqual(ec, None)
 
+        # wait until command is done
         while ec is None:
             time.sleep(1)
             ec = proc.poll()
 
         out, ec = complete_cmd(*cmd_info, simple=False)
         self.assertEqual(ec, 0)
-        self.assertEqual(out, 'test123\n')
+        self.assertEqual(out, 'sleeping...\ntest123\n')
+
+        # also test use of check_async_cmd function
+        os.environ['TEST'] = 'test123'
+        cmd_info = run_cmd(test_cmd, asynchronous=True)
+
+        # first check, only read first 12 output characters
+        # (otherwise we'll be waiting until command is completed)
+        res = check_async_cmd(*cmd_info, output_read_size=12)
+        self.assertEqual(res, {'done': False, 'exit_code': None, 'output': 'sleeping...\n'})
+
+        # 2nd check with default output size (1024) gets full output
+        # (keep checking until command is fully done)
+        while not res['done']:
+            res = check_async_cmd(*cmd_info, output=res['output'])
+        self.assertEqual(res, {'done': True, 'exit_code': 0, 'output': 'sleeping...\ntest123\n'})
+
+        # check asynchronous running of failing command
+        error_test_cmd = "echo 'FAIL!' >&2; exit 123"
+        cmd_info = run_cmd(error_test_cmd, asynchronous=True)
+        time.sleep(1)
+        error_pattern = 'cmd ".*" exited with exit code 123'
+        self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info)
+
+        cmd_info = run_cmd(error_test_cmd, asynchronous=True)
+        res = check_async_cmd(*cmd_info, fail_on_error=False)
+        # keep checking until command is fully done
+        while not res['done']:
+            res = check_async_cmd(*cmd_info, fail_on_error=False, output=res['output'])
+        self.assertEqual(res, {'done': True, 'exit_code': 123, 'output': "FAIL!\n"})
 
         # also test with a command that produces a lot of output,
         # since that tends to lock up things unless we frequently grab some output...
-        cmd = "echo start; for i in $(seq 1 50); do sleep 0.1; for j in $(seq 1000); do echo foo; done; done; echo done"
-        cmd_info = run_cmd(cmd, asynchronous=True)
+        verbose_test_cmd = ';'.join([
+            "echo start",
+            "for i in $(seq 1 50)",
+            "do sleep 0.1",
+            "for j in $(seq 1000)",
+            "do echo foo",
+            "done",
+            "done",
+            "echo done",
+        ])
+        cmd_info = run_cmd(verbose_test_cmd, asynchronous=True)
         proc = cmd_info[0]
 
         output = ''
@@ -609,6 +659,32 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         self.assertTrue(out.startswith('start\n'))
         self.assertTrue(out.endswith('\ndone\n'))
+
+        # also test use of check_async_cmd on verbose test command
+        cmd_info = run_cmd(verbose_test_cmd, asynchronous=True)
+
+        error_pattern = r"Number of output bytes to read should be a positive integer value \(or zero\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info, output_read_size=-1)
+        self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info, output_read_size='foo')
+
+        # with output_read_size set to 0, no output is read yet, only status of command is checked
+        res = check_async_cmd(*cmd_info, output_read_size=0)
+        self.assertEqual(res['done'], False)
+        self.assertEqual(res['exit_code'], None)
+        self.assertEqual(res['output'], '')
+
+        res = check_async_cmd(*cmd_info)
+        self.assertEqual(res['done'], False)
+        self.assertEqual(res['exit_code'], None)
+        self.assertTrue(res['output'].startswith('start\n'))
+        self.assertFalse(res['output'].endswith('\ndone\n'))
+        # keep checking until command is complete
+        while not res['done']:
+            res = check_async_cmd(*cmd_info, output=res['output'])
+        self.assertEqual(res['done'], True)
+        self.assertEqual(res['exit_code'], 0)
+        self.assertTrue(res['output'].startswith('start\n'))
+        self.assertTrue(res['output'].endswith('\ndone\n'))
 
     def test_check_log_for_errors(self):
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')

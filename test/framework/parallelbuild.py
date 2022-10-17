@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2021 Ghent University
+# Copyright 2014-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,7 +37,7 @@ from unittest import TextTestRunner
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import get_module_syntax
+from easybuild.tools.config import get_module_syntax, update_build_option
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_dir, which, write_file
 from easybuild.tools.job import pbs_python
 from easybuild.tools.job.pbs_python import PbsPython
@@ -321,6 +321,12 @@ class ParallelBuildTest(EnhancedTestCase):
         for regex in ['--job', '--job-cores', '--try-toolchain', '--robot=[ =]', self.test_prefix + ' ']:
             regex = re.compile(regex)
             self.assertFalse(regex.search(cmd), "Pattern '%s' should *not* be found in: %s" % (regex.pattern, cmd))
+
+        # test again with custom EasyBuild command to use in jobs
+        update_build_option('job_eb_cmd', "/just/testing/bin/eb --debug")
+        cmd = submit_jobs([toy_ec], eb_go.generate_cmd_line(), testing=True)
+        regex = re.compile(r" && /just/testing/bin/eb --debug %\(spec\)s ")
+        self.assertTrue(regex.search(cmd), "Pattern '%s' found in: %s" % (regex.pattern, cmd))
 
     def test_build_easyconfigs_in_parallel_slurm(self):
         """Test build_easyconfigs_in_parallel(), using (mocked) Slurm as backend for --job."""

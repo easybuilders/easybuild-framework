@@ -4,6 +4,261 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.6.1 (September 12th 2022)
+----------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add script to find dependencies of Python packages (#3839)
+  - add 'ai' default module class (#4053)
+- various bug fixes, including:
+  - fix code style issues reported by recent flake8 linter (#4049)
+  - stick to autopep8 < 1.7.0 with Python 2.7 (#4055)
+  - ensure we call EasyBlock.patch_step for postinstallpatches (#4063)
+  - fix leaked handles in set_columns, complete_cmd, run_cmd_qa, det_terminal_size functions + tests (#4066)
+  - fix `quote_str` when string with both ' and " ends with a double quote (#4068)
+  - fix type-checking of patches to allow dict values + correctly handle patches specified as dict values in --new-pr (#4070)
+  - relax toolchain test by accepting both -march=native (x86_64) and -mcpu=native (aarch64) (#4071)
+- other changes:
+  - run python in the same process as `eb` wrapper script by using `exec` (#4048)
+  - add get_linked_libs_raw function, and use it from both check_linked_shared_libs and sanity_check_rpath (#4051)
+  - update CI workflows (except container tests) to use Ubuntu 20.04, since Ubuntu 18.04 is deprecated (#4064)
+  - use SYSTEM constant for dependency that uses system toolchain in dumped easyconfig (#4069)
+
+
+v4.6.0 (July 8th 2022)
+----------------------
+
+feature release
+
+- various enhancements, including:
+  - allow searching for sources/patches in alternative location by specifying 'alt_location' in source/patch spec (#3994)
+  - show URLs used for download attempts in trace output (#4026)
+  - add support for setting environment variables via 'pushenv' with modextravars (#4030)
+  - add support for OneAPI compilers using toolchain option 'oneapi' (#4031, #4032, #4039)
+  - make check_linked_shared_libs more robust by taking into account that 'ldd' may fail (#4033)
+  - fall back to sequential extension install if parallel install is not implemented (#4034)
+  - add support for using template values in name/version of extensions (#4036)
+- various bug fixes, including:
+  - make sure that ARCH constant has 'aarch64' (rather than 'arm64') as value on macOS ARM (#4018)
+  - tweak 'eb' wrapper script to correctly handle errors when python command being considered fails to run (#4019)
+  - tweak is_patch_for function to make it more robust (#4028)
+- other changes:
+  - update Lmod used to run tests to version 8.7.6 (#4027, #4030)
+  - tweak apply_patch to not create .orig files (by default) when applying patch files (#4038)
+
+
+v4.5.5 (June 8th 2022)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add toolchain definitions for nvompi (NVHPC + OpenMPI) (#3969), nvpsmpi (NVHPC + ParaStationMPI) (#3970), gfbf (GCC, FlexiBLAS, FFTW) (#4006)
+  - add support for FFTW.MPI toolchain component ($FFT*DIR variables) (#4012)
+  - add support for customizing EasyBuild command used in jobs via --job-eb-cmd (#4016)
+- various bug fixes, including:
+  - fix copying of easyconfig file with --copy-ec without --rebuild if module is already installed (#3993)
+  - ignore deprecation warnings regarding cryptography in Python 3.6 + Blowfish with Python 3.10 in test suite output (#3999)
+  - fix typo in debug log message in easyblock.py (#4000)
+  - fix printing of list of attempted download URLs when url-encoded characters are used in URL (#4005)
+  - set $FFT(W)_LIB_DIR to imkl-FFTW's lib path in build environment if usempi toolchain option is enabled (#4011)
+  - correctly identify Apple Silicon M1 as Arm 64-bit by also considering arm64 next to aarch64 (#4014)
+  - fix 'eb --show-system-info' on Apple M1 system (#4015)
+- other changes:
+  - change 'eb' command to import easybuild.framework to check if EasyBuild framework is available (#3995, #3998)
+
+
+v4.5.4 (March 31st 2022)
+------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - warn about potentially missing patches in --new-pr (#3759, #3966)
+  - add support for 'clone_into' field in git_config source spec to specify different name for top-level directory (#3949)
+  - add bash completion for easyconfigs from local dir but not robot search path (#3953)
+  - add a 'sync pr' message when the PR has a mergeable state but is showing a failed status for the test suite on the last commit (#3967)
+  - add gmpit toolchain definition (GCC + MPItrampoline) (#3971)
+  - use 'zypper search -i' to check whether specified OS dependency is installed on openSUSE + make sure that rpm is considered for checking OS dependencies on RHEL8 (#3973)
+  - add support for post-install patches (#3974)
+  - add support for 'download_instructions' easyconfig parameter key to specify some download or installation steps for user in case of complicated way of obtaining needed files (#3976, #3981)
+  - also try collecting AMD GPU info (via rocm-smi) for --show-system-info (#3978, #3982)
+- various bug fixes, including:
+  - ensure --review-pr can find dependencies included in PR (#3979)
+  - run 'apt-get update' in GitHub Actions workflow for container tests to update container package list before installing anything (#3985)
+- other changes:
+  - enable code linting check for all supported Python versions (#3725)
+  - update copyright lines for 2022 (#3986)
+
+
+v4.5.3 (February 11th 2022)
+---------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - also check for git in --check-eb-deps (#3954)
+  - add end2end test for 'eb --containerize' (#3958)
+- various bug fixes, including:
+  - take into account that patch files can also be zipped when checking filename extension for patches (#3936)
+  - initialize BACKUP_PKG_URL with empty string in install_eb_dep.sh script (#3939)
+  - fix get_os_name and get_os_version to avoid reporting UNKNOWN in output of eb --show-system-info (#3942)
+  - consistently use actions/setup-python@v2 in CI workflows (#3944)
+  - switch to using pip3 for installing EasyBuild in container recipes generated by EasyBuild (#3945)
+  - specify easybuild.io as EasyBuild homepage in setup.py (#3947)
+  - avoid crash in get_os_version on modern SLES-based OSs (#3955)
+- other changes:
+  - indicate compatibility with Python 3.10 in setup.py (#3940)
+
+
+v4.5.2 (January 24th 2022)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - automatically prepend value for env-for-shebang configuration setting with sysroot (#3919)
+  - enhance update_build_option to return original value + add support for update_build_options (#3923)
+  - fix compatibility with Python 3.10 (#3926, #3933)
+  - also take /etc/os-release into account in get_os_name and get_os_version (#3930)
+  - enhance get_cpu_architecture and get_cpu_family to be aware of RISC-V (#3931)
+- various bug fixes, including:
+  - relax pattern checks in test_toy_exts_parallel (#3921)
+  - use sources.easybuild.io as backup URL for downloading Environment Modules sources to run test suite (#3928)
+  - make intelfftw toolchain component aware of GCCcore (#3929)
+- other changes:
+  - deprecate use of (actual) patch files that don't have a filename ending with .patch (#3920)
+  - remove version restriction for keyring in requirements.txt to test with latest version (#3925)
+  - simplify requirements.txt by removing Python 2.6 support (#3927)
+  - only run GitHub tests when testing with Lua module syntax, to avoid hitting GitHub rate limit when running tests (#3938)
+
+
+v4.5.1 (December 13th 2021)
+---------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - also dump environment to reprod directory (#3374)
+  - determine which extensions can be skipped in parallel (if --parallel-extensions-install is enabled) (#3890)
+  - fall back to sequential installation for extensions with unknown dependencies when using --parallel-extensions-install (#3906)
+  - allow oversubscription in sanity check for OpenMPI-based toolchains (#3909)
+- various bug fixes, including:
+  - don't try to ensure absolute path for path part of repositorypath (#3893, #3899)
+  - fix typo in EULA agreement error message (#3894)
+  - only remove lock if it was created in the same EasyBuild session (not if it existed already) (#3889)
+  - introduce EasyBlock.post_init method to correctly define builddir variable when build-in-installdir mode is enabled in easyconfig or easyblock (#3900)
+  - also show download progress bar when using --inject-checksums (#3905)
+  - pick up custom extract_cmd specified for extension (#3907)
+  - make test_run_cmd_async more robust against fluke failures (#3908)
+
+
+v4.5.0 (October 29th 2021)
+--------------------------
+
+feature release
+
+- various enhancements, including:
+  - add --review-pr-max and --review-pr-filter options to limit easyconfigs used by --review-pr + retain order of easyconfigs being compared with (#3754)
+  - use Rich (if available) to show progress bars when installing easyconfigs (#3823, #3826, #3833, #3835, #3844, #3864, #3867, #3882)
+    - see also https://docs.easybuild.io/en/latest/Progress_bars.html
+  - add support for checking required/optional EasyBuild dependencies via 'eb --check-eb-deps' (#3829)
+  - add support for collecting GPU info (via nvidia-smi), and include it in --show-system-info and test report (#3851)
+  - added support for --insecure-download configuration option (#3859)
+  - make intelfftw toolchain component aware of imkl-FFTW module (#3861)
+  - make sure the contrib/hooks tree is included in the source tarball for easybuild-framework (#3862)
+  - add check_async_cmd function to facilitate checking on asynchronously running commands (#3865, #3881)
+  - add initial/experimental support for installing extensions in parallel (#3667, #3878)
+    - see also https://docs.easybuild.io/en/latest/Installing_extensions_in_parallel.html
+  - filter out duplicate paths added to module files, and print warning when they occur (#3770, #3874)
+- various bug fixes, including:
+  - ensure that path configuration options have absolute path values (#3832)
+  - fix broken test by taking into account changed error raised by Python 3.9.7 when copying directory via shutil.copyfile (#3840)
+  - ensure newer location of CUDA stubs is taken into account by RPATH filter (#3850)
+  - replace 'which' by 'command -v' in 'eb' wrapper script to avoid dependency on 'which' command (#3852)
+  - refactor EasyBlock to decouple collecting of information on extension source/patch files from downloading them (#3860)
+    - in this context, the EasyBlock.fetch_extension_sources method was deprecated, and replaced by EasyBlock.collect_exts_file_info
+  - fix library paths to add to $LDFLAGS for intel-compilers toolchain component (#3866)
+  - remove '--depth 1' from git clone when 'commit' specified (#3871, #3872)
+  - make sure correct include directory is used for FlexiBLAS toolchain component (#3875)
+  - explictly disable rebase when pulling develop branch to create a merge commit, since not specifying how to reconcile divergent branches is an error with Git 2.33.1 and newer (#3879)
+  - tweak test_http_header_fields_urlpat to download from sources.easybuild.io rather than https://ftp.gnu.org (#3883)
+- other changes:
+  - change copy_file function to raise an error when trying to copy non-existing file (#3836, #3855, #3877)
+  - only print the hook messages if EasyBuild is running in debug mode (#3843)
+  - deprecate old toolchain versions (pre-2019a common toolchains) (#3876, #3884)
+    - see also https://docs.easybuild.io/en/latest/Deprecated-easyconfigs.html#deprecated-toolchains
+
+
+v4.4.2 (September 7th 2021)
+---------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add per-extension timing in output produced by eb command (#3734)
+  - add definition for new toolchain nvpsmpic (NVHPC + ParaStationMPI + CUDA) (#3736)
+  - include list of missing libraries in warning about missing FFTW libraries in imkl toolchain component (#3776)
+  - check for recursive symlinks by default before copying a folder (#3784)
+  - add --filter-ecs configuration option to filter out easyconfigs from set of easyconfigs to install (#3796)
+  - check type of source_tmpl value for extensions, ensure it's a string value (not a list) (#3799)
+  - also define $BLAS_SHARED_LIBS & co in build environment (analogous to $BLAS_STATIC_LIBS) (#3800)
+  - report use of --ignore-test-failure in success message in output (#3806)
+  - add get_cuda_cc_template_value method to EasyConfig class (#3807)
+  - add support for fix_bash_shebang_for (#3808)
+  - pick up $MODULES_CMD to facilitate using Environment Modules 4.x as modules tool (#3816)
+  - use more sensible branch name for creating easyblocks PR with --new-pr (#3817)
+- various bug fixes, including:
+  - remove Python 2.6 from list of supported Python versions in setup.py (#3767)
+  - don't add directory that doesn't include any files to $PATH or $LD_LIBRARY_PATH (#3769)
+  - make logdir writable also when --stop/--fetch is used and --read-only-installdir is enabled (#3771)
+  - fix forgotten renaming of 'l' to 'char' __init__.py that is created for included Python modules (#3773)
+  - fix verify_imports by deleting all imported modules before re-importing them one by one (#3780)
+  - fix ignore_test_failure not set for Extension instances (#3782)
+  - update iompi toolchain to intel-compiler subtoolchain for oneAPI versions (>= iompi 2020.12) (#3785)
+  - don't parse patch files as easyconfigs when searching for where patch file is used (#3786)
+  - make sure git clone with a tag argument actually downloads a tag (#3795)
+  - fix CI by excluding GC3Pie 2.6.7 (which is broken with Python 2) and improve error reporting for option parsing (#3798)
+  - correctly resolve templates for patches in extensions when uploading to GitHub (#3805)
+  - add --easystack to ignored options when submitting job (#3813)
+- other changes:
+  - speed up tests by caching checked paths in set_tmpdir + less test cases for test_compiler_dependent_optarch (#3802)
+  - speed up set_parallel method in EasyBlock class (#3812)
+
+
+v4.4.1 (July 6th 2021)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - enhance detection of patch files supplied to 'eb' command with better error messages (#3709)
+  - add per-step timing information (#3716)
+  - add module-write hook (#3728)
+  - add ignore-test-failure configuration option to ignore failing test step (#3732)
+  - add toolchain definition for nvompic (NVHPC + OpenMPI) (#3735)
+  - warn about generic milestone in --review-pr and --merge-pr (#3751)
+- various bug fixes, including:
+  - don't override COMPILER_MODULE_NAME, inherited from Ffmpi, in Fujitsu toolchain definition (#3721)
+  - avoid overwritting pr_nr in post_pr_test_report for reports with --include-easyblocks-from-pr (#3724, #3726)
+  - fix crash in get_config_dict when copying modules that were imported in easyconfig file (like 'import os') (#3729)
+  - parse C standard flags in CFLAGS for Fujitsu compiler (#3731)
+  - fix error message for --use-ccache (#3733)
+  - error out when passing a list to run_cmd* to avoid running wrong command unintended, unless shell=True is used (#3737)
+  - minor fixes to output of test reports when using multiple PRs (#3741)
+  - fix location for modules installed with intel-compilers toolchain in HierarchicalMNS by always checking toolchain compiler name against template map (#3745)
+  - avoid checking msg attribute of GitCommandError (#3756)
+  - consider sources provided as dict in EasyBlock.check_checksums_for (#3758)
+  - don't make changes to software installation directory when using --sanity-check-only (#3761)
+  - honor specified easyblock for extensions (#3762)
+- other changes:
+  - make sure that tests requiring a github token have 'github' in the test name so that they can be easily filtered (#3730)
+  - deprecate EasyBuild bootstrap script (#3742)
+  - use temporary download folder in test_http_header_fields_urlpat (#3755)
+
+
 v4.4.0 (June 2nd 2021)
 ----------------------
 

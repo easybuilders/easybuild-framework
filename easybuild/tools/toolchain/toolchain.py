@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -927,7 +927,7 @@ class Toolchain(object):
 
         cache_path = which(cache_tool)
         if cache_path is None:
-            raise EasyBuildError("%s binary not found in $PATH, required by --use-compiler-cache", cache_tool)
+            raise EasyBuildError("%s binary not found in $PATH, required by --use-ccache", cache_tool)
         else:
             self.symlink_commands({cache_tool: (cache_path, compilers)})
 
@@ -960,9 +960,11 @@ class Toolchain(object):
 
         # always include filter for 'stubs' library directory,
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2683
-        lib_stubs_pattern = '.*/lib(64)?/stubs/?'
-        if lib_stubs_pattern not in rpath_filter_dirs:
-            rpath_filter_dirs.append(lib_stubs_pattern)
+        # (since CUDA 11.something the stubs are in $EBROOTCUDA/stubs/lib64)
+        lib_stubs_patterns = ['.*/lib(64)?/stubs/?', '.*/stubs/lib(64)?/?']
+        for lib_stubs_pattern in lib_stubs_patterns:
+            if lib_stubs_pattern not in rpath_filter_dirs:
+                rpath_filter_dirs.append(lib_stubs_pattern)
 
         # directory where all wrappers will be placed
         wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)

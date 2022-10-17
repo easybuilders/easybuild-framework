@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -44,7 +44,7 @@ import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, stop_logging
+from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning, stop_logging
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums, inject_checksums_to_json
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
@@ -68,11 +68,15 @@ from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develo
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import set_up_configuration, use_color
+from easybuild.tools.output import COLOR_GREEN, COLOR_RED, STATUS_BAR, colorize, print_checks, rich_live_cm
+from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
+from easybuild.tools.systemtools import check_easybuild_deps
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
+
 
 _log = None
 
@@ -111,8 +115,14 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     # e.g. via easyconfig.handle_allowed_system_deps
     init_env = copy.deepcopy(os.environ)
 
+    start_progress_bar(STATUS_BAR, size=len(ecs))
+
     res = []
+    ec_results = []
+    failed_cnt = 0
+
     for ec in ecs:
+
         ec_res = {}
         try:
             (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
@@ -124,6 +134,12 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             ec_res['success'] = False
             ec_res['err'] = err
             ec_res['traceback'] = traceback.format_exc()
+
+        if ec_res['success']:
+            ec_results.append(ec['full_mod_name'] + ' (' + colorize('OK', COLOR_GREEN) + ')')
+        else:
+            ec_results.append(ec['full_mod_name'] + ' (' + colorize('FAILED', COLOR_RED) + ')')
+            failed_cnt += 1
 
         # keep track of success/total count
         if ec_res['success']:
@@ -153,6 +169,19 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
                 raise EasyBuildError(test_msg)
 
         res.append((ec, ec_res))
+
+        if failed_cnt:
+            # if installations failed: indicate th
+            status_label = ' (%s): ' % colorize('%s failed!' % failed_cnt, COLOR_RED)
+            failed_ecs = [x for x in ec_results[::-1] if 'FAILED' in x]
+            ok_ecs = [x for x in ec_results[::-1] if x not in failed_ecs]
+            status_label += ', '.join(failed_ecs + ok_ecs)
+        else:
+            status_label = ': ' + ', '.join(ec_results[::-1])
+
+        update_progress_bar(STATUS_BAR, label=status_label)
+
+    stop_progress_bar(STATUS_BAR)
 
     return res
 
@@ -201,6 +230,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if 'CDPATH' in os.environ:
         del os.environ['CDPATH']
 
+    # When EB is run via `exec` the special bash variable $_ is not set
+    # So emulate this here to allow (module) scripts depending on that to work
+    if '_' not in os.environ:
+        os.environ['_'] = sys.executable
+
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
 
@@ -232,7 +266,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         # TODO add general_options (i.e. robot) to build options
         orig_paths, general_options = parse_easystack(options.easystack)
         if general_options:
-            raise EasyBuildError("Specifying general configuration options in easystack file is not supported yet.")
+            print_warning("Specifying options in easystack files is not supported yet. They are parsed, but ignored.")
 
     # check whether packaging is supported when it's being used
     if options.package:
@@ -244,6 +278,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if search_query:
         search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
                            terse=options.terse)
+
+    if options.check_eb_deps:
+        print_checks(check_easybuild_deps(modtool))
 
     # GitHub options that warrant a silent cleanup & exit
     if options.check_github:
@@ -262,7 +299,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         merge_pr(options.merge_pr)
 
     elif options.review_pr:
-        print(review_pr(pr=options.review_pr, colored=use_color(options.color), testing=testing))
+        print(review_pr(pr=options.review_pr, colored=use_color(options.color), testing=testing,
+                        max_ecs=options.review_pr_max, filter_ecs=options.review_pr_filter))
 
     elif options.add_pr_labels:
         add_pr_labels(options.add_pr_labels)
@@ -283,6 +321,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [
         options.add_pr_labels,
+        options.check_eb_deps,
         options.check_github,
         options.create_index,
         options.install_github_token,
@@ -304,6 +343,14 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     init_session_state.update({'easybuild_configuration': eb_config})
     init_session_state.update({'module_list': modlist})
     _log.debug("Initial session state: %s" % init_session_state)
+
+    if options.skip_test_step:
+        if options.ignore_test_failure:
+            raise EasyBuildError("Found both ignore-test-failure and skip-test-step enabled. "
+                                 "Please use only one of them.")
+        else:
+            print_warning("Will not run the test step as requested via skip-test-step. "
+                          "Consider using ignore-test-failure instead and verify the results afterwards")
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
@@ -406,7 +453,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     forced = options.force or options.rebuild
     dry_run_mode = options.dry_run or options.dry_run_short or options.missing_modules
 
-    keep_available_modules = forced or dry_run_mode or options.extended_dry_run or pr_options
+    keep_available_modules = forced or dry_run_mode or options.extended_dry_run or pr_options or options.copy_ec
     keep_available_modules = keep_available_modules or options.inject_checksums or options.sanity_check_only
     keep_available_modules = keep_available_modules or options.inject_checksums_to_json
 
@@ -491,7 +538,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         dump_env_script(easyconfigs)
 
     elif options.inject_checksums:
-        inject_checksums(ordered_ecs, options.inject_checksums)
+        with rich_live_cm():
+            inject_checksums(ordered_ecs, options.inject_checksums)
 
     elif options.inject_checksums_to_json:
         inject_checksums_to_json(ordered_ecs, options.inject_checksums_to_json)
@@ -519,13 +567,18 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if not testing or (testing and do_build):
         exit_on_failure = not (options.dump_test_report or options.upload_test_report)
 
-        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)
+        with rich_live_cm():
+            ecs_with_res = build_and_install_software(ordered_ecs, init_session_state,
+                                                      exit_on_failure=exit_on_failure)
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 
     correct_builds_cnt = len([ec_res for (_, ec_res) in ecs_with_res if ec_res.get('success', False)])
     overall_success = correct_builds_cnt == len(ordered_ecs)
-    success_msg = "Build succeeded for %s out of %s" % (correct_builds_cnt, len(ordered_ecs))
+    success_msg = "Build succeeded "
+    if build_option('ignore_test_failure'):
+        success_msg += "(with --ignore-test-failure) "
+    success_msg += "for %s out of %s" % (correct_builds_cnt, len(ordered_ecs))
 
     repo = init_repository(get_repository(), get_repositorypath())
     repo.cleanup()

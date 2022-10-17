@@ -1,5 +1,5 @@
 #
-# Copyright 2019-2021 Ghent University
+# Copyright 2019-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,7 +33,9 @@ Implementations for Python 2.
 import ConfigParser as configparser  # noqa
 import json
 import subprocess
+import time
 import urllib2 as std_urllib  # noqa
+from collections import Mapping, OrderedDict  # noqa
 from HTMLParser import HTMLParser  # noqa
 from string import letters as ascii_letters  # noqa
 from string import lowercase as ascii_lowercase  # noqa
@@ -41,12 +43,6 @@ from StringIO import StringIO  # noqa
 from urllib import urlencode  # noqa
 from urllib2 import HTTPError, HTTPSHandler, Request, URLError, build_opener, urlopen  # noqa
 
-try:
-    # Python 2.7
-    from collections import OrderedDict  # noqa
-except ImportError:
-    # only needed to keep supporting Python 2.6
-    from easybuild.tools.ordereddict import OrderedDict  # noqa
 
 # reload function (built-in in Python 2)
 reload = reload
@@ -60,7 +56,25 @@ json_loads = json.loads
 
 def subprocess_popen_text(cmd, **kwargs):
     """Call subprocess.Popen with specified named arguments."""
-    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+    kwargs.setdefault('stderr', subprocess.PIPE)
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE, **kwargs)
+
+
+def subprocess_terminate(proc, timeout):
+    """Terminate the subprocess if it hasn't finished after the given timeout"""
+    res = None
+    for pipe in (proc.stdout, proc.stderr, proc.stdin):
+        if pipe:
+            pipe.close()
+    while timeout > 0:
+        res = proc.poll()
+        if res is not None:
+            break
+        delay = min(timeout, 0.1)
+        time.sleep(delay)
+        timeout -= delay
+    if res is None:
+        proc.terminate()
 
 
 def raise_with_traceback(exception_class, message, traceback):

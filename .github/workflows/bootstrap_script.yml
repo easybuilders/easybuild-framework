@@ -3,10 +3,10 @@ name: test EasyBuild bootstrap script
 on: [push, pull_request]
 jobs:
   setup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
         lmod7: Lmod-7.8.22
-        lmod8: Lmod-8.4.27
+        lmod8: Lmod-8.7.6
         modulesTcl: modules-tcl-1.147
         modules3: modules-3.2.10
         modules4: modules-4.1.4
@@ -14,7 +14,7 @@ jobs:
       - run: "true"
   build:
     needs: setup
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         # Don't run for Python 3.8, 3.9 , people should just use `pip install easybuild`
@@ -54,21 +54,21 @@ jobs:
             lc_all: C
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: ${{matrix.python}}
         architecture: x64
 
     - name: install OS & Python packages
       run: |
-        # disable apt-get update, we don't really need it,
+        # disable apt update, we don't really need it,
         # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
-        # sudo apt-get update
+        # sudo apt update
         # for modules tool
-        sudo apt-get install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
+        sudo apt install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
         # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
         # needed for Ubuntu 18.04, but not for Ubuntu 20.04, so skipping symlinking if posix.so already exists
         if [ ! -e /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so ] ; then
@@ -107,12 +107,14 @@ jobs:
           EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
           EB_BOOTSTRAP_SHA256SUM=$(sha256sum easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
           EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-          EB_BOOTSTRAP_EXPECTED="20210106.01 c2d93de0dd91123eb4f51cfc16d1f5efb80f1d238b3d6cd100994086887a1ae0"
+          EB_BOOTSTRAP_EXPECTED="20210715.01 0ffdc17ed7eacf78369c9cd6743728f36e61bb8bf5c1bdc1e23cf2040b1ce301"
           test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
 
           # test bootstrap script
           export PREFIX=/tmp/$USER/$GITHUB_SHA/eb_bootstrap
+          export EASYBUILD_BOOTSTRAP_DEPRECATED=1
           python easybuild/scripts/bootstrap_eb.py $PREFIX
+          unset EASYBUILD_BOOTSTRAP_DEPRECATED
           # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
           unset PYTHONPATH
           # simple sanity check on bootstrapped EasyBuild module

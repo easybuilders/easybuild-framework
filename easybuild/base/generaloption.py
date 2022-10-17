@@ -1,5 +1,5 @@
 #
-# Copyright 2011-2021 Ghent University
+# Copyright 2011-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -43,7 +43,7 @@ from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python 
 
 from easybuild.base.fancylogger import getLogger, setroot, setLogLevel, getDetailsLogLevels
 from easybuild.base.optcomplete import autocomplete, CompleterOption
-from easybuild.tools.py2vs3 import StringIO, configparser, string_type
+from easybuild.tools.py2vs3 import StringIO, configparser, string_type, subprocess_popen_text
 from easybuild.tools.utilities import mk_rst_table, nub, shell_quote
 
 try:
@@ -80,7 +80,9 @@ def set_columns(cols=None):
         stty = '/usr/bin/stty'
         if os.path.exists(stty):
             try:
-                cols = int(os.popen('%s size 2>/dev/null' % stty).read().strip().split(' ')[1])
+                with open(os.devnull, 'w') as devnull:
+                    proc = subprocess_popen_text([stty, "size"], stderr=devnull)
+                    cols = int(proc.communicate()[0].strip().split(' ')[1])
             except (AttributeError, IndexError, OSError, ValueError):
                 # do nothing
                 pass

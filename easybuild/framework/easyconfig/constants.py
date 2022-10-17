@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,7 +34,8 @@ import os
 import platform
 
 from easybuild.base import fancylogger
-from easybuild.tools.systemtools import get_os_name, get_os_type, get_os_version
+from easybuild.tools.build_log import print_warning
+from easybuild.tools.systemtools import KNOWN_ARCH_CONSTANTS, get_os_name, get_os_type, get_os_version
 
 
 _log = fancylogger.getLogger('easyconfig.constants', fname=False)
@@ -42,9 +43,26 @@ _log = fancylogger.getLogger('easyconfig.constants', fname=False)
 
 EXTERNAL_MODULE_MARKER = 'EXTERNAL_MODULE'
 
+
+def _get_arch_constant():
+    """
+    Get value for ARCH constant.
+    """
+    arch = platform.uname()[4]
+
+    # macOS on Arm produces 'arm64' rather than 'aarch64'
+    if arch == 'arm64':
+        arch = 'aarch64'
+
+    if arch not in KNOWN_ARCH_CONSTANTS:
+        print_warning("Using unknown value for ARCH constant: %s", arch)
+
+    return arch
+
+
 # constants that can be used in easyconfig
 EASYCONFIG_CONSTANTS = {
-    'ARCH': (platform.uname()[4], "CPU architecture of current system (aarch64, x86_64, ppc64le, ...)"),
+    'ARCH': (_get_arch_constant(), "CPU architecture of current system (aarch64, x86_64, ppc64le, ...)"),
     'EXTERNAL_MODULE': (EXTERNAL_MODULE_MARKER, "External module marker"),
     'HOME': (os.path.expanduser('~'), "Home directory ($HOME)"),
     'OS_TYPE': (get_os_type(), "System type (e.g. 'Linux' or 'Darwin')"),

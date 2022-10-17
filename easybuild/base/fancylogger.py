@@ -1,5 +1,5 @@
 #
-# Copyright 2011-2021 Ghent University
+# Copyright 2011-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -380,9 +380,9 @@ class FancyLogger(logging.getLoggerClass()):
 
         def write_and_flush_stream(hdlr, data=None):
             """Write to stream and flush the handler"""
-            if (not hasattr(hdlr, 'stream')) or hdlr.stream is None:
+            if getattr(hdlr, 'stream', None) is None:
                 # no stream or not initialised.
-                raise("write_and_flush_stream failed. No active stream attribute.")
+                raise ValueError("write_and_flush_stream failed. No active stream attribute.")
             if data is not None:
                 hdlr.stream.write(data)
                 hdlr.flush()

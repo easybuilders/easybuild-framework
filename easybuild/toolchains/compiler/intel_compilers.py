@@ -1,5 +1,5 @@
 ##
-# Copyright 2021-2021 Ghent University
+# Copyright 2021-2022 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,6 +29,8 @@ Support for Intel compilers (icc, ifort) as toolchain compilers, version 2021.x 
 """
 import os
 
+from distutils.version import LooseVersion
+
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
 from easybuild.tools.toolchain.compiler import Compiler
 
@@ -39,6 +41,8 @@ class IntelCompilers(IntelIccIfort):
     """
 
     COMPILER_MODULE_NAME = ['intel-compilers']
+    COMPILER_UNIQUE_OPTS = dict(IntelIccIfort.COMPILER_UNIQUE_OPTS,
+                                oneapi=(False, "Use oneAPI compilers icx/icpx/ifx instead of classic compilers"))
 
     def _set_compiler_vars(self):
         """Intel compilers-specific adjustments after setting compiler variables."""
@@ -47,17 +51,34 @@ class IntelCompilers(IntelIccIfort):
         Compiler._set_compiler_vars(self)
 
         root = self.get_software_root(self.COMPILER_MODULE_NAME)[0]
+        version = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
 
+        libbase = os.path.join('compiler', version, 'linux')
         libpaths = [
-            'lib',
-            os.path.join('lib', 'x64'),
-            os.path.join('compiler', 'lib', 'intel64_lin'),
+            os.path.join(libbase, 'compiler', 'lib', 'intel64'),
         ]
 
         self.variables.append_subdirs("LDFLAGS", root, subdirs=libpaths)
 
     def set_variables(self):
         """Set the variables."""
+
+        if self.options.get('oneapi', False):
+            self.COMPILER_CXX = 'icpx'
+            self.COMPILER_CC = 'icx'
+            self.COMPILER_F77 = 'ifx'
+            self.COMPILER_F90 = 'ifx'
+            self.COMPILER_FC = 'ifx'
+            # fp-model source is not supported by icx but is equivalent to precise
+            self.options.options_map['defaultprec'] = ['fp-speculation=safe', 'fp-model precise']
+            if LooseVersion(self.get_software_version(self.COMPILER_MODULE_NAME)[0]) >= LooseVersion('2022'):
+                self.options.options_map['defaultprec'].insert(0, 'ftz')
+            # icx doesn't like -fp-model fast=1; fp-model fast is equivalent
+            self.options.options_map['loose'] = ['fp-model fast']
+            # fp-model fast=2 gives "warning: overriding '-ffp-model=fast=2' option with '-ffp-model=fast'"
+            self.options.options_map['veryloose'] = ['fp-model fast']
+            # recommended in porting guide
+            self.options.options_map['openmp'] = ['fiopenmp']
 
         # skip IntelIccIfort.set_variables (no longer relevant for recent versions)
         Compiler.set_variables(self)
