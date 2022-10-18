@@ -298,7 +298,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
     for key in list(tweaks):
         val = tweaks[key]
 
-        if key in ['dependencies', 'builddependencies']:
+        if key in ['dependency', 'builddependency']:
             import ast
             new_or_updated_deps = []
             for dep in tweaks[key]:
@@ -306,7 +306,8 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
 
             # use non-greedy matching for list value using '*?' to avoid including other parameters in match,
             # and a lookahead assertion (?=...) so next line is either another parameter definition or a blank line
-            regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>\[(.|\n)*?\])\s*$(?=(\n^\w+\s*=.*|\s*)$)" % key, re.M)
+            param = key.replace('y','ies')
+            regexp = re.compile(r"^(?P<param>\s*%s)\s*=\s*(?P<val>\[(.|\n)*?\])\s*$(?=(\n^\w+\s*=.*|\s*)$)" % param, re.M)
             res = regexp.search(ectxt)
             if res:
                 current_deps = ast.literal_eval(str(res.group('val')))
@@ -319,16 +320,16 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
 
                     newval = [new_dep if new_dep[0] == curr_dep[0] else curr_dep for curr_dep in newval]
                     if new_dep not in newval:
-                        _log.debug("Adding dependency %s to %s" % (str(new_dep), key))
+                        _log.debug("Adding dependency %s to %s" % (str(new_dep), param))
                         newval += [new_dep]
                     else:
-                        _log.debug("Updated %s dependency in %s to %s" % (new_dep[0], key, str(new_dep)))
+                        _log.debug("Updated %s dependency in %s to %s" % (new_dep[0], param, str(new_dep)))
 
-                    ectxt = regexp.sub("%s = %s" % (res.group('key'), str(newval)), ectxt)
-                    _log.info("Tweaked %s list to '%s'" % (key, str(newval)))
+                    ectxt = regexp.sub("%s = %s" % (res.group('param'), str(newval)), ectxt)
+                    _log.info("Tweaked %s list to '%s'" % (param, str(newval)))
             else:
-                ectxt += "%s = %s" % (key, str(new_or_updated_deps))
-                _log.info("Tweaked %s list to '%s'" % (key, str(new_or_updated_deps)))
+                ectxt += "%s = %s" % (param, str(new_or_updated_deps))
+                _log.info("Tweaked %s list to '%s'" % (param, str(new_or_updated_deps)))
 
         elif isinstance(val, list):
             # use non-greedy matching for list value using '*?' to avoid including other parameters in match,
@@ -361,10 +362,10 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
             tweaks.pop(key)
 
     # these are already handled
-    if 'dependencies' in list(tweaks):
-        tweaks.pop('dependencies')
-    if 'builddependencies' in list(tweaks):
-        tweaks.pop('builddependencies')
+    if 'dependency' in list(tweaks):
+        tweaks.pop('dependency')
+    if 'builddependency' in list(tweaks):
+        tweaks.pop('builddependency')
 
     # add parameters or replace existing ones
     special_values = {
