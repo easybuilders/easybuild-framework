@@ -306,7 +306,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
 
             # use non-greedy matching for list value using '*?' to avoid including other parameters in match,
             # and a lookahead assertion (?=...) so next line is either another parameter definition or a blank line
-            param = key.replace('y','ies')
+            param = key.replace('y', 'ies')
             regexp = re.compile(r"^(?P<param>\s*%s)\s*=\s*(?P<val>\[(.|\n)*?\])\s*$(?=(\n^\w+\s*=.*|\s*)$)" % param,
                                 re.M)
             res = regexp.search(ectxt)
