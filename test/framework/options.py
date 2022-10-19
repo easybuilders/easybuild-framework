@@ -1672,7 +1672,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # hwloc was updated to 1.11.8, thanks to available easyconfig
             r"^ \* \[x\] .*/test_ecs/h/hwloc/hwloc-1.11.8-GCC-6.4.0-2.28.eb \(module: hwloc/1.11.8-GCC-6.4.0-2.28\)$",
             # FFTW was added, thanks to available easyconfig
-            r"^ \* \[ \] .*/test_ecs/f/FFTW/FFTW-3.3.7-GCC-6.4.0-2.28-serial.eb \(module: FFTW/3.3.7-GCC-6.4.0-2.28-serial\)$",
+            r"^ \* \[ \] .*/test_ecs/f/FFTW/FFTW-3.3.7-GCC-6.4.0-2.28-serial.eb " +
+            r"\(module: FFTW/3.3.7-GCC-6.4.0-2.28-serial\)$",
             # also generated easyconfig for test/1.2.3 with expected toolchain
             r"^ \* \[ \] .*/tweaked_easyconfigs/test-1.2.3-GCC-6.4.0-2.28.eb \(module: test/1.2.3-GCC-6.4.0-2.28\)$",
         ]
@@ -1711,7 +1712,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # hwloc was updated to 1.11.8, thanks to available easyconfig
             r"^ \* \[x\] .*/test_ecs/h/hwloc/hwloc-1.11.8-GCC-6.4.0-2.28.eb \(module: hwloc/1.11.8-GCC-6.4.0-2.28\)$",
             # FFTW was added, thanks to available easyconfig
-            r"^ \* \[ \] .*/test_ecs/f/FFTW/FFTW-3.3.7-GCC-6.4.0-2.28-serial.eb \(module: FFTW/3.3.7-GCC-6.4.0-2.28-serial\)$",
+            r"^ \* \[ \] .*/test_ecs/f/FFTW/FFTW-3.3.7-GCC-6.4.0-2.28-serial.eb " +
+            r"\(module: FFTW/3.3.7-GCC-6.4.0-2.28-serial\)$",
             # also generated easyconfig for test/1.2.3 with expected toolchain
             r"^ \* \[ \] .*/tweaked_easyconfigs/test-1.2.3-GCC-6.4.0-2.28.eb \(module: test/1.2.3-GCC-6.4.0-2.28\)$",
         ]
