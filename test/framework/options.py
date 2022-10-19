@@ -1636,6 +1636,89 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(outtxt), "Pattern '%s' should be found in: %s" % (regex.pattern, outtxt))
 
+    def test_try_dependency(self):
+        """Test for --try-dependency and --try-builddependency."""
+
+        # first, construct a toy easyconfig that is well suited for testing (multiple deps)
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            '',
+            "name = 'test'",
+            "version = '1.2.3'",
+            ''
+            "homepage = 'https://test.org'",
+            "description = 'this is just a test'",
+            '',
+            "toolchain = {'name': 'GCC', 'version': '4.9.3-2.26'}",
+            '',
+            "dependencies = [('hwloc', '1.6.2')]",
+        ])
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ectxt)
+
+        args = [
+            test_ec,
+            '--try-toolchain-version=6.4.0-2.28',
+            "--try-dependency=('hwloc', '1.11.8')",
+            "--try-dependency=('FFTW', '3.3.7', '-serial')",
+            "--disable-map-toolchains",
+            '-D',
+        ]
+
+        outtxt = self.eb_main(args, raise_error=True, do_build=True)
+        patterns = [
+            # toolchain got updated
+            r"^ \* \[x\] .*/test_ecs/g/GCC/GCC-6.4.0-2.28.eb \(module: GCC/6.4.0-2.28\)$",
+            # hwloc was updated to 1.11.8, thanks to available easyconfig
+            r"^ \* \[x\] .*/test_ecs/h/hwloc/hwloc-1.11.8-GCC-6.4.0-2.28.eb \(module: hwloc/1.11.8-GCC-6.4.0-2.28\)$",
+            # FFTW was added, thanks to available easyconfig
+            r"^ \* \[ \] .*/test_ecs/f/FFTW/FFTW-3.3.7-GCC-6.4.0-2.28-serial.eb \(module: FFTW/3.3.7-GCC-6.4.0-2.28-serial\)$",
+            # also generated easyconfig for test/1.2.3 with expected toolchain
+            r"^ \* \[ \] .*/tweaked_easyconfigs/test-1.2.3-GCC-6.4.0-2.28.eb \(module: test/1.2.3-GCC-6.4.0-2.28\)$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(outtxt), "Pattern '%s' should be found in: %s" % (regex.pattern, outtxt))
+
+        # construct another toy easyconfig that is well suited for testing builddependency
+        test_ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            '',
+            "name = 'test'",
+            "version = '1.2.3'",
+            ''
+            "homepage = 'https://test.org'",
+            "description = 'this is just a test'",
+            '',
+            "toolchain = {'name': 'GCC', 'version': '4.9.3-2.26'}",
+            '',
+            "builddependencies = [('hwloc', '1.6.2')]",
+        ])
+        write_file(test_ec, test_ectxt)
+        args = [
+            test_ec,
+            '--try-toolchain-version=6.4.0-2.28',
+            "--try-builddependency=('hwloc', '1.11.8')",
+            "--try-builddependency=('FFTW', '3.3.7', '-serial')",
+            "--disable-map-toolchains",
+            '-D',
+        ]
+        outtxt = self.eb_main(args, raise_error=True, do_build=True)
+
+        patterns = [
+            # toolchain got updated
+            r"^ \* \[x\] .*/test_ecs/g/GCC/GCC-6.4.0-2.28.eb \(module: GCC/6.4.0-2.28\)$",
+            # hwloc was updated to 1.11.8, thanks to available easyconfig
+            r"^ \* \[x\] .*/test_ecs/h/hwloc/hwloc-1.11.8-GCC-6.4.0-2.28.eb \(module: hwloc/1.11.8-GCC-6.4.0-2.28\)$",
+            # FFTW was added, thanks to available easyconfig
+            r"^ \* \[ \] .*/test_ecs/f/FFTW/FFTW-3.3.7-GCC-6.4.0-2.28-serial.eb \(module: FFTW/3.3.7-GCC-6.4.0-2.28-serial\)$",
+            # also generated easyconfig for test/1.2.3 with expected toolchain
+            r"^ \* \[ \] .*/tweaked_easyconfigs/test-1.2.3-GCC-6.4.0-2.28.eb \(module: test/1.2.3-GCC-6.4.0-2.28\)$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(outtxt), "Pattern '%s' should be found in: %s" % (regex.pattern, outtxt))
+
     def test_dry_run_hierarchical(self):
         """Test dry run using a hierarchical module naming scheme."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
