@@ -263,7 +263,7 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
 
         # Reconfigure
         eb_go, cfg_settings = set_up_configuration(args=new_args, logfile=logfile, testing=testing,
-                                                   reconfigure=True)
+                                                   reconfigure=True, silent=True)
         # Since we reconfigure, we should also reload hooks and get current module tools
         hooks = load_hooks(eb_go.options.hooks)
         modtool = modules_tool(testing=testing)
