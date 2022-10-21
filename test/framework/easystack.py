@@ -128,6 +128,14 @@ class EasyStackTest(EnhancedTestCase):
         error_pattern += r"instead found keys: .*, invalid_key"
         self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
 
+    def test_missing_easyconfigs_key(self):
+        """Test that EasyStack file that doesn't contain an EasyConfigs key will fail with sane error message"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_missing_easyconfigs_key.yaml')
+
+        error_pattern = r"Top-level key 'easyconfigs' missing in easystack file %s" % test_easystack
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+
     def test_parse_fail(self):
         """Test for clean error when easystack file fails to parse."""
         test_yml = os.path.join(self.test_prefix, 'test.yml')
