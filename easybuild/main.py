@@ -238,24 +238,24 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     # Loop over each item in the EasyStack file, each time updating the config
     # This is because each item in an EasyStack file can have options associated with it
     do_cleanup = True
-    for easyconfig_opt_tuple in easyconfig_opt_tuples:
-        _log.debug("Starting build for %s" % easyconfig_opt_tuple[0])
+    for (path, ec_opts) in easyconfig_opt_tuples:
+        _log.debug("Starting build for %s" % path)
         # Whipe easyconfig caches
         easyconfig._easyconfigs_cache.clear()
         easyconfig._easyconfig_files_cache.clear()
 
         # If EasyConfig specific arguments were supplied in EasyStack file
         # merge arguments with original command line args
-        if easyconfig_opt_tuple[1] is not None:
+        if ec_opts is not None:
             _log.debug("EasyConfig specific options have been specified for "
-                       "%s in the EasyStack file: %s" % (easyconfig_opt_tuple[0], easyconfig_opt_tuple[1]))
+                       "%s in the EasyStack file: %s", path, ec_opts)
             if args is None:
                 args = sys.argv[1:]
-            ec_args = opts_dict_to_eb_opts(easyconfig_opt_tuple[1])
+            ec_args = opts_dict_to_eb_opts(ec_opts)
             # By appending ec_args to args, ec_args take priority
             new_args = args + ec_args
             _log.info("Argument list for %s after merging command line arguments with EasyConfig specific "
-                      "options from the EasyStack file: %s" % (easyconfig_opt_tuple[0], new_args))
+                      "options from the EasyStack file: %s", path, new_args)
         else:
             # If no EasyConfig specific arguments are defined, use original args.
             # That way,set_up_configuration restores the original config
@@ -269,7 +269,7 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
         modtool = modules_tool(testing=testing)
 
         # Process actual item in the EasyStack file
-        do_cleanup &= process_eb_args([easyconfig_opt_tuple[0]], eb_go, cfg_settings, modtool, testing, init_session_state,
+        do_cleanup &= process_eb_args([path], eb_go, cfg_settings, modtool, testing, init_session_state,
                                       hooks, do_build)
 
     return do_cleanup
