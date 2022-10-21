@@ -77,15 +77,15 @@ class EasyStackTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_basic_dict.yaml')
 
-        ec_fns, opts = parse_easystack(test_easystack)
+        easystack = parse_easystack(test_easystack)
         expected = [
             'binutils-2.25-GCCcore-4.9.3.eb',
             'binutils-2.26-GCCcore-4.9.3.eb',
             'foss-2018a.eb',
             'toy-0.0-gompi-2018a-test.eb',
         ]
-        self.assertEqual(sorted(ec_fns), sorted(expected))
-        self.assertEqual(opts, {})
+        self.assertEqual(sorted([x[0] for x in easystack.ec_opt_tuples]), sorted(expected))
+        self.assertTrue(all(x[1] is None for x in easystack.ec_opt_tuples))
 
 
     def test_easystack_easyconfigs_with_eb_ext(self):
