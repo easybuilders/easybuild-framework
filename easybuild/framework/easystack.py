@@ -171,7 +171,7 @@ class EasyStackParser(object):
                     # make sure only 'options' key is used (for now)
                     if any(x != 'options' for x in ec_dict):
                         msg = "Found one or more invalid keys for %s (only 'options' supported): %s"
-                        raise EasyBuildError(msg, ', '.join(ec_dict.keys()))
+                        raise EasyBuildError(msg, easyconf_name, ', '.join(ec_dict.keys()))
 
                     opts = ec_dict.get('options')
                     easystack.ec_opt_tuples.append((easyconf_name_with_eb, opts))
