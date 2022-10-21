@@ -5699,13 +5699,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue("'checksums': ['d5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838']," in ec_txt)
 
         # single-line checksum entry for bar source tarball
-        regex = re.compile("^[ ]*'%s',  # bar-0.0.tar.gz$" % bar_tar_gz_sha256, re.M)
+        regex = re.compile("^[ ]*{'bar-0.0.tar.gz': '%s'},$" % bar_tar_gz_sha256, re.M)
         self.assertTrue(regex.search(ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, ec_txt))
 
         # no single-line checksum entry for bar patches, since line would be > 120 chars
         bar_patch_patterns = [
-            r"^[ ]*# %s\n[ ]*'%s',$" % (bar_patch, bar_patch_sha256),
-            r"^[ ]*# %s\n[ ]*'%s',$" % (bar_patch_bis, bar_patch_bis_sha256),
+            r"^[ ]*{'%s':\n[ ]*'%s'},$" % (bar_patch, bar_patch_sha256),
+            r"^[ ]*{'%s':\n[ ]*'%s'},$" % (bar_patch_bis, bar_patch_bis_sha256),
         ]
         for pattern in bar_patch_patterns:
             regex = re.compile(pattern, re.M)
@@ -5736,15 +5736,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ec = EasyConfigParser(test_ec).get_config_dict()
         self.assertEqual(ec['sources'], ['%(name)s-%(version)s.tar.gz'])
         self.assertEqual(ec['patches'], ['toy-0.0_fix-silly-typo-in-printf-statement.patch'])
-        self.assertEqual(ec['checksums'], [toy_source_sha256, toy_patch_sha256])
+        self.assertEqual(ec['checksums'], [{'toy-0.0.tar.gz': toy_source_sha256},
+                                           {'toy-0.0_fix-silly-typo-in-printf-statement.patch': toy_patch_sha256}])
         self.assertEqual(ec['exts_default_options'], {'source_urls': ['http://example.com/%(name)s']})
         self.assertEqual(ec['exts_list'][0], 'ls')
         self.assertEqual(ec['exts_list'][1], ('bar', '0.0', {
             'buildopts': " && gcc bar.c -o anotherbar",
             'checksums': [
-                bar_tar_gz_sha256,
-                bar_patch_sha256,
-                bar_patch_bis_sha256,
+                {'bar-0.0.tar.gz': bar_tar_gz_sha256},
+                {'bar-0.0_fix-silly-typo-in-printf-statement.patch': bar_patch_sha256},
+                {'bar-0.0_fix-very-silly-typo-in-printf-statement.patch': bar_patch_bis_sha256},
             ],
             'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
             'patches': [bar_patch, bar_patch_bis],
@@ -5770,13 +5771,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # if any checksums are present already, it doesn't matter if they're wrong (since they will be replaced)
         ectxt = read_file(test_ec)
         for chksum in ec['checksums'] + [c for e in ec['exts_list'][1:] for c in e[2]['checksums']]:
+            if isinstance(chksum, dict):
+                chksum = list(chksum.values())[0]
             ectxt = ectxt.replace(chksum, chksum[::-1])
         write_file(test_ec, ectxt)
 
         stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
 
         ec = EasyConfigParser(test_ec).get_config_dict()
-        self.assertEqual(ec['checksums'], [toy_source_sha256, toy_patch_sha256])
+        self.assertEqual(ec['checksums'], [{'toy-0.0.tar.gz': toy_source_sha256},
+                                           {'toy-0.0_fix-silly-typo-in-printf-statement.patch': toy_patch_sha256}])
 
         ec_backups = glob.glob(test_ec + '.bak_*')
         self.assertEqual(len(ec_backups), 1)
@@ -5819,9 +5823,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # no parse errors for updated easyconfig file...
         ec = EasyConfigParser(test_ec).get_config_dict()
         checksums = [
-            'be662daa971a640e40be5c804d9d7d10',
-            'a99f2a72cee1689a2f7e3ace0356efb1',
-            '3b0787b3bf36603ae1398c4a49097893',
+            {'toy-0.0.tar.gz': 'be662daa971a640e40be5c804d9d7d10'},
+            {'toy-0.0_fix-silly-typo-in-printf-statement.patch': 'a99f2a72cee1689a2f7e3ace0356efb1'},
+            {'toy-extra.txt': '3b0787b3bf36603ae1398c4a49097893'},
         ]
         self.assertEqual(ec['checksums'], checksums)
 
@@ -5843,9 +5847,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         ec = EasyConfigParser(test_ec).get_config_dict()
         expected_checksums = [
-            '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
-            '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487',
-            '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'
+            {'toy-0.0.tar.gz': '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'},
+            {'toy-0.0_fix-silly-typo-in-printf-statement.patch':
+             '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'},
+            {'toy-extra.txt': '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'}
         ]
         self.assertEqual(ec['checksums'], expected_checksums)
 

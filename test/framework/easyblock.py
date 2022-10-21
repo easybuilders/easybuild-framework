@@ -871,7 +871,7 @@ class EasyBlockTest(EnhancedTestCase):
             'description = "test easyconfig"',
             "toolchain = {'name': 'foss', 'version': '2018a'}",
             'dependencies = [',
-            "   ('GCC', '6.4.0-2.28', '', True),"
+            "   ('GCC', '6.4.0-2.28', '', SYSTEM),"
             "   ('hwloc', '1.11.8', '', ('GCC', '6.4.0-2.28')),",
             "   ('OpenMPI', '2.1.2', '', ('GCC', '6.4.0-2.28')),"
             ']',
@@ -1684,7 +1684,11 @@ class EasyBlockTest(EnhancedTestCase):
         mkdir(tmpdir_subdir, parents=True)
         del os.environ['EASYBUILD_SOURCEPATH']  # defined by setUp
 
-        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec = os.path.join(tmpdir, 'ecs', 'test.eb')
+        copy_file(toy_ec, test_ec)
+
+        ec = process_easyconfig(test_ec)[0]
         eb = EasyBlock(ec['ec'])
 
         # 'downloading' a file to (first) sourcepath works
@@ -1696,6 +1700,15 @@ class EasyBlockTest(EnhancedTestCase):
         # 'downloading' a file to (first) alternative sourcepath works
         res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
         self.assertEqual(res, os.path.join(tmpdir, 'a', 'alt_toy', toy_tarball))
+
+        # make sure that directory in which easyconfig file is located is *ignored* when alt_location is used
+        dummy_toy_tar_gz = os.path.join(os.path.dirname(test_ec), 'toy-0.0.tar.gz')
+        write_file(dummy_toy_tar_gz, '')
+        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
+        self.assertEqual(res, dummy_toy_tar_gz)
+        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
+        self.assertEqual(res, os.path.join(tmpdir, 'a', 'alt_toy', toy_tarball))
+        remove_file(dummy_toy_tar_gz)
 
         # finding a file in sourcepath works
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (sandbox_sources, tmpdir)])

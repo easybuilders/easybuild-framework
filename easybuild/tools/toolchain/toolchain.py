@@ -988,6 +988,9 @@ class Toolchain(object):
 
         # create wrappers
         for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold', 'ld.bfd']):
+            # Not all toolchains have fortran compilers (e.g. Clang), in which case they are 'None'
+            if cmd is None:
+                continue
             orig_cmd = which(cmd)
 
             if orig_cmd:
