@@ -124,8 +124,10 @@ class EasyStackParser(object):
                     "Found %s value for '%s' in %s, should be list." % (datatype, key, filepath),
                     "Make sure you use '-' to create list items under '%s', for example:" % key,
                     "    easyconfigs:",
-                    "        - example-1.0.eb:",
-                    "            ...",
+                    "        - example-1.0.eb",
+                    "        - example-2.0.eb:",
+                    "            options:"
+                    "              ...",
                 ])
                 raise EasyBuildError(msg)
             elif not isinstance(easystack_data, list):
@@ -165,6 +167,12 @@ class EasyStackParser(object):
                         easyconf_name_with_eb = easyconf_name
                     # Get options
                     ec_dict = easyconfig[easyconf_name] or {}
+
+                    # make sure only 'options' key is used (for now)
+                    if any(x != 'options' for x in ec_dict):
+                        msg = "Found one or more invalid keys for %s (only 'options' supported): %s"
+                        raise EasyBuildError(msg, ', '.join(ec_dict.keys()))
+
                     opts = ec_dict.get('options')
                     easystack.ec_opt_tuples.append((easyconf_name_with_eb, opts))
                 else:
