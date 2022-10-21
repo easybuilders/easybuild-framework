@@ -86,6 +86,25 @@ class EasyStackTest(EnhancedTestCase):
         self.assertEqual(sorted(ec_fns), sorted(expected))
         self.assertEqual(opts, {})
 
+    def test_easystack_easyconfigs_dict(self):
+        """Test for easystack file where easyconfigs item is parsed as a dict, because easyconfig names are not
+        prefixed by dashes"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_dict.yaml')
+
+        error_pattern = r"Found dict value for 'easyconfigs' in .* should be list.\nMake sure you use '-' to create .*"
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+
+    def test_easystack_easyconfigs_str(self):
+        """Test for easystack file where easyconfigs item is parsed as a dict, because easyconfig names are not
+        prefixed by dashes"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_str.yaml')
+
+        error_pattern = r"Found str value for 'easyconfigs' in .* should be list.\nMake sure you use '-' to create .*"
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+
+
     def test_easystack_easyconfig_opts(self):
         """Test an easystack file using the 'easyconfigs' key, with additonal options for some easyconfigs"""
         topdir = os.path.dirname(os.path.abspath(__file__))

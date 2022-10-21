@@ -112,9 +112,10 @@ class EasyStackParser(object):
         key = 'easyconfigs'
         if key in easystack_raw:
             easystack_data = easystack_raw[key]
-            if isinstance(easystack_data, dict):
+            if isinstance(easystack_data, dict) or isinstance(easystack_data, str):
+                datatype = 'dict' if isinstance(easystack_data, dict) else 'str'
                 msg = '\n'.join([
-                    "Found dict value for '%s' in %s, should be list." % (key, filepath),
+                    "Found %s value for '%s' in %s, should be list." % (datatype, key, filepath),
                     "Make sure you use '-' to create list items under '%s', for example:" % key,
                     "    easyconfigs:",
                     "        - example-1.0.eb:",
