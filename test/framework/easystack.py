@@ -96,7 +96,6 @@ class EasyStackTest(EnhancedTestCase):
         error_pattern = r"Found str value for 'easyconfigs' in .* should be list.\nMake sure you use '-' to create .*"
         self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
 
-
     def test_easystack_easyconfig_opts(self):
         """Test an easystack file using the 'easyconfigs' key, with additonal options for some easyconfigs"""
         topdir = os.path.dirname(os.path.abspath(__file__))

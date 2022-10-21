@@ -35,7 +35,6 @@ import pprint
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import only_if_module_is_available
 try:
