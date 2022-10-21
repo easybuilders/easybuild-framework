@@ -683,6 +683,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     else:
         do_cleanup = process_eb_args(orig_paths, eb_go, cfg_settings, modtool, testing, init_session_state,
                                      hooks, do_build)
+
     # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
     if do_cleanup:

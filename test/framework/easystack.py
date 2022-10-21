@@ -57,25 +57,16 @@ class EasyStackTest(EnhancedTestCase):
         super(EasyStackTest, self).tearDown()
 
     def test_easystack_basic(self):
-        """Test for basic easystack file."""
+        """Test for basic easystack files."""
         topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_basic.yaml')
 
-        ec_fns, opts = parse_easystack(test_easystack)
-        expected = [
-            'binutils-2.25-GCCcore-4.9.3.eb',
-            'binutils-2.26-GCCcore-4.9.3.eb',
-            'foss-2018a.eb',
-            'toy-0.0-gompi-2018a-test.eb',
+        test_easystacks = [
+            'test_easystack_basic.yaml',
+            'test_easystack_basic_dict.yaml',
+            'test_easystack_easyconfigs_with_eb_ext.yaml',
         ]
-        self.assertEqual(sorted(ec_fns), sorted(expected))
-        self.assertEqual(opts, {})
-
-
-    def test_easystack_basic_dict(self):
-        """Test for basic easystack file where easyconfig names end with ':'"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_basic_dict.yaml')
+        for fn in test_easystacks:
+            test_easystack = os.path.join(topdir, 'easystacks', fn)
 
         easystack = parse_easystack(test_easystack)
         expected = [
@@ -86,22 +77,6 @@ class EasyStackTest(EnhancedTestCase):
         ]
         self.assertEqual(sorted([x[0] for x in easystack.ec_opt_tuples]), sorted(expected))
         self.assertTrue(all(x[1] is None for x in easystack.ec_opt_tuples))
-
-
-    def test_easystack_easyconfigs_with_eb_ext(self):
-        """Test for easystack file using 'easyconfigs' key, where eb extension is included in the easystack file"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_with_eb_ext.yaml')
-
-        ec_fns, opts = parse_easystack(test_easystack)
-        expected = [
-            'binutils-2.25-GCCcore-4.9.3.eb',
-            'binutils-2.26-GCCcore-4.9.3.eb',
-            'foss-2018a.eb',
-            'toy-0.0-gompi-2018a-test.eb',
-        ]
-        self.assertEqual(sorted(ec_fns), sorted(expected))
-        self.assertEqual(opts, {})
 
     def test_easystack_easyconfigs_dict(self):
         """Test for easystack file where easyconfigs item is parsed as a dict, because easyconfig names are not
@@ -127,19 +102,14 @@ class EasyStackTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_opts.yaml')
 
-        ec_fns, opts = parse_easystack(test_easystack)
-        expected = [
-            'binutils-2.25-GCCcore-4.9.3.eb',
-            'binutils-2.26-GCCcore-4.9.3.eb',
-            'foss-2018a.eb',
-            'toy-0.0-gompi-2018a-test.eb',
+        easystack = parse_easystack(test_easystack)
+        expected_tuples = [
+            ('binutils-2.25-GCCcore-4.9.3.eb', {'debug': True, 'from-pr': 12345}),
+            ('binutils-2.26-GCCcore-4.9.3.eb', None),
+            ('foss-2018a.eb', {'enforce-checksums': True, 'robot': True}),
+            ('toy-0.0-gompi-2018a-test.eb', None),
         ]
-        expected_opts = {
-            'binutils-2.25-GCCcore-4.9.3.eb': {'debug': True, 'from-pr': 12345},
-            'foss-2018a.eb': {'enforce-checksums': True, 'robot': True},
-        }
-        self.assertEqual(sorted(ec_fns), sorted(expected))
-        self.assertEqual(opts, expected_opts)
+        self.assertEqual(easystack.ec_opt_tuples, expected_tuples)
 
     def test_parse_fail(self):
         """Test for clean error when easystack file fails to parse."""
