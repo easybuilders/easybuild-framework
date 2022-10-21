@@ -68,15 +68,15 @@ class EasyStackTest(EnhancedTestCase):
         for fn in test_easystacks:
             test_easystack = os.path.join(topdir, 'easystacks', fn)
 
-        easystack = parse_easystack(test_easystack)
-        expected = [
-            'binutils-2.25-GCCcore-4.9.3.eb',
-            'binutils-2.26-GCCcore-4.9.3.eb',
-            'foss-2018a.eb',
-            'toy-0.0-gompi-2018a-test.eb',
-        ]
-        self.assertEqual(sorted([x[0] for x in easystack.ec_opt_tuples]), sorted(expected))
-        self.assertTrue(all(x[1] is None for x in easystack.ec_opt_tuples))
+            easystack = parse_easystack(test_easystack)
+            expected = [
+                'binutils-2.25-GCCcore-4.9.3.eb',
+                'binutils-2.26-GCCcore-4.9.3.eb',
+                'foss-2018a.eb',
+                'toy-0.0-gompi-2018a-test.eb',
+            ]
+            self.assertEqual(sorted([x[0] for x in easystack.ec_opt_tuples]), sorted(expected))
+            self.assertTrue(all(x[1] is None for x in easystack.ec_opt_tuples))
 
     def test_easystack_easyconfigs_dict(self):
         """Test for easystack file where easyconfigs item is parsed as a dict, because easyconfig names are not
