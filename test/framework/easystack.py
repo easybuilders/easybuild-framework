@@ -71,21 +71,6 @@ class EasyStackTest(EnhancedTestCase):
         self.assertEqual(sorted(ec_fns), sorted(expected))
         self.assertEqual(opts, {})
 
-    def test_easystack_easyconfigs(self):
-        """Test for easystack file using 'easyconfigs' key."""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs.yaml')
-
-        ec_fns, opts = parse_easystack(test_easystack)
-        expected = [
-            'binutils-2.25-GCCcore-4.9.3.eb',
-            'binutils-2.26-GCCcore-4.9.3.eb',
-            'foss-2018a.eb',
-            'toy-0.0-gompi-2018a-test.eb',
-        ]
-        self.assertEqual(sorted(ec_fns), sorted(expected))
-        self.assertEqual(opts, {})
-
     def test_easystack_easyconfigs_with_eb_ext(self):
         """Test for easystack file using 'easyconfigs' key, where eb extension is included in the easystack file"""
         topdir = os.path.dirname(os.path.abspath(__file__))
@@ -123,38 +108,9 @@ class EasyStackTest(EnhancedTestCase):
     def test_parse_fail(self):
         """Test for clean error when easystack file fails to parse."""
         test_yml = os.path.join(self.test_prefix, 'test.yml')
-        write_file(test_yml, 'software: %s')
+        write_file(test_yml, 'easyconfigs: %s')
         error_pattern = "Failed to parse .*/test.yml: while scanning for the next token"
         self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_yml)
-
-    def test_easystack_wrong_structure(self):
-        """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
-
-        expected_err = r"[\S\s]*An error occurred when interpreting the data for software Bioconductor:"
-        expected_err += r"( 'float' object is not subscriptable[\S\s]*"
-        expected_err += r"| 'float' object is unsubscriptable"
-        expected_err += r"| 'float' object has no attribute '__getitem__'[\S\s]*)"
-        self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, test_easystack)
-
-    def test_easystack_asterisk(self):
-        """Test for --easystack <easystack.yaml> when yaml easystack contains asterisk (wildcard)"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_asterisk.yaml')
-
-        expected_err = "EasyStack specifications of 'binutils' in .*/test_easystack_asterisk.yaml contain asterisk. "
-        expected_err += "Wildcard feature is not supported yet."
-
-        self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, test_easystack)
-
-    def test_easystack_labels(self):
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_labels.yaml')
-
-        error_msg = "EasyStack specifications of 'binutils' in .*/test_easystack_labels.yaml contain labels. "
-        error_msg += "Labels aren't supported yet."
-        self.assertErrorRegex(EasyBuildError, error_msg, parse_easystack, test_easystack)
 
     def test_check_value(self):
         """Test check_value function."""
