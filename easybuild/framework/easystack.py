@@ -69,10 +69,7 @@ class EasyStack(object):
     def __init__(self):
         self.easybuild_version = None
         self.robot = False
-        self.easyconfigs = []  # A list of easyconfig names. May or may not include .eb extension
-        # A dict where keys are easyconfig names, values are dictionary of options that should be
-        # applied for that easyconfig
-        self.ec_opts = {}
+        self.easyconfigs = []  # A list of tuples (easyconfig_name, eaysconfig_specific_opts)
 
     # flags applicable to all sw (i.e. robot)
     def get_general_options(self):
@@ -147,7 +144,7 @@ class EasyStackParser(object):
             if isinstance(easyconfig, str):
                 if not easyconfig.endswith('.eb'):
                     easyconfig = easyconfig + '.eb'
-                easystack.easyconfigs.append(easyconfig)
+                easystack.easyconfigs.append((easyconfig, None))
             elif isinstance(easyconfig, dict):
                 if len(easyconfig) == 1:
                     # Get single key from dictionary 'easyconfig'
@@ -157,10 +154,12 @@ class EasyStackParser(object):
                         easyconf_name_with_eb = easyconf_name + '.eb'
                     else:
                         easyconf_name_with_eb = easyconf_name
-                    easystack.easyconfigs.append(easyconf_name_with_eb)
-                    # Add options to the ec_opts dict
-                    if 'options' in easyconfig[easyconf_name].keys():
-                        easystack.ec_opts[easyconf_name_with_eb] = easyconfig[easyconf_name]['options']
+                    # Get options
+                    if 'options' in easyconfig[easyconf_name]:
+                        opts = easyconfig[easyconf_name]['options']
+                    else:
+                        opts = None
+                    easystack.easyconfigs.append((easyconf_name_with_eb, opts))
                 else:
                     dict_keys = ', '.join(easyconfig.keys())
                     msg = "Failed to parse easystack file: expected a dictionary with one key (the EasyConfig name), "
@@ -186,12 +185,15 @@ def parse_easystack(filepath):
     # Then, we need a method to resolve conflicts (specific options should win)
     # general_options = easystack.get_general_options()
 
-    _log.debug("EasyStack parsed. Proceeding to install these Easyconfigs: %s" % ', '.join(sorted(easystack.easyconfigs)))
-    _log.debug("Using EasyConfig specific options based on the following dict:")
-    _log.debug(easystack.ec_opts)
+    # TODO: log content of easystack.easyconfigs to _log.debug in a proper format
+    sorted_list = sorted(easystack.easyconfigs, key=lambda x:x[0])  # Sort list of tuples by first element in the tuple
+    print(sorted_list)
+#    _log.debug("EasyStack parsed. Proceeding to install these Easyconfigs: %s" % ', '.join(list(zip(*sorted_list))[0]))
+#    _log.debug("Using EasyConfig specific options based on the following dict:")
+#    _log.debug(easystack.ec_opts)
     # if len(general_options) != 0:
     #    _log.debug("General options for installation are: \n%s" % str(general_options))
     # else:
     #    _log.debug("No general options were specified in easystack")
 
-    return easystack.easyconfigs, easystack.ec_opts
+    return easystack.easyconfigs

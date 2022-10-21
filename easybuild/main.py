@@ -226,10 +226,11 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     :param init_session_state: initial session state, to use in test reports
     :param do_build: whether or not to actually perform the build
     """
-    orig_paths, opts_per_ec = parse_easystack(easystack_path)
+    easyconfig_opt_tuples = parse_easystack(easystack_path)
 
     global _log
-    _log.debug("Start build loop over items in the EasyStack file: %s" % orig_paths)
+    # TODO: create proper message in debug that lists the EasyConfig names
+#_log.debug("Start build loop over items in the EasyStack file: %s" % list(zip(*easyconfig_opt_tuples))[0])
     # TODO: insert fast loop that validates if all command line options are valid. If there are errors in options,
     # we want to know early on, and this loop potentially builds a lot of packages and could take very long
     # for path in orig_paths:
@@ -238,24 +239,24 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     # Loop over each item in the EasyStack file, each time updating the config
     # This is because each item in an EasyStack file can have options associated with it
     do_cleanup = True
-    for path in orig_paths:
-        _log.debug("Starting build for %s" % path)
+    for easyconfig_opt_tuple in easyconfig_opt_tuples:
+        _log.debug("Starting build for %s" % easyconfig_opt_tuple[0])
         # Whipe easyconfig caches
         easyconfig._easyconfigs_cache.clear()
         easyconfig._easyconfig_files_cache.clear()
 
         # If EasyConfig specific arguments were supplied in EasyStack file
         # merge arguments with original command line args
-        if path in opts_per_ec:
+        if easyconfig_opt_tuple[1] is not None:
             _log.debug("EasyConfig specific options have been specified for "
-                       "%s in the EasyStack file: %s" % (path, opts_per_ec[path]))
+                       "%s in the EasyStack file: %s" % (easyconfig_opt_tuple[0], easyconfig_opt_tuple[1]))
             if args is None:
                 args = sys.argv[1:]
-            ec_args = opts_dict_to_eb_opts(opts_per_ec[path])
+            ec_args = opts_dict_to_eb_opts(easyconfig_opt_tuple[1])
             # By appending ec_args to args, ec_args take priority
             new_args = args + ec_args
             _log.info("Argument list for %s after merging command line arguments with EasyConfig specific "
-                      "options from the EasyStack file: %s" % (path, new_args))
+                      "options from the EasyStack file: %s" % (easyconfig_opt_tuple[0], new_args))
         else:
             # If no EasyConfig specific arguments are defined, use original args.
             # That way,set_up_configuration restores the original config
@@ -269,7 +270,7 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
         modtool = modules_tool(testing=testing)
 
         # Process actual item in the EasyStack file
-        do_cleanup &= process_eb_args([path], eb_go, cfg_settings, modtool, testing, init_session_state,
+        do_cleanup &= process_eb_args([easyconfig_opt_tuple[0]], eb_go, cfg_settings, modtool, testing, init_session_state,
                                       hooks, do_build)
 
     return do_cleanup
