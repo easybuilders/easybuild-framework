@@ -229,8 +229,7 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     easyconfig_opt_tuples = parse_easystack(easystack_path)
 
     global _log
-    # TODO: create proper message in debug that lists the EasyConfig names
-#_log.debug("Start build loop over items in the EasyStack file: %s" % list(zip(*easyconfig_opt_tuples))[0])
+
     # TODO: insert fast loop that validates if all command line options are valid. If there are errors in options,
     # we want to know early on, and this loop potentially builds a lot of packages and could take very long
     # for path in orig_paths:

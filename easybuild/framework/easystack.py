@@ -28,7 +28,10 @@ information obtained from provided file (easystack) with build specifications.
 :author: Denis Kristak (Inuits)
 :author: Pavel Grochal (Inuits)
 :author: Kenneth Hoste (HPC-UGent)
+:author: Caspar van Leeuwen (SURF)
 """
+import pprint
+
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
@@ -70,6 +73,12 @@ class EasyStack(object):
         self.easybuild_version = None
         self.robot = False
         self.easyconfigs = []  # A list of tuples (easyconfig_name, eaysconfig_specific_opts)
+
+    def __str__(self):
+        """
+        Pretty printing of an EasyStack instance
+        """
+        return pprint.pformat(self.easyconfigs)
 
     # flags applicable to all sw (i.e. robot)
     def get_general_options(self):
@@ -185,10 +194,8 @@ def parse_easystack(filepath):
     # Then, we need a method to resolve conflicts (specific options should win)
     # general_options = easystack.get_general_options()
 
-    # TODO: log content of easystack.easyconfigs to _log.debug in a proper format
-    sorted_list = sorted(easystack.easyconfigs, key=lambda x:x[0])  # Sort list of tuples by first element in the tuple
-    print(sorted_list)
-#    _log.debug("EasyStack parsed. Proceeding to install these Easyconfigs: %s" % ', '.join(list(zip(*sorted_list))[0]))
+    _log.debug("Parsed easystack:\n%s" % easystack)
+
 #    _log.debug("Using EasyConfig specific options based on the following dict:")
 #    _log.debug(easystack.ec_opts)
     # if len(general_options) != 0:
