@@ -6608,8 +6608,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check default configuration first
         self.assertFalse(build_option('debug'))
-        self.assertEqual(get_module_syntax(), 'Lua')
         self.assertFalse(build_option('hidden'))
+        # tests may be configured to run with Tcl module syntax
+        self.assertTrue(get_module_syntax() in ('Lua', 'Tcl'))
 
         # start with a clean slate, reset all configuration done by setUp method that prepares each test
         cleanup()
@@ -6681,8 +6682,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(build_option('debug'))
         self.assertFalse(BuildOptions()['debug'])
 
-        self.assertEqual(ConfigurationVariables()['module_syntax'], 'Lua')
-        self.assertEqual(get_module_syntax(), 'Lua')
+        # tests may be configured to run with Tcl module syntax
+        self.assertTrue(ConfigurationVariables()['module_syntax'] in ('Lua', 'Tcl'))
+        self.assertTrue(get_module_syntax() in ('Lua', 'Tcl'))
 
     def test_opts_dict_to_eb_opts(self):
         """Tests for opts_dict_to_eb_opts."""
