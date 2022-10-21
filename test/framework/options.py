@@ -6605,6 +6605,49 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(build_option('force'))
         self.assertEqual(build_option('robot'), [robot_paths, self.test_prefix])
 
+    def test_easystack_easyconfigs_cache(self):
+        """
+        Test for easystack file that specifies same easyconfig twice,
+        but from a different location.
+        """
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        libtoy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'l', 'libtoy', 'libtoy-0.0.eb')
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'toy-0.0.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "\ndependencies = [('libtoy', '0.0')]"
+        write_file(test_ec, test_ec_txt)
+
+        test_subdir = os.path.join(self.test_prefix, 'deps')
+        mkdir(test_subdir, parents=True)
+        copy_file(libtoy_ec, test_subdir)
+
+        test_es_txt = '\n'.join([
+            "easyconfigs:",
+            "  - toy-0.0",
+            "  - toy-0.0:",
+            "      options:",
+            "        robot: %s:%s" % (test_subdir, self.test_prefix),
+        ])
+        test_es_path = os.path.join(self.test_prefix, 'test.yml')
+        write_file(test_es_path, test_es_txt)
+
+        args = [
+            '--experimental',
+            '--easystack', test_es_path,
+            '--dry-run',
+            '--robot=%s' % self.test_prefix,
+        ]
+        stdout = self.eb_main(args, do_build=True, raise_error=True, redo_init_config=False)
+
+        # check whether libtoy-0.0.eb comes from 2nd
+        regex = re.compile(r"^ \* \[ \] %s" % libtoy_ec, re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        regex = re.compile(r"^ \* \[ \] %s" % os.path.join(test_subdir, 'libtoy-0.0.eb'), re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
     def test_set_up_configuration(self):
         """Tests for set_up_configuration function."""
 

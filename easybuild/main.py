@@ -240,7 +240,7 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     do_cleanup = True
     for (path, ec_opts) in easystack.ec_opt_tuples:
         _log.debug("Starting build for %s" % path)
-        # Whipe easyconfig caches
+        # wipe easyconfig caches
         easyconfig._easyconfigs_cache.clear()
         easyconfig._easyconfig_files_cache.clear()
 
