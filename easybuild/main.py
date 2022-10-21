@@ -228,6 +228,7 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     """
     orig_paths, opts_per_ec = parse_easystack(easystack_path)
 
+    global _log
     _log.debug("Start build loop over items in the EasyStack file: %s" % orig_paths)
     # TODO: insert fast loop that validates if all command line options are valid. If there are errors in options,
     # we want to know early on, and this loop potentially builds a lot of packages and could take very long
@@ -291,6 +292,8 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     :param do_build: whether or not to actually perform the build
     """
     options = eb_go.options
+
+    global _log
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
