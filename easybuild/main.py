@@ -226,7 +226,7 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     :param init_session_state: initial session state, to use in test reports
     :param do_build: whether or not to actually perform the build
     """
-    easyconfig_opt_tuples = parse_easystack(easystack_path)
+    easystack = parse_easystack(easystack_path)
 
     global _log
 
@@ -238,7 +238,7 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     # Loop over each item in the EasyStack file, each time updating the config
     # This is because each item in an EasyStack file can have options associated with it
     do_cleanup = True
-    for (path, ec_opts) in easyconfig_opt_tuples:
+    for (path, ec_opts) in easystack.ec_opt_tuples:
         _log.debug("Starting build for %s" % path)
         # Whipe easyconfig caches
         easyconfig._easyconfigs_cache.clear()

@@ -72,13 +72,13 @@ class EasyStack(object):
     def __init__(self):
         self.easybuild_version = None
         self.robot = False
-        self.easyconfigs = []  # A list of tuples (easyconfig_name, eaysconfig_specific_opts)
+        self.ec_opt_tuples = []  # A list of tuples (easyconfig_name, eaysconfig_specific_opts)
 
     def __str__(self):
         """
         Pretty printing of an EasyStack instance
         """
-        return pprint.pformat(self.easyconfigs)
+        return pprint.pformat(self.ec_opt_tuples)
 
     # flags applicable to all sw (i.e. robot)
     def get_general_options(self):
@@ -153,7 +153,7 @@ class EasyStackParser(object):
             if isinstance(easyconfig, str):
                 if not easyconfig.endswith('.eb'):
                     easyconfig = easyconfig + '.eb'
-                easystack.easyconfigs.append((easyconfig, None))
+                easystack.ec_opt_tuples.append((easyconfig, None))
             elif isinstance(easyconfig, dict):
                 if len(easyconfig) == 1:
                     # Get single key from dictionary 'easyconfig'
@@ -164,11 +164,9 @@ class EasyStackParser(object):
                     else:
                         easyconf_name_with_eb = easyconf_name
                     # Get options
-                    if 'options' in easyconfig[easyconf_name]:
-                        opts = easyconfig[easyconf_name]['options']
-                    else:
-                        opts = None
-                    easystack.easyconfigs.append((easyconf_name_with_eb, opts))
+                    ec_dict = easyconfig[easyconf_name] or {}
+                    opts = ec_dict.get('options')
+                    easystack.ec_opt_tuples.append((easyconf_name_with_eb, opts))
                 else:
                     dict_keys = ', '.join(easyconfig.keys())
                     msg = "Failed to parse easystack file: expected a dictionary with one key (the EasyConfig name), "
@@ -203,4 +201,4 @@ def parse_easystack(filepath):
     # else:
     #    _log.debug("No general options were specified in easystack")
 
-    return easystack.easyconfigs
+    return easystack
