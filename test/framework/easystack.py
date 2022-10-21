@@ -111,6 +111,23 @@ class EasyStackTest(EnhancedTestCase):
         ]
         self.assertEqual(easystack.ec_opt_tuples, expected_tuples)
 
+    def test_easystack_invalid_key(self):
+        """Test easystack files with invalid key at the same level as the 'options' key"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_invalid_key.yaml')
+
+        error_pattern = r"Found one or more invalid keys for .* \(only 'options' supported\).*"
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+
+    def test_easystack_invalid_key2(self):
+        """Test easystack files with invalid key at the same level as the key that names the easyconfig"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_invalid_key2.yaml')
+
+        error_pattern = r"expected a dictionary with one key \(the EasyConfig name\), "
+        error_pattern += r"instead found keys: .*, invalid_key"
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+
     def test_parse_fail(self):
         """Test for clean error when easystack file fails to parse."""
         test_yml = os.path.join(self.test_prefix, 'test.yml')
