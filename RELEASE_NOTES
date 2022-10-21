@@ -11,15 +11,14 @@ update/bugfix release
 
 - various enhancements, including:
   - add support for easystack file that contains easyconfig filenames + implement parsing of configuration options (#4021)
-  - skip over unset $EB_PYTHON/$EB_INSTALLPYTHON (#4080)
+  - skip over unset $EB_PYTHON/$EB_INSTALLPYTHON in eb wrappeer script (#4080)
   - add GITHUB_RELEASE and GITHUB_LOWER_RELEASE templates (#4084)
   - add `%(cuda_cc_cmake)s` template (#4087)
 - various bug fixes, including:
   - make check_sha256_checksums verify all checksums if they're specified as a dict value (#4076)
-  - replace use of symlink with copied files in `alt_location` tests (#4083)
+  - replace use of symlink with copied files in `alt_location` tests to fix failing EasyBuild installation on BeeGFS (#4083)
   - fix trying to generate RPATH wrappers for Clang (#4088)
-  - skip GitPython 3.1.28, since it prints 'git' as version which messes up the version check in check_github() (#4090)
-  - make sure that GitPython version is a proper version before checking minimal required version (#4091)
+  - make sure that GitPython version is a proper version before checking minimal required version (#4090, #4091)
   - first look for patch in alt_location when it is specified (#4093)
 - other changes:
   - make scripts executable (#4081)
