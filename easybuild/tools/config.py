@@ -65,6 +65,8 @@ UNLOAD = 'unload'
 UNSET = 'unset'
 WARN = 'warn'
 
+EMPTY_LIST = 'empty_list'
+
 PKG_TOOL_FPM = 'fpm'
 PKG_TYPE_RPM = 'rpm'
 
@@ -177,7 +179,6 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 # build options that have a perfectly matching command line option, listed by default value
 BUILD_OPTIONS_CMDLINE = {
     None: [
-        'accept_eula_for',
         'aggregate_regtest',
         'backup_modules',
         'container_config',
@@ -201,14 +202,12 @@ BUILD_OPTIONS_CMDLINE = {
         'http_header_fields_urlpat',
         'force_download',
         'insecure_download',
-        'from_pr',
         'git_working_dirs_path',
         'github_user',
         'github_org',
         'group',
         'hooks',
         'ignore_dirs',
-        'include_easyblocks_from_pr',
         'job_backend_config',
         'job_cores',
         'job_deps_type',
@@ -276,10 +275,8 @@ BUILD_OPTIONS_CMDLINE = {
         'read_only_installdir',
         'remove_ghost_install_dirs',
         'rebuild',
-        'robot',
         'rpath',
         'sanity_check_only',
-        'search_paths',
         'sequential',
         'set_gid_bit',
         'skip_extensions',
@@ -311,6 +308,13 @@ BUILD_OPTIONS_CMDLINE = {
         'modules_tool_version_check',
         'pre_create_installdir',
         'show_progress_bar',
+    ],
+    EMPTY_LIST: [
+        'accept_eula_for',
+        'from_pr',
+        'include_easyblocks_from_pr',
+        'robot',
+        'search_paths',
     ],
     WARN: [
         'check_ebroot_env_vars',
@@ -563,7 +567,11 @@ def init_build_options(build_options=None, cmdline_options=None):
     bo = {}
     for build_options_by_default in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER]:
         for default in build_options_by_default:
-            bo.update(dict([(opt, default) for opt in build_options_by_default[default]]))
+            if default == EMPTY_LIST:
+                for opt in build_options_by_default[default]:
+                    bo[opt] = []
+            else:
+                bo.update(dict([(opt, default) for opt in build_options_by_default[default]]))
     bo.update(active_build_options)
 
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
