@@ -4758,7 +4758,7 @@ class EasyConfigTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stdout(False)
 
-        regex = re.compile(r"generating module file @ .*/modules/all/libtoy/0.0\.lua", re.M)
+        regex = re.compile(r"generating module file @ .*/modules/all/libtoy/0.0", re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
         # wipe libtoy easyconfig (but path still needs to exist)
