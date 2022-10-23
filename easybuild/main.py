@@ -425,7 +425,18 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             sys.exit(31)  # exit -> 3x1t -> 31
 
     # read easyconfig files
-    easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums)
+    try:
+        easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums)
+    except Exception as e:
+        # Catch any exception in easyconfig parsing, so we can generate a test report if required
+        if options.dump_test_report or options.upload_test_report:
+            # dump/upload overall test report
+            fail_msg = "Failed during parsing of the easyconfigs, so no ecs were built"
+            test_report_msg = overall_test_report([], len(paths), False, fail_msg, init_session_state, ec_parse_error=e)
+            if test_report_msg is not None:
+                print_msg(test_report_msg)
+
+        raise e
 
     # handle --check-contrib & --check-style options
     if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):
