@@ -1300,7 +1300,7 @@ def verify_checksum(path, checksums):
                         return True
                     else:
                         _log.info("Ignoring non-matching checksum for %s (%s)...", path, cand_checksum)
-                
+
                 # no matching checksums
                 return False
         else:
