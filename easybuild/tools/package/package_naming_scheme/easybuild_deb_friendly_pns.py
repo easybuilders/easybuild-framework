@@ -23,10 +23,11 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Implementation of the EasyBuild packaging naming scheme
+Implementation of the EasyBuild deb friendly packaging naming scheme
 
 :author: Robert Schmidt (Ottawa Hospital Research Institute)
 :author: Kenneth Hoste (Ghent University)
+:author: Martin Budsjö (VolvoCars)
 """
 from easybuild.tools.package.package_naming_scheme.easybuild_pns import EasyBuildPNS
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
