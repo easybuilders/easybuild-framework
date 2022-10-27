@@ -49,3 +49,5 @@ class EasyBuildDebFriendlyPNS(EasyBuildPNS):
         if not ebver[0].isdigit():  # Make sure to add a 0 to the string if ebver does not start with a number
             ebver = '0'+ebver
         return '%s-eb' % ebver
+
+# -*- coding: utf-8 -*- vim: set fileencoding=utf-8
