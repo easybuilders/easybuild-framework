@@ -31,6 +31,7 @@ Implementation of the EasyBuild packaging naming scheme
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
+from re import match
 
 
 class EasyBuildPNS(PackageNamingScheme):
@@ -51,4 +52,6 @@ class EasyBuildPNS(PackageNamingScheme):
             # https://debian-handbook.info/browse/stable/sect.manipulating-packages-with-dpkg.html (see box in 5.4.3)
             ebver.replace('dev', '~dev')
 
+        if re.match('\\D', ebver):  # Make sure to add default epoc if ebver does not start with a number
+            ebver = '0:'+ebver
         return '%s-eb' % ebver
