@@ -52,6 +52,6 @@ class EasyBuildPNS(PackageNamingScheme):
             # https://debian-handbook.info/browse/stable/sect.manipulating-packages-with-dpkg.html (see box in 5.4.3)
             ebver.replace('dev', '~dev')
 
-        if re.match('\\D', ebver):  # Make sure to add default epoc if ebver does not start with a number
-            ebver = '0:'+ebver
+        if re.match('\\D', ebver):  # Make sure to add a 0 to the string if ebver does not start with a number
+            ebver = '0'+ebver
         return '%s-eb' % ebver
