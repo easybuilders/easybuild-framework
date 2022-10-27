@@ -33,13 +33,8 @@ from easybuild.tools.package.package_naming_scheme.pns import PackageNamingSchem
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 
-class EasyBuildPNS(PackageNamingScheme):
-    """Class implmenting the default EasyBuild packaging naming scheme."""
-
-    def name(self, ec):
-        """Determine package name"""
-        self.log.debug("Easyconfig dict passed to name() looks like: %s ", ec)
-        return '%s-%s' % (ec['name'], det_full_ec_version(ec))
+class EasyBuildDebFriendlyPNS(EasyBuildPNS):
+    """Class implmenting the Deb friendly EasyBuild packaging naming scheme."""
 
     def version(self, ec):
         """Determine package version: EasyBuild version used to build & install."""
