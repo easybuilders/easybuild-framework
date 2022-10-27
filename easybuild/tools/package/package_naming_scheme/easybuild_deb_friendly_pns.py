@@ -28,8 +28,7 @@ Implementation of the EasyBuild packaging naming scheme
 :author: Robert Schmidt (Ottawa Hospital Research Institute)
 :author: Kenneth Hoste (Ghent University)
 """
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
+from easybuild.tools.package.package_naming_scheme.easybuild_pns import EasyBuildPNS
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 
