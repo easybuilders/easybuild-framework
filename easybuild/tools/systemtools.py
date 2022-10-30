@@ -214,15 +214,15 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
 
 # os dependency constants that can be used in easyconfig (for name updates on arch distros)
 ARCH_OS_DEP_CONSTANTS = {
-    'OS_PKG_IBVERBS_DEV': (('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel'),
+    'IBVERBS_DEV': (('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel'),
                            "OS packages providing ibverbs/infiniband development support"),
-    'OS_PKG_OPENSSL_BIN': (('openssl'),
+    'OPENSSL_BIN': (('openssl'),
                            "OS packages providing the openSSL binary"),
-    'OS_PKG_OPENSSL_LIB': (('libssl', 'libopenssl'),
+    'OPENSSL_LIB': (('libssl', 'libopenssl'),
                            "OS packages providing openSSL libraries"),
-    'OS_PKG_OPENSSL_DEV': (('openssl-devel', 'libssl-dev', 'libopenssl-devel'),
+    'OPENSSL_DEV': (('openssl-devel', 'libssl-dev', 'libopenssl-devel'),
                            "OS packages providing openSSL developement support"),
-    'OS_PKG_PAM_DEV': (('pam-devel', 'libpam0g-dev'),
+    'PAM_DEV': (('pam-devel', 'libpam0g-dev'),
                        "OS packages providing Pluggable Authentication Module (PAM) developement support"),
 }
 
@@ -861,11 +861,11 @@ def check_os_dependency(dep):
     # adjust for arch package names
     arch_distros = ['arch', 'manjaro']
     if os_name in arch_distros:
-        if dep in ARCH_OS_DEP_CONSTANTS['OS_PKG_IBVERBS_DEV'][0]:
+        if dep in ARCH_OS_DEP_CONSTANTS['IBVERBS_DEV'][0]:
             dep = 'rdma-core'
-        elif (dep in ARCH_OS_DEP_CONSTANTS['OS_PKG_OPENSSL_LIB'][0]) or (dep in ARCH_OS_DEP_CONSTANTS['OS_PKG_OPENSSL_DEV'][0]):
+        elif (dep in ARCH_OS_DEP_CONSTANTS['OPENSSL_LIB'][0]) or (dep in ARCH_OS_DEP_CONSTANTS['OPENSSL_DEV'][0]):
             dep = 'openssl'
-        elif dep in ARCH_OS_DEP_CONSTANTS['OS_PKG_PAM_DEV'][0]:
+        elif dep in ARCH_OS_DEP_CONSTANTS['PAM_DEV'][0]:
             dep = 'pam'
 
     for pkg_cmd in pkg_cmds:
