@@ -215,15 +215,15 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
 # os dependency constants that can be used in easyconfig (for name updates on arch distros)
 ARCH_OS_DEP_CONSTANTS = {
     'IBVERBS_DEV': (('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel'),
-                           "OS packages providing ibverbs/infiniband development support"),
+                        "OS packages providing ibverbs/infiniband development support"),
     'OPENSSL_BIN': (('openssl'),
-                           "OS packages providing the openSSL binary"),
+                        "OS packages providing the openSSL binary"),
     'OPENSSL_LIB': (('libssl', 'libopenssl'),
-                           "OS packages providing openSSL libraries"),
+                        "OS packages providing openSSL libraries"),
     'OPENSSL_DEV': (('openssl-devel', 'libssl-dev', 'libopenssl-devel'),
-                           "OS packages providing openSSL developement support"),
+                        "OS packages providing openSSL developement support"),
     'PAM_DEV': (('pam-devel', 'libpam0g-dev'),
-                       "OS packages providing Pluggable Authentication Module (PAM) developement support"),
+                    "OS packages providing Pluggable Authentication Module (PAM) developement support"),
 }
 
 class SystemToolsException(Exception):
