@@ -169,6 +169,7 @@ ARM_CORTEX_IDS = {
 RPM = 'rpm'
 DPKG = 'dpkg'
 ZYPPER = 'zypper'
+PACMAN = 'pacman'
 
 SYSTEM_TOOLS = {
     '7z': "extracting sources (.iso)",
@@ -211,6 +212,19 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
     'setuptools': ('pkg_resources', "obtaining information on Python packages via pkg_resources module"),
 }
 
+# os dependency constants that can be used in easyconfig (for name updates on arch distros)
+EASYCONFIG_OS_DEPENDENCY_CONSTANTS = {
+    'OS_PKG_IBVERBS_DEV': (('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel'),
+                           "OS packages providing ibverbs/infiniband development support"),
+    'OS_PKG_OPENSSL_BIN': (('openssl'),
+                           "OS packages providing the openSSL binary"),
+    'OS_PKG_OPENSSL_LIB': (('libssl', 'libopenssl'),
+                           "OS packages providing openSSL libraries"),
+    'OS_PKG_OPENSSL_DEV': (('openssl-devel', 'libssl-dev', 'libopenssl-devel'),
+                           "OS packages providing openSSL developement support"),
+    'OS_PKG_PAM_DEV': (('pam-devel', 'libpam0g-dev'),
+                       "OS packages providing Pluggable Authentication Module (PAM) developement support"),
+}
 
 class SystemToolsException(Exception):
     """raised when systemtools fails"""
@@ -829,17 +843,30 @@ def check_os_dependency(dep):
         'redhat': RPM,
         'rhel': RPM,
         'ubuntu': DPKG,
+        'arch': PACMAN,
+        'manjaro': PACMAN,
     }
     pkg_cmd_flag = {
         DPKG: '-s',
         RPM: '-q',
         ZYPPER: 'search -i',
+        PACMAN: '-Q'
     }
     os_name = get_os_name().lower().split(' ')[0]
     if os_name in os_to_pkg_cmd_map:
         pkg_cmds = [os_to_pkg_cmd_map[os_name]]
     else:
         pkg_cmds = [RPM, DPKG]
+
+    # adjust for arch package names
+    arch_distros = ['arch','manjaro']
+    if os_name in arch_distros:
+        if dep in EASYCONFIG_OS_DEPENDENCY_CONSTANTS['OS_PKG_IBVERBS_DEV'][0]:
+            dep = 'rdma-core'
+        elif (dep in EASYCONFIG_OS_DEPENDENCY_CONSTANTS['OS_PKG_OPENSSL_LIB'][0]) or (dep in EASYCONFIG_OS_DEPENDENCY_CONSTANTS['OS_PKG_OPENSSL_DEV'][0]):
+            dep = 'openssl'
+        elif dep in EASYCONFIG_OS_DEPENDENCY_CONSTANTS['OS_PKG_PAM_DEV'][0]:
+            dep = 'pam'
 
     for pkg_cmd in pkg_cmds:
         if which(pkg_cmd):
