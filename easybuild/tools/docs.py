@@ -61,7 +61,7 @@ from easybuild.tools.py2vs3 import OrderedDict, ascii_lowercase, sort_looseversi
 from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import INDENT_2SPACES, INDENT_4SPACES
-from easybuild.tools.utilities import import_available_modules, mk_rst_table, nub, quote_str
+from easybuild.tools.utilities import import_available_modules, mk_md_table, mk_rst_table, nub, quote_str
 
 
 _log = fancylogger.getLogger('tools.docs')
@@ -79,6 +79,18 @@ def generate_doc(name, params):
     """Generate documentation by calling function with specified name, using supplied parameters."""
     func = globals()[name]
     return func(*params)
+
+
+def md_title_and_table(title, table_titles, table_values):
+    """Generate table in section with title in MarkDown (.md) format."""
+    doc = []
+    if title is not None:
+        doc.extend([
+            '## ' + title,
+            '',
+        ])
+    doc.extend(mk_md_table(table_titles, table_values))
+    return doc
 
 
 def rst_title_and_table(title, table_titles, table_values):
@@ -208,6 +220,34 @@ def avail_easyconfig_licenses_rst():
     ]
 
     doc = rst_title_and_table(title, table_titles, table_values)
+    return '\n'.join(doc)
+
+
+def avail_easyconfig_params_md(title, grouped_params):
+    """
+    Compose overview of available easyconfig parameters, in MarkDown format.
+    """
+    # main title
+    doc = [
+        '# ' + title,
+        '',
+    ]
+
+    for grpname in grouped_params:
+        # group section title
+        title = "%s%s parameters" % (grpname[0].upper(), grpname[1:])
+        table_titles = ["**Parameter name**", "**Description**", "**Default value**"]
+        keys = sorted(grouped_params[grpname].keys())
+        values = [grouped_params[grpname][key] for key in keys]
+        table_values = [
+            ['`%s`' % name for name in keys],  # parameter name
+            [x[0] for x in values],  # description
+            ['`' + str(quote_str(x[1])) + '`' for x in values]  # default value
+        ]
+
+        doc.extend(md_title_and_table(title, table_titles, table_values))
+        doc.append('')
+
     return '\n'.join(doc)
 
 
