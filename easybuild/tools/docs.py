@@ -70,8 +70,9 @@ _log = fancylogger.getLogger('tools.docs')
 DETAILED = 'detailed'
 SIMPLE = 'simple'
 
-FORMAT_TXT = 'txt'
+FORMAT_MD = 'md'
 FORMAT_RST = 'rst'
+FORMAT_TXT = 'txt'
 
 
 def generate_doc(name, params):
@@ -449,12 +450,12 @@ def avail_classes_tree(classes, class_names, locations, detailed, format_strings
 
 def list_easyblocks(list_easyblocks=SIMPLE, output_format=FORMAT_TXT):
     format_strings = {
-        FORMAT_TXT: {
-            'det_root_templ': "%s (%s%s)",
-            'root_templ': "%s",
-            'zero_indent': '',
-            'indent': "|   ",
-            'sep': "|-- ",
+        FORMAT_MD: {
+            'det_root_templ': "- **%s** (%s%s)",
+            'root_templ': "- **%s**",
+            'zero_indent': INDENT_2SPACES,
+            'indent': INDENT_2SPACES,
+            'sep': '- ',
         },
         FORMAT_RST: {
             'det_root_templ': "* **%s** (%s%s)",
@@ -463,7 +464,14 @@ def list_easyblocks(list_easyblocks=SIMPLE, output_format=FORMAT_TXT):
             'indent': INDENT_2SPACES,
             'newline': '',
             'sep': '* ',
-        }
+        },
+        FORMAT_TXT: {
+            'det_root_templ': "%s (%s%s)",
+            'root_templ': "%s",
+            'zero_indent': '',
+            'indent': "|   ",
+            'sep': "|-- ",
+        },
     }
     return gen_list_easyblocks(list_easyblocks, format_strings[output_format])
 
