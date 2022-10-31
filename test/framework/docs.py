@@ -29,7 +29,6 @@ import inspect
 import os
 import re
 import sys
-import textwrap
 from unittest import TextTestRunner
 
 from easybuild.tools.config import module_classes
