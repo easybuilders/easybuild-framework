@@ -29,12 +29,239 @@ import inspect
 import os
 import re
 import sys
+import textwrap
 from unittest import TextTestRunner
 
 from easybuild.tools.config import module_classes
-from easybuild.tools.docs import avail_easyconfig_licenses, gen_easyblocks_overview_rst, list_software
+from easybuild.tools.docs import avail_easyconfig_licenses, gen_easyblocks_overview_rst
+from easybuild.tools.docs import list_easyblocks, list_software, list_toolchains
 from easybuild.tools.utilities import import_available_modules
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+
+
+LIST_EASYBLOCKS_SIMPLE_TXT = """EasyBlock
+|-- bar
+|-- ConfigureMake
+|   |-- MakeCp
+|-- EB_EasyBuildMeta
+|-- EB_FFTW
+|-- EB_foo
+|   |-- EB_foofoo
+|-- EB_GCC
+|-- EB_HPL
+|-- EB_libtoy
+|-- EB_OpenBLAS
+|-- EB_OpenMPI
+|-- EB_ScaLAPACK
+|-- EB_toy_buggy
+|-- ExtensionEasyBlock
+|   |-- DummyExtension
+|   |-- EB_toy
+|   |   |-- EB_toy_eula
+|   |   |-- EB_toytoy
+|   |-- Toy_Extension
+|-- ModuleRC
+|-- PythonBundle
+|-- Toolchain
+Extension
+|-- ExtensionEasyBlock
+|   |-- DummyExtension
+|   |-- EB_toy
+|   |   |-- EB_toy_eula
+|   |   |-- EB_toytoy
+|   |-- Toy_Extension"""
+
+LIST_EASYBLOCKS_DETAILED_TXT = """EasyBlock (easybuild.framework.easyblock)
+|-- bar (easybuild.easyblocks.generic.bar @ %(topdir)s/generic/bar.py)
+|-- ConfigureMake (easybuild.easyblocks.generic.configuremake @ %(topdir)s/generic/configuremake.py)
+|   |-- MakeCp (easybuild.easyblocks.generic.makecp @ %(topdir)s/generic/makecp.py)
+|-- EB_EasyBuildMeta (easybuild.easyblocks.easybuildmeta @ %(topdir)s/e/easybuildmeta.py)
+|-- EB_FFTW (easybuild.easyblocks.fftw @ %(topdir)s/f/fftw.py)
+|-- EB_foo (easybuild.easyblocks.foo @ %(topdir)s/f/foo.py)
+|   |-- EB_foofoo (easybuild.easyblocks.foofoo @ %(topdir)s/f/foofoo.py)
+|-- EB_GCC (easybuild.easyblocks.gcc @ %(topdir)s/g/gcc.py)
+|-- EB_HPL (easybuild.easyblocks.hpl @ %(topdir)s/h/hpl.py)
+|-- EB_libtoy (easybuild.easyblocks.libtoy @ %(topdir)s/l/libtoy.py)
+|-- EB_OpenBLAS (easybuild.easyblocks.openblas @ %(topdir)s/o/openblas.py)
+|-- EB_OpenMPI (easybuild.easyblocks.openmpi @ %(topdir)s/o/openmpi.py)
+|-- EB_ScaLAPACK (easybuild.easyblocks.scalapack @ %(topdir)s/s/scalapack.py)
+|-- EB_toy_buggy (easybuild.easyblocks.toy_buggy @ %(topdir)s/t/toy_buggy.py)
+|-- ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
+|   |-- DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+|   |-- EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
+|   |   |-- EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
+|   |   |-- EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
+|   |-- Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)
+|-- ModuleRC (easybuild.easyblocks.generic.modulerc @ %(topdir)s/generic/modulerc.py)
+|-- PythonBundle (easybuild.easyblocks.generic.pythonbundle @ %(topdir)s/generic/pythonbundle.py)
+|-- Toolchain (easybuild.easyblocks.generic.toolchain @ %(topdir)s/generic/toolchain.py)
+Extension (easybuild.framework.extension)
+|-- ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
+|   |-- DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+|   |-- EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
+|   |   |-- EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
+|   |   |-- EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
+|   |-- Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)"""
+
+LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
+
+  * bar
+  * ConfigureMake
+
+    * MakeCp
+
+  * EB_EasyBuildMeta
+  * EB_FFTW
+  * EB_foo
+
+    * EB_foofoo
+
+  * EB_GCC
+  * EB_HPL
+  * EB_libtoy
+  * EB_OpenBLAS
+  * EB_OpenMPI
+  * EB_ScaLAPACK
+  * EB_toy_buggy
+  * ExtensionEasyBlock
+
+    * DummyExtension
+    * EB_toy
+
+      * EB_toy_eula
+      * EB_toytoy
+
+    * Toy_Extension
+
+  * ModuleRC
+  * PythonBundle
+  * Toolchain
+
+* **Extension**
+
+  * ExtensionEasyBlock
+
+    * DummyExtension
+    * EB_toy
+
+      * EB_toy_eula
+      * EB_toytoy
+
+    * Toy_Extension
+
+"""
+
+LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock)
+
+  * bar (easybuild.easyblocks.generic.bar @ %(topdir)s/generic/bar.py)
+  * ConfigureMake (easybuild.easyblocks.generic.configuremake @ %(topdir)s/generic/configuremake.py)
+
+    * MakeCp (easybuild.easyblocks.generic.makecp @ %(topdir)s/generic/makecp.py)
+
+  * EB_EasyBuildMeta (easybuild.easyblocks.easybuildmeta @ %(topdir)s/e/easybuildmeta.py)
+  * EB_FFTW (easybuild.easyblocks.fftw @ %(topdir)s/f/fftw.py)
+  * EB_foo (easybuild.easyblocks.foo @ %(topdir)s/f/foo.py)
+
+    * EB_foofoo (easybuild.easyblocks.foofoo @ %(topdir)s/f/foofoo.py)
+
+  * EB_GCC (easybuild.easyblocks.gcc @ %(topdir)s/g/gcc.py)
+  * EB_HPL (easybuild.easyblocks.hpl @ %(topdir)s/h/hpl.py)
+  * EB_libtoy (easybuild.easyblocks.libtoy @ %(topdir)s/l/libtoy.py)
+  * EB_OpenBLAS (easybuild.easyblocks.openblas @ %(topdir)s/o/openblas.py)
+  * EB_OpenMPI (easybuild.easyblocks.openmpi @ %(topdir)s/o/openmpi.py)
+  * EB_ScaLAPACK (easybuild.easyblocks.scalapack @ %(topdir)s/s/scalapack.py)
+  * EB_toy_buggy (easybuild.easyblocks.toy_buggy @ %(topdir)s/t/toy_buggy.py)
+  * ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
+
+    * DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+    * EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
+
+      * EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
+      * EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
+
+    * Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)
+
+  * ModuleRC (easybuild.easyblocks.generic.modulerc @ %(topdir)s/generic/modulerc.py)
+  * PythonBundle (easybuild.easyblocks.generic.pythonbundle @ %(topdir)s/generic/pythonbundle.py)
+  * Toolchain (easybuild.easyblocks.generic.toolchain @ %(topdir)s/generic/toolchain.py)
+
+* **Extension** (easybuild.framework.extension)
+
+  * ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
+
+    * DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+    * EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
+
+      * EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
+      * EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
+
+    * Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)
+
+"""
+
+LIST_EASYBLOCKS_SIMPLE_MD = """- **EasyBlock**
+  - bar
+  - ConfigureMake
+    - MakeCp
+  - EB_EasyBuildMeta
+  - EB_FFTW
+  - EB_foo
+    - EB_foofoo
+  - EB_GCC
+  - EB_HPL
+  - EB_libtoy
+  - EB_OpenBLAS
+  - EB_OpenMPI
+  - EB_ScaLAPACK
+  - EB_toy_buggy
+  - ExtensionEasyBlock
+    - DummyExtension
+    - EB_toy
+      - EB_toy_eula
+      - EB_toytoy
+    - Toy_Extension
+  - ModuleRC
+  - PythonBundle
+  - Toolchain
+- **Extension**
+  - ExtensionEasyBlock
+    - DummyExtension
+    - EB_toy
+      - EB_toy_eula
+      - EB_toytoy
+    - Toy_Extension"""
+
+LIST_EASYBLOCKS_DETAILED_MD = """- **EasyBlock** (easybuild.framework.easyblock)
+  - bar (easybuild.easyblocks.generic.bar @ %(topdir)s/generic/bar.py)
+  - ConfigureMake (easybuild.easyblocks.generic.configuremake @ %(topdir)s/generic/configuremake.py)
+    - MakeCp (easybuild.easyblocks.generic.makecp @ %(topdir)s/generic/makecp.py)
+  - EB_EasyBuildMeta (easybuild.easyblocks.easybuildmeta @ %(topdir)s/e/easybuildmeta.py)
+  - EB_FFTW (easybuild.easyblocks.fftw @ %(topdir)s/f/fftw.py)
+  - EB_foo (easybuild.easyblocks.foo @ %(topdir)s/f/foo.py)
+    - EB_foofoo (easybuild.easyblocks.foofoo @ %(topdir)s/f/foofoo.py)
+  - EB_GCC (easybuild.easyblocks.gcc @ %(topdir)s/g/gcc.py)
+  - EB_HPL (easybuild.easyblocks.hpl @ %(topdir)s/h/hpl.py)
+  - EB_libtoy (easybuild.easyblocks.libtoy @ %(topdir)s/l/libtoy.py)
+  - EB_OpenBLAS (easybuild.easyblocks.openblas @ %(topdir)s/o/openblas.py)
+  - EB_OpenMPI (easybuild.easyblocks.openmpi @ %(topdir)s/o/openmpi.py)
+  - EB_ScaLAPACK (easybuild.easyblocks.scalapack @ %(topdir)s/s/scalapack.py)
+  - EB_toy_buggy (easybuild.easyblocks.toy_buggy @ %(topdir)s/t/toy_buggy.py)
+  - ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
+    - DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+    - EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
+      - EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
+      - EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
+    - Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)
+  - ModuleRC (easybuild.easyblocks.generic.modulerc @ %(topdir)s/generic/modulerc.py)
+  - PythonBundle (easybuild.easyblocks.generic.pythonbundle @ %(topdir)s/generic/pythonbundle.py)
+  - Toolchain (easybuild.easyblocks.generic.toolchain @ %(topdir)s/generic/toolchain.py)
+- **Extension** (easybuild.framework.extension)
+  - ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
+    - DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+    - EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
+      - EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
+      - EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
+    - Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)"""
 
 
 class DocsTest(EnhancedTestCase):
@@ -111,6 +338,34 @@ class DocsTest(EnhancedTestCase):
         lic_docs = avail_easyconfig_licenses(output_format='rst')
         regex = re.compile(r"^``GPLv3``\s*The GNU General Public License", re.M)
         self.assertTrue(regex.search(lic_docs), "%s found in: %s" % (regex.pattern, lic_docs))
+
+    def test_list_easyblocks(self):
+        """
+        Tests for list_easyblocks function
+        """
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        topdir_easyblocks = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks')
+
+        txt = list_easyblocks()
+        self.assertEqual(txt, LIST_EASYBLOCKS_SIMPLE_TXT)
+
+        txt = list_easyblocks(list_easyblocks='simple', output_format='txt')
+        self.assertEqual(txt, LIST_EASYBLOCKS_SIMPLE_TXT)
+
+        txt = list_easyblocks(list_easyblocks='detailed', output_format='txt')
+        self.assertEqual(txt, LIST_EASYBLOCKS_DETAILED_TXT % {'topdir': topdir_easyblocks})
+
+        txt = list_easyblocks(list_easyblocks='simple', output_format='rst')
+        self.assertEqual(txt, LIST_EASYBLOCKS_SIMPLE_RST)
+
+        txt = list_easyblocks(list_easyblocks='detailed', output_format='rst')
+        self.assertEqual(txt, LIST_EASYBLOCKS_DETAILED_RST % {'topdir': topdir_easyblocks})
+
+        txt = list_easyblocks(list_easyblocks='simple', output_format='md')
+        self.assertEqual(txt, LIST_EASYBLOCKS_SIMPLE_MD)
+
+        txt = list_easyblocks(list_easyblocks='detailed', output_format='md')
+        self.assertEqual(txt, LIST_EASYBLOCKS_DETAILED_MD % {'topdir': topdir_easyblocks})
 
     def test_list_software(self):
         """Test list_software* functions."""
