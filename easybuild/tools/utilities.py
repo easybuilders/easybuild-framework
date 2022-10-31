@@ -277,7 +277,7 @@ def mk_md_table(titles, columns):
 
     # figure out column widths
     for i, title in enumerate(titles):
-        width = max(map(len, columns[i] + [title]))
+        width = max(map(len, list(columns[i]) + [title]))
 
         # make line template
         tmpl.append('{%s:{c}<%s}' % (i, width))
@@ -313,7 +313,7 @@ def mk_rst_table(titles, columns):
 
     # figure out column widths
     for i, title in enumerate(titles):
-        width = max(map(len, columns[i] + [title]))
+        width = max(map(len, list(columns[i]) + [title]))
 
         # make line template
         tmpl.append('{%s:{c}<%s}' % (i, width))

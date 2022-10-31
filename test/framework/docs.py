@@ -35,7 +35,8 @@ from unittest import TextTestRunner
 from easybuild.tools.config import module_classes
 from easybuild.tools.docs import avail_easyconfig_licenses, gen_easyblocks_overview_rst
 from easybuild.tools.docs import list_easyblocks, list_software, list_toolchains
-from easybuild.tools.utilities import import_available_modules
+from easybuild.tools.docs import md_title_and_table, rst_title_and_table
+from easybuild.tools.utilities import import_available_modules, mk_md_table, mk_rst_table
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 
 
@@ -540,6 +541,82 @@ class DocsTest(EnhancedTestCase):
         lines = txt.split('\n')
         expected_found = any(lines[i:i + len(expected)] == expected for i in range(len(lines)))
         self.assertTrue(expected_found, "%s found in: %s" % (expected, lines))
+
+    def test_mk_table(self):
+        """
+        Tests for mk_*_table functions.
+        """
+        titles = ('one', 'two', 'three')
+        table = [
+            ('1', '11111'),
+            ('2222222', '2'),
+            ('3', '3'),
+        ]
+        expected_md = [
+            'one  |two    |three',
+            '-----|-------|-----',
+            '1    |2222222|3    ',
+            '11111|2      |3    ',
+        ]
+        expected_rst = [
+            '=====    =======    =====',
+            'one      two        three',
+            '=====    =======    =====',
+            '1        2222222    3    ',
+            '11111    2          3    ',
+            '=====    =======    =====',
+            '',
+        ]
+
+        res = mk_md_table(titles, table)
+        self.assertEqual(res, expected_md)
+
+        res = mk_rst_table(titles, table)
+        self.assertEqual(res, expected_rst)
+
+        self.assertErrorRegex(ValueError, "Number of titles/columns should be equal", mk_md_table, titles, [])
+        self.assertErrorRegex(ValueError, "Number of titles/columns should be equal", mk_rst_table, titles, [])
+
+    def test_title_and_table(self):
+        """
+        Tests for *_title_and_table functions.
+        """
+        titles = ('one', 'two', '3 is a wide column')
+        table = [
+            titles,
+            ('val 11', 'val 21'),
+            ('val 12', 'val 22'),
+            ('val 13', 'val 23'),
+        ]
+        expected_md = [
+            '## test title',
+            '',
+            'one   |two   |3 is a wide column',
+            '------|------|------------------',
+            'val 11|val 12|val 13            ',
+            'val 21|val 22|val 23            ',
+        ]
+        expected_rst = [
+            'test title',
+            '----------',
+            '',
+            '======    ======    ==================',
+            'one       two       3 is a wide column',
+            '======    ======    ==================',
+            'val 11    val 12    val 13            ',
+            'val 21    val 22    val 23            ',
+            '======    ======    ==================',
+            '',
+        ]
+        res = md_title_and_table('test title', table[0], table[1:])
+        self.assertEqual(res, expected_md)
+
+        res = rst_title_and_table('test title', table[0], table[1:])
+        self.assertEqual(res, expected_rst)
+
+        error_pattern = "Number of titles/columns should be equal"
+        self.assertErrorRegex(ValueError, error_pattern, md_title_and_table, '', titles, [])
+        self.assertErrorRegex(ValueError, error_pattern, rst_title_and_table, '', titles, [('val 11', 'val 12')])
 
 
 def suite():
