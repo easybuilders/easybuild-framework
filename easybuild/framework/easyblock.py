@@ -2984,8 +2984,13 @@ class EasyBlock(object):
         self.log.debug("$LD_LIBRARY_PATH during RPATH sanity check: %s", os.getenv('LD_LIBRARY_PATH', '(empty)'))
         self.log.debug("List of loaded modules: %s", self.modules_tool.list())
 
-        not_found_regex = re.compile('not found', re.M)
+        not_found_regex = re.compile(r'^.* \=\> not found', re.M)
         readelf_rpath_regex = re.compile('(RPATH)', re.M)
+
+        # List of libraries that should be exempt from the RPATH sanity check
+        # E.g. libcuda.so.1 should never be RPATH-ed by design, see 
+        # ttps://github.com/easybuilders/easybuild-framework/issues/4095
+        rpath_exception_libs = ['libcuda.so.1']
 
         if rpath_dirs is None:
             rpath_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
@@ -3014,9 +3019,21 @@ class EasyBlock(object):
                     else:
                         # check whether all required libraries are found via 'ldd'
                         if not_found_regex.search(out):
-                            fail_msg = "One or more required libraries not found for %s: %s" % (path, out)
-                            self.log.warning(fail_msg)
-                            fails.append(fail_msg)
+                            # For each match, check if the library is in the exception list
+                            matches = re.findall(not_found_regex, out)
+                            for match in matches:
+                                for lib in rpath_exception_libs:
+                                    pattern = re.compile(r'(%s) \=\> not found' % lib)
+                                    if re.search(pattern, match):
+                                        msg = "Library %s not found for %s, but ignored since it is on exception list" % (lib, path)
+                                        self.log.debug(msg)
+                                    else:
+                                        # Grab the library name for clear warning message
+                                        pattern = re.compile(r'([^\s]*) \=\> not found')
+                                        lib_match = re.search(pattern, match)
+                                        fail_msg = "Library %s not found for %s" % (lib_match.group(1), path)
+                                        self.log.warning(fail_msg)
+                                        fails.append(fail_msg)
                         else:
                             self.log.debug("Output of 'ldd %s' checked, looks OK", path)
 
