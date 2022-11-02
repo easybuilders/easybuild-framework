@@ -113,6 +113,7 @@ DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PR_TARGET_ACCOUNT = 'easybuilders'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
+DEFAULT_FILTER_RPATH_SANITY_LIBS = ['libcuda.so.1']
 DEFAULT_WAIT_ON_LOCK_INTERVAL = 60
 DEFAULT_WAIT_ON_LOCK_LIMIT = 0
 
@@ -196,6 +197,7 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_deps',
         'filter_ecs',
         'filter_env_vars',
+        'filter_rpath_sanity_libs',
         'hide_deps',
         'hide_toolchains',
         'http_header_fields_urlpat',
