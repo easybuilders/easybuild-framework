@@ -46,8 +46,13 @@ class EasyBuildDebFriendlyPNS(EasyBuildPNS):
             # https://debian-handbook.info/browse/stable/sect.manipulating-packages-with-dpkg.html (see box in 5.4.3)
             ebver.replace('dev', '~dev')
 
-        if not ebver[0].isdigit():  # Make sure to add a 0 to the string if ebver does not start with a number
+        # Make sure to add a `0` to the ebver if it doesn't start with a number
+        if not ebver[0].isdigit():
             ebver = '0'+ebver
+
+        #
+        # Postfix `-eb` to ebver instead of prefixing it to comply with
+        # https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
         return '%s-eb' % ebver
 
 # -*- coding: utf-8 -*- vim: set fileencoding=utf-8
