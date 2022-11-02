@@ -1,4 +1,4 @@
-## -*- coding: utf-8 -*- vim: set fileencoding=utf-8
+##
 # Copyright 2015-2022 Ghent University
 #
 # This file is part of EasyBuild,
