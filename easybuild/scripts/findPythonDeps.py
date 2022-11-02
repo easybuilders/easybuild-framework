@@ -16,6 +16,13 @@ except ImportError as e:
     print('pkg_resources could not be imported: %s\nYou might need to install setuptools!' % e)
     sys.exit(1)
 
+try:
+    from packaging.utils import canonicalize_name
+except ImportError as e:
+    _canonicalize_regex = re.compile(r"[-_.]+")
+    def canonicalize_name(name):
+        return _canonicalize_regex.sub("-", name).lower()
+
 
 @contextmanager
 def temporary_directory(*args, **kwargs):
@@ -87,6 +94,7 @@ def find_deps(pkgs, dep_tree):
     """Recursively resolve dependencies of the given package(s) and return them"""
     res = []
     for pkg in pkgs:
+        pkg = canonicalize_name(pkg)
         matching_entries = [entry for entry in dep_tree
                             if pkg in (entry['package']['package_name'], entry['package']['key'])]
         if not matching_entries:
