@@ -2990,7 +2990,7 @@ class EasyBlock(object):
         readelf_rpath_regex = re.compile('(RPATH)', re.M)
 
         # List of libraries that should be exempt from the RPATH sanity check
-        # E.g. libcuda.so.1 should never be RPATH-ed by design, see 
+        # E.g. libcuda.so.1 should never be RPATH-ed by design, see
         # ttps://github.com/easybuilders/easybuild-framework/issues/4095
         rpath_exception_libs = build_option('filter_rpath_sanity_libs')
         msg = "Ignoring the following libraries if they are not found by RPATH sanity check: %s" % rpath_exception_libs

@@ -2719,7 +2719,7 @@ class ToyBuildTest(EnhancedTestCase):
                               raise_error=True, verbose=False)
 
         # test use of --filter-rpath-sanity-libs option. In this test, we use --rpath-filter to make sure libtoy.so is
-        # nót rpath-ed. If we would nót provide an exception with --filter-rpath-sanity-libs, 
+        # nót rpath-ed. If we would nót provide an exception with --filter-rpath-sanity-libs,
         # this would fail (as in happens in the previous test)
         args = ['--rpath', '--experimental', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libtoy.so']
         self.test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=True)
