@@ -18,8 +18,9 @@ except ImportError as e:
 
 try:
     from packaging.utils import canonicalize_name
-except ImportError as e:
+except ImportError:
     _canonicalize_regex = re.compile(r"[-_.]+")
+
     def canonicalize_name(name):
         return _canonicalize_regex.sub("-", name).lower()
 
