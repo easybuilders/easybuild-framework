@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*- vim: set fileencoding=utf-8
 ##
 # Copyright 2015-2022 Ghent University
 #
@@ -54,5 +55,3 @@ class EasyBuildDebFriendlyPNS(EasyBuildPNS):
         # Postfix `-eb` to ebver instead of prefixing it to comply with
         # https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
         return '%s-eb' % ebver
-
-# -*- coding: utf-8 -*- vim: set fileencoding=utf-8
