@@ -36,7 +36,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.tools.config import log_path
+from easybuild.tools.config import get_package_naming_scheme, log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
@@ -154,7 +154,7 @@ class PackageTest(EnhancedTestCase):
 
     def test_avail_package_naming_schemes(self):
         """Test avail_package_naming_schemes()"""
-        self.assertEqual(sorted(avail_package_naming_schemes().keys()), ['EasyBuildPNS'])
+        self.assertEqual(sorted(avail_package_naming_schemes().keys()), ['EasyBuildDebFriendlyPNS', 'EasyBuildPNS'])
 
     def test_check_pkg_support(self):
         """Test check_pkg_support()."""
@@ -184,10 +184,16 @@ class PackageTest(EnhancedTestCase):
 
         pns = ActivePNS()
 
-        # default: EasyBuild package naming scheme, pkg release 1
-        self.assertEqual(pns.name(ec), 'OpenMPI-2.1.2-GCC-6.4.0-2.28')
-        self.assertEqual(pns.version(ec), 'eb-%s' % EASYBUILD_VERSION)
-        self.assertEqual(pns.release(ec), '1')
+        if get_package_naming_scheme() == "EasyBuildPNS":
+            # default: EasyBuild package naming scheme, pkg release 1
+            self.assertEqual(pns.name(ec), 'OpenMPI-2.1.2-GCC-6.4.0-2.28')
+            self.assertEqual(pns.version(ec), 'eb-%s' % EASYBUILD_VERSION)
+            self.assertEqual(pns.release(ec), '1')
+        elif get_package_naming_scheme() == "EasyBuildDebFriendlyPNS":
+            # default: EasyBuild deb friendly package naming scheme, pkg release 1
+            self.assertEqual(pns.name(ec), 'OpenMPI-2.1.2-GCC-6.4.0-2.28')
+            self.assertEqual(pns.version(ec), '%s_eb' % EASYBUILD_VERSION)
+            self.assertEqual(pns.release(ec), '1')
 
     def test_package(self):
         """Test package function."""
