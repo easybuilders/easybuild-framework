@@ -872,7 +872,7 @@ class ToolchainTest(EnhancedTestCase):
                 tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({opt: enable})
                 tc.prepare()
-                flag = ' '.join('-%s' % x for x in  tc.COMPILER_UNIQUE_OPTION_MAP[opt])
+                flag = ' '.join('-%s' % x for x in tc.COMPILER_UNIQUE_OPTION_MAP[opt])
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
