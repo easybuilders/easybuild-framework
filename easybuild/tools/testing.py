@@ -140,7 +140,16 @@ def session_state():
 
 def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_log=False, easyblock_pr_nrs=None,
                        ec_parse_error=None):
-    """Create test report for easyconfigs PR, in Markdown format."""
+    """
+    Create test report for easyconfigs PR, in Markdown format.
+    :param msg: message to be included in test report
+    :param ecs_with_res: processed easyconfigs with build result (success/failure)
+    :param init_session_state: initial session state info to include in test report
+    :param pr_nrs: list of ints for the PRs in the easyconfigs repository
+    :param gist_log:
+    :param easyblock_pr_nrs:  list of ints for the PRs in the easyblocks repository
+    :param ec_parse_error: error message for easyconfig parse failure
+    """
 
     github_user = build_option('github_user')
     pr_target_account = build_option('pr_target_account')
@@ -363,7 +372,7 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
     :param success: boolean indicating whether all builds were successful
     :param msg: message to be included in test report
     :param init_session_state: initial session state info to include in test report
-    :param easyconfig_parse_error: Error message for ec parse failure
+    :param easyconfig_parse_error: error message for easyconfig parse failure
     """
     dump_path = build_option('dump_test_report')
 
