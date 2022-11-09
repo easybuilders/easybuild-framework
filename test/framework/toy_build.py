@@ -206,8 +206,8 @@ class ToyBuildTest(EnhancedTestCase):
                 else:
                     test_result = 'SUCCESS'
                 regex_patterns = [
-                    #r"Test result[\S\s]*Build succeeded for %d out of 1" % (not fails),
-                    #r"Overview of tested easyconfig[\S\s]*%s[\S\s]*%s" % (test_result, os.path.basename(ec_file)),
+                    r"Test result[\S\s]*Build succeeded for %d out of 1" % (not fails),
+                    r"Overview of tested easyconfig[\S\s]*%s[\S\s]*%s" % (test_result, os.path.basename(ec_file)),
                 ]
             regex_patterns.extend([
                 r"Time info[\S\s]*start:[\S\s]*end:",
