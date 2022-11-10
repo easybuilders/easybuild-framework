@@ -2395,7 +2395,7 @@ class FileToolsTest(EnhancedTestCase):
                 self.assertTrue(fn in index)
 
             for fp in index:
-                self.assertTrue(fp.endswith('.eb'))
+                self.assertTrue(fp.endswith(('.eb', '.json')))
 
         # set up some files to create actual index file for
         ft.copy_dir(os.path.join(test_ecs, 'g'), os.path.join(self.test_prefix, 'g'))
