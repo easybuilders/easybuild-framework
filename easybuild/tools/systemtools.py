@@ -212,23 +212,8 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
     'setuptools': ('pkg_resources', "obtaining information on Python packages via pkg_resources module"),
 }
 
-# os dependency constants that can be used in easyconfig (for name updates on arch distros)
-ARCH_OS_DEP_CONSTANTS = {
-    'IBVERBS_DEV': (('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel'),
-                        "OS packages providing ibverbs/infiniband development support"),
-    'OPENSSL_BIN': (('openssl'),
-                        "OS packages providing the openSSL binary"),
-    'OPENSSL_LIB': (('libssl', 'libopenssl'),
-                        "OS packages providing openSSL libraries"),
-    'OPENSSL_DEV': (('openssl-devel', 'libssl-dev', 'libopenssl-devel'),
-                        "OS packages providing openSSL developement support"),
-    'PAM_DEV': (('pam-devel', 'libpam0g-dev'),
-                    "OS packages providing Pluggable Authentication Module (PAM) developement support"),
-}
-
 class SystemToolsException(Exception):
     """raised when systemtools fails"""
-
 
 def sched_getaffinity():
     """Determine list of available cores for current process."""
