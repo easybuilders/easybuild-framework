@@ -92,4 +92,4 @@ if os_name in arch_distros:
     EASYCONFIG_CONSTANTS['OS_PKG_OPENSSL_LIB'] = (('openssl'),
                                                   "OS packages providing openSSL libraries")
     EASYCONFIG_CONSTANTS['OS_PKG_PAM_DEV'] = (('pam'),
-                                              "OS packages providing Pluggable Authentication Module (PAM) developement support")
+                                              "OS packages providing PAM developement support")
