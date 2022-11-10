@@ -858,16 +858,6 @@ def check_os_dependency(dep):
     else:
         pkg_cmds = [RPM, DPKG]
 
-    # adjust for arch package names
-    arch_distros = ['arch', 'manjaro']
-    if os_name in arch_distros:
-        if dep in ARCH_OS_DEP_CONSTANTS['IBVERBS_DEV'][0]:
-            dep = 'rdma-core'
-        elif (dep in ARCH_OS_DEP_CONSTANTS['OPENSSL_LIB'][0]) or (dep in ARCH_OS_DEP_CONSTANTS['OPENSSL_DEV'][0]):
-            dep = 'openssl'
-        elif dep in ARCH_OS_DEP_CONSTANTS['PAM_DEV'][0]:
-            dep = 'pam'
-
     for pkg_cmd in pkg_cmds:
         if which(pkg_cmd):
             cmd = [
