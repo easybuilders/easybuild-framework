@@ -87,9 +87,9 @@ EASYCONFIG_CONSTANTS = {
 arch_distros = ['arch', 'manjaro']
 os_name = get_os_name()
 if os_name in arch_distros:
-    EASYCONFIG_CONSTANTS['OS_PKG_IBVERBS_DEV'] = (('rdma-core'), 
+    EASYCONFIG_CONSTANTS['OS_PKG_IBVERBS_DEV'] = (('rdma-core'),
                                                   "OS packages providing ibverbs/infiniband development support")
-    EASYCONFIG_CONSTANTS['OS_PKG_OPENSSL_LIB'] = (('openssl'), 
+    EASYCONFIG_CONSTANTS['OS_PKG_OPENSSL_LIB'] = (('openssl'),
                                                   "OS packages providing openSSL libraries")
-    EASYCONFIG_CONSTANTS['OS_PKG_PAM_DEV'] = (('pam'), 
+    EASYCONFIG_CONSTANTS['OS_PKG_PAM_DEV'] = (('pam'),
                                               "OS packages providing Pluggable Authentication Module (PAM) developement support")
