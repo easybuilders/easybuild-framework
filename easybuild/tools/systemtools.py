@@ -212,8 +212,10 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
     'setuptools': ('pkg_resources', "obtaining information on Python packages via pkg_resources module"),
 }
 
+
 class SystemToolsException(Exception):
     """raised when systemtools fails"""
+
 
 def sched_getaffinity():
     """Determine list of available cores for current process."""
