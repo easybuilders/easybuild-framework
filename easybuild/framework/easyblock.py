@@ -2414,6 +2414,9 @@ class EasyBlock(object):
                 # if the filename is a tuple, the actual source file name is the first element
                 if isinstance(fn, tuple):
                     fn = fn[0]
+                # if the filename is a dict, the actual source file name is the "filename" element
+                if isinstance(fn, dict):
+                    fn = fn["filename"]
                 if fn in checksums_from_json.keys():
                     checksums += [checksums_from_json[fn]]
 
