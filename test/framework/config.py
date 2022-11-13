@@ -495,7 +495,9 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
         orig_sys_path = sys.path[:]
-        sys.path = [tmpdir] + [p for p in sys.path if not os.path.exists(os.path.join(p, 'easybuild', 'easyconfigs'))]
+        sys.path[:] = [tmpdir] + [
+            p for p in sys.path if not os.path.exists(os.path.join(p, 'easybuild', 'easyconfigs'))
+        ]
 
         # default: only pick up installed easyconfigs via sys.path
         eb_go = eboptions.parse_options(args=[])

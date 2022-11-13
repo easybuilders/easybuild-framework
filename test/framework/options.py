@@ -64,7 +64,7 @@ from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import HAVE_ARCHSPEC
 from easybuild.tools.version import VERSION
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config, GITHUB_TEST_ACCOUNT
 
 try:
     import pycodestyle  # noqa
@@ -93,9 +93,6 @@ prefix = /foo
 name = bar
 version = 1.2.3
 """
-
-# test account, for which a token may be available
-GITHUB_TEST_ACCOUNT = 'easybuild_test'
 
 
 class CommandLineOptionsTest(EnhancedTestCase):
@@ -1231,8 +1228,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_github_copy_ec_from_pr(self):
         """Test combination of --copy-ec with --from-pr."""
         if self.github_token is None:
-            print("Skipping test_copy_ec_from_pr, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         test_working_dir = os.path.join(self.test_prefix, 'test_working_dir')
         mkdir(test_working_dir)
@@ -1719,8 +1715,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_github_from_pr(self):
         """Test fetching easyconfigs from a PR."""
         if self.github_token is None:
-            print("Skipping test_from_pr, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
@@ -1806,8 +1801,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_github_from_pr_token_log(self):
         """Check that --from-pr doesn't leak GitHub token in log."""
         if self.github_token is None:
-            print("Skipping test_from_pr_token_log, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
@@ -1839,8 +1833,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_github_from_pr_listed_ecs(self):
         """Test --from-pr in combination with specifying easyconfigs on the command line."""
         if self.github_token is None:
-            print("Skipping test_from_pr, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
@@ -1894,8 +1887,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_github_from_pr_x(self):
         """Test combination of --from-pr with --extended-dry-run."""
         if self.github_token is None:
-            print("Skipping test_from_pr_x, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
@@ -3227,19 +3219,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # 'undo' import of foo easyblock
         del sys.modules['easybuild.easyblocks.foo']
-        sys.path = orig_local_sys_path
+        sys.path[:] = orig_local_sys_path
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
-
-        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic
-        # to avoid that easyblocks picked up from other places cause trouble
-        testdir_sandbox = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
-        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
-            for path in sys.modules[pkg].__path__[:]:
-                if testdir_sandbox not in path:
-                    sys.modules[pkg].__path__.remove(path)
 
         # include extra test easyblocks
         # Make them inherit from each other to trigger a known issue with changed imports, see #3779
@@ -3347,19 +3331,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # 'undo' import of foobar easyblock
         del sys.modules['easybuild.easyblocks.generic.foobar']
         os.remove(os.path.join(self.test_prefix, 'generic', 'foobar.py'))
-        sys.path = orig_local_sys_path
+        sys.path[:] = orig_local_sys_path
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
-
-        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic
-        # to avoid that easyblocks picked up from other places cause trouble
-        testdir_sandbox = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
-        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
-            for path in sys.modules[pkg].__path__[:]:
-                if testdir_sandbox not in path:
-                    sys.modules[pkg].__path__.remove(path)
 
         error_msg = "Failed to obtain class for FooBar easyblock"
         self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
@@ -3397,10 +3373,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
     # cleaning up the imported easyblocks is quite difficult...
     def test_github_xxx_include_easyblocks_from_pr(self):
         """Test --include-easyblocks-from-pr."""
-        if self.github_token is None:
-            print("Skipping test_preview_pr, no GitHub token available?")
-            return
-
         orig_local_sys_path = sys.path[:]
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -3450,21 +3422,30 @@ class CommandLineOptionsTest(EnhancedTestCase):
         del sys.modules['easybuild.easyblocks.foo']
         del sys.modules['easybuild.easyblocks.generic.cmakemake']
         os.remove(os.path.join(self.test_prefix, 'foo.py'))
-        sys.path = orig_local_sys_path
+        sys.path[:] = orig_local_sys_path
 
         # include test cmakemake easyblock
         cmm_txt = '\n'.join([
-            'from easybuild.framework.easyblock import EasyBlock',
-            'class CMakeMake(EasyBlock):',
+            'from easybuild.easyblocks.generic.configuremake import ConfigureMake',
+            'class CMakeMake(ConfigureMake):',
             '   pass',
             ''
         ])
         write_file(os.path.join(self.test_prefix, 'cmakemake.py'), cmm_txt)
 
-        # including the same easyblock twice should work and give priority to the one from the PR
+        # include extra (wrong) configuremake easyblock to check that the one from a pr is preferred
+        configuremake_txt = '\n'.join([
+            # using object here instead of EasyBlock would make get_easyblock_class fail
+            'class ConfigureMake(object):',
+            '   pass',
+            ''
+        ])
+        write_file(os.path.join(self.test_prefix, 'configuremake.py'), configuremake_txt)
+
+        # including the same easyblock(s) twice should work and give priority to the one(s) from PR(s)
         args = [
             '--include-easyblocks=%s/*.py' % self.test_prefix,
-            '--include-easyblocks-from-pr=1915',
+            '--include-easyblocks-from-pr=1915,2479',
             '--list-easyblocks=detailed',
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -3477,10 +3458,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         logtxt = read_file(self.logfile)
 
-        expected = "WARNING: One or more easyblocks included from multiple locations: "
-        expected += "cmakemake.py (the one(s) from PR #1915 will be used)"
-        self.assertEqual(stderr.strip(), expected)
-        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #1915\n")
+        expected = "\nWARNING: One or more easyblocks included from multiple locations: "
+        expected += "cmakemake.py (the one(s) from PR #1915 will be used)\n\n"
+        expected += "\nWARNING: One or more easyblocks included from multiple locations: "
+        expected += "configuremake.py (the one(s) from PR #2479 will be used)\n\n"
+        self.assertEqual(stderr, expected)
+        expected = "== easyblock cmakemake.py included from PR #1915\n"
+        expected += "== easyblock configuremake.py included from PR #2479\n"
+        self.assertEqual(stdout, expected)
 
         # easyblock included from pr is found
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
@@ -3494,21 +3479,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # 'undo' import of easyblocks
         del sys.modules['easybuild.easyblocks.foo']
-        del sys.modules['easybuild.easyblocks.generic.cmakemake']
-        os.remove(os.path.join(self.test_prefix, 'cmakemake.py'))
-        sys.path = orig_local_sys_path
+        for name in ('cmakemake', 'configuremake'):
+            del sys.modules['easybuild.easyblocks.generic.' + name]
+            os.remove(os.path.join(self.test_prefix, name + '.py'))
+
+        sys.path[:] = orig_local_sys_path
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
-
-        # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic,
-        # to avoid that easyblocks picked up from other places cause trouble
-        testdir_sandbox = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
-        for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
-            for path in sys.modules[pkg].__path__[:]:
-                if testdir_sandbox not in path:
-                    sys.modules[pkg].__path__.remove(path)
 
         # clear log
         write_file(self.logfile, '')
@@ -3740,8 +3719,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_github_preview_pr(self):
         """Test --preview-pr."""
         if self.github_token is None:
-            print("Skipping test_preview_pr, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         self.mock_stdout(True)
 
@@ -3762,8 +3740,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_github_review_pr(self):
         """Test --review-pr."""
         if self.github_token is None:
-            print("Skipping test_review_pr, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         self.mock_stdout(True)
         self.mock_stderr(True)
@@ -4038,8 +4015,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_new_branch_github(self):
         """Test for --new-branch-github."""
         if self.github_token is None:
-            print("Skipping test_create_branch_github, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         topdir = os.path.dirname(os.path.abspath(__file__))
 
@@ -4114,8 +4090,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_github_new_pr_from_branch(self):
         """Test --new-pr-from-branch."""
         if self.github_token is None:
-            print("Skipping test_new_pr_from_branch, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         # see https://github.com/boegel/easybuild-easyconfigs/tree/test_new_pr_from_branch_DO_NOT_REMOVE
         # branch created specifically for this test,
@@ -4154,8 +4129,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_update_branch_github(self):
         """Test --update-branch-github."""
         if self.github_token is None:
-            print("Skipping test_update_branch_github, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_ecs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
@@ -4183,8 +4157,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_github_new_update_pr(self):
         """Test use of --new-pr (dry run only)."""
         if self.github_token is None:
-            print("Skipping test_new_update_pr, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         # copy toy test easyconfig
         topdir = os.path.dirname(os.path.abspath(__file__))
@@ -4440,8 +4413,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_github_sync_pr_with_develop(self):
         """Test use of --sync-pr-with-develop (dry run only)."""
         if self.github_token is None:
-            print("Skipping test_sync_pr_with_develop, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         # use https://github.com/easybuilders/easybuild-easyconfigs/pull/9150,
         # which is a PR from boegel:develop to easybuilders:develop
@@ -4470,8 +4442,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_github_sync_branch_with_develop(self):
         """Test use of --sync-branch-with-develop (dry run only)."""
         if self.github_token is None:
-            print("Skipping test_sync_pr_with_develop, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         # see https://github.com/boegel/easybuild-easyconfigs/tree/test_new_pr_from_branch_DO_NOT_REMOVE
         test_branch = 'test_new_pr_from_branch_DO_NOT_REMOVE'
@@ -4500,8 +4471,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_github_new_pr_python(self):
         """Check generated PR title for --new-pr on easyconfig that includes Python dependency."""
         if self.github_token is None:
-            print("Skipping test_new_pr_python, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         # copy toy test easyconfig
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -4546,8 +4516,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test use of --new-pr to delete easyconfigs."""
 
         if self.github_token is None:
-            print("Skipping test_new_pr_delete, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         args = [
             '--new-pr',
@@ -4571,8 +4540,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test use of --new-pr with automatic dependency lookup."""
 
         if self.github_token is None:
-            print("Skipping test_new_pr_dependencies, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         foo_eb = '\n'.join([
             'easyblock = "ConfigureMake"',
@@ -4650,8 +4618,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """
         Test use of --merge-pr (dry run)"""
         if self.github_token is None:
-            print("Skipping test_merge_pr, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         # start by making sure --merge-pr without dry-run errors out for a closed PR
         args = [
@@ -4754,8 +4721,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_github_empty_pr(self):
         """Test use of --new-pr (dry run only) with no changes"""
         if self.github_token is None:
-            print("Skipping test_empty_pr, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         # get file from develop branch
         full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO,

@@ -79,6 +79,9 @@ for key in os.environ.keys():
         newkey = '%s_%s' % (CONFIG_ENV_VAR_PREFIX, key[len(test_env_var_prefix):])
         os.environ[newkey] = val
 
+# test account, for which a token may be available
+GITHUB_TEST_ACCOUNT = os.environ.get('EB_GITHUB_TEST_ACCOUNT', 'easybuild_test')
+
 
 class EnhancedTestCase(TestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
@@ -143,17 +146,10 @@ class EnhancedTestCase(TestCase):
         update_build_option('show_progress_bar', False)
 
         import easybuild
-        # try to import easybuild.easyblocks(.generic) packages
-        # it's OK if it fails here, but important to import first before fiddling with sys.path
-        try:
-            import easybuild.easyblocks
-            import easybuild.easyblocks.generic
-        except ImportError:
-            pass
 
         # add sandbox to Python search path, update namespace packages
         testdir_sandbox = os.path.join(testdir, 'sandbox')
-        sys.path.append(testdir_sandbox)
+        sys.path.insert(0, testdir_sandbox)
 
         # required to make sure the 'easybuild' dir in the sandbox is picked up;
         # this relates to the other 'reload' statements below
@@ -168,6 +164,10 @@ class EnhancedTestCase(TestCase):
             if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
                 if not os.path.samefile(path, testdir_sandbox):
                     sys.path.remove(path)
+        # And remove all loaded easyblocks to force reloading them
+        for mod in list(sys.modules):
+            if mod.startswith('easybuild.easyblocks'):
+                del sys.modules[mod]
 
         # hard inject location to (generic) test easyblocks into Python search path
         # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in easybuild/easyblocks/__init__.py
@@ -236,7 +236,7 @@ class EnhancedTestCase(TestCase):
         self.allow_deprecated_behaviour()
 
         # restore original Python search path
-        sys.path = self.orig_sys_path
+        sys.path[:] = self.orig_sys_path
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic

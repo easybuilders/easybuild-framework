@@ -55,11 +55,8 @@ from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import invalidate_module_caches_for, reset_module_caches
 from easybuild.tools.robot import check_conflicts, det_robot_path, resolve_dependencies, search_easyconfigs
-from test.framework.utilities import find_full_path
+from test.framework.utilities import find_full_path, GITHUB_TEST_ACCOUNT
 
-
-# test account, for which a token is available
-GITHUB_TEST_ACCOUNT = 'easybuild_test'
 
 ORIG_MODULES_TOOL = modules.modules_tool
 ORIG_ECEC_MODULES_TOOL = ecec.modules_tool
@@ -716,8 +713,7 @@ class RobotTest(EnhancedTestCase):
     def test_github_det_easyconfig_paths_from_pr(self):
         """Test det_easyconfig_paths function, with --from-pr enabled as well."""
         if self.github_token is None:
-            print("Skipping test_from_pr, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)

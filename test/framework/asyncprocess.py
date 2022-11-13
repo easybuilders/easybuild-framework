@@ -30,8 +30,8 @@ Unit tests for asyncprocess.py.
 
 import sys
 import time
-from test.framework.utilities import EnhancedTestCase
-from unittest import TextTestRunner, TestSuite
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 import easybuild.tools.asyncprocess as p
 from easybuild.tools.asyncprocess import Popen
@@ -46,7 +46,7 @@ class AsyncProcessTest(EnhancedTestCase):
         super(AsyncProcessTest, self).setUp()
         self.shell = Popen('sh', stdin=p.PIPE, stdout=p.PIPE, shell=True, executable='/bin/bash')
 
-    def runTest(self):
+    def test_echo_between_process(self):
         """ try echoing some text and see if it comes back out """
         p.send_all(self.shell, "echo hello\n")
         time.sleep(0.1)
@@ -69,7 +69,7 @@ class AsyncProcessTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestSuite([AsyncProcessTest()])
+    return TestLoaderFiltered().loadTestsFromTestCase(AsyncProcessTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

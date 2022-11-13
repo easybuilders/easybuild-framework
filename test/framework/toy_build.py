@@ -415,7 +415,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # cleanup
         shutil.rmtree(tmpdir)
-        sys.path = orig_sys_path
+        sys.path[:] = orig_sys_path
 
     def test_toy_build_formatv2_sections(self):
         """Perform a toy build (format v2, using sections)."""
