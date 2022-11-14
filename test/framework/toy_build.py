@@ -2715,13 +2715,13 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(toy_ec, toy_ec_txt)
         error_pattern = r"Sanity check failed\: Library libtoy\.so not found"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=toy_ec,
-                              extra_args=['--rpath', '--experimental', '--rpath-filter=.*ltoy.*'],
+                              extra_args=['--rpath', '--experimental', '--rpath-filter=.*libtoy.*'],
                               raise_error=True, verbose=False)
 
         # test use of --filter-rpath-sanity-libs option. In this test, we use --rpath-filter to make sure libtoy.so is
         # nót rpath-ed. If we would nót provide an exception with --filter-rpath-sanity-libs,
         # this would fail (as in happens in the previous test)
-        args = ['--rpath', '--experimental', '--rpath-filter=.*ltoy.*', '--filter-rpath-sanity-libs=libtoy.so']
+        args = ['--rpath', '--experimental', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libtoy.so']
         self.test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=True)
 
 
