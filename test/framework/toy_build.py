@@ -2724,7 +2724,6 @@ class ToyBuildTest(EnhancedTestCase):
         args = ['--rpath', '--experimental', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libtoy.so']
         self.test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=True)
 
-
     def test_toy_modaltsoftname(self):
         """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
         topdir = os.path.dirname(os.path.abspath(__file__))
