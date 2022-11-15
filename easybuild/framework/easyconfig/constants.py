@@ -35,7 +35,7 @@ import platform
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import print_warning
-from easybuild.tools.systemtools import KNOWN_ARCH_CONSTANTS, get_os_name, get_os_type, get_os_version
+from easybuild.tools.systemtools import ARCH_DISTROS, KNOWN_ARCH_CONSTANTS, get_os_name, get_os_type, get_os_version
 
 
 _log = fancylogger.getLogger('easyconfig.constants', fname=False)
@@ -84,9 +84,8 @@ EASYCONFIG_CONSTANTS = {
 }
 
 # redfine some package names for arch distros
-arch_distros = ['arch', 'manjaro']
 os_name = get_os_name()
-if os_name in arch_distros:
+if os_name in ARCH_DISTROS:
     EASYCONFIG_CONSTANTS['OS_PKG_IBVERBS_DEV'] = (('rdma-core'),
                                                   "OS packages providing ibverbs/infiniband development support")
     EASYCONFIG_CONSTANTS['OS_PKG_OPENSSL_LIB'] = (('openssl'),
