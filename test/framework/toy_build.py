@@ -2731,7 +2731,9 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_rpath_filter(self):
         """Test toy build using --rpath --rpath-filter and --rpath --rpath-filter --filter-rpath-sanity-libs."""
+
         # test sanity error when --rpath-filter is used to filter a required library
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb'))
         toy_ec_txt += "\ndependencies = [('libtoy', '0.0', '', SYSTEM)]"
         toy_ec_txt += "\nbuildopts = '-ltoy'"
