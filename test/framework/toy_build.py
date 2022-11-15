@@ -2736,13 +2736,13 @@ class ToyBuildTest(EnhancedTestCase):
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb'))
         toy_ec_txt += "\ndependencies = [('libtoy', '0.0', '', SYSTEM)]"
-        toy_ec_txt += "\nbuildopts = '-ltoy'"
+        toy_ec_txt += "\nbuildopts = '-ltoy && ldd toy'"
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         write_file(toy_ec, toy_ec_txt)
         error_pattern = r"Sanity check failed\: Library libtoy\.so not found"
         txt = self.test_toy_build(ec_file=toy_ec,
                                   extra_args=['--rpath', '--experimental', '--rpath-filter=.*libtoy.*'],
-                                  raise_error=True, verbose=False)
+                                  raise_error=False, verbose=False, verify=False)
         print("BUILD LOG OF FAILING TEST:")
         print(txt)
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=toy_ec,
