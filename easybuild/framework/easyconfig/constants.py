@@ -83,7 +83,10 @@ EASYCONFIG_CONSTANTS = {
                        "OS packages providing Pluggable Authentication Module (PAM) developement support"),
 }
 
-# redfine some package names for arch distros
+# package names for openssl-dev, pam-devel, and rdma-core-devel do not include the devel suffix on arch distros.
+# simply adding the arch names to the tuples below would falsely satisfy the dependencies on some non-arch distros,
+# so we need to explicitly define them separately. 
+# to accomodate other arch_distros, simply add to the arch_distros list
 os_name = get_os_name()
 if os_name in ARCH_DISTROS:
     EASYCONFIG_CONSTANTS['OS_PKG_IBVERBS_DEV'] = (('rdma-core'),
