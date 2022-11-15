@@ -855,7 +855,7 @@ def check_os_dependency(dep):
             dep = 'rdma-core'
         elif dep in pam_deps:
             dep = 'pam'
-            
+
     if os_name in os_to_pkg_cmd_map:
         pkg_cmds = [os_to_pkg_cmd_map[os_name]]
     else:
