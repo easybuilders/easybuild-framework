@@ -37,6 +37,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 :author: Maxime Boissonneault (Compute Canada)
 :author: Davide Vanzo (Vanderbilt University)
+:author: Caspar van Leeuwen (SURF)
 """
 
 import copy
@@ -106,14 +107,6 @@ from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 EASYBUILD_SOURCES_URL = 'https://sources.easybuild.io'
 
 DEFAULT_BIN_LIB_SUBDIRS = ('bin', 'lib', 'lib64')
-
-# Default exceptions from RPATH sanity check to avoid https://github.com/easybuilders/easybuild-framework/issues/4095
-DEFAULT_RPATH_EXCEPTION_LIBS = [
-    'libcuda.so',
-    'libcuda.so.1',
-    'libnvidia-ml.so'
-    'libnvidia-ml.so.1'
-]
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANITYCHECK_STEP]
 
