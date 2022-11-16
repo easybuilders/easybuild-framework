@@ -23,6 +23,7 @@ exts_list = [
         'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
         'patches': [
             'bar-0.0_fix-silly-typo-in-printf-statement.patch',
+            'bar-0.0_fix-very-silly-typo-in-printf-statement.patch',
         ],
         'toy_ext_param': "mv anotherbar bar_bis",
         'unknowneasyconfigparameterthatshouldbeignored': 'foo',
