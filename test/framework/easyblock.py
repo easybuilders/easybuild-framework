@@ -2314,7 +2314,6 @@ class EasyBlockTest(EnhancedTestCase):
         """Test checksum step"""
         testdir = os.path.abspath(os.path.dirname(__file__))
         toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
-        toy_checksums_json = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'checksums.json')
 
         ec = process_easyconfig(toy_ec)[0]
         eb = get_easyblock_instance(ec)
@@ -2323,7 +2322,6 @@ class EasyBlockTest(EnhancedTestCase):
 
         # fiddle with checksum to check whether faulty checksum is catched
         copy_file(toy_ec, self.test_prefix)
-        copy_file(toy_checksums_json, self.test_prefix)
         toy_ec = os.path.join(self.test_prefix, os.path.basename(toy_ec))
         ectxt = read_file(toy_ec)
         # replace MD5 checksum for toy-0.0.tar.gz
@@ -2351,6 +2349,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # test without checksums, it should work since they are in checksums.json
         toy_ec_json = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-testjson.eb')
+        toy_checksums_json = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'checksums-test.json')
+        copy_file(toy_checksums_json, os.path.join(self.test_prefix, 'checksums.json'))
         ec_json = process_easyconfig(toy_ec_json)[0]
         eb_json = get_easyblock_instance(ec_json)
         eb_json.fetch_sources()
