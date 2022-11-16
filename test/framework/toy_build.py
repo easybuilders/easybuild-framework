@@ -153,7 +153,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(devel_module_path))
 
     def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
-                       raise_error=False, test_report=None, name = 'toy', versionsuffix='', testing=True,
+                       raise_error=False, test_report=None, name='toy', versionsuffix='', testing=True,
                        raise_systemexit=False, force=True):
         """Perform a toy build."""
         if extra_args is None:
@@ -189,7 +189,7 @@ class ToyBuildTest(EnhancedTestCase):
                 raise myerr
 
         if verify:
-            self.check_toy(self.test_installpath, outtxt, name = name, versionsuffix=versionsuffix, error=myerr)
+            self.check_toy(self.test_installpath, outtxt, name=name, versionsuffix=versionsuffix, error=myerr)
 
         if test_readme:
             # make sure postinstallcmds were used
