@@ -2734,12 +2734,13 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test sanity error when --rpath-filter is used to filter a required library
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb'))
-        toy_ec_txt += "\ndependencies = [('libtoy', '0.0', '', SYSTEM)]"
-        toy_ec_txt += "\nprebuildopts = 'env && pwd && ls -al && '"
-        toy_ec_txt += "\nbuildopts = '-Wl,--no-as-needed -ltoy -Wl,--verbose && ldd toy && ls -al '"
-        toy_ec = os.path.join(self.test_prefix, 'toy.eb')
-        write_file(toy_ec, toy_ec_txt)
+        toy_ec = os.path.join(test_ecs, 't', 'toy2', 'toy2-0.0.eb')
+        # toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy2', 'toy2-0.0.eb'))
+        # toy_ec_txt += "\ndependencies = [('libtoy', '0.0', '', SYSTEM)]"
+        # toy_ec_txt += "\nprebuildopts = 'env && pwd && ls -al && '"
+        # toy_ec_txt += "\nbuildopts = '-Wl,--no-as-needed -ltoy -Wl,--verbose && ldd toy && ls -al '"
+        # toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+        # write_file(toy_ec, toy_ec_txt)
         error_pattern = r"Sanity check failed\: Library libtoy\.so not found"
         txt = self.test_toy_build(ec_file=toy_ec,
                                   extra_args=['--rpath', '--experimental', '--rpath-filter=.*libtoy.*'],
