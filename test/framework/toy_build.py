@@ -3758,9 +3758,23 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         test_report_fp = os.path.join(self.test_buildpath, 'full_test_report.md')
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
         self.test_toy_build(ec_file=test_ec, force=False, raise_error=False, verify=False,
                             parse_error_regex=r"One or more OS dependencies were not found",
                             test_report=test_report_fp)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        patterns = [
+            r"Failed to process easyconfig",
+            r"One or more OS dependencies were not found",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
 def suite():
