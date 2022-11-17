@@ -3764,7 +3764,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(ec_file=test_ec, force=False, raise_error=False, verify=False,
                             parse_error_regex=r"One or more OS dependencies were not found",
                             test_report=test_report_fp)
-        stderr, stdout = self.get_stderr(), self.get_stdout()
+        stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
 
