@@ -2384,7 +2384,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 91)
+            self.assertEqual(len(index), 90)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
@@ -2395,7 +2395,7 @@ class FileToolsTest(EnhancedTestCase):
                 self.assertTrue(fn in index)
 
             for fp in index:
-                self.assertTrue(fp.endswith(('.eb', '.json')))
+                self.assertTrue(fp.endswith('.eb') or os.path.basename(fp) == 'checksums-test.json')
 
         # set up some files to create actual index file for
         ft.copy_dir(os.path.join(test_ecs, 'g'), os.path.join(self.test_prefix, 'g'))
