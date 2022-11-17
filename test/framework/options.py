@@ -5903,6 +5903,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
 
+        # wipe $EASYBUILD_ROBOT_PATHS to avoid that checksums.json for toy is found in test_ecs
+        del os.environ['EASYBUILD_ROBOT_PATHS']
+
         args = [
             test_ec,
             '--stop=source',

@@ -2366,8 +2366,8 @@ class EasyBlockTest(EnhancedTestCase):
             else:
                 self.assertTrue(False, "Incorrect extension type: %s" % type(ext))
 
-        # put checksums.json in place
-        toy_checksums_json = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'checksums-test.json')
+        # put checksums.json in place next to easyconfig file being used for the tests
+        toy_checksums_json = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'checksums.json')
         copy_file(toy_checksums_json, os.path.join(self.test_prefix, 'checksums.json'))
 
         # test without checksums, it should work since they are in checksums.json
