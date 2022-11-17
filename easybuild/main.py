@@ -435,7 +435,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             test_report_msg = overall_test_report([], len(paths), False, fail_msg, init_session_state,
                                                   ec_parse_error=err)
             if test_report_msg is not None:
-                print_msg(test_report_msg)
+                _log.info(test_report_msg)
 
         raise err
 
