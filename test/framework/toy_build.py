@@ -2711,11 +2711,16 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_rpath_filter(self):
         """Test toy build using --rpath --rpath-filter and --rpath --rpath-filter --filter-rpath-sanity-libs."""
 
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy-app', 'toy-app-0.0.eb')
+
+        # This should just build succesfully
+        args = ['--rpath', '--experimental']
+        self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
+
         # test sanity error when --rpath-filter is used to filter a required library
         # In this test, libtoy.so will be linked, but not RPATH-ed due to the --rpath-filter
         # Thus, the RPATH sanity check is expected to fail with libtoy.so not being found
-        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs, 't', 'toy-app', 'toy-app-0.0.eb')
         error_pattern = r"Sanity check failed\: Library libtoy\.so not found"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=toy_ec,
                               extra_args=['--rpath', '--experimental', '--rpath-filter=.*libtoy.*'],
