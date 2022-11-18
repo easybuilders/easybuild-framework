@@ -2347,11 +2347,30 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.disallow_deprecated_behaviour()
 
-        # test without checksums, it should work since they are in checksums.json
-        toy_ec_json = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-testjson.eb')
-        toy_checksums_json = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'checksums-test.json')
+        # create test easyconfig from which checksums have been stripped
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        ectxt = read_file(toy_ec)
+        regex = re.compile(r"'?checksums'?\s*[=:]\s*\[[^]]+\].*", re.M)
+        ectxt = regex.sub('', ectxt)
+        write_file(test_ec, ectxt)
+
+        ec_json = process_easyconfig(test_ec)[0]
+
+        # make sure that test easyconfig file indeed doesn't contain any checksums (either top-level or for extensions)
+        self.assertEqual(ec_json['ec']['checksums'], [])
+        for ext in ec_json['ec']['exts_list']:
+            if isinstance(ext, string_type):
+                continue
+            elif isinstance(ext, tuple):
+                self.assertEqual(ext[2].get('checksums', []), [])
+            else:
+                self.assertTrue(False, "Incorrect extension type: %s" % type(ext))
+
+        # put checksums.json in place next to easyconfig file being used for the tests
+        toy_checksums_json = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'checksums.json')
         copy_file(toy_checksums_json, os.path.join(self.test_prefix, 'checksums.json'))
-        ec_json = process_easyconfig(toy_ec_json)[0]
+
+        # test without checksums, it should work since they are in checksums.json
         eb_json = get_easyblock_instance(ec_json)
         eb_json.fetch_sources()
         eb_json.checksum_step()
@@ -2365,7 +2384,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.fetch_sources()
         eb.checksum_step()
 
-        # if we look only at checksums in easyconfig, it should fail
+        # if we look only at (incorrect) checksums in easyconfig, it should fail
         eb = get_easyblock_instance(ec)
         build_options = {
             'checksum_priority': config.CHECKSUM_PRIORITY_EASYCONFIG

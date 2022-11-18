@@ -1105,7 +1105,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
         ec_files = [os.path.join(subdir, fil) for (subdir, _, files) in os.walk(ecs_dir) for fil in files]
-        # keep only .eb files
+        # keep only easyconfig files (there may be additional files like patches, checksums.json, etc.)
         ec_files = [x for x in ec_files if x.endswith('.eb')]
 
         build_options = {
