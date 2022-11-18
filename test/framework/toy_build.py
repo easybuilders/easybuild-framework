@@ -2715,17 +2715,17 @@ class ToyBuildTest(EnhancedTestCase):
         # In this test, libtoy.so will be linked, but not RPATH-ed due to the --rpath-filter
         # Thus, the RPATH sanity check is expected to fail with libtoy.so not being found
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs, 't', 'toy2', 'toy2-0.0.eb')
+        toy_ec = os.path.join(test_ecs, 't', 'toy-app', 'toy-app-0.0.eb')
         error_pattern = r"Sanity check failed\: Library libtoy\.so not found"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=toy_ec,
                               extra_args=['--rpath', '--experimental', '--rpath-filter=.*libtoy.*'],
-                              name='toy2', raise_error=True, verbose=False)
+                              name='toy-app', raise_error=True, verbose=False)
 
         # test use of --filter-rpath-sanity-libs option. In this test, we use --rpath-filter to make sure libtoy.so is
         # not rpath-ed. Then, we use --filter-rpath-sanity-libs to make sure the RPATH sanity checks ignores
         # the fact that libtoy.so is not found. Thus, this build should complete succesfully
         args = ['--rpath', '--experimental', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libtoy.so']
-        self.test_toy_build(ec_file=toy_ec, name='toy2', extra_args=args, raise_error=True)
+        self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
     def test_toy_modaltsoftname(self):
         """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
