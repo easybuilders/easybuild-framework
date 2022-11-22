@@ -1698,8 +1698,14 @@ class EasyBlockTest(EnhancedTestCase):
         res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, os.path.join(tmpdir, 't', 'toy', toy_tarball))
 
+        # test no_download option
+        urls = ['file://%s' % tmpdir_subdir]
+        error_pattern = "Couldn't find file toy-0.0.tar.gz anywhere, and downloading it is disabled"
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.obtain_file,
+                              toy_tarball, urls=urls, alt_location='alt_toy', no_download=True)
+
         # 'downloading' a file to (first) alternative sourcepath works
-        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
+        res = eb.obtain_file(toy_tarball, urls=urls, alt_location='alt_toy')
         self.assertEqual(res, os.path.join(tmpdir, 'a', 'alt_toy', toy_tarball))
 
         # make sure that directory in which easyconfig file is located is *ignored* when alt_location is used
@@ -2524,6 +2530,23 @@ class EasyBlockTest(EnhancedTestCase):
 
         # sources can also have dict entries
         eb.cfg['sources'] = [{'filename': 'toy-0.0.tar.gz', 'download_fileame': 'toy.tar.gz'}]
+        self.assertEqual(eb.check_checksums(), [])
+
+        # no checksums in easyconfig, then picked up from checksums.json next to easyconfig file
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        copy_file(toy_ec, test_ec)
+        ec = process_easyconfig(test_ec)[0]
+        eb = get_easyblock_instance(ec)
+        eb.cfg['checksums'] = []
+        res = eb.check_checksums()
+        self.assertEqual(len(res), 1)
+        expected = "Checksums missing for one or more sources/patches in test.eb: "
+        expected += "found 1 sources + 2 patches vs 0 checksums"
+        self.assertEqual(res[0], expected)
+
+        # all is fine is checksums.json is also copied
+        copy_file(os.path.join(os.path.dirname(toy_ec), 'checksums.json'), self.test_prefix)
+        eb.json_checksums = None
         self.assertEqual(eb.check_checksums(), [])
 
     def test_this_is_easybuild(self):
