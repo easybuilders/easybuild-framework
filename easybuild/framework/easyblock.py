@@ -42,13 +42,13 @@ The EasyBlock class should serve as a base class for all easyblocks.
 import copy
 import glob
 import inspect
+import json
 import os
 import re
 import stat
 import tempfile
 import time
 import traceback
-import json
 from datetime import datetime
 from distutils.version import LooseVersion
 
@@ -68,8 +68,7 @@ from easybuild.tools import config, run
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
-from easybuild.tools.config import CHECKSUM_PRIORITY_JSON
-from easybuild.tools.config import DEFAULT_ENVVAR_USERS_MODULES
+from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
@@ -354,11 +353,10 @@ class EasyBlock(object):
         :param index: index of file in list
         """
         checksum = None
-        json_checksums = self.get_checksums_from_json()
+
         # sometimes, filename are specified as a dict
         if isinstance(filename, dict):
             filename = filename['filename']
-        json_checksum = json_checksums.get(filename, None)
 
         # if checksums are provided as a dict, lookup by source filename as key
         if isinstance(checksums, dict):
@@ -378,11 +376,17 @@ class EasyBlock(object):
                                  type(checksums))
 
         if checksum is None or build_option("checksum_priority") == CHECKSUM_PRIORITY_JSON:
-            return json_checksum
+            json_checksums = self.get_checksums_from_json()
+            return json_checksums.get(filename, None)
         else:
             return checksum
 
     def get_checksums_from_json(self, always_read=False):
+        """
+        Get checksums for this software that are provided in a checksums.json file
+
+        :param: always_read: always read the checksums.json file, even if it has been read before
+        """
         if always_read or self.json_checksums is None:
             try:
                 path = self.obtain_file("checksums.json", no_download=True)
@@ -475,8 +479,8 @@ class EasyBlock(object):
             if source is None:
                 raise EasyBuildError("Empty source in sources list at index %d", index)
 
-            src_spec = self.fetch_source(source,
-                                         self.get_checksum_for(checksums=checksums, filename=source, index=index))
+            checksum = self.get_checksum_for(checksums=checksums, filename=source, index=index)
+            src_spec = self.fetch_source(source, checksum=checksum)
             if src_spec:
                 self.src.append(src_spec)
             else:
@@ -855,7 +859,7 @@ class EasyBlock(object):
                     self.dry_run_msg("  * %s (MISSING)", filename)
                     return filename
                 else:
-                    raise EasyBuildError("Couldn't find file %s anywhere, and downloading it is disable... "
+                    raise EasyBuildError("Couldn't find file %s anywhere, and downloading it is disabled... "
                                          "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
             elif git_config:
                 return get_source_tarball_from_git(filename, targetdir, git_config)
