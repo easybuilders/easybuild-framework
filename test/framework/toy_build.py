@@ -3762,7 +3762,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.mock_stderr(True)
         self.mock_stdout(True)
         self.test_toy_build(ec_file=test_ec, force=False, raise_error=False, verify=False,
-                            test_error_regex=r"One or more OS dependencies were not found",
+                            test_error_regex=[r"One or more OS dependencies were not found"],
                             test_report=test_report_fp)
         stdout = self.get_stdout()
         self.mock_stderr(False)
