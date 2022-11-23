@@ -28,6 +28,7 @@ Unit tests for eb command line options.
 @author: Kenneth Hoste (Ghent University)
 """
 import glob
+import json
 import os
 import re
 import shutil
@@ -5870,6 +5871,36 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(stdout, '')
         self.assertTrue("option --inject-checksums: invalid choice" in stderr)
 
+    def test_inject_checksums_to_json(self):
+        """Test --inject-checksums-to-json."""
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        copy_file(toy_ec, test_ec)
+        test_ec_txt = read_file(test_ec)
+
+        args = [test_ec, '--inject-checksums-to-json']
+        self._run_mock_eb(args, raise_error=True, strip=True)
+
+        self.assertEqual(test_ec_txt, read_file(test_ec))
+
+        checksums_json_txt = read_file(os.path.join(self.test_prefix, 'checksums.json'))
+        expected_dict = {
+            'bar-0.0.tar.gz': 'f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7',
+            'bar-0.0_fix-silly-typo-in-printf-statement.patch':
+                '84db53592e882b5af077976257f9c7537ed971cb2059003fd4faa05d02cae0ab',
+            'bar-0.0_fix-very-silly-typo-in-printf-statement.patch':
+                'd0bf102f9c5878445178c5f49b7cd7546e704c33fe2060c7354b7e473cfeb52b',
+            'bar.tgz': '33ac60685a3e29538db5094259ea85c15906cbd0f74368733f4111eab6187c8f',
+            'barbar-0.0.tar.gz': 'd5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838',
+            'toy-0.0.tar.gz': '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
+            'toy-0.0_fix-silly-typo-in-printf-statement.patch':
+                '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487',
+            'toy-extra.txt': '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458',
+        }
+        self.assertEqual(json.loads(checksums_json_txt), expected_dict)
+
     def test_force_download(self):
         """Test --force-download"""
         topdir = os.path.dirname(os.path.abspath(__file__))
@@ -5904,6 +5935,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        # wipe $EASYBUILD_ROBOT_PATHS to avoid that checksums.json for toy is found in test_ecs
+        del os.environ['EASYBUILD_ROBOT_PATHS']
 
         args = [
             test_ec,
