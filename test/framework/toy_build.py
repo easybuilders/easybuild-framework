@@ -153,7 +153,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
                        raise_error=False, test_report=None, versionsuffix='', testing=True,
-                       raise_systemexit=False, force=True, parse_error_regex=None):
+                       raise_systemexit=False, force=True, test_report_regex=None):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -198,8 +198,8 @@ class ToyBuildTest(EnhancedTestCase):
         # make sure full test report was dumped, and contains sensible information
         if test_report is not None:
             self.assertTrue(os.path.exists(test_report))
-            if parse_error_regex:
-                regex_patterns = [parse_error_regex]
+            if test_report_regex:
+                regex_patterns = test_report_regex
             else:
                 if fails:
                     test_result = 'FAIL'
@@ -3762,7 +3762,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.mock_stderr(True)
         self.mock_stdout(True)
         self.test_toy_build(ec_file=test_ec, force=False, raise_error=False, verify=False,
-                            parse_error_regex=r"One or more OS dependencies were not found",
+                            test_error_regex=r"One or more OS dependencies were not found",
                             test_report=test_report_fp)
         stdout = self.get_stdout()
         self.mock_stderr(False)
