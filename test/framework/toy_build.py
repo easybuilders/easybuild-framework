@@ -3748,6 +3748,8 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_unavailable_os_dep(self):
         """
         Test unavailable OS dep
+        Existence of OS dependencies is checking during the parsing of the easyconfig.
+        Test here that this problem is caught and a test report generated (#4102).
         """
         test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
