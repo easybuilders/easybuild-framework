@@ -34,6 +34,7 @@ EasyBuild configuration (paths, preferences, etc.)
 :author: Ward Poelmans (Ghent University)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 :author: Andy Georges (Ghent University)
+:author: Maxime Boissonneault (Compute Canada)
 """
 import copy
 import glob
@@ -128,6 +129,11 @@ FORCE_DOWNLOAD_SOURCES = 'sources'
 FORCE_DOWNLOAD_CHOICES = [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES]
 DEFAULT_FORCE_DOWNLOAD = FORCE_DOWNLOAD_SOURCES
 
+CHECKSUM_PRIORITY_JSON = "json"
+CHECKSUM_PRIORITY_EASYCONFIG = "easyconfig"
+CHECKSUM_PRIORITY_CHOICES = [CHECKSUM_PRIORITY_JSON, CHECKSUM_PRIORITY_EASYCONFIG]
+DEFAULT_CHECKSUM_PRIORITY = CHECKSUM_PRIORITY_EASYCONFIG
+
 # package name for generic easyblocks
 GENERIC_EASYBLOCK_PKG = 'generic'
 
@@ -182,6 +188,7 @@ BUILD_OPTIONS_CMDLINE = {
         'aggregate_regtest',
         'backup_modules',
         'banned_linked_shared_libs',
+        'checksum_priority',
         'container_config',
         'container_image_format',
         'container_image_name',
