@@ -1,6 +1,0 @@
-software:
-  Bioconductor:
-    toolchains:
-     # foss-2020a:
-        versions:
-            3.11
