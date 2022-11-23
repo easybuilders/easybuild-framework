@@ -175,7 +175,7 @@ class EasyStackParser(object):
                     opts = ec_dict.get('options')
                     easystack.ec_opt_tuples.append((easyconf_name_with_eb, opts))
                 else:
-                    dict_keys = ', '.join(easyconfig.keys())
+                    dict_keys = ', '.join(sorted(easyconfig.keys()))
                     msg = "Failed to parse easystack file: expected a dictionary with one key (the EasyConfig name), "
                     msg += "instead found keys: %s" % dict_keys
                     msg += ", see %s for documentation." % EASYSTACK_DOC_URL
