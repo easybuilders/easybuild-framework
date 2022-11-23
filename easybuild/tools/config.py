@@ -66,6 +66,8 @@ UNLOAD = 'unload'
 UNSET = 'unset'
 WARN = 'warn'
 
+EMPTY_LIST = 'empty_list'
+
 PKG_TOOL_FPM = 'fpm'
 PKG_TYPE_RPM = 'rpm'
 
@@ -183,9 +185,9 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 # build options that have a perfectly matching command line option, listed by default value
 BUILD_OPTIONS_CMDLINE = {
     None: [
-        'accept_eula_for',
         'aggregate_regtest',
         'backup_modules',
+        'banned_linked_shared_libs',
         'checksum_priority',
         'container_config',
         'container_image_format',
@@ -203,19 +205,17 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_deps',
         'filter_ecs',
         'filter_env_vars',
-        'hide_deps',
-        'hide_toolchains',
-        'http_header_fields_urlpat',
         'force_download',
-        'insecure_download',
-        'from_pr',
         'git_working_dirs_path',
         'github_user',
         'github_org',
         'group',
+        'hide_deps',
+        'hide_toolchains',
+        'http_header_fields_urlpat',
         'hooks',
         'ignore_dirs',
-        'include_easyblocks_from_pr',
+        'insecure_download',
         'job_backend_config',
         'job_cores',
         'job_deps_type',
@@ -240,7 +240,6 @@ BUILD_OPTIONS_CMDLINE = {
         'regtest_output_dir',
         'rpath_filter',
         'rpath_override_dirs',
-        'banned_linked_shared_libs',
         'required_linked_shared_libs',
         'silence_deprecation_warnings',
         'skip',
@@ -249,8 +248,8 @@ BUILD_OPTIONS_CMDLINE = {
         'sysroot',
         'test_report_env_filter',
         'testoutput',
-        'wait_on_lock',
         'umask',
+        'wait_on_lock',
         'zip_logs',
     ],
     False: [
@@ -264,9 +263,10 @@ BUILD_OPTIONS_CMDLINE = {
         'debug_lmod',
         'dump_autopep8',
         'enforce_checksums',
-        'extended_dry_run',
         'experimental',
+        'extended_dry_run',
         'force',
+        'generate_devel_module',
         'group_writable_installdir',
         'hidden',
         'ignore_checksums',
@@ -281,27 +281,24 @@ BUILD_OPTIONS_CMDLINE = {
         'package',
         'parallel_extensions_install',
         'read_only_installdir',
-        'remove_ghost_install_dirs',
         'rebuild',
-        'robot',
+        'remove_ghost_install_dirs',
         'rpath',
         'sanity_check_only',
-        'search_paths',
         'sequential',
+        'set_default_module',
         'set_gid_bit',
         'skip_extensions',
         'skip_test_cases',
         'skip_test_step',
-        'generate_devel_module',
         'sticky_bit',
         'trace',
         'unit_testing_mode',
         'upload_test_report',
         'update_modules_tool_cache',
         'use_ccache',
-        'use_f90cache',
         'use_existing_modules',
-        'set_default_module',
+        'use_f90cache',
         'wait_on_lock_limit',
     ],
     True: [
@@ -313,16 +310,23 @@ BUILD_OPTIONS_CMDLINE = {
         'lib_lib64_symlink',
         'lib64_fallback_sanity_check',
         'lib64_lib_symlink',
-        'mpi_tests',
         'map_toolchains',
         'modules_tool_version_check',
+        'mpi_tests',
         'pre_create_installdir',
         'show_progress_bar',
     ],
+    EMPTY_LIST: [
+        'accept_eula_for',
+        'from_pr',
+        'include_easyblocks_from_pr',
+        'robot',
+        'search_paths',
+    ],
     WARN: [
         'check_ebroot_env_vars',
-        'local_var_naming_check',
         'detect_loaded_modules',
+        'local_var_naming_check',
         'strict',
     ],
     DEFAULT_CONT_TYPE: [
@@ -387,8 +391,8 @@ BUILD_OPTIONS_OTHER = {
     ],
     False: [
         'dry_run',
-        'recursive_mod_unload',
         'mod_depends_on',
+        'recursive_mod_unload',
         'retain_all_deps',
         'silent',
         'try_to_generate',
@@ -570,7 +574,11 @@ def init_build_options(build_options=None, cmdline_options=None):
     bo = {}
     for build_options_by_default in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER]:
         for default in build_options_by_default:
-            bo.update(dict([(opt, default) for opt in build_options_by_default[default]]))
+            if default == EMPTY_LIST:
+                for opt in build_options_by_default[default]:
+                    bo[opt] = []
+            else:
+                bo.update(dict([(opt, default) for opt in build_options_by_default[default]]))
     bo.update(active_build_options)
 
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
