@@ -374,8 +374,20 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
             sys.exit(31)  # exit -> 3x1t -> 31
 
     # read easyconfig files
-    validate = not options.inject_checksums and not options.inject_checksums_to_json
-    easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=validate)
+    try:
+        validate = not options.inject_checksums and not options.inject_checksums_to_json
+        easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=validate)
+    except Exception as err:
+        # Catch any exception in easyconfig parsing, so we can generate a test report if required
+        if options.dump_test_report or options.upload_test_report:
+            # dump/upload overall test report
+            fail_msg = "Failed during parsing of the easyconfigs, so no ecs were built"
+            test_report_msg = overall_test_report([], len(paths), False, fail_msg, init_session_state,
+                                                  ec_parse_error=err)
+            if test_report_msg is not None:
+                _log.info(test_report_msg)
+
+        raise err
 
     # handle --check-contrib & --check-style options
     if run_contrib_style_checks([ec['ec'] for ec in easyconfigs], options.check_contrib, options.check_style):
