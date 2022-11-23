@@ -2054,7 +2054,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
 
     # only cache when no build specifications are involved (since those can't be part of a dict key)
     cache_key = None
-    if build_specs is None:
+    if not build_specs:
         cache_key = (path, validate, hidden, parse_only)
         if cache_key in _easyconfigs_cache:
             return [e.copy() for e in _easyconfigs_cache[cache_key]]

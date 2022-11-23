@@ -33,6 +33,7 @@ Command line options for eb
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+:author: Maxime Boissonneault (Compute Canada)
 """
 import copy
 import glob
@@ -59,6 +60,7 @@ from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
 from easybuild.tools.build_log import init_logging, log_start, print_msg, print_warning, raise_easybuilderror
+from easybuild.tools.config import CHECKSUM_PRIORITY_CHOICES, DEFAULT_CHECKSUM_PRIORITY
 from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE, DEFAULT_ALLOW_LOADED_MODULES
 from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_ENV_FOR_SHEBANG, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE, DEFAULT_JOB_BACKEND
@@ -359,6 +361,9 @@ class EasyBuildOptions(GeneralOption):
             'check-ebroot-env-vars': ("Action to take when defined $EBROOT* environment variables are found "
                                       "for which there is no matching loaded module; "
                                       "supported values: %s" % ', '.join(EBROOT_ENV_VAR_ACTIONS), None, 'store', WARN),
+            'checksum-priority': ("When checksums are found in both the EasyConfig and the checksums.json file"
+                                  "Define which one to use. ",
+                                  'choice', 'store_or_None', DEFAULT_CHECKSUM_PRIORITY, CHECKSUM_PRIORITY_CHOICES),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
@@ -783,6 +788,8 @@ class EasyBuildOptions(GeneralOption):
                               int, 'store', DEFAULT_INDEX_MAX_AGE),
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
                                  'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
+            'inject-checksums-to-json': ("Inject checksums of specified type for sources/patches into checksums.json",
+                                         'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
             'local-var-naming-check': ("Mode to use when checking whether local variables follow the recommended "
                                        "naming scheme ('log': only log warnings (no printed messages); 'warn': print "
                                        "warnings; 'error': fail with an error)", 'choice', 'store',
@@ -1168,8 +1175,8 @@ class EasyBuildOptions(GeneralOption):
             self.options.ignore_osdeps = True
             self.options.modules_tool = None
 
-        # imply --disable-pre-create-installdir with --inject-checksums
-        if self.options.inject_checksums:
+        # imply --disable-pre-create-installdir with --inject-checksums or --inject-checksums-to-json
+        if self.options.inject_checksums or self.options.inject_checksums_to_json:
             self.options.pre_create_installdir = False
 
     def _postprocess_list_avail(self):
