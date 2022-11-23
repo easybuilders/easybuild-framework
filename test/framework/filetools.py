@@ -344,6 +344,9 @@ class FileToolsTest(EnhancedTestCase):
         alt_checksums = (known_checksums['sha256'],)
         self.assertTrue(ft.verify_checksum(fp, alt_checksums))
 
+        alt_checksums = ('7167b64b1ca062b9674ffef46f9325db7167b64b1ca062b9674ffef46f9325db', broken_checksums['sha256'])
+        self.assertFalse(ft.verify_checksum(fp, alt_checksums))
+
         # check whether missing checksums are enforced
         build_options = {
             'enforce_checksums': True,
