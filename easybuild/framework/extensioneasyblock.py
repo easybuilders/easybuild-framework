@@ -154,8 +154,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             fake_mod_data = None
 
             # only load fake module + extra modules for stand-alone installations (not for extensions),
-            # since for extension the necessary modules should already be loaded at this point
-            if not (self.is_extension or self.dry_run):
+            # since for extension the necessary modules should already be loaded at this point;
+            # take into account that module may already be loaded earlier in sanity check
+            if not (self.sanity_check_module_loaded or self.is_extension or self.dry_run):
                 # load fake module
                 fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
 
