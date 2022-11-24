@@ -1623,6 +1623,8 @@ class EasyBlock(object):
         :param purge: boolean indicating whether or not to purge currently loaded modules first
         :param extra_modules: list of extra modules to load (these are loaded *before* loading the 'self' module)
         """
+        self.log.info("Loading fake module (%s)", self.short_mod_name)
+
         # take a copy of the current environment before loading the fake module, so we can restore it
         env = copy.deepcopy(os.environ)
 
@@ -3358,6 +3360,7 @@ class EasyBlock(object):
 
         # skip loading of fake module when using --sanity-check-only, load real module instead
         if build_option('sanity_check_only') and not extension:
+            self.log.info("Loading real module for %s %s: %s", self.name, self.version, self.short_mod_name)
             self.load_module(extra_modules=extra_modules)
             self.sanity_check_module_loaded = True
 
