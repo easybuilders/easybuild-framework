@@ -27,6 +27,7 @@ Unit tests for talking to GitHub.
 
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+:author: Maxime Boissonneault (Digital Research Alliance of Canada, Universite Laval)
 """
 import base64
 import os
@@ -574,6 +575,38 @@ class GithubTest(EnhancedTestCase):
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
         self.assertTrue(os.path.exists(path), "Path %s exists" % path)
+
+    def test_github_find_checksums_json(self):
+        """ Test for find_software_name_for_checksums_json """
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        ec_path = os.path.join(test_dir, 'easyconfigs')
+        init_config(build_options={
+            'allow_modules_tool_mismatch': True,
+            'minimal_toolchains': True,
+            'use_existing_modules': True,
+            'external_modules_metadata': ConfigObj(),
+            'silent': True,
+            'valid_module_classes': module_classes(),
+            'validate': False,
+        })
+        self.mock_stdout(True)
+        ec = gh.find_software_name_for_checksums_json({'toy-extra.txt': 'n-a'}, [ec_path])
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(ec == 'toy')
+        reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
+        self.assertTrue(re.search(reg, txt))
+
+        self.assertEqual(gh.find_software_name_for_checksums_json({'test.patch': 'n-a'}, []), None)
+
+        # check behaviour of find_software_name_for_checksums_json when non-UTF8 patch files are present (only with Python 3)
+        if sys.version_info[0] >= 3:
+            non_utf8_patch = os.path.join(self.test_prefix, 'problem.patch')
+            with open(non_utf8_patch, 'wb') as fp:
+                fp.write(bytes("+  ximage->byte_order=T1_byte_order; /* Set t1lib\xb4s byteorder */\n", 'iso_8859_1'))
+
+            self.assertEqual(gh.find_software_name_for_checksums_json({'test.patch': 'n-a'}, [self.test_prefix]), None)
 
     def test_github_find_patches(self):
         """ Test for find_software_name_for_patch """

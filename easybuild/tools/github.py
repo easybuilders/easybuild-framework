@@ -28,6 +28,7 @@ Utility module for working with github
 :author: Jens Timmerman (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 :author: Toon Willems (Ghent University)
+:author: Maxime Boissonneault (Digital Research Alliance of Canada, Universite Laval)
 """
 import base64
 import copy
@@ -42,6 +43,8 @@ import socket
 import sys
 import tempfile
 import time
+import json
+from collections import Counter
 from datetime import datetime, timedelta
 from distutils.version import LooseVersion
 
@@ -1039,6 +1042,70 @@ def is_checksums_json_for(checksums, ec):
             break
 
     return res
+
+
+def find_software_name_for_checksums_json(checksums, ec_dirs):
+    """
+    Scan all easyconfigs in the robot path(s) to determine which software a checksums dictionary belongs to
+
+    :param checksums: dictionary of checksums
+    :param ecs_dirs: list of directories to consider when looking for easyconfigs
+    :return: name of the software that this checksums dictionary belongs to (if found)
+    """
+
+    soft_name = None
+
+    ignore_dirs = build_option('ignore_dirs')
+    all_ecs = []
+    for ec_dir in ec_dirs:
+        for (dirpath, dirnames, filenames) in os.walk(ec_dir):
+            # Exclude ignored dirs
+            if ignore_dirs:
+                dirnames[:] = [i for i in dirnames if i not in ignore_dirs]
+            for fn in filenames:
+                # TODO: In EasyBuild 5.x only check for '*.eb' files
+                if fn != 'TEMPLATE.eb' and os.path.splitext(fn)[1] not in ('.py', '.patch'):
+                    path = os.path.join(dirpath, fn)
+                    rawtxt = read_file(path)
+                    if 'patches' in rawtxt or 'sources' in rawtxt:
+                        all_ecs.append(path)
+
+    # Usually, checksums.json will contain sources that contain the software name or version
+    # So search those ECs first
+    sources_stems = [s.split('.')[0] for s in checksums.keys()]
+    # Extract possible sw name and version according to above scheme
+    # Those might be the same as the whole patch stem, which is OK
+    possible_sw_name = [s.split('-')[0].lower() for s in sources_stems]
+    possible_sw_name_version = [s.split('_')[0].lower() for s in sources_stems]
+
+    def ec_key(path):
+        filename = os.path.basename(path).lower()
+        # Put files with one of those as the prefix first, then sort by name
+        return (
+            not any([filename.startswith(s) for s in possible_sw_name_version]),
+            not any([filename.startswith(s) for s in possible_sw_name]),
+            filename
+        )
+    all_ecs.sort(key=ec_key)
+
+    nr_of_ecs = len(all_ecs)
+    for idx, path in enumerate(all_ecs):
+        if soft_name:
+            break
+        try:
+            ecs = process_easyconfig(path, validate=False)
+            for ec in ecs:
+                if is_checksums_json_for(checksums, ec['ec']):
+                    soft_name = ec['ec']['name']
+                    break
+        except EasyBuildError as err:
+            _log.debug("Ignoring easyconfig %s that fails to parse: %s", path, err)
+        sys.stdout.write('\r%s of %s easyconfigs checked' % (idx + 1, nr_of_ecs))
+        sys.stdout.flush()
+
+    sys.stdout.write('\n')
+    return soft_name
+
 
 def is_patch_for(patch_name, ec):
     """Check whether specified patch matches any patch in the provided EasyConfig instance."""
