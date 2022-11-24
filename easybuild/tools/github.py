@@ -1845,7 +1845,7 @@ def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
 def det_pr_target_repo(paths):
     """Determine target repository for pull request from given cagetorized list of files
 
-    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches, .py files)
+    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches, checksums, .py files)
     """
     pr_target_repo = build_option('pr_target_repo')
 
@@ -1855,10 +1855,10 @@ def det_pr_target_repo(paths):
 
         _log.info("Trying to derive target repository based on specified files...")
 
-        easyconfigs, files_to_delete, patch_files, py_files = [paths[key] for key in sorted(paths.keys())]
+        checksums, easyconfigs, files_to_delete, patch_files, py_files = [paths[key] for key in sorted(paths.keys())]
 
         # Python files provided, and no easyconfig files or patches
-        if py_files and not (easyconfigs or patch_files):
+        if py_files and not (easyconfigs or patch_files or checksums):
 
             _log.info("Only Python files provided, no easyconfig files or patches...")
 
@@ -1871,9 +1871,10 @@ def det_pr_target_repo(paths):
                 pr_target_repo = GITHUB_FRAMEWORK_REPO
                 _log.info("Not all Python files are easyblocks, target repository is assumed to be %s", pr_target_repo)
 
-        # if no Python files are provided, only easyconfigs & patches, or if files to delete are .eb files,
+        # if no Python files are provided, only easyconfigs, patches and checksums, or if files to delete are .eb files,
         # then target repo is assumed to be easyconfigs
-        elif easyconfigs or patch_files or (files_to_delete and all(x.endswith('.eb') for x in files_to_delete)):
+        elif (easyconfigs or patch_files or checksums or
+             (files_to_delete and all(x.endswith('.eb') for x in files_to_delete))):
             pr_target_repo = GITHUB_EASYCONFIGS_REPO
             _log.info("Only easyconfig and patch files found, target repository is assumed to be %s", pr_target_repo)
 

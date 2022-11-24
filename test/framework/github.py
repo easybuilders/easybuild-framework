@@ -990,17 +990,21 @@ class GithubTest(EnhancedTestCase):
 
         test_dir = os.path.dirname(os.path.abspath(__file__))
 
-        # easyconfigs/patches (incl. files to delete) => easyconfigs repo
+        # easyconfigs/patches/checksums (incl. files to delete) => easyconfigs repo
         # this is solely based on filenames, actual files are not opened, except for the patch file which must exist
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         toy_patch = os.path.join(test_dir, 'sandbox', 'sources', 'toy', toy_patch_fn)
         test_cases = [
             ['toy.eb'],
             [toy_patch],
+            ['checksums.json'],
             ['toy.eb', toy_patch],
+            ['toy.eb', toy_patch, 'checksums.json'],
             [':toy.eb'],  # deleting toy.eb
             ['one.eb', 'two.eb'],
+            ['one.eb', 'two.eb', 'checksums.json'],
             ['one.eb', 'two.eb', toy_patch, ':todelete.eb'],
+            ['one.eb', 'two.eb', toy_patch, 'checksums.json', ':todelete.eb'],
         ]
         for test_case in test_cases:
             self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(test_case)), 'easybuild-easyconfigs')
@@ -1025,8 +1029,8 @@ class GithubTest(EnhancedTestCase):
         py_files.append(github_py)
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files)), 'easybuild-framework')
 
-        # as soon as an easyconfig file or patch files is involved => result is easybuild-easyconfigs repo
-        for fn in ['toy.eb', toy_patch]:
+        # as soon as an easyconfig file, checksums or patch files is involved => result is easybuild-easyconfigs repo
+        for fn in ['toy.eb', toy_patch, 'checksums.json']:
             self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files + [fn])), 'easybuild-easyconfigs')
 
         # if --pr-target-repo is specified, we always get this value (no guessing anymore)
