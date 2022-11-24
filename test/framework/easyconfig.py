@@ -3368,7 +3368,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_categorize_files_by_type(self):
         """Test categorize_files_by_type"""
         self.assertEqual({'easyconfigs': [], 'files_to_delete': [], 'patch_files': [], 'py_files': [],
-                          'checksums_files': []},
+                          'checksums_json': []},
                          categorize_files_by_type([]))
 
         test_dir = os.path.dirname(os.path.abspath(__file__))
@@ -3402,7 +3402,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(res['files_to_delete'], ['toy-0.0-deps.eb'])
         self.assertEqual(res['patch_files'], [toy_patch])
         self.assertEqual(res['py_files'], [toy_easyblock, configuremake])
-        self.assertEqual(res['checksums_files'], [toy_checksums])
+        self.assertEqual(res['checksums_json'], [toy_checksums])
 
         # Error cases
         tmpdir = tempfile.mkdtemp()

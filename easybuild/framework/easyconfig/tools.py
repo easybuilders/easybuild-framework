@@ -650,7 +650,7 @@ def categorize_files_by_type(paths):
         'files_to_delete': [],
         'patch_files': [],
         'py_files': [],
-        'checksums_files': [],
+        'checksums_json': [],
     }
 
     for path in paths:
@@ -670,7 +670,7 @@ def categorize_files_by_type(paths):
                 raise EasyBuildError('%s is not detected as a valid patch file. Please verify its contents!',
                                      path)
         elif path.endswith('checksums.json'):
-            res['checksums_files'].append(path)
+            res['checksums_json'].append(path)
         else:
             # anything else is considered to be an easyconfig file
             res['easyconfigs'].append(path)
