@@ -48,7 +48,7 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_MERGEABLE_STATE_CLEAN
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
-from easybuild.tools.github import is_patch_for, pick_default_branch
+from easybuild.tools.github import is_checksums_json_for, is_patch_for, pick_default_branch
 from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
@@ -1230,6 +1230,52 @@ class GithubTest(EnhancedTestCase):
 
         ec['components'] = [('foo', '1.2.3', {'patches': ['pi.patch']})]
         self.assertTrue(is_patch_for('pi.patch', ec))
+
+    def test_is_checksums_json_for(self):
+        """Test for is_checksums_json_for function."""
+        ectxt = '\n'.join([
+            "easyblock = 'PythonBundle'",
+            "name = 'pi'",
+            "version = '3.14'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "sources = ['requirements.txt']",
+        ])
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, ectxt)
+        ec = EasyConfig(test_ec)
+        self.assertTrue(is_checksums_json_for({'requirements.txt': 'n-a'}, ec))
+        self.assertFalse(is_checksums_json_for({'pi.patch': 'n-a'}, ec))
+
+        for patch_fn in ('pi.patch', '%(name)s.patch', '%(namelower)s.patch'):
+            ec['patches'] = [patch_fn]
+            self.assertTrue(is_checksums_json_for({'pi.patch': 'n-a'}, ec))
+            self.assertFalse(is_checksums_json_for({'foo.patch': 'n-a'}, ec))
+
+        ec['patches'] = ['%(name)s-%(version)s.patch']
+        self.assertFalse(is_checksums_json_for({'pi.patch': 'n-a'}, ec))
+        self.assertTrue(is_checksums_json_for({'pi-3.14.patch': 'n-a'}, ec))
+
+        ec['patches'] = []
+
+        for patch_fn in ('foo.patch', '%(name)s.patch', '%(namelower)s.patch'):
+            ec['exts_list'] = [('foo', '1.2.3', {'patches': [patch_fn]})]
+            self.assertTrue(is_checksums_json_for({'foo.patch': 'n-a'}, ec))
+            self.assertFalse(is_checksums_json_for({'pi.patch': 'n-a'}, ec))
+
+        for source_fn in ('foo-1.2.3.tgz', '%(name)s-%(version)s.tgz', '%(namelower)s-%(version)s.tgz'):
+            ec['exts_list'] = [('foo', '1.2.3', {'sources': [source_fn]})]
+            self.assertTrue(is_checksums_json_for({'foo-1.2.3.tgz': 'n-a'}, ec))
+            self.assertFalse(is_checksums_json_for({'foo.tgz': 'n-a'}, ec))
+
+        ec['components'] = None
+        self.assertFalse(is_checksums_json_for({'pi.patch': 'n-a'}, ec))
+
+        ec['components'] = [('foo', '1.2.3', {'patches': ['pi.patch']})]
+        self.assertTrue(is_checksums_json_for({'pi.patch': 'n-a'}, ec))
+        ec['components'] = [('foo', '1.2.3', {'sources': ['requirements.txt']})]
+        self.assertTrue(is_checksums_json_for({'requirements.txt': 'n-a'}, ec))
 
 
 def suite():

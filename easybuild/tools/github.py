@@ -1009,6 +1009,36 @@ def push_branch_to_github(git_repo, target_account, target_repo, branch):
             raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
                                  branch, remote, github_url)
 
+def is_checksums_json_for(checksums, ec):
+    """Check whether checksums dictionary keys match any source in the provided EasyConfig instance."""
+    res = False
+
+    filenames = copy.copy(ec['sources'])
+    filenames.extend(ec['patches'])
+
+    with ec.disable_templating():
+        # take into account both list of extensions (via exts_list) and components (cfr. Bundle easyblock)
+        for entry in itertools.chain(ec['exts_list'], ec.get('components') or []):
+            if isinstance(entry, (list, tuple)) and len(entry) == 3 and isinstance(entry[2], dict):
+                templates = {
+                    'name': entry[0],
+                    'namelower': entry[0].lower(),
+                    'version': entry[1],
+                }
+                options = entry[2]
+                filenames.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
+                             for p in options.get('sources', []))
+                filenames.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
+                             for p in options.get('patches', []))
+
+    for filename in filenames:
+        if isinstance(filename, (tuple, list)):
+            filename = filename[0]
+        if filename in checksums.keys():
+            res = True
+            break
+
+    return res
 
 def is_patch_for(patch_name, ec):
     """Check whether specified patch matches any patch in the provided EasyConfig instance."""
