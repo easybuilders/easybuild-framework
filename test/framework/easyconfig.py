@@ -28,6 +28,7 @@ Unit tests for easyconfig.py
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
+@author: Maxime Boissonneault (Digital Research Alliance of Canada, Universite Laval)
 """
 import copy
 import glob
@@ -3366,7 +3367,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_categorize_files_by_type(self):
         """Test categorize_files_by_type"""
-        self.assertEqual({'easyconfigs': [], 'files_to_delete': [], 'patch_files': [], 'py_files': []},
+        self.assertEqual({'easyconfigs': [], 'files_to_delete': [], 'patch_files': [], 'py_files': [],
+                          'checksums_files': []},
                          categorize_files_by_type([]))
 
         test_dir = os.path.dirname(os.path.abspath(__file__))
@@ -3379,6 +3381,7 @@ class EasyConfigTest(EnhancedTestCase):
         toy_easyblock = os.path.join(easyblocks_dir, 't', 'toy.py')
 
         gzip_ec = os.path.join(test_ecs_dir, 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb')
+        toy_checksums = os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', 'checksums.json')
         paths = [
             'bzip2-1.0.6.eb',
             toy_easyblock,
@@ -3387,6 +3390,7 @@ class EasyConfigTest(EnhancedTestCase):
             'foo',
             ':toy-0.0-deps.eb',
             configuremake,
+            toy_checksums,
         ]
         res = categorize_files_by_type(paths)
         expected = [
@@ -3398,6 +3402,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(res['files_to_delete'], ['toy-0.0-deps.eb'])
         self.assertEqual(res['patch_files'], [toy_patch])
         self.assertEqual(res['py_files'], [toy_easyblock, configuremake])
+        self.assertEqual(res['checksums_files'], [toy_checksums])
 
         # Error cases
         tmpdir = tempfile.mkdtemp()

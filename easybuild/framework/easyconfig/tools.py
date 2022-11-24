@@ -35,6 +35,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 :author: Toon Willems (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Ward Poelmans (Ghent University)
+@author: Maxime Boissonneault (Digital Research Alliance of Canada, Universite Laval)
 """
 import copy
 import fnmatch
@@ -641,7 +642,7 @@ def dump_env_script(easyconfigs):
 
 def categorize_files_by_type(paths):
     """
-    Splits list of filepaths into a 4 separate lists: easyconfigs, files to delete, patch files and
+    Splits list of filepaths into a 5 separate lists: easyconfigs, files to delete, patch files, checksums and
     files with extension .py
     """
     res = {
@@ -649,6 +650,7 @@ def categorize_files_by_type(paths):
         'files_to_delete': [],
         'patch_files': [],
         'py_files': [],
+        'checksums_files': [],
     }
 
     for path in paths:
@@ -667,6 +669,8 @@ def categorize_files_by_type(paths):
             else:
                 raise EasyBuildError('%s is not detected as a valid patch file. Please verify its contents!',
                                      path)
+        elif path.endswith('checksums.json'):
+            res['checksums_files'].append(path)
         else:
             # anything else is considered to be an easyconfig file
             res['easyconfigs'].append(path)
