@@ -49,7 +49,7 @@ def resolve_exts_filter_template(exts_filter, ext):
     Resolve the exts_filter tuple by replacing the template values using the extension
     :param exts_filter: Tuple of (command, input) using template values (ext_name, ext_version, src)
     :param ext: Instance of Extension or dictionary like with 'name' and optionally 'options', 'version', 'source' keys
-    :return (cmd, input) as a tuple of strings
+    :return: (cmd, input) as a tuple of strings
     """
 
     if isinstance(exts_filter, string_type) or len(exts_filter) != 2:
