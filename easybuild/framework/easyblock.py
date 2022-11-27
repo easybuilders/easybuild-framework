@@ -4368,7 +4368,7 @@ def reproduce_build(app, reprod_dir_root):
 def get_easyblock_instance(ecdict):
     """
     Get an instance for this easyconfig
-    :param easyconfig: parsed easyconfig (EasyConfig instance)
+    :param ecdict: parsed easyconfig (EasyConfig instance)
 
     returns an instance of EasyBlock (or subclass thereof)
     """

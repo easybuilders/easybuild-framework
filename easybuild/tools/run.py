@@ -137,7 +137,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param log_all: always log command output and exit code
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
     :param inp: the input given to the command via stdin
-    :param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
+    :param regexp: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
     :param log_output: indicate whether all output of command should be logged to a separate temporary logfile
     :param path: path to execute the command in; current working directory is used if unspecified
     :param force_in_dry_run: force running the command during dry run
@@ -303,7 +303,7 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
     :param log_ok: only run output/exit code for failing commands (exit code non-zero)
     :param log_all: always log command output and exit code
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
-    :param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
+    :param regexp: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
     :param stream_output: enable streaming command output to stdout
     :param trace: print command being executed as part of trace output
     """
@@ -362,7 +362,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     :param log_ok: only run output/exit code for failing commands (exit code non-zero)
     :param log_all: always log command output and exit code
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
-    :param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
+    :param regexp: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
     :param std_qa: dictionary which maps question regex patterns to answers
     :param path: path to execute the command is; current working directory is used if unspecified
     :param maxhits: maximum number of cycles (seconds) without being able to find a known question
@@ -617,7 +617,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
     :param log_all: always log command output and exit code
     :param log_ok: only run output/exit code for failing commands (exit code non-zero)
-    :param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
+    :param regexp: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
     """
     if strictness == IGNORE:
         check_ec = False

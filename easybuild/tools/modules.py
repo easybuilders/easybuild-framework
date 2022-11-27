@@ -1288,7 +1288,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
-        :param name: a (partial) module name for filtering (default: None)
+        :param mod_name: a (partial) module name for filtering (default: None)
         """
         mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name)
         # strip off slash at beginning, if it's there
@@ -1402,7 +1402,7 @@ class Lmod(ModulesTool):
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
-        :param name: a (partial) module name for filtering (default: None)
+        :param mod_name: a (partial) module name for filtering (default: None)
         """
         # make hidden modules visible (requires Lmod 5.7.5)
         extra_args = [self.SHOW_HIDDEN_OPTION]
