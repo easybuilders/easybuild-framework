@@ -1042,7 +1042,7 @@ def locate_solib(libobj):
     Return absolute path to loaded library using dlinfo
     Based on https://stackoverflow.com/a/35683698
 
-    :params libobj: ctypes CDLL object
+    :param libobj: ctypes CDLL object
     """
     # early return if we're not on a Linux system
     if get_os_type() != LINUX:
@@ -1072,7 +1072,7 @@ def find_library_path(lib_filename):
     Search library by file name in the system
     Return absolute path to existing libraries
 
-    :params lib_filename: name of library file
+    :param lib_filename: name of library file
     """
 
     lib_abspath = None

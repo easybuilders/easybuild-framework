@@ -710,7 +710,7 @@ def extract_errors_from_log(log_txt, reg_exps):
     :param log_txt: String containing the log, will be split into individual lines
     :param reg_exps: List of: regular expressions (as strings) to error on,
                     or tuple of regular expression and action (any of [IGNORE, WARN, ERROR])
-    :return (warnings, errors) as lists of lines containing a match
+    :return: (warnings, errors) as lists of lines containing a match
     """
     actions = (IGNORE, WARN, ERROR)
 

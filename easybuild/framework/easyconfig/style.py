@@ -108,8 +108,8 @@ def _eb_check_trailing_whitespace(physical_line, lines, line_number, checker_sta
 def check_easyconfigs_style(easyconfigs, verbose=False):
     """
     Check the given list of easyconfigs for style
-    :param: easyconfigs list of file paths to easyconfigs
-    :param: verbose print our statistics and be verbose about the errors and warning
+    :param easyconfigs: list of file paths to easyconfigs
+    :param verbose: print our statistics and be verbose about the errors and warning
     :return: the number of warnings and errors
     """
     # importing autopep8 changes some pep8 functions.
