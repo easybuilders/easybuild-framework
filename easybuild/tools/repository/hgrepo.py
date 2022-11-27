@@ -143,7 +143,7 @@ class HgRepository(FileRepository):
         :param name: software name
         :param version: software install version, incl. toolchain & versionsuffix
         :param stats: build stats, to add to archived easyconfig
-        :param previous: list of previous build stats
+        :param previous_stats: list of previous build stats
         :return: location of archived easyconfig
         """
         path = super(HgRepository, self).add_easyconfig(cfg, name, version, stats, previous_stats)

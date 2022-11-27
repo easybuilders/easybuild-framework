@@ -73,7 +73,8 @@ class MultiDiff(object):
     def __init__(self, base_fn, base_lines, files, colored=True):
         """
         MultiDiff constructor
-        :param base: base to compare with
+        :param base_fn: base function to compare with
+        :param base_lines: base lines to compare to
         :param files: list of files to compare with base
         :param colored: boolean indicating whether a colored multi-diff should be generated
         """
