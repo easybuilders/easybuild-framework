@@ -132,7 +132,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
         """
         Print deprecation warning or raise an exception, depending on specified version(s)
 
-        :param: msg: deprecation message
+        :param msg: deprecation message
         :param ver: if max_ver is None: threshold for EasyBuild version to determine warning vs exception
                     else: version to check against max_ver to determine warning vs exception
         :param max_ver: version threshold for warning vs exception (compared to 'ver')

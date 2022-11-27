@@ -1228,7 +1228,7 @@ class GeneralOption(object):
         """
         Initialise the configparser to use.
 
-            :params initenv: insert initial environment into the configparser.
+            :param initenv: insert initial environment into the configparser.
                 It is a dict of dicts; the first level key is the section name;
                 the 2nd level key,value is the key=value.
                 All section names, keys and values are converted to strings.

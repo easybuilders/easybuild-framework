@@ -385,7 +385,7 @@ class EasyBlock(object):
         """
         Get checksums for this software that are provided in a checksums.json file
 
-        :param: always_read: always read the checksums.json file, even if it has been read before
+        :param always_read: always read the checksums.json file, even if it has been read before
         """
         if always_read or self.json_checksums is None:
             try:
