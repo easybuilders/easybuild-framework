@@ -791,8 +791,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # we need files to create the PR with
     non_existing_paths = []
     ec_paths = []
-    if paths['easyconfigs'] or paths['py_files'] or paths['checksums']:
-        for path in paths['easyconfigs'] + paths['py_files'] + paths['checksums']:
+    if paths['easyconfigs'] or paths['py_files'] or paths['checksums_json']:
+        for path in paths['easyconfigs'] + paths['py_files'] + paths['checksums_json']:
             if not os.path.exists(path):
                 non_existing_paths.append(path)
             else:
@@ -853,8 +853,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         commit_msg = "adding easyconfigs: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
         if paths['patch_files']:
             commit_msg += " and patches: %s" % ', '.join(os.path.basename(p) for p in paths['patch_files'])
-        if paths['checksums']:
-            commit_msg += " and checksums: %s" % ', '.join(os.path.basename(p) for p in paths['checksums'])
+        if paths['checksums_json']:
+            commit_msg += " and checksums: %s" % ', '.join(os.path.basename(p) for p in paths['checksums_json'])
     elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and all(file_info['new']):
         commit_msg = "adding easyblocks: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
     else:
@@ -869,8 +869,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         patch_info = copy_patch_files(patch_specs, target_dir)
 
     # figure out to which software name checksums.json files relate to, and merge them in the right place
-    if paths['checksums']:
-        checksums_json_specs = det_checksums_json_specs(paths['checksums'], file_info, [target_dir])
+    if paths['checksums_json']:
+        checksums_json_specs = det_checksums_json_specs(paths['checksums_json'], file_info, [target_dir])
 
         print_msg("merging checksums from checksums.json files to %s..." % target_dir)
         patch_info = merge_checksums_json(checksums_json_specs, target_dir)
