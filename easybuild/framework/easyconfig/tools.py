@@ -35,7 +35,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 :author: Toon Willems (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Ward Poelmans (Ghent University)
-@author: Maxime Boissonneault (Digital Research Alliance of Canada, Universite Laval)
+:author: Maxime Boissonneault (Digital Research Alliance of Canada, Universite Laval)
 """
 import copy
 import fnmatch
