@@ -51,7 +51,7 @@ from distutils.version import LooseVersion
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import merge_checksums_json, process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
@@ -782,7 +782,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     * stage/commit all files in PR branch
     * push PR branch to GitHub (to account specified by --github-user)
 
-    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
+    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches, checksums)
     :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
     :param start_branch: name of branch to use as base for PR
     :param pr_branch: name of branch to push to GitHub
@@ -792,8 +792,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # we need files to create the PR with
     non_existing_paths = []
     ec_paths = []
-    if paths['easyconfigs'] or paths['py_files']:
-        for path in paths['easyconfigs'] + paths['py_files']:
+    if paths['easyconfigs'] or paths['py_files'] or paths['checksums']:
+        for path in paths['easyconfigs'] + paths['py_files'] + paths['checksums']:
             if not os.path.exists(path):
                 non_existing_paths.append(path)
             else:
@@ -854,6 +854,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         commit_msg = "adding easyconfigs: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
         if paths['patch_files']:
             commit_msg += " and patches: %s" % ', '.join(os.path.basename(p) for p in paths['patch_files'])
+        if paths['checksums']:
+            commit_msg += " and checksums: %s" % ', '.join(os.path.basename(p) for p in paths['checksums'])
     elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and all(file_info['new']):
         commit_msg = "adding easyblocks: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
     else:
@@ -866,6 +868,13 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
         print_msg("copying patch files to %s..." % target_dir)
         patch_info = copy_patch_files(patch_specs, target_dir)
+
+    # figure out to which software name checksums.json files relate to, and merge them in the right place
+    if paths['checksums']:
+        checksums_json_specs = det_checksums_json_specs(paths['checksums'], file_info, [target_dir])
+
+        print_msg("merging checksums from checksums.json files to %s..." % target_dir)
+        patch_info = merge_checksums_json(checksums_json_specs, target_dir)
 
     # determine path to files to delete (if any)
     deleted_paths = []
@@ -1011,6 +1020,7 @@ def push_branch_to_github(git_repo, target_account, target_repo, branch):
         else:
             raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
                                  branch, remote, github_url)
+
 
 def is_checksums_json_for(checksums, ec):
     """Check whether checksums dictionary keys match any source in the provided EasyConfig instance."""
