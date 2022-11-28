@@ -30,6 +30,7 @@ Unit tests for talking to GitHub.
 :author: Maxime Boissonneault (Digital Research Alliance of Canada, Universite Laval)
 """
 import base64
+import json
 import os
 import random
 import re
@@ -833,6 +834,125 @@ class GithubTest(EnhancedTestCase):
         file_info = {'new': [True]}
         res = gh.det_pr_labels(file_info, GITHUB_EASYBLOCKS_REPO)
         self.assertEqual(res, ['new'])
+
+    def test_github_det_checksums_json_specs(self):
+        """Test for det_checksums_json_specs function."""
+
+        file_info = {'ecs': []}
+
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'A'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+
+            sources = ['A-42.tar.gz']
+            patches = ['1.patch']
+        """)
+        file_info['ecs'].append(EasyConfig(None, rawtxt=rawtxt))
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'B'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            sources = ['B-42.tar.gz']
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+        """)
+        file_info['ecs'].append(EasyConfig(None, rawtxt=rawtxt))
+
+        # function to write the checksums file
+        def write_checksums_json_files(checksums):
+            checksums_paths = []
+            for i in range(len(checksums)):
+                checksums_path = os.path.join(self.test_prefix, 'checksums_%i.json' % i)
+                with open(checksums_path, 'w') as outfile:
+                    json.dump(checksums[i], outfile, indent=2, sort_keys=True)
+                checksums_paths += [checksums_path]
+            return checksums_paths
+
+        checksums = [{p: 'n-a'} for p in ['1.patch', '2.patch', '3.patch']]
+        checksums_paths = write_checksums_json_files(checksums)
+
+        error_pattern = "Failed to determine software name to which checksums_json file .*/checksums_1.json relates"
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_checksums_json_specs, checksums_paths, file_info, [])
+        self.mock_stdout(False)
+
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'C'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+
+            patches = [('3.patch', 'subdir'), '2.patch']
+        """)
+        file_info['ecs'].append(EasyConfig(None, rawtxt=rawtxt))
+
+
+        self.mock_stdout(True)
+        res = gh.det_checksums_json_specs(checksums_paths, file_info, [])
+        self.mock_stdout(False)
+
+        self.assertEqual([i[0] for i in res], checksums_paths)
+        self.assertEqual([i[1] for i in res], ['A', 'C', 'C'])
+
+        # check if patches for extensions are found
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'patched_ext'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+
+            exts_list = [
+                'foo',
+                ('bar', '1.2.3'),
+                ('patched', '4.5.6', {
+                    'patches': [('%(name)s-2.patch', 1), '%(name)s-3.patch'],
+                }),
+            ]
+        """)
+        checksums[1:3] = [{p: 'n-a'} for p in ['patched-2.patch', 'patched-3.patch']]
+        checksums_paths = write_checksums_json_files(checksums)
+        file_info['ecs'][-1] = EasyConfig(None, rawtxt=rawtxt)
+
+        self.mock_stdout(True)
+        res = gh.det_checksums_json_specs(checksums_paths, file_info, [])
+        self.mock_stdout(False)
+
+        self.assertEqual([i[0] for i in res], checksums_paths)
+        self.assertEqual([i[1] for i in res], ['A', 'patched_ext', 'patched_ext'])
+
+        # check if patches for components are found
+        rawtxt = textwrap.dedent("""
+            easyblock = 'PythonBundle'
+            name = 'patched_bundle'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+
+            components = [
+                ('bar', '1.2.3'),
+                ('patched', '4.5.6', {
+                    'patches': [('%(name)s-2.patch', 1), '%(name)s-3.patch'],
+                }),
+            ]
+        """)
+        file_info['ecs'][-1] = EasyConfig(None, rawtxt=rawtxt)
+
+        self.mock_stdout(True)
+        res = gh.det_checksums_json_specs(checksums_paths, file_info, [])
+        self.mock_stdout(False)
+
+        self.assertEqual([i[0] for i in res], checksums_paths)
+        self.assertEqual([i[1] for i in res], ['A', 'patched_bundle', 'patched_bundle'])
 
     def test_github_det_patch_specs(self):
         """Test for det_patch_specs function."""

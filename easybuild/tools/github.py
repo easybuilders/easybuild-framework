@@ -1044,6 +1044,36 @@ def is_checksums_json_for(checksums, ec):
     return res
 
 
+def det_checksums_json_specs(checksums_json_paths, file_info, ec_dirs):
+    """ Determine software names for checksums_json files """
+    print_msg("determining software names for checksums_json files...")
+    checksums_json_specs = []
+    for checksums_json_path in checksums_json_paths:
+        soft_name = None
+        with open(checksums_json_path, 'r') as infile:
+            checksums = json.load(infile)
+        # consider checksums_json lists of easyconfigs being provided
+        for ec in file_info['ecs']:
+            if is_checksums_json_for(checksums, ec):
+                soft_name = ec['name']
+                break
+
+        if soft_name:
+            checksums_json_specs.append((checksums_json_path, soft_name))
+        else:
+            # fall back on scanning all eb files for checksums_jsones
+            print("Matching easyconfig for %s not found on the first try:" % checksums_json_path)
+            print("scanning all easyconfigs to determine where checksums_json file belongs (this may take a while)...")
+            soft_name = find_software_name_for_checksums_json(checksums, ec_dirs)
+            if soft_name:
+                checksums_json_specs.append((checksums_json_path, soft_name))
+            else:
+                # still nothing found
+                raise EasyBuildError("Failed to determine software name to which checksums_json file %s relates", checksums_json_path)
+
+    return checksums_json_specs
+
+
 def find_software_name_for_checksums_json(checksums, ec_dirs):
     """
     Scan all easyconfigs in the robot path(s) to determine which software a checksums dictionary belongs to
