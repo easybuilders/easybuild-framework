@@ -42,6 +42,7 @@ Easyconfig module that contains the EasyConfig class.
 import copy
 import difflib
 import functools
+import json
 import os
 import re
 from distutils.version import LooseVersion
@@ -2477,6 +2478,37 @@ def copy_patch_files(patch_specs, target_dir):
         patched_files['paths_in_repo'].append(target_path)
 
     return patched_files
+
+
+def merge_checksums_json(checksums_json_specs, target_dir):
+    """
+    Merge checksums.json files to specified directory, in the 'right' location according to the software name they
+    relate to.
+    Copy patch files to specified directory, in the 'right' location according to the software name they relate to.
+
+    :param checksums_json_specs: list of tuples with checksums.json file location and name of software they are for
+    :param target_dir: target directory
+    """
+    checksums_json_files = {
+        'paths_in_repo': [],
+    }
+    for checksums_json_path, soft_name in checksums_json_specs:
+        target_path = det_location_for(checksums_json_path, target_dir, soft_name, 'checksums.json')
+        # if the checksums.json does not exist, copy the file in place
+        if not os.path.exists(target_path):
+            copy_file(checksums_json_path, target_path, force_in_dry_run=True)
+        # if it exists, we must merge them
+        else:
+            with open(target_path, 'r') as existing:
+                existing_checksums = json.load(existing)
+            with open(checksums_json_path, 'r') as new:
+                new_checksums = json.load(new)
+            existing_checksums.update(new_checksums)
+            with open(target_path, 'w') as updated:
+                json.dump(existing_checksums, updated, indent=2, sort_keys=True)
+        checksums_json_files['paths_in_repo'].append(target_path)
+
+    return checksums_json_files
 
 
 def fix_deprecated_easyconfigs(paths):
