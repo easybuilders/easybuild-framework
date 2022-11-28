@@ -44,7 +44,6 @@ import sys
 import tempfile
 import time
 import json
-from collections import Counter
 from datetime import datetime, timedelta
 from distutils.version import LooseVersion
 
@@ -1040,9 +1039,9 @@ def is_checksums_json_for(checksums, ec):
                 }
                 options = entry[2]
                 filenames.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
-                             for p in options.get('sources', []))
+                                 for p in options.get('sources', []))
                 filenames.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
-                             for p in options.get('patches', []))
+                                 for p in options.get('patches', []))
 
     for filename in filenames:
         if isinstance(filename, (tuple, list)):
@@ -1079,7 +1078,8 @@ def det_checksums_json_specs(checksums_json_paths, file_info, ec_dirs):
                 checksums_json_specs.append((checksums_json_path, soft_name))
             else:
                 # still nothing found
-                raise EasyBuildError("Failed to determine software name to which checksums_json file %s relates", checksums_json_path)
+                raise EasyBuildError("Failed to determine software name to which checksums_json file %s relates",
+                                     checksums_json_path)
 
     return checksums_json_specs
 
@@ -2011,7 +2011,7 @@ def det_pr_target_repo(paths):
         # if no Python files are provided, only easyconfigs, patches and checksums, or if files to delete are .eb files,
         # then target repo is assumed to be easyconfigs
         elif (easyconfigs or patch_files or checksums or
-             (files_to_delete and all(x.endswith('.eb') for x in files_to_delete))):
+              (files_to_delete and all(x.endswith('.eb') for x in files_to_delete))):
             pr_target_repo = GITHUB_EASYCONFIGS_REPO
             _log.info("Only easyconfig and patch files found, target repository is assumed to be %s", pr_target_repo)
 

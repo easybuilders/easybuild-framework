@@ -601,7 +601,8 @@ class GithubTest(EnhancedTestCase):
 
         self.assertEqual(gh.find_software_name_for_checksums_json({'test.patch': 'n-a'}, []), None)
 
-        # check behaviour of find_software_name_for_checksums_json when non-UTF8 patch files are present (only with Python 3)
+        # check behaviour of find_software_name_for_checksums_json when non-UTF8 patch files are present
+        # (only with Python 3)
         if sys.version_info[0] >= 3:
             non_utf8_patch = os.path.join(self.test_prefix, 'problem.patch')
             with open(non_utf8_patch, 'wb') as fp:
@@ -878,7 +879,8 @@ class GithubTest(EnhancedTestCase):
 
         error_pattern = "Failed to determine software name to which checksums_json file .*/checksums_1.json relates"
         self.mock_stdout(True)
-        self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_checksums_json_specs, checksums_paths, file_info, [])
+        self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_checksums_json_specs, checksums_paths,
+                              file_info, [])
         self.mock_stdout(False)
 
         rawtxt = textwrap.dedent("""
@@ -892,7 +894,6 @@ class GithubTest(EnhancedTestCase):
             patches = [('3.patch', 'subdir'), '2.patch']
         """)
         file_info['ecs'].append(EasyConfig(None, rawtxt=rawtxt))
-
 
         self.mock_stdout(True)
         res = gh.det_checksums_json_specs(checksums_paths, file_info, [])
