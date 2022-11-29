@@ -215,6 +215,7 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
 # arch-based linux distros (might require tweaks to package names)
 ARCH_DISTROS = ['arch', 'manjaro']
 
+
 class SystemToolsException(Exception):
     """raised when systemtools fails"""
 
