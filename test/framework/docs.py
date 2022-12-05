@@ -263,6 +263,149 @@ LIST_EASYBLOCKS_DETAILED_MD = """- **EasyBlock** (easybuild.framework.easyblock)
       - EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
     - Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)"""
 
+LIST_SOFTWARE_SIMPLE_TXT = """
+* GCC
+* gzip"""
+
+GCC_DESCR = "The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada, "
+GCC_DESCR += "as well as libraries for these languages (libstdc++, libgcj,...)."
+GZIP_DESCR = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
+
+LIST_SOFTWARE_DETAILED_TXT = """
+* GCC
+
+%(gcc_descr)s
+
+homepage: http://gcc.gnu.org/
+
+  * GCC v4.6.3: system
+
+* gzip
+
+%(gzip_descr)s
+
+homepage: http://www.gzip.org/
+
+  * gzip v1.4: GCC/4.6.3, system
+  * gzip v1.5: foss/2018a, intel/2018a
+""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+
+LIST_SOFTWARE_SIMPLE_RST = """List of supported software
+==========================
+
+EasyBuild |version| supports 2 different software packages (incl. toolchains, bundles):
+
+:ref:`list_software_letter_g`
+
+
+.. _list_software_letter_g:
+
+*G*
+---
+
+* GCC
+* gzip"""
+
+LIST_SOFTWARE_DETAILED_RST = """List of supported software
+==========================
+
+EasyBuild |version| supports 2 different software packages (incl. toolchains, bundles):
+
+:ref:`list_software_letter_g`
+
+
+.. _list_software_letter_g:
+
+*G*
+---
+
+
+:ref:`list_software_GCC_205` - :ref:`list_software_gzip_442`
+
+
+.. _list_software_GCC_205:
+
+*GCC*
++++++
+
+%(gcc_descr)s
+
+*homepage*: http://gcc.gnu.org/
+
+=========    ==========
+version      toolchain 
+=========    ==========
+``4.6.3``    ``system``
+=========    ==========
+
+
+.. _list_software_gzip_442:
+
+*gzip*
+++++++
+
+%(gzip_descr)s
+
+*homepage*: http://www.gzip.org/
+
+=======    ===============================
+version    toolchain                      
+=======    ===============================
+``1.4``    ``GCC/4.6.3``, ``system``      
+``1.5``    ``foss/2018a``, ``intel/2018a``
+=======    ===============================
+""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+
+LIST_SOFTWARE_SIMPLE_MD = """# List of supported software
+
+EasyBuild supports 2 different software packages (incl. toolchains, bundles):
+
+<a href="#g">g</a>
+
+
+<a anchor="g"/>
+### *G*
+
+* GCC
+* gzip"""
+
+LIST_SOFTWARE_DETAILED_MD = """# List of supported software
+
+EasyBuild supports 2 different software packages (incl. toolchains, bundles):
+
+<a href="#g">g</a>
+
+
+<a anchor="g"/>
+### *G*
+
+
+<a href="#gcc">GCC</a> - <a href="#gzip">gzip</a>
+
+
+<a anchor="gcc"/>
+### *GCC*
+
+%(gcc_descr)s
+
+*homepage*: http://gcc.gnu.org/
+
+version  |toolchain 
+---------|----------
+``4.6.3``|``system``
+
+<a anchor="gzip"/>
+### *gzip*
+
+%(gzip_descr)s
+
+*homepage*: http://www.gzip.org/
+
+version|toolchain                      
+-------|-------------------------------
+``1.4``|``GCC/4.6.3``, ``system``      
+``1.5``|``foss/2018a``, ``intel/2018a``""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+
 
 class DocsTest(EnhancedTestCase):
 
@@ -376,107 +519,14 @@ class DocsTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        expected = '\n'.join([
-            '',
-            '* GCC',
-            '* gzip',
-        ])
-        self.assertEqual(list_software(output_format='txt'), expected)
+        self.assertEqual(list_software(output_format='txt'), LIST_SOFTWARE_SIMPLE_TXT)
+        self.assertEqual(list_software(output_format='txt', detailed=True), LIST_SOFTWARE_DETAILED_TXT)
 
-        expected = re.compile('\n'.join([
-            r'',
-            r'\* GCC',
-            r'',
-            r"The GNU Compiler Collection .*",
-            r'',
-            r'homepage: http://gcc.gnu.org/',
-            r'',
-            r'  \* GCC v4.6.3: system',
-            r'',
-            r'\* gzip',
-            r'',
-            r"gzip \(GNU zip\) is .*",
-            r'',
-            r'homepage: http://www.gzip.org/',
-            r'',
-            r"  \* gzip v1.4: GCC/4.6.3, system",
-            r"  \* gzip v1.5: foss/2018a, intel/2018a",
-            '',
-        ]))
-        txt = list_software(output_format='txt', detailed=True)
-        self.assertTrue(expected.match(txt), "Pattern '%s' found in: %s" % (expected.pattern, txt))
+        self.assertEqual(list_software(output_format='rst'), LIST_SOFTWARE_SIMPLE_RST)
+        self.assertEqual(list_software(output_format='rst', detailed=True), LIST_SOFTWARE_DETAILED_RST)
 
-        expected = '\n'.join([
-            "List of supported software",
-            "==========================",
-            '',
-            "EasyBuild |version| supports 2 different software packages (incl. toolchains, bundles):",
-            '',
-            ':ref:`list_software_letter_g`',
-            '',
-            '',
-            '.. _list_software_letter_g:',
-            '',
-            '*G*',
-            '---',
-            '',
-            '* GCC',
-            '* gzip',
-        ])
-        self.assertEqual(list_software(output_format='rst'), expected)
-
-        expected = re.compile('\n'.join([
-            r"List of supported software",
-            r"==========================",
-            r'',
-            r"EasyBuild \|version\| supports 2 different software packages \(incl. toolchains, bundles\):",
-            r'',
-            r':ref:`list_software_letter_g`',
-            r'',
-            r'',
-            r'.. _list_software_letter_g:',
-            r'',
-            r'\*G\*',
-            r'---',
-            r'',
-            r'',
-            r':ref:`list_software_GCC_205` - :ref:`list_software_gzip_442`',
-            r'',
-            r'',
-            r'\.\. _list_software_GCC_205:',
-            r'',
-            r'\*GCC\*',
-            r'\+\+\+\+\+',
-            r'',
-            r'The GNU Compiler Collection .*',
-            r'',
-            r'\*homepage\*: http://gcc.gnu.org/',
-            r'',
-            r'=========    ==========',
-            r'version      toolchain ',
-            r'=========    ==========',
-            r'``4.6.3``    ``system``',
-            r'=========    ==========',
-            r'',
-            r'',
-            r'\.\. _list_software_gzip_442:',
-            r'',
-            r'\*gzip\*',
-            r'\+\+\+\+\+\+',
-            r'',
-            r'gzip \(GNU zip\) is a popular .*',
-            r'',
-            r'\*homepage\*: http://www.gzip.org/',
-            r'',
-            r'=======    ===============================',
-            r'version    toolchain                      ',
-            r'=======    ===============================',
-            r'``1.4``    ``GCC/4.6.3``, ``system``      ',
-            r'``1.5``    ``foss/2018a``, ``intel/2018a``',
-            r'=======    ===============================',
-        ]))
-        txt = list_software(output_format='rst', detailed=True)
-        self.assertTrue(expected.match(txt), "Pattern '%s' found in: %s" % (expected.pattern, txt))
+        self.assertEqual(list_software(output_format='md'), LIST_SOFTWARE_SIMPLE_MD)
+        self.assertEqual(list_software(output_format='md', detailed=True), LIST_SOFTWARE_DETAILED_MD)
 
         # GCC/4.6.3 is installed, no gzip module installed
         txt = list_software(output_format='txt', detailed=True, only_installed=True)

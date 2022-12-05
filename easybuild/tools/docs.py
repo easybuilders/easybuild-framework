@@ -634,6 +634,98 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
     return generate_doc('list_software_%s' % output_format, [software, detailed])
 
 
+def list_software_md(software, detailed=True):
+    """
+    Return overview of supported software in MarkDown format
+
+    :param software: software information (structured like list_software does)
+    :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :return: multi-line string presenting requested info
+    """
+
+    lines = [
+        "# List of supported software",
+        '',
+        "EasyBuild supports %d different software packages (incl. toolchains, bundles):" % len(software),
+        '',
+    ]
+
+    # links to per-letter tables
+    letter_refs = ''
+    key_letters = nub(sorted(k[0].lower() for k in software.keys()))
+    letter_links = ' - '.join(['<a href="#' + x + '">' + x + '</a>' for x in ascii_lowercase if x in key_letters])
+    lines.extend([letter_links, ''])
+
+    letter = None
+    sorted_keys = sorted(software.keys(), key=lambda x: x.lower())
+    for key in sorted_keys:
+
+        # start a new subsection for each letter
+        if key[0].lower() != letter:
+
+            # subsection for new letter
+            letter = key[0].lower()
+            lines.extend([
+                '',
+                '<a anchor="%s"/>' % letter,
+                "### *%s*" % letter.upper(),
+                '',
+            ])
+
+            if detailed:
+                # quick links per software package
+                lines.extend([
+                    '',
+                    ' - '.join('<a href="#%s">%s</a>' % (k.lower(), k) for k in sorted_keys if k[0].lower() == letter),
+                    '',
+                ])
+
+        # append software to list, including version(suffix) & toolchain info if detailed info is requested
+        if detailed:
+            table_titles = ['version', 'toolchain']
+            table_values = [[], []]
+
+            # first determine unique pairs of version/versionsuffix
+            # we can't use LooseVersion yet here, since nub uses set and LooseVersion instances are not hashable
+            pairs = nub((x['version'], x['versionsuffix']) for x in software[key])
+
+            # check whether any non-empty versionsuffixes are in play
+            with_vsuff = any(vs for (_, vs) in pairs)
+            if with_vsuff:
+                table_titles.insert(1, 'versionsuffix')
+                table_values.insert(1, [])
+
+            # sort pairs by version (and then by versionsuffix);
+            # we sort by LooseVersion to obtain chronological version ordering,
+            # but we also need to retain original string version for filtering-by-version done below
+            sorted_pairs = sort_looseversions((LooseVersion(v), vs, v) for v, vs in pairs)
+
+            for _, vsuff, ver in sorted_pairs:
+                table_values[0].append('``%s``' % ver)
+                if with_vsuff:
+                    if vsuff:
+                        table_values[1].append('``%s``' % vsuff)
+                    else:
+                        table_values[1].append('')
+                tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['versionsuffix'] == vsuff]
+                table_values[-1].append(', '.join('``%s``' % tc for tc in sorted(nub(tcs))))
+
+            lines.extend([
+                '',
+                '<a anchor="%s"/>' % key.lower(),
+                '### *%s*' % key,
+                '',
+                ' '.join(software[key][-1]['description'].split('\n')).lstrip(' '),
+                '',
+                "*homepage*: %s" % software[key][-1]['homepage'],
+                '',
+            ] + md_title_and_table(None, table_titles, table_values))
+        else:
+            lines.append("* %s" % key)
+
+    return '\n'.join(lines)
+
+
 def list_software_rst(software, detailed=False):
     """
     Return overview of supported software in RST format
