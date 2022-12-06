@@ -1448,6 +1448,44 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('MPIF90'), 'mpiifort')
         self.assertEqual(os.getenv('MPIFC'), 'mpiifort')
 
+        self.modtool.purge()
+        tc = self.get_toolchain('intel-compilers', version='2022.2.0')
+        tc.prepare()
+
+        # by default (for version >= 2022.2.0): oneAPI C/C++ compiler + classic Fortran compiler
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpx')
+        self.assertEqual(os.getenv('F77'), 'ifort')
+        self.assertEqual(os.getenv('F90'), 'ifort')
+        self.assertEqual(os.getenv('FC'), 'ifort')
+
+        tc = self.get_toolchain('intel-compilers', version='2022.2.0')
+        tc.set_options({'oneapi_fortran': True})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpx')
+        self.assertEqual(os.getenv('F77'), 'ifx')
+        self.assertEqual(os.getenv('F90'), 'ifx')
+        self.assertEqual(os.getenv('FC'), 'ifx')
+
+        tc = self.get_toolchain('intel-compilers', version='2022.2.0')
+        tc.set_options({'oneapi_cxx': False, 'oneapi_fortran': True})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpc')
+        self.assertEqual(os.getenv('F77'), 'ifx')
+        self.assertEqual(os.getenv('F90'), 'ifx')
+        self.assertEqual(os.getenv('FC'), 'ifx')
+
+        tc = self.get_toolchain('intel-compilers', version='2022.2.0')
+        tc.set_options({'oneapi_c': False, 'oneapi_cxx': False, 'oneapi_fortran': True})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icc')
+        self.assertEqual(os.getenv('CXX'), 'icpc')
+        self.assertEqual(os.getenv('F77'), 'ifx')
+        self.assertEqual(os.getenv('F90'), 'ifx')
+        self.assertEqual(os.getenv('FC'), 'ifx')
+
     def test_toolchain_verification(self):
         """Test verification of toolchain definition."""
         tc = self.get_toolchain('foss', version='2018a')
