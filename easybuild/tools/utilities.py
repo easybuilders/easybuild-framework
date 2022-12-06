@@ -286,11 +286,11 @@ def mk_md_table(titles, columns):
     line_tmpl = '|'.join(tmpl)
     table_line = line_tmpl.format(*line, c='-')
 
-    table.append(line_tmpl.format(*titles, c=' '))
+    table.append(line_tmpl.format(*titles, c=' ').strip())
     table.append(table_line)
 
     for row in map(list, zip(*columns)):
-        table.append(line_tmpl.format(*row, c=' '))
+        table.append(line_tmpl.format(*row, c=' ').strip())
 
     return table
 
@@ -323,11 +323,11 @@ def mk_rst_table(titles, columns):
     table_line = line_tmpl.format(*line, c='=')
 
     table.append(table_line)
-    table.append(line_tmpl.format(*titles, c=' '))
+    table.append(line_tmpl.format(*titles, c=' ').strip())
     table.append(table_line)
 
     for row in map(list, zip(*columns)):
-        table.append(line_tmpl.format(*row, c=' '))
+        table.append(line_tmpl.format(*row, c=' ').strip())
 
     table.extend([table_line, ''])
 

@@ -651,7 +651,6 @@ def list_software_md(software, detailed=True):
     ]
 
     # links to per-letter tables
-    letter_refs = ''
     key_letters = nub(sorted(k[0].lower() for k in software.keys()))
     letter_links = ' - '.join(['<a href="#' + x + '">' + x + '</a>' for x in ascii_lowercase if x in key_letters])
     lines.extend([letter_links, ''])

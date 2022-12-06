@@ -333,7 +333,7 @@ EasyBuild |version| supports 2 different software packages (incl. toolchains, bu
 *homepage*: http://gcc.gnu.org/
 
 =========    ==========
-version      toolchain 
+version      toolchain
 =========    ==========
 ``4.6.3``    ``system``
 =========    ==========
@@ -349,9 +349,9 @@ version      toolchain
 *homepage*: http://www.gzip.org/
 
 =======    ===============================
-version    toolchain                      
+version    toolchain
 =======    ===============================
-``1.4``    ``GCC/4.6.3``, ``system``      
+``1.4``    ``GCC/4.6.3``, ``system``
 ``1.5``    ``foss/2018a``, ``intel/2018a``
 =======    ===============================
 """ % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
@@ -390,7 +390,7 @@ EasyBuild supports 2 different software packages (incl. toolchains, bundles):
 
 *homepage*: http://gcc.gnu.org/
 
-version  |toolchain 
+version  |toolchain
 ---------|----------
 ``4.6.3``|``system``
 
@@ -401,9 +401,9 @@ version  |toolchain
 
 *homepage*: http://www.gzip.org/
 
-version|toolchain                      
+version|toolchain
 -------|-------------------------------
-``1.4``|``GCC/4.6.3``, ``system``      
+``1.4``|``GCC/4.6.3``, ``system``
 ``1.5``|``foss/2018a``, ``intel/2018a``""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
 
 
@@ -438,20 +438,20 @@ class DocsTest(EnhancedTestCase):
             "====================    ============    =============",
             "easyconfig parameter    description     default value",
             "====================    ============    =============",
-            '``test_123``            Test 1, 2, 3    ``""``       ',
-            "``test_bool``           Just a test     ``False``    ",
-            "``test_none``           Another test    ``None``     ",
+            '``test_123``            Test 1, 2, 3    ``""``',
+            "``test_bool``           Just a test     ``False``",
+            "``test_none``           Another test    ``None``",
             "====================    ============    =============",
             '',
             "Commonly used easyconfig parameters with ``ConfigureMake`` easyblock",
             "--------------------------------------------------------------------",
             '',
             "====================    ================================================================",
-            "easyconfig parameter    description                                                     ",
+            "easyconfig parameter    description",
             "====================    ================================================================",
             "configopts              Extra options passed to configure (default already has --prefix)",
-            "buildopts               Extra options passed to make step (default already has -j X)    ",
-            "installopts             Extra options for installation                                  ",
+            "buildopts               Extra options passed to make step (default already has -j X)",
+            "installopts             Extra options for installation",
             "====================    ================================================================",
         ])
 
@@ -577,12 +577,12 @@ class DocsTest(EnhancedTestCase):
             '*homepage*: https://easybuilders.github.io/easybuild',
             '',
             '=======    =============    ===========================',
-            'version    versionsuffix    toolchain                  ',
+            'version    versionsuffix    toolchain',
             '=======    =============    ===========================',
             '``0.0``                     ``gompi/2018a``, ``system``',
-            '``0.0``    ``-deps``        ``system``                 ',
-            '``0.0``    ``-iter``        ``system``                 ',
-            '``0.0``    ``-multiple``    ``system``                 ',
+            '``0.0``    ``-deps``        ``system``',
+            '``0.0``    ``-iter``        ``system``',
+            '``0.0``    ``-multiple``    ``system``',
             '``0.0``    ``-test``        ``gompi/2018a``, ``system``',
             '=======    =============    ===========================',
         ]
@@ -604,15 +604,15 @@ class DocsTest(EnhancedTestCase):
         expected_md = [
             'one  |two    |three',
             '-----|-------|-----',
-            '1    |2222222|3    ',
-            '11111|2      |3    ',
+            '1    |2222222|3',
+            '11111|2      |3',
         ]
         expected_rst = [
             '=====    =======    =====',
             'one      two        three',
             '=====    =======    =====',
-            '1        2222222    3    ',
-            '11111    2          3    ',
+            '1        2222222    3',
+            '11111    2          3',
             '=====    =======    =====',
             '',
         ]
@@ -642,8 +642,8 @@ class DocsTest(EnhancedTestCase):
             '',
             'one   |two   |3 is a wide column',
             '------|------|------------------',
-            'val 11|val 12|val 13            ',
-            'val 21|val 22|val 23            ',
+            'val 11|val 12|val 13',
+            'val 21|val 22|val 23',
         ]
         expected_rst = [
             'test title',
@@ -652,8 +652,8 @@ class DocsTest(EnhancedTestCase):
             '======    ======    ==================',
             'one       two       3 is a wide column',
             '======    ======    ==================',
-            'val 11    val 12    val 13            ',
-            'val 21    val 22    val 23            ',
+            'val 11    val 12    val 13',
+            'val 21    val 22    val 23',
             '======    ======    ==================',
             '',
         ]
