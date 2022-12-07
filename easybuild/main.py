@@ -576,8 +576,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     :param testing: enable testing mode
     """
 
-    python2_is_deprecated()
-
     register_lock_cleanup_signal_handlers()
 
     # if $CDPATH is set, unset it, it'll only cause trouble...
@@ -594,6 +592,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     init_session_state = session_state()
     eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
     options, orig_paths = eb_go.options, eb_go.args
+
+    silence_deprecation_warnings = build_option('silence_deprecation_warnings') or []
+    if 'python2' not in silence_deprecation_warnings:
+        python2_is_deprecated()
 
     global _log
     (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
