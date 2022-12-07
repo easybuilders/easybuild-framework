@@ -3126,13 +3126,15 @@ class EasyBlock(object):
         self.log.info("Checking for banned/required linked shared libraries...")
 
         # list of libraries that can *not* be linked in any installed binary/library
-        banned_libs = build_option('banned_linked_shared_libs') or []
+        banned_libs = []
+        banned_libs.extend(build_option('banned_linked_shared_libs') or [])
         banned_libs.extend(self.toolchain.banned_linked_shared_libs())
         banned_libs.extend(self.banned_linked_shared_libs())
         banned_libs.extend(self.cfg['banned_linked_shared_libs'])
 
         # list of libraries that *must* be linked in every installed binary/library
-        required_libs = build_option('required_linked_shared_libs') or []
+        required_libs = []
+        required_libs.extend(build_option('required_linked_shared_libs') or [])
         required_libs.extend(self.toolchain.required_linked_shared_libs())
         required_libs.extend(self.required_linked_shared_libs())
         required_libs.extend(self.cfg['required_linked_shared_libs'])
