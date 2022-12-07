@@ -202,6 +202,10 @@ jobs:
           # create file owned by root but writable by anyone (used by test_copy_file)
           sudo touch /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
           sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
+          # silence deprecation warning when using Python 2, since it breaks a bunch of tests
+          if [ "${{matrix.python}}" == '2.7' ]; then
+            export TEST_EASYBUILD_SILENCE_DEPRECATION_WARNINGS=python2
+          fi
           # run test suite
           python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
           # try and make sure output of running tests is clean (no printed messages/warnings)
