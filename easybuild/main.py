@@ -74,6 +74,7 @@ from easybuild.tools.output import start_progress_bar, stop_progress_bar, update
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
+from easybuild.tools.py2vs3 import python2_is_deprecated
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_easybuild_deps
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
@@ -574,6 +575,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     :param do_build: whether or not to actually perform the build
     :param testing: enable testing mode
     """
+
+    python2_is_deprecated()
 
     register_lock_cleanup_signal_handlers()
 
