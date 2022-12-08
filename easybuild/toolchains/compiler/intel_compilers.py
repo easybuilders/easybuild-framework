@@ -44,10 +44,8 @@ class IntelCompilers(IntelIccIfort):
     COMPILER_UNIQUE_OPTS = dict(IntelIccIfort.COMPILER_UNIQUE_OPTS)
     COMPILER_UNIQUE_OPTS.update({
         'oneapi': (False, "Use oneAPI compilers icx/icpx/ifx instead of classic compilers"),
-        'oneapi_c': (None, "Use oneAPI C compiler icx instead of classic Intel C compiler "
-                           "(auto-enabled for Intel compilers version 2022.2.0, or newer)"),
-        'oneapi_cxx': (None, "Use oneAPI C++ compiler icpx instead of classic Intel C++ compiler "
-                             "(auto-enabled for Intel compilers version 2022.2.0, or newer)"),
+        'oneapi_c_cxx': (None, "Use oneAPI C/C++ compilers icx/icpx instead of classic Intel C/C++ compilers "
+                               "(auto-enabled for Intel compilers version 2022.2.0, or newer)"),
         'oneapi_fortran': (False, "Use oneAPI Fortran compiler ifx instead of classic Intel Fortran compiler"),
     })
 
@@ -74,12 +72,9 @@ class IntelCompilers(IntelIccIfort):
 
         # auto-enable use of oneAPI C/C++ compilers for sufficiently recent versions of Intel compilers
         comp_ver = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
-        print(comp_ver)
         if LooseVersion(comp_ver) >= LooseVersion('2022.2.0'):
-            if self.options.get('oneapi_c', None) is None:
-                self.options['oneapi_c'] = True
-            if self.options.get('oneapi_cxx', None) is None:
-                self.options['oneapi_cxx'] = True
+            if self.options.get('oneapi_c_cxx', None) is None:
+                self.options['oneapi_c_cxx'] = True
 
         if self.options.get('oneapi', False):
             oneapi = True
@@ -89,14 +84,11 @@ class IntelCompilers(IntelIccIfort):
             self.COMPILER_F90 = 'ifx'
             self.COMPILER_FC = 'ifx'
 
-        # if both 'oenapi' and 'oneapi_*' are set, the latter are ignored
+        # if both 'oneapi' and 'oneapi_*' are set, the latter are ignored
         else:
-            if self.options.get('oneapi_c', False):
+            if self.options.get('oneapi_c_cxx', False):
                 oneapi = True
                 self.COMPILER_CC = 'icx'
-
-            if self.options.get('oneapi_cxx', False):
-                oneapi = True
                 self.COMPILER_CXX = 'icpx'
 
             if self.options.get('oneapi_fortran', False):
