@@ -1459,6 +1459,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('F90'), 'ifort')
         self.assertEqual(os.getenv('FC'), 'ifort')
 
+        self.modtool.purge()
         tc = self.get_toolchain('intel-compilers', version='2022.2.0')
         tc.set_options({'oneapi_fortran': True})
         tc.prepare()
@@ -1468,6 +1469,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('F90'), 'ifx')
         self.assertEqual(os.getenv('FC'), 'ifx')
 
+        self.modtool.purge()
         tc = self.get_toolchain('intel-compilers', version='2022.2.0')
         tc.set_options({'oneapi_c_cxx': False, 'oneapi_fortran': True})
         tc.prepare()
@@ -1477,6 +1479,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('F90'), 'ifx')
         self.assertEqual(os.getenv('FC'), 'ifx')
 
+        self.modtool.purge()
         tc = self.get_toolchain('intel', version='2021b')
         tc.set_options({'oneapi_c_cxx': True})
         tc.prepare()
@@ -1486,6 +1489,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('F90'), 'ifort')
         self.assertEqual(os.getenv('FC'), 'ifort')
 
+        self.modtool.purge()
         tc = self.get_toolchain('intel', version='2021b')
         tc.set_options({'oneapi_fortran': True})
         tc.prepare()
@@ -1495,6 +1499,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('F90'), 'ifx')
         self.assertEqual(os.getenv('FC'), 'ifx')
 
+        self.modtool.purge()
         tc = self.get_toolchain('intel', version='2021b')
         tc.set_options({'oneapi_c_cxx': True, 'oneapi_fortran': True})
         tc.prepare()
