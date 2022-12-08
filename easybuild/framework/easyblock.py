@@ -233,6 +233,11 @@ class EasyBlock(object):
         # sanity check fail error messages to report (if any)
         self.sanity_check_fail_msgs = []
 
+        # keep track of whether module is loaded during sanity check step (to avoid re-loading)
+        self.sanity_check_module_loaded = False
+        # info required to roll back loading of fake module during sanity check (see _sanity_check_step method)
+        self.fake_mod_data = None
+
         # robot path
         self.robot_path = build_option('robot_path')
 
@@ -1661,6 +1666,8 @@ class EasyBlock(object):
         :param purge: boolean indicating whether or not to purge currently loaded modules first
         :param extra_modules: list of extra modules to load (these are loaded *before* loading the 'self' module)
         """
+        self.log.info("Loading fake module (%s)", self.short_mod_name)
+
         # take a copy of the current environment before loading the fake module, so we can restore it
         env = copy.deepcopy(os.environ)
 
@@ -3405,6 +3412,34 @@ class EasyBlock(object):
             self.sanity_check_fail_msgs.append(overall_fail_msg + ', '.join(x[0] for x in failed_exts))
             self.sanity_check_fail_msgs.extend(x[1] for x in failed_exts)
 
+    def sanity_check_load_module(self, extension=False, extra_modules=None):
+        """
+        Load module to prepare environment for sanity check
+        """
+
+        # skip loading of fake module when using --sanity-check-only, load real module instead
+        if build_option('sanity_check_only') and not extension:
+            self.log.info("Loading real module for %s %s: %s", self.name, self.version, self.short_mod_name)
+            self.load_module(extra_modules=extra_modules)
+            self.sanity_check_module_loaded = True
+
+        # only load fake module for non-extensions, and not during dry run
+        elif not (extension or self.dry_run):
+
+            if extra_modules:
+                self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
+
+            try:
+                # unload all loaded modules before loading fake module
+                # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
+                self.fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules, verbose=True)
+                self.sanity_check_module_loaded = True
+            except EasyBuildError as err:
+                self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
+                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
+
+        return self.fake_mod_data
+
     def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False, extra_modules=None):
         """
         Real version of sanity_check_step method.
@@ -3469,24 +3504,8 @@ class EasyBlock(object):
 
                 trace_msg("%s %s found: %s" % (typ, xs2str(xs), ('FAILED', 'OK')[found]))
 
-        fake_mod_data = None
-
-        # skip loading of fake module when using --sanity-check-only, load real module instead
-        if build_option('sanity_check_only') and not extension:
-            self.load_module(extra_modules=extra_modules)
-
-        # only load fake module for non-extensions, and not during dry run
-        elif not (extension or self.dry_run):
-            try:
-                # unload all loaded modules before loading fake module
-                # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
-                fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules, verbose=True)
-            except EasyBuildError as err:
-                self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
-                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
-
-            if extra_modules:
-                self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
+        if not self.sanity_check_module_loaded:
+            self.fake_mod_data = self.sanity_check_load_module(extension=extension, extra_modules=extra_modules)
 
         # allow oversubscription of P processes on C cores (P>C) for software installed on top of Open MPI;
         # this is useful to avoid failing of sanity check commands that involve MPI
@@ -3522,8 +3541,10 @@ class EasyBlock(object):
             self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
 
         # cleanup
-        if fake_mod_data:
-            self.clean_up_fake_module(fake_mod_data)
+        if self.fake_mod_data:
+            self.clean_up_fake_module(self.fake_mod_data)
+            self.sanity_check_module_loaded = False
+            self.fake_mod_data = None
 
         if self.toolchain.use_rpath:
             rpath_fails = self.sanity_check_rpath()
