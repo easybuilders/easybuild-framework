@@ -114,6 +114,7 @@ def avail_cfgfile_constants(go_cfg_constants, output_format=FORMAT_TXT):
 
 
 def avail_cfgfile_constants_txt(go_cfg_constants):
+    """Generate documentation on constants for configuration files in txt format"""
     doc = [
         "Constants available (only) in configuration files:",
         "syntax: %(CONSTANT_NAME)s",
@@ -129,21 +130,49 @@ def avail_cfgfile_constants_txt(go_cfg_constants):
 
 
 def avail_cfgfile_constants_rst(go_cfg_constants):
+    """Generate documentation on constants for configuration files in rst format"""
     title = "Constants available (only) in configuration files"
-    doc = [title, '-' * len(title), '']
+    doc = [title, '-' * len(title)]
 
     for section in go_cfg_constants:
         doc.append('')
         if section != go_cfg_constants['DEFAULT']:
-            section_title = "only in '%s' section:" % section
+            section_title = "Only in '%s' section:" % section
             doc.extend([section_title, '-' * len(section_title), ''])
         table_titles = ["Constant name", "Constant help", "Constant value"]
+        sorted_names = sorted(go_cfg_constants[section].keys())
         table_values = [
-            ['``' + name + '``' for name in go_cfg_constants[section].keys()],
-            [tup[1] for tup in go_cfg_constants[section].values()],
-            ['``' + tup[0] + '``' for tup in go_cfg_constants[section].values()],
+            ['``' + x + '``' for x in sorted_names],
+            [go_cfg_constants[section][x][1] for x in sorted_names],
+            ['``' + go_cfg_constants[section][x][0] + '``' for x in sorted_names],
         ]
         doc.extend(mk_rst_table(table_titles, table_values))
+
+    return '\n'.join(doc)
+
+
+def avail_cfgfile_constants_md(go_cfg_constants):
+    """Generate documentation on constants for configuration files in MarkDown format"""
+    title = "Constants available (only) in configuration files"
+    doc = [
+        '# ' + title,
+        '',
+    ]
+
+    for section in go_cfg_constants:
+        if section != go_cfg_constants['DEFAULT']:
+            doc.extend([
+                "### Only in '%s' section:" % section,
+                '',
+            ])
+        table_titles = ["Constant name", "Constant help", "Constant value"]
+        sorted_names = sorted(go_cfg_constants[section].keys())
+        table_values = [
+            ['``' + x + '``' for x in sorted_names],
+            [go_cfg_constants[section][x][1] for x in sorted_names],
+            ['``' + go_cfg_constants[section][x][0] + '``' for x in sorted_names],
+        ]
+        doc.extend(mk_md_table(table_titles, table_values))
 
     return '\n'.join(doc)
 
@@ -181,6 +210,28 @@ def avail_easyconfig_constants_rst():
     ]
 
     doc = rst_title_and_table(title, table_titles, table_values)
+    return '\n'.join(doc)
+
+
+def avail_easyconfig_constants_md():
+    """Generate easyconfig constant documentation in MarkDown format"""
+    title = "Constants that can be used in easyconfigs"
+
+    table_titles = [
+        "Constant name",
+        "Constant value",
+        "Description",
+    ]
+
+    sorted_keys = sorted(EASYCONFIG_CONSTANTS)
+
+    table_values = [
+        ["``%s``" % key for key in sorted_keys],
+        ["``%s``" % str(EASYCONFIG_CONSTANTS[key][0]) for key in sorted_keys],
+        [EASYCONFIG_CONSTANTS[key][1] for key in sorted_keys],
+    ]
+
+    doc = md_title_and_table(title, table_titles, table_values)
     return '\n'.join(doc)
 
 
