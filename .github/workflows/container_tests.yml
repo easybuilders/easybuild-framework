@@ -57,8 +57,8 @@ jobs:
         sudo apt install alien
         alien --version
         # determine latest version of Singularity available in EPEL, and download RPM
-        singularity_rpm=$(curl -sL https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/s/ | grep singularity | sed 's/.*singularity/singularity/g' | sed 's/rpm.*/rpm/g')
-        curl -OL https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/s/${singularity_rpm}
+        singularity_rpm=$(curl -sL https://dl.fedoraproject.org/pub/archive/epel/8.5/Everything/x86_64/Packages/s/ | grep singularity | sed 's/.*singularity/singularity/g' | sed 's/rpm.*/rpm/g')
+        curl -OL https://dl.fedoraproject.org/pub/archive/epel/8.5/Everything/x86_64/Packages/s/${singularity_rpm}
         # convert Singularity RPM to Debian package, and install it
         sudo alien -d ${singularity_rpm}
         sudo apt install ./singularity*.deb
