@@ -32,8 +32,8 @@ import sys
 from unittest import TextTestRunner
 
 from easybuild.tools.config import module_classes
-from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_licenses, gen_easyblocks_overview_rst
-from easybuild.tools.docs import list_easyblocks, list_software, list_toolchains
+from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
+from easybuild.tools.docs import gen_easyblocks_overview_rst, list_easyblocks, list_software, list_toolchains
 from easybuild.tools.docs import md_title_and_table, rst_title_and_table
 from easybuild.tools.options import EasyBuildOptions
 from easybuild.tools.utilities import import_available_modules, mk_md_table, mk_rst_table
@@ -632,6 +632,49 @@ class DocsTest(EnhancedTestCase):
             r"^``USER``\s*Current username, translated uid from password file\s*``%s``" % os.getenv('USER'),
         ]
         txt_rst = avail_cfgfile_constants(option_parser.go_cfg_constants, output_format='rst')
+        for pattern in rst_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+
+    def test_avail_easyconfig_constants(self):
+        """
+        Test avail_easyconfig_constants to generate overview of constants that can be used in easyconfig files.
+        """
+        txt_patterns = [
+            r"^Constants that can be used in easyconfigs",
+            r"^\s*ARCH: .* \(CPU architecture of current system \(aarch64, x86_64, ppc64le, ...\)\)",
+            r"^\s*OS_PKG_OPENSSL_DEV: \('openssl-devel', 'libssl-dev', 'libopenssl-devel'\) "
+            r"\(OS packages providing openSSL developement support\)",
+        ]
+
+        txt = avail_easyconfig_constants()
+        for pattern in txt_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        txt = avail_easyconfig_constants(output_format='txt')
+        for pattern in txt_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        md_patterns = [
+            r"^## Constants that can be used in easyconfigs",
+            r"^``ARCH``\s*\|``.*``\s*\|CPU architecture of current system \(aarch64, x86_64, ppc64le, ...\)$",
+            r"^``OS_PKG_OPENSSL_DEV``\s*\|``\('openssl-devel', 'libssl-dev', 'libopenssl-devel'\)``\s*\|"
+            r"OS packages providing openSSL developement support$",
+        ]
+        txt_md = avail_easyconfig_constants(output_format='md')
+        for pattern in md_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+
+        rst_patterns = [
+            r"^Constants that can be used in easyconfigs\n-{41}",
+            r"^``ARCH``\s*``.*``\s*CPU architecture of current system \(aarch64, x86_64, ppc64le, ...\)$",
+            r"^``OS_PKG_OPENSSL_DEV``\s*``\('openssl-devel', 'libssl-dev', 'libopenssl-devel'\)``\s*"
+            r"OS packages providing openSSL developement support$",
+        ]
+        txt_rst = avail_easyconfig_constants(output_format='rst')
         for pattern in rst_patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
