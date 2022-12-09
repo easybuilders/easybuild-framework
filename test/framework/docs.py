@@ -32,9 +32,10 @@ import sys
 from unittest import TextTestRunner
 
 from easybuild.tools.config import module_classes
-from easybuild.tools.docs import avail_easyconfig_licenses, gen_easyblocks_overview_rst
+from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_licenses, gen_easyblocks_overview_rst
 from easybuild.tools.docs import list_easyblocks, list_software, list_toolchains
 from easybuild.tools.docs import md_title_and_table, rst_title_and_table
+from easybuild.tools.options import EasyBuildOptions
 from easybuild.tools.utilities import import_available_modules, mk_md_table, mk_rst_table
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 
@@ -590,6 +591,50 @@ class DocsTest(EnhancedTestCase):
         lines = txt.split('\n')
         expected_found = any(lines[i:i + len(expected)] == expected for i in range(len(lines)))
         self.assertTrue(expected_found, "%s found in: %s" % (expected, lines))
+
+    def test_avail_cfgfile_constants(self):
+        """
+        Test avail_cfgfile_constants to generate overview of constants that can be used in a configuration file.
+        """
+        option_parser = EasyBuildOptions()
+        txt_patterns = [
+            r"^Constants available \(only\) in configuration files:",
+            r"^syntax: %\(CONSTANT_NAME\)s",
+            r"^only in 'DEFAULT' section:",
+            r"^\* HOME: Current user's home directory, expanded '~' \[value: %s\]" % os.getenv('HOME'),
+            r"^\* USER: Current username, translated uid from password file \[value: %s\]" % os.getenv('USER'),
+        ]
+        txt = avail_cfgfile_constants(option_parser.go_cfg_constants)
+        for pattern in txt_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        txt = avail_cfgfile_constants(option_parser.go_cfg_constants, output_format='txt')
+        for pattern in txt_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        md_patterns = [
+            r"^# Constants available \(only\) in configuration files",
+            r"^### Only in 'DEFAULT' section:",
+            r"^``HOME``\s*\|Current user's home directory, expanded '~'\s*\|``%s``$" % os.getenv('HOME'),
+            r"^``USER``\s*\|Current username, translated uid from password file\s*\|``%s``" % os.getenv('USER'),
+        ]
+        txt_md = avail_cfgfile_constants(option_parser.go_cfg_constants, output_format='md')
+        for pattern in md_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+
+        rst_patterns = [
+            r"^Constants available \(only\) in configuration files\n-{49}\n",
+            r"^Only in 'DEFAULT' section:\n-{26}",
+            r"^``HOME``\s*Current user's home directory, expanded '~'\s*``%s``$" % os.getenv('HOME'),
+            r"^``USER``\s*Current username, translated uid from password file\s*``%s``" % os.getenv('USER'),
+        ]
+        txt_rst = avail_cfgfile_constants(option_parser.go_cfg_constants, output_format='rst')
+        for pattern in rst_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
 
     def test_mk_table(self):
         """
