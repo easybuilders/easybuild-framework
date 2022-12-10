@@ -22,7 +22,7 @@ flake8
 
 # 2.6.7 uses invalid Python 2 syntax
 GC3Pie!=2.6.7; python_version < '3.0'
-GC3Pie; python_version >= '3.0'
+GC3Pie; python_version >= '3.0' and python_version < '3.11'
 python-graph-dot
 python-hglib
 requests
@@ -31,7 +31,7 @@ archspec
 
 # cryptography 3.4.0 no longer supports Python 2.7
 cryptography==3.3.2; python_version == '2.7'
-cryptography; python_version >= '3.5'
+cryptography; python_version >= '3.5' and python_version < '3.11'
 
 # rich is only supported for Python 3.6+
 rich; python_version >= '3.6'
