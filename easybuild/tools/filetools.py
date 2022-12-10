@@ -1248,8 +1248,8 @@ def verify_checksum(path, checksums):
     """
     Verify checksum of specified file.
 
-    :param file: path of file to verify checksum of
-    :param checksum: checksum value (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
+    :param path: path of file to verify checksum of
+    :param checksums: checksum values (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
     """
 
     filename = os.path.basename(path)
@@ -1300,6 +1300,9 @@ def verify_checksum(path, checksums):
                         return True
                     else:
                         _log.info("Ignoring non-matching checksum for %s (%s)...", path, cand_checksum)
+
+                # no matching checksums
+                return False
         else:
             raise EasyBuildError("Invalid checksum spec '%s', should be a string (MD5) or 2-tuple (type, value).",
                                  checksum)

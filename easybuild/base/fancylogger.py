@@ -826,7 +826,7 @@ def setroot(fancyrecord=FANCYLOG_FANCYRECORD):
     Set a FancyLogger instance as the logging root logger
     with (effective)loglevel of current root FancyLogger
 
-    :param fancyrecord is enabled or not (default FANCYLOG_FANCYRECORD module constant)
+    :param fancyrecord: is enabled or not (default FANCYLOG_FANCYRECORD module constant)
 
     Detecting the loglevel is best-effort, better to set the loglevel after setroot()
     """

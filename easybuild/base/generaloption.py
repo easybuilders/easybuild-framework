@@ -1228,7 +1228,7 @@ class GeneralOption(object):
         """
         Initialise the configparser to use.
 
-            :params initenv: insert initial environment into the configparser.
+            :param initenv: insert initial environment into the configparser.
                 It is a dict of dicts; the first level key is the section name;
                 the 2nd level key,value is the key=value.
                 All section names, keys and values are converted to strings.
@@ -1669,10 +1669,10 @@ class SimpleOption(GeneralOption):
 
     def __init__(self, go_dict=None, descr=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
         """Initialisation
-        :param go_dict : General Option option dict
-        :param short_descr : short description of main options
-        :param long_descr : longer description of main options
-        :param config_files : list of configfiles to read options from
+        :param go_dict: General Option option dict
+        :param short_groupdescr: short description of main options
+        :param long_groupdescr: longer description of main options
+        :param config_files: list of configfiles to read options from
 
         a general options dict has as key the long option name, and is followed by a list/tuple
         mandatory are 4 elements : option help, type, action, default
@@ -1710,10 +1710,10 @@ class SimpleOption(GeneralOption):
 def simple_option(go_dict=None, descr=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
     """A function that returns a single level GeneralOption option parser
 
-    :param go_dict : General Option option dict
-    :param short_descr : short description of main options
-    :param long_descr : longer description of main options
-    :param config_files : list of configfiles to read options from
+    :param go_dict: General Option option dict
+    :param short_groupdescr: short description of main options
+    :param long_groupdescr: longer description of main options
+    :param config_files: list of configfiles to read options from
 
     a general options dict has as key the long option name, and is followed by a list/tuple
     mandatory are 4 elements : option help, type, action, default

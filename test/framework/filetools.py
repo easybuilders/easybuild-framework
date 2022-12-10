@@ -344,6 +344,9 @@ class FileToolsTest(EnhancedTestCase):
         alt_checksums = (known_checksums['sha256'],)
         self.assertTrue(ft.verify_checksum(fp, alt_checksums))
 
+        alt_checksums = ('7167b64b1ca062b9674ffef46f9325db7167b64b1ca062b9674ffef46f9325db', broken_checksums['sha256'])
+        self.assertFalse(ft.verify_checksum(fp, alt_checksums))
+
         # check whether missing checksums are enforced
         build_options = {
             'enforce_checksums': True,
@@ -2384,7 +2387,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 89)
+            self.assertEqual(len(index), 90)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
@@ -2395,7 +2398,7 @@ class FileToolsTest(EnhancedTestCase):
                 self.assertTrue(fn in index)
 
             for fp in index:
-                self.assertTrue(fp.endswith('.eb'))
+                self.assertTrue(fp.endswith('.eb') or os.path.basename(fp) == 'checksums.json')
 
         # set up some files to create actual index file for
         ft.copy_dir(os.path.join(test_ecs, 'g'), os.path.join(self.test_prefix, 'g'))

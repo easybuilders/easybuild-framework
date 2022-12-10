@@ -1,6 +1,11 @@
 # documentation: https://help.github.com/en/articles/workflow-syntax-for-github-actions
 name: Tests for container support
 on: [push, pull_request]
+
+concurrency:
+  group: ${{format('{0}:{1}:{2}', github.repository, github.ref, github.workflow)}}
+  cancel-in-progress: true
+
 jobs:
   build:
     # stick to Ubuntu 18.04, where we can still easily install yum via 'apt install'
@@ -52,8 +57,8 @@ jobs:
         sudo apt install alien
         alien --version
         # determine latest version of Singularity available in EPEL, and download RPM
-        singularity_rpm=$(curl -sL https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/s/ | grep singularity | sed 's/.*singularity/singularity/g' | sed 's/rpm.*/rpm/g')
-        curl -OL https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/s/${singularity_rpm}
+        singularity_rpm=$(curl -sL https://dl.fedoraproject.org/pub/archive/epel/8.5/Everything/x86_64/Packages/s/ | grep singularity | sed 's/.*singularity/singularity/g' | sed 's/rpm.*/rpm/g')
+        curl -OL https://dl.fedoraproject.org/pub/archive/epel/8.5/Everything/x86_64/Packages/s/${singularity_rpm}
         # convert Singularity RPM to Debian package, and install it
         sudo alien -d ${singularity_rpm}
         sudo apt install ./singularity*.deb

@@ -33,6 +33,7 @@ Command line options for eb
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+:author: Maxime Boissonneault (Compute Canada)
 """
 import copy
 import glob
@@ -59,6 +60,7 @@ from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
 from easybuild.tools.build_log import init_logging, log_start, print_msg, print_warning, raise_easybuilderror
+from easybuild.tools.config import CHECKSUM_PRIORITY_CHOICES, DEFAULT_CHECKSUM_PRIORITY
 from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE, DEFAULT_ALLOW_LOADED_MODULES
 from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_ENV_FOR_SHEBANG, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE, DEFAULT_JOB_BACKEND
@@ -72,6 +74,7 @@ from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_A
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS
 from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
+from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
@@ -359,6 +362,9 @@ class EasyBuildOptions(GeneralOption):
             'check-ebroot-env-vars': ("Action to take when defined $EBROOT* environment variables are found "
                                       "for which there is no matching loaded module; "
                                       "supported values: %s" % ', '.join(EBROOT_ENV_VAR_ACTIONS), None, 'store', WARN),
+            'checksum-priority': ("When checksums are found in both the EasyConfig and the checksums.json file"
+                                  "Define which one to use. ",
+                                  'choice', 'store_or_None', DEFAULT_CHECKSUM_PRIORITY, CHECKSUM_PRIORITY_CHOICES),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
@@ -783,6 +789,8 @@ class EasyBuildOptions(GeneralOption):
                               int, 'store', DEFAULT_INDEX_MAX_AGE),
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
                                  'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
+            'inject-checksums-to-json': ("Inject checksums of specified type for sources/patches into checksums.json",
+                                         'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
             'local-var-naming-check': ("Mode to use when checking whether local variables follow the recommended "
                                        "naming scheme ('log': only log warnings (no printed messages); 'warn': print "
                                        "warnings; 'error': fail with an error)", 'choice', 'store',
@@ -1168,8 +1176,8 @@ class EasyBuildOptions(GeneralOption):
             self.options.ignore_osdeps = True
             self.options.modules_tool = None
 
-        # imply --disable-pre-create-installdir with --inject-checksums
-        if self.options.inject_checksums:
+        # imply --disable-pre-create-installdir with --inject-checksums or --inject-checksums-to-json
+        if self.options.inject_checksums or self.options.inject_checksums_to_json:
             self.options.pre_create_installdir = False
 
     def _postprocess_list_avail(self):
@@ -1496,7 +1504,7 @@ def check_root_usage(allow_use_as_root=False):
                                  "so let's end this here.")
 
 
-def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
+def set_up_configuration(args=None, logfile=None, testing=False, silent=False, reconfigure=False):
     """
     Set up EasyBuild configuration, by parsing configuration settings & initialising build options.
 
@@ -1504,6 +1512,8 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     :param logfile: log file to use
     :param testing: enable testing mode
     :param silent: stay silent (no printing)
+    :param reconfigure: reconfigure singletons that hold configuration dictionaries. Use with care: normally,
+    configuration shouldn't be changed during a run. Exceptions are when looping over items in EasyStack files
     """
 
     # set up fake 'vsc' Python package, to catch easyblocks/scripts that still import from vsc.* namespace
@@ -1581,6 +1591,21 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
         'try_to_generate': try_to_generate,
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
     }
+
+    # Remove existing singletons if reconfigure==True (allows reconfiguration when looping over EasyStack items)
+    if reconfigure:
+        BuildOptions.__class__._instances.clear()
+        ConfigurationVariables.__class__._instances.clear()
+    elif len(BuildOptions.__class__._instances) + len(ConfigurationVariables.__class__._instances) > 0:
+        msg = '\n'.join([
+            "set_up_configuration is about to call init() and init_build_options().",
+            "However, the singletons that these functions normally initialize already exist.",
+            "If configuration should be changed, this may lead to unexpected behavior,"
+            "as the existing singletons will be returned. If you intended to reconfigure",
+            "you should probably pass reconfigure=True to set_up_configuration()."
+        ])
+        print_warning(msg, log=log)
+
     # initialise the EasyBuild configuration & build options
     init(options, config_options_dict)
     init_build_options(build_options=build_options, cmdline_options=options)
@@ -1878,3 +1903,35 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             raise EasyBuildError("Failed to test whether temporary directory allows to execute files: %s", err)
 
     return current_tmpdir
+
+
+def opts_dict_to_eb_opts(args_dict):
+    """
+    Convert a dictionary with configuration option values to command-line options for the 'eb' command.
+    Can by used to convert e.g. easyconfig-specific options from an easystack file to a list of strings
+    that can be fed into the EasyBuild option parser
+    :param args_dict: dictionary with configuration option values
+    :return: a list of strings representing command-line options for the 'eb' command
+    """
+
+    _log.debug("Converting dictionary %s to argument list" % args_dict)
+    args = []
+    for arg in sorted(args_dict):
+        if len(arg) == 1:
+            prefix = '-'
+        else:
+            prefix = '--'
+        option = prefix + str(arg)
+        value = args_dict[arg]
+        if isinstance(value, (list, tuple)):
+            value = ','.join(str(x) for x in value)
+
+        if value in [True, None]:
+            args.append(option)
+        elif value is False:
+            args.append('--disable-' + option[2:])
+        elif value is not None:
+            args.append(option + '=' + str(value))
+
+    _log.debug("Converted dictionary %s to argument list %s" % (args_dict, args))
+    return args
