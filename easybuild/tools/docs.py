@@ -274,6 +274,27 @@ def avail_easyconfig_licenses_rst():
     return '\n'.join(doc)
 
 
+def avail_easyconfig_licenses_md():
+    """Generate easyconfig license documentation in MarkDown format"""
+    title = "License constants that can be used in easyconfigs"
+
+    table_titles = [
+        "License name",
+        "License description",
+        "Version",
+    ]
+
+    lics = sorted(EASYCONFIG_LICENSES_DICT.items())
+    table_values = [
+        ["``%s``" % lic().name for _, lic in lics],
+        ["%s" % lic().description for _, lic in lics],
+        ["``%s``" % lic().version for _, lic in lics],
+    ]
+
+    doc = md_title_and_table(title, table_titles, table_values)
+    return '\n'.join(doc)
+
+
 def avail_easyconfig_params_md(title, grouped_params):
     """
     Compose overview of available easyconfig parameters, in MarkDown format.
