@@ -71,8 +71,6 @@ class Foss(Gompi, OpenBLAS, FlexiBLAS, ScaLAPACK, Fftw):
         """
         res = []
         res.extend(Gompi.banned_linked_shared_libs(self))
-        res.extend(Golf.banned_linked_shared_libs(self))
-        res.extend(Gfbf.banned_linked_shared_libs(self))
 
         if self.looseversion >= LooseVersion('2021.0'):
             res.extend(FlexiBLAS.banned_linked_shared_libs(self))
