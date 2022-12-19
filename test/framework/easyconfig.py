@@ -1278,6 +1278,17 @@ class EasyConfigTest(EnhancedTestCase):
         ]
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
 
+    def test_constants_import(self):
+        """Test importing constants works"""
+        # Sanity check that importing an EC constant works as-if using EASYCONFIG_CONSTANTS
+        from easybuild.framework.easyconfig.constants import SYSTEM
+        self.assertEqual(SYSTEM, easyconfig.constants.EASYCONFIG_CONSTANTS['SYSTEM'][0])
+        # Check each individual constant
+        constants = __import__('easybuild.framework.easyconfig.constants', fromlist=[None])
+        for name, (value, _doc) in easyconfig.constants.EASYCONFIG_CONSTANTS.items():
+            self.assertTrue(hasattr(constants, name), 'Missing ' + name)
+            self.assertEqual(getattr(constants, name), value)
+
     def test_build_options(self):
         """Test configure/build/install options, both strings and lists."""
         orig_contents = '\n'.join([
