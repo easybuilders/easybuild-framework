@@ -116,6 +116,7 @@ DEFAULT_CONFIG = {
     'pretestopts': ['', 'Extra prefix options for test.', BUILD],
     'postinstallcmds': [[], 'Commands to run after the install step.', BUILD],
     'postinstallpatches': [[], 'Patch files to apply after running the install step.', BUILD],
+    'postinstallmsgs': [[], 'Messages to print after running the install step.', BUILD],
     'required_linked_shared_libs': [[], "List of shared libraries (names, file names, or paths) which must be "
                                         "linked in all installed binaries/libraries", BUILD],
     'runtest': [None, ('Indicates if a test should be run after make; should specify argument '
