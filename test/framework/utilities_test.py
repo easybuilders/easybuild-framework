@@ -37,6 +37,7 @@ from datetime import datetime
 from unittest import TextTestRunner
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.utilities import time2str, natural_keys
 
@@ -99,6 +100,61 @@ class UtilitiesTest(EnhancedTestCase):
         random.shuffle(shuffled_items)
         shuffled_items.sort(key=natural_keys)
         self.assertEqual(shuffled_items, sorted_items)
+
+    def test_LooseVersion(self):
+        """Test ordering of LooseVersion instances"""
+        # Simply check for the 6 comparison operators
+        self.assertEqual(LooseVersion('8.02'), LooseVersion('8.02'))
+        self.assertGreater(LooseVersion('2.02'), LooseVersion('2.01'))
+        self.assertGreaterEqual(LooseVersion('2.02'), LooseVersion('2.01'))
+        self.assertNotEqual(LooseVersion('2.02'), LooseVersion('2.01'))
+        self.assertLess(LooseVersion('1.02'), LooseVersion('2.01'))
+        self.assertLessEqual(LooseVersion('1.02'), LooseVersion('2.01'))
+        # Same as above but either side is a string
+        self.assertEqual('8.02', LooseVersion('8.02'))
+        self.assertEqual(LooseVersion('8.02'), '8.02')
+        self.assertGreater('2.02', LooseVersion('2.01'))
+        self.assertGreater(LooseVersion('2.02'), '2.01')
+        self.assertGreaterEqual('2.02', LooseVersion('2.01'))
+        self.assertGreaterEqual(LooseVersion('2.02'), '2.01')
+        self.assertNotEqual('2.02', LooseVersion('2.01'))
+        self.assertNotEqual(LooseVersion('2.02'), '2.01')
+        self.assertLess('1.02', LooseVersion('2.01'))
+        self.assertLess(LooseVersion('1.02'), '2.01')
+        self.assertLessEqual('1.02', LooseVersion('2.01'))
+        self.assertLessEqual(LooseVersion('1.02'), '2.01')
+
+        # Some comparisons we might do: Full version on left hand side, shorter on right
+        self.assertGreater(LooseVersion('2.1.5'), LooseVersion('2.1'))
+        self.assertGreater(LooseVersion('2.1.3'), LooseVersion('2'))
+        self.assertGreaterEqual(LooseVersion('2.1.0'), LooseVersion('2.1'))
+        self.assertLess(LooseVersion('2.1.5'), LooseVersion('2.2'))
+        self.assertLess(LooseVersion('2.1.3'), LooseVersion('3'))
+        self.assertLessEqual(LooseVersion('2.1.0'), LooseVersion('2.2'))
+        # Careful here: 1.0 > 1 !!!
+        self.assertGreater(LooseVersion('1.0'), LooseVersion('1'))
+        self.assertLess(LooseVersion('1'), LooseVersion('1.0'))
+
+        # The following test is taken from Python disutils tests
+        # licensed under the Python Software Foundation License Version 2
+        versions = (('1.5.1', '1.5.2b2', -1),
+                    ('161', '3.10a', 1),
+                    ('8.02', '8.02', 0),
+                    ('3.4j', '1996.07.12', -1),
+                    ('3.2.pl0', '3.1.1.6', 1),
+                    ('2g6', '11g', -1),
+                    ('0.960923', '2.2beta29', -1),
+                    ('1.13++', '5.5.kw', -1),
+                    # Added from https://bugs.python.org/issue14894
+                    ('a.12.b.c', 'a.b.3', -1),
+                    ('1.0', '1', 1),
+                    ('1', '1.0', -1))
+
+        for v1, v2, wanted in versions:
+            res = LooseVersion(v1)._cmp(LooseVersion(v2))
+            self.assertEqual(res, wanted,
+                             'cmp(%s, %s) should be %s, got %s' %
+                             (v1, v2, wanted, res))
 
 
 def suite():

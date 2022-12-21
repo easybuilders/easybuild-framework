@@ -33,11 +33,10 @@ import os
 import re
 import sys
 import tempfile
-from distutils.version import LooseVersion
 from unittest import TextTestRunner, TestSuite
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
-from easybuild.tools import config
+from easybuild.tools import LooseVersion, config
 from easybuild.tools.filetools import mkdir, read_file, remove_file, write_file
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name

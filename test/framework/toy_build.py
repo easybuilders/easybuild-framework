@@ -40,7 +40,7 @@ import stat
 import sys
 import tempfile
 import textwrap
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner

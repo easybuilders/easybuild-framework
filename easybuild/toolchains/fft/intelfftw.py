@@ -29,8 +29,8 @@ Support for Intel FFTW as toolchain FFT library.
 :author: Kenneth Hoste (Ghent University)
 """
 import os
-from distutils.version import LooseVersion
 
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, dry_run_warning
 from easybuild.tools.config import build_option
 from easybuild.toolchains.fft.fftw import Fftw

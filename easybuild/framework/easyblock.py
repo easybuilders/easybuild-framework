@@ -50,7 +50,6 @@ import tempfile
 import time
 import traceback
 from datetime import datetime
-from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
@@ -64,7 +63,7 @@ from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import dump_env_easyblock, get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.framework.extension import Extension, resolve_exts_filter_template
-from easybuild.tools import config, run
+from easybuild.tools import LooseVersion, config, run
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning

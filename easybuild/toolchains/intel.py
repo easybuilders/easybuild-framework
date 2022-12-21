@@ -29,13 +29,13 @@ Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-from distutils.version import LooseVersion
 import re
 
 from easybuild.toolchains.iimpi import Iimpi
 from easybuild.toolchains.iimkl import Iimkl
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
+from easybuild.tools import LooseVersion
 
 
 class Intel(Iimpi, IntelMKL, IntelFFTW):

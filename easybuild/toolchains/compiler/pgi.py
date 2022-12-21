@@ -32,9 +32,8 @@ Support for PGI compilers (pgcc, pgc++, pgf90/pgfortran) as toolchain compilers.
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 
-from distutils.version import LooseVersion
-
 import easybuild.tools.systemtools as systemtools
+from easybuild.tools import LooseVersion
 from easybuild.tools.toolchain.compiler import Compiler
 
 

@@ -32,11 +32,11 @@ Useful: http://www.yaml.org/spec/1.2/spec.html
 import copy
 import os
 import platform
-from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import EasyConfigFormat
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
+from easybuild.tools import LooseVersion
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import INDENT_4SPACES, only_if_module_is_available, quote_str
 

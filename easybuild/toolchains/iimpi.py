@@ -28,7 +28,7 @@ EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, i
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 import re
 
 from easybuild.toolchains.iccifort import IccIfort
