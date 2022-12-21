@@ -31,6 +31,7 @@ import os
 
 from distutils.version import LooseVersion
 
+import easybuild.tools.systemtools as systemtools
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
 from easybuild.tools.toolchain.compiler import Compiler
 
@@ -108,6 +109,13 @@ class IntelCompilers(IntelIccIfort):
             self.options.options_map['veryloose'] = ['fp-model fast']
             # recommended in porting guide
             self.options.options_map['openmp'] = ['fiopenmp']
+
+            # -xSSE2 is not supported by Intel oneAPI compilers,
+            # so use -march=x86-64 -mtune=generic when using optarch=GENERIC
+            self.COMPILER_GENERIC_OPTION = {
+                (systemtools.X86_64, systemtools.AMD): 'march=x86-64 -mtune=generic',
+                (systemtools.X86_64, systemtools.INTEL): 'march=x86-64 -mtune=generic',
+            }
 
         # skip IntelIccIfort.set_variables (no longer relevant for recent versions)
         Compiler.set_variables(self)
