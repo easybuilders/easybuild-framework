@@ -3049,12 +3049,12 @@ class EasyBlock(object):
         self.log.debug("$LD_LIBRARY_PATH during RPATH sanity check: %s", os.getenv('LD_LIBRARY_PATH', '(empty)'))
         self.log.debug("List of loaded modules: %s", self.modules_tool.list())
 
-        not_found_regex = re.compile(r'(\S+) \=\> not found')
+        not_found_regex = re.compile(r'(\S+)\s*\=\>\s*not found')
         readelf_rpath_regex = re.compile('(RPATH)', re.M)
 
-        # List of libraries that should be exempt from the RPATH sanity check
-        # E.g. libcuda.so.1 should never be RPATH-ed by design, see
-        # ttps://github.com/easybuilders/easybuild-framework/issues/4095
+        # List of libraries that should be exempt from the RPATH sanity check;
+        # For example, libcuda.so.1 should never be RPATH-ed by design,
+        # see https://github.com/easybuilders/easybuild-framework/issues/4095
         filter_rpath_sanity_libs = build_option('filter_rpath_sanity_libs')
         msg = "Ignoring the following libraries if they are not found by RPATH sanity check: %s"
         self.log.info(msg, filter_rpath_sanity_libs)
