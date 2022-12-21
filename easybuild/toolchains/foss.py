@@ -30,6 +30,7 @@ EasyBuild support for foss compiler toolchain (includes GCC, OpenMPI, OpenBLAS, 
 from distutils.version import LooseVersion
 
 from easybuild.toolchains.gompi import Gompi
+from easybuild.toolchains.gfbf import Gfbf
 from easybuild.toolchains.golf import Golf
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.flexiblas import FlexiBLAS
@@ -40,7 +41,7 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Foss(Gompi, OpenBLAS, FlexiBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'foss'
-    SUBTOOLCHAIN = [Gompi.NAME, Golf.NAME]
+    SUBTOOLCHAIN = [Gompi.NAME, Golf.NAME, Gfbf.NAME]
 
     def __init__(self, *args, **kwargs):
         """Toolchain constructor."""

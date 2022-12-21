@@ -1299,7 +1299,7 @@ class EasyConfig(object):
         If none of the pairs is found, then an empty dictionary is returned.
 
         :param mod_name: name of the external module
-        :param metadata: already available metadata for this external module (if any)
+        :param existing_metadata: already available metadata for this external module (if any)
         """
         res = {}
 

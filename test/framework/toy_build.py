@@ -154,7 +154,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
                        raise_error=False, test_report=None, name='toy', versionsuffix='', testing=True,
-                       raise_systemexit=False, force=True):
+                       raise_systemexit=False, force=True, test_report_regexs=None):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -199,19 +199,24 @@ class ToyBuildTest(EnhancedTestCase):
         # make sure full test report was dumped, and contains sensible information
         if test_report is not None:
             self.assertTrue(os.path.exists(test_report))
-            if fails:
-                test_result = 'FAIL'
+            if test_report_regexs:
+                regex_patterns = test_report_regexs
             else:
-                test_result = 'SUCCESS'
-            regex_patterns = [
-                r"Test result[\S\s]*Build succeeded for %d out of 1" % (not fails),
-                r"Overview of tested easyconfig[\S\s]*%s[\S\s]*%s" % (test_result, os.path.basename(ec_file)),
+                if fails:
+                    test_result = 'FAIL'
+                else:
+                    test_result = 'SUCCESS'
+                regex_patterns = [
+                    r"Test result[\S\s]*Build succeeded for %d out of 1" % (not fails),
+                    r"Overview of tested easyconfig[\S\s]*%s[\S\s]*%s" % (test_result, os.path.basename(ec_file)),
+                ]
+            regex_patterns.extend([
                 r"Time info[\S\s]*start:[\S\s]*end:",
                 r"EasyBuild info[\S\s]*framework version:[\S\s]*easyblocks ver[\S\s]*command line[\S\s]*configuration",
                 r"System info[\S\s]*cpu model[\S\s]*os name[\S\s]*os version[\S\s]*python version",
                 r"List of loaded modules",
                 r"Environment",
-            ]
+            ])
             test_report_txt = read_file(test_report)
             for regex_pattern in regex_patterns:
                 regex = re.compile(regex_pattern, re.M)
@@ -3764,6 +3769,39 @@ class ToyBuildTest(EnhancedTestCase):
         toy_readme_txt = read_file(os.path.join(toy_installdir, 'README'))
         # verify whether patch indeed got applied
         self.assertEqual(toy_readme_txt, "toy 0.0, a toy test program\n")
+
+    def test_toy_unavailable_os_dep(self):
+        """
+        Test unavailable OS dep
+        Existence of OS dependencies is checking during the parsing of the easyconfig.
+        Test here that this problem is caught and a test report generated (#4102).
+        """
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "\nosdependencies = [('package-does-not-exist')]"
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        test_report_fp = os.path.join(self.test_buildpath, 'full_test_report.md')
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.test_toy_build(ec_file=test_ec, force=False, raise_error=False, verify=False,
+                            test_report_regexs=[r"One or more OS dependencies were not found"],
+                            test_report=test_report_fp)
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        patterns = [
+            r"Failed to process easyconfig",
+            r"One or more OS dependencies were not found",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
 def suite():

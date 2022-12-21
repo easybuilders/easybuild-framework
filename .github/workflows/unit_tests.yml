@@ -1,6 +1,11 @@
 # documentation: https://help.github.com/en/articles/workflow-syntax-for-github-actions
 name: EasyBuild framework unit tests
 on: [push, pull_request]
+
+concurrency:
+  group: ${{format('{0}:{1}:{2}', github.repository, github.ref, github.workflow)}}
+  cancel-in-progress: true
+
 jobs:
   setup:
     runs-on: ubuntu-20.04
@@ -41,15 +46,9 @@ jobs:
           - python: 3.5
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
-          - python: 3.5
-            modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Tcl
           - python: 3.7
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
-          - python: 3.7
-            modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Tcl
           - python: 3.8
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
@@ -59,13 +58,13 @@ jobs:
           - python: 3.9
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
-          - python: 3.9
-            modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Tcl
           - python: '3.10'
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
-          - python: '3.10'
+          - python: '3.11'
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            module_syntax: Lua
+          - python: '3.11'
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Tcl
           # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
@@ -197,10 +196,14 @@ jobs:
           # create file owned by root but writable by anyone (used by test_copy_file)
           sudo touch /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
           sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
+          # silence deprecation warning when using Python 2, since it breaks a bunch of tests
+          if [ "${{matrix.python}}" == '2.7' ]; then
+            export TEST_EASYBUILD_SILENCE_DEPRECATION_WARNINGS=python2
+          fi
           # run test suite
           python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
           # try and make sure output of running tests is clean (no printed messages/warnings)
-          IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|requires Lmod as modules tool|stty: 'standard input': Inappropriate ioctl for device|CryptographyDeprecationWarning: Python 3.[56]|from cryptography.*default_backend|CryptographyDeprecationWarning: Python 2|from cryptography.utils import int_from_bytes|Blowfish"
+          IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|requires Lmod as modules tool|stty: 'standard input': Inappropriate ioctl for device|CryptographyDeprecationWarning: Python 3.[56]|from cryptography.*default_backend|CryptographyDeprecationWarning: Python 2|from cryptography.utils import int_from_bytes|Blowfish|GC3Pie not available, skipping test"
           # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
           PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
           test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite\n${PRINTED_MSG}" && exit 1)

@@ -111,7 +111,6 @@ class Repository(object):
         Add patch file to repository
 
         :param patch: location of patch file
-        :param name: software name
         :return: location of archived patch
         """
         raise NotImplementedError

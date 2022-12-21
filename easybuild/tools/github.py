@@ -1074,7 +1074,7 @@ def find_software_name_for_patch(patch_name, ec_dirs):
     Scan all easyconfigs in the robot path(s) to determine which software a patch file belongs to
 
     :param patch_name: name of the patch file
-    :param ecs_dirs: list of directories to consider when looking for easyconfigs
+    :param ec_dirs: list of directories to consider when looking for easyconfigs
     :return: name of the software that this patch file belongs to (if found)
     """
 
