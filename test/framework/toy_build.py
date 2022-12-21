@@ -2723,6 +2723,18 @@ class ToyBuildTest(EnhancedTestCase):
         args = ['--rpath']
         self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
+        libtoy_libdir = os.path.join(self.test_installpath, 'software', 'libtoy', '0.0', 'lib')
+        toyapp_bin = os.path.join(self.test_installpath, 'software', 'toy-app', '0.0', 'bin', 'toy-app')
+        rpath_regex = re.compile(r"RPATH.*%s" % libtoy_libdir, re.M)
+        out, ec = run_cmd("readelf -d %s" % toyapp_bin, simple=False)
+        self.assertTrue(rpath_regex.search(out), "Pattern '%s' should be found in: %s" % (rpath_regex.pattern, out))
+
+        out, ec = run_cmd("ldd %s" % toyapp_bin, simple=False)
+        libtoy_regex = re.compile(r"libtoy.so => /.*/libtoy.so", re.M)
+        notfound = re.compile(r"libtoy\.so\s*=>\s*not found", re.M)
+        self.assertTrue(libtoy_regex.search(out), "Pattern '%s' should be found in: %s" % (libtoy_regex.pattern, out))
+        self.assertFalse(notfound.search(out), "Pattern '%s' should not be found in: %s" % (notfound.pattern, out))
+
         # test sanity error when --rpath-filter is used to filter a required library
         # In this test, libtoy.so will be linked, but not RPATH-ed due to the --rpath-filter
         # Thus, the RPATH sanity check is expected to fail with libtoy.so not being found
@@ -2737,9 +2749,29 @@ class ToyBuildTest(EnhancedTestCase):
         args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libtoy.so']
         self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
+        out, ec = run_cmd("readelf -d %s" % toyapp_bin, simple=False)
+        self.assertFalse(rpath_regex.search(out),
+                         "Pattern '%s' should not be found in: %s" % (rpath_regex.pattern, out))
+
+        out, ec = run_cmd("ldd %s" % toyapp_bin, simple=False)
+        self.assertFalse(libtoy_regex.search(out),
+                         "Pattern '%s' should not be found in: %s" % (libtoy_regex.pattern, out))
+        self.assertTrue(notfound.search(out),
+                        "Pattern '%s' should be found in: %s" % (notfound.pattern, out))
+
         # test again with list of library names passed to --filter-rpath-sanity-libs
         args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libfoo.so,libtoy.so,libbar.so']
         self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
+
+        out, ec = run_cmd("readelf -d %s" % toyapp_bin, simple=False)
+        self.assertFalse(rpath_regex.search(out),
+                         "Pattern '%s' should not be found in: %s" % (rpath_regex.pattern, out))
+
+        out, ec = run_cmd("ldd %s" % toyapp_bin, simple=False)
+        self.assertFalse(libtoy_regex.search(out),
+                         "Pattern '%s' should not be found in: %s" % (libtoy_regex.pattern, out))
+        self.assertTrue(notfound.search(out),
+                        "Pattern '%s' should be found in: %s" % (notfound.pattern, out))
 
     def test_toy_modaltsoftname(self):
         """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
