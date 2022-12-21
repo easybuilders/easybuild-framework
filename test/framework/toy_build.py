@@ -2713,8 +2713,8 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(toy_ec, toy_ec_txt)
         self.test_toy_build(ec_file=toy_ec, extra_args=['--rpath'], raise_error=True)
 
-    def test_toy_rpath_filter(self):
-        """Test toy build using --rpath --rpath-filter and --rpath --rpath-filter --filter-rpath-sanity-libs."""
+    def test_toy_filter_rpath_sanity_libs(self):
+        """Test use of --filter-rpath-sanity-libs."""
 
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs, 't', 'toy-app', 'toy-app-0.0.eb')
@@ -2735,6 +2735,10 @@ class ToyBuildTest(EnhancedTestCase):
         # not rpath-ed. Then, we use --filter-rpath-sanity-libs to make sure the RPATH sanity checks ignores
         # the fact that libtoy.so is not found. Thus, this build should complete succesfully
         args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libtoy.so']
+        self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
+
+        # test again with list of library names passed to --filter-rpath-sanity-libs
+        args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libfoo.so,libtoy.so,libbar.so']
         self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
     def test_toy_modaltsoftname(self):
