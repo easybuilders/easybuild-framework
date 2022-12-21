@@ -76,16 +76,19 @@ def dump_dependency(dep, toolchain, toolchain_hierarchy=None):
     else:
         # minimal spec: (name, version)
         tup = (dep['name'], dep['version'])
+        res = None
         if all(dep['toolchain'] != subtoolchain for subtoolchain in toolchain_hierarchy):
             if dep[SYSTEM_TOOLCHAIN_NAME]:
-                tup += (dep['versionsuffix'], True)
+                # use SYSTEM constant to indicate that system toolchain should be used for this dependency
+                res = re.sub(r'\)$', ', SYSTEM)', str(tup + (dep['versionsuffix'],)))
             else:
                 tup += (dep['versionsuffix'], (dep['toolchain']['name'], dep['toolchain']['version']))
 
         elif dep['versionsuffix']:
             tup += (dep['versionsuffix'],)
 
-        res = str(tup)
+        if res is None:
+            res = str(tup)
     return res
 
 

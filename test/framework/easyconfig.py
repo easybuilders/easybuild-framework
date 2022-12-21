@@ -44,6 +44,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
+import easybuild.tools.github as gh
 import easybuild.tools.systemtools as st
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
@@ -77,6 +78,7 @@ from easybuild.tools.systemtools import AARCH64, KNOWN_ARCH_CONSTANTS, POWER, X8
 from easybuild.tools.systemtools import get_cpu_architecture, get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str, quote_py_str
+from test.framework.github import GITHUB_TEST_ACCOUNT
 from test.framework.utilities import find_full_path
 
 try:
@@ -112,6 +114,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.all_stops = [x[0] for x in EasyBlock.get_steps()]
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
+
+        github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
+        self.skip_github_tests = github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
 
     def prep(self):
         """Prepare for test."""
@@ -1063,7 +1068,7 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com/%%(nameletter)s/%%(nameletterlower)s/v%%(version_major)s/"',
             'description = "test easyconfig %%(name)s"',
             'toolchain = SYSTEM',
-            'source_urls = [GOOGLECODE_SOURCE, GITHUB_SOURCE]',
+            'source_urls = [GOOGLECODE_SOURCE, GITHUB_SOURCE, GITHUB_RELEASE, GITHUB_LOWER_RELEASE]',
             'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_BZ2, "%(cmd)s")]',
             'sanity_check_paths = {',
             '   "files": ["bin/pi_%%(version_major)s_%%(version_minor)s", "lib/python%%(pyshortver)s/site-packages"],',
@@ -1090,43 +1095,56 @@ class EasyConfigTest(EnhancedTestCase):
             "github_account = 'easybuilders'",
         ]) % inp
         self.prep()
-        eb = EasyConfig(self.eb_file, validate=False)
-        eb.validate()
+        ec = EasyConfig(self.eb_file, validate=False)
+        ec.validate()
 
         # temporarily disable templating, just so we can check later whether it's *still* disabled
-        with eb.disable_templating():
-            eb.generate_template_values()
-            self.assertFalse(eb.enable_templating)
+        with ec.disable_templating():
+            ec.generate_template_values()
+            self.assertFalse(ec.enable_templating)
 
-        self.assertEqual(eb['description'], "test easyconfig PI")
-        self.assertEqual(eb['sources'][0], 'PI-3.04.tar.gz')
-        self.assertEqual(eb['sources'][1], ('pi-3.04.tar.bz2', "tar xfvz %s"))
-        self.assertEqual(eb['source_urls'][0], 'http://pi.googlecode.com/files')
-        self.assertEqual(eb['source_urls'][1], 'https://github.com/easybuilders/PI/archive')
-        self.assertEqual(eb['versionsuffix'], '-Python-2.7.10')
-        self.assertEqual(eb['sanity_check_paths']['files'][0], 'bin/pi_3_04')
-        self.assertEqual(eb['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
-        self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
+        self.assertEqual(ec['description'], "test easyconfig PI")
+        self.assertEqual(ec['sources'][0], 'PI-3.04.tar.gz')
+        self.assertEqual(ec['sources'][1], ('pi-3.04.tar.bz2', "tar xfvz %s"))
+        self.assertEqual(ec['source_urls'][0], 'http://pi.googlecode.com/files')
+        self.assertEqual(ec['source_urls'][1], 'https://github.com/easybuilders/PI/archive')
+        self.assertEqual(ec['source_urls'][2], 'https://github.com/easybuilders/PI/releases/download/v3.04')
+        self.assertEqual(ec['source_urls'][3], 'https://github.com/easybuilders/pi/releases/download/v3.04')
+
+        self.assertEqual(ec['versionsuffix'], '-Python-2.7.10')
+        self.assertEqual(ec['sanity_check_paths']['files'][0], 'bin/pi_3_04')
+        self.assertEqual(ec['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
+        self.assertEqual(ec['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
         # should match lib/x86_64/2.7.18, lib/aarch64/3.8.6, lib/ppc64le/3.9.2, etc.
         lib_arch_regex = re.compile(r'^lib/[a-z0-9_]+/[23]\.[0-9]+\.[0-9]+$')
-        dirs1 = eb['sanity_check_paths']['dirs'][1]
+        dirs1 = ec['sanity_check_paths']['dirs'][1]
         self.assertTrue(lib_arch_regex.match(dirs1), "Pattern '%s' should match '%s'" % (lib_arch_regex.pattern, dirs1))
         inc_regex = re.compile('^include/(aarch64|ppc64le|x86_64)$')
-        dirs2 = eb['sanity_check_paths']['dirs'][2]
+        dirs2 = ec['sanity_check_paths']['dirs'][2]
         self.assertTrue(inc_regex.match(dirs2), "Pattern '%s' should match '%s'" % (inc_regex, dirs2))
-        self.assertEqual(eb['homepage'], "http://example.com/P/p/v3/")
+        self.assertEqual(ec['homepage'], "http://example.com/P/p/v3/")
         expected = ("CUDA: 10.1.105, 10, 1, 10.1; "
                     "Java: 1.7.80, 1, 7, 1.7; "
                     "Python: 2.7.10, 2, 7, 2.7; "
                     "Perl: 5.22.0, 5, 22, 5.22; "
                     "R: 3.2.3, 3, 2, 3.2")
-        self.assertEqual(eb['modloadmsg'], expected)
-        self.assertEqual(eb['modextrapaths'], {'PI_MOD_NAME': 'PI/3.04-Python-2.7.10'})
-        self.assertEqual(eb['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
+        self.assertEqual(ec['modloadmsg'], expected)
+        self.assertEqual(ec['modextrapaths'], {'PI_MOD_NAME': 'PI/3.04-Python-2.7.10'})
+        self.assertEqual(ec['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
-        eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
-        self.assertEqual(eb['description'], "test easyconfig % %% %s% %%% PI %(name)s %PI %%(name)s")
+        ec['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
+        self.assertEqual(ec['description'], "test easyconfig % %% %s% %%% PI %(name)s %PI %%(name)s")
+
+        # Remove github_account
+        self.contents = re.sub(r'github_account =.*$', '', self.contents, flags=re.MULTILINE)
+        self.prep()
+        ec = EasyConfig(self.eb_file, validate=False)
+        ec.generate_template_values()
+        # and retest GITHUB_* templates that namelower is used instead
+        self.assertEqual(ec['source_urls'][1], 'https://github.com/pi/PI/archive')
+        self.assertEqual(ec['source_urls'][2], 'https://github.com/pi/PI/releases/download/v3.04')
+        self.assertEqual(ec['source_urls'][3], 'https://github.com/pi/pi/releases/download/v3.04')
 
         # test use of %(mpi_cmd_prefix)s template
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
@@ -1195,7 +1213,7 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "https://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
-            'dependencies = [("Java", "11", "", True)]',
+            'dependencies = [("Java", "11", "", SYSTEM)]',
             'modloadmsg = "Java: %(javaver)s, %(javamajver)s, %(javashortver)s"',
         ])
         self.prep()
@@ -2036,11 +2054,56 @@ class EasyConfigTest(EnhancedTestCase):
     def test_quote_py_str(self):
         """Test quote_py_str function."""
 
-        res = quote_py_str('description = """Example of\n multi-line\n description with \' quotes"""')
-        self.assertEqual(res, '"""description = """Example of\n multi-line\n description with \' quotes""""""')
+        def eval_quoted_string(quoted_val, val):
+            """
+            Helper function to sanity check we can use the quoted string in Python contexts.
+            Returns the evaluated (i.e. unquoted) string
+            """
+            globals = dict()
+            try:
+                exec('res = %s' % quoted_val, globals)
+            except Exception as e:  # pylint: disable=broad-except
+                self.fail('Failed to evaluate %s (from %s): %s' % (quoted_val, val, e))
+            return globals['res']
 
-        res = quote_py_str('preconfigopts = "sed -i \'s/`which \\([a-z_]*\\)`/\\1/g;s/`//g\' foo.c && "')
-        self.assertEqual(res, '"""preconfigopts = "sed -i \'s/`which \\\\([a-z_]*\\\\)`/\\\\1/g;s/`//g\' foo.c && """"')
+        def assertEqual_unquoted(quoted_val, val):
+            """Assert that evaluating the quoted_val yields the val"""
+            self.assertEqual(eval_quoted_string(quoted_val, val), val)
+
+        def subtest_quote_py_str(val):
+            """Quote `val`, check that it roundtrips and return the quoted value"""
+            quoted_val = quote_py_str(val)
+            assertEqual_unquoted(quoted_val, val)
+            return quoted_val
+
+        res = subtest_quote_py_str('Simple')
+        self.assertEqual(res, "'Simple'")
+
+        res = subtest_quote_py_str('double "quote"')
+        self.assertEqual(res, "'double \"quote\"'")
+
+        res = subtest_quote_py_str("single 'quote'")
+        self.assertEqual(res, '"single \'quote\'"')
+
+        res = subtest_quote_py_str("\"Both \"quotes'")
+        self.assertEqual(res, '""""Both "quotes\'"""')
+
+        # Some more complex examples based on real-world values of EasyConfig parameters
+
+        res = subtest_quote_py_str('Example of\n multi-line\n description with \' "quotes')
+        self.assertEqual(res, '"""Example of\n multi-line\n description with \' "quotes"""')
+
+        res = subtest_quote_py_str('sed -i \'s/`which \\([a-z_]*\\)`/\\1/g;s/`//g\' "foo.c" && ')
+        self.assertEqual(res, '"""sed -i \'s/`which \\\\([a-z_]*\\\\)`/\\\\1/g;s/`//g\' "foo.c" && """')
+
+        res = subtest_quote_py_str('echo \'key=val\' >> "$TMP/db.conf"')
+        self.assertEqual(res, '"""echo \'key=val\' >> "$TMP/db.conf\\""""')
+
+        res = subtest_quote_py_str('echo \'empty double quotes\' && echo ""')
+        self.assertEqual(res, '"""echo \'empty double quotes\' && echo "\\""""')
+
+        res = subtest_quote_py_str('echo -e "key=val\nkey2=val2" >> "$TMP/db.conf"')
+        self.assertEqual(res, '"""echo -e "key=val\nkey2=val2" >> "$TMP/db.conf\\""""')
 
     def test_dump(self):
         """Test EasyConfig's dump() method."""
@@ -2093,6 +2156,42 @@ class EasyConfigTest(EnhancedTestCase):
             for param in params:
                 if param in ec:
                     self.assertEqual(ec[param], dumped_ec[param])
+
+        ec_txt = textwrap.dedent("""
+            easyblock = 'EB_toy'
+
+            name = 'foo'
+            version = '0.0.1'
+
+            toolchain = {'name': 'GCC', 'version': '4.6.3'}
+
+            homepage = 'http://foo.com/'
+            description = "foo description"
+
+            sources = [SOURCE_TAR_GZ]
+            source_urls = ["http://example.com"]
+
+            dependencies = [
+                ('toy', '0.0', '', True),
+                ('GCC', '4.9.2', '', SYSTEM),
+            ]
+
+            moduleclass = 'tools'
+        """)
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, ec_txt)
+        ec = EasyConfig(test_ec)
+
+        # verify whether SYSTEM constant is used for dependency that uses system toolchain in dumped easyconfig
+        dumped_ec = os.path.join(self.test_prefix, 'dumped.eb')
+        ec.dump(dumped_ec)
+        dumped_ec_txt = read_file(dumped_ec)
+        patterns = [
+            "('toy', '0.0', '', SYSTEM)",
+            "('GCC', '4.9.2', '', SYSTEM)",
+        ]
+        for pattern in patterns:
+            self.assertTrue(pattern in dumped_ec_txt, "Pattern '%s' should be found in: %s" % (pattern, dumped_ec_txt))
 
     def test_toolchain_hierarchy_aware_dump(self):
         """Test that EasyConfig's dump() method is aware of the toolchain hierarchy."""
@@ -3669,6 +3768,24 @@ class EasyConfigTest(EnhancedTestCase):
         # multiple checksums listed for source tarball, while exactly one (SHA256) checksum is expected
         self.assertTrue(res[1].startswith("Non-SHA256 checksum(s) found for toy-0.0.tar.gz: "))
 
+        checksums_dict = textwrap.dedent("""checksums = [{
+            'toy-0.0-aarch64.tar.gz': 'not_really_a_sha256_checksum',
+            'toy-0.0-x86_64.tar.gz': '%s',
+        }]""" % toy_sha256)
+
+        test_ec_txt = checksums_regex.sub(checksums_dict, toy_ec_txt)
+        test_ec_txt = re.sub(r'patches = \[(.|\n)*\]', '', test_ec_txt)
+
+        test_ec = os.path.join(self.test_prefix, 'toy-checksums-dict.eb')
+        write_file(test_ec, test_ec_txt)
+        ecs, _ = parse_easyconfigs([(test_ec, False)])
+        ecs = [ec['ec'] for ec in ecs]
+
+        res = check_sha256_checksums(ecs)
+        self.assertTrue(len(res) == 1)
+        regex = re.compile(r"Non-SHA256 checksum\(s\) found for toy-0.0.tar.gz:.*not_really_a_sha256_checksum")
+        self.assertTrue(regex.match(res[0]), "Pattern '%s' found in: %s" % (regex.pattern, res[0]))
+
     def test_deprecated(self):
         """Test use of 'deprecated' easyconfig parameter."""
         topdir = os.path.dirname(os.path.abspath(__file__))
@@ -4241,38 +4358,39 @@ class EasyConfigTest(EnhancedTestCase):
     def test_cuda_compute_capabilities(self):
         """Tests that the cuda_compute_capabilities templates are correct"""
 
-        test_ec = os.path.join(self.test_prefix, 'test.eb')
-        test_ectxt = '\n'.join([
-            "easyblock = 'ConfigureMake'",
-            "name = 'test'",
-            "version = '0.2'",
-            "homepage = 'https://example.com'",
-            "description = 'test'",
-            "toolchain = SYSTEM",
-            "cuda_compute_capabilities = ['5.1', '7.0', '7.1']",
-            "installopts = '%(cuda_compute_capabilities)s'",
-            "preinstallopts = '%(cuda_cc_space_sep)s'",
-            "prebuildopts = '%(cuda_cc_semicolon_sep)s'",
-            "configopts = '%(cuda_sm_comma_sep)s'",
-            "preconfigopts = '%(cuda_sm_space_sep)s'",
-        ])
-        write_file(test_ec, test_ectxt)
+        self.contents = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'test'
+            version = '0.2'
+            homepage = 'https://example.com'
+            description = 'test'
+            toolchain = SYSTEM
+            cuda_compute_capabilities = ['5.1', '7.0', '7.1']
+            installopts = '%(cuda_compute_capabilities)s'
+            preinstallopts = '%(cuda_cc_space_sep)s'
+            prebuildopts = '%(cuda_cc_semicolon_sep)s'
+            configopts = 'comma="%(cuda_sm_comma_sep)s" space="%(cuda_sm_space_sep)s"'
+            preconfigopts = 'CUDAARCHS="%(cuda_cc_cmake)s"'
+        """)
+        self.prep()
 
-        ec = EasyConfig(test_ec)
+        ec = EasyConfig(self.eb_file)
         self.assertEqual(ec['installopts'], '5.1,7.0,7.1')
         self.assertEqual(ec['preinstallopts'], '5.1 7.0 7.1')
         self.assertEqual(ec['prebuildopts'], '5.1;7.0;7.1')
-        self.assertEqual(ec['configopts'], 'sm_51,sm_70,sm_71')
-        self.assertEqual(ec['preconfigopts'], 'sm_51 sm_70 sm_71')
+        self.assertEqual(ec['configopts'], 'comma="sm_51,sm_70,sm_71" '
+                                           'space="sm_51 sm_70 sm_71"')
+        self.assertEqual(ec['preconfigopts'], 'CUDAARCHS="51;70;71"')
 
         # build options overwrite it
         init_config(build_options={'cuda_compute_capabilities': ['4.2', '6.3']})
-        ec = EasyConfig(test_ec)
+        ec = EasyConfig(self.eb_file)
         self.assertEqual(ec['installopts'], '4.2,6.3')
         self.assertEqual(ec['preinstallopts'], '4.2 6.3')
         self.assertEqual(ec['prebuildopts'], '4.2;6.3')
-        self.assertEqual(ec['configopts'], 'sm_42,sm_63')
-        self.assertEqual(ec['preconfigopts'], 'sm_42 sm_63')
+        self.assertEqual(ec['configopts'], 'comma="sm_42,sm_63" '
+                                           'space="sm_42 sm_63"')
+        self.assertEqual(ec['preconfigopts'], 'CUDAARCHS="42;63"')
 
     def test_det_copy_ec_specs(self):
         """Test det_copy_ec_specs function."""
@@ -4294,6 +4412,10 @@ class EasyConfigTest(EnhancedTestCase):
             paths, target_path = det_copy_ec_specs(args, None)
             self.assertEqual(paths, args[:-1])
             self.assertEqual(target_path, args[-1])
+
+        if self.skip_github_tests:
+            print("Skipping test_det_copy_ec_specs using --from-pr, no GitHub token available?")
+            return
 
         # use fixed PR (speeds up the test due to caching in fetch_files_from_pr;
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/8007
@@ -4609,6 +4731,56 @@ class EasyConfigTest(EnhancedTestCase):
         """Test ARCH easyconfig constant."""
         arch = easyconfig.constants.EASYCONFIG_CONSTANTS['ARCH'][0]
         self.assertTrue(arch in KNOWN_ARCH_CONSTANTS, "Unexpected value for ARCH constant: %s" % arch)
+
+    def test_easyconfigs_caches(self):
+        """
+        Test whether easyconfigs caches work as intended.
+        """
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        libtoy_ec = os.path.join(test_ecs_dir, 'l', 'libtoy', 'libtoy-0.0.eb')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        copy_file(libtoy_ec, self.test_prefix)
+        copy_file(toy_ec, self.test_prefix)
+        libtoy_ec = os.path.join(self.test_prefix, os.path.basename(libtoy_ec))
+        toy_ec = os.path.join(self.test_prefix, os.path.basename(toy_ec))
+
+        ec1 = process_easyconfig(toy_ec)[0]
+        self.assertEqual(ec1['ec'].name, 'toy')
+        self.assertEqual(ec1['ec'].version, '0.0')
+        self.assertTrue(isinstance(ec1['ec'].toolchain, SystemToolchain))
+        self.assertTrue(os.path.samefile(ec1['ec'].path, toy_ec))
+
+        # wipe toy easyconfig (but path still needs to exist)
+        write_file(toy_ec, '')
+
+        # check if cached EasyConfig instance is picked up when calling process_easyconfig again
+        ec2 = process_easyconfig(toy_ec)[0]
+        self.assertEqual(ec2['ec'].name, 'toy')
+        self.assertEqual(ec2['ec'].version, '0.0')
+        self.assertTrue(isinstance(ec2['ec'].toolchain, SystemToolchain))
+        self.assertTrue(os.path.samefile(ec2['ec'].path, toy_ec))
+
+        # also check whether easyconfigs cache works with end-to-end test
+        args = [libtoy_ec, '--trace']
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, testing=False, raise_error=True, clear_caches=False)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        regex = re.compile(r"generating module file @ .*/modules/all/libtoy/0.0", re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        # wipe libtoy easyconfig (but path still needs to exist)
+        write_file(libtoy_ec, '')
+
+        # retrying installation of libtoy easyconfig should not fail, thanks to easyconfigs cache
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, testing=False, raise_error=True, clear_caches=False)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        regex = re.compile(r"libtoy/0\.0 is already installed", re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
 def suite():

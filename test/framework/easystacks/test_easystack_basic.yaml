@@ -1,17 +1,5 @@
-software:
-  binutils:
-    toolchains:
-      GCCcore-4.9.3:
-        versions:
-          '2.25':
-          '2.26':
-  foss:
-    toolchains:
-      SYSTEM:
-        versions: [2018a]
-  toy:
-    toolchains:
-      gompi-2018a:
-        versions:
-          '0.0':
-            versionsuffix: '-test'
+easyconfigs:
+    - binutils-2.25-GCCcore-4.9.3
+    - binutils-2.26-GCCcore-4.9.3
+    - foss-2018a
+    - toy-0.0-gompi-2018a-test

@@ -1,0 +1,4 @@
+- binutils-2.25-GCCcore-4.9.3.eb
+- binutils-2.26-GCCcore-4.9.3.eb
+- foss-2018a.eb
+- toy-0.0-gompi-2018a-test.eb

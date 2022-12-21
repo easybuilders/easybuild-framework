@@ -35,6 +35,7 @@ from unittest import TextTestRunner, TestSuite
 
 import easybuild.tools.asyncprocess as p
 from easybuild.tools.asyncprocess import Popen
+from easybuild.tools.py2vs3 import subprocess_terminate
 
 
 class AsyncProcessTest(EnhancedTestCase):
@@ -62,6 +63,7 @@ class AsyncProcessTest(EnhancedTestCase):
 
     def tearDown(self):
         """cleanup"""
+        subprocess_terminate(self.shell, timeout=1)
         super(AsyncProcessTest, self).tearDown()
 
 

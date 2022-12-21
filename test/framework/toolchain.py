@@ -42,6 +42,7 @@ import easybuild.tools.modules as modules
 import easybuild.tools.toolchain as toolchain
 import easybuild.tools.toolchain.compiler
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
+from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools import LooseVersion
 from easybuild.tools import systemtools as st
@@ -55,6 +56,7 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.mpi import get_mpi_cmd_template
 from easybuild.tools.toolchain.toolchain import env_vars_external_module
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
+from easybuild.toolchains.compiler.clang import Clang
 
 easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
 
@@ -407,8 +409,10 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('OMPI_F77'), 'gfortran')
         self.assertEqual(os.getenv('OMPI_FC'), 'gfortran')
 
+        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno")
         for key in ['CFLAGS', 'CXXFLAGS', 'F90FLAGS', 'FCFLAGS', 'FFLAGS']:
-            self.assertEqual(os.getenv(key), "-O2 -ftree-vectorize -march=native -fno-math-errno")
+            val = os.getenv(key)
+            self.assertTrue(flags_regex.match(val), "'%s' should match pattern '%s'" % (val, flags_regex.pattern))
 
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""
@@ -868,7 +872,11 @@ class ToolchainTest(EnhancedTestCase):
                 tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({opt: enable})
                 tc.prepare()
-                flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
+                flag = tc.COMPILER_UNIQUE_OPTION_MAP[opt]
+                if isinstance(flag, list):
+                    flag = ' '.join('-%s' % x for x in flag)
+                else:
+                    flag = '-%s' % flag
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
@@ -886,17 +894,17 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain('foss', version='2018a')
         tc.set_options({})
         tc.prepare()
+        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno")
         for var in flag_vars:
-            self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native -fno-math-errno")
+            val = os.getenv(var)
+            self.assertTrue(flags_regex.match(val), "'%s' should match pattern '%s'" % (val, flags_regex.pattern))
 
         # check other precision flags
-        prec_flags = {
-            'ieee': "-fno-math-errno -mieee-fp -fno-trapping-math",
-            'strict': "-mieee-fp -mno-recip",
-            'precise': "-mno-recip",
-            'loose': "-fno-math-errno -mrecip -mno-ieee-fp",
-            'veryloose': "-fno-math-errno -mrecip=all -mno-ieee-fp",
-        }
+        precs = ['strict', 'precise', 'loose', 'veryloose']
+        prec_flags = {}
+        for prec in precs:
+            prec_flags[prec] = ' '.join('-%s' % x for x in Gcc.COMPILER_UNIQUE_OPTION_MAP[prec])
+
         for prec in prec_flags:
             for enable in [True, False]:
                 tc = self.get_toolchain('foss', version='2018a')
@@ -904,9 +912,12 @@ class ToolchainTest(EnhancedTestCase):
                 tc.prepare()
                 for var in flag_vars:
                     if enable:
-                        self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native %s" % prec_flags[prec])
+                        regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native %s" % prec_flags[prec])
                     else:
-                        self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native -fno-math-errno")
+                        regex = flags_regex
+                    val = os.getenv(var)
+                    self.assertTrue(regex.match(val), "%s: '%s' should match pattern '%s'" % (prec, val, regex.pattern))
+
                 self.modtool.purge()
 
     def test_cgoolf_toolchain(self):
@@ -1436,6 +1447,67 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('MPIF77'), 'mpiifort')
         self.assertEqual(os.getenv('MPIF90'), 'mpiifort')
         self.assertEqual(os.getenv('MPIFC'), 'mpiifort')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel-compilers', version='2022.2.0')
+        tc.prepare()
+
+        # by default (for version >= 2022.2.0): oneAPI C/C++ compiler + classic Fortran compiler
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpx')
+        self.assertEqual(os.getenv('F77'), 'ifort')
+        self.assertEqual(os.getenv('F90'), 'ifort')
+        self.assertEqual(os.getenv('FC'), 'ifort')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel-compilers', version='2022.2.0')
+        tc.set_options({'oneapi_fortran': True})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpx')
+        self.assertEqual(os.getenv('F77'), 'ifx')
+        self.assertEqual(os.getenv('F90'), 'ifx')
+        self.assertEqual(os.getenv('FC'), 'ifx')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel-compilers', version='2022.2.0')
+        tc.set_options({'oneapi_c_cxx': False, 'oneapi_fortran': True})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icc')
+        self.assertEqual(os.getenv('CXX'), 'icpc')
+        self.assertEqual(os.getenv('F77'), 'ifx')
+        self.assertEqual(os.getenv('F90'), 'ifx')
+        self.assertEqual(os.getenv('FC'), 'ifx')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel', version='2021b')
+        tc.set_options({'oneapi_c_cxx': True})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpx')
+        self.assertEqual(os.getenv('F77'), 'ifort')
+        self.assertEqual(os.getenv('F90'), 'ifort')
+        self.assertEqual(os.getenv('FC'), 'ifort')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel', version='2021b')
+        tc.set_options({'oneapi_fortran': True})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icc')
+        self.assertEqual(os.getenv('CXX'), 'icpc')
+        self.assertEqual(os.getenv('F77'), 'ifx')
+        self.assertEqual(os.getenv('F90'), 'ifx')
+        self.assertEqual(os.getenv('FC'), 'ifx')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel', version='2021b')
+        tc.set_options({'oneapi_c_cxx': True, 'oneapi_fortran': True})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpx')
+        self.assertEqual(os.getenv('F77'), 'ifx')
+        self.assertEqual(os.getenv('F90'), 'ifx')
+        self.assertEqual(os.getenv('FC'), 'ifx')
 
     def test_toolchain_verification(self):
         """Test verification of toolchain definition."""
@@ -2610,6 +2682,26 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(res[1], fake_gxx))
         # any other available 'g++' commands should not be a wrapper or our fake g++
         self.assertFalse(any(os.path.samefile(x, fake_gxx) for x in res[2:]))
+
+        # Check that we can create a wrapper for a toolchain for which self.compilers() returns 'None' for the Fortran
+        # compilers (i.e. Clang)
+        fake_clang = os.path.join(self.test_prefix, 'fake', 'clang')
+        write_file(fake_clang, '#!/bin/bash\necho "$@"')
+        adjust_permissions(fake_clang, stat.S_IXUSR)
+        tc_clang = Clang(name='Clang', version='1')
+        tc_clang.prepare_rpath_wrappers()
+
+        # Check that the clang wrapper is indeed in place
+        res = which('clang', retain_all=True)
+        # there should be at least 2 hits: the RPATH wrapper, and our fake 'clang' command (there may be real ones too)
+        self.assertTrue(len(res) >= 2)
+        self.assertTrue(tc_clang.is_rpath_wrapper(res[0]))
+        self.assertEqual(os.path.basename(res[0]), 'clang')
+        self.assertEqual(os.path.basename(os.path.dirname(res[0])), 'clang_wrapper')
+        self.assertFalse(any(tc_clang.is_rpath_wrapper(x) for x in res[1:]))
+        self.assertTrue(os.path.samefile(res[1], fake_clang))
+        # any other available 'clang' commands should not be a wrapper or our fake clang
+        self.assertFalse(any(os.path.samefile(x, fake_clang) for x in res[2:]))
 
         # RPATH wrapper should be robust against Python environment variables & site-packages magic,
         # so we set up a weird environment here to verify that

@@ -54,7 +54,7 @@ class Gcc(Compiler):
     }
     COMPILER_UNIQUE_OPTION_MAP = {
         'i8': 'fdefault-integer-8',
-        'r8': 'fdefault-real-8',
+        'r8': ['fdefault-real-8', 'fdefault-double-8'],
         'unroll': 'funroll-loops',
         'f2c': 'ff2c',
         'loop': ['ftree-switch-conversion', 'floop-interchange', 'floop-strip-mine', 'floop-block'],

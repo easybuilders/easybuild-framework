@@ -1,18 +1,23 @@
 # documentation: https://help.github.com/en/articles/workflow-syntax-for-github-actions
 name: Tests for the 'eb' command
 on: [push, pull_request]
+
+concurrency:
+  group: ${{format('{0}:{1}:{2}', github.repository, github.ref, github.workflow)}}
+  cancel-in-progress: true
+
 jobs:
   test-eb:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
-        python: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9, '3.10']
+        python: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9, '3.10', '3.11']
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: ${{matrix.python}}
         architecture: x64
@@ -25,7 +30,7 @@ jobs:
         pip install --upgrade pip
         pip --version
         # install packages required for modules tool
-        sudo apt-get install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
+        sudo apt install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
         # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
         # needed for Ubuntu 18.04, but not for Ubuntu 20.04, so skipping symlinking if posix.so already exists
         if [ ! -e /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so ] ; then
@@ -77,6 +82,10 @@ jobs:
               echo "Looking for pattern \"${pattern}\" in eb_version.out..."
               grep "$pattern" eb_version.out
           done
+          if grep -q "Considering ''" eb_version.out; then
+              echo '`eb` did wrongly consider an empty command'
+              false
+          fi
           # also check when specifying Python command via $EB_PYTHON
           for eb_python in "python${pymajver}" "python${pymajminver}"; do
               export EB_PYTHON="${eb_python}"

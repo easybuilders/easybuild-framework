@@ -49,7 +49,7 @@ from contextlib import contextmanager
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import MANDATORY
-from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
+from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS, EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
@@ -1299,7 +1299,7 @@ class EasyConfig(object):
         If none of the pairs is found, then an empty dictionary is returned.
 
         :param mod_name: name of the external module
-        :param metadata: already available metadata for this external module (if any)
+        :param existing_metadata: already available metadata for this external module (if any)
         """
         res = {}
 
@@ -1589,7 +1589,7 @@ class EasyConfig(object):
 
         # (true) boolean value simply indicates that a system toolchain is used
         elif isinstance(tc_spec, bool) and tc_spec:
-            tc = {'name': SYSTEM_TOOLCHAIN_NAME, 'version': ''}
+            tc = EASYCONFIG_CONSTANTS['SYSTEM'][0]
 
         # two-element list/tuple value indicates custom toolchain specification
         elif isinstance(tc_spec, (list, tuple,)):
@@ -2054,7 +2054,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
 
     # only cache when no build specifications are involved (since those can't be part of a dict key)
     cache_key = None
-    if build_specs is None:
+    if not build_specs:
         cache_key = (path, validate, hidden, parse_only)
         if cache_key in _easyconfigs_cache:
             return [e.copy() for e in _easyconfigs_cache[cache_key]]

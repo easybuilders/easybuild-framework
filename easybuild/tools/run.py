@@ -33,6 +33,7 @@ Tools to run commands.
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 """
+import contextlib
 import functools
 import os
 import re
@@ -136,7 +137,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param log_all: always log command output and exit code
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
     :param inp: the input given to the command via stdin
-    :param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
+    :param regexp: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
     :param log_output: indicate whether all output of command should be logged to a separate temporary logfile
     :param path: path to execute the command in; current working directory is used if unspecified
     :param force_in_dry_run: force running the command during dry run
@@ -302,7 +303,7 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
     :param log_ok: only run output/exit code for failing commands (exit code non-zero)
     :param log_all: always log command output and exit code
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
-    :param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
+    :param regexp: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
     :param stream_output: enable streaming command output to stdout
     :param trace: print command being executed as part of trace output
     """
@@ -315,21 +316,24 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
 
     stdouterr = output
 
-    ec = proc.poll()
-    while ec is None:
-        # need to read from time to time.
-        # - otherwise the stdout/stderr buffer gets filled and it all stops working
-        output = get_output_from_process(proc, read_size=read_size)
-        if cmd_log:
-            cmd_log.write(output)
-        if stream_output:
-            sys.stdout.write(output)
-        stdouterr += output
+    try:
         ec = proc.poll()
+        while ec is None:
+            # need to read from time to time.
+            # - otherwise the stdout/stderr buffer gets filled and it all stops working
+            output = get_output_from_process(proc, read_size=read_size)
+            if cmd_log:
+                cmd_log.write(output)
+            if stream_output:
+                sys.stdout.write(output)
+            stdouterr += output
+            ec = proc.poll()
 
-    # read remaining data (all of it)
-    output = get_output_from_process(proc)
-    proc.stdout.close()
+        # read remaining data (all of it)
+        output = get_output_from_process(proc)
+    finally:
+        proc.stdout.close()
+
     if cmd_log:
         cmd_log.write(output)
         cmd_log.close()
@@ -358,7 +362,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     :param log_ok: only run output/exit code for failing commands (exit code non-zero)
     :param log_all: always log command output and exit code
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
-    :param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
+    :param regexp: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
     :param std_qa: dictionary which maps question regex patterns to answers
     :param path: path to execute the command is; current working directory is used if unspecified
     :param maxhits: maximum number of cycles (seconds) without being able to find a known question
@@ -397,6 +401,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             path = cwd
         dry_run_msg("  running interactive command \"%s\"" % cmd, silent=build_option('silent'))
         dry_run_msg("  (in %s)" % path, silent=build_option('silent'))
+        if cmd_log:
+            cmd_log.close()
         if simple:
             return True
         else:
@@ -442,6 +448,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         if isinstance(answers, string_type):
             answers = [answers]
         elif not isinstance(answers, list):
+            if cmd_log:
+                cmd_log.close()
             raise EasyBuildError("Invalid type for answer on %s, no string or list: %s (%s)",
                                  question, type(answers), answers)
         # list is manipulated when answering matching question, so return a copy
@@ -479,47 +487,48 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     if cmd_log:
         cmd_log.write("# output for interactive command: %s\n\n" % cmd)
 
-    try:
-        proc = asyncprocess.Popen(cmd, shell=True, stdout=asyncprocess.PIPE, stderr=asyncprocess.STDOUT,
-                                  stdin=asyncprocess.PIPE, close_fds=True, executable='/bin/bash')
-    except OSError as err:
-        raise EasyBuildError("run_cmd_qa init cmd %s failed:%s", cmd, err)
-
-    ec = proc.poll()
-    stdout_err = ''
-    old_len_out = -1
-    hit_count = 0
-
-    while ec is None:
-        # need to read from time to time.
-        # - otherwise the stdout/stderr buffer gets filled and it all stops working
+    # Make sure we close the proc handles and the cmd_log file
+    @contextlib.contextmanager
+    def get_proc():
         try:
-            out = get_output_from_process(proc, asynchronous=True)
-
+            proc = asyncprocess.Popen(cmd, shell=True, stdout=asyncprocess.PIPE, stderr=asyncprocess.STDOUT,
+                                      stdin=asyncprocess.PIPE, close_fds=True, executable='/bin/bash')
+        except OSError as err:
             if cmd_log:
-                cmd_log.write(out)
-            stdout_err += out
-        # recv_some used by get_output_from_process for getting asynchronous output may throw exception
-        except (IOError, Exception) as err:
-            _log.debug("run_cmd_qa cmd %s: read failed: %s", cmd, err)
-            out = None
+                cmd_log.close()
+            raise EasyBuildError("run_cmd_qa init cmd %s failed:%s", cmd, err)
+        try:
+            yield proc
+        finally:
+            if proc.stdout:
+                proc.stdout.close()
+            if proc.stdin:
+                proc.stdin.close()
+            if cmd_log:
+                cmd_log.close()
 
-        hit = False
-        for question, answers in new_qa.items():
-            res = question.search(stdout_err)
-            if out and res:
-                fa = answers[0] % res.groupdict()
-                # cycle through list of answers
-                last_answer = answers.pop(0)
-                answers.append(last_answer)
-                _log.debug("List of answers for question %s after cycling: %s", question.pattern, answers)
+    with get_proc() as proc:
+        ec = proc.poll()
+        stdout_err = ''
+        old_len_out = -1
+        hit_count = 0
 
-                _log.debug("run_cmd_qa answer %s question %s out %s", fa, question.pattern, stdout_err[-50:])
-                asyncprocess.send_all(proc, fa)
-                hit = True
-                break
-        if not hit:
-            for question, answers in new_std_qa.items():
+        while ec is None:
+            # need to read from time to time.
+            # - otherwise the stdout/stderr buffer gets filled and it all stops working
+            try:
+                out = get_output_from_process(proc, asynchronous=True)
+
+                if cmd_log:
+                    cmd_log.write(out)
+                stdout_err += out
+            # recv_some used by get_output_from_process for getting asynchronous output may throw exception
+            except (IOError, Exception) as err:
+                _log.debug("run_cmd_qa cmd %s: read failed: %s", cmd, err)
+                out = None
+
+            hit = False
+            for question, answers in new_qa.items():
                 res = question.search(stdout_err)
                 if out and res:
                     fa = answers[0] % res.groupdict()
@@ -528,51 +537,65 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                     answers.append(last_answer)
                     _log.debug("List of answers for question %s after cycling: %s", question.pattern, answers)
 
-                    _log.debug("run_cmd_qa answer %s std question %s out %s", fa, question.pattern, stdout_err[-50:])
+                    _log.debug("run_cmd_qa answer %s question %s out %s", fa, question.pattern, stdout_err[-50:])
                     asyncprocess.send_all(proc, fa)
                     hit = True
                     break
             if not hit:
-                if len(stdout_err) > old_len_out:
-                    old_len_out = len(stdout_err)
+                for question, answers in new_std_qa.items():
+                    res = question.search(stdout_err)
+                    if out and res:
+                        fa = answers[0] % res.groupdict()
+                        # cycle through list of answers
+                        last_answer = answers.pop(0)
+                        answers.append(last_answer)
+                        _log.debug("List of answers for question %s after cycling: %s", question.pattern, answers)
+
+                        _log.debug("run_cmd_qa answer %s std question %s out %s",
+                                   fa, question.pattern, stdout_err[-50:])
+                        asyncprocess.send_all(proc, fa)
+                        hit = True
+                        break
+                if not hit:
+                    if len(stdout_err) > old_len_out:
+                        old_len_out = len(stdout_err)
+                    else:
+                        noqa = False
+                        for r in new_no_qa:
+                            if r.search(stdout_err):
+                                _log.debug("runqanda: noQandA found for out %s", stdout_err[-50:])
+                                noqa = True
+                        if not noqa:
+                            hit_count += 1
                 else:
-                    noqa = False
-                    for r in new_no_qa:
-                        if r.search(stdout_err):
-                            _log.debug("runqanda: noQandA found for out %s", stdout_err[-50:])
-                            noqa = True
-                    if not noqa:
-                        hit_count += 1
+                    hit_count = 0
             else:
                 hit_count = 0
-        else:
-            hit_count = 0
 
-        if hit_count > maxhits:
-            # explicitly kill the child process before exiting
-            try:
-                os.killpg(proc.pid, signal.SIGKILL)
-                os.kill(proc.pid, signal.SIGKILL)
-            except OSError as err:
-                _log.debug("run_cmd_qa exception caught when killing child process: %s", err)
-            _log.debug("run_cmd_qa: full stdouterr: %s", stdout_err)
-            raise EasyBuildError("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s",
-                                 cmd, maxhits, stdout_err[-500:])
+            if hit_count > maxhits:
+                # explicitly kill the child process before exiting
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                    os.kill(proc.pid, signal.SIGKILL)
+                except OSError as err:
+                    _log.debug("run_cmd_qa exception caught when killing child process: %s", err)
+                _log.debug("run_cmd_qa: full stdouterr: %s", stdout_err)
+                raise EasyBuildError("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s",
+                                     cmd, maxhits, stdout_err[-500:])
 
-        # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
-        time.sleep(1)
-        ec = proc.poll()
+            # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
+            time.sleep(1)
+            ec = proc.poll()
 
-    # Process stopped. Read all remaining data
-    try:
-        if proc.stdout:
-            out = get_output_from_process(proc)
-            stdout_err += out
-            if cmd_log:
-                cmd_log.write(out)
-                cmd_log.close()
-    except IOError as err:
-        _log.debug("runqanda cmd %s: remaining data read failed: %s", cmd, err)
+        # Process stopped. Read all remaining data
+        try:
+            if proc.stdout:
+                out = get_output_from_process(proc)
+                stdout_err += out
+                if cmd_log:
+                    cmd_log.write(out)
+        except IOError as err:
+            _log.debug("runqanda cmd %s: remaining data read failed: %s", cmd, err)
 
     if trace:
         trace_msg("interactive command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))
@@ -594,7 +617,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
     :param log_all: always log command output and exit code
     :param log_ok: only run output/exit code for failing commands (exit code non-zero)
-    :param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
+    :param regexp: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
     """
     if strictness == IGNORE:
         check_ec = False
@@ -687,7 +710,7 @@ def extract_errors_from_log(log_txt, reg_exps):
     :param log_txt: String containing the log, will be split into individual lines
     :param reg_exps: List of: regular expressions (as strings) to error on,
                     or tuple of regular expression and action (any of [IGNORE, WARN, ERROR])
-    :return (warnings, errors) as lists of lines containing a match
+    :return: (warnings, errors) as lists of lines containing a match
     """
     actions = (IGNORE, WARN, ERROR)
 
