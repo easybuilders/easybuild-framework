@@ -117,7 +117,7 @@ DEFAULT_PR_TARGET_ACCOUNT = 'easybuilders'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 # Filter these CUDA libraries by default from the RPATH sanity check.
-# These are the only four libraries for which the CUDA toolkit only ships stubs. By design, one is supposed to build
+# These are the only four libraries for which the CUDA toolkit ships stubs. By design, one is supposed to build
 # against the stub versions, but use the libraries that come with the CUDA driver at runtime. That means they should
 # never be RPATH-ed, and thus the sanity check should also accept that they aren't RPATH-ed.
 DEFAULT_FILTER_RPATH_SANITY_LIBS = (
