@@ -46,15 +46,9 @@ jobs:
           - python: 3.5
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
-          - python: 3.5
-            modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Tcl
           - python: 3.7
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
-          - python: 3.7
-            modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Tcl
           - python: 3.8
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
@@ -64,15 +58,9 @@ jobs:
           - python: 3.9
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
-          - python: 3.9
-            modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Tcl
           - python: '3.10'
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
-          - python: '3.10'
-            modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Tcl
           - python: '3.11'
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
