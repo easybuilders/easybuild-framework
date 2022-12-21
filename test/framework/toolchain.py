@@ -709,7 +709,7 @@ class ToolchainTest(EnhancedTestCase):
             tcs = {
                 'gompi': ('2018a', "-march=x86-64 -mtune=generic"),
                 'iccifort': ('2018.1.163', "-xSSE2 -ftz -fp-speculation=safe -fp-model source"),
-                'intel-compilers': ('2021.4.0', "-xSSE2 -fp-speculation=safe -fp-model precise"),
+                'intel-compilers': ('2021.4.0', "-march=x86-64 -mtune=generic -fp-speculation=safe -fp-model precise"),
             }
             for tcopt_optarch in [False, True]:
                 for tcname in tcs:
