@@ -32,7 +32,7 @@ import glob
 import os
 import platform
 import sys
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config, requires_PyYAML
 from unittest import TextTestRunner
 
 import easybuild.tools.build_log
@@ -42,12 +42,6 @@ from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.filetools import read_file
-
-
-try:
-    import yaml
-except ImportError:
-    pass
 
 
 class YebTest(EnhancedTestCase):
@@ -64,11 +58,9 @@ class YebTest(EnhancedTestCase):
         super(YebTest, self).tearDown()
         easybuild.tools.build_log.EXPERIMENTAL = self.orig_experimental
 
+    @requires_PyYAML()
     def test_parse_yeb(self):
         """Test parsing of .yeb easyconfigs."""
-        if 'yaml' not in sys.modules:
-            print("Skipping test_parse_yeb (no PyYAML available)")
-            return
 
         build_options = {
             'check_osdeps': False,
@@ -140,12 +132,9 @@ class YebTest(EnhancedTestCase):
         self.assertFalse(is_yeb_format(test_eb, None))
         self.assertFalse(is_yeb_format(None, raw_eb))
 
+    @requires_PyYAML()
     def test_join(self):
         """ Test yaml_join function """
-        # skip test if yaml module was not loaded
-        if 'yaml' not in sys.modules:
-            print("Skipping test_join (no PyYAML available)")
-            return
 
         stream = [
             "variables:",
@@ -157,6 +146,7 @@ class YebTest(EnhancedTestCase):
             "fb3: !join [*f, *b]",
         ]
 
+        import yaml
         # import here for testing yaml_join separately
         from easybuild.framework.easyconfig.format.yeb import yaml_join  # noqa
         if LooseVersion(platform.python_version()) < LooseVersion(u'2.7'):
@@ -166,11 +156,9 @@ class YebTest(EnhancedTestCase):
         for key in ['fb1', 'fb2', 'fb3']:
             self.assertEqual(loaded.get(key), 'foobar')
 
+    @requires_PyYAML()
     def test_bad_toolchain_format(self):
         """ Test alternate toolchain format name,version """
-        if 'yaml' not in sys.modules:
-            print("Skipping test_parse_yeb (no PyYAML available)")
-            return
 
         # only test bad cases - the right ones are tested with the test files in test_parse_yeb
         testdir = os.path.dirname(os.path.abspath(__file__))
@@ -179,11 +167,9 @@ class YebTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, expected, EasyConfig,
                               os.path.join(test_easyconfigs, 'bzip-bad-toolchain.yeb'))
 
+    @requires_PyYAML()
     def test_external_module_toolchain(self):
         """Test specifying external (build) dependencies in yaml format."""
-        if 'yaml' not in sys.modules:
-            print("Skipping test_external_module_toolchain (no PyYAML available)")
-            return
 
         ecpath = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'yeb', 'CrayCCE-5.1.29.yeb')
         metadata = {

@@ -68,16 +68,8 @@ from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import HAVE_ARCHSPEC
 from easybuild.tools.version import VERSION
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup, init_config
-
-try:
-    import pycodestyle  # noqa
-except ImportError:
-    try:
-        import pep8  # noqa
-    except ImportError:
-        pass
-
+from test.framework.utilities import (
+    EnhancedTestCase, TestLoaderFiltered, cleanup, init_config, requires_pycodestyle_or_pep8)
 
 EXTERNAL_MODULES_METADATA = """[foobar/1.2.3]
 name = foo, bar
@@ -4445,8 +4437,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test warning printed by --new-pr (dry run only) when a specified patch file could not be found."""
 
         if self.github_token is None:
-            print("Skipping test_new_pr_warning_missing_patch, no GitHub token available?")
-            return
+            self.skipTest("No GitHub token available?")
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_ecs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
@@ -4667,8 +4658,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """
 
         if self.github_token is None:
-            print("Skipping test_new_pr_easyblock, no GitHub token available?")
-            return
+            self.skipTest("SNo GitHub token available?")
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_eb = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
@@ -5197,15 +5187,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_debug_lmod(self):
         """Test use of --debug-lmod."""
-        if isinstance(self.modtool, Lmod):
-            init_config(build_options={'debug_lmod': True})
-            out = self.modtool.run_module('avail', return_output=True)
+        if not isinstance(self.modtool, Lmod):
+            self.skipTest("requires Lmod as modules tool")
+        init_config(build_options={'debug_lmod': True})
+        out = self.modtool.run_module('avail', return_output=True)
 
-            for pattern in [r"^Lmod version", r"^lmod\(--terse -D avail\)\{", "Master:avail"]:
-                regex = re.compile(pattern, re.M)
-                self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
-        else:
-            print("Skipping test_debug_lmod, requires Lmod as modules tool")
+        for pattern in [r"^Lmod version", r"^lmod\(--terse -D avail\)\{", "Master:avail"]:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
 
     def test_use_color(self):
         """Test use_color function."""
@@ -5409,17 +5398,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             options.postprocess()
             self.assertEqual(options.options.optarch, optarch_parsed)
 
+    @requires_pycodestyle_or_pep8()
     def test_check_contrib_style(self):
         """Test style checks performed by --check-contrib + dedicated --check-style option."""
-        try:
-            import pycodestyle  # noqa
-        except ImportError:
-            try:
-                import pep8  # noqa
-            except ImportError:
-                print("Skipping test_check_contrib_style, since pycodestyle or pep8 is not available")
-                return
-
         regex = re.compile(r"Running style check on 2 easyconfig\(s\)(.|\n)*>> All style checks PASSed!", re.M)
         args = [
             '--check-style',
@@ -5468,12 +5449,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for pattern in patterns:
                 self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
 
+    @requires_pycodestyle_or_pep8()
     def test_check_contrib_non_style(self):
         """Test non-style checks performed by --check-contrib."""
-
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping test_check_contrib_non_style (no pycodestyle or pep8 available)")
-            return
 
         args = [
             '--check-contrib',
