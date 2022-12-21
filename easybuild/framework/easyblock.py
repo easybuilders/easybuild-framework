@@ -2952,11 +2952,13 @@ class EasyBlock(object):
             # To allow postinstallpatches for Bundle, and derived, easyblocks we directly call EasyBlock.patch_step
             EasyBlock.patch_step(self, beginpath=self.installdir, patches=patches)
 
-    def log_post_install_messages(self):
-        messages = self.cfg["postinstallmsgs"]
-        if messages:
-            for message in messages:
-                print_msg(message)
+    def print_post_install_messages(self):
+        """
+        Print post-install messages that are specified via the 'postinstallmsgs' easyconfig parameter.
+        """
+        msgs = self.cfg['postinstallmsgs'] or []
+        for msg in msgs:
+            print_msg(msg, log=self.log)
 
     def post_install_step(self):
         """
@@ -2966,7 +2968,7 @@ class EasyBlock(object):
 
         self.run_post_install_commands()
         self.apply_post_install_patches()
-        self.log_post_install_messages()
+        self.print_post_install_messages()
 
         self.fix_shebang()
 
