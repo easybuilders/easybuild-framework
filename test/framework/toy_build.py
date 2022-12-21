@@ -2661,7 +2661,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             return {'filter_paths': res_filter.group(1), 'include_paths': res_include.group(1)}
 
-        args = ['--rpath', '--experimental']
+        args = ['--rpath']
         self.test_toy_build(extra_args=args, raise_error=True)
 
         # by default, /lib and /usr are included in RPATH filter,
@@ -2673,7 +2673,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(any(p.startswith(self.test_buildpath) for p in rpath_filter_paths))
 
         # Check that we can use --rpath-override-dirs
-        args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib:/opt/eessi/lib']
+        args = ['--rpath', '--rpath-override-dirs=/opt/eessi/2021.03/lib:/opt/eessi/lib']
         self.test_toy_build(extra_args=args, raise_error=True)
         rpath_include_paths = grab_gcc_rpath_wrapper_args()['include_paths'].split(',')
         # Make sure our directories appear in dirs to be included in the rpath (and in the right order)
@@ -2681,7 +2681,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(rpath_include_paths[1], '/opt/eessi/lib')
 
         # Check that when we use --rpath-override-dirs empty values are filtered
-        args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib::/opt/eessi/lib']
+        args = ['--rpath', '--rpath-override-dirs=/opt/eessi/2021.03/lib::/opt/eessi/lib']
         self.test_toy_build(extra_args=args, raise_error=True)
         rpath_include_paths = grab_gcc_rpath_wrapper_args()['include_paths'].split(',')
         # Make sure our directories appear in dirs to be included in the rpath (and in the right order)
@@ -2689,7 +2689,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(rpath_include_paths[1], '/opt/eessi/lib')
 
         # Check that when we use --rpath-override-dirs we can only provide absolute paths
-        eb_args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib:eessi/lib']
+        eb_args = ['--rpath', '--rpath-override-dirs=/opt/eessi/2021.03/lib:eessi/lib']
         error_pattern = r"Path used in rpath_override_dirs is not an absolute path: eessi/lib"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, extra_args=eb_args, raise_error=True,
                               verbose=False)
@@ -2711,7 +2711,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec_txt += "\ntoolchainopts = {'rpath': False}\n"
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         write_file(toy_ec, toy_ec_txt)
-        self.test_toy_build(ec_file=toy_ec, extra_args=['--rpath', '--experimental'], raise_error=True)
+        self.test_toy_build(ec_file=toy_ec, extra_args=['--rpath'], raise_error=True)
 
     def test_toy_rpath_filter(self):
         """Test toy build using --rpath --rpath-filter and --rpath --rpath-filter --filter-rpath-sanity-libs."""
@@ -2720,7 +2720,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs, 't', 'toy-app', 'toy-app-0.0.eb')
 
         # This should just build succesfully
-        args = ['--rpath', '--experimental']
+        args = ['--rpath']
         self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
         # test sanity error when --rpath-filter is used to filter a required library
@@ -2728,13 +2728,13 @@ class ToyBuildTest(EnhancedTestCase):
         # Thus, the RPATH sanity check is expected to fail with libtoy.so not being found
         error_pattern = r"Sanity check failed\: Library libtoy\.so not found"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=toy_ec,
-                              extra_args=['--rpath', '--experimental', '--rpath-filter=.*libtoy.*'],
+                              extra_args=['--rpath', '--rpath-filter=.*libtoy.*'],
                               name='toy-app', raise_error=True, verbose=False)
 
         # test use of --filter-rpath-sanity-libs option. In this test, we use --rpath-filter to make sure libtoy.so is
         # not rpath-ed. Then, we use --filter-rpath-sanity-libs to make sure the RPATH sanity checks ignores
         # the fact that libtoy.so is not found. Thus, this build should complete succesfully
-        args = ['--rpath', '--experimental', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libtoy.so']
+        args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libtoy.so']
         self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
     def test_toy_modaltsoftname(self):
@@ -2805,7 +2805,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.test_toy_build(ec_file=test_ec, extra_args=['--trace', '--experimental'], verify=False, testing=False)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--trace'], verify=False, testing=False)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
