@@ -28,10 +28,10 @@ EasyBuild support for a GCC+CUDA compiler toolchain.
 :author: Kenneth Hoste (Ghent University)
 """
 import re
-from distutils.version import LooseVersion
 
 from easybuild.toolchains.compiler.cuda import Cuda
 from easybuild.toolchains.gcc import GccToolchain
+from easybuild.tools import LooseVersion
 
 
 class GccCUDA(GccToolchain, Cuda):

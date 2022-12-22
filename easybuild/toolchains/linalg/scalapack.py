@@ -29,7 +29,7 @@ Support for ScaLAPACK as toolchain linear algebra library.
 :author: Kenneth Hoste (Ghent University)
 """
 
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 
 from easybuild.toolchains.linalg.blacs import Blacs
 

@@ -27,10 +27,10 @@ EasyBuild support for GCC compiler toolchain.
 
 :author: Kenneth Hoste (Ghent University)
 """
-from distutils.version import LooseVersion
 import re
 
 from easybuild.toolchains.gcccore import GCCcore
+from easybuild.tools import LooseVersion
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 

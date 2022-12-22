@@ -30,7 +30,7 @@ Support for MPICH as toolchain MPI library.
 :author: Jens Timmerman (Ghent University)
 :author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_VARIABLES
 from easybuild.tools.toolchain.mpi import Mpi

@@ -31,11 +31,11 @@ Toolchain mpi module. Contains all MPI related classes
 import copy
 import os
 import tempfile
-from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import write_file

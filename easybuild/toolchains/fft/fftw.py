@@ -29,7 +29,7 @@ Support for FFTW (Fastest Fourier Transform in the West) as toolchain FFT librar
 :author: Kenneth Hoste (Ghent University)
 """
 
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.fft import Fft

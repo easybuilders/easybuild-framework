@@ -31,7 +31,7 @@ import operator
 import re
 from functools import reduce
 
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import which
 from easybuild.tools.py2vs3 import string_type

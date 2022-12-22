@@ -28,11 +28,11 @@ EasyBuild support for Intel compilers toolchain (icc, ifort)
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
-from distutils.version import LooseVersion
 import re
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
 from easybuild.toolchains.gcccore import GCCcore
+from easybuild.tools import LooseVersion
 from easybuild.tools.modules import get_software_root, get_software_version
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 

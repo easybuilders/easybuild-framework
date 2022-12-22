@@ -38,12 +38,13 @@ import stat
 import sys
 import tempfile
 import textwrap
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
+import easybuild.tools.github as gh
 import easybuild.tools.systemtools as st
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
@@ -77,6 +78,7 @@ from easybuild.tools.systemtools import AARCH64, KNOWN_ARCH_CONSTANTS, POWER, X8
 from easybuild.tools.systemtools import get_cpu_architecture, get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str, quote_py_str
+from test.framework.github import GITHUB_TEST_ACCOUNT
 from test.framework.utilities import find_full_path
 
 try:
@@ -112,6 +114,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.all_stops = [x[0] for x in EasyBlock.get_steps()]
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
+
+        github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
+        self.skip_github_tests = github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
 
     def prep(self):
         """Prepare for test."""
@@ -4407,6 +4412,10 @@ class EasyConfigTest(EnhancedTestCase):
             paths, target_path = det_copy_ec_specs(args, None)
             self.assertEqual(paths, args[:-1])
             self.assertEqual(target_path, args[-1])
+
+        if self.skip_github_tests:
+            print("Skipping test_det_copy_ec_specs using --from-pr, no GitHub token available?")
+            return
 
         # use fixed PR (speeds up the test due to caching in fetch_files_from_pr;
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/8007
