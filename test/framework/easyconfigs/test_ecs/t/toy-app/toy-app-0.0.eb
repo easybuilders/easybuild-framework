@@ -1,0 +1,30 @@
+easyblock = 'EB_toy'
+
+name = 'toy-app'
+version = '0.0'
+
+homepage = 'https://easybuilders.github.io/easybuild'
+description = "Toy C program, 100% toy. This toy has a main function that depends on libtoy."
+
+toolchain = SYSTEM
+
+sources = [SOURCE_TAR_GZ]
+checksums = [
+    '9559393c0d747a4940a79be54e82fa8f14dbb0c32979a3e61e9db305f32dad49',  # default (SHA256)
+]
+
+dependencies = [
+    ('libtoy', '0.0')
+]
+
+buildopts = '-ltoy'
+
+sanity_check_paths = {
+    'files': [('bin/toy-app')],
+    'dirs': ['bin'],
+}
+
+postinstallcmds = ["echo TOY > %(installdir)s/README"]
+
+moduleclass = 'tools'
+# trailing comment, leave this here, it may trigger bugs with extract_comments()

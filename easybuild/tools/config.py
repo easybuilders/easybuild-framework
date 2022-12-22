@@ -116,6 +116,16 @@ DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PR_TARGET_ACCOUNT = 'easybuilders'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
+# Filter these CUDA libraries by default from the RPATH sanity check.
+# These are the only four libraries for which the CUDA toolkit ships stubs. By design, one is supposed to build
+# against the stub versions, but use the libraries that come with the CUDA driver at runtime. That means they should
+# never be RPATH-ed, and thus the sanity check should also accept that they aren't RPATH-ed.
+DEFAULT_FILTER_RPATH_SANITY_LIBS = (
+    'libcuda.so',
+    'libcuda.so.1',
+    'libnvidia-ml.so',
+    'libnvidia-ml.so.1'
+)
 DEFAULT_WAIT_ON_LOCK_INTERVAL = 60
 DEFAULT_WAIT_ON_LOCK_LIMIT = 0
 
@@ -205,6 +215,7 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_deps',
         'filter_ecs',
         'filter_env_vars',
+        'filter_rpath_sanity_libs',
         'force_download',
         'git_working_dirs_path',
         'github_user',

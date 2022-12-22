@@ -37,6 +37,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 :author: Maxime Boissonneault (Compute Canada)
 :author: Davide Vanzo (Vanderbilt University)
+:author: Caspar van Leeuwen (SURF)
 """
 
 import copy
@@ -3047,8 +3048,15 @@ class EasyBlock(object):
         self.log.debug("$LD_LIBRARY_PATH during RPATH sanity check: %s", os.getenv('LD_LIBRARY_PATH', '(empty)'))
         self.log.debug("List of loaded modules: %s", self.modules_tool.list())
 
-        not_found_regex = re.compile('not found', re.M)
+        not_found_regex = re.compile(r'(\S+)\s*\=\>\s*not found')
         readelf_rpath_regex = re.compile('(RPATH)', re.M)
+
+        # List of libraries that should be exempt from the RPATH sanity check;
+        # For example, libcuda.so.1 should never be RPATH-ed by design,
+        # see https://github.com/easybuilders/easybuild-framework/issues/4095
+        filter_rpath_sanity_libs = build_option('filter_rpath_sanity_libs')
+        msg = "Ignoring the following libraries if they are not found by RPATH sanity check: %s"
+        self.log.info(msg, filter_rpath_sanity_libs)
 
         if rpath_dirs is None:
             rpath_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
@@ -3076,10 +3084,18 @@ class EasyBlock(object):
                         self.log.debug(msg, path)
                     else:
                         # check whether all required libraries are found via 'ldd'
-                        if not_found_regex.search(out):
-                            fail_msg = "One or more required libraries not found for %s: %s" % (path, out)
-                            self.log.warning(fail_msg)
-                            fails.append(fail_msg)
+                        matches = re.findall(not_found_regex, out)
+                        if len(matches) > 0:  # Some libraries are not found via 'ldd'
+                            # For each match, check if the library is in the exception list
+                            for match in matches:
+                                if match in filter_rpath_sanity_libs:
+                                    msg = "Library %s not found for %s, but ignored "
+                                    msg += "since it is on the rpath exception list: %s"
+                                    self.log.info(msg, match, path, filter_rpath_sanity_libs)
+                                else:
+                                    fail_msg = "Library %s not found for %s" % (match, path)
+                                    self.log.warning(fail_msg)
+                                    fails.append(fail_msg)
                         else:
                             self.log.debug("Output of 'ldd %s' checked, looks OK", path)
 

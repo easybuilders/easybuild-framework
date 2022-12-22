@@ -106,7 +106,7 @@ class ToyBuildTest(EnhancedTestCase):
         if os.path.exists(self.dummylogfn):
             os.remove(self.dummylogfn)
 
-    def check_toy(self, installpath, outtxt, version='0.0', versionprefix='', versionsuffix='', error=None):
+    def check_toy(self, installpath, outtxt, name='toy', version='0.0', versionprefix='', versionsuffix='', error=None):
         """Check whether toy build succeeded."""
 
         full_version = ''.join([versionprefix, version, versionsuffix])
@@ -121,38 +121,39 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(success.search(outtxt), "COMPLETED message found in '%s'%s" % (outtxt, error_msg))
 
         # if the module exists, it should be fine
-        toy_module = os.path.join(installpath, 'modules', 'all', 'toy', full_version)
+        toy_module = os.path.join(installpath, 'modules', 'all', name, full_version)
         msg = "module for toy build toy/%s found (path %s)" % (full_version, toy_module)
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
         self.assertTrue(os.path.exists(toy_module), msg + error_msg)
 
         # module file is symlinked according to moduleclass
-        toy_module_symlink = os.path.join(installpath, 'modules', 'tools', 'toy', full_version)
+        toy_module_symlink = os.path.join(installpath, 'modules', 'tools', name, full_version)
         if get_module_syntax() == 'Lua':
             toy_module_symlink += '.lua'
         self.assertTrue(os.path.islink(toy_module_symlink))
         self.assertTrue(os.path.exists(toy_module_symlink))
 
         # make sure installation log file and easyconfig file are copied to install dir
-        software_path = os.path.join(installpath, 'software', 'toy', full_version)
-        install_log_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-%s*.log' % version)
+        software_path = os.path.join(installpath, 'software', name, full_version)
+        install_log_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-%s-%s*.log' % (name, version))
         self.assertTrue(len(glob.glob(install_log_path_pattern)) >= 1,
                         "Found  at least 1 file at %s" % install_log_path_pattern)
 
         # make sure test report is available
-        test_report_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-%s*test_report.md' % version)
+        report_name = 'easybuild-%s-%s*test_report.md' % (name, version)
+        test_report_path_pattern = os.path.join(software_path, 'easybuild', report_name)
         self.assertTrue(len(glob.glob(test_report_path_pattern)) >= 1,
                         "Found  at least 1 file at %s" % test_report_path_pattern)
 
-        ec_file_path = os.path.join(software_path, 'easybuild', 'toy-%s.eb' % full_version)
+        ec_file_path = os.path.join(software_path, 'easybuild', '%s-%s.eb' % (name, full_version))
         self.assertTrue(os.path.exists(ec_file_path))
 
-        devel_module_path = os.path.join(software_path, 'easybuild', 'toy-%s-easybuild-devel' % full_version)
+        devel_module_path = os.path.join(software_path, 'easybuild', '%s-%s-easybuild-devel' % (name, full_version))
         self.assertTrue(os.path.exists(devel_module_path))
 
     def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
-                       raise_error=False, test_report=None, versionsuffix='', testing=True,
+                       raise_error=False, test_report=None, name='toy', versionsuffix='', testing=True,
                        raise_systemexit=False, force=True, test_report_regexs=None):
         """Perform a toy build."""
         if extra_args is None:
@@ -188,7 +189,7 @@ class ToyBuildTest(EnhancedTestCase):
                 raise myerr
 
         if verify:
-            self.check_toy(self.test_installpath, outtxt, versionsuffix=versionsuffix, error=myerr)
+            self.check_toy(self.test_installpath, outtxt, name=name, versionsuffix=versionsuffix, error=myerr)
 
         if test_readme:
             # make sure postinstallcmds were used
@@ -2660,7 +2661,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             return {'filter_paths': res_filter.group(1), 'include_paths': res_include.group(1)}
 
-        args = ['--rpath', '--experimental']
+        args = ['--rpath']
         self.test_toy_build(extra_args=args, raise_error=True)
 
         # by default, /lib and /usr are included in RPATH filter,
@@ -2672,7 +2673,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(any(p.startswith(self.test_buildpath) for p in rpath_filter_paths))
 
         # Check that we can use --rpath-override-dirs
-        args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib:/opt/eessi/lib']
+        args = ['--rpath', '--rpath-override-dirs=/opt/eessi/2021.03/lib:/opt/eessi/lib']
         self.test_toy_build(extra_args=args, raise_error=True)
         rpath_include_paths = grab_gcc_rpath_wrapper_args()['include_paths'].split(',')
         # Make sure our directories appear in dirs to be included in the rpath (and in the right order)
@@ -2680,7 +2681,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(rpath_include_paths[1], '/opt/eessi/lib')
 
         # Check that when we use --rpath-override-dirs empty values are filtered
-        args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib::/opt/eessi/lib']
+        args = ['--rpath', '--rpath-override-dirs=/opt/eessi/2021.03/lib::/opt/eessi/lib']
         self.test_toy_build(extra_args=args, raise_error=True)
         rpath_include_paths = grab_gcc_rpath_wrapper_args()['include_paths'].split(',')
         # Make sure our directories appear in dirs to be included in the rpath (and in the right order)
@@ -2688,7 +2689,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(rpath_include_paths[1], '/opt/eessi/lib')
 
         # Check that when we use --rpath-override-dirs we can only provide absolute paths
-        eb_args = ['--rpath', '--experimental', '--rpath-override-dirs=/opt/eessi/2021.03/lib:eessi/lib']
+        eb_args = ['--rpath', '--rpath-override-dirs=/opt/eessi/2021.03/lib:eessi/lib']
         error_pattern = r"Path used in rpath_override_dirs is not an absolute path: eessi/lib"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, extra_args=eb_args, raise_error=True,
                               verbose=False)
@@ -2710,7 +2711,67 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec_txt += "\ntoolchainopts = {'rpath': False}\n"
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         write_file(toy_ec, toy_ec_txt)
-        self.test_toy_build(ec_file=toy_ec, extra_args=['--rpath', '--experimental'], raise_error=True)
+        self.test_toy_build(ec_file=toy_ec, extra_args=['--rpath'], raise_error=True)
+
+    def test_toy_filter_rpath_sanity_libs(self):
+        """Test use of --filter-rpath-sanity-libs."""
+
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy-app', 'toy-app-0.0.eb')
+
+        # This should just build succesfully
+        args = ['--rpath']
+        self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
+
+        libtoy_libdir = os.path.join(self.test_installpath, 'software', 'libtoy', '0.0', 'lib')
+        toyapp_bin = os.path.join(self.test_installpath, 'software', 'toy-app', '0.0', 'bin', 'toy-app')
+        rpath_regex = re.compile(r"RPATH.*%s" % libtoy_libdir, re.M)
+        out, ec = run_cmd("readelf -d %s" % toyapp_bin, simple=False)
+        self.assertTrue(rpath_regex.search(out), "Pattern '%s' should be found in: %s" % (rpath_regex.pattern, out))
+
+        out, ec = run_cmd("ldd %s" % toyapp_bin, simple=False)
+        libtoy_regex = re.compile(r"libtoy.so => /.*/libtoy.so", re.M)
+        notfound = re.compile(r"libtoy\.so\s*=>\s*not found", re.M)
+        self.assertTrue(libtoy_regex.search(out), "Pattern '%s' should be found in: %s" % (libtoy_regex.pattern, out))
+        self.assertFalse(notfound.search(out), "Pattern '%s' should not be found in: %s" % (notfound.pattern, out))
+
+        # test sanity error when --rpath-filter is used to filter a required library
+        # In this test, libtoy.so will be linked, but not RPATH-ed due to the --rpath-filter
+        # Thus, the RPATH sanity check is expected to fail with libtoy.so not being found
+        error_pattern = r"Sanity check failed\: Library libtoy\.so not found"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=toy_ec,
+                              extra_args=['--rpath', '--rpath-filter=.*libtoy.*'],
+                              name='toy-app', raise_error=True, verbose=False)
+
+        # test use of --filter-rpath-sanity-libs option. In this test, we use --rpath-filter to make sure libtoy.so is
+        # not rpath-ed. Then, we use --filter-rpath-sanity-libs to make sure the RPATH sanity checks ignores
+        # the fact that libtoy.so is not found. Thus, this build should complete succesfully
+        args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libtoy.so']
+        self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
+
+        out, ec = run_cmd("readelf -d %s" % toyapp_bin, simple=False)
+        self.assertFalse(rpath_regex.search(out),
+                         "Pattern '%s' should not be found in: %s" % (rpath_regex.pattern, out))
+
+        out, ec = run_cmd("ldd %s" % toyapp_bin, simple=False)
+        self.assertFalse(libtoy_regex.search(out),
+                         "Pattern '%s' should not be found in: %s" % (libtoy_regex.pattern, out))
+        self.assertTrue(notfound.search(out),
+                        "Pattern '%s' should be found in: %s" % (notfound.pattern, out))
+
+        # test again with list of library names passed to --filter-rpath-sanity-libs
+        args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libfoo.so,libtoy.so,libbar.so']
+        self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
+
+        out, ec = run_cmd("readelf -d %s" % toyapp_bin, simple=False)
+        self.assertFalse(rpath_regex.search(out),
+                         "Pattern '%s' should not be found in: %s" % (rpath_regex.pattern, out))
+
+        out, ec = run_cmd("ldd %s" % toyapp_bin, simple=False)
+        self.assertFalse(libtoy_regex.search(out),
+                         "Pattern '%s' should not be found in: %s" % (libtoy_regex.pattern, out))
+        self.assertTrue(notfound.search(out),
+                        "Pattern '%s' should be found in: %s" % (notfound.pattern, out))
 
     def test_toy_modaltsoftname(self):
         """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
@@ -2780,7 +2841,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.test_toy_build(ec_file=test_ec, extra_args=['--trace', '--experimental'], verify=False, testing=False)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--trace'], verify=False, testing=False)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
