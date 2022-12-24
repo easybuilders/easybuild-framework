@@ -702,29 +702,49 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_optarch_generic(self):
         """Test whether --optarch=GENERIC works as intended."""
+
+        intel_generic_flags_classic = "-xSSE2 -ftz -fp-speculation=safe -fp-model source"
+        intel_generic_flags_oneapi_old = "-march=x86-64 -mtune=generic -fp-speculation=safe -fp-model precise"
+        intel_generic_flags_oneapi_new = "-march=x86-64 -mtune=generic -ftz -fp-speculation=safe -fp-model precise"
+
         for generic in [False, True]:
             if generic:
                 init_config(build_options={'optarch': 'GENERIC', 'silent': True})
             flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
             tcs = {
-                'gompi': ('2018a', "-march=x86-64 -mtune=generic"),
-                'iccifort': ('2018.1.163', "-xSSE2 -ftz -fp-speculation=safe -fp-model source"),
-                'intel-compilers': ('2021.4.0', "-march=x86-64 -mtune=generic -fp-speculation=safe -fp-model precise"),
+                'gompi': ('2018a', "-march=x86-64 -mtune=generic", {}),
+                'iccifort': ('2018.1.163', "-xSSE2 -ftz -fp-speculation=safe -fp-model source", {}),
+                # check generic compiler flags for old versions of intel-compilers with/without opting in to oneapi
+                'intel-compilers@old-default': ('2021.4.0', intel_generic_flags_classic, {}),
+                'intel-compilers@old-oneapi-false': ('2021.4.0', intel_generic_flags_classic, {'oneapi': False}),
+                'intel-compilers@old-oneapi-true': ('2021.4.0', intel_generic_flags_oneapi_old, {'oneapi': True}),
+                # check generic compiler flags for recent versions of intel-compilers with/without opting in to oneapi
+                'intel-compilers@new-default': ('2022.2.0', intel_generic_flags_oneapi_new, {}),
+                'intel-compilers@new-oneapi-true': ('2022.2.0', intel_generic_flags_oneapi_new, {'oneapi': True}),
+                'intel-compilers@new-oneapi-false': ('2022.2.0', intel_generic_flags_classic, {'oneapi': False}),
             }
             for tcopt_optarch in [False, True]:
-                for tcname in tcs:
-                    tcversion, generic_flags = tcs[tcname]
+                for key in tcs:
+                    tcname = key.split('@')[0]
+                    tcversion, generic_flags, custom_tcopts = tcs[key]
                     tc = self.get_toolchain(tcname, version=tcversion)
-                    if tcname == 'intel-compilers':
-                        tc.set_options({'optarch': tcopt_optarch, 'oneapi': True})
-                    else:
-                        tc.set_options({'optarch': tcopt_optarch})
+
+                    tcopts = {'optarch': tcopt_optarch}
+                    tcopts.update(custom_tcopts)
+                    tc.set_options(tcopts)
+
                     tc.prepare()
                     for var in flag_vars:
+                        val = tc.get_variable(var)
+                        tup = (key, tcversion, tcopts, generic_flags, val)
                         if generic:
-                            self.assertTrue(generic_flags in tc.get_variable(var))
+                            error_msg = "(%s, %s, %s) '%s' flags should be found in: '%s'"
+                            self.assertTrue(generic_flags in val, error_msg % tup)
                         else:
-                            self.assertFalse(generic_flags in tc.get_variable(var))
+                            error_msg = "(%s, %s, %s) '%s' flags should not be found in: '%s'"
+                            self.assertFalse(generic_flags in val, error_msg % tup)
+
+                    modules.modules_tool().purge()
 
     def test_optarch_aarch64_heuristic(self):
         """Test whether AArch64 pre-GCC-6 optimal architecture flag heuristic works."""
