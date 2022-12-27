@@ -83,7 +83,7 @@ from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, expand_glob_paths, install_fake_vsc
 from easybuild.tools.filetools import move_file, which
-from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED
+from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED, GITHUB_PR_GROUPS
 from easybuild.tools.github import GITHUB_PR_STATE_OPEN, GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import fetch_easyblocks_from_pr, fetch_github_token
@@ -128,6 +128,8 @@ DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 DEFAULT_LIST_PR_STATE = GITHUB_PR_STATE_OPEN
 DEFAULT_LIST_PR_ORDER = GITHUB_PR_ORDER_CREATED
 DEFAULT_LIST_PR_DIREC = GITHUB_PR_DIRECTION_DESC
+
+DEFAULT_SUMMARIZE_PR_GROUP = 'author'
 
 _log = fancylogger.getLogger('options', fname=False)
 
@@ -722,6 +724,10 @@ class EasyBuildOptions(GeneralOption):
             'review-pr-filter': ("Regex used to filter out easyconfigs to diff against in --review-pr",
                                  None, 'regex', None),
             'review-pr-max': ("Maximum number of easyconfigs to diff against in --review-pr", int, 'store', None),
+            'summarize-prs': ("Summarize pull requests", str, 'store_or_None',
+                              ",".join([DEFAULT_SUMMARIZE_PR_GROUP, DEFAULT_LIST_PR_STATE, DEFAULT_LIST_PR_ORDER,
+                                        DEFAULT_LIST_PR_DIREC]),
+                              {'metavar': 'GROUP,STATE,ORDER,DIRECTION'}),
             'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
                                        None, 'regex', None),
             'update-branch-github': ("Update specified branch in GitHub", str, 'store', None),
@@ -959,6 +965,10 @@ class EasyBuildOptions(GeneralOption):
         if self.options.list_prs:
             self._postprocess_list_prs()
 
+        # make sure --list-prs has a valid format
+        if self.options.summarize_prs:
+            self._postprocess_summarize_prs()
+
         # handle configuration options that affect other configuration options
         self._postprocess_config()
 
@@ -1024,6 +1034,34 @@ class EasyBuildOptions(GeneralOption):
             raise EasyBuildError("3rd item in --list-prs ('%s') must be one of %s", list_pr_direc, GITHUB_PR_DIRECTIONS)
 
         self.options.list_prs = (list_pr_state, list_pr_order, list_pr_direc)
+
+    def _postprocess_summarize_prs(self):
+        """Postprocess --summarize-prs options"""
+        summarize_pr_parts = self.options.summarize_prs.split(',')
+        nparts = len(summarize_pr_parts)
+
+        if nparts > 4:
+            raise EasyBuildError("Argument to --summarize-prs must be in the format 'group[,state[,order[,direction]]]")
+
+        summarize_pr_group = summarize_pr_parts[0]
+        summarize_pr_state = summarize_pr_parts[1] if nparts > 1 else DEFAULT_LIST_PR_STATE
+        summarize_pr_order = summarize_pr_parts[2] if nparts > 2 else DEFAULT_LIST_PR_ORDER
+        summarize_pr_direc = summarize_pr_parts[3] if nparts > 3 else DEFAULT_LIST_PR_DIREC
+
+        if summarize_pr_group not in GITHUB_PR_GROUPS:
+            raise EasyBuildError("1st item in --summarize-prs ('%s') must be one of %s",
+                                 summarize_pr_group, GITHUB_PR_GROUPS)
+        if summarize_pr_state not in GITHUB_PR_STATES:
+            raise EasyBuildError("2nd item in --summarize-prs ('%s') must be one of %s",
+                                 summarize_pr_state, GITHUB_PR_STATES)
+        if summarize_pr_order not in GITHUB_PR_ORDERS:
+            raise EasyBuildError("3rd item in --summarize-prs ('%s') must be one of %s",
+                                 summarize_pr_order, GITHUB_PR_ORDERS)
+        if summarize_pr_direc not in GITHUB_PR_DIRECTIONS:
+            raise EasyBuildError("4th item in --summarize-prs ('%s') must be one of %s",
+                                 summarize_pr_direc, GITHUB_PR_DIRECTIONS)
+
+        self.options.summarize_prs = (summarize_pr_group, summarize_pr_state, summarize_pr_order, summarize_pr_direc)
 
     def _postprocess_include(self):
         """Postprocess --include options."""

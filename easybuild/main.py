@@ -64,7 +64,7 @@ from easybuild.tools.filetools import adjust_permissions, cleanup, copy_files, d
 from easybuild.tools.filetools import locate_files, read_file, register_lock_cleanup_signal_handlers, write_file
 from easybuild.tools.github import check_github, close_pr, find_easybuild_easyconfig
 from easybuild.tools.github import add_pr_labels, install_github_token, list_prs, merge_pr, new_branch_github, new_pr
-from easybuild.tools.github import new_pr_from_branch
+from easybuild.tools.github import new_pr_from_branch, summarize_prs
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
@@ -644,6 +644,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.list_prs:
         print(list_prs(options.list_prs))
 
+    elif options.summarize_prs:
+        print(summarize_prs(options.summarize_prs))
+
     elif options.merge_pr:
         merge_pr(options.merge_pr)
 
@@ -680,6 +683,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         options.list_prs,
         options.merge_pr,
         options.review_pr,
+        options.summarize_prs,
         options.terse,
         search_query,
     ]
