@@ -28,6 +28,7 @@ Utility module for working with github
 :author: Jens Timmerman (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 :author: Toon Willems (Ghent University)
+:author: Maxime Boissonneault (Digital Research Alliance of Canada, Universite Laval)
 """
 import base64
 import copy
@@ -42,12 +43,13 @@ import socket
 import sys
 import tempfile
 import time
+import json
 from datetime import datetime, timedelta
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import merge_checksums_json, process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
@@ -779,7 +781,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     * stage/commit all files in PR branch
     * push PR branch to GitHub (to account specified by --github-user)
 
-    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
+    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches, checksums)
     :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
     :param start_branch: name of branch to use as base for PR
     :param pr_branch: name of branch to push to GitHub
@@ -789,8 +791,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # we need files to create the PR with
     non_existing_paths = []
     ec_paths = []
-    if paths['easyconfigs'] or paths['py_files']:
-        for path in paths['easyconfigs'] + paths['py_files']:
+    if paths['easyconfigs'] or paths['py_files'] or paths['checksums_json']:
+        for path in paths['easyconfigs'] + paths['py_files'] + paths['checksums_json']:
             if not os.path.exists(path):
                 non_existing_paths.append(path)
             else:
@@ -851,6 +853,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         commit_msg = "adding easyconfigs: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
         if paths['patch_files']:
             commit_msg += " and patches: %s" % ', '.join(os.path.basename(p) for p in paths['patch_files'])
+        if paths['checksums_json']:
+            commit_msg += " and checksums: %s" % ', '.join(os.path.basename(p) for p in paths['checksums_json'])
     elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and all(file_info['new']):
         commit_msg = "adding easyblocks: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
     else:
@@ -863,6 +867,13 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
         print_msg("copying patch files to %s..." % target_dir)
         patch_info = copy_patch_files(patch_specs, target_dir)
+
+    # figure out to which software name checksums.json files relate to, and merge them in the right place
+    if paths['checksums_json']:
+        checksums_json_specs = det_checksums_json_specs(paths['checksums_json'], file_info, [target_dir])
+
+        print_msg("merging checksums from checksums.json files to %s..." % target_dir)
+        patch_info = merge_checksums_json(checksums_json_specs, target_dir)
 
     # determine path to files to delete (if any)
     deleted_paths = []
@@ -1008,6 +1019,132 @@ def push_branch_to_github(git_repo, target_account, target_repo, branch):
         else:
             raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
                                  branch, remote, github_url)
+
+
+def is_checksums_json_for(checksums, ec):
+    """Check whether checksums dictionary keys match any source in the provided EasyConfig instance."""
+    res = False
+
+    filenames = copy.copy(ec['sources'])
+    filenames.extend(ec['patches'])
+
+    with ec.disable_templating():
+        # take into account both list of extensions (via exts_list) and components (cfr. Bundle easyblock)
+        for entry in itertools.chain(ec['exts_list'], ec.get('components') or []):
+            if isinstance(entry, (list, tuple)) and len(entry) == 3 and isinstance(entry[2], dict):
+                templates = {
+                    'name': entry[0],
+                    'namelower': entry[0].lower(),
+                    'version': entry[1],
+                }
+                options = entry[2]
+                filenames.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
+                                 for p in options.get('sources', []))
+                filenames.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
+                                 for p in options.get('patches', []))
+
+    for filename in filenames:
+        if isinstance(filename, (tuple, list)):
+            filename = filename[0]
+        if filename in checksums.keys():
+            res = True
+            break
+
+    return res
+
+
+def det_checksums_json_specs(checksums_json_paths, file_info, ec_dirs):
+    """ Determine software names for checksums_json files """
+    print_msg("determining software names for checksums_json files...")
+    checksums_json_specs = []
+    for checksums_json_path in checksums_json_paths:
+        soft_name = None
+        with open(checksums_json_path, 'r') as infile:
+            checksums = json.load(infile)
+        # consider checksums_json lists of easyconfigs being provided
+        for ec in file_info['ecs']:
+            if is_checksums_json_for(checksums, ec):
+                soft_name = ec['name']
+                break
+
+        if soft_name:
+            checksums_json_specs.append((checksums_json_path, soft_name))
+        else:
+            # fall back on scanning all eb files for checksums_jsones
+            print("Matching easyconfig for %s not found on the first try:" % checksums_json_path)
+            print("scanning all easyconfigs to determine where checksums_json file belongs (this may take a while)...")
+            soft_name = find_software_name_for_checksums_json(checksums, ec_dirs)
+            if soft_name:
+                checksums_json_specs.append((checksums_json_path, soft_name))
+            else:
+                # still nothing found
+                raise EasyBuildError("Failed to determine software name to which checksums_json file %s relates",
+                                     checksums_json_path)
+
+    return checksums_json_specs
+
+
+def find_software_name_for_checksums_json(checksums, ec_dirs):
+    """
+    Scan all easyconfigs in the robot path(s) to determine which software a checksums dictionary belongs to
+
+    :param checksums: dictionary of checksums
+    :param ecs_dirs: list of directories to consider when looking for easyconfigs
+    :return: name of the software that this checksums dictionary belongs to (if found)
+    """
+
+    soft_name = None
+
+    ignore_dirs = build_option('ignore_dirs')
+    all_ecs = []
+    for ec_dir in ec_dirs:
+        for (dirpath, dirnames, filenames) in os.walk(ec_dir):
+            # Exclude ignored dirs
+            if ignore_dirs:
+                dirnames[:] = [i for i in dirnames if i not in ignore_dirs]
+            for fn in filenames:
+                # TODO: In EasyBuild 5.x only check for '*.eb' files
+                if fn != 'TEMPLATE.eb' and os.path.splitext(fn)[1] not in ('.py', '.patch'):
+                    path = os.path.join(dirpath, fn)
+                    rawtxt = read_file(path)
+                    if 'patches' in rawtxt or 'sources' in rawtxt:
+                        all_ecs.append(path)
+
+    # Usually, checksums.json will contain sources that contain the software name or version
+    # So search those ECs first
+    sources_stems = [s.split('.')[0] for s in checksums.keys()]
+    # Extract possible sw name and version according to above scheme
+    # Those might be the same as the whole patch stem, which is OK
+    possible_sw_name = [s.split('-')[0].lower() for s in sources_stems]
+    possible_sw_name_version = [s.split('_')[0].lower() for s in sources_stems]
+
+    def ec_key(path):
+        filename = os.path.basename(path).lower()
+        # Put files with one of those as the prefix first, then sort by name
+        return (
+            not any([filename.startswith(s) for s in possible_sw_name_version]),
+            not any([filename.startswith(s) for s in possible_sw_name]),
+            filename
+        )
+    all_ecs.sort(key=ec_key)
+
+    nr_of_ecs = len(all_ecs)
+    for idx, path in enumerate(all_ecs):
+        if soft_name:
+            break
+        try:
+            ecs = process_easyconfig(path, validate=False)
+            for ec in ecs:
+                if is_checksums_json_for(checksums, ec['ec']):
+                    soft_name = ec['ec']['name']
+                    break
+        except EasyBuildError as err:
+            _log.debug("Ignoring easyconfig %s that fails to parse: %s", path, err)
+        sys.stdout.write('\r%s of %s easyconfigs checked' % (idx + 1, nr_of_ecs))
+        sys.stdout.flush()
+
+    sys.stdout.write('\n')
+    return soft_name
 
 
 def is_patch_for(patch_name, ec):
@@ -1845,7 +1982,7 @@ def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
 def det_pr_target_repo(paths):
     """Determine target repository for pull request from given cagetorized list of files
 
-    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches, .py files)
+    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches, checksums, .py files)
     """
     pr_target_repo = build_option('pr_target_repo')
 
@@ -1855,10 +1992,10 @@ def det_pr_target_repo(paths):
 
         _log.info("Trying to derive target repository based on specified files...")
 
-        easyconfigs, files_to_delete, patch_files, py_files = [paths[key] for key in sorted(paths.keys())]
+        checksums, easyconfigs, files_to_delete, patch_files, py_files = [paths[key] for key in sorted(paths.keys())]
 
         # Python files provided, and no easyconfig files or patches
-        if py_files and not (easyconfigs or patch_files):
+        if py_files and not (easyconfigs or patch_files or checksums):
 
             _log.info("Only Python files provided, no easyconfig files or patches...")
 
@@ -1871,9 +2008,10 @@ def det_pr_target_repo(paths):
                 pr_target_repo = GITHUB_FRAMEWORK_REPO
                 _log.info("Not all Python files are easyblocks, target repository is assumed to be %s", pr_target_repo)
 
-        # if no Python files are provided, only easyconfigs & patches, or if files to delete are .eb files,
+        # if no Python files are provided, only easyconfigs, patches and checksums, or if files to delete are .eb files,
         # then target repo is assumed to be easyconfigs
-        elif easyconfigs or patch_files or (files_to_delete and all(x.endswith('.eb') for x in files_to_delete)):
+        elif (easyconfigs or patch_files or checksums or
+              (files_to_delete and all(x.endswith('.eb') for x in files_to_delete))):
             pr_target_repo = GITHUB_EASYCONFIGS_REPO
             _log.info("Only easyconfig and patch files found, target repository is assumed to be %s", pr_target_repo)
 

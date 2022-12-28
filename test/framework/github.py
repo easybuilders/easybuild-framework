@@ -27,8 +27,10 @@ Unit tests for talking to GitHub.
 
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+:author: Maxime Boissonneault (Digital Research Alliance of Canada, Universite Laval)
 """
 import base64
+import json
 import os
 import random
 import re
@@ -48,7 +50,7 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_MERGEABLE_STATE_CLEAN
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
-from easybuild.tools.github import is_patch_for, pick_default_branch
+from easybuild.tools.github import is_checksums_json_for, is_patch_for, pick_default_branch
 from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
@@ -575,6 +577,39 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
         self.assertTrue(os.path.exists(path), "Path %s exists" % path)
 
+    def test_github_find_checksums_json(self):
+        """ Test for find_software_name_for_checksums_json """
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        ec_path = os.path.join(test_dir, 'easyconfigs')
+        init_config(build_options={
+            'allow_modules_tool_mismatch': True,
+            'minimal_toolchains': True,
+            'use_existing_modules': True,
+            'external_modules_metadata': ConfigObj(),
+            'silent': True,
+            'valid_module_classes': module_classes(),
+            'validate': False,
+        })
+        self.mock_stdout(True)
+        ec = gh.find_software_name_for_checksums_json({'toy-extra.txt': 'n-a'}, [ec_path])
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(ec == 'toy')
+        reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
+        self.assertTrue(re.search(reg, txt))
+
+        self.assertEqual(gh.find_software_name_for_checksums_json({'test.patch': 'n-a'}, []), None)
+
+        # check behaviour of find_software_name_for_checksums_json when non-UTF8 patch files are present
+        # (only with Python 3)
+        if sys.version_info[0] >= 3:
+            non_utf8_patch = os.path.join(self.test_prefix, 'problem.patch')
+            with open(non_utf8_patch, 'wb') as fp:
+                fp.write(bytes("+  ximage->byte_order=T1_byte_order; /* Set t1lib\xb4s byteorder */\n", 'iso_8859_1'))
+
+            self.assertEqual(gh.find_software_name_for_checksums_json({'test.patch': 'n-a'}, [self.test_prefix]), None)
+
     def test_github_find_patches(self):
         """ Test for find_software_name_for_patch """
         test_dir = os.path.dirname(os.path.abspath(__file__))
@@ -801,6 +836,125 @@ class GithubTest(EnhancedTestCase):
         res = gh.det_pr_labels(file_info, GITHUB_EASYBLOCKS_REPO)
         self.assertEqual(res, ['new'])
 
+    def test_github_det_checksums_json_specs(self):
+        """Test for det_checksums_json_specs function."""
+
+        file_info = {'ecs': []}
+
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'A'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+
+            sources = ['A-42.tar.gz']
+            patches = ['1.patch']
+        """)
+        file_info['ecs'].append(EasyConfig(None, rawtxt=rawtxt))
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'B'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            sources = ['B-42.tar.gz']
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+        """)
+        file_info['ecs'].append(EasyConfig(None, rawtxt=rawtxt))
+
+        # function to write the checksums file
+        def write_checksums_json_files(checksums):
+            checksums_paths = []
+            for i in range(len(checksums)):
+                checksums_path = os.path.join(self.test_prefix, 'checksums_%i.json' % i)
+                with open(checksums_path, 'w') as outfile:
+                    json.dump(checksums[i], outfile, indent=2, sort_keys=True)
+                checksums_paths += [checksums_path]
+            return checksums_paths
+
+        checksums = [{p: 'n-a'} for p in ['1.patch', '2.patch', '3.patch']]
+        checksums_paths = write_checksums_json_files(checksums)
+
+        error_pattern = "Failed to determine software name to which checksums_json file .*/checksums_1.json relates"
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_checksums_json_specs, checksums_paths,
+                              file_info, [])
+        self.mock_stdout(False)
+
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'C'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+
+            patches = [('3.patch', 'subdir'), '2.patch']
+        """)
+        file_info['ecs'].append(EasyConfig(None, rawtxt=rawtxt))
+
+        self.mock_stdout(True)
+        res = gh.det_checksums_json_specs(checksums_paths, file_info, [])
+        self.mock_stdout(False)
+
+        self.assertEqual([i[0] for i in res], checksums_paths)
+        self.assertEqual([i[1] for i in res], ['A', 'C', 'C'])
+
+        # check if patches for extensions are found
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'patched_ext'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+
+            exts_list = [
+                'foo',
+                ('bar', '1.2.3'),
+                ('patched', '4.5.6', {
+                    'patches': [('%(name)s-2.patch', 1), '%(name)s-3.patch'],
+                }),
+            ]
+        """)
+        checksums[1:3] = [{p: 'n-a'} for p in ['patched-2.patch', 'patched-3.patch']]
+        checksums_paths = write_checksums_json_files(checksums)
+        file_info['ecs'][-1] = EasyConfig(None, rawtxt=rawtxt)
+
+        self.mock_stdout(True)
+        res = gh.det_checksums_json_specs(checksums_paths, file_info, [])
+        self.mock_stdout(False)
+
+        self.assertEqual([i[0] for i in res], checksums_paths)
+        self.assertEqual([i[1] for i in res], ['A', 'patched_ext', 'patched_ext'])
+
+        # check if patches for components are found
+        rawtxt = textwrap.dedent("""
+            easyblock = 'PythonBundle'
+            name = 'patched_bundle'
+            version = '42'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {"name":"GCC", "version": "4.6.3"}
+
+            components = [
+                ('bar', '1.2.3'),
+                ('patched', '4.5.6', {
+                    'patches': [('%(name)s-2.patch', 1), '%(name)s-3.patch'],
+                }),
+            ]
+        """)
+        file_info['ecs'][-1] = EasyConfig(None, rawtxt=rawtxt)
+
+        self.mock_stdout(True)
+        res = gh.det_checksums_json_specs(checksums_paths, file_info, [])
+        self.mock_stdout(False)
+
+        self.assertEqual([i[0] for i in res], checksums_paths)
+        self.assertEqual([i[1] for i in res], ['A', 'patched_bundle', 'patched_bundle'])
+
     def test_github_det_patch_specs(self):
         """Test for det_patch_specs function."""
 
@@ -990,17 +1144,21 @@ class GithubTest(EnhancedTestCase):
 
         test_dir = os.path.dirname(os.path.abspath(__file__))
 
-        # easyconfigs/patches (incl. files to delete) => easyconfigs repo
+        # easyconfigs/patches/checksums (incl. files to delete) => easyconfigs repo
         # this is solely based on filenames, actual files are not opened, except for the patch file which must exist
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         toy_patch = os.path.join(test_dir, 'sandbox', 'sources', 'toy', toy_patch_fn)
         test_cases = [
             ['toy.eb'],
             [toy_patch],
+            ['checksums.json'],
             ['toy.eb', toy_patch],
+            ['toy.eb', toy_patch, 'checksums.json'],
             [':toy.eb'],  # deleting toy.eb
             ['one.eb', 'two.eb'],
+            ['one.eb', 'two.eb', 'checksums.json'],
             ['one.eb', 'two.eb', toy_patch, ':todelete.eb'],
+            ['one.eb', 'two.eb', toy_patch, 'checksums.json', ':todelete.eb'],
         ]
         for test_case in test_cases:
             self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(test_case)), 'easybuild-easyconfigs')
@@ -1025,8 +1183,8 @@ class GithubTest(EnhancedTestCase):
         py_files.append(github_py)
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files)), 'easybuild-framework')
 
-        # as soon as an easyconfig file or patch files is involved => result is easybuild-easyconfigs repo
-        for fn in ['toy.eb', toy_patch]:
+        # as soon as an easyconfig file, checksums or patch files is involved => result is easybuild-easyconfigs repo
+        for fn in ['toy.eb', toy_patch, 'checksums.json']:
             self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type(py_files + [fn])), 'easybuild-easyconfigs')
 
         # if --pr-target-repo is specified, we always get this value (no guessing anymore)
@@ -1226,6 +1384,52 @@ class GithubTest(EnhancedTestCase):
 
         ec['components'] = [('foo', '1.2.3', {'patches': ['pi.patch']})]
         self.assertTrue(is_patch_for('pi.patch', ec))
+
+    def test_is_checksums_json_for(self):
+        """Test for is_checksums_json_for function."""
+        ectxt = '\n'.join([
+            "easyblock = 'PythonBundle'",
+            "name = 'pi'",
+            "version = '3.14'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "sources = ['requirements.txt']",
+        ])
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, ectxt)
+        ec = EasyConfig(test_ec)
+        self.assertTrue(is_checksums_json_for({'requirements.txt': 'n-a'}, ec))
+        self.assertFalse(is_checksums_json_for({'pi.patch': 'n-a'}, ec))
+
+        for patch_fn in ('pi.patch', '%(name)s.patch', '%(namelower)s.patch'):
+            ec['patches'] = [patch_fn]
+            self.assertTrue(is_checksums_json_for({'pi.patch': 'n-a'}, ec))
+            self.assertFalse(is_checksums_json_for({'foo.patch': 'n-a'}, ec))
+
+        ec['patches'] = ['%(name)s-%(version)s.patch']
+        self.assertFalse(is_checksums_json_for({'pi.patch': 'n-a'}, ec))
+        self.assertTrue(is_checksums_json_for({'pi-3.14.patch': 'n-a'}, ec))
+
+        ec['patches'] = []
+
+        for patch_fn in ('foo.patch', '%(name)s.patch', '%(namelower)s.patch'):
+            ec['exts_list'] = [('foo', '1.2.3', {'patches': [patch_fn]})]
+            self.assertTrue(is_checksums_json_for({'foo.patch': 'n-a'}, ec))
+            self.assertFalse(is_checksums_json_for({'pi.patch': 'n-a'}, ec))
+
+        for source_fn in ('foo-1.2.3.tgz', '%(name)s-%(version)s.tgz', '%(namelower)s-%(version)s.tgz'):
+            ec['exts_list'] = [('foo', '1.2.3', {'sources': [source_fn]})]
+            self.assertTrue(is_checksums_json_for({'foo-1.2.3.tgz': 'n-a'}, ec))
+            self.assertFalse(is_checksums_json_for({'foo.tgz': 'n-a'}, ec))
+
+        ec['components'] = None
+        self.assertFalse(is_checksums_json_for({'pi.patch': 'n-a'}, ec))
+
+        ec['components'] = [('foo', '1.2.3', {'patches': ['pi.patch']})]
+        self.assertTrue(is_checksums_json_for({'pi.patch': 'n-a'}, ec))
+        ec['components'] = [('foo', '1.2.3', {'sources': ['requirements.txt']})]
+        self.assertTrue(is_checksums_json_for({'requirements.txt': 'n-a'}, ec))
 
 
 def suite():
