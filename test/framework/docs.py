@@ -596,6 +596,46 @@ class DocsTest(EnhancedTestCase):
         expected_found = any(lines[i:i + len(expected)] == expected for i in range(len(lines)))
         self.assertTrue(expected_found, "%s found in: %s" % (expected, lines))
 
+    def test_list_toolchains(self):
+        """Test list_toolchains* functions."""
+
+        txt_patterns = [
+            r"^List of known toolchains \(toolchain name: module\[, module, ...\]\):",
+            r"^\s+GCC: GCC",
+            r"^\s+foss: BLACS, FFTW, GCC, OpenBLAS, OpenMPI, ScaLAPACK",
+            r"^\s+intel: icc, ifort, imkl, impi",
+            r"^\s+system:\s*$",
+        ]
+
+        for txt in (list_toolchains(), list_toolchains(output_format='txt')):
+            for pattern in txt_patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        md_patterns = [
+            r"^# List of known toolchains",
+            r"^\*\*GCC\*\*\s+\|GCC\s+\|\*\(none\)\*\s+\|\*\(none\)\*\s+\|\*\(none\)\*$",
+            r"^\*\*foss\*\*\s+\|GCC\s+\|OpenMPI\s+\|OpenBLAS, ScaLAPACK\s+\|FFTW$",
+            r"^\*\*intel\*\*\s+\|icc, ifort\s+\|impi\s+\|imkl\s+\|imkl",
+            r"^\*\*system\*\*\s+\|\*\(none\)\*\s+\|\*\(none\)\*\s+\|\*\(none\)\*\s+\|\*\(none\)\*$",
+        ]
+        txt_md = list_toolchains(output_format='md')
+        for pattern in md_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+
+        rst_patterns = [
+            r"^List of known toolchains\n\-{24}",
+            r"^\*\*GCC\*\*\s+GCC\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*$",
+            r"^\*\*foss\*\*\s+GCC\s+OpenMPI\s+OpenBLAS, ScaLAPACK\s+FFTW$",
+            r"^\*\*intel\*\*\s+icc, ifort\s+impi\s+imkl\s+imkl",
+            r"^\*\*system\*\*\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*$",
+        ]
+        txt_rst = list_toolchains(output_format='rst')
+        for pattern in rst_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+
     def test_avail_cfgfile_constants(self):
         """
         Test avail_cfgfile_constants to generate overview of constants that can be used in a configuration file.

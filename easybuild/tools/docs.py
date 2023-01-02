@@ -1160,7 +1160,7 @@ def list_toolchains_rst(tcs):
 
 def list_toolchains_txt(tcs):
     """ Returns overview of all toolchains in txt format """
-    doc = ["List of known toolchains (toolchainname: module[,module...]):"]
+    doc = ["List of known toolchains (toolchain name: module[, module, ...]):"]
     for name in sorted(tcs):
         tc_elems = nub(sorted([e for es in tcs[name].values() for e in es]))
         doc.append("\t%s: %s" % (name, ', '.join(tc_elems)))
