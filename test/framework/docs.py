@@ -33,8 +33,8 @@ from unittest import TextTestRunner
 
 from easybuild.tools.config import module_classes
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
-from easybuild.tools.docs import gen_easyblocks_overview_rst, list_easyblocks, list_software, list_toolchains
-from easybuild.tools.docs import md_title_and_table, rst_title_and_table
+from easybuild.tools.docs import avail_easyconfig_templates, gen_easyblocks_overview_rst, list_easyblocks
+from easybuild.tools.docs import list_software, list_toolchains, md_title_and_table, rst_title_and_table
 from easybuild.tools.options import EasyBuildOptions
 from easybuild.tools.utilities import import_available_modules, mk_md_table, mk_rst_table
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
@@ -679,6 +679,55 @@ class DocsTest(EnhancedTestCase):
             r"OS packages providing openSSL developement support$",
         ]
         txt_rst = avail_easyconfig_constants(output_format='rst')
+        for pattern in rst_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+
+    def test_avail_easyconfig_templates(self):
+        """
+        Test avail_easyconfig_templates to generate overview of templates that can be used in easyconfig files.
+        """
+        txt_patterns = [
+            r"^Template names/values derived from easyconfig instance",
+            r"^\s+%\(version_major\)s: Major version",
+            r"^Template names/values for \(short\) software versions",
+            r"^\s+%\(pyshortver\)s: short version for Python \(<major>\.<minor>\)",
+            r"^Template constants that can be used in easyconfigs",
+            r"^\s+SOURCE_TAR_GZ: Source \.tar\.gz bundle \(%\(name\)s-%\(version\)s.tar.gz\)",
+        ]
+
+        txt = avail_easyconfig_templates()
+        for pattern in txt_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        txt = avail_easyconfig_templates(output_format='txt')
+        for pattern in txt_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        md_patterns = [
+            r"^## Template names/values derived from easyconfig instance",
+            r"^``%\(version_major\)s``\s+|Major version",
+            r"^## Template names/values for \(short\) software versions",
+            r"^``%\(pyshortver\)s``\s+|short version for Python \(<major>\.<minor>\)",
+            r"^## Template constants that can be used in easyconfigs",
+            r"^``SOURCE_TAR_GZ``\s+|Source \.tar\.gz bundle \(%\(name\)s-%\(version\)s.tar.gz\)",
+        ]
+        txt_md = avail_easyconfig_templates(output_format='md')
+        for pattern in md_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+
+        rst_patterns = [
+            r"^Template names/values derived from easyconfig instance\n\-+",
+            r"^``%\(version_major\)s``\s+|Major version",
+            r"^Template names/values for \(short\) software versions\n-+",
+            r"^``%\(pyshortver\)s``\s+|short version for Python \(<major>\.<minor>\)",
+            r"^Template constants that can be used in easyconfigs\n\-+",
+            r"^``SOURCE_TAR_GZ``\s+|Source \.tar\.gz bundle \(%\(name\)s-%\(version\)s.tar.gz\)",
+        ]
+        txt_rst = avail_easyconfig_templates(output_format='rst')
         for pattern in rst_patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
