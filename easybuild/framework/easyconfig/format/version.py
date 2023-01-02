@@ -31,7 +31,7 @@ This describes the easyconfig version class. To be used in EasyBuild for anythin
 """
 import operator as op
 import re
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError

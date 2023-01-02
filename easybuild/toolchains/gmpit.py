@@ -27,9 +27,9 @@ EasyBuild support for gmpit compiler toolchain (includes GCC and MPItrampoline).
 
 :author: Alan O'Cais (CECAM)
 """
-from distutils.version import LooseVersion
 import re
 
+from easybuild.tools import LooseVersion
 from easybuild.toolchains.gcc import GccToolchain
 from easybuild.toolchains.mpi.mpitrampoline import MPItrampoline
 

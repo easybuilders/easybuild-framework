@@ -44,7 +44,6 @@ import difflib
 import functools
 import os
 import re
-from distutils.version import LooseVersion
 from contextlib import contextmanager
 
 import easybuild.tools.filetools as filetools
@@ -60,6 +59,7 @@ from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
@@ -1299,7 +1299,7 @@ class EasyConfig(object):
         If none of the pairs is found, then an empty dictionary is returned.
 
         :param mod_name: name of the external module
-        :param metadata: already available metadata for this external module (if any)
+        :param existing_metadata: already available metadata for this external module (if any)
         """
         res = {}
 
@@ -2054,7 +2054,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
 
     # only cache when no build specifications are involved (since those can't be part of a dict key)
     cache_key = None
-    if build_specs is None:
+    if not build_specs:
         cache_key = (path, validate, hidden, parse_only)
         if cache_key in _easyconfigs_cache:
             return [e.copy() for e in _easyconfigs_cache[cache_key]]

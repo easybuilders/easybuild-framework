@@ -33,8 +33,8 @@ import os
 
 import easybuild.tools.toolchain as toolchain
 
-from distutils.version import LooseVersion
 from easybuild.toolchains.mpi.mpich2 import Mpich2
+from easybuild.tools import LooseVersion
 from easybuild.tools.toolchain.constants import COMPILER_FLAGS, COMPILER_VARIABLES
 from easybuild.tools.toolchain.variables import CommandFlagList
 

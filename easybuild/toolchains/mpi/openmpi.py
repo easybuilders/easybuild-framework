@@ -31,9 +31,9 @@ Support for OpenMPI as toolchain MPI library.
 import os
 import shutil
 import tempfile
-from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_VARIABLES

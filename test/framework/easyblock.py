@@ -27,13 +27,13 @@ Unit tests for easyblock.py
 
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+@author: Maxime Boissonneault (Compute Canada)
 """
 import os
 import re
 import shutil
 import sys
 import tempfile
-from distutils.version import LooseVersion
 from inspect import cleandoc
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -43,7 +43,7 @@ from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
-from easybuild.tools import config
+from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, update_build_option
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_file
@@ -1697,8 +1697,14 @@ class EasyBlockTest(EnhancedTestCase):
         res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, os.path.join(tmpdir, 't', 'toy', toy_tarball))
 
+        # test no_download option
+        urls = ['file://%s' % tmpdir_subdir]
+        error_pattern = "Couldn't find file toy-0.0.tar.gz anywhere, and downloading it is disabled"
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.obtain_file,
+                              toy_tarball, urls=urls, alt_location='alt_toy', no_download=True)
+
         # 'downloading' a file to (first) alternative sourcepath works
-        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
+        res = eb.obtain_file(toy_tarball, urls=urls, alt_location='alt_toy')
         self.assertEqual(res, os.path.join(tmpdir, 'a', 'alt_toy', toy_tarball))
 
         # make sure that directory in which easyconfig file is located is *ignored* when alt_location is used
@@ -2346,6 +2352,64 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.disallow_deprecated_behaviour()
 
+        # create test easyconfig from which checksums have been stripped
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        ectxt = read_file(toy_ec)
+        regex = re.compile(r"'?checksums'?\s*[=:]\s*\[[^]]+\].*", re.M)
+        ectxt = regex.sub('', ectxt)
+        write_file(test_ec, ectxt)
+
+        ec_json = process_easyconfig(test_ec)[0]
+
+        # make sure that test easyconfig file indeed doesn't contain any checksums (either top-level or for extensions)
+        self.assertEqual(ec_json['ec']['checksums'], [])
+        for ext in ec_json['ec']['exts_list']:
+            if isinstance(ext, string_type):
+                continue
+            elif isinstance(ext, tuple):
+                self.assertEqual(ext[2].get('checksums', []), [])
+            else:
+                self.assertTrue(False, "Incorrect extension type: %s" % type(ext))
+
+        # put checksums.json in place next to easyconfig file being used for the tests
+        toy_checksums_json = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'checksums.json')
+        copy_file(toy_checksums_json, os.path.join(self.test_prefix, 'checksums.json'))
+
+        # test without checksums, it should work since they are in checksums.json
+        eb_json = get_easyblock_instance(ec_json)
+        eb_json.fetch_sources()
+        eb_json.checksum_step()
+
+        # if we look only at checksums in Json, it should succeed
+        eb = get_easyblock_instance(ec)
+        build_options = {
+            'checksum_priority': config.CHECKSUM_PRIORITY_JSON
+        }
+        init_config(build_options=build_options)
+        eb.fetch_sources()
+        eb.checksum_step()
+
+        # if we look only at (incorrect) checksums in easyconfig, it should fail
+        eb = get_easyblock_instance(ec)
+        build_options = {
+            'checksum_priority': config.CHECKSUM_PRIORITY_EASYCONFIG
+        }
+        init_config(build_options=build_options)
+        eb.fetch_sources()
+        error_msg = "Checksum verification for .*/toy-0.0.tar.gz using .* failed"
+        self.assertErrorRegex(EasyBuildError, error_msg, eb.checksum_step)
+
+        # also check verification of checksums for extensions, which is part of fetch_extension_sources
+        error_msg = "Checksum verification for extension source bar-0.0.tar.gz failed"
+        self.assertErrorRegex(EasyBuildError, error_msg, eb.collect_exts_file_info)
+
+        # also check with deprecated fetch_extension_sources method
+        self.allow_deprecated_behaviour()
+        self.mock_stderr(True)
+        self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_extension_sources)
+        self.mock_stderr(False)
+        self.disallow_deprecated_behaviour()
+
         # if --ignore-checksums is enabled, faulty checksums are reported but otherwise ignored (no error)
         build_options = {
             'ignore_checksums': True,
@@ -2465,6 +2529,23 @@ class EasyBlockTest(EnhancedTestCase):
 
         # sources can also have dict entries
         eb.cfg['sources'] = [{'filename': 'toy-0.0.tar.gz', 'download_fileame': 'toy.tar.gz'}]
+        self.assertEqual(eb.check_checksums(), [])
+
+        # no checksums in easyconfig, then picked up from checksums.json next to easyconfig file
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        copy_file(toy_ec, test_ec)
+        ec = process_easyconfig(test_ec)[0]
+        eb = get_easyblock_instance(ec)
+        eb.cfg['checksums'] = []
+        res = eb.check_checksums()
+        self.assertEqual(len(res), 1)
+        expected = "Checksums missing for one or more sources/patches in test.eb: "
+        expected += "found 1 sources + 2 patches vs 0 checksums"
+        self.assertEqual(res[0], expected)
+
+        # all is fine is checksums.json is also copied
+        copy_file(os.path.join(os.path.dirname(toy_ec), 'checksums.json'), self.test_prefix)
+        eb.json_checksums = None
         self.assertEqual(eb.check_checksums(), [])
 
     def test_this_is_easybuild(self):

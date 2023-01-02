@@ -37,11 +37,13 @@ The EasyBlock class should serve as a base class for all easyblocks.
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 :author: Maxime Boissonneault (Compute Canada)
 :author: Davide Vanzo (Vanderbilt University)
+:author: Caspar van Leeuwen (SURF)
 """
 
 import copy
 import glob
 import inspect
+import json
 import os
 import re
 import stat
@@ -49,7 +51,6 @@ import tempfile
 import time
 import traceback
 from datetime import datetime
-from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
@@ -63,11 +64,11 @@ from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import dump_env_easyblock, get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.framework.extension import Extension, resolve_exts_filter_template
-from easybuild.tools import config, run
+from easybuild.tools import LooseVersion, config, run
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
-from easybuild.tools.config import DEFAULT_ENVVAR_USERS_MODULES
+from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
@@ -156,6 +157,7 @@ class EasyBlock(object):
         self.patches = []
         self.src = []
         self.checksums = []
+        self.json_checksums = None
 
         # build/install directories
         self.builddir = None
@@ -230,6 +232,11 @@ class EasyBlock(object):
 
         # sanity check fail error messages to report (if any)
         self.sanity_check_fail_msgs = []
+
+        # keep track of whether module is loaded during sanity check step (to avoid re-loading)
+        self.sanity_check_module_loaded = False
+        # info required to roll back loading of fake module during sanity check (see _sanity_check_step method)
+        self.fake_mod_data = None
 
         # robot path
         self.robot_path = build_option('robot_path')
@@ -347,23 +354,55 @@ class EasyBlock(object):
         Obtain checksum for given filename.
 
         :param checksums: a list or tuple of checksums (or None)
-        :param filename: name of the file to obtain checksum for (Deprecated)
+        :param filename: name of the file to obtain checksum for
         :param index: index of file in list
         """
-        # Filename has never been used; flag it as deprecated
-        if filename:
-            self.log.deprecated("Filename argument to get_checksum_for() is deprecated", '5.0')
+        checksum = None
+
+        # sometimes, filename are specified as a dict
+        if isinstance(filename, dict):
+            filename = filename['filename']
 
         # if checksums are provided as a dict, lookup by source filename as key
-        if isinstance(checksums, (list, tuple)):
-            if index is not None and index < len(checksums) and (index >= 0 or abs(index) <= len(checksums)):
-                return checksums[index]
+        if isinstance(checksums, dict):
+            if filename is not None and filename in checksums:
+                checksum = checksums[filename]
             else:
-                return None
+                checksum = None
+        elif isinstance(checksums, (list, tuple)):
+            if index is not None and index < len(checksums) and (index >= 0 or abs(index) <= len(checksums)):
+                checksum = checksums[index]
+            else:
+                checksum = None
         elif checksums is None:
-            return None
+            checksum = None
         else:
-            raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple or None.", type(checksums))
+            raise EasyBuildError("Invalid type for checksums (%s), should be dict, list, tuple or None.",
+                                 type(checksums))
+
+        if checksum is None or build_option("checksum_priority") == CHECKSUM_PRIORITY_JSON:
+            json_checksums = self.get_checksums_from_json()
+            return json_checksums.get(filename, None)
+        else:
+            return checksum
+
+    def get_checksums_from_json(self, always_read=False):
+        """
+        Get checksums for this software that are provided in a checksums.json file
+
+        :param always_read: always read the checksums.json file, even if it has been read before
+        """
+        if always_read or self.json_checksums is None:
+            try:
+                path = self.obtain_file("checksums.json", no_download=True)
+                self.log.info("Loading checksums from file %s", path)
+                json_txt = read_file(path)
+                self.json_checksums = json.loads(json_txt)
+            # if the file can't be found, return an empty dict
+            except EasyBuildError:
+                self.json_checksums = {}
+
+        return self.json_checksums
 
     def fetch_source(self, source, checksum=None, extension=False, download_instructions=None):
         """
@@ -445,7 +484,8 @@ class EasyBlock(object):
             if source is None:
                 raise EasyBuildError("Empty source in sources list at index %d", index)
 
-            src_spec = self.fetch_source(source, self.get_checksum_for(checksums=checksums, index=index))
+            checksum = self.get_checksum_for(checksums=checksums, filename=source, index=index)
+            src_spec = self.fetch_source(source, checksum=checksum)
             if src_spec:
                 self.src.append(src_spec)
             else:
@@ -477,7 +517,7 @@ class EasyBlock(object):
             if path:
                 self.log.debug('File %s found for patch %s', path, patch_spec)
                 patch_info['path'] = path
-                patch_info['checksum'] = self.get_checksum_for(checksums, index=index)
+                patch_info['checksum'] = self.get_checksum_for(checksums, filename=patch_info['name'], index=index)
 
                 if extension:
                     patches.append(patch_info)
@@ -638,7 +678,7 @@ class EasyBlock(object):
 
                         # verify checksum (if provided)
                         self.log.debug('Verifying checksums for extension source...')
-                        fn_checksum = self.get_checksum_for(checksums, index=0)
+                        fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
                         if verify_checksum(src_path, fn_checksum):
                             self.log.info('Checksum for extension source %s verified', src_fn)
                         elif build_option('ignore_checksums'):
@@ -672,7 +712,7 @@ class EasyBlock(object):
                                 patch = patch['path']
                                 patch_fn = os.path.basename(patch)
 
-                                checksum = self.get_checksum_for(checksums[1:], index=idx)
+                                checksum = self.get_checksum_for(checksums, filename=patch_fn, index=idx+1)
                                 if verify_checksum(patch, checksum):
                                     self.log.info('Checksum for extension patch %s verified', patch_fn)
                                 elif build_option('ignore_checksums'):
@@ -694,7 +734,7 @@ class EasyBlock(object):
         return exts_sources
 
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
-                    git_config=None, download_instructions=None, alt_location=None):
+                    git_config=None, no_download=False, download_instructions=None, alt_location=None):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -705,6 +745,7 @@ class EasyBlock(object):
         :param download_filename: filename with which the file should be downloaded, and then renamed to <filename>
         :param force_download: always try to download file, even if it's already available in source path
         :param git_config: dictionary to define how to download a git repository
+        :param no_download: do not try to download the file
         :param download_instructions: instructions to manually add source (used for complex cases)
         :param alt_location: alternative location to use instead of self.name
         """
@@ -818,6 +859,13 @@ class EasyBlock(object):
                 if self.dry_run:
                     self.dry_run_msg("  * %s found at %s", filename, foundfile)
                 return foundfile
+            elif no_download:
+                if self.dry_run:
+                    self.dry_run_msg("  * %s (MISSING)", filename)
+                    return filename
+                else:
+                    raise EasyBuildError("Couldn't find file %s anywhere, and downloading it is disabled... "
+                                         "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
             elif git_config:
                 return get_source_tarball_from_git(filename, targetdir, git_config)
             else:
@@ -1618,6 +1666,8 @@ class EasyBlock(object):
         :param purge: boolean indicating whether or not to purge currently loaded modules first
         :param extra_modules: list of extra modules to load (these are loaded *before* loading the 'self' module)
         """
+        self.log.info("Loading fake module (%s)", self.short_mod_name)
+
         # take a copy of the current environment before loading the fake module, so we can restore it
         env = copy.deepcopy(os.environ)
 
@@ -2280,7 +2330,7 @@ class EasyBlock(object):
 
         # fetch patches
         if self.cfg['patches'] + self.cfg['postinstallpatches']:
-            if isinstance(self.cfg['checksums'], (list, tuple)):
+            if self.cfg['checksums'] and isinstance(self.cfg['checksums'], (list, tuple)):
                 # if checksums are provided as a list, first entries are assumed to be for sources
                 patches_checksums = self.cfg['checksums'][len(self.cfg['sources']):]
             else:
@@ -2366,6 +2416,20 @@ class EasyBlock(object):
         sources = ent.get('sources', [])
         patches = ent.get('patches', [])
         checksums = ent.get('checksums', [])
+
+        if not checksums:
+            checksums_from_json = self.get_checksums_from_json()
+            # recreate a list of checksums. If each filename is found, the generated list of checksums should match
+            # what is expected in list format
+            for fn in sources + patches:
+                # if the filename is a tuple, the actual source file name is the first element
+                if isinstance(fn, tuple):
+                    fn = fn[0]
+                # if the filename is a dict, the actual source file name is the "filename" element
+                if isinstance(fn, dict):
+                    fn = fn["filename"]
+                if fn in checksums_from_json.keys():
+                    checksums += [checksums_from_json[fn]]
 
         if source_cnt is None:
             source_cnt = len(sources)
@@ -2984,8 +3048,15 @@ class EasyBlock(object):
         self.log.debug("$LD_LIBRARY_PATH during RPATH sanity check: %s", os.getenv('LD_LIBRARY_PATH', '(empty)'))
         self.log.debug("List of loaded modules: %s", self.modules_tool.list())
 
-        not_found_regex = re.compile('not found', re.M)
+        not_found_regex = re.compile(r'(\S+)\s*\=\>\s*not found')
         readelf_rpath_regex = re.compile('(RPATH)', re.M)
+
+        # List of libraries that should be exempt from the RPATH sanity check;
+        # For example, libcuda.so.1 should never be RPATH-ed by design,
+        # see https://github.com/easybuilders/easybuild-framework/issues/4095
+        filter_rpath_sanity_libs = build_option('filter_rpath_sanity_libs')
+        msg = "Ignoring the following libraries if they are not found by RPATH sanity check: %s"
+        self.log.info(msg, filter_rpath_sanity_libs)
 
         if rpath_dirs is None:
             rpath_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
@@ -3013,10 +3084,18 @@ class EasyBlock(object):
                         self.log.debug(msg, path)
                     else:
                         # check whether all required libraries are found via 'ldd'
-                        if not_found_regex.search(out):
-                            fail_msg = "One or more required libraries not found for %s: %s" % (path, out)
-                            self.log.warning(fail_msg)
-                            fails.append(fail_msg)
+                        matches = re.findall(not_found_regex, out)
+                        if len(matches) > 0:  # Some libraries are not found via 'ldd'
+                            # For each match, check if the library is in the exception list
+                            for match in matches:
+                                if match in filter_rpath_sanity_libs:
+                                    msg = "Library %s not found for %s, but ignored "
+                                    msg += "since it is on the rpath exception list: %s"
+                                    self.log.info(msg, match, path, filter_rpath_sanity_libs)
+                                else:
+                                    fail_msg = "Library %s not found for %s" % (match, path)
+                                    self.log.warning(fail_msg)
+                                    fails.append(fail_msg)
                         else:
                             self.log.debug("Output of 'ldd %s' checked, looks OK", path)
 
@@ -3069,13 +3148,15 @@ class EasyBlock(object):
         self.log.info("Checking for banned/required linked shared libraries...")
 
         # list of libraries that can *not* be linked in any installed binary/library
-        banned_libs = build_option('banned_linked_shared_libs') or []
+        banned_libs = []
+        banned_libs.extend(build_option('banned_linked_shared_libs') or [])
         banned_libs.extend(self.toolchain.banned_linked_shared_libs())
         banned_libs.extend(self.banned_linked_shared_libs())
         banned_libs.extend(self.cfg['banned_linked_shared_libs'])
 
         # list of libraries that *must* be linked in every installed binary/library
-        required_libs = build_option('required_linked_shared_libs') or []
+        required_libs = []
+        required_libs.extend(build_option('required_linked_shared_libs') or [])
         required_libs.extend(self.toolchain.required_linked_shared_libs())
         required_libs.extend(self.required_linked_shared_libs())
         required_libs.extend(self.cfg['required_linked_shared_libs'])
@@ -3346,6 +3427,34 @@ class EasyBlock(object):
             self.sanity_check_fail_msgs.append(overall_fail_msg + ', '.join(x[0] for x in failed_exts))
             self.sanity_check_fail_msgs.extend(x[1] for x in failed_exts)
 
+    def sanity_check_load_module(self, extension=False, extra_modules=None):
+        """
+        Load module to prepare environment for sanity check
+        """
+
+        # skip loading of fake module when using --sanity-check-only, load real module instead
+        if build_option('sanity_check_only') and not extension:
+            self.log.info("Loading real module for %s %s: %s", self.name, self.version, self.short_mod_name)
+            self.load_module(extra_modules=extra_modules)
+            self.sanity_check_module_loaded = True
+
+        # only load fake module for non-extensions, and not during dry run
+        elif not (extension or self.dry_run):
+
+            if extra_modules:
+                self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
+
+            try:
+                # unload all loaded modules before loading fake module
+                # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
+                self.fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules, verbose=True)
+                self.sanity_check_module_loaded = True
+            except EasyBuildError as err:
+                self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
+                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
+
+        return self.fake_mod_data
+
     def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False, extra_modules=None):
         """
         Real version of sanity_check_step method.
@@ -3410,24 +3519,8 @@ class EasyBlock(object):
 
                 trace_msg("%s %s found: %s" % (typ, xs2str(xs), ('FAILED', 'OK')[found]))
 
-        fake_mod_data = None
-
-        # skip loading of fake module when using --sanity-check-only, load real module instead
-        if build_option('sanity_check_only') and not extension:
-            self.load_module(extra_modules=extra_modules)
-
-        # only load fake module for non-extensions, and not during dry run
-        elif not (extension or self.dry_run):
-            try:
-                # unload all loaded modules before loading fake module
-                # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
-                fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules, verbose=True)
-            except EasyBuildError as err:
-                self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
-                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
-
-            if extra_modules:
-                self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
+        if not self.sanity_check_module_loaded:
+            self.fake_mod_data = self.sanity_check_load_module(extension=extension, extra_modules=extra_modules)
 
         # allow oversubscription of P processes on C cores (P>C) for software installed on top of Open MPI;
         # this is useful to avoid failing of sanity check commands that involve MPI
@@ -3463,8 +3556,10 @@ class EasyBlock(object):
             self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
 
         # cleanup
-        if fake_mod_data:
-            self.clean_up_fake_module(fake_mod_data)
+        if self.fake_mod_data:
+            self.clean_up_fake_module(self.fake_mod_data)
+            self.sanity_check_module_loaded = False
+            self.fake_mod_data = None
 
         if self.toolchain.use_rpath:
             rpath_fails = self.sanity_check_rpath()
@@ -4281,7 +4376,7 @@ def reproduce_build(app, reprod_dir_root):
     :param app: easyblock class instance
     :param reprod_dir_root: root directory in which to create the 'reprod' directory
 
-    :return reprod_dir: directory containing reproducibility files
+    :return: reprod_dir directory containing reproducibility files
     """
 
     ec_filename = app.cfg.filename()
@@ -4311,7 +4406,7 @@ def reproduce_build(app, reprod_dir_root):
 def get_easyblock_instance(ecdict):
     """
     Get an instance for this easyconfig
-    :param easyconfig: parsed easyconfig (EasyConfig instance)
+    :param ecdict: parsed easyconfig (EasyConfig instance)
 
     returns an instance of EasyBlock (or subclass thereof)
     """
@@ -4404,6 +4499,67 @@ class StopException(Exception):
     StopException class definition.
     """
     pass
+
+
+def inject_checksums_to_json(ecs, checksum_type):
+    """
+    Inject checksums of given type in corresponding json files
+
+    :param ecs: list of EasyConfig instances to calculate checksums and inject them into checksums.json
+    :param checksum_type: type of checksum to use
+    """
+    for ec in ecs:
+        ec_fn = os.path.basename(ec['spec'])
+        ec_dir = os.path.dirname(ec['spec'])
+        print_msg("injecting %s checksums for %s in checksums.json" % (checksum_type, ec['spec']), log=_log)
+
+        # get easyblock instance and make sure all sources/patches are available by running fetch_step
+        print_msg("fetching sources & patches for %s..." % ec_fn, log=_log)
+        app = get_easyblock_instance(ec)
+        app.update_config_template_run_step()
+        app.fetch_step(skip_checksums=True)
+
+        # compute & inject checksums for sources/patches
+        print_msg("computing %s checksums for sources & patches for %s..." % (checksum_type, ec_fn), log=_log)
+        checksums = {}
+        for entry in app.src + app.patches:
+            checksum = compute_checksum(entry['path'], checksum_type)
+            print_msg("* %s: %s" % (os.path.basename(entry['path']), checksum), log=_log)
+            checksums[os.path.basename(entry['path'])] = checksum
+
+        # compute & inject checksums for extension sources/patches
+        if app.exts:
+            print_msg("computing %s checksums for extensions for %s..." % (checksum_type, ec_fn), log=_log)
+
+            for ext in app.exts:
+                # compute checksums for extension sources & patches
+                if 'src' in ext:
+                    src_fn = os.path.basename(ext['src'])
+                    checksum = compute_checksum(ext['src'], checksum_type)
+                    print_msg(" * %s: %s" % (src_fn, checksum), log=_log)
+                    checksums[src_fn] = checksum
+                for ext_patch in ext.get('patches', []):
+                    patch_fn = os.path.basename(ext_patch['path'])
+                    checksum = compute_checksum(ext_patch['path'], checksum_type)
+                    print_msg(" * %s: %s" % (patch_fn, checksum), log=_log)
+                    checksums[patch_fn] = checksum
+
+        # actually inject new checksums or overwrite existing ones (if --force)
+        existing_checksums = app.get_checksums_from_json(always_read=True)
+        for filename in checksums:
+            if filename not in existing_checksums:
+                existing_checksums[filename] = checksums[filename]
+            # don't do anything if the checksum already exist and is the same
+            elif checksums[filename] != existing_checksums[filename]:
+                if build_option('force'):
+                    print_warning("Found existing checksums for %s, overwriting them (due to --force)..." % ec_fn)
+                    existing_checksums[filename] = checksums[filename]
+                else:
+                    raise EasyBuildError("Found existing checksum for %s, use --force to overwrite them" % filename)
+
+        # actually write the checksums
+        with open(os.path.join(ec_dir, 'checksums.json'), 'w') as outfile:
+            json.dump(existing_checksums, outfile, indent=2, sort_keys=True)
 
 
 def inject_checksums(ecs, checksum_type):

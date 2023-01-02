@@ -29,7 +29,7 @@ Support for BLIS as toolchain linear algebra library.
 :author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 :author: Sebastian Achilles (Forschungszentrum Juelich GmbH)
 """
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 
 from easybuild.tools.toolchain.linalg import LinAlg
 

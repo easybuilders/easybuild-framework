@@ -29,8 +29,8 @@ EasyBuild support for gimpi compiler toolchain (includes GCC and Intel MPI).
 :author: Kenneth Hoste (Ghent University)
 """
 import re
-from distutils.version import LooseVersion
 
+from easybuild.tools import LooseVersion
 from easybuild.toolchains.gcc import GccToolchain
 from easybuild.toolchains.mpi.intelmpi import IntelMPI
 

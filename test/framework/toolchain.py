@@ -34,7 +34,6 @@ import shutil
 import stat
 import sys
 import tempfile
-from distutils.version import LooseVersion
 from itertools import product
 from unittest import TextTestRunner
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
@@ -45,6 +44,7 @@ import easybuild.tools.toolchain.compiler
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.system import SystemToolchain
+from easybuild.tools import LooseVersion
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
@@ -702,29 +702,49 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_optarch_generic(self):
         """Test whether --optarch=GENERIC works as intended."""
+
+        intel_generic_flags_classic = "-xSSE2 -ftz -fp-speculation=safe -fp-model source"
+        intel_generic_flags_oneapi_old = "-march=x86-64 -mtune=generic -fp-speculation=safe -fp-model precise"
+        intel_generic_flags_oneapi_new = "-march=x86-64 -mtune=generic -ftz -fp-speculation=safe -fp-model precise"
+
         for generic in [False, True]:
             if generic:
                 init_config(build_options={'optarch': 'GENERIC', 'silent': True})
             flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
             tcs = {
-                'gompi': ('2018a', "-march=x86-64 -mtune=generic"),
-                'iccifort': ('2018.1.163', "-xSSE2 -ftz -fp-speculation=safe -fp-model source"),
-                'intel-compilers': ('2021.4.0', "-xSSE2 -fp-speculation=safe -fp-model precise"),
+                'gompi': ('2018a', "-march=x86-64 -mtune=generic", {}),
+                'iccifort': ('2018.1.163', "-xSSE2 -ftz -fp-speculation=safe -fp-model source", {}),
+                # check generic compiler flags for old versions of intel-compilers with/without opting in to oneapi
+                'intel-compilers@old-default': ('2021.4.0', intel_generic_flags_classic, {}),
+                'intel-compilers@old-oneapi-false': ('2021.4.0', intel_generic_flags_classic, {'oneapi': False}),
+                'intel-compilers@old-oneapi-true': ('2021.4.0', intel_generic_flags_oneapi_old, {'oneapi': True}),
+                # check generic compiler flags for recent versions of intel-compilers with/without opting in to oneapi
+                'intel-compilers@new-default': ('2022.2.0', intel_generic_flags_oneapi_new, {}),
+                'intel-compilers@new-oneapi-true': ('2022.2.0', intel_generic_flags_oneapi_new, {'oneapi': True}),
+                'intel-compilers@new-oneapi-false': ('2022.2.0', intel_generic_flags_classic, {'oneapi': False}),
             }
             for tcopt_optarch in [False, True]:
-                for tcname in tcs:
-                    tcversion, generic_flags = tcs[tcname]
+                for key in tcs:
+                    tcname = key.split('@')[0]
+                    tcversion, generic_flags, custom_tcopts = tcs[key]
                     tc = self.get_toolchain(tcname, version=tcversion)
-                    if tcname == 'intel-compilers':
-                        tc.set_options({'optarch': tcopt_optarch, 'oneapi': True})
-                    else:
-                        tc.set_options({'optarch': tcopt_optarch})
+
+                    tcopts = {'optarch': tcopt_optarch}
+                    tcopts.update(custom_tcopts)
+                    tc.set_options(tcopts)
+
                     tc.prepare()
                     for var in flag_vars:
+                        val = tc.get_variable(var)
+                        tup = (key, tcversion, tcopts, generic_flags, val)
                         if generic:
-                            self.assertTrue(generic_flags in tc.get_variable(var))
+                            error_msg = "(%s, %s, %s) '%s' flags should be found in: '%s'"
+                            self.assertTrue(generic_flags in val, error_msg % tup)
                         else:
-                            self.assertFalse(generic_flags in tc.get_variable(var))
+                            error_msg = "(%s, %s, %s) '%s' flags should not be found in: '%s'"
+                            self.assertFalse(generic_flags in val, error_msg % tup)
+
+                    modules.modules_tool().purge()
 
     def test_optarch_aarch64_heuristic(self):
         """Test whether AArch64 pre-GCC-6 optimal architecture flag heuristic works."""
@@ -872,7 +892,11 @@ class ToolchainTest(EnhancedTestCase):
                 tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({opt: enable})
                 tc.prepare()
-                flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
+                flag = tc.COMPILER_UNIQUE_OPTION_MAP[opt]
+                if isinstance(flag, list):
+                    flag = ' '.join('-%s' % x for x in flag)
+                else:
+                    flag = '-%s' % flag
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
@@ -1443,6 +1467,67 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('MPIF77'), 'mpiifort')
         self.assertEqual(os.getenv('MPIF90'), 'mpiifort')
         self.assertEqual(os.getenv('MPIFC'), 'mpiifort')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel-compilers', version='2022.2.0')
+        tc.prepare()
+
+        # by default (for version >= 2022.2.0): oneAPI C/C++ compiler + classic Fortran compiler
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpx')
+        self.assertEqual(os.getenv('F77'), 'ifort')
+        self.assertEqual(os.getenv('F90'), 'ifort')
+        self.assertEqual(os.getenv('FC'), 'ifort')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel-compilers', version='2022.2.0')
+        tc.set_options({'oneapi_fortran': True})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpx')
+        self.assertEqual(os.getenv('F77'), 'ifx')
+        self.assertEqual(os.getenv('F90'), 'ifx')
+        self.assertEqual(os.getenv('FC'), 'ifx')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel-compilers', version='2022.2.0')
+        tc.set_options({'oneapi_c_cxx': False, 'oneapi_fortran': True})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icc')
+        self.assertEqual(os.getenv('CXX'), 'icpc')
+        self.assertEqual(os.getenv('F77'), 'ifx')
+        self.assertEqual(os.getenv('F90'), 'ifx')
+        self.assertEqual(os.getenv('FC'), 'ifx')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel', version='2021b')
+        tc.set_options({'oneapi_c_cxx': True})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpx')
+        self.assertEqual(os.getenv('F77'), 'ifort')
+        self.assertEqual(os.getenv('F90'), 'ifort')
+        self.assertEqual(os.getenv('FC'), 'ifort')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel', version='2021b')
+        tc.set_options({'oneapi_fortran': True})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icc')
+        self.assertEqual(os.getenv('CXX'), 'icpc')
+        self.assertEqual(os.getenv('F77'), 'ifx')
+        self.assertEqual(os.getenv('F90'), 'ifx')
+        self.assertEqual(os.getenv('FC'), 'ifx')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel', version='2021b')
+        tc.set_options({'oneapi_c_cxx': True, 'oneapi_fortran': True})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpx')
+        self.assertEqual(os.getenv('F77'), 'ifx')
+        self.assertEqual(os.getenv('F90'), 'ifx')
+        self.assertEqual(os.getenv('FC'), 'ifx')
 
     def test_toolchain_verification(self):
         """Test verification of toolchain definition."""

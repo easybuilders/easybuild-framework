@@ -3,7 +3,7 @@
 # Author: Åke Sandgren, HPC2N
 
 # We need to be able to distinguish between versions of OpenMPI
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 
 
 def pre_configure_hook(self, *args, **kwargs):

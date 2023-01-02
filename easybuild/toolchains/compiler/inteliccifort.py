@@ -29,7 +29,7 @@ Support for Intel compilers (icc, ifort) as toolchain compilers.
 :author: Kenneth Hoste (Ghent University)
 """
 
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.build_log import EasyBuildError

@@ -38,7 +38,7 @@ import os
 import re
 import tempfile
 from contextlib import contextmanager
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 from textwrap import wrap
 
 from easybuild.base import fancylogger

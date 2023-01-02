@@ -57,104 +57,90 @@ class EasyStackTest(EnhancedTestCase):
         super(EasyStackTest, self).tearDown()
 
     def test_easystack_basic(self):
-        """Test for basic easystack file."""
+        """Test for basic easystack files."""
         topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_basic.yaml')
 
-        ec_fns, opts = parse_easystack(test_easystack)
-        expected = [
-            'binutils-2.25-GCCcore-4.9.3.eb',
-            'binutils-2.26-GCCcore-4.9.3.eb',
-            'foss-2018a.eb',
-            'toy-0.0-gompi-2018a-test.eb',
+        test_easystacks = [
+            'test_easystack_basic.yaml',
+            'test_easystack_basic_dict.yaml',
+            'test_easystack_easyconfigs_with_eb_ext.yaml',
         ]
-        self.assertEqual(sorted(ec_fns), sorted(expected))
-        self.assertEqual(opts, {})
+        for fn in test_easystacks:
+            test_easystack = os.path.join(topdir, 'easystacks', fn)
 
-    def test_easystack_easyconfigs(self):
-        """Test for easystack file using 'easyconfigs' key."""
+            easystack = parse_easystack(test_easystack)
+            expected = [
+                'binutils-2.25-GCCcore-4.9.3.eb',
+                'binutils-2.26-GCCcore-4.9.3.eb',
+                'foss-2018a.eb',
+                'toy-0.0-gompi-2018a-test.eb',
+            ]
+            self.assertEqual(sorted([x[0] for x in easystack.ec_opt_tuples]), sorted(expected))
+            self.assertTrue(all(x[1] is None for x in easystack.ec_opt_tuples))
+
+    def test_easystack_easyconfigs_dict(self):
+        """Test for easystack file where easyconfigs item is parsed as a dict, because easyconfig names are not
+        prefixed by dashes"""
         topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs.yaml')
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_dict.yaml')
 
-        ec_fns, opts = parse_easystack(test_easystack)
-        expected = [
-            'binutils-2.25-GCCcore-4.9.3.eb',
-            'binutils-2.26-GCCcore-4.9.3.eb',
-            'foss-2018a.eb',
-            'toy-0.0-gompi-2018a-test.eb',
-        ]
-        self.assertEqual(sorted(ec_fns), sorted(expected))
-        self.assertEqual(opts, {})
+        error_pattern = r"Found dict value for 'easyconfigs' in .* should be list.\nMake sure you use '-' to create .*"
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
 
-    def test_easystack_easyconfigs_with_eb_ext(self):
-        """Test for easystack file using 'easyconfigs' key, where eb extension is included in the easystack file"""
+    def test_easystack_easyconfigs_str(self):
+        """Test for easystack file where easyconfigs item is parsed as a dict, because easyconfig names are not
+        prefixed by dashes"""
         topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_with_eb_ext.yaml')
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_str.yaml')
 
-        ec_fns, opts = parse_easystack(test_easystack)
-        expected = [
-            'binutils-2.25-GCCcore-4.9.3.eb',
-            'binutils-2.26-GCCcore-4.9.3.eb',
-            'foss-2018a.eb',
-            'toy-0.0-gompi-2018a-test.eb',
-        ]
-        self.assertEqual(sorted(ec_fns), sorted(expected))
-        self.assertEqual(opts, {})
+        error_pattern = r"Found str value for 'easyconfigs' in .* should be list.\nMake sure you use '-' to create .*"
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
 
     def test_easystack_easyconfig_opts(self):
         """Test an easystack file using the 'easyconfigs' key, with additonal options for some easyconfigs"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_opts.yaml')
 
-        ec_fns, opts = parse_easystack(test_easystack)
-        expected = [
-            'binutils-2.25-GCCcore-4.9.3.eb',
-            'binutils-2.26-GCCcore-4.9.3.eb',
-            'foss-2018a.eb',
-            'toy-0.0-gompi-2018a-test.eb',
+        easystack = parse_easystack(test_easystack)
+        expected_tuples = [
+            ('binutils-2.25-GCCcore-4.9.3.eb', {'debug': True, 'from-pr': 12345}),
+            ('binutils-2.26-GCCcore-4.9.3.eb', None),
+            ('foss-2018a.eb', {'enforce-checksums': True, 'robot': True}),
+            ('toy-0.0-gompi-2018a-test.eb', None),
         ]
-        expected_opts = {
-            'binutils-2.25-GCCcore-4.9.3.eb': {'debug': True, 'from-pr': 12345},
-            'foss-2018a.eb': {'enforce-checksums': True, 'robot': True},
-        }
-        self.assertEqual(sorted(ec_fns), sorted(expected))
-        self.assertEqual(opts, expected_opts)
+        self.assertEqual(easystack.ec_opt_tuples, expected_tuples)
+
+    def test_easystack_invalid_key(self):
+        """Test easystack files with invalid key at the same level as the 'options' key"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_invalid_key.yaml')
+
+        error_pattern = r"Found one or more invalid keys for .* \(only 'options' supported\).*"
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+
+    def test_easystack_invalid_key2(self):
+        """Test easystack files with invalid key at the same level as the key that names the easyconfig"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_invalid_key2.yaml')
+
+        error_pattern = r"expected a dictionary with one key \(the EasyConfig name\), "
+        error_pattern += r"instead found keys: .*, invalid_key"
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+
+    def test_missing_easyconfigs_key(self):
+        """Test that EasyStack file that doesn't contain an EasyConfigs key will fail with sane error message"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easystack = os.path.join(topdir, 'easystacks', 'test_missing_easyconfigs_key.yaml')
+
+        error_pattern = r"Top-level key 'easyconfigs' missing in easystack file %s" % test_easystack
+        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
 
     def test_parse_fail(self):
         """Test for clean error when easystack file fails to parse."""
         test_yml = os.path.join(self.test_prefix, 'test.yml')
-        write_file(test_yml, 'software: %s')
+        write_file(test_yml, 'easyconfigs: %s')
         error_pattern = "Failed to parse .*/test.yml: while scanning for the next token"
         self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_yml)
-
-    def test_easystack_wrong_structure(self):
-        """Test for --easystack <easystack.yaml> when yaml easystack has wrong structure"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_wrong_structure.yaml')
-
-        expected_err = r"[\S\s]*An error occurred when interpreting the data for software Bioconductor:"
-        expected_err += r"( 'float' object is not subscriptable[\S\s]*"
-        expected_err += r"| 'float' object is unsubscriptable"
-        expected_err += r"| 'float' object has no attribute '__getitem__'[\S\s]*)"
-        self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, test_easystack)
-
-    def test_easystack_asterisk(self):
-        """Test for --easystack <easystack.yaml> when yaml easystack contains asterisk (wildcard)"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_asterisk.yaml')
-
-        expected_err = "EasyStack specifications of 'binutils' in .*/test_easystack_asterisk.yaml contain asterisk. "
-        expected_err += "Wildcard feature is not supported yet."
-
-        self.assertErrorRegex(EasyBuildError, expected_err, parse_easystack, test_easystack)
-
-    def test_easystack_labels(self):
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_labels.yaml')
-
-        error_msg = "EasyStack specifications of 'binutils' in .*/test_easystack_labels.yaml contain labels. "
-        error_msg += "Labels aren't supported yet."
-        self.assertErrorRegex(EasyBuildError, error_msg, parse_easystack, test_easystack)
 
     def test_check_value(self):
         """Test check_value function."""
@@ -167,104 +153,6 @@ class EasyStackTest(EnhancedTestCase):
         for version in (1.2, 100, None):
             error_pattern = r"Value .* \(of type .*\) obtained for <some context> is not valid!"
             self.assertErrorRegex(EasyBuildError, error_pattern, check_value, version, context)
-
-    def test_easystack_versions(self):
-        """Test handling of versions in easystack files."""
-
-        test_easystack = os.path.join(self.test_prefix, 'test.yml')
-        tmpl_easystack_txt = '\n'.join([
-            "software:",
-            "  foo:",
-            "    toolchains:",
-            "       SYSTEM:",
-            "           versions:",
-        ])
-
-        # normal versions, which are not treated special by YAML: no single quotes needed
-        versions = ('1.2.3', '1.2.30', '2021a', '1.2.3')
-        for version in versions:
-            write_file(test_easystack, tmpl_easystack_txt + ' ' + version)
-            ec_fns, opts = parse_easystack(test_easystack)
-            self.assertEqual(ec_fns, ['foo-%s.eb' % version])
-            self.assertEqual(opts, {})
-
-        # multiple versions as a list
-        test_easystack_txt = tmpl_easystack_txt + " [1.2.3, 3.2.1]"
-        write_file(test_easystack, test_easystack_txt)
-        ec_fns, opts = parse_easystack(test_easystack)
-        expected = ['foo-1.2.3.eb', 'foo-3.2.1.eb']
-        self.assertEqual(sorted(ec_fns), sorted(expected))
-        self.assertEqual(opts, {})
-
-        # multiple versions listed with more info
-        test_easystack_txt = '\n'.join([
-            tmpl_easystack_txt,
-            "             1.2.3:",
-            "             2021a:",
-            "             3.2.1:",
-            "                 versionsuffix: -foo",
-        ])
-        write_file(test_easystack, test_easystack_txt)
-        ec_fns, opts = parse_easystack(test_easystack)
-        expected = ['foo-1.2.3.eb', 'foo-2021a.eb', 'foo-3.2.1-foo.eb']
-        self.assertEqual(sorted(ec_fns), sorted(expected))
-        self.assertEqual(opts, {})
-
-        # versions that get interpreted by YAML as float or int, single quotes required
-        for version in ('1.2', '123', '3.50', '100', '2.44_01'):
-            error_pattern = r"Value .* \(of type .*\) obtained for foo \(with system toolchain\) is not valid\!"
-
-            write_file(test_easystack, tmpl_easystack_txt + ' ' + version)
-            self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
-
-            # all is fine when wrapping the value in single quotes
-            write_file(test_easystack, tmpl_easystack_txt + " '" + version + "'")
-            ec_fns, opts = parse_easystack(test_easystack)
-            self.assertEqual(ec_fns, ['foo-%s.eb' % version])
-            self.assertEqual(opts, {})
-
-            # one rotten apple in the basket is enough
-            test_easystack_txt = tmpl_easystack_txt + " [1.2.3, %s, 3.2.1]" % version
-            write_file(test_easystack, test_easystack_txt)
-            self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
-
-            test_easystack_txt = '\n'.join([
-                tmpl_easystack_txt,
-                "             1.2.3:",
-                "             %s:" % version,
-                "             3.2.1:",
-                "                 versionsuffix: -foo",
-            ])
-            write_file(test_easystack, test_easystack_txt)
-            self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
-
-            # single quotes to the rescue!
-            test_easystack_txt = '\n'.join([
-                tmpl_easystack_txt,
-                "             1.2.3:",
-                "             '%s':" % version,
-                "             3.2.1:",
-                "                 versionsuffix: -foo",
-            ])
-            write_file(test_easystack, test_easystack_txt)
-            ec_fns, opts = parse_easystack(test_easystack)
-            expected = ['foo-1.2.3.eb', 'foo-%s.eb' % version, 'foo-3.2.1-foo.eb']
-            self.assertEqual(sorted(ec_fns), sorted(expected))
-            self.assertEqual(opts, {})
-
-        # also check toolchain version that could be interpreted as a non-string value...
-        test_easystack_txt = '\n'.join([
-            'software:',
-            '  test:',
-            '    toolchains:',
-            '      intel-2021.03:',
-            "        versions: [1.2.3, '2.3']",
-        ])
-        write_file(test_easystack, test_easystack_txt)
-        ec_fns, opts = parse_easystack(test_easystack)
-        expected = ['test-1.2.3-intel-2021.03.eb', 'test-2.3-intel-2021.03.eb']
-        self.assertEqual(sorted(ec_fns), sorted(expected))
-        self.assertEqual(opts, {})
 
 
 def suite():

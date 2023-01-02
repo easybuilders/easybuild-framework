@@ -28,8 +28,8 @@ EasyBuild support for a iimpic compiler toolchain (includes iccifort, impi and C
 :author: Ake Sandgren (HPC2N)
 """
 import re
-from distutils.version import LooseVersion
 
+from easybuild.tools import LooseVersion
 from easybuild.toolchains.iccifortcuda import IccIfortCUDA
 from easybuild.toolchains.mpi.intelmpi import IntelMPI
 
