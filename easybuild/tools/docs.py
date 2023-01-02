@@ -841,7 +841,7 @@ def list_software_md(software, detailed=True):
             # sort pairs by version (and then by versionsuffix);
             # we sort by LooseVersion to obtain chronological version ordering,
             # but we also need to retain original string version for filtering-by-version done below
-            sorted_pairs = sort_looseversions((LooseVersion(v), vs, v) for v, vs in pairs)
+            sorted_pairs = sorted((LooseVersion(v), vs, v) for v, vs in pairs)
 
             for _, vsuff, ver in sorted_pairs:
                 table_values[0].append('``%s``' % ver)
