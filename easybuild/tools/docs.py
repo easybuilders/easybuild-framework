@@ -81,12 +81,12 @@ def generate_doc(name, params):
     return func(*params)
 
 
-def md_title_and_table(title, table_titles, table_values):
+def md_title_and_table(title, table_titles, table_values, title_level=1):
     """Generate table in section with title in MarkDown (.md) format."""
     doc = []
     if title is not None:
         doc.extend([
-            '## ' + title,
+            '#' * title_level + ' ' + title,
             '',
         ])
     doc.extend(mk_md_table(table_titles, table_values))
@@ -317,7 +317,7 @@ def avail_easyconfig_params_md(title, grouped_params):
             ['`' + str(quote_str(x[1])) + '`' for x in values]  # default value
         ]
 
-        doc.extend(md_title_and_table(title, table_titles, table_values))
+        doc.extend(md_title_and_table(title, table_titles, table_values, title_level=2))
         doc.append('')
 
     return '\n'.join(doc)
@@ -548,7 +548,7 @@ def avail_easyconfig_templates_md():
         ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_EASYCONFIG],
         [name[1] for name in TEMPLATE_NAMES_EASYCONFIG],
     ]
-    doc = md_title_and_table(title, table_titles, table_values)
+    doc = md_title_and_table(title, table_titles, table_values, title_level=2)
     doc.append('')
 
     title = 'Template names/values for (short) software versions'
@@ -560,7 +560,7 @@ def avail_easyconfig_templates_md():
         ver_desc.append('short version for %s (<major>.<minor>)' % name)
         ver_desc.append('full version for %s' % name)
     table_values = [ver, ver_desc]
-    doc.extend(md_title_and_table(title, table_titles, table_values))
+    doc.extend(md_title_and_table(title, table_titles, table_values, title_level=2))
     doc.append('')
 
     title = 'Template names/values as set in easyconfig'
@@ -574,7 +574,7 @@ def avail_easyconfig_templates_md():
         ['``%%(%s)s``' % (TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}) for name in TEMPLATE_NAMES_LOWER],
         ['lower case of value of %s' % name for name in TEMPLATE_NAMES_LOWER],
     ]
-    doc.extend(md_title_and_table(title, table_titles, table_values))
+    doc.extend(md_title_and_table(title, table_titles, table_values, title_level=2))
     doc.append('')
 
     title = 'Template values set outside EasyBlock runstep'
@@ -582,7 +582,7 @@ def avail_easyconfig_templates_md():
         ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
         [name[1] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
     ]
-    doc.extend(md_title_and_table(title, table_titles, table_values))
+    doc.extend(md_title_and_table(title, table_titles, table_values, title_level=2))
     doc.append('')
 
     title = 'Template values which are defined dynamically'
@@ -590,7 +590,7 @@ def avail_easyconfig_templates_md():
         ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_DYNAMIC],
         [name[1] for name in TEMPLATE_NAMES_DYNAMIC],
     ]
-    doc.extend(md_title_and_table(title, table_titles, table_values))
+    doc.extend(md_title_and_table(title, table_titles, table_values, title_level=2))
     doc.append('')
 
     title = 'Template constants that can be used in easyconfigs'
@@ -600,7 +600,7 @@ def avail_easyconfig_templates_md():
         [cst[2] for cst in TEMPLATE_CONSTANTS],
         ['``%s``' % cst[1] for cst in TEMPLATE_CONSTANTS],
     ]
-    doc.extend(md_title_and_table(title, titles, table_values))
+    doc.extend(md_title_and_table(title, titles, table_values, title_level=2))
 
     return '\n'.join(doc)
 
@@ -1036,6 +1036,66 @@ def list_toolchains(output_format=FORMAT_TXT):
         tcs[tcname] = tc.definition()
 
     return generate_doc('list_toolchains_%s' % output_format, [tcs])
+
+
+def list_toolchains_md(tcs):
+    """Returns overview of all toolchains in MarkDown format"""
+    title = "List of known toolchains"
+
+    # Specify the column names for the table
+    table_titles = ['NAME', 'COMPILER', 'MPI', 'LINALG', 'FFT']
+
+    # Set up column name : display name pairs
+    col_names = {
+        'NAME': 'Name',
+        'COMPILER': 'Compiler(s)',
+        'LINALG': "Linear algebra",
+    }
+
+    # Create sorted list of toolchain names
+    sorted_tc_names = sorted(tcs.keys(), key=str.lower)
+
+    # Create text placeholder to use for missing entries
+    none_txt = '*(none)*'
+
+    # Initialize an empty list of lists for the table data
+    table_values = [[] for i in range(len(table_titles))]
+
+    for col_id, col_name in enumerate(table_titles):
+        if col_name == 'NAME':
+            # toolchain names column gets bold face entry
+            table_values[col_id] = ['**%s**' % tcname for tcname in sorted_tc_names]
+        else:
+            for tc_name in sorted_tc_names:
+                tc = tcs[tc_name]
+                if 'cray' in tc_name.lower():
+                    if col_name == 'COMPILER':
+                        entry = ', '.join(tc[col_name.upper()])
+                    elif col_name == 'MPI':
+                        entry = 'cray-mpich'
+                    elif col_name == 'LINALG':
+                        entry = 'cray-libsci'
+                # Combine the linear algebra libraries into a single column
+                elif col_name == 'LINALG':
+                    linalg = []
+                    for col in ['BLAS', 'LAPACK', 'SCALAPACK']:
+                        linalg.extend(tc.get(col, []))
+                    entry = ', '.join(nub(linalg)) or none_txt
+                else:
+                    # for other columns, we can grab the values via 'tc'
+                    # key = col_name
+                    entry = ', '.join(tc.get(col_name, [])) or none_txt
+                table_values[col_id].append(entry)
+
+    # Set the table titles to the pretty ones
+    table_titles = [col_names.get(col, col) for col in table_titles]
+
+    # Pass the data to the rst formatter, wich is returned as a list, each element
+    # is an rst formatted text row.
+    doc = md_title_and_table(title, table_titles, table_values)
+
+    # Make a string with line endings suitable to write to document file
+    return '\n'.join(doc)
 
 
 def list_toolchains_rst(tcs):

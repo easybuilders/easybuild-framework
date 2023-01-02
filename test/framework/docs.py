@@ -662,7 +662,7 @@ class DocsTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
 
         md_patterns = [
-            r"^## Constants that can be used in easyconfigs",
+            r"^# Constants that can be used in easyconfigs",
             r"^``ARCH``\s*\|``.*``\s*\|CPU architecture of current system \(aarch64, x86_64, ppc64le, ...\)$",
             r"^``OS_PKG_OPENSSL_DEV``\s*\|``\('openssl-devel', 'libssl-dev', 'libopenssl-devel'\)``\s*\|"
             r"OS packages providing openSSL developement support$",
@@ -798,7 +798,7 @@ class DocsTest(EnhancedTestCase):
             '======    ======    ==================',
             '',
         ]
-        res = md_title_and_table('test title', table[0], table[1:])
+        res = md_title_and_table('test title', table[0], table[1:], title_level=2)
         self.assertEqual(res, expected_md)
 
         res = rst_title_and_table('test title', table[0], table[1:])
