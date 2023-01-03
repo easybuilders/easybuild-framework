@@ -33,8 +33,9 @@ from unittest import TextTestRunner
 
 from easybuild.tools.config import module_classes
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
-from easybuild.tools.docs import avail_easyconfig_templates, gen_easyblocks_overview_rst, list_easyblocks
-from easybuild.tools.docs import list_software, list_toolchains, md_title_and_table, rst_title_and_table
+from easybuild.tools.docs import avail_easyconfig_templates, avail_toolchain_opts, gen_easyblocks_overview_rst
+from easybuild.tools.docs import list_easyblocks, list_software, list_toolchains, md_title_and_table, rst_title_and_table
+from easybuild.tools.docs import rst_title_and_table
 from easybuild.tools.options import EasyBuildOptions
 from easybuild.tools.utilities import import_available_modules, mk_md_table, mk_rst_table
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
@@ -769,6 +770,90 @@ class DocsTest(EnhancedTestCase):
         ]
         txt_rst = avail_easyconfig_templates(output_format='rst')
         for pattern in rst_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+
+    def test_avail_toolchain_opts(self):
+        """
+        Test avail_toolchain_opts to generate overview of supported toolchain options.
+        """
+        txt_patterns_foss = [
+            r"^Available options for foss toolchain:",
+            r"^\s+extra_cxxflags: Specify extra CXXFLAGS options. \(default: None\)",
+            r"^\s+optarch: Enable architecture optimizations \(default: True\)",
+            r"^\s+precise: High precision \(default: False\)",
+        ]
+        oneapi_txt = r"^\s+oneapi: Use oneAPI compilers icx/icpx/ifx instead of classic compilers \(default: None\)"
+
+        for txt in (avail_toolchain_opts('foss'), avail_toolchain_opts('foss', output_format='txt')):
+            for pattern in txt_patterns_foss:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+            regex = re.compile(oneapi_txt, re.M)
+            self.assertFalse(regex.search(txt), "Pattern '%s' should not be found in: %s" % (regex.pattern, txt))
+
+        txt_patterns_intel = [
+            r"^Available options for intel toolchain:",
+            oneapi_txt,
+        ] + txt_patterns_foss[1:]
+
+        for txt in (avail_toolchain_opts('intel'), avail_toolchain_opts('intel', output_format='txt')):
+            for pattern in txt_patterns_intel:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        # MarkDown output format
+        md_patterns_foss = [
+            r"^## Available options for foss toolchain",
+            r"^``extra_cxxflags``\s+\|Specify extra CXXFLAGS options.\s+\|``None``",
+            r"^``optarch``\s+\|Enable architecture optimizations\s+\|``True``",
+            r"^``precise``\s+\|High precision\s+\|``False``",
+        ]
+
+        txt_md = avail_toolchain_opts('foss', output_format='md')
+        for pattern in md_patterns_foss:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+
+        oneapi_md = r"^``oneapi``\s+\|Use oneAPI compilers icx/icpx/ifx instead of classic compilers\s+\|``None``"
+        regex = re.compile(oneapi_md, re.M)
+        self.assertFalse(regex.search(txt_md), "Pattern '%s' should not be found in: %s" % (regex.pattern, txt_md))
+
+        md_patterns_intel = [
+            r"^## Available options for intel toolchain",
+            oneapi_md,
+        ] + md_patterns_foss[1:]
+
+        txt_md = avail_toolchain_opts('intel', output_format='md')
+        for pattern in md_patterns_intel:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+
+        # rst output format
+        rst_patterns_foss = [
+            r"^Available options for foss toolchain\n-{36}",
+            r"^``extra_cxxflags``\s+Specify extra CXXFLAGS options.\s+``None``",
+            r"^``optarch``\s+Enable architecture optimizations\s+``True``",
+            r"^``precise``\s+High precision\s+``False``",
+        ]
+
+        txt_rst = avail_toolchain_opts('foss', output_format='rst')
+        for pattern in rst_patterns_foss:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+
+        oneapi_rst = r"^``oneapi``\s+Use oneAPI compilers icx/icpx/ifx instead of classic compilers\s+``None``"
+        regex = re.compile(oneapi_rst, re.M)
+        self.assertFalse(regex.search(txt_rst), "Pattern '%s' should not be found in: %s" % (regex.pattern, txt_rst))
+
+        rst_patterns_intel = [
+            r"^Available options for intel toolchain\n-{37}",
+            oneapi_rst,
+        ] + rst_patterns_foss[1:]
+
+        txt_rst = avail_toolchain_opts('intel', output_format='rst')
+        for pattern in rst_patterns_intel:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
 

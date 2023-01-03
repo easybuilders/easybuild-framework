@@ -1185,6 +1185,24 @@ def avail_toolchain_opts(name, output_format=FORMAT_TXT):
     return generate_doc('avail_toolchain_opts_%s' % output_format, [name, tc_dict])
 
 
+def avail_toolchain_opts_md(name, tc_dict):
+    """ Returns overview of toolchain options in MarkDown format """
+    title = "Available options for %s toolchain" % name
+
+    table_titles = ['option', 'description', 'default']
+
+    tc_items = sorted(tc_dict.items())
+    table_values = [
+        ['``%s``' % val[0] for val in tc_items],
+        ['%s' % val[1][1] for val in tc_items],
+        ['``%s``' % val[1][0] for val in tc_items],
+    ]
+
+    doc = md_title_and_table(title, table_titles, table_values, title_level=2)
+
+    return '\n'.join(doc)
+
+
 def avail_toolchain_opts_rst(name, tc_dict):
     """ Returns overview of toolchain options in rst format """
     title = "Available options for %s toolchain" % name
