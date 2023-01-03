@@ -3839,6 +3839,35 @@ class ToyBuildTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
+    def test_toy_post_install_messages(self):
+        """
+        Test use of post-install messages
+        """
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "\npostinstallmsgs = ['This is post install message 1', 'This is post install message 2']"
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        test_report_fp = os.path.join(self.test_buildpath, 'full_test_report.md')
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.test_toy_build(ec_file=test_ec, test_report=test_report_fp)
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        patterns = [
+            r"== This is post install message 1",
+            r"== This is post install message 2",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
 
 def suite():
     """ return all the tests in this file """
