@@ -673,9 +673,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
-        info_msg = r"INFO List of known toolchains \(toolchainname: module\[,module\.\.\.\]\):"
+        regex = re.compile(r"INFO List of known toolchains \(toolchain name: module\[, module, \.\.\.\]\):")
         logtxt = read_file(self.logfile)
-        self.assertTrue(re.search(info_msg, logtxt), "Info message with list of known toolchains found in: %s" % logtxt)
+        self.assertTrue(regex.search(logtxt), "Pattern '%s' should be found in: %s" % (regex.pattern, logtxt))
         # toolchain elements should be in alphabetical order
         tcs = {
             'system': [],
