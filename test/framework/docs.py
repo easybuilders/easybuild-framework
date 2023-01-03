@@ -34,8 +34,8 @@ from unittest import TextTestRunner
 from easybuild.tools.config import module_classes
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
 from easybuild.tools.docs import avail_easyconfig_templates, avail_toolchain_opts, gen_easyblocks_overview_rst
-from easybuild.tools.docs import list_easyblocks, list_software, list_toolchains, md_title_and_table, rst_title_and_table
-from easybuild.tools.docs import rst_title_and_table
+from easybuild.tools.docs import list_easyblocks, list_software, list_toolchains
+from easybuild.tools.docs import md_title_and_table, rst_title_and_table
 from easybuild.tools.options import EasyBuildOptions
 from easybuild.tools.utilities import import_available_modules, mk_md_table, mk_rst_table
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
@@ -932,6 +932,86 @@ class DocsTest(EnhancedTestCase):
         error_pattern = "Number of titles/columns should be equal"
         self.assertErrorRegex(ValueError, error_pattern, md_title_and_table, '', titles, [])
         self.assertErrorRegex(ValueError, error_pattern, rst_title_and_table, '', titles, [('val 11', 'val 12')])
+
+    def test_help(self):
+        """
+        Test output produced by --help, with various output formats
+        """
+        def get_eb_help_output(arg=''):
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            self.eb_main(['--help', arg])
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            self.assertFalse(stderr)
+            return stdout
+
+        txt_patterns = [
+            r"^Usage: eb \[options\] easyconfig \[...\]",
+            r"^Options:\n\s+--version",
+            r"^\s+Basic options:\n\s+Basic runtime options for EasyBuild",
+            r"^\s+-f, --force\s+Force to rebuild software",
+            r"^\s+--module-only\s+Only generate module file\(s\)",
+            r"^\s+Software search and build options:",
+            r"^\s+--try-toolchain=NAME,VERSION",
+            r"^Boolean options support disable prefix",
+            r"^All long option names can be passed as environment variables",
+        ]
+        txt = get_eb_help_output()
+        for pattern in txt_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        short_patterns = [
+            r"^Usage: eb \[options\] easyconfig \[...\]",
+            r"^Options:\n\s+-h",
+            r"^\s+Basic options:\n\s+Basic runtime options for EasyBuild",
+            r"^\s+-f\s+Force to rebuild software",
+            r"^\s+Override options:\n\s+Override default EasyBuild behavior",
+            r"^\s+-e CLASS\s+easyblock to use",
+            r"^Boolean options support disable prefix",
+            r"^All long option names can be passed as environment variables",
+        ]
+        txt_short = get_eb_help_output('short')
+        for pattern in short_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_short), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_short))
+
+        config_patterns = [
+            r"^\[MAIN\]\n# Enable debug log mode \(default: False\)\n#debug=",
+            r"^\[override\](\n.*)+#filter-deps=",
+        ]
+        txt_cfg = get_eb_help_output('config')
+        for pattern in config_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_cfg), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_cfg))
+
+        md_patterns = [
+            r"^## Usage\n\n``eb \[options\] easyconfig \[...\]``",
+            r"^## Basic options",
+            r"^``-f, --force``\s+\|Force to rebuild software",
+            r"^## Override options",
+            r"^``-e CLASS, --easyblock=CLASS``\s+\|easyblock to use",
+        ]
+        txt_md = get_eb_help_output('md')
+        for pattern in md_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+
+        rst_patterns = [
+            r"^Usage\n-{5}\n\n``eb \[options\] easyconfig \[...\]``",
+            r"^Basic options\n-{13}",
+            r"^``-f, --force``\s+Force to rebuild software",
+            r"^Override options\n-{16}",
+            r"^``-e CLASS, --easyblock=CLASS``\s+easyblock to use",
+        ]
+        txt_rst = get_eb_help_output('rst')
+        for pattern in rst_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
 
 
 def suite():
