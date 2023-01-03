@@ -1238,7 +1238,7 @@ def get_easyblock_classes(package_name):
     modules = import_available_modules(package_name)
 
     for mod in modules:
-        for name, obj in inspect.getmembers(mod, inspect.isclass):
+        for name, _ in inspect.getmembers(mod, inspect.isclass):
             eb_class = getattr(mod, name)
             # skip imported classes that are not easyblocks
             if eb_class.__module__.startswith(package_name) and eb_class not in easyblocks:
@@ -1247,10 +1247,15 @@ def get_easyblock_classes(package_name):
     return easyblocks
 
 
-def gen_easyblocks_overview_md(package_name, path_to_examples, common_params={}, doc_functions=[]):
+def gen_easyblocks_overview_md(package_name, path_to_examples, common_params=None, doc_functions=None):
     """
     Compose overview of all easyblocks in the given package in MarkDown format
     """
+    if common_params is None:
+        common_params = {}
+    if doc_functions is None:
+        doc_functions = []
+
     eb_classes = get_easyblock_classes(package_name)
 
     eb_links = []
@@ -1272,10 +1277,15 @@ def gen_easyblocks_overview_md(package_name, path_to_examples, common_params={},
     return heading + doc
 
 
-def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}, doc_functions=[]):
+def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params=None, doc_functions=None):
     """
     Compose overview of all easyblocks in the given package in rst format
     """
+    if common_params is None:
+        common_params = {}
+    if doc_functions is None:
+        doc_functions = []
+
     eb_classes = get_easyblock_classes(package_name)
 
     doc = []
@@ -1382,7 +1392,7 @@ def gen_easyblock_doc_section_md(eb_class, path_to_examples, common_params, doc_
     example_ec = os.path.join(path_to_examples, '%s.eb' % classname)
     if os.path.exists(example_ec):
         doc.extend([
-             "### Example easyconfig for ``" + classname + "`` easyblock",
+            "### Example easyconfig for ``" + classname + "`` easyblock",
             '',
             '```python',
             read_file(example_ec),

@@ -473,7 +473,7 @@ class DocsTest(EnhancedTestCase):
         names = []
 
         for mod in modules:
-            for name, obj in inspect.getmembers(mod, inspect.isclass):
+            for name, _ in inspect.getmembers(mod, inspect.isclass):
                 eb_class = getattr(mod, name)
                 # skip imported classes that are not easyblocks
                 if eb_class.__module__.startswith(gen_easyblocks_pkg):
@@ -521,7 +521,7 @@ class DocsTest(EnhancedTestCase):
         names = []
 
         for mod in modules:
-            for name, obj in inspect.getmembers(mod, inspect.isclass):
+            for name, _ in inspect.getmembers(mod, inspect.isclass):
                 eb_class = getattr(mod, name)
                 # skip imported classes that are not easyblocks
                 if eb_class.__module__.startswith(gen_easyblocks_pkg):
