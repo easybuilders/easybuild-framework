@@ -1318,8 +1318,6 @@ def gen_easyblock_doc_section_md(eb_class, path_to_examples, common_params, doc_
     classname = eb_class.__name__
 
     doc = [
-        "<a anchor='#" + classname.lower() + "'/>",
-        '',
         '## ``' + classname + '``',
         '',
     ]

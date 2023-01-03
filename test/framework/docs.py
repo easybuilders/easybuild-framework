@@ -492,8 +492,6 @@ class DocsTest(EnhancedTestCase):
 
         # extensive check for ConfigureMake easyblock
         check_configuremake = '\n'.join([
-            "<a anchor='#configuremake'/>",
-            '',
             "## ``ConfigureMake``",
             '',
             "(derives from ``EasyBlock``)",
