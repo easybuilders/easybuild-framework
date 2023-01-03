@@ -33,7 +33,8 @@ from unittest import TextTestRunner
 
 from easybuild.tools.config import module_classes
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
-from easybuild.tools.docs import avail_easyconfig_templates, avail_toolchain_opts, gen_easyblocks_overview_rst
+from easybuild.tools.docs import avail_easyconfig_templates, avail_toolchain_opts
+from easybuild.tools.docs import get_easyblock_classes, gen_easyblocks_overview_md, gen_easyblocks_overview_rst
 from easybuild.tools.docs import list_easyblocks, list_software, list_toolchains
 from easybuild.tools.docs import md_title_and_table, rst_title_and_table
 from easybuild.tools.options import EasyBuildOptions
@@ -411,8 +412,19 @@ version|toolchain
 
 class DocsTest(EnhancedTestCase):
 
-    def test_gen_easyblocks(self):
-        """ Test gen_easyblocks_overview_rst function """
+    def test_get_easyblock_classes(self):
+        """
+        Test for get_easyblock_classes function.
+        """
+        # result should correspond with test easyblocks in test/framework/sandbox/easybuild/easyblocks/generic
+        eb_classes = get_easyblock_classes('easybuild.easyblocks.generic')
+        eb_names = [x.__name__ for x in eb_classes]
+        expected = ['ConfigureMake', 'DummyExtension', 'MakeCp', 'ModuleRC',
+                    'PythonBundle', 'Toolchain', 'Toy_Extension', 'bar']
+        self.assertEqual(sorted(eb_names), expected)
+
+    def test_gen_easyblocks_overview(self):
+        """ Test gen_easyblocks_overview_* functions """
         gen_easyblocks_pkg = 'easybuild.easyblocks.generic'
         modules = import_available_modules(gen_easyblocks_pkg)
         common_params = {
@@ -471,6 +483,53 @@ class DocsTest(EnhancedTestCase):
         toc = [":ref:`" + n + "`" for n in sorted(set(names))]
         pattern = " - ".join(toc)
 
+        regex = re.compile(pattern)
+        self.assertTrue(re.search(regex, ebdoc), "Pattern %s found in %s" % (regex.pattern, ebdoc))
+
+        # MarkDown format
+        eb_overview = gen_easyblocks_overview_md(gen_easyblocks_pkg, 'easyconfigs', common_params, doc_functions)
+        ebdoc = '\n'.join(eb_overview)
+
+        # extensive check for ConfigureMake easyblock
+        check_configuremake = '\n'.join([
+            "<a anchor='#configuremake'/>",
+            '',
+            "## ``ConfigureMake``",
+            '',
+            "(derives from ``EasyBlock``)",
+            '',
+            "Dummy support for building and installing applications with configure/make/make install.",
+            '',
+            "### Extra easyconfig parameters specific to ``ConfigureMake`` easyblock",
+            '',
+            "easyconfig parameter|description |default value",
+            "--------------------|------------|-------------",
+            '``test_123``        |Test 1, 2, 3|``""``',
+            "``test_bool``       |Just a test |``False``",
+            "``test_none``       |Another test|``None``",
+            '',
+            "### Commonly used easyconfig parameters with ``ConfigureMake`` easyblock",
+            '',
+            "easyconfig parameter|description",
+            "--------------------|----------------------------------------------------------------",
+            "configopts          |Extra options passed to configure (default already has --prefix)",
+            "buildopts           |Extra options passed to make step (default already has -j X)",
+            "installopts         |Extra options for installation",
+        ])
+
+        self.assertTrue(check_configuremake in ebdoc, "Found '%s' in: %s" % (check_configuremake, ebdoc))
+        names = []
+
+        for mod in modules:
+            for name, obj in inspect.getmembers(mod, inspect.isclass):
+                eb_class = getattr(mod, name)
+                # skip imported classes that are not easyblocks
+                if eb_class.__module__.startswith(gen_easyblocks_pkg):
+                    self.assertTrue(name in ebdoc)
+                    names.append(name)
+
+        toc = ["<a href='#" + n.lower() + "'>" + n + "</a>" for n in sorted(set(names))]
+        pattern = " - ".join(toc)
         regex = re.compile(pattern)
         self.assertTrue(re.search(regex, ebdoc), "Pattern %s found in %s" % (regex.pattern, ebdoc))
 

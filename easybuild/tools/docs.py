@@ -1230,24 +1230,57 @@ def avail_toolchain_opts_txt(name, tc_dict):
     return '\n'.join(doc)
 
 
-def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}, doc_functions=[]):
+def get_easyblock_classes(package_name):
     """
-    Compose overview of all easyblocks in the given package in rst format
+    Get list of all easyblock classes in specified easyblocks.* package
     """
+    easyblocks = []
     modules = import_available_modules(package_name)
-    doc = []
-    all_blocks = []
 
-    # get all blocks
     for mod in modules:
         for name, obj in inspect.getmembers(mod, inspect.isclass):
             eb_class = getattr(mod, name)
             # skip imported classes that are not easyblocks
-            if eb_class.__module__.startswith(package_name) and eb_class not in all_blocks:
-                all_blocks.append(eb_class)
+            if eb_class.__module__.startswith(package_name) and eb_class not in easyblocks:
+                easyblocks.append(eb_class)
 
-    for eb_class in sorted(all_blocks, key=lambda c: c.__name__):
-        doc.extend(gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc_functions, all_blocks))
+    return easyblocks
+
+
+def gen_easyblocks_overview_md(package_name, path_to_examples, common_params={}, doc_functions=[]):
+    """
+    Compose overview of all easyblocks in the given package in MarkDown format
+    """
+    eb_classes = get_easyblock_classes(package_name)
+
+    eb_links = []
+    for eb_class in sorted(eb_classes, key=lambda c: c.__name__):
+        eb_name = eb_class.__name__
+        eb_links.append("<a href='#" + eb_name.lower() + "'>" + eb_name + "</a>")
+
+    heading = [
+        "# Overview of generic easyblocks",
+        '',
+        ' - '.join(eb_links),
+        '',
+    ]
+
+    doc = []
+    for eb_class in sorted(eb_classes, key=lambda c: c.__name__):
+        doc.extend(gen_easyblock_doc_section_md(eb_class, path_to_examples, common_params, doc_functions, eb_classes))
+
+    return heading + doc
+
+
+def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}, doc_functions=[]):
+    """
+    Compose overview of all easyblocks in the given package in rst format
+    """
+    eb_classes = get_easyblock_classes(package_name)
+
+    doc = []
+    for eb_class in sorted(eb_classes, key=lambda c: c.__name__):
+        doc.extend(gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc_functions, eb_classes))
 
     title = 'Overview of generic easyblocks'
 
@@ -1260,12 +1293,104 @@ def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}
         '',
     ]
 
-    contents = [":ref:`" + b.__name__ + "`" for b in sorted(all_blocks, key=lambda b: b.__name__)]
+    contents = [":ref:`" + b.__name__ + "`" for b in sorted(eb_classes, key=lambda b: b.__name__)]
     toc = ' - '.join(contents)
     heading.append(toc)
     heading.append('')
 
     return heading + doc
+
+
+def gen_easyblock_doc_section_md(eb_class, path_to_examples, common_params, doc_functions, all_eb_classes):
+    """
+    Compose overview of one easyblock given class object of the easyblock in MarkDown format
+    """
+    classname = eb_class.__name__
+
+    doc = [
+        "<a anchor='#" + classname.lower() + "'/>",
+        '',
+        '## ``' + classname + '``',
+        '',
+    ]
+
+    bases = []
+    for base in eb_class.__bases__:
+        bname = base.__name__
+        if base in all_eb_classes:
+            bases.append("<a href='#" + bname.lower() + "'>``" + bname + "``</a>")
+        else:
+            bases.append('``' + bname + '``')
+
+    derived = '(derives from ' + ', '.join(bases) + ')'
+    doc.extend([derived, ''])
+
+    # Description (docstring)
+    eb_docstring = eb_class.__doc__
+    if eb_docstring is not None:
+        doc.extend(x.lstrip() for x in eb_docstring.splitlines())
+        doc.append('')
+
+    # Add extra options, if any
+    if eb_class.extra_options():
+        title = "Extra easyconfig parameters specific to ``%s`` easyblock" % classname
+        ex_opt = eb_class.extra_options()
+        keys = sorted(ex_opt.keys())
+        values = [ex_opt[k] for k in keys]
+
+        table_titles = ['easyconfig parameter', 'description', 'default value']
+        table_values = [
+            ['``' + key + '``' for key in keys],  # parameter name
+            [val[1] for val in values],  # description
+            ['``' + str(quote_str(val[0])) + '``' for val in values]  # default value
+        ]
+
+        doc.extend(md_title_and_table(title, table_titles, table_values, title_level=3))
+        doc.append('')
+
+    # Add commonly used parameters
+    if classname in common_params:
+        title = "Commonly used easyconfig parameters with ``%s`` easyblock" % classname
+
+        table_titles = ['easyconfig parameter', 'description']
+        table_values = [
+            [opt for opt in common_params[classname]],
+            [DEFAULT_CONFIG[opt][1] for opt in common_params[classname]],
+        ]
+
+        doc.extend(md_title_and_table(title, table_titles, table_values, title_level=3))
+        doc.append('')
+
+    # Add docstring for custom steps
+    custom = []
+    inh = ''
+    f = None
+    for func in doc_functions:
+        if func in eb_class.__dict__:
+            f = eb_class.__dict__[func]
+
+        if f.__doc__:
+            custom.append('* ``' + func + '`` - ' + f.__doc__.strip() + inh)
+            custom.append('')
+
+    if custom:
+        doc.append("### Customised steps in ``" + classname + "`` easyblock")
+        doc.extend(custom)
+        doc.append('')
+
+    # Add example if available
+    example_ec = os.path.join(path_to_examples, '%s.eb' % classname)
+    if os.path.exists(example_ec):
+        doc.extend([
+             "### Example easyconfig for ``" + classname + "`` easyblock",
+            '',
+            '```python',
+            read_file(example_ec),
+            '```',
+            '',
+        ])
+
+    return doc
 
 
 def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc_functions, all_blocks):
