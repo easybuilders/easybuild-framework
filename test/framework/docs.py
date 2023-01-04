@@ -363,11 +363,10 @@ LIST_SOFTWARE_SIMPLE_MD = """# List of supported software
 
 EasyBuild supports 2 different software packages (incl. toolchains, bundles):
 
-<a href="#g">g</a>
+[g](#g)
 
 
-<a anchor="g"/>
-### *G*
+### G
 
 * GCC
 * gzip"""
@@ -376,33 +375,30 @@ LIST_SOFTWARE_DETAILED_MD = """# List of supported software
 
 EasyBuild supports 2 different software packages (incl. toolchains, bundles):
 
-<a href="#g">g</a>
+[g](#g)
 
 
-<a anchor="g"/>
-### *G*
+### G
 
 
-<a href="#gcc">GCC</a> - <a href="#gzip">gzip</a>
+[GCC](#gcc) - [gzip](#gzip)
 
 
-<a anchor="gcc"/>
-### *GCC*
+### GCC
 
 %(gcc_descr)s
 
-*homepage*: http://gcc.gnu.org/
+*homepage*: <http://gcc.gnu.org/>
 
 version  |toolchain
 ---------|----------
 ``4.6.3``|``system``
 
-<a anchor="gzip"/>
-### *gzip*
+### gzip
 
 %(gzip_descr)s
 
-*homepage*: http://www.gzip.org/
+*homepage*: <http://www.gzip.org/>
 
 version|toolchain
 -------|-------------------------------
@@ -526,7 +522,7 @@ class DocsTest(EnhancedTestCase):
                     self.assertTrue(name in ebdoc)
                     names.append(name)
 
-        toc = ["<a href='#" + n.lower() + "'>" + n + "</a>" for n in sorted(set(names))]
+        toc = ["\\[" + n + "\\]\\(#" + n.lower() + "\\)" for n in sorted(set(names))]
         pattern = " - ".join(toc)
         regex = re.compile(pattern)
         self.assertTrue(re.search(regex, ebdoc), "Pattern %s found in %s" % (regex.pattern, ebdoc))
@@ -746,7 +742,7 @@ class DocsTest(EnhancedTestCase):
             r"^Constants that can be used in easyconfigs",
             r"^\s*ARCH: .* \(CPU architecture of current system \(aarch64, x86_64, ppc64le, ...\)\)",
             r"^\s*OS_PKG_OPENSSL_DEV: \('openssl-devel', 'libssl-dev', 'libopenssl-devel'\) "
-            r"\(OS packages providing openSSL developement support\)",
+            r"\(OS packages providing openSSL development support\)",
         ]
 
         txt = avail_easyconfig_constants()
@@ -763,7 +759,7 @@ class DocsTest(EnhancedTestCase):
             r"^# Constants that can be used in easyconfigs",
             r"^``ARCH``\s*\|``.*``\s*\|CPU architecture of current system \(aarch64, x86_64, ppc64le, ...\)$",
             r"^``OS_PKG_OPENSSL_DEV``\s*\|``\('openssl-devel', 'libssl-dev', 'libopenssl-devel'\)``\s*\|"
-            r"OS packages providing openSSL developement support$",
+            r"OS packages providing openSSL development support$",
         ]
         txt_md = avail_easyconfig_constants(output_format='md')
         for pattern in md_patterns:
@@ -774,7 +770,7 @@ class DocsTest(EnhancedTestCase):
             r"^Constants that can be used in easyconfigs\n-{41}",
             r"^``ARCH``\s*``.*``\s*CPU architecture of current system \(aarch64, x86_64, ppc64le, ...\)$",
             r"^``OS_PKG_OPENSSL_DEV``\s*``\('openssl-devel', 'libssl-dev', 'libopenssl-devel'\)``\s*"
-            r"OS packages providing openSSL developement support$",
+            r"OS packages providing openSSL development support$",
         ]
         txt_rst = avail_easyconfig_constants(output_format='rst')
         for pattern in rst_patterns:
