@@ -25,7 +25,9 @@
 """
 MPI support for Fujitsu MPI.
 
-:author: Miguel Dias Costa (National University of Singapore)
+Authors:
+
+* Miguel Dias Costa (National University of Singapore)
 """
 from easybuild.toolchains.compiler.fujitsu import FujitsuCompiler
 from easybuild.toolchains.mpi.openmpi import TC_CONSTANT_OPENMPI, TC_CONSTANT_MPI_TYPE_OPENMPI

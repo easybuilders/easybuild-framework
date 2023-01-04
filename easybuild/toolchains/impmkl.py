@@ -26,7 +26,9 @@
 EasyBuild support for impmkl compiler toolchain (includes Intel compilers (icc, ifort), MPICH,
 Intel Math Kernel Library (MKL) , and Intel FFTW wrappers.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.impich import Impich

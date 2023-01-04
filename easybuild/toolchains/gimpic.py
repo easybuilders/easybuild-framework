@@ -25,8 +25,10 @@
 """
 EasyBuild support for gimpic compiler toolchain (includes GCC and IntelMPI and CUDA).
 
-:author: Kenneth Hoste (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
 :author: Ake Sandgren (HPC2N, Umea University)
 """
 

@@ -69,8 +69,10 @@ Logging to a udp server:
  - set an environment variable FANCYLOG_SERVER and FANCYLOG_SERVER_PORT (optionally)
  - this will make fancylogger log to that that server and port instead of the screen.
 
-:author: Jens Timmerman (Ghent University)
-:author: Stijn De Weirdt (Ghent University)
+Authors:
+
+* Jens Timmerman (Ghent University)
+* Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 """
 

@@ -25,8 +25,10 @@
 """
 EasyBuild support for goalf compiler toolchain (includes GCC, OpenMPI, ATLAS, BLACS, ScaLAPACK and FFTW).
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.gompi import Gompi

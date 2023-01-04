@@ -25,8 +25,10 @@
 """
 Abstract interface for submitting jobs and related utilities.
 
-:author: Riccardo Murri (University of Zurich)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Riccardo Murri (University of Zurich)
+* Kenneth Hoste (Ghent University)
 """
 
 from abc import ABCMeta, abstractmethod

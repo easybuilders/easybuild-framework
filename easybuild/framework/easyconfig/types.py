@@ -26,8 +26,10 @@
 """
 Support for checking types of easyconfig parameter values.
 
-:author: Caroline De Brouwer (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Caroline De Brouwer (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 from distutils.util import strtobool
 

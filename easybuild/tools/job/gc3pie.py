@@ -26,8 +26,10 @@
 """
 Interface for submitting jobs via GC3Pie.
 
-:author: Riccardo Murri (University of Zurich)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Riccardo Murri (University of Zurich)
+* Kenneth Hoste (Ghent University)
 """
 import os
 from time import gmtime, strftime

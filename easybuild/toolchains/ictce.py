@@ -26,8 +26,10 @@
 EasyBuild support for ictce compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI,
 Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.iimpi import Iimpi

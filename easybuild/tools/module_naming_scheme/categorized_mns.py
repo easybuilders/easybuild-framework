@@ -25,8 +25,10 @@
 """
 Implementation of a categorized module naming scheme using module classes.
 
-:author: Maxime Schmitt (University of Luxembourg)
-:author: Xavier Besseron (University of Luxembourg)
+Authors:
+
+* Maxime Schmitt (University of Luxembourg)
+* Xavier Besseron (University of Luxembourg)
 """
 
 import os

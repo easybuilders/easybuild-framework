@@ -25,7 +25,9 @@
 """
 Support for Spectrum MPI as toolchain MPI library.
 
-:author: Alan O'Cais (Juelich Supercomputing Centre)
+Authors:
+
+* Alan O'Cais (Juelich Supercomputing Centre)
 """
 
 from easybuild.toolchains.mpi.openmpi import OpenMPI

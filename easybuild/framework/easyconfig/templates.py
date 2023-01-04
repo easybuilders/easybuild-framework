@@ -27,8 +27,10 @@
 Easyconfig templates module that provides templating that can
 be used within an Easyconfig file.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
 :author: Kenneth Hoste (Ghent University)
 """
 import re

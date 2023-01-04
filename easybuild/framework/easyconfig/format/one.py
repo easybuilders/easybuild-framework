@@ -27,8 +27,10 @@ This describes the easyconfig format version 1.X
 
 This is the original pure python code, to be exec'ed rather then parsed
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import copy
 import os

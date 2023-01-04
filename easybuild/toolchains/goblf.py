@@ -25,8 +25,10 @@
 """
 EasyBuild support for goblf compiler toolchain (includes GCC, OpenMPI, BLIS, LAPACK, ScaLAPACK and FFTW).
 
-:author: Kenneth Hoste (Ghent University)
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
 from easybuild.toolchains.fft.fftw import Fftw

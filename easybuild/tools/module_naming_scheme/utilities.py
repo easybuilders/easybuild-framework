@@ -25,8 +25,10 @@
 """
 Utility functions for implementating module naming schemes.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 :author: Pieter De Baets (Ghent University)
 :author: Jens Timmerman (Ghent University)

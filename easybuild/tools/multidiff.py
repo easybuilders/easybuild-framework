@@ -25,8 +25,10 @@
 """
 Module which allows the diffing of multiple files
 
-:author: Toon Willems (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Toon Willems (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 
 import difflib

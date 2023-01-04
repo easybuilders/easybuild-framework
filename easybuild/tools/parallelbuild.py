@@ -28,8 +28,10 @@ dependencies)
 
 Support for PBS is provided via the PbsJob class. If you want you could create other job classes and use them here.
 
-:author: Toon Willems (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Toon Willems (Ghent University)
+* Kenneth Hoste (Ghent University)
 :author: Stijn De Weirdt (Ghent University)
 """
 import math

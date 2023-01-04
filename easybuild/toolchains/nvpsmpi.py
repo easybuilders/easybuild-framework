@@ -26,7 +26,9 @@
 """
 EasyBuild support for nvsmpi compiler toolchain (includes NVHPC and ParaStationMPI).
 
-:author: Robert Mijakovic <robert.mijakovic@lxp.lu> (LuxProvide)
+Authors:
+
+* Robert Mijakovic <robert.mijakovic@lxp.lu> (LuxProvide)
 """
 
 from easybuild.toolchains.nvhpc import NVHPCToolchain

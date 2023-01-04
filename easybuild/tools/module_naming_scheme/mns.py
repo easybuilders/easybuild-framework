@@ -25,8 +25,10 @@
 """
 Module naming scheme API.
 
-:author: Jens Timmerman (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Jens Timmerman (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import re
 

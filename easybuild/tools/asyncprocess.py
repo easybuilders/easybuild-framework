@@ -57,8 +57,10 @@ and the methods will return None.
 - modified
 -- added STDOUT handle
 
-:author: Josiah Carlson
-:author: Stijn De Weirdt (Ghent University)
+Authors:
+
+* Josiah Carlson
+* Stijn De Weirdt (Ghent University)
 :author: Dries Verdegem (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 :author: Pieter De Baets (Ghent University)

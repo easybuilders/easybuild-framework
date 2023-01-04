@@ -28,8 +28,10 @@
 """
 Support for PGI compilers (pgcc, pgc++, pgf90/pgfortran) as toolchain compilers.
 
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
-:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+Authors:
+
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+* Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 
 import easybuild.tools.systemtools as systemtools

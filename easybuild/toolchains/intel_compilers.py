@@ -25,7 +25,9 @@
 """
 EasyBuild support for Intel compilers toolchain (icc, ifort), v2021.x or newer (oneAPI).
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 from easybuild.toolchains.compiler.intel_compilers import IntelCompilers
 from easybuild.toolchains.gcccore import GCCcore

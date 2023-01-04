@@ -25,8 +25,10 @@
 """
 Module providing custom exceptions.
 
-:author: Kenneth Hoste (Ghent University)
-:author: Riccardo Murri (University of Zurich)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Riccardo Murri (University of Zurich)
 """
 import inspect
 import logging

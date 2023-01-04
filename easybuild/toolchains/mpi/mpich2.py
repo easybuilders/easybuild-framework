@@ -25,8 +25,10 @@
 """
 Support for MPICH2 as toolchain MPI library.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 :author: Jens Timmerman (Ghent University)
 """
 

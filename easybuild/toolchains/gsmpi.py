@@ -25,8 +25,10 @@
 """
 EasyBuild support for gsmpi compiler toolchain (includes GCC and SpectrumMPI).
 
-:author: Kenneth Hoste (Ghent University)
-:author: Alan O'Cais (Juelich Supercomputing Centre)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Alan O'Cais (Juelich Supercomputing Centre)
 """
 
 from easybuild.toolchains.gcc import GccToolchain

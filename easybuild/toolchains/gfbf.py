@@ -25,8 +25,10 @@
 """
 EasyBuild support for gfbf compiler toolchain (includes GCC, FlexiBLAS and FFTW)
 
-:author: Kenneth Hoste (Ghent University)
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
 from easybuild.toolchains.gcc import GccToolchain

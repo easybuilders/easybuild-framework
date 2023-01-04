@@ -28,7 +28,9 @@
 """
 EasyBuild support for PGI compiler toolchain.
 
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+Authors:
+
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
 from easybuild.toolchains.compiler.pgi import Pgi

@@ -28,8 +28,10 @@
 """
 EasyBuild support for NVHPC compiler toolchain.
 
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
-:author: Andreas Herten (Forschungszentrum Juelich)
+Authors:
+
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+* Andreas Herten (Forschungszentrum Juelich)
 """
 
 from easybuild.toolchains.compiler.nvhpc import NVHPC

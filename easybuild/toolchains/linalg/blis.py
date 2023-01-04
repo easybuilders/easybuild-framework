@@ -25,8 +25,10 @@
 """
 Support for BLIS as toolchain linear algebra library.
 
-:author: Kenneth Hoste (Ghent University)
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 :author: Sebastian Achilles (Forschungszentrum Juelich GmbH)
 """
 from easybuild.tools import LooseVersion

@@ -25,7 +25,9 @@
 """
 EasyBuild support for a intel+CUDA compiler toolchain.
 
-:author: Ake Sandgren (HPC2N)
+Authors:
+
+* Ake Sandgren (HPC2N)
 """
 
 from easybuild.toolchains.iimpic import Iimpic

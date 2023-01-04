@@ -25,9 +25,11 @@
 # #
 """
 Overhaul all @param and @author tags for rst API documentation
-(@param x --> :param x: and @author --> :author:)
+(@param x --> :param x: and @author --> *)
 
-:author: Caroline De Brouwer (Ghent University)
+Authors:
+
+* Caroline De Brouwer (Ghent University)
 """
 
 import os

@@ -25,7 +25,9 @@
 """
 Support for OpenBLAS as toolchain linear algebra library.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 
 from easybuild.tools.toolchain.linalg import LinAlg

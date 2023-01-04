@@ -25,7 +25,9 @@
 """
 Support for Fujitsu's SSL library, which provides BLAS/LAPACK support.
 
-:author: Miguel Dias Costa (National University of Singapore)
+Authors:
+
+* Miguel Dias Costa (National University of Singapore)
 """
 import os
 

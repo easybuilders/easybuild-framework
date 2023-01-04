@@ -26,8 +26,10 @@
 """
 Various utilities related to packaging support.
 
-:author: Marc Litherland (Novartis)
-:author: Gianluca Santarossa (Novartis)
+Authors:
+
+* Marc Litherland (Novartis)
+* Gianluca Santarossa (Novartis)
 :author: Robert Schmidt (The Ottawa Hospital, Research Institute)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Kenneth Hoste (Ghent University)

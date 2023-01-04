@@ -25,8 +25,10 @@
 All required to provide details of build environment
 and allow for reproducable builds
 
-:author: Kenneth Hoste (Ghent University)
-:author: Stijn De Weirdt (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Stijn De Weirdt (Ghent University)
 """
 import time
 from easybuild.tools.filetools import det_size

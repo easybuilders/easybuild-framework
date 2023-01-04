@@ -25,8 +25,10 @@
 """
 EasyBuild support for Intel compilers toolchain (icc, ifort)
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import re
 

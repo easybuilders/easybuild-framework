@@ -25,8 +25,10 @@
 """
 Toolchain specific variables
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 
 from easybuild.tools.build_log import EasyBuildError

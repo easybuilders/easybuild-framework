@@ -28,7 +28,9 @@
 """
 EasyBuild support for cgmvapich2 compiler toolchain (includes Clang, GFortran and MVAPICH2).
 
-:author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+Authors:
+
+* Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
 from easybuild.toolchains.clanggcc import ClangGcc

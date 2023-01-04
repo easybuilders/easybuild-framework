@@ -25,7 +25,9 @@
 """
 Support for CUDA compilers as toolchain (co-)compiler.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 
 from easybuild.tools.toolchain.compiler import Compiler

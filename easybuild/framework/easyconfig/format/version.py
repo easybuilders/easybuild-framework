@@ -26,8 +26,10 @@
 """
 This describes the easyconfig version class. To be used in EasyBuild for anything related to version checking
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import operator as op
 import re

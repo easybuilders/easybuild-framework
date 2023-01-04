@@ -25,8 +25,10 @@
 """
 EasyBuild support for golf compiler toolchain (includes GCC, OpenBLAS, LAPACK, and FFTW).
 
-:author: Kenneth Hoste (Ghent University)
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
 from easybuild.toolchains.gcc import GccToolchain

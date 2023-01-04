@@ -27,8 +27,10 @@
 Easyconfig module that provides functionality for dealing with easyconfig (.eb) files,
 alongside the EasyConfig class to represent parsed easyconfig files.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 :author: Pieter De Baets (Ghent University)
 :author: Jens Timmerman (Ghent University)

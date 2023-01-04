@@ -25,7 +25,9 @@
 """
 EasyBuild support for gmpit compiler toolchain (includes GCC and MPItrampoline).
 
-:author: Alan O'Cais (CECAM)
+Authors:
+
+* Alan O'Cais (CECAM)
 """
 import re
 

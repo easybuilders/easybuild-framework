@@ -31,8 +31,10 @@ Map values can be string with named templates
         %(opt)s : option name
         %(value)s : option value
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 
 from easybuild.base import fancylogger

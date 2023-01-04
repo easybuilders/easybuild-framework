@@ -26,7 +26,9 @@
 """
 Style tests for easyconfig files using pycodestyle.
 
-:author: Ward Poelmans (Ghent University)
+Authors:
+
+* Ward Poelmans (Ghent University)
 """
 import re
 import sys

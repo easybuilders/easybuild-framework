@@ -25,7 +25,9 @@
 """
 EasyBuild support for GCC compiler toolchain.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.compiler.gcc import Gcc

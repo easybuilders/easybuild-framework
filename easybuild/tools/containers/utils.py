@@ -23,8 +23,10 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 """
-:author: Shahzeb Siddiqui (Pfizer)
-:author: Kenneth Hoste (HPC-UGent)
+Authors:
+
+* Shahzeb Siddiqui (Pfizer)
+* Kenneth Hoste (HPC-UGent)
 :author: Mohamed Abidi (Bright Computing)
 """
 import operator

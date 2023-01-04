@@ -25,8 +25,10 @@
 """
 Support for Intel FFTW as toolchain FFT library.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import os
 

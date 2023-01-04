@@ -25,8 +25,10 @@
 """
 EasyBuild support for giolfc compiler toolchain (includes GCC+CUDA, IntelMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
-:author: Kenneth Hoste (Ghent University)
-:author: Ake Sandgren (HPC2N, Umea University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Ake Sandgren (HPC2N, Umea University)
 """
 
 from easybuild.toolchains.gimpic import Gimpic

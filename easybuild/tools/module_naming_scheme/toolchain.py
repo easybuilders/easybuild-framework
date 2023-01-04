@@ -25,7 +25,9 @@
 """
 Toolchain querying support for module naming schemes.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 import copy
 
