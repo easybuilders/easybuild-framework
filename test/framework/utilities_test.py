@@ -158,22 +158,25 @@ class UtilitiesTest(EnhancedTestCase):
             # vstring is the unparsed version
             self.assertEqual(LooseVersion(v1).vstring, v1)
 
+        # Default/None LooseVersion cannot be compared
         none_version = LooseVersion(None)
-        self.assertTrue(none_version == LooseVersion())
-        self.assertTrue(none_version == None)  # noqa: E711
-        self.assertTrue(None == none_version)  # noqa: E711
-        self.assertFalse(none_version == LooseVersion(''))
-        self.assertFalse(none_version == LooseVersion('1'))
-        self.assertTrue(none_version < LooseVersion(''))
-        self.assertTrue(none_version < LooseVersion('0'))
-        self.assertTrue(none_version < LooseVersion('1'))
-
+        self.assertErrorRegex(TypeError, '', lambda c: none_version == LooseVersion('1'))
+        self.assertErrorRegex(TypeError, '', lambda c: none_version < LooseVersion(''))
+        self.assertErrorRegex(TypeError, '', lambda c: none_version < LooseVersion('0'))
+        self.assertErrorRegex(TypeError, '', lambda c: none_version > LooseVersion(''))
+        self.assertErrorRegex(TypeError, '', lambda c: none_version > LooseVersion('0'))
+        self.assertErrorRegex(TypeError, '', lambda c: none_version == '1')
+        self.assertErrorRegex(TypeError, '', lambda c: none_version != '1')
+        self.assertErrorRegex(TypeError, '', lambda c: none_version < '1')
+        self.assertErrorRegex(TypeError, '', lambda c: none_version > '1')
+        # You can check for None .version or .vstring
         self.assertIsNone(none_version.version)
         self.assertIsNone(none_version.vstring)
         # version is the parsed version
         self.assertEqual(LooseVersion('2.5').version, [2, 5])
         self.assertEqual(LooseVersion('2.a.5').version, [2, 'a', 5])
         self.assertEqual(LooseVersion('2.a').version, [2, 'a'])
+        self.assertEqual(LooseVersion('2.a5').version, [2, 'a', 5])
 
 
 def suite():

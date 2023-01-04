@@ -61,14 +61,6 @@ class LooseVersion(object):
 
     def _cmp(self, other):
         """Rich comparison method used by the operators below"""
-        # Comparison of a default/None-version is only equal if the other side is
-        # None or a None-version, otherwise the None-version is "less"
-        if self._vstring is None:
-            if other is None:
-                return 0
-            elif isinstance(other, LooseVersion) and other._vstring is None:
-                return 0
-            return -1
         if isinstance(other, str):
             other = LooseVersion(other)
 
