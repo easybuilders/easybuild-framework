@@ -30,7 +30,7 @@ class LooseVersion(object):
     component_re = re.compile(r'(\d+ | [a-z]+ | \.)', re.VERBOSE)
 
     def __init__(self, vstring=None):
-        self.vstring = vstring
+        self._vstring = vstring
         if vstring:
             components = [x for x in self.component_re.split(vstring)
                           if x and x != '.']
@@ -39,18 +39,36 @@ class LooseVersion(object):
                     components[i] = int(obj)
                 except ValueError:
                     pass
-            self.version = components
+            self._version = components
         else:
-            self.version = None
+            self._version = None
+
+    @property
+    def vstring(self):
+        """Readonly access to the unparsed version(-string)"""
+        return self._vstring
+
+    @property
+    def version(self):
+        """Readonly access to the parsed version (list or None)"""
+        return self._version
 
     def __str__(self):
-        return self.vstring
+        return self._vstring
 
     def __repr__(self):
         return "LooseVersion ('%s')" % str(self)
 
     def _cmp(self, other):
         """Rich comparison method used by the operators below"""
+        # Comparison of a default/None-version is only equal if the other side is
+        # None or a None-version, otherwise the None-version is "less"
+        if self._vstring is None:
+            if other is None:
+                return 0
+            elif isinstance(other, LooseVersion) and other._vstring is None:
+                return 0
+            return -1
         if isinstance(other, str):
             other = LooseVersion(other)
 

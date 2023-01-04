@@ -155,6 +155,25 @@ class UtilitiesTest(EnhancedTestCase):
             self.assertEqual(res, wanted,
                              'cmp(%s, %s) should be %s, got %s' %
                              (v1, v2, wanted, res))
+            # vstring is the unparsed version
+            self.assertEqual(LooseVersion(v1).vstring, v1)
+
+        none_version = LooseVersion(None)
+        self.assertTrue(none_version == LooseVersion())
+        self.assertTrue(none_version == None)  # noqa: E711
+        self.assertTrue(None == none_version)  # noqa: E711
+        self.assertFalse(none_version == LooseVersion(''))
+        self.assertFalse(none_version == LooseVersion('1'))
+        self.assertTrue(none_version < LooseVersion(''))
+        self.assertTrue(none_version < LooseVersion('0'))
+        self.assertTrue(none_version < LooseVersion('1'))
+
+        self.assertIsNone(none_version.version)
+        self.assertIsNone(none_version.vstring)
+        # version is the parsed version
+        self.assertEqual(LooseVersion('2.5').version, [2, 5])
+        self.assertEqual(LooseVersion('2.a.5').version, [2, 'a', 5])
+        self.assertEqual(LooseVersion('2.a').version, [2, 'a'])
 
 
 def suite():
