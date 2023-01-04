@@ -1259,7 +1259,7 @@ def gen_easyblocks_overview_md(package_name, path_to_examples, common_params=Non
     eb_links = []
     for eb_class in sorted(eb_classes, key=lambda c: c.__name__):
         eb_name = eb_class.__name__
-        eb_links.append("[" + eb_name + "](" + eb_name.lower() + ")")
+        eb_links.append("[" + eb_name + "](#" + eb_name.lower() + ")")
 
     heading = [
         "# Overview of generic easyblocks",
