@@ -522,7 +522,7 @@ class DocsTest(EnhancedTestCase):
                     self.assertTrue(name in ebdoc)
                     names.append(name)
 
-        toc = ["<a href='#" + n.lower() + "'>" + n + "</a>" for n in sorted(set(names))]
+        toc = ["[" + n + "](" + n.lower() + ")" for n in sorted(set(names))]
         pattern = " - ".join(toc)
         regex = re.compile(pattern)
         self.assertTrue(re.search(regex, ebdoc), "Pattern %s found in %s" % (regex.pattern, ebdoc))
