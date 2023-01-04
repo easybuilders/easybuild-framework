@@ -29,7 +29,7 @@ Authors:
 
 * Stijn De Weirdt (Ghent University)
 * Kenneth Hoste (Ghent University)
-:author: Jens Timmerman (Ghent University)
+* Jens Timmerman (Ghent University)
 """
 
 from easybuild.toolchains.mpi.mpich import Mpich

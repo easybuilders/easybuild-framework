@@ -30,9 +30,9 @@ Authors:
 
 * Stijn De Weirdt (Ghent University)
 * Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
 """
 __path__ = __import__('pkgutil').extend_path(__path__, __name__)
 

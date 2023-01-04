@@ -33,7 +33,7 @@ Authors:
 
 * Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 * Damian Alvarez (Forschungszentrum Juelich GmbH)
-:author: Andreas Herten (Forschungszentrum Juelich GmbH)
+* Andreas Herten (Forschungszentrum Juelich GmbH)
 """
 
 import easybuild.tools.systemtools as systemtools

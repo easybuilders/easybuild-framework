@@ -32,8 +32,8 @@ Authors:
 
 * Toon Willems (Ghent University)
 * Kenneth Hoste (Ghent University)
-:author: Stijn De Weirdt (Ghent University)
-:author: Ward Poelmans (Ghent University)
+* Stijn De Weirdt (Ghent University)
+* Ward Poelmans (Ghent University)
 """
 import copy
 import os

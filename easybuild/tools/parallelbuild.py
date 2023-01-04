@@ -32,7 +32,7 @@ Authors:
 
 * Toon Willems (Ghent University)
 * Kenneth Hoste (Ghent University)
-:author: Stijn De Weirdt (Ghent University)
+* Stijn De Weirdt (Ghent University)
 """
 import math
 import os

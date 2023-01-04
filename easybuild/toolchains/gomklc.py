@@ -30,8 +30,8 @@ Authors:
 
 * Stijn De Weirdt (Ghent University)
 * Kenneth Hoste (Ghent University)
-:author: Bart Oldeman (Compute Canada)
-:author: Maxime Boissonneault (Compute Canada)
+* Bart Oldeman (Compute Canada)
+* Maxime Boissonneault (Compute Canada)
 """
 
 from easybuild.toolchains.gompic import Gompic

@@ -29,7 +29,7 @@ Authors:
 
 * Shahzeb Siddiqui (Pfizer)
 * Kenneth Hoste (HPC-UGent)
-:author: Mohamed Abidi (Bright Computing)
+* Mohamed Abidi (Bright Computing)
 """
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError

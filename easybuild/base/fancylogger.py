@@ -73,7 +73,7 @@ Authors:
 
 * Jens Timmerman (Ghent University)
 * Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 
 from collections import namedtuple

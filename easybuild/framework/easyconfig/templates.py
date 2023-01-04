@@ -31,7 +31,7 @@ Authors:
 
 * Stijn De Weirdt (Ghent University)
 * Fotis Georgatos (Uni.Lu, NTUA)
-:author: Kenneth Hoste (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import re
 import platform

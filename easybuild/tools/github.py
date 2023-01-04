@@ -29,7 +29,7 @@ Authors:
 
 * Jens Timmerman (Ghent University)
 * Kenneth Hoste (Ghent University)
-:author: Toon Willems (Ghent University)
+* Toon Willems (Ghent University)
 """
 import base64
 import copy

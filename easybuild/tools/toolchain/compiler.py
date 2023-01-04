@@ -29,7 +29,7 @@ Authors:
 
 * Stijn De Weirdt (Ghent University)
 * Kenneth Hoste (Ghent University)
-:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+* Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import EasyBuildError

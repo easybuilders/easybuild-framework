@@ -29,7 +29,7 @@ Authors:
 
 * Kenneth Hoste (Ghent University)
 * Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
-:author: Sebastian Achilles (Forschungszentrum Juelich GmbH)
+* Sebastian Achilles (Forschungszentrum Juelich GmbH)
 """
 from easybuild.tools import LooseVersion
 

@@ -31,13 +31,13 @@ Authors:
 
 * Stijn De Weirdt (Ghent University)
 * Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
-:author: Ward Poelmans (Ghent University)
-:author: Fotis Georgatos (University of Luxembourg)
-:author: Cedric Clerget (University of Franche-Comte)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
+* Ward Poelmans (Ghent University)
+* Fotis Georgatos (University of Luxembourg)
+* Cedric Clerget (University of Franche-Comte)
 """
 import getpass
 import socket

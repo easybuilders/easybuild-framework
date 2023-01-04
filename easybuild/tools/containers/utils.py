@@ -27,7 +27,7 @@ Authors:
 
 * Shahzeb Siddiqui (Pfizer)
 * Kenneth Hoste (HPC-UGent)
-:author: Mohamed Abidi (Bright Computing)
+* Mohamed Abidi (Bright Computing)
 """
 import operator
 import re

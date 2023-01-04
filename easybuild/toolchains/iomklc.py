@@ -30,7 +30,7 @@ Authors:
 
 * Stijn De Weirdt (Ghent University)
 * Kenneth Hoste (Ghent University)
-:author: Bart Oldeman (Compute Canada)
+* Bart Oldeman (Compute Canada)
 """
 
 from easybuild.toolchains.iompic import Iompic

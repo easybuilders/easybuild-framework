@@ -30,7 +30,7 @@ Authors:
 
 * Stijn De Weirdt (Ghent University)
 * Kenneth Hoste (Ghent University)
-:author: Ake Sandgren (Umea University)
+* Ake Sandgren (Umea University)
 """
 
 from easybuild.toolchains.gompi import Gompi

@@ -29,7 +29,7 @@ Authors:
 
 * Stijn De Weirdt (Ghent University)
 * Kenneth Hoste (Ghent University)
-:author: Sebastian Achilles (Forschungszentrum Juelich GmbH)
+* Sebastian Achilles (Forschungszentrum Juelich GmbH)
 """
 
 from easybuild.toolchains.linalg.lapack import Lapack

@@ -29,8 +29,8 @@ Authors:
 
 * Denis Kristak (Inuits)
 * Pavel Grochal (Inuits)
-:author: Kenneth Hoste (HPC-UGent)
-:author: Caspar van Leeuwen (SURF)
+* Kenneth Hoste (HPC-UGent)
+* Caspar van Leeuwen (SURF)
 """
 import pprint
 

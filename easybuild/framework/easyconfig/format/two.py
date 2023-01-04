@@ -78,7 +78,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     def _check_docstring(self):
         """
         Verify docstring.
-        field :author: people who contributed to the easyconfig
+        field * people who contributed to the easyconfig
         field @maintainer: people who can be contacted in case of problems
         """
         authors = []

@@ -30,15 +30,15 @@ Authors:
 
 * Stijn De Weirdt (Ghent University)
 * Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
-:author: Ward Poelmans (Ghent University)
-:author: Alan O'Cais (Juelich Supercomputing Centre)
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
-:author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
-:author: Victor Holanda (CSCS, ETH Zurich)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
+* Ward Poelmans (Ghent University)
+* Alan O'Cais (Juelich Supercomputing Centre)
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+* Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
+* Victor Holanda (CSCS, ETH Zurich)
 """
 
 import copy

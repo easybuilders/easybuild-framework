@@ -32,10 +32,10 @@ Authors:
 
 * Stijn De Weirdt (Ghent University)
 * Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: David Brown (Pacific Northwest National Laboratory)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* David Brown (Pacific Northwest National Laboratory)
 """
 import os
 import re

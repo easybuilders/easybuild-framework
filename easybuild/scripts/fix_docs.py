@@ -63,7 +63,7 @@ for tmp in py_files:
         with open(temp, 'w') as out:
             for line in fh:
                 if "@author" in line:
-                    out.write(re.sub(r"@author: (.*)", r":author: \1", line))
+                    out.write(re.sub(r"@author: (.*)", r"* \1", line))
                 elif "@param" in line:
                     out.write(re.sub(r"@param ([^:]*):", r":param \1:", line))
                 else:

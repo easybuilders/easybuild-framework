@@ -30,9 +30,9 @@ Authors:
 
 * Marc Litherland (Novartis)
 * Gianluca Santarossa (Novartis)
-:author: Robert Schmidt (The Ottawa Hospital, Research Institute)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
-:author: Kenneth Hoste (Ghent University)
+* Robert Schmidt (The Ottawa Hospital, Research Institute)
+* Fotis Georgatos (Uni.Lu, NTUA)
+* Kenneth Hoste (Ghent University)
 """
 import os
 import tempfile

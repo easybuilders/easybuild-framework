@@ -30,8 +30,8 @@ Authors:
 
 * Stijn De Weirdt (Ghent University)
 * Kenneth Hoste (Ghent University)
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
-:author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Calcul Canada)
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+* Maxime Boissonneault (Universite Laval, Calcul Quebec, Calcul Canada)
 """
 
 from easybuild.toolchains.gcccuda import GccCUDA

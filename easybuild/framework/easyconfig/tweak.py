@@ -29,13 +29,13 @@ Authors:
 
 * Stijn De Weirdt (Ghent University)
 * Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
-:author: Alan O'Cais (Juelich Supercomputing Centre)
-:author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
+* Alan O'Cais (Juelich Supercomputing Centre)
+* Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
 """
 import copy
 import functools
