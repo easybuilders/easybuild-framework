@@ -28,7 +28,7 @@ Module with useful functions for getting system information
 Authors:
 
 * Jens Timmerman (Ghent University)
-@auther: Ward Poelmans (Ghent University)
+* Ward Poelmans (Ghent University)
 """
 import ctypes
 import errno
