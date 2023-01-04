@@ -796,7 +796,7 @@ def list_software_md(software, detailed=True):
 
     # links to per-letter tables
     key_letters = nub(sorted(k[0].lower() for k in software.keys()))
-    letter_links = ' - '.join(['<a href="#' + x + '">' + x + '</a>' for x in ascii_lowercase if x in key_letters])
+    letter_links = ' - '.join(['[' + x + '](#' + x + ')' for x in ascii_lowercase if x in key_letters])
     lines.extend([letter_links, ''])
 
     letter = None
@@ -810,8 +810,7 @@ def list_software_md(software, detailed=True):
             letter = key[0].lower()
             lines.extend([
                 '',
-                '<a anchor="%s"/>' % letter,
-                "### *%s*" % letter.upper(),
+                "### %s" % letter.upper(),
                 '',
             ])
 
@@ -819,7 +818,7 @@ def list_software_md(software, detailed=True):
                 # quick links per software package
                 lines.extend([
                     '',
-                    ' - '.join('<a href="#%s">%s</a>' % (k.lower(), k) for k in sorted_keys if k[0].lower() == letter),
+                    ' - '.join('[%s](#%s)' % (k, k.lower()) for k in sorted_keys if k[0].lower() == letter),
                     '',
                 ])
 
@@ -855,12 +854,11 @@ def list_software_md(software, detailed=True):
 
             lines.extend([
                 '',
-                '<a anchor="%s"/>' % key.lower(),
                 '### *%s*' % key,
                 '',
                 ' '.join(software[key][-1]['description'].split('\n')).lstrip(' '),
                 '',
-                "*homepage*: %s" % software[key][-1]['homepage'],
+                "*homepage*: <%s>" % software[key][-1]['homepage'],
                 '',
             ] + md_title_and_table(None, table_titles, table_values))
         else:
