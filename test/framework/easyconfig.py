@@ -1261,7 +1261,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_templating_doc(self):
         """test templating documentation"""
         doc = avail_easyconfig_templates()
-        # expected length: 1 per constant and 1 extra per constantgroup
+        # expected length: 1 per constant and 2 extra per constantgroup (title + empty line in between)
         temps = [
             easyconfig.templates.TEMPLATE_NAMES_EASYCONFIG,
             easyconfig.templates.TEMPLATE_SOFTWARE_VERSIONS * 2,
@@ -1272,7 +1272,7 @@ class EasyConfigTest(EnhancedTestCase):
             easyconfig.templates.TEMPLATE_CONSTANTS,
         ]
 
-        self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
+        self.assertEqual(len(doc.split('\n')), sum([2 * len(temps) - 1] + [len(x) for x in temps]))
 
     def test_constant_doc(self):
         """test constant documentation"""

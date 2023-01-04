@@ -44,7 +44,7 @@ from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python 
 from easybuild.base.fancylogger import getLogger, setroot, setLogLevel, getDetailsLogLevels
 from easybuild.base.optcomplete import autocomplete, CompleterOption
 from easybuild.tools.py2vs3 import StringIO, configparser, string_type, subprocess_popen_text
-from easybuild.tools.utilities import mk_rst_table, nub, shell_quote
+from easybuild.tools.utilities import mk_md_table, mk_rst_table, nub, shell_quote
 
 try:
     import gettext
@@ -65,7 +65,7 @@ except ImportError:
         return message
 
 
-HELP_OUTPUT_FORMATS = ['', 'rst', 'short', 'config']
+HELP_OUTPUT_FORMATS = ['', 'md', 'rst', 'short', 'config']
 
 
 def set_columns(cols=None):
@@ -637,6 +637,45 @@ class ExtOptionParser(OptionParser):
         """Intercept print to file to print to string and remove the ENABLE/DISABLE options from help"""
         fh = self.check_help(fh)
         OptionParser.print_help(self, fh)
+
+    def print_mdhelp(self, fh=None):
+        """Print help in MarkDown format"""
+        fh = self.check_help(fh)
+        result = []
+        if self.usage:
+            result.extend(["## Usage", '', '``%s``' % self.get_usage().replace("Usage: ", '').strip(), ''])
+        if self.description:
+            result.extend(["## Description", '', self.description, ''])
+
+        result.append(self.format_option_mdhelp())
+
+        mdhelptxt = '\n'.join(result)
+        if fh is None:
+            fh = sys.stdout
+        fh.write(mdhelptxt)
+
+    def format_option_mdhelp(self, formatter=None):
+        """ Formatting for help in rst format """
+        if not formatter:
+            formatter = self.formatter
+        formatter.store_option_strings(self)
+
+        res = []
+        titles = ["Option flag", "Option description"]
+
+        all_opts = [("Help options", self.option_list)] + \
+                   [(group.title, group.option_list) for group in self.option_groups]
+        for title, opts in all_opts:
+            values = []
+            res.extend(['## ' + title, ''])
+            for opt in opts:
+                if opt.help is not nohelp:
+                    values.append(['``%s``' % formatter.option_strings[opt], formatter.expand_default(opt)])
+
+            res.extend(mk_md_table(titles, map(list, zip(*values))))
+            res.append('')
+
+        return '\n'.join(res)
 
     def print_rsthelp(self, fh=None):
         """ Print help in rst format """
