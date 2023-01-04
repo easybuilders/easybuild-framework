@@ -1259,7 +1259,7 @@ def gen_easyblocks_overview_md(package_name, path_to_examples, common_params=Non
     eb_links = []
     for eb_class in sorted(eb_classes, key=lambda c: c.__name__):
         eb_name = eb_class.__name__
-        eb_links.append("<a href='#" + eb_name.lower() + "'>" + eb_name + "</a>")
+        eb_links.append("[" + eb_name + "](" + eb_name.lower() + ")")
 
     heading = [
         "# Overview of generic easyblocks",
@@ -1381,6 +1381,7 @@ def gen_easyblock_doc_section_md(eb_class, path_to_examples, common_params, doc_
 
     if custom:
         doc.append("### Customised steps in ``" + classname + "`` easyblock")
+        doc.append('')
         doc.extend(custom)
         doc.append('')
 
