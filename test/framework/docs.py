@@ -375,33 +375,30 @@ LIST_SOFTWARE_DETAILED_MD = """# List of supported software
 
 EasyBuild supports 2 different software packages (incl. toolchains, bundles):
 
-<a href="#g">g</a>
+[g](#g)
 
 
-<a anchor="g"/>
-### *G*
+### G
 
 
-<a href="#gcc">GCC</a> - <a href="#gzip">gzip</a>
+[GCC](#gcc) - [gzip](#gzip)
 
 
-<a anchor="gcc"/>
-### *GCC*
+### GCC
 
 %(gcc_descr)s
 
-*homepage*: http://gcc.gnu.org/
+*homepage*: <http://gcc.gnu.org/>
 
 version  |toolchain
 ---------|----------
 ``4.6.3``|``system``
 
-<a anchor="gzip"/>
-### *gzip*
+### gzip
 
 %(gzip_descr)s
 
-*homepage*: http://www.gzip.org/
+*homepage*: <http://www.gzip.org/>
 
 version|toolchain
 -------|-------------------------------
