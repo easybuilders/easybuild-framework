@@ -746,7 +746,7 @@ class DocsTest(EnhancedTestCase):
             r"^Constants that can be used in easyconfigs",
             r"^\s*ARCH: .* \(CPU architecture of current system \(aarch64, x86_64, ppc64le, ...\)\)",
             r"^\s*OS_PKG_OPENSSL_DEV: \('openssl-devel', 'libssl-dev', 'libopenssl-devel'\) "
-            r"\(OS packages providing openSSL developement support\)",
+            r"\(OS packages providing openSSL development support\)",
         ]
 
         txt = avail_easyconfig_constants()
@@ -763,7 +763,7 @@ class DocsTest(EnhancedTestCase):
             r"^# Constants that can be used in easyconfigs",
             r"^``ARCH``\s*\|``.*``\s*\|CPU architecture of current system \(aarch64, x86_64, ppc64le, ...\)$",
             r"^``OS_PKG_OPENSSL_DEV``\s*\|``\('openssl-devel', 'libssl-dev', 'libopenssl-devel'\)``\s*\|"
-            r"OS packages providing openSSL developement support$",
+            r"OS packages providing openSSL development support$",
         ]
         txt_md = avail_easyconfig_constants(output_format='md')
         for pattern in md_patterns:
@@ -774,7 +774,7 @@ class DocsTest(EnhancedTestCase):
             r"^Constants that can be used in easyconfigs\n-{41}",
             r"^``ARCH``\s*``.*``\s*CPU architecture of current system \(aarch64, x86_64, ppc64le, ...\)$",
             r"^``OS_PKG_OPENSSL_DEV``\s*``\('openssl-devel', 'libssl-dev', 'libopenssl-devel'\)``\s*"
-            r"OS packages providing openSSL developement support$",
+            r"OS packages providing openSSL development support$",
         ]
         txt_rst = avail_easyconfig_constants(output_format='rst')
         for pattern in rst_patterns:
