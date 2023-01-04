@@ -854,7 +854,7 @@ def list_software_md(software, detailed=True):
 
             lines.extend([
                 '',
-                '### *%s*' % key,
+                '### %s' % key,
                 '',
                 ' '.join(software[key][-1]['description'].split('\n')).lstrip(' '),
                 '',
