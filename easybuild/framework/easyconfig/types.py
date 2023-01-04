@@ -505,33 +505,51 @@ def to_dependencies(dep_list):
     return [to_dependency(dep) for dep in dep_list]
 
 
+def _to_checksum(checksum, list_level=0, allow_dict=True):
+    """Ensure the correct element type for each checksum in the checksum list"""
+    # each entry can be:
+    # * None (indicates no checksum)
+    # * a string (MD5, SHA256, ... checksum)
+    # * a list or tuple with 2 elements: checksum type + checksum value
+    # * a list or tuple of checksums (i.e. multiple checksums for a single file)
+    # * a dict (filename to checksum mapping)
+    if checksum is None or isinstance(checksum, string_type):
+        return checksum
+    elif isinstance(checksum, (list, tuple)):
+        if len(checksum) == 2 and isinstance(checksum[0], string_type) and isinstance(checksum[1], (string_type, int)):
+            # 2 elements so either:
+            #  - a checksum tuple (2nd element string or int)
+            #  - 2 alternative checksums (tuple)
+            #  - 2 checksums that must each match (list)
+            # --> Convert to tuple only if we can exclude the 3rd case
+            if not isinstance(checksum[1], string_type) or list_level > 0:
+                return tuple(checksum)
+            else:
+                return checksum
+        elif list_level < 2:
+            # Alternative checksums or multiple checksums for a single file
+            # Allowed to nest (at most) 2 times, e.g. [[[type, value]]] == [[(type, value)]]
+            # None is not allowed here
+            if any(x is None for x in checksum):
+                raise ValueError('Unexpected None in ' + str(checksum))
+            if isinstance(checksum, tuple) or list_level > 0:
+                # When we already are in a tuple no further recursion is allowed -> set list_level very high
+                return tuple(_to_checksum(x, list_level=99, allow_dict=allow_dict) for x in checksum)
+            else:
+                return list(_to_checksum(x, list_level=list_level+1, allow_dict=allow_dict) for x in checksum)
+    elif isinstance(checksum, dict) and allow_dict:
+        return {key: _to_checksum(value, allow_dict=False) for key, value in checksum.items()}
+
+    # Not returned -> Wrong type/format
+    raise ValueError('Unexpected type of "%s": %s' % (type(checksum), str(checksum)))
+
+
 def to_checksums(checksums):
     """Ensure correct element types for list of checksums: convert list elements to tuples."""
-    res = []
-    for checksum in checksums:
-        # each list entry can be:
-        # * None (indicates no checksum)
-        # * a string (MD5 or SHA256 checksum)
-        # * a tuple with 2 elements: checksum type + checksum value
-        # * a list of checksums (i.e. multiple checksums for a single file)
-        # * a dict (filename to checksum mapping)
-        if isinstance(checksum, string_type):
-            res.append(checksum)
-        elif isinstance(checksum, (list, tuple)):
-            # 2 elements + only string/int values => a checksum tuple
-            if len(checksum) == 2 and all(isinstance(x, (string_type, int)) for x in checksum):
-                res.append(tuple(checksum))
-            else:
-                res.append(to_checksums(checksum))
-        elif isinstance(checksum, dict):
-            validated_dict = {}
-            for key, value in checksum.items():
-                validated_dict[key] = to_checksums(value)
-            res.append(validated_dict)
-        else:
-            res.append(checksum)
-
-    return res
+    try:
+        return [_to_checksum(checksum) for checksum in checksums]
+    except ValueError as e:
+        raise EasyBuildError('Invalid checksums: %s\n\tError: %s', checksums, e)
 
 
 def ensure_iterable_license_specs(specs):
