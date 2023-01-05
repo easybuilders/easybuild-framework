@@ -366,7 +366,7 @@ EasyBuild supports 2 different software packages (incl. toolchains, bundles):
 [g](#g)
 
 
-### G
+## G
 
 * GCC
 * gzip"""
@@ -378,7 +378,7 @@ EasyBuild supports 2 different software packages (incl. toolchains, bundles):
 [g](#g)
 
 
-### G
+## G
 
 
 [GCC](#gcc) - [gzip](#gzip)
@@ -714,7 +714,7 @@ class DocsTest(EnhancedTestCase):
 
         md_patterns = [
             r"^# Constants available \(only\) in configuration files",
-            r"^### Only in 'DEFAULT' section:",
+            r"^## Only in 'DEFAULT' section:",
             r"^``HOME``\s*\|Current user's home directory, expanded '~'\s*\|``%s``$" % os.getenv('HOME'),
             r"^``USER``\s*\|Current username, translated uid from password file\s*\|``%s``" % os.getenv('USER'),
         ]

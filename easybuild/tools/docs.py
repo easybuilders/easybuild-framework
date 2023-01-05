@@ -164,7 +164,7 @@ def avail_cfgfile_constants_md(go_cfg_constants):
     for section in go_cfg_constants:
         if section != go_cfg_constants['DEFAULT']:
             doc.extend([
-                "### Only in '%s' section:" % section,
+                "## Only in '%s' section:" % section,
                 '',
             ])
         table_titles = ["Constant name", "Constant help", "Constant value"]
@@ -565,8 +565,8 @@ def avail_easyconfig_templates_md():
     doc.extend(md_title_and_table(title, table_titles, table_values, title_level=2))
     doc.append('')
 
-    title = 'Template names/values as set in easyconfig'
-    doc.extend([title, '-' * len(title), ''])
+    title = '## Template names/values as set in easyconfig'
+    doc.extend([title, ''])
     for name in TEMPLATE_NAMES_CONFIG:
         doc.append('* ``%%(%s)s``' % name)
     doc.append('')
@@ -812,7 +812,7 @@ def list_software_md(software, detailed=True):
             letter = key[0].lower()
             lines.extend([
                 '',
-                "### %s" % letter.upper(),
+                "## %s" % letter.upper(),
                 '',
             ])
 
@@ -1326,7 +1326,7 @@ def gen_easyblock_doc_section_md(eb_class, path_to_examples, common_params, doc_
     for base in eb_class.__bases__:
         bname = base.__name__
         if base in all_eb_classes:
-            bases.append("<a href='#" + bname.lower() + "'>``" + bname + "``</a>")
+            bases.append("[``" + bname + "``](#" + bname.lower() + ")")
         else:
             bases.append('``' + bname + '``')
 
