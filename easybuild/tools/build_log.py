@@ -25,11 +25,13 @@
 """
 EasyBuild logger and log utilities, including our own EasybuildError class.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
 """
 import logging
 import os

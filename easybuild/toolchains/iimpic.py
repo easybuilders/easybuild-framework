@@ -25,7 +25,9 @@
 """
 EasyBuild support for a iimpic compiler toolchain (includes iccifort, impi and CUDA).
 
-:author: Ake Sandgren (HPC2N)
+Authors:
+
+* Ake Sandgren (HPC2N)
 """
 import re
 

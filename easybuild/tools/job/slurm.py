@@ -25,7 +25,9 @@
 """
 Support for using Slurm as a backend for --job
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 import re
 

@@ -25,7 +25,9 @@
 """
 EasyBuild support for ffmpi compiler toolchain (includes Fujitsu Compiler and MPI).
 
-:author: Miguel Dias Costa (National University of Singapore)
+Authors:
+
+* Miguel Dias Costa (National University of Singapore)
 """
 from easybuild.toolchains.fcc import FCC
 from easybuild.toolchains.mpi.fujitsumpi import FujitsuMPI

@@ -25,8 +25,10 @@
 """
 EasyBuild support for gompic compiler toolchain (includes GCC and OpenMPI and CUDA).
 
-:author: Kenneth Hoste (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
 """
 
 from easybuild.toolchains.gcccuda import GccCUDA

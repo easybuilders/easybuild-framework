@@ -23,7 +23,9 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 """
-:author: Mohamed Abidi (Bright Computing)
+Authors:
+
+* Mohamed Abidi (Bright Computing)
 """
 import os
 

@@ -26,7 +26,9 @@
 """
 This module implements all supported formats and their converters
 
-:author: Stijn De Weirdt (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
 """
 import re
 

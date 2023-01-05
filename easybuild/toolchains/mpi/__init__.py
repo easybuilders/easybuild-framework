@@ -25,7 +25,9 @@
 """
 Declares toolchains.mpi namespace.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 __path__ = __import__('pkgutil').extend_path(__path__, __name__)

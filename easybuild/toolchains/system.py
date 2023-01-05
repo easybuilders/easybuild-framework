@@ -25,7 +25,9 @@
 """
 EasyBuild support for system compiler toolchain.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME

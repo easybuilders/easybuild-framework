@@ -25,7 +25,9 @@
 """
 EasyBuild support for gobff compiler toolchain (includes GCC, OpenMPI, BLIS, libFLAME, ScaLAPACK and FFTW).
 
-:author: Sebastian Achilles (Forschungszentrum Juelich GmbH)
+Authors:
+
+* Sebastian Achilles (Forschungszentrum Juelich GmbH)
 """
 
 from easybuild.toolchains.gompi import Gompi

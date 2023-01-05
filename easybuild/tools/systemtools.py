@@ -25,8 +25,10 @@
 """
 Module with useful functions for getting system information
 
-:author: Jens Timmerman (Ghent University)
-@auther: Ward Poelmans (Ghent University)
+Authors:
+
+* Jens Timmerman (Ghent University)
+* Ward Poelmans (Ghent University)
 """
 import ctypes
 import errno

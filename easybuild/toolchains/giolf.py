@@ -25,7 +25,9 @@
 """
 EasyBuild support for giolf compiler toolchain (includes GCC, IntelMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.gimpi import Gimpi

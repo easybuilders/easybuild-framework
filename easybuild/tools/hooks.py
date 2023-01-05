@@ -25,7 +25,9 @@
 """
 Hook support.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 import difflib
 import imp

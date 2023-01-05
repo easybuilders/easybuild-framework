@@ -25,7 +25,9 @@
 """
 Implementation of (default) EasyBuild module naming scheme.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 
 import os

@@ -25,7 +25,9 @@
 """
 The easybuild.framework.easyconfig.format package provides the EasyConfig format classes
 
-:author: Stijn De Weirdt (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
 """
 
 # we need to make sure all known formats are imported,

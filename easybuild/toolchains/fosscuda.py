@@ -25,7 +25,9 @@
 """
 EasyBuild support for fosscuda compiler toolchain (includes GCC+CUDA, OpenMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
-:author: Davide Vanzo (Vanderbilt University)
+Authors:
+
+* Davide Vanzo (Vanderbilt University)
 """
 
 from easybuild.toolchains.gompic import Gompic

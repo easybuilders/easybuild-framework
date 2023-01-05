@@ -25,7 +25,9 @@
 """
 EasyBuild support for gmacml compiler toolchain (includes GCC, MVAPICH2, ACML, BLACS, ScaLAPACK and FFTW.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.gmvapich2 import Gmvapich2

@@ -25,12 +25,14 @@
 """
 Utility functions for implementating module naming schemes.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
 """
 import os
 import string

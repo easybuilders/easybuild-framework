@@ -25,7 +25,9 @@
 """
 EasyBuild support for iompic compiler toolchain (includes iccifort, OpenMPI and CUDA).
 
-:author: Bart Oldeman (Compute Canada)
+Authors:
+
+* Bart Oldeman (Compute Canada)
 """
 
 from easybuild.toolchains.iccifortcuda import IccIfortCUDA

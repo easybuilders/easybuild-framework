@@ -25,8 +25,10 @@
 """
 Support for Intel compilers (icc, ifort) as toolchain compilers.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 
 from easybuild.tools import LooseVersion

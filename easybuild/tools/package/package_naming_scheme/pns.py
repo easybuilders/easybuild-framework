@@ -26,8 +26,10 @@
 """
 Abstract implementation of a package naming scheme.
 
-:author: Robert Schmidt (Ottawa Hospital Research Institute)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Robert Schmidt (Ottawa Hospital Research Institute)
+* Kenneth Hoste (Ghent University)
 """
 from abc import ABCMeta, abstractmethod
 

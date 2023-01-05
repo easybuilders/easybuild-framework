@@ -25,7 +25,9 @@
 """
 Set of fucntions to help with jenkins setup
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 import glob
 import os

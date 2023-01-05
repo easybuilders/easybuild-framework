@@ -25,9 +25,11 @@
 """
 EasyBuild support for pompi compiler toolchain (includes PGI compilers and OpenMPI).
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
 from easybuild.toolchains.pgi import PgiToolchain

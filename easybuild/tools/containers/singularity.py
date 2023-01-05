@@ -24,9 +24,11 @@
 """
 Support for generating singularity container recipes and creating container images
 
-:author: Shahzeb Siddiqui (Pfizer)
-:author: Kenneth Hoste (HPC-UGent)
-:author: Mohamed Abidi (Bright Computing)
+Authors:
+
+* Shahzeb Siddiqui (Pfizer)
+* Kenneth Hoste (HPC-UGent)
+* Mohamed Abidi (Bright Computing)
 """
 import os
 import re

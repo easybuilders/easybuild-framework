@@ -26,9 +26,11 @@
 EasyBuild support for gomkl compiler toolchain (includes GCC, OpenMPI,
 Intel Math Kernel Library (MKL) and Intel FFTW wrappers).
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Ake Sandgren (Umea University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Ake Sandgren (Umea University)
 """
 
 from easybuild.toolchains.gompi import Gompi

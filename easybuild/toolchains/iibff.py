@@ -25,7 +25,9 @@
 """
 EasyBuild support for iibff compiler toolchain (includes Intel compilers + MPI, BLIS, libFLAME, ScaLAPACK and FFTW).
 
-:author: Kenneth Hoste (HPC-UGent)
+Authors:
+
+* Kenneth Hoste (HPC-UGent)
 """
 
 from easybuild.toolchains.iimpi import Iimpi

@@ -25,10 +25,12 @@
 Support for easybuild-ing from multiple easyconfigs based on
 information obtained from provided file (easystack) with build specifications.
 
-:author: Denis Kristak (Inuits)
-:author: Pavel Grochal (Inuits)
-:author: Kenneth Hoste (HPC-UGent)
-:author: Caspar van Leeuwen (SURF)
+Authors:
+
+* Denis Kristak (Inuits)
+* Pavel Grochal (Inuits)
+* Kenneth Hoste (HPC-UGent)
+* Caspar van Leeuwen (SURF)
 """
 import pprint
 

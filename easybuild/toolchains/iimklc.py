@@ -26,10 +26,12 @@
 EasyBuild support for iimklc compiler toolchain (includes Intel compilers (icc, ifort), OpenMPI,
 CUDA, Intel Math Kernel Library (MKL), and Intel FFTW wrappers.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Bart Oldeman (Compute Canada)
-:author: Maxime Boissonneault (Compute Canada)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Bart Oldeman (Compute Canada)
+* Maxime Boissonneault (Compute Canada)
 """
 
 from easybuild.toolchains.iccifortcuda import IccIfortCUDA

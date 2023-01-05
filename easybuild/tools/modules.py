@@ -28,12 +28,14 @@ This python module implements the environment modules functionality:
  - checking for available modules
  - ...
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: David Brown (Pacific Northwest National Laboratory)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* David Brown (Pacific Northwest National Laboratory)
 """
 import os
 import re

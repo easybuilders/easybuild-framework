@@ -26,8 +26,10 @@
 """
 Tools for controlling output to terminal produced by EasyBuild.
 
-:author: Kenneth Hoste (Ghent University)
-:author: Jørgen Nordmoen (University of Oslo)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Jørgen Nordmoen (University of Oslo)
 """
 import functools
 

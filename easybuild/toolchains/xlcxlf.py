@@ -5,7 +5,9 @@
 """
 EasyBuild support for IBM XL compiler toolchain.
 
-:author: Jack Perdue <j-perdue@tamu.edu> - TAMU HPRC - http://sc.tamu.edu
+Authors:
+
+* Jack Perdue <j-perdue@tamu.edu> - TAMU HPRC - http://sc.tamu.edu
 """
 from easybuild.toolchains.compiler.ibmxl import IBMXL
 

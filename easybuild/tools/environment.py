@@ -25,8 +25,10 @@
 """
 Utility module for modifying os.environ
 
-:author: Toon Willems (Ghent University)
-:author: Ward Poelmans (Ghent University)
+Authors:
+
+* Toon Willems (Ghent University)
+* Ward Poelmans (Ghent University)
 """
 import copy
 import os

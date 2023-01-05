@@ -25,8 +25,10 @@
 """
 A class that can be used to generated options to python scripts in a general way.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Jens Timmerman (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Jens Timmerman (Ghent University)
 """
 
 import copy

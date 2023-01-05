@@ -26,8 +26,10 @@
 YAML easyconfig format (.yeb)
 Useful: http://www.yaml.org/spec/1.2/spec.html
 
-:author: Caroline De Brouwer (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Caroline De Brouwer (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import copy
 import os

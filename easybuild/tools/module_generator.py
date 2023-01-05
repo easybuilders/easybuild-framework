@@ -25,13 +25,15 @@
 """
 Generating module files.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
-:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
+* Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import copy
 import os

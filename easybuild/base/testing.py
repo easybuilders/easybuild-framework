@@ -28,8 +28,10 @@ Shared module for vsc software testing
 TestCase: use instead of unittest TestCase
    from easybuild.base.testing import TestCase
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import difflib
 import pprint

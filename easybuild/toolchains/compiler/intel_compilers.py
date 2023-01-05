@@ -25,7 +25,9 @@
 """
 Support for Intel compilers (icc, ifort) as toolchain compilers, version 2021.x and newer (oneAPI).
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 import os
 

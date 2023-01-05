@@ -25,7 +25,9 @@
 """
 EasyBuild support for a GCC+CUDA compiler toolchain.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 import re
 

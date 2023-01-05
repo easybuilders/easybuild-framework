@@ -25,9 +25,11 @@
 """
 Utility module for working with github
 
-:author: Jens Timmerman (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Toon Willems (Ghent University)
+Authors:
+
+* Jens Timmerman (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Toon Willems (Ghent University)
 """
 import base64
 import copy

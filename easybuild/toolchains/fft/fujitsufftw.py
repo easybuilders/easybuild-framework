@@ -25,7 +25,9 @@
 """
 Support for Fujitsu FFTW as toolchain FFT library.
 
-:author: Miguel Dias Costa (National University of Singapore)
+Authors:
+
+* Miguel Dias Costa (National University of Singapore)
 """
 from easybuild.toolchains.fft.fftw import Fftw
 

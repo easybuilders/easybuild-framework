@@ -25,10 +25,12 @@
 """
 Support for MPICH as toolchain MPI library.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Jens Timmerman (Ghent University)
+* Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 from easybuild.tools import LooseVersion
 

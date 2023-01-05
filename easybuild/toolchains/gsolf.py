@@ -25,8 +25,10 @@
 """
 EasyBuild support for gsolf compiler toolchain (includes GCC, SpectrumMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
-:author: Kenneth Hoste (Ghent University)
-:author: Alan O'Cais (Juelich Supercomputing Centre)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Alan O'Cais (Juelich Supercomputing Centre)
 """
 
 from easybuild.toolchains.gsmpi import Gsmpi

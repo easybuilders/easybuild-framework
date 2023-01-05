@@ -27,7 +27,9 @@ This describes the easyconfig parser
 
 The parser is format version aware
 
-:author: Stijn De Weirdt (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
 """
 import os
 import re

@@ -25,7 +25,9 @@
 """
 EasyBuild support for Fujitsu Compiler toolchain.
 
-:author: Miguel Dias Costa (National University of Singapore)
+Authors:
+
+* Miguel Dias Costa (National University of Singapore)
 """
 from easybuild.toolchains.compiler.fujitsu import FujitsuCompiler
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME

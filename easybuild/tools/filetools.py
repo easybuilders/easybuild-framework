@@ -25,18 +25,20 @@
 """
 Set of file tools.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
-:author: Ward Poelmans (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
-:author: Sotiris Fragkiskos (NTUA, CERN)
-:author: Davide Vanzo (ACCRE, Vanderbilt University)
-:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
-:author: Maxime Boissonneault (Compute Canada)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
+* Ward Poelmans (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
+* Sotiris Fragkiskos (NTUA, CERN)
+* Davide Vanzo (ACCRE, Vanderbilt University)
+* Damian Alvarez (Forschungszentrum Juelich GmbH)
+* Maxime Boissonneault (Compute Canada)
 """
 import datetime
 import difflib

@@ -25,7 +25,9 @@
 """
 Module with various utility functions
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 import datetime
 import glob

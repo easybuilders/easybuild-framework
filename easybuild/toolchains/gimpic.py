@@ -25,9 +25,11 @@
 """
 EasyBuild support for gimpic compiler toolchain (includes GCC and IntelMPI and CUDA).
 
-:author: Kenneth Hoste (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
-:author: Ake Sandgren (HPC2N, Umea University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
+* Ake Sandgren (HPC2N, Umea University)
 """
 
 from easybuild.toolchains.gcccuda import GccCUDA

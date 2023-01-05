@@ -27,7 +27,9 @@ Support for the Fujitsu compiler drivers (aka fcc, frt).
 
 The basic concept is the same as for the Cray Programming Environment.
 
-:author: Miguel Dias Costa (National University of Singapore)
+Authors:
+
+* Miguel Dias Costa (National University of Singapore)
 """
 import os
 import re

@@ -26,7 +26,9 @@
 """
 Support for including additional Python modules, for easyblocks, module naming schemes and toolchains.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 import os
 import re

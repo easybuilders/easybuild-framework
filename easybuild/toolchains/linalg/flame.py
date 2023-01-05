@@ -25,9 +25,11 @@
 """
 Support for FLAME as toolchain linear algebra library.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Sebastian Achilles (Forschungszentrum Juelich GmbH)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Sebastian Achilles (Forschungszentrum Juelich GmbH)
 """
 
 from easybuild.toolchains.linalg.lapack import Lapack

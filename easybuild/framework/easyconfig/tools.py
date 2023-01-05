@@ -27,14 +27,16 @@
 Easyconfig module that provides functionality for dealing with easyconfig (.eb) files,
 alongside the EasyConfig class to represent parsed easyconfig files.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
-:author: Ward Poelmans (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
+* Ward Poelmans (Ghent University)
 """
 import copy
 import fnmatch

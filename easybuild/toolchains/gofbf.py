@@ -25,7 +25,9 @@
 """
 EasyBuild support for gofbf compiler toolchain (includes GCC, OpenMPI, FlexiBLAS, ScaLAPACK and FFTW)
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.fft.fftw import Fftw

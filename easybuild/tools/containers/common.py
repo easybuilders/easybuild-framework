@@ -25,9 +25,11 @@
 """
 Dispatch function for container packages
 
-:author: Shahzeb Siddiqui (Pfizer)
-:author: Kenneth Hoste (HPC-UGent)
-:author: Mohamed Abidi (Bright Computing)
+Authors:
+
+* Shahzeb Siddiqui (Pfizer)
+* Kenneth Hoste (HPC-UGent)
+* Mohamed Abidi (Bright Computing)
 """
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError

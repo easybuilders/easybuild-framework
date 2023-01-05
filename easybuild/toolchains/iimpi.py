@@ -25,8 +25,10 @@
 """
 EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI).
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 from easybuild.tools import LooseVersion
 import re

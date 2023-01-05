@@ -26,9 +26,11 @@
 EasyBuild support for iimkl compiler toolchain (includes Intel compilers (icc, ifort),
 Intel Math Kernel Library (MKL), and Intel FFTW wrappers.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 from distutils.version import LooseVersion
 import re
