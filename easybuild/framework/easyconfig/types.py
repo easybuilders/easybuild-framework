@@ -613,19 +613,33 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
 }))
 # checksums is a list of checksums, one entry per file (source/patch)
 # each entry can be:
+# None
 # a single checksum value (string)
 # a single checksum value of a specified type (2-tuple, 1st element is checksum type, 2nd element is checksum)
 # a list of checksums (of different types, perhaps different formats), which should *all* be valid
-# a dictionary with a mapping from filename to checksum value
-CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT]}))
-CHECKSUMS = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT, CHECKSUM_LIST]}))
+# a tuple of checksums (of different types, perhaps different formats), where one should be valid
+# a dictionary with a mapping from filename to checksum (None, value, type&value, alternatives)
 
-CHECKABLE_TYPES = [CHECKSUM_LIST, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
+# Type & value, value may be an int for type "size"
+# This is a bit too permissive as it allows the first element to be an int and doesn't restrict the number of elements
+CHECKSUM_TUPLE = (tuple, as_hashable({'elem_types': [str, int]}))
+CHECKSUM_DICT = (dict, as_hashable(
+    {
+        'elem_types': [type(None), str, CHECKSUM_TUPLE],
+        'key_types': [str],
+    }
+))
+CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, CHECKSUM_TUPLE, CHECKSUM_DICT]}))
+
+CHECKSUMS = (list, as_hashable({'elem_types': [type(None), str, CHECKSUM_LIST, CHECKSUM_TUPLE, CHECKSUM_DICT]}))
+
+CHECKABLE_TYPES = [CHECKSUM_DICT, CHECKSUM_LIST, CHECKSUM_TUPLE, CHECKSUMS,
+                   DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
                    SANITY_CHECK_PATHS_DICT, SANITY_CHECK_PATHS_ENTRY, STRING_DICT, STRING_OR_TUPLE_LIST,
                    STRING_OR_TUPLE_DICT, STRING_OR_TUPLE_OR_DICT_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
-EASY_TYPES = [str, bool, dict, int, list, str, tuple]
+EASY_TYPES = [str, bool, dict, int, list, str, tuple, type(None)]
 
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {

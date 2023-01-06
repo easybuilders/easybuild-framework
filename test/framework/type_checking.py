@@ -220,10 +220,24 @@ class TypeCheckingTest(EnhancedTestCase):
                 {'foo.txt': sha256_checksum1, 'bar.txt': sha256_checksum2},
                 # 3 alternative checksums for a single file, one match is sufficient
                 (sha256_checksum1, sha256_checksum2, sha256_checksum3),
-            ]
+                # two alternative checksums for a single file (not to be confused by checksum-type & -value tuple)
+                (sha256_checksum1, md5_checksum),
+                # three alternative checksums for a single file of different types
+                (sha256_checksum1, ('md5', md5_checksum), {'foo.txt': sha256_checksum1}),
+                # alternative checksums in dicts are also allowed
+                {'foo.txt': (sha256_checksum2, sha256_checksum3), 'bar.txt': (sha256_checksum1, md5_checksum)},
+                # Same but with lists -> all must match for each file
+                {'foo.txt': [sha256_checksum2, sha256_checksum3], 'bar.txt': [sha256_checksum1, md5_checksum]},
+            ],
+            # None is allowed, meaning skip the checksum
+            [
+                None,
+                # Also in mappings
+                {'foo.txt': sha256_checksum1, 'bar.txt': None},
+            ],
         ]
         for inp in inputs:
-            self.assertEqual(check_type_of_param_value('checksums', inp), (True, inp))
+            self.assertTrue(check_type_of_param_value('checksums', inp), 'Failed for ' + str(inp))
 
     def test_check_type_of_param_value_patches(self):
         """Test check_type_of_param_value function for patches."""
