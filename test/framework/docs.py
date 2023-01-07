@@ -804,7 +804,7 @@ class DocsTest(EnhancedTestCase):
             r"^## Template names/values derived from easyconfig instance",
             r"^``%\(version_major\)s``\s+|Major version",
             r"^## Template names/values for \(short\) software versions",
-            r"^``%\(pyshortver\)s``\s+|short version for Python \(<major>\.<minor>\)",
+            r"^``%\(pyshortver\)s``\s+|short version for Python \(``<major>\.<minor>``\)",
             r"^## Template constants that can be used in easyconfigs",
             r"^``SOURCE_TAR_GZ``\s+|Source \.tar\.gz bundle \(%\(name\)s-%\(version\)s.tar.gz\)",
         ]

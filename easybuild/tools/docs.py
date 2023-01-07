@@ -315,7 +315,7 @@ def avail_easyconfig_params_md(title, grouped_params):
         values = [grouped_params[grpname][key] for key in keys]
         table_values = [
             ['`%s`' % name for name in keys],  # parameter name
-            [x[0] for x in values],  # description
+            [x[0].replace('<', '[').replace('>', ']') for x in values],  # description
             ['`' + str(quote_str(x[1])) + '`' for x in values]  # default value
         ]
 
@@ -559,7 +559,7 @@ def avail_easyconfig_templates_md():
     for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
         ver.append('``%%(%sshortver)s``' % pref)
         ver.append('``%%(%sver)s``' % pref)
-        ver_desc.append('short version for %s (<major>.<minor>)' % name)
+        ver_desc.append('short version for %s (``<major>.<minor>``)' % name)
         ver_desc.append('full version for %s' % name)
     table_values = [ver, ver_desc]
     doc.extend(md_title_and_table(title, table_titles, table_values, title_level=2))
