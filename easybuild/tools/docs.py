@@ -315,7 +315,7 @@ def avail_easyconfig_params_md(title, grouped_params):
         values = [grouped_params[grpname][key] for key in keys]
         table_values = [
             ['`%s`' % name for name in keys],  # parameter name
-            [x[0].replace('<', '[').replace('>', ']') for x in values],  # description
+            [x[0].replace('<', '&lt;').replace('>', '&gt;') for x in values],  # description
             ['`' + str(quote_str(x[1])) + '`' for x in values]  # default value
         ]
 
