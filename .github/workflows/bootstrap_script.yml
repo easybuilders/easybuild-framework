@@ -1,6 +1,11 @@
 # documentation: https://help.github.com/en/articles/workflow-syntax-for-github-actions
 name: test EasyBuild bootstrap script
 on: [push, pull_request]
+
+concurrency:
+  group: ${{format('{0}:{1}:{2}', github.repository, github.ref, github.workflow)}}
+  cancel-in-progress: true
+
 jobs:
   setup:
     runs-on: ubuntu-20.04
@@ -107,7 +112,7 @@ jobs:
           EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
           EB_BOOTSTRAP_SHA256SUM=$(sha256sum easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
           EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-          EB_BOOTSTRAP_EXPECTED="20210715.01 0ffdc17ed7eacf78369c9cd6743728f36e61bb8bf5c1bdc1e23cf2040b1ce301"
+          EB_BOOTSTRAP_EXPECTED="20210715.01 935979de3a4c30b24c3617ff7cd7c40cbd4d815cee5be0c99810cc21f21182f1"
           test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
 
           # test bootstrap script

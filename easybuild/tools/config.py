@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2022 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,15 +25,18 @@
 """
 EasyBuild configuration (paths, preferences, etc.)
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
-:author: Ward Poelmans (Ghent University)
-:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
-:author: Andy Georges (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
+* Ward Poelmans (Ghent University)
+* Damian Alvarez (Forschungszentrum Juelich GmbH)
+* Andy Georges (Ghent University)
+* Maxime Boissonneault (Compute Canada)
 """
 import copy
 import glob
@@ -64,6 +67,8 @@ PURGE = 'purge'
 UNLOAD = 'unload'
 UNSET = 'unset'
 WARN = 'warn'
+
+EMPTY_LIST = 'empty_list'
 
 PKG_TOOL_FPM = 'fpm'
 PKG_TYPE_RPM = 'rpm'
@@ -113,6 +118,16 @@ DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PR_TARGET_ACCOUNT = 'easybuilders'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
+# Filter these CUDA libraries by default from the RPATH sanity check.
+# These are the only four libraries for which the CUDA toolkit ships stubs. By design, one is supposed to build
+# against the stub versions, but use the libraries that come with the CUDA driver at runtime. That means they should
+# never be RPATH-ed, and thus the sanity check should also accept that they aren't RPATH-ed.
+DEFAULT_FILTER_RPATH_SANITY_LIBS = (
+    'libcuda.so',
+    'libcuda.so.1',
+    'libnvidia-ml.so',
+    'libnvidia-ml.so.1'
+)
 DEFAULT_WAIT_ON_LOCK_INTERVAL = 60
 DEFAULT_WAIT_ON_LOCK_LIMIT = 0
 
@@ -125,6 +140,11 @@ FORCE_DOWNLOAD_PATCHES = 'patches'
 FORCE_DOWNLOAD_SOURCES = 'sources'
 FORCE_DOWNLOAD_CHOICES = [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES]
 DEFAULT_FORCE_DOWNLOAD = FORCE_DOWNLOAD_SOURCES
+
+CHECKSUM_PRIORITY_JSON = "json"
+CHECKSUM_PRIORITY_EASYCONFIG = "easyconfig"
+CHECKSUM_PRIORITY_CHOICES = [CHECKSUM_PRIORITY_JSON, CHECKSUM_PRIORITY_EASYCONFIG]
+DEFAULT_CHECKSUM_PRIORITY = CHECKSUM_PRIORITY_EASYCONFIG
 
 # package name for generic easyblocks
 GENERIC_EASYBLOCK_PKG = 'generic'
@@ -177,9 +197,10 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 # build options that have a perfectly matching command line option, listed by default value
 BUILD_OPTIONS_CMDLINE = {
     None: [
-        'accept_eula_for',
         'aggregate_regtest',
         'backup_modules',
+        'banned_linked_shared_libs',
+        'checksum_priority',
         'container_config',
         'container_image_format',
         'container_image_name',
@@ -196,19 +217,18 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_deps',
         'filter_ecs',
         'filter_env_vars',
-        'hide_deps',
-        'hide_toolchains',
-        'http_header_fields_urlpat',
+        'filter_rpath_sanity_libs',
         'force_download',
-        'insecure_download',
-        'from_pr',
         'git_working_dirs_path',
         'github_user',
         'github_org',
         'group',
+        'hide_deps',
+        'hide_toolchains',
+        'http_header_fields_urlpat',
         'hooks',
         'ignore_dirs',
-        'include_easyblocks_from_pr',
+        'insecure_download',
         'job_backend_config',
         'job_cores',
         'job_deps_type',
@@ -233,7 +253,6 @@ BUILD_OPTIONS_CMDLINE = {
         'regtest_output_dir',
         'rpath_filter',
         'rpath_override_dirs',
-        'banned_linked_shared_libs',
         'required_linked_shared_libs',
         'silence_deprecation_warnings',
         'skip',
@@ -242,8 +261,8 @@ BUILD_OPTIONS_CMDLINE = {
         'sysroot',
         'test_report_env_filter',
         'testoutput',
-        'wait_on_lock',
         'umask',
+        'wait_on_lock',
         'zip_logs',
     ],
     False: [
@@ -257,9 +276,10 @@ BUILD_OPTIONS_CMDLINE = {
         'debug_lmod',
         'dump_autopep8',
         'enforce_checksums',
-        'extended_dry_run',
         'experimental',
+        'extended_dry_run',
         'force',
+        'generate_devel_module',
         'group_writable_installdir',
         'hidden',
         'ignore_checksums',
@@ -274,27 +294,24 @@ BUILD_OPTIONS_CMDLINE = {
         'package',
         'parallel_extensions_install',
         'read_only_installdir',
-        'remove_ghost_install_dirs',
         'rebuild',
-        'robot',
+        'remove_ghost_install_dirs',
         'rpath',
         'sanity_check_only',
-        'search_paths',
         'sequential',
+        'set_default_module',
         'set_gid_bit',
         'skip_extensions',
         'skip_test_cases',
         'skip_test_step',
-        'generate_devel_module',
         'sticky_bit',
         'trace',
         'unit_testing_mode',
         'upload_test_report',
         'update_modules_tool_cache',
         'use_ccache',
-        'use_f90cache',
         'use_existing_modules',
-        'set_default_module',
+        'use_f90cache',
         'wait_on_lock_limit',
     ],
     True: [
@@ -306,16 +323,23 @@ BUILD_OPTIONS_CMDLINE = {
         'lib_lib64_symlink',
         'lib64_fallback_sanity_check',
         'lib64_lib_symlink',
-        'mpi_tests',
         'map_toolchains',
         'modules_tool_version_check',
+        'mpi_tests',
         'pre_create_installdir',
         'show_progress_bar',
     ],
+    EMPTY_LIST: [
+        'accept_eula_for',
+        'from_pr',
+        'include_easyblocks_from_pr',
+        'robot',
+        'search_paths',
+    ],
     WARN: [
         'check_ebroot_env_vars',
-        'local_var_naming_check',
         'detect_loaded_modules',
+        'local_var_naming_check',
         'strict',
     ],
     DEFAULT_CONT_TYPE: [
@@ -380,8 +404,8 @@ BUILD_OPTIONS_OTHER = {
     ],
     False: [
         'dry_run',
-        'recursive_mod_unload',
         'mod_depends_on',
+        'recursive_mod_unload',
         'retain_all_deps',
         'silent',
         'try_to_generate',
@@ -563,7 +587,11 @@ def init_build_options(build_options=None, cmdline_options=None):
     bo = {}
     for build_options_by_default in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER]:
         for default in build_options_by_default:
-            bo.update(dict([(opt, default) for opt in build_options_by_default[default]]))
+            if default == EMPTY_LIST:
+                for opt in build_options_by_default[default]:
+                    bo[opt] = []
+            else:
+                bo.update(dict([(opt, default) for opt in build_options_by_default[default]]))
     bo.update(active_build_options)
 
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance

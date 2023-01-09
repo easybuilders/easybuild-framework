@@ -1,5 +1,5 @@
 ##
-# Copyright 2022-2022 Ghent University
+# Copyright 2022-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,11 +25,13 @@
 """
 EasyBuild support for gmpit compiler toolchain (includes GCC and MPItrampoline).
 
-:author: Alan O'Cais (CECAM)
+Authors:
+
+* Alan O'Cais (CECAM)
 """
-from distutils.version import LooseVersion
 import re
 
+from easybuild.tools import LooseVersion
 from easybuild.toolchains.gcc import GccToolchain
 from easybuild.toolchains.mpi.mpitrampoline import MPItrampoline
 

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,11 +33,10 @@ import os
 import re
 import sys
 import tempfile
-from distutils.version import LooseVersion
 from unittest import TextTestRunner, TestSuite
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
-from easybuild.tools import config
+from easybuild.tools import LooseVersion, config
 from easybuild.tools.filetools import mkdir, read_file, remove_file, write_file
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
@@ -1105,6 +1104,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
         ec_files = [os.path.join(subdir, fil) for (subdir, _, files) in os.walk(ecs_dir) for fil in files]
+        # keep only easyconfig files (there may be additional files like patches, checksums.json, etc.)
+        ec_files = [x for x in ec_files if x.endswith('.eb')]
 
         build_options = {
             'check_osdeps': False,

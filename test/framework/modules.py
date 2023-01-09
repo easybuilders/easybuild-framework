@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -54,7 +54,7 @@ from easybuild.tools.run import run_cmd
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 91
+TEST_MODULES_COUNT = 92
 
 
 class ModulesTest(EnhancedTestCase):

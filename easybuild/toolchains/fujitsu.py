@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2022 Ghent University
+# Copyright 2014-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,7 +25,9 @@
 """
 Fujitsu toolchain: Fujitsu compilers and MPI + Fujitsu SSL2 and Fujitsu FFTW
 
-:author: Miguel Dias Costa (National University of Singapore)
+Authors:
+
+* Miguel Dias Costa (National University of Singapore)
 """
 from easybuild.toolchains.ffmpi import Ffmpi
 from easybuild.toolchains.fft.fujitsufftw import FujitsuFFTW

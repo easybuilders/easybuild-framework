@@ -1,5 +1,5 @@
 #
-# Copyright 2014-2022 Ghent University
+# Copyright 2014-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,8 +28,10 @@ Shared module for vsc software testing
 TestCase: use instead of unittest TestCase
    from easybuild.base.testing import TestCase
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import difflib
 import pprint

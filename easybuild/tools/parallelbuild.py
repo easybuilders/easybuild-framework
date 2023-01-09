@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,9 +28,11 @@ dependencies)
 
 Support for PBS is provided via the PbsJob class. If you want you could create other job classes and use them here.
 
-:author: Toon Willems (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Stijn De Weirdt (Ghent University)
+Authors:
+
+* Toon Willems (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Stijn De Weirdt (Ghent University)
 """
 import math
 import os

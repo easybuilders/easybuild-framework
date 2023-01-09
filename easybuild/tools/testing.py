@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,10 +28,12 @@ dependencies)
 
 Support for PBS is provided via the PbsJob class. If you want you could create other job classes and use them here.
 
-:author: Toon Willems (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Stijn De Weirdt (Ghent University)
-:author: Ward Poelmans (Ghent University)
+Authors:
+
+* Toon Willems (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Stijn De Weirdt (Ghent University)
+* Ward Poelmans (Ghent University)
 """
 import copy
 import os
@@ -138,8 +140,18 @@ def session_state():
     }
 
 
-def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_log=False, easyblock_pr_nrs=None):
-    """Create test report for easyconfigs PR, in Markdown format."""
+def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_log=False, easyblock_pr_nrs=None,
+                       ec_parse_error=None):
+    """
+    Create test report for easyconfigs PR, in Markdown format.
+    :param msg: message to be included in test report
+    :param ecs_with_res: processed easyconfigs with build result (success/failure)
+    :param init_session_state: initial session state info to include in test report
+    :param pr_nrs: list of ints for the PRs in the easyconfigs repository
+    :param gist_log: boolean for whether to create a gist from the log file(s)
+    :param easyblock_pr_nrs:  list of ints for the PRs in the easyblocks repository
+    :param ec_parse_error: error message for easyconfig parse failure
+    """
 
     github_user = build_option('github_user')
     pr_target_account = build_option('pr_target_account')
@@ -170,42 +182,52 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
         "",
     ])
 
-    build_overview = ["#### Overview of tested easyconfigs (in order)"]
-    for (ec, ec_res) in ecs_with_res:
-        test_log = ''
-        if ec_res.get('success', False):
-            test_result = 'SUCCESS'
-        else:
-            # compose test result string
-            test_result = 'FAIL '
-            if 'err' in ec_res:
-                if isinstance(ec_res['err'], EasyBuildError):
-                    test_result += '(build issue)'
-                else:
-                    test_result += '(unhandled exception: %s)' % ec_res['err']
-                    test_result += ec_res['traceback']
+    if ec_parse_error:
+        build_overview = [str(ec_parse_error)]
+        test_report.extend([
+            "#### Error",
+            "```",
+            str(ec_parse_error),
+            "```",
+            "",
+        ])
+    else:
+        build_overview = ["#### Overview of tested easyconfigs (in order)"]
+        for (ec, ec_res) in ecs_with_res:
+            test_log = ''
+            if ec_res.get('success', False):
+                test_result = 'SUCCESS'
             else:
-                test_result += '(unknown cause, not an exception?!)'
+                # compose test result string
+                test_result = 'FAIL '
+                if 'err' in ec_res:
+                    if isinstance(ec_res['err'], EasyBuildError):
+                        test_result += '(build issue)'
+                    else:
+                        test_result += '(unhandled exception: %s)' % ec_res['err']
+                        test_result += ec_res['traceback']
+                else:
+                    test_result += '(unknown cause, not an exception?!)'
 
-            # create gist for log file (if desired and available)
-            if gist_log and 'log_file' in ec_res:
-                logtxt = read_file(ec_res['log_file'])
-                partial_log_txt = '\n'.join(logtxt.split('\n')[-500:])
-                descr = "(partial) EasyBuild log for failed build of %s" % ec['spec']
+                # create gist for log file (if desired and available)
+                if gist_log and 'log_file' in ec_res:
+                    logtxt = read_file(ec_res['log_file'])
+                    partial_log_txt = '\n'.join(logtxt.split('\n')[-500:])
+                    descr = "(partial) EasyBuild log for failed build of %s" % ec['spec']
 
-                if pr_nrs:
-                    descr += " (PR(s) #%s)" % ', #'.join(str(x) for x in pr_nrs)
+                    if pr_nrs:
+                        descr += " (PR(s) #%s)" % ', #'.join(str(x) for x in pr_nrs)
 
-                if easyblock_pr_nrs:
-                    descr += " (easyblock PR(s) #%s)" % ', #'.join(str(x) for x in easyblock_pr_nrs)
+                    if easyblock_pr_nrs:
+                        descr += " (easyblock PR(s) #%s)" % ', #'.join(str(x) for x in easyblock_pr_nrs)
 
-                fn = '%s_partial.log' % os.path.basename(ec['spec'])[:-3]
-                gist_url = create_gist(partial_log_txt, fn, descr=descr, github_user=github_user)
-                test_log = "(partial log available at %s)" % gist_url
+                    fn = '%s_partial.log' % os.path.basename(ec['spec'])[:-3]
+                    gist_url = create_gist(partial_log_txt, fn, descr=descr, github_user=github_user)
+                    test_log = "(partial log available at %s)" % gist_url
 
-        build_overview.append(" * **%s** _%s_ %s" % (test_result, os.path.basename(ec['spec']), test_log))
-    build_overview.append("")
-    test_report.extend(build_overview)
+            build_overview.append(" * **%s** _%s_ %s" % (test_result, os.path.basename(ec['spec']), test_log))
+        build_overview.append("")
+        test_report.extend(build_overview)
 
     time_format = "%a, %d %b %Y %H:%M:%S +0000 (UTC)"
     start_time = strftime(time_format, init_session_state['time'])
@@ -344,7 +366,7 @@ def post_pr_test_report(pr_nrs, repo_type, test_report, msg, init_session_state,
     return msg
 
 
-def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state):
+def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state, ec_parse_error=None):
     """
     Upload/dump overall test report
     :param ecs_with_res: processed easyconfigs with build result (success/failure)
@@ -352,6 +374,7 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
     :param success: boolean indicating whether all builds were successful
     :param msg: message to be included in test report
     :param init_session_state: initial session state info to include in test report
+    :param ec_parse_error: error message for easyconfig parse failure
     """
     dump_path = build_option('dump_test_report')
 
@@ -371,7 +394,7 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
         msg = msg + " (%d easyconfigs in total)" % orig_cnt
 
         test_report = create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=pr_nrs, gist_log=True,
-                                         easyblock_pr_nrs=easyblock_pr_nrs)
+                                         easyblock_pr_nrs=easyblock_pr_nrs, ec_parse_error=ec_parse_error)
         if pr_nrs:
             # upload test report to gist and issue a comment in the PR(s) to notify
             txt = post_pr_test_report(pr_nrs, GITHUB_EASYCONFIGS_REPO, test_report, msg, init_session_state,
@@ -386,7 +409,7 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
             gist_url = upload_test_report_as_gist(test_report['full'])
             txt = "Test report uploaded to %s" % gist_url
     else:
-        test_report = create_test_report(msg, ecs_with_res, init_session_state)
+        test_report = create_test_report(msg, ecs_with_res, init_session_state, ec_parse_error=ec_parse_error)
         txt = None
     _log.debug("Test report: %s" % test_report['full'])
 

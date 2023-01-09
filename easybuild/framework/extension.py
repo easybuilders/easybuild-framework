@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2022 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,12 +26,14 @@
 Generic EasyBuild support for software extensions (e.g. Python packages).
 The Extension class should serve as a base class for all extensions.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
 """
 import copy
 import os
@@ -49,7 +51,7 @@ def resolve_exts_filter_template(exts_filter, ext):
     Resolve the exts_filter tuple by replacing the template values using the extension
     :param exts_filter: Tuple of (command, input) using template values (ext_name, ext_version, src)
     :param ext: Instance of Extension or dictionary like with 'name' and optionally 'options', 'version', 'source' keys
-    :return (cmd, input) as a tuple of strings
+    :return: (cmd, input) as a tuple of strings
     """
 
     if isinstance(exts_filter, string_type) or len(exts_filter) != 2:
@@ -140,6 +142,9 @@ class Extension(object):
                                key, name, version, value)
 
         self.sanity_check_fail_msgs = []
+        self.sanity_check_module_loaded = False
+        self.fake_mod_data = None
+
         self.async_cmd_info = None
         self.async_cmd_output = None
         self.async_cmd_check_cnt = None

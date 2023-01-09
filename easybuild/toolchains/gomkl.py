@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,9 +26,11 @@
 EasyBuild support for gomkl compiler toolchain (includes GCC, OpenMPI,
 Intel Math Kernel Library (MKL) and Intel FFTW wrappers).
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Ake Sandgren (Umea University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Ake Sandgren (Umea University)
 """
 
 from easybuild.toolchains.gompi import Gompi

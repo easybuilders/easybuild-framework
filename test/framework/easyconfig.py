@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -38,12 +38,13 @@ import stat
 import sys
 import tempfile
 import textwrap
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
+import easybuild.tools.github as gh
 import easybuild.tools.systemtools as st
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
@@ -77,6 +78,7 @@ from easybuild.tools.systemtools import AARCH64, KNOWN_ARCH_CONSTANTS, POWER, X8
 from easybuild.tools.systemtools import get_cpu_architecture, get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str, quote_py_str
+from test.framework.github import GITHUB_TEST_ACCOUNT
 from test.framework.utilities import find_full_path
 
 try:
@@ -112,6 +114,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.all_stops = [x[0] for x in EasyBlock.get_steps()]
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
+
+        github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
+        self.skip_github_tests = github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
 
     def prep(self):
         """Prepare for test."""
@@ -1256,7 +1261,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_templating_doc(self):
         """test templating documentation"""
         doc = avail_easyconfig_templates()
-        # expected length: 1 per constant and 1 extra per constantgroup
+        # expected length: 1 per constant and 2 extra per constantgroup (title + empty line in between)
         temps = [
             easyconfig.templates.TEMPLATE_NAMES_EASYCONFIG,
             easyconfig.templates.TEMPLATE_SOFTWARE_VERSIONS * 2,
@@ -1267,7 +1272,7 @@ class EasyConfigTest(EnhancedTestCase):
             easyconfig.templates.TEMPLATE_CONSTANTS,
         ]
 
-        self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
+        self.assertEqual(len(doc.split('\n')), sum([2 * len(temps) - 1] + [len(x) for x in temps]))
 
     def test_constant_doc(self):
         """test constant documentation"""
@@ -4408,6 +4413,10 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(paths, args[:-1])
             self.assertEqual(target_path, args[-1])
 
+        if self.skip_github_tests:
+            print("Skipping test_det_copy_ec_specs using --from-pr, no GitHub token available?")
+            return
+
         # use fixed PR (speeds up the test due to caching in fetch_files_from_pr;
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/8007
         from_pr = 8007
@@ -4722,6 +4731,56 @@ class EasyConfigTest(EnhancedTestCase):
         """Test ARCH easyconfig constant."""
         arch = easyconfig.constants.EASYCONFIG_CONSTANTS['ARCH'][0]
         self.assertTrue(arch in KNOWN_ARCH_CONSTANTS, "Unexpected value for ARCH constant: %s" % arch)
+
+    def test_easyconfigs_caches(self):
+        """
+        Test whether easyconfigs caches work as intended.
+        """
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        libtoy_ec = os.path.join(test_ecs_dir, 'l', 'libtoy', 'libtoy-0.0.eb')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        copy_file(libtoy_ec, self.test_prefix)
+        copy_file(toy_ec, self.test_prefix)
+        libtoy_ec = os.path.join(self.test_prefix, os.path.basename(libtoy_ec))
+        toy_ec = os.path.join(self.test_prefix, os.path.basename(toy_ec))
+
+        ec1 = process_easyconfig(toy_ec)[0]
+        self.assertEqual(ec1['ec'].name, 'toy')
+        self.assertEqual(ec1['ec'].version, '0.0')
+        self.assertTrue(isinstance(ec1['ec'].toolchain, SystemToolchain))
+        self.assertTrue(os.path.samefile(ec1['ec'].path, toy_ec))
+
+        # wipe toy easyconfig (but path still needs to exist)
+        write_file(toy_ec, '')
+
+        # check if cached EasyConfig instance is picked up when calling process_easyconfig again
+        ec2 = process_easyconfig(toy_ec)[0]
+        self.assertEqual(ec2['ec'].name, 'toy')
+        self.assertEqual(ec2['ec'].version, '0.0')
+        self.assertTrue(isinstance(ec2['ec'].toolchain, SystemToolchain))
+        self.assertTrue(os.path.samefile(ec2['ec'].path, toy_ec))
+
+        # also check whether easyconfigs cache works with end-to-end test
+        args = [libtoy_ec, '--trace']
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, testing=False, raise_error=True, clear_caches=False)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        regex = re.compile(r"generating module file @ .*/modules/all/libtoy/0.0", re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        # wipe libtoy easyconfig (but path still needs to exist)
+        write_file(libtoy_ec, '')
+
+        # retrying installation of libtoy easyconfig should not fail, thanks to easyconfigs cache
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, testing=False, raise_error=True, clear_caches=False)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        regex = re.compile(r"libtoy/0\.0 is already installed", re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
 def suite():

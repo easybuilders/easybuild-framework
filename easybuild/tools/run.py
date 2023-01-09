@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2022 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,13 +25,15 @@
 """
 Tools to run commands.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
-:author: Ward Poelmans (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
+* Ward Poelmans (Ghent University)
 """
 import contextlib
 import functools
@@ -137,7 +139,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param log_all: always log command output and exit code
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
     :param inp: the input given to the command via stdin
-    :param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
+    :param regexp: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
     :param log_output: indicate whether all output of command should be logged to a separate temporary logfile
     :param path: path to execute the command in; current working directory is used if unspecified
     :param force_in_dry_run: force running the command during dry run
@@ -303,7 +305,7 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
     :param log_ok: only run output/exit code for failing commands (exit code non-zero)
     :param log_all: always log command output and exit code
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
-    :param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
+    :param regexp: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
     :param stream_output: enable streaming command output to stdout
     :param trace: print command being executed as part of trace output
     """
@@ -362,7 +364,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     :param log_ok: only run output/exit code for failing commands (exit code non-zero)
     :param log_all: always log command output and exit code
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
-    :param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
+    :param regexp: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
     :param std_qa: dictionary which maps question regex patterns to answers
     :param path: path to execute the command is; current working directory is used if unspecified
     :param maxhits: maximum number of cycles (seconds) without being able to find a known question
@@ -617,7 +619,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
     :param log_all: always log command output and exit code
     :param log_ok: only run output/exit code for failing commands (exit code non-zero)
-    :param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
+    :param regexp: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
     """
     if strictness == IGNORE:
         check_ec = False
@@ -710,7 +712,7 @@ def extract_errors_from_log(log_txt, reg_exps):
     :param log_txt: String containing the log, will be split into individual lines
     :param reg_exps: List of: regular expressions (as strings) to error on,
                     or tuple of regular expression and action (any of [IGNORE, WARN, ERROR])
-    :return (warnings, errors) as lists of lines containing a match
+    :return: (warnings, errors) as lists of lines containing a match
     """
     actions = (IGNORE, WARN, ERROR)
 

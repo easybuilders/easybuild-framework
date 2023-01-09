@@ -5,7 +5,9 @@
 """
 Support for IBM compilers (xlc, xlf) as toolchain compilers.
 
-:author: Jack Perdue <j-perdue@tamu.edu> - TAMU HPRC - http://sc.tamu.edu
+Authors:
+
+* Jack Perdue <j-perdue@tamu.edu> - TAMU HPRC - http://sc.tamu.edu
 """
 
 import easybuild.tools.systemtools as systemtools

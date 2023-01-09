@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2022 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -22,7 +22,9 @@
 EasyBuild support for building and installing extensions as actual extensions or as stand-alone modules,
 implemented as an easyblock
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 import copy
 import os
@@ -154,8 +156,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             fake_mod_data = None
 
             # only load fake module + extra modules for stand-alone installations (not for extensions),
-            # since for extension the necessary modules should already be loaded at this point
-            if not (self.is_extension or self.dry_run):
+            # since for extension the necessary modules should already be loaded at this point;
+            # take into account that module may already be loaded earlier in sanity check
+            if not (self.sanity_check_module_loaded or self.is_extension or self.dry_run):
                 # load fake module
                 fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
 

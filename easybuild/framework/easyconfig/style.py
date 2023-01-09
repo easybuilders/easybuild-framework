@@ -1,5 +1,5 @@
 ##
-# Copyright 2016-2022 Ghent University
+# Copyright 2016-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,7 +26,9 @@
 """
 Style tests for easyconfig files using pycodestyle.
 
-:author: Ward Poelmans (Ghent University)
+Authors:
+
+* Ward Poelmans (Ghent University)
 """
 import re
 import sys
@@ -108,8 +110,8 @@ def _eb_check_trailing_whitespace(physical_line, lines, line_number, checker_sta
 def check_easyconfigs_style(easyconfigs, verbose=False):
     """
     Check the given list of easyconfigs for style
-    :param: easyconfigs list of file paths to easyconfigs
-    :param: verbose print our statistics and be verbose about the errors and warning
+    :param easyconfigs: list of file paths to easyconfigs
+    :param verbose: print our statistics and be verbose about the errors and warning
     :return: the number of warnings and errors
     """
     # importing autopep8 changes some pep8 functions.

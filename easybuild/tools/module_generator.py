@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2022 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,20 +25,22 @@
 """
 Generating module files.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
-:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
+* Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import copy
 import os
 import re
 import tempfile
 from contextlib import contextmanager
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 from textwrap import wrap
 
 from easybuild.base import fancylogger

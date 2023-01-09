@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2022 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -384,6 +384,10 @@ class EasyBuildConfigTest(EnhancedTestCase):
         # specific build options should be set
         self.assertEqual(bo['robot_path'], '/some/robot/path')
         self.assertEqual(bo['stop'], 'configure')
+
+        # also check some default values that should be an empty list
+        for opt in ('accept_eula_for', 'from_pr', 'include_easyblocks_from_pr', 'robot'):
+            self.assertEqual(bo[opt], [], "Default value of build option '%s' should be []" % opt)
 
         # all possible build options should be set (defaults are used where needed)
         self.assertEqual(sorted(bo.keys()), sorted(BuildOptions.KNOWN_KEYS))

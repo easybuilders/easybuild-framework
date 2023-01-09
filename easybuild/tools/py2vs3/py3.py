@@ -1,5 +1,5 @@
 #
-# Copyright 2019-2022 Ghent University
+# Copyright 2019-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,7 +27,9 @@ Functionality to facilitate keeping code compatible with Python 2 & Python 3.
 
 Implementations for Python 3.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 # these are not used here, but imported from here in other places
 import configparser  # noqa
@@ -37,7 +39,6 @@ import sys
 import urllib.request as std_urllib  # noqa
 from collections import OrderedDict  # noqa
 from collections.abc import Mapping  # noqa
-from distutils.version import LooseVersion
 from functools import cmp_to_key
 from html.parser import HTMLParser  # noqa
 from itertools import zip_longest
@@ -49,6 +50,13 @@ from urllib.parse import urlencode  # noqa
 # reload function (no longer a built-in in Python 3)
 # importlib only works with Python 3.4 & newer
 from importlib import reload  # noqa
+
+# distutils is deprecated, so prepare for it being removed
+try:
+    import distutils.version
+    HAVE_DISTUTILS = True
+except ImportError:
+    HAVE_DISTUTILS = False
 
 # string type that can be used in 'isinstance' calls
 string_type = str
@@ -133,7 +141,7 @@ def safe_cmp_looseversions(v1, v2):
         else:
             return 0
 
-    if isinstance(v1, LooseVersion) and isinstance(v2, LooseVersion):
+    if isinstance(v1, distutils.version.LooseVersion) and isinstance(v2, distutils.version.LooseVersion):
         # implementation based on '14894.patch' patch file provided in https://bugs.python.org/issue14894
         for ver1_part, ver2_part in zip_longest(v1.version, v2.version, fillvalue=''):
             # use string comparison if version parts have different type
@@ -155,7 +163,10 @@ def safe_cmp_looseversions(v1, v2):
 
 
 def sort_looseversions(looseversions):
-    """Sort list of (values including) LooseVersion instances."""
+    """Sort list of (values including) distutils.version.LooseVersion instances."""
     # with Python 2, we can safely use 'sorted' on LooseVersion instances
     # (but we can't in Python 3, see https://bugs.python.org/issue14894)
-    return sorted(looseversions, key=cmp_to_key(safe_cmp_looseversions))
+    if HAVE_DISTUTILS:
+        return sorted(looseversions, key=cmp_to_key(safe_cmp_looseversions))
+    else:
+        return sorted(looseversions)

@@ -1,5 +1,5 @@
 ##
-# Copyright 2022-2022 Ghent University
+# Copyright 2022-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,7 +25,9 @@
 """
 Support for MPItrampoline as toolchain MPI library.
 
-:author: Alan O'Cais (CECAM)
+Authors:
+
+* Alan O'Cais (CECAM)
 """
 
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_VARIABLES

@@ -1,5 +1,5 @@
 #
-# Copyright 2011-2022 Ghent University
+# Copyright 2011-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +25,10 @@
 """
 A class that can be used to generated options to python scripts in a general way.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Jens Timmerman (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Jens Timmerman (Ghent University)
 """
 
 import copy
@@ -44,7 +46,7 @@ from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python 
 from easybuild.base.fancylogger import getLogger, setroot, setLogLevel, getDetailsLogLevels
 from easybuild.base.optcomplete import autocomplete, CompleterOption
 from easybuild.tools.py2vs3 import StringIO, configparser, string_type, subprocess_popen_text
-from easybuild.tools.utilities import mk_rst_table, nub, shell_quote
+from easybuild.tools.utilities import mk_md_table, mk_rst_table, nub, shell_quote
 
 try:
     import gettext
@@ -65,7 +67,7 @@ except ImportError:
         return message
 
 
-HELP_OUTPUT_FORMATS = ['', 'rst', 'short', 'config']
+HELP_OUTPUT_FORMATS = ['', 'md', 'rst', 'short', 'config']
 
 
 def set_columns(cols=None):
@@ -637,6 +639,45 @@ class ExtOptionParser(OptionParser):
         """Intercept print to file to print to string and remove the ENABLE/DISABLE options from help"""
         fh = self.check_help(fh)
         OptionParser.print_help(self, fh)
+
+    def print_mdhelp(self, fh=None):
+        """Print help in MarkDown format"""
+        fh = self.check_help(fh)
+        result = []
+        if self.usage:
+            result.extend(["## Usage", '', '``%s``' % self.get_usage().replace("Usage: ", '').strip(), ''])
+        if self.description:
+            result.extend(["## Description", '', self.description, ''])
+
+        result.append(self.format_option_mdhelp())
+
+        mdhelptxt = '\n'.join(result)
+        if fh is None:
+            fh = sys.stdout
+        fh.write(mdhelptxt)
+
+    def format_option_mdhelp(self, formatter=None):
+        """ Formatting for help in rst format """
+        if not formatter:
+            formatter = self.formatter
+        formatter.store_option_strings(self)
+
+        res = []
+        titles = ["Option flag", "Option description"]
+
+        all_opts = [("Help options", self.option_list)] + \
+                   [(group.title, group.option_list) for group in self.option_groups]
+        for title, opts in all_opts:
+            values = []
+            res.extend(['## ' + title, ''])
+            for opt in opts:
+                if opt.help is not nohelp:
+                    values.append(['``%s``' % formatter.option_strings[opt], formatter.expand_default(opt)])
+
+            res.extend(mk_md_table(titles, map(list, zip(*values))))
+            res.append('')
+
+        return '\n'.join(res)
 
     def print_rsthelp(self, fh=None):
         """ Print help in rst format """
@@ -1228,7 +1269,7 @@ class GeneralOption(object):
         """
         Initialise the configparser to use.
 
-            :params initenv: insert initial environment into the configparser.
+            :param initenv: insert initial environment into the configparser.
                 It is a dict of dicts; the first level key is the section name;
                 the 2nd level key,value is the key=value.
                 All section names, keys and values are converted to strings.
@@ -1669,10 +1710,10 @@ class SimpleOption(GeneralOption):
 
     def __init__(self, go_dict=None, descr=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
         """Initialisation
-        :param go_dict : General Option option dict
-        :param short_descr : short description of main options
-        :param long_descr : longer description of main options
-        :param config_files : list of configfiles to read options from
+        :param go_dict: General Option option dict
+        :param short_groupdescr: short description of main options
+        :param long_groupdescr: longer description of main options
+        :param config_files: list of configfiles to read options from
 
         a general options dict has as key the long option name, and is followed by a list/tuple
         mandatory are 4 elements : option help, type, action, default
@@ -1710,10 +1751,10 @@ class SimpleOption(GeneralOption):
 def simple_option(go_dict=None, descr=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
     """A function that returns a single level GeneralOption option parser
 
-    :param go_dict : General Option option dict
-    :param short_descr : short description of main options
-    :param long_descr : longer description of main options
-    :param config_files : list of configfiles to read options from
+    :param go_dict: General Option option dict
+    :param short_groupdescr: short description of main options
+    :param long_groupdescr: longer description of main options
+    :param config_files: list of configfiles to read options from
 
     a general options dict has as key the long option name, and is followed by a list/tuple
     mandatory are 4 elements : option help, type, action, default

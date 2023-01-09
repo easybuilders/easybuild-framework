@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2022 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,12 +28,14 @@ This python module implements the environment modules functionality:
  - checking for available modules
  - ...
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: David Brown (Pacific Northwest National Laboratory)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* David Brown (Pacific Northwest National Laboratory)
 """
 import os
 import re
@@ -1288,7 +1290,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
-        :param name: a (partial) module name for filtering (default: None)
+        :param mod_name: a (partial) module name for filtering (default: None)
         """
         mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name)
         # strip off slash at beginning, if it's there
@@ -1402,7 +1404,7 @@ class Lmod(ModulesTool):
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
-        :param name: a (partial) module name for filtering (default: None)
+        :param mod_name: a (partial) module name for filtering (default: None)
         """
         # make hidden modules visible (requires Lmod 5.7.5)
         extra_args = [self.SHOW_HIDDEN_OPTION]

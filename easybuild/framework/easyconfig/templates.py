@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2022 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,9 +27,11 @@
 Easyconfig templates module that provides templating that can
 be used within an Easyconfig file.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
+* Kenneth Hoste (Ghent University)
 """
 import re
 import platform

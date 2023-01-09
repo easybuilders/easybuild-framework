@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,15 +25,17 @@
 """
 Support for ACML (AMD Core Math Library) as toolchain linear algebra library.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 
 import os
-from distutils.version import LooseVersion
 
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 

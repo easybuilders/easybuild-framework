@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2022 Ghent University
+# Copyright 2011-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +25,10 @@
 """
 Module with useful functions for getting system information
 
-:author: Jens Timmerman (Ghent University)
-@auther: Ward Poelmans (Ghent University)
+Authors:
+
+* Jens Timmerman (Ghent University)
+* Ward Poelmans (Ghent University)
 """
 import ctypes
 import errno
@@ -59,6 +61,7 @@ except ImportError:
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.config import IGNORE
 from easybuild.tools.filetools import is_readable, read_file, which
 from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.run import run_cmd
@@ -608,14 +611,19 @@ def get_gpu_info():
     """
     Get the GPU info
     """
-    gpu_info = {}
-    os_type = get_os_type()
+    if get_os_type() != LINUX:
+        _log.info("Only know how to get GPU info on Linux, assuming no GPUs are present")
+        return {}
 
-    if os_type == LINUX:
+    gpu_info = {}
+    if not which('nvidia-smi', on_error=IGNORE):
+        _log.info("nvidia-smi not found. Cannot detect NVIDIA GPUs")
+    else:
         try:
             cmd = "nvidia-smi --query-gpu=gpu_name,driver_version --format=csv,noheader"
             _log.debug("Trying to determine NVIDIA GPU info on Linux via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False,
+                              force_in_dry_run=True, trace=False, stream_output=False)
             if ec == 0:
                 for line in out.strip().split('\n'):
                     nvidia_gpu_info = gpu_info.setdefault('NVIDIA', {})
@@ -627,16 +635,21 @@ def get_gpu_info():
             _log.debug("Exception was raised when running nvidia-smi: %s", err)
             _log.info("No NVIDIA GPUs detected")
 
+    if not which('rocm-smi', on_error=IGNORE):
+        _log.info("rocm-smi not found. Cannot detect AMD GPUs")
+    else:
         try:
             cmd = "rocm-smi --showdriverversion --csv"
             _log.debug("Trying to determine AMD GPU driver on Linux via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False,
+                              force_in_dry_run=True, trace=False, stream_output=False)
             if ec == 0:
                 amd_driver = out.strip().split('\n')[1].split(',')[1]
 
             cmd = "rocm-smi --showproductname --csv"
             _log.debug("Trying to determine AMD GPU info on Linux via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
+            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False,
+                              force_in_dry_run=True, trace=False, stream_output=False)
             if ec == 0:
                 for line in out.strip().split('\n')[1:]:
                     amd_card_series = line.split(',')[1]
@@ -650,8 +663,6 @@ def get_gpu_info():
         except Exception as err:
             _log.debug("Exception was raised when running rocm-smi: %s", err)
             _log.info("No AMD GPUs detected")
-    else:
-        _log.info("Only know how to get GPU info on Linux, assuming no GPUs are present")
 
     return gpu_info
 
@@ -1042,7 +1053,7 @@ def locate_solib(libobj):
     Return absolute path to loaded library using dlinfo
     Based on https://stackoverflow.com/a/35683698
 
-    :params libobj: ctypes CDLL object
+    :param libobj: ctypes CDLL object
     """
     # early return if we're not on a Linux system
     if get_os_type() != LINUX:
@@ -1072,7 +1083,7 @@ def find_library_path(lib_filename):
     Search library by file name in the system
     Return absolute path to existing libraries
 
-    :params lib_filename: name of library file
+    :param lib_filename: name of library file
     """
 
     lib_abspath = None

@@ -1,5 +1,5 @@
 # #
-# Copyright 2017-2022 Ghent University
+# Copyright 2017-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,7 +25,9 @@
 """
 Hook support.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 import difflib
 import imp

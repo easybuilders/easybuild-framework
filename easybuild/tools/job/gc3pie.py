@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2022 Ghent University
+# Copyright 2015-2023 Ghent University
 # Copyright 2015 S3IT, University of Zurich
 #
 # This file is part of EasyBuild,
@@ -26,15 +26,17 @@
 """
 Interface for submitting jobs via GC3Pie.
 
-:author: Riccardo Murri (University of Zurich)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Riccardo Murri (University of Zurich)
+* Kenneth Hoste (Ghent University)
 """
-from distutils.version import LooseVersion
 import os
 from time import gmtime, strftime
 import time
 
 from easybuild.base import fancylogger
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, build_option
 from easybuild.tools.job.backend import JobBackend

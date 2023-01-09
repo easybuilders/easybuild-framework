@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,16 +26,18 @@
 EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI,
 Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
-from distutils.version import LooseVersion
 import re
 
 from easybuild.toolchains.iimpi import Iimpi
 from easybuild.toolchains.iimkl import Iimkl
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
+from easybuild.tools import LooseVersion
 
 
 class Intel(Iimpi, IntelMKL, IntelFFTW):

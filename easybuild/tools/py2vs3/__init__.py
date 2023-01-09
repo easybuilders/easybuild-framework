@@ -1,5 +1,5 @@
 #
-# Copyright 2019-2022 Ghent University
+# Copyright 2019-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,3 +36,26 @@ else:
 def create_base_metaclass(base_class_name, metaclass, *bases):
     """Create new class with specified metaclass based on specified base class(es)."""
     return metaclass(base_class_name, bases, {})
+
+
+def python2_is_deprecated():
+    """
+    Print warning when using Python 2, since the support for running EasyBuild with it is deprecated.
+    """
+    if sys.version_info[0] == 2:
+        full_py_ver = '.'.join(str(x) for x in sys.version_info[:3])
+        warning_lines = [
+            "Running EasyBuild with Python v2.x is deprecated, found Python v%s." % full_py_ver,
+            "Support for running EasyBuild with Python v2.x will be removed in EasyBuild v5.0.",
+            '',
+            "It is strongly recommended to start using Python v3.x for running EasyBuild,",
+            "see https://docs.easybuild.io/en/latest/Python-2-3-compatibility.html for more information.",
+        ]
+        max_len = max(len(x) for x in warning_lines)
+        for i in range(len(warning_lines)):
+            line_len = len(warning_lines[i])
+            warning_lines[i] = '!!! ' + warning_lines[i] + ' ' * (max_len - line_len) + ' !!!'
+        max_len = max(len(x) for x in warning_lines)
+        warning_lines.insert(0, '!' * max_len)
+        warning_lines.append('!' * max_len)
+        sys.stderr.write('\n\n' + '\n'.join(warning_lines) + '\n\n\n')
