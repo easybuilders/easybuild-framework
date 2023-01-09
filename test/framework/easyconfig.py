@@ -1223,7 +1223,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb.template_values['javaver'], '11')
         self.assertEqual(eb.template_values['javamajver'], '11')
         self.assertEqual(eb.template_values['javashortver'], '11')
-        self.assertFalse('javaminver' in eb.template_values)
+        self.assertNotIn('javaminver', eb.template_values)
 
         self.assertEqual(eb['modloadmsg'], "Java: 11, 11, 11")
 
@@ -1645,7 +1645,7 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         self.prep()
         ec = EasyConfig(self.eb_file)
-        self.assertFalse('therenosucheasyconfigparameterlikethis' in ec)
+        self.assertNotIn('therenosucheasyconfigparameterlikethis', ec)
         error_regex = "unknown easyconfig parameter"
         self.assertErrorRegex(EasyBuildError, error_regex, lambda k: ec[k], 'therenosucheasyconfigparameterlikethis')
 
@@ -2191,7 +2191,7 @@ class EasyConfigTest(EnhancedTestCase):
             "('GCC', '4.9.2', '', SYSTEM)",
         ]
         for pattern in patterns:
-            self.assertTrue(pattern in dumped_ec_txt, "Pattern '%s' should be found in: %s" % (pattern, dumped_ec_txt))
+            self.assertIn(pattern, dumped_ec_txt)
 
     def test_toolchain_hierarchy_aware_dump(self):
         """Test that EasyConfig's dump() method is aware of the toolchain hierarchy."""
@@ -3157,7 +3157,7 @@ class EasyConfigTest(EnhancedTestCase):
         res = template_constant_dict(ec)
 
         # 'arch' needs to be handled separately, since value depends on system architecture
-        self.assertTrue('arch' in res)
+        self.assertIn('arch', res)
         arch = res.pop('arch')
         self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
 
@@ -3244,7 +3244,7 @@ class EasyConfigTest(EnhancedTestCase):
         dep_names = [x['name'] for x in ec['dependencies']]
         self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
 
-        self.assertTrue('arch' in res)
+        self.assertIn('arch', res)
         arch = res.pop('arch')
         self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
 
@@ -3263,7 +3263,7 @@ class EasyConfigTest(EnhancedTestCase):
         dep_names = [x[0] for x in ec['dependencies']]
         self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
 
-        self.assertTrue('arch' in res)
+        self.assertIn('arch', res)
         arch = res.pop('arch')
         self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
 
@@ -3280,7 +3280,7 @@ class EasyConfigTest(EnhancedTestCase):
         }
         res = template_constant_dict(ext_dict)
 
-        self.assertTrue('arch' in res)
+        self.assertIn('arch', res)
         arch = res.pop('arch')
         self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
 
@@ -3506,7 +3506,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(versions, [None, ''])
         depr_msg = "WARNING: Deprecated functionality, will no longer work in v5.0: "
         depr_msg += "Use --add-system-to-minimal-toolchains instead of --add-dummy-to-minimal-toolchains"
-        self.assertTrue(depr_msg in stderr)
+        self.assertIn(depr_msg, stderr)
 
         # and GCCcore if existing too
         init_config(build_options={'add_system_to_minimal_toolchains': True})
@@ -3782,7 +3782,7 @@ class EasyConfigTest(EnhancedTestCase):
         ecs = [ec['ec'] for ec in ecs]
 
         res = check_sha256_checksums(ecs)
-        self.assertTrue(len(res) == 1)
+        self.assertEqual(len(res), 1)
         regex = re.compile(r"Non-SHA256 checksum\(s\) found for toy-0.0.tar.gz:.*not_really_a_sha256_checksum")
         self.assertTrue(regex.match(res[0]), "Pattern '%s' found in: %s" % (regex.pattern, res[0]))
 
@@ -3991,8 +3991,8 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(test_ec)
 
         # %(pyver)s and %(pyshortver)s template are not defined when not in iterative mode
-        self.assertFalse('pyver' in ec.template_values)
-        self.assertFalse('pyshortver' in ec.template_values)
+        self.assertNotIn('pyver', ec.template_values)
+        self.assertNotIn('pyshortver', ec.template_values)
 
         # save reference to original list of lists of build dependencies
         builddeps = ec['builddependencies']
@@ -4003,18 +4003,18 @@ class EasyConfigTest(EnhancedTestCase):
         ec['builddependencies'] = builddeps[0]
 
         ec.generate_template_values()
-        self.assertTrue('pyver' in ec.template_values)
+        self.assertIn('pyver', ec.template_values)
         self.assertEqual(ec.template_values['pyver'], '2.7.15')
-        self.assertTrue('pyshortver' in ec.template_values)
+        self.assertIn('pyshortver', ec.template_values)
         self.assertEqual(ec.template_values['pyshortver'], '2.7')
 
         # put next list of build dependencies in place (i.e. Python 3.7.2)
         ec['builddependencies'] = builddeps[1]
 
         ec.generate_template_values()
-        self.assertTrue('pyver' in ec.template_values)
+        self.assertIn('pyver', ec.template_values)
         self.assertEqual(ec.template_values['pyver'], '3.6.6')
-        self.assertTrue('pyshortver' in ec.template_values)
+        self.assertIn('pyshortver', ec.template_values)
         self.assertEqual(ec.template_values['pyshortver'], '3.6')
 
         # check that extensions inherit these template values too
@@ -4074,7 +4074,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.mock_stderr(False)
             self.mock_stdout(False)
             self.assertFalse(stderr)
-            self.assertTrue("test.eb... FIXED!" in stdout)
+            self.assertIn("test.eb... FIXED!", stdout)
 
             # parsing now works
             ec = EasyConfig(test_ec)
@@ -4106,7 +4106,7 @@ class EasyConfigTest(EnhancedTestCase):
                 "Use of 'dummy' toolchain is deprecated, use 'system' toolchain instead",
             ]
             for warning in warnings:
-                self.assertTrue(warning in stderr, "Found warning '%s' in stderr output: %s" % (warning, stderr))
+                self.assertIn(warning, stderr)
 
             init_config(build_options={'local_var_naming_check': 'error', 'silent': True})
 
@@ -4730,7 +4730,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_ARCH(self):
         """Test ARCH easyconfig constant."""
         arch = easyconfig.constants.EASYCONFIG_CONSTANTS['ARCH'][0]
-        self.assertTrue(arch in KNOWN_ARCH_CONSTANTS, "Unexpected value for ARCH constant: %s" % arch)
+        self.assertIn(arch, KNOWN_ARCH_CONSTANTS, "Unexpected value for ARCH constant: %s" % arch)
 
     def test_easyconfigs_caches(self):
         """

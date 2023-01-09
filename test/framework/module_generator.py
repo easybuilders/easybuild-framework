@@ -223,7 +223,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.modtool.load([module_name])
         full_module_name = module_name + '/' + version_one
 
-        self.assertTrue(full_module_name in self.modtool.loaded_modules())
+        self.assertIn(full_module_name, self.modtool.loaded_modules())
         self.modtool.purge()
 
         # setting bar version as default
@@ -231,7 +231,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.modtool.load([module_name])
         full_module_name = module_name + '/' + version_two
 
-        self.assertTrue(full_module_name in self.modtool.loaded_modules())
+        self.assertIn(full_module_name, self.modtool.loaded_modules())
         self.modtool.purge()
 
     def test_is_loaded(self):
@@ -970,7 +970,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.modtool.load([module_name])
         full_module_name = module_name + '/' + version_one
 
-        self.assertTrue(full_module_name in self.modtool.loaded_modules())
+        self.assertIn(full_module_name, self.modtool.loaded_modules())
         self.assertEqual(os.getenv(test_envvar), test_flags)
         self.modtool.purge()
 
@@ -1065,7 +1065,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(if_else_cond, expected)
 
         else:
-            self.assertTrue(False, "Unknown module syntax")
+            self.fail("Unknown module syntax")
 
     def test_load_msg(self):
         """Test including a load message in the module file."""
@@ -1242,18 +1242,18 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_mod_name_validation(self):
         """Test module naming validation."""
         # module name must be a string
-        self.assertTrue(not is_valid_module_name(('foo', 'bar')))
-        self.assertTrue(not is_valid_module_name(['foo', 'bar']))
-        self.assertTrue(not is_valid_module_name(123))
+        self.assertFalse(is_valid_module_name(('foo', 'bar')))
+        self.assertFalse(is_valid_module_name(['foo', 'bar']))
+        self.assertFalse(is_valid_module_name(123))
 
         # module name must be relative
-        self.assertTrue(not is_valid_module_name('/foo/bar'))
+        self.assertFalse(is_valid_module_name('/foo/bar'))
 
         # module name must only contain valid characters
-        self.assertTrue(not is_valid_module_name('foo\x0bbar'))
-        self.assertTrue(not is_valid_module_name('foo\x0cbar'))
-        self.assertTrue(not is_valid_module_name('foo\rbar'))
-        self.assertTrue(not is_valid_module_name('foo\0bar'))
+        self.assertFalse(is_valid_module_name('foo\x0bbar'))
+        self.assertFalse(is_valid_module_name('foo\x0cbar'))
+        self.assertFalse(is_valid_module_name('foo\rbar'))
+        self.assertFalse(is_valid_module_name('foo\0bar'))
 
         # valid module name must be accepted
         self.assertTrue(is_valid_module_name('gzip/foss-2018a-suffix'))

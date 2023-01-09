@@ -151,7 +151,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(install_path(typ='mod'), os.path.join(install, 'modules'))
 
         self.assertEqual(options.installpath, install)
-        self.assertTrue(config_file in options.configfiles)
+        self.assertIn(config_file, options.configfiles)
 
         # check mixed command line/env var configuration
         prefix = os.path.join(self.tmpdir, 'test3')
@@ -362,7 +362,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
             'debug': False,
             'force': True
         })
-        self.assertTrue(not bo['debug'])
+        self.assertFalse(bo['debug'])
         self.assertTrue(bo['force'])
 
         # updating is impossible (methods are not even available)
@@ -618,7 +618,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
             res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651', add_salt=True)
             regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.[a-zA-Z]{5}\.log$'))
             self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
-            self.assertTrue(res not in prev_log_filenames)
+            self.assertNotIn(res, prev_log_filenames)
             prev_log_filenames.append(res)
 
     def test_log_file_format(self):

@@ -91,10 +91,10 @@ class ModulesToolTest(EnhancedTestCase):
         try:
             bmmt = BrokenMockModulesTool(mod_paths=[], testing=True)
             # should never get here
-            self.assertTrue(False, 'BrokenMockModulesTool should fail')
+            self.fail('BrokenMockModulesTool should fail')
         except EasyBuildError as err:
             err_msg = "command is not available"
-            self.assertTrue(err_msg in str(err), "'%s' found in: %s" % (err_msg, err))
+            self.assertIn(err_msg, str(err))
 
         os.environ[BrokenMockModulesTool.COMMAND_ENVIRONMENT] = MockModulesTool.COMMAND
         os.environ['module'] = "() { /bin/echo $*\n}"

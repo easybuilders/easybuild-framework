@@ -218,7 +218,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(len(txt.split('\n')) == len(perl_lines) + 4)
         self.assertTrue(txt.startswith(perl_lines[0] + "\n\nuse IO::Handle qw();\nSTDOUT->autoflush(1);"))
         for line in perl_lines[1:]:
-            self.assertTrue(line in txt)
+            self.assertIn(line, txt)
         os.remove(fp)
         os.remove("%s.eb.orig" % fp)
 
@@ -512,7 +512,7 @@ class FileToolsTest(EnhancedTestCase):
         if ft.HAVE_REQUESTS:
             res = ft.download_file(fn, url, target)
             self.assertTrue(res and os.path.exists(res))
-            self.assertTrue("https://easybuilders.github.io/easybuild" in ft.read_file(res))
+            self.assertIn("https://easybuilders.github.io/easybuild", ft.read_file(res))
 
         # without requests being available, error is raised
         ft.HAVE_REQUESTS = False
@@ -528,7 +528,7 @@ class FileToolsTest(EnhancedTestCase):
         if ft.HAVE_REQUESTS:
             res = ft.download_file(fn, url, target)
             self.assertTrue(res and os.path.exists(res))
-            self.assertTrue("https://easybuilders.github.io/easybuild" in ft.read_file(res))
+            self.assertIn("https://easybuilders.github.io/easybuild", ft.read_file(res))
 
         # without requests being available, error is raised
         ft.HAVE_REQUESTS = False
@@ -569,7 +569,7 @@ class FileToolsTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stderr(False)
 
-        self.assertTrue("WARNING: Not checking server certificates while downloading toy-0.0.eb" in stderr)
+        self.assertIn("WARNING: Not checking server certificates while downloading toy-0.0.eb", stderr)
         self.assertTrue(os.path.exists(res))
         self.assertTrue(ft.read_file(res).startswith("name = 'toy'"))
 
@@ -606,9 +606,9 @@ class FileToolsTest(EnhancedTestCase):
             stderr = self.get_stderr()
             self.mock_stderr(False)
 
-            self.assertTrue("WARNING: Not checking server certificates while downloading README.rst" in stderr)
+            self.assertIn("WARNING: Not checking server certificates while downloading README.rst", stderr)
             self.assertTrue(os.path.exists(res))
-            self.assertTrue("https://easybuilders.github.io/easybuild" in ft.read_file(res))
+            self.assertIn("https://easybuilders.github.io/easybuild", ft.read_file(res))
 
     def test_mkdir(self):
         """Test mkdir function."""
@@ -1051,10 +1051,10 @@ class FileToolsTest(EnhancedTestCase):
         ft.copy_file(fp, fp2)
         res = ft.back_up_file(fp2)
         self.assertTrue(fp2.endswith('.lua'))
-        self.assertTrue('.lua' in os.path.basename(res))
+        self.assertIn('.lua', os.path.basename(res))
 
         res = ft.back_up_file(fp2, strip_fn='.lua')
-        self.assertFalse('.lua' in os.path.basename(res))
+        self.assertNotIn('.lua', os.path.basename(res))
         # strip_fn should not remove the first a in 'a.lua'
         expected = os.path.basename(fp) + 'a.bak_'
         res_fn = os.path.basename(res)
@@ -1420,13 +1420,13 @@ class FileToolsTest(EnhancedTestCase):
         with self.log_to_testlogfile():
             ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.WARN)
         logtxt = ft.read_file(self.logfile)
-        self.assertTrue('WARNING ' + error_pat in logtxt)
+        self.assertIn('WARNING ' + error_pat, logtxt)
 
         # Ignore
         with self.log_to_testlogfile():
             ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.IGNORE)
         logtxt = ft.read_file(self.logfile)
-        self.assertTrue('INFO ' + error_pat in logtxt)
+        self.assertIn('INFO ' + error_pat, logtxt)
 
         # clean error on non-existing file
         error_pat = "Failed to patch .*/nosuchfile.txt: .*No such file or directory"
@@ -1605,7 +1605,7 @@ class FileToolsTest(EnhancedTestCase):
         prefix = 'https://pypi.python.org/packages'
         for entry in res:
             self.assertTrue(entry.startswith(prefix), "'%s' should start with '%s'" % (entry, prefix))
-            self.assertTrue('ipython' in entry, "Pattern 'ipython' should be found in '%s'" % entry)
+            self.assertIn('ipython', entry)
 
     def test_derive_alt_pypi_url(self):
         """Test derive_alt_pypi_url() function."""
@@ -1653,7 +1653,7 @@ class FileToolsTest(EnhancedTestCase):
         expected_warning = "Use of patch file with filename that doesn't end with correct extension: foo.txt "
         expected_warning += "(should be any of: .patch, .patch.bz2, .patch.gz, .patch.xz)"
         fail_msg = "Warning '%s' should appear in stderr output: %s" % (expected_warning, stderr)
-        self.assertTrue(expected_warning in stderr, fail_msg)
+        self.assertIn(expected_warning, stderr, fail_msg)
 
         # deprecation warning is treated as an error in context of unit test suite
         expected_error = expected_warning.replace('(', '\\(').replace(')', '\\)')
@@ -1687,10 +1687,10 @@ class FileToolsTest(EnhancedTestCase):
             backup_file = src_file + '.orig'
             patched = ft.read_file(src_file)
             pattern = "I'm a toy, and very proud of it"
-            self.assertTrue(pattern in patched)
+            self.assertIn(pattern, patched)
             if with_backup:
                 self.assertTrue(os.path.exists(backup_file))
-                self.assertTrue(pattern not in ft.read_file(backup_file))
+                self.assertNotIn(pattern, ft.read_file(backup_file))
                 # Restore file to original after first(!) iteration
                 ft.move_file(backup_file, src_file)
             else:
@@ -1701,7 +1701,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.apply_patch(toy_patch_gz, path))
         patched_gz = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
         pattern = "I'm a toy, and very very proud of it"
-        self.assertTrue(pattern in patched_gz)
+        self.assertIn(pattern, patched_gz)
 
         # trying the patch again should fail
         self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
@@ -1737,10 +1737,10 @@ class FileToolsTest(EnhancedTestCase):
 
         # test applying of patch with git
         toy_source_path = os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')
-        self.assertFalse("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+        self.assertNotIn("I'm a toy, and very proud of it", ft.read_file(toy_source_path))
 
         ft.apply_patch(toy_patch, self.test_prefix, use_git=True)
-        self.assertTrue("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+        self.assertIn("I'm a toy, and very proud of it", ft.read_file(toy_source_path))
 
         # construct patch that only adds a new file,
         # this shouldn't break applying a patch with git even when no level is specified
@@ -1761,7 +1761,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.remove_dir(path)
         path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
 
-        self.assertFalse("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
+        self.assertNotIn("I'm a toy, and very proud of it", ft.read_file(toy_source_path))
 
         # mock stderr to catch deprecation warning caused by setting 'use_git_am'
         self.allow_deprecated_behaviour()
@@ -1769,8 +1769,8 @@ class FileToolsTest(EnhancedTestCase):
         ft.apply_patch(toy_patch, self.test_prefix, use_git_am=True)
         stderr = self.get_stderr()
         self.mock_stderr(False)
-        self.assertTrue("I'm a toy, and very proud of it" in ft.read_file(toy_source_path))
-        self.assertTrue("'use_git_am' named argument in apply_patch function has been renamed to 'use_git'" in stderr)
+        self.assertIn("I'm a toy, and very proud of it", ft.read_file(toy_source_path))
+        self.assertIn("'use_git_am' named argument in apply_patch function has been renamed to 'use_git'", stderr)
 
     def test_copy_file(self):
         """Test copy_file function."""
@@ -2395,7 +2395,7 @@ class FileToolsTest(EnhancedTestCase):
                 os.path.join('s', 'ScaLAPACK', 'ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb'),
             ]
             for fn in expected:
-                self.assertTrue(fn in index)
+                self.assertIn(fn, index)
 
             for fp in index:
                 self.assertTrue(fp.endswith('.eb') or os.path.basename(fp) == 'checksums.json')
@@ -2438,7 +2438,7 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertEqual(len(index), 26)
         for fn in expected:
-            self.assertTrue(fn in index, "%s should be found in %s" % (fn, sorted(index)))
+            self.assertIn(fn, index)
 
         # dump_index will not overwrite existing index without force
         error_pattern = "File exists, not overwriting it without --force"
@@ -2468,7 +2468,7 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertEqual(len(index), 26)
         for fn in expected:
-            self.assertTrue(fn in index, "%s should be found in %s" % (fn, sorted(index)))
+            self.assertIn(fn, index)
 
         ft.remove_file(index_fp)
 
@@ -2949,7 +2949,7 @@ class FileToolsTest(EnhancedTestCase):
         self.mock_stdout(True)
         try:
             import vsc  # noqa
-            self.assertTrue(False, "'import vsc' results in an error")
+            self.fail("'import vsc' results in an error")
         except SystemExit:
             pass
 
@@ -2975,7 +2975,7 @@ class FileToolsTest(EnhancedTestCase):
         self.mock_stdout(True)
         try:
             from test_fake_vsc import import_vsc  # noqa
-            self.assertTrue(False, "'import vsc' results in an error")
+            self.fail("'import vsc' results in an error")
         except SystemExit:
             pass
         stderr = self.get_stderr()
@@ -3266,7 +3266,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # files specified via absolute path don't have to be found
         res = ft.locate_files([one], [])
-        self.assertTrue(len(res) == 1)
+        self.assertEqual(len(res), 1)
         self.assertTrue(os.path.samefile(res[0], one))
 
         # note: don't compare file paths directly but use os.path.samefile instead,

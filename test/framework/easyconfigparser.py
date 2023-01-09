@@ -64,8 +64,8 @@ class EasyConfigParserTest(EnhancedTestCase):
         ec['sources'].append(fn)
 
         ec_bis = ecp.get_config_dict()
-        self.assertTrue(fn in ec['sources'])
-        self.assertFalse(fn in ec_bis['sources'])
+        self.assertIn(fn, ec['sources'])
+        self.assertNotIn(fn, ec_bis['sources'])
 
     def test_v20(self):
         """Test parsing of easyconfig in format v2."""
@@ -79,9 +79,9 @@ class EasyConfigParserTest(EnhancedTestCase):
         formatter = ecp._formatter
         self.assertEqual(formatter.VERSION, EasyVersion('2.0'))
 
-        self.assertTrue('name' in formatter.pyheader_localvars)
-        self.assertFalse('version' in formatter.pyheader_localvars)
-        self.assertFalse('toolchain' in formatter.pyheader_localvars)
+        self.assertIn('name', formatter.pyheader_localvars)
+        self.assertNotIn('version', formatter.pyheader_localvars)
+        self.assertNotIn('toolchain', formatter.pyheader_localvars)
 
         # this should be ok: ie the default values
         ec = ecp.get_config_dict()
@@ -94,8 +94,8 @@ class EasyConfigParserTest(EnhancedTestCase):
         ec['sources'].append(fn)
 
         ec_bis = ecp.get_config_dict()
-        self.assertTrue(fn in ec['sources'])
-        self.assertFalse(fn in ec_bis['sources'])
+        self.assertIn(fn, ec['sources'])
+        self.assertNotIn(fn, ec_bis['sources'])
 
         # restore
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
@@ -112,9 +112,9 @@ class EasyConfigParserTest(EnhancedTestCase):
         formatter = ecp._formatter
         self.assertEqual(formatter.VERSION, EasyVersion('2.0'))
 
-        self.assertTrue('name' in formatter.pyheader_localvars)
-        self.assertFalse('version' in formatter.pyheader_localvars)
-        self.assertFalse('toolchain' in formatter.pyheader_localvars)
+        self.assertIn('name', formatter.pyheader_localvars)
+        self.assertNotIn('version', formatter.pyheader_localvars)
+        self.assertNotIn('toolchain', formatter.pyheader_localvars)
 
         # restore
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental

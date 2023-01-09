@@ -1559,8 +1559,8 @@ class EasyBlock(object):
                 paths = sum((glob.glob(path) if path else [path] for path in reqs), [])  # sum flattens to list
 
                 # If lib64 is just a symlink to lib we fixup the paths to avoid duplicates
-                lib64_is_symlink = (all(os.path.isdir(path) for path in ['lib', 'lib64'])
-                                    and os.path.samefile('lib', 'lib64'))
+                lib64_is_symlink = (all(os.path.isdir(path) for path in ['lib', 'lib64']) and
+                                    os.path.samefile('lib', 'lib64'))
                 if lib64_is_symlink:
                     fixed_paths = []
                     for path in paths:

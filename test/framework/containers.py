@@ -212,7 +212,7 @@ class ContainersTest(EnhancedTestCase):
             self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
 
             # no OS packages are installed by default when starting from an existing image
-            self.assertFalse("yum install" in txt)
+            self.assertNotIn("yum install", txt)
 
             for pattern in pip_patterns + post_commands_patterns + [eb_pattern]:
                 regex = re.compile('^' + pattern, re.M)

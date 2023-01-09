@@ -175,7 +175,7 @@ class GithubTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertTrue("Could not determine any missing labels for PR #11262" in stdout)
+        self.assertIn("Could not determine any missing labels for PR #11262", stdout)
 
         self.mock_stdout(True)
         self.mock_stderr(True)
@@ -183,7 +183,7 @@ class GithubTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertTrue("PR #8006 should be labelled 'update'" in stdout)
+        self.assertIn("PR #8006 should be labelled 'update'", stdout)
 
     def test_github_fetch_pr_data(self):
         """Test fetch_pr_data function."""
@@ -267,7 +267,7 @@ class GithubTest(EnhancedTestCase):
             "* QEMU-2.4.0",
         ]
         for pattern in patterns:
-            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+            self.assertIn(pattern, stdout)
 
     def test_github_close_pr(self):
         """Test close_pr function."""
@@ -295,7 +295,7 @@ class GithubTest(EnhancedTestCase):
             "[DRY RUN] Closed easybuilders/testrepository PR #2",
         ]
         for pattern in patterns:
-            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+            self.assertIn(pattern, stdout)
 
         retest_msg = VALID_CLOSE_PR_REASONS['retest']
 
@@ -312,7 +312,7 @@ class GithubTest(EnhancedTestCase):
             "[DRY RUN] Reopened easybuilders/testrepository PR #2",
         ]
         for pattern in patterns:
-            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+            self.assertIn(pattern, stdout)
 
     def test_github_fetch_easyblocks_from_pr(self):
         """Test fetch_easyblocks_from_pr function."""
@@ -427,7 +427,7 @@ class GithubTest(EnhancedTestCase):
 
         # github_account value is None (results in using default 'easybuilders')
         cache_key = (7159, None, 'easybuild-easyconfigs', self.test_prefix)
-        self.assertTrue(cache_key in gh.fetch_files_from_pr._cache.keys())
+        self.assertIn(cache_key, gh.fetch_files_from_pr._cache.keys())
 
         cache_entry = gh.fetch_files_from_pr._cache[cache_key]
         self.assertEqual(sorted([os.path.basename(f) for f in cache_entry]), sorted(pr7159_filenames))
@@ -503,7 +503,7 @@ class GithubTest(EnhancedTestCase):
         path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix,
                                 github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(os.path.samefile(path, repodir))
-        self.assertTrue('easybuild' in os.listdir(repodir))
+        self.assertIn('easybuild', os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
         self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py')))
 
@@ -593,7 +593,7 @@ class GithubTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
 
-        self.assertTrue(ec == 'toy')
+        self.assertEqual(ec, 'toy')
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
         self.assertTrue(re.search(reg, txt))
 
@@ -667,7 +667,7 @@ class GithubTest(EnhancedTestCase):
             self.mock_stderr(False)
             self.assertEqual(res, expected_result)
             self.assertEqual(stdout, expected_stdout)
-            self.assertTrue(expected_warning in stderr, "Found '%s' in: %s" % (expected_warning, stderr))
+            self.assertIn(expected_warning, stderr)
             return stderr
 
         pr_data = {
@@ -920,12 +920,12 @@ class GithubTest(EnhancedTestCase):
         status, headers = client.head()
         self.assertEqual(status, 200)
         self.assertTrue(headers)
-        self.assertTrue('X-GitHub-Media-Type' in headers)
+        self.assertIn('X-GitHub-Media-Type', headers)
 
         httperror_hit = False
         try:
             status, body = client.user.emails.post(body='test@example.com')
-            self.assertTrue(False, 'posting to unauthorized endpoint did not throw a http error')
+            self.fail('posting to unauthorized endpoint did not throw a http error')
         except HTTPError:
             httperror_hit = True
         self.assertTrue(httperror_hit, "expected HTTPError not encountered")
@@ -933,7 +933,7 @@ class GithubTest(EnhancedTestCase):
         httperror_hit = False
         try:
             status, body = client.user.emails.delete(body='test@example.com')
-            self.assertTrue(False, 'deleting to unauthorized endpoint did not throw a http error')
+            self.fail('deleting to unauthorized endpoint did not throw a http error')
         except HTTPError:
             httperror_hit = True
         self.assertTrue(httperror_hit, "expected HTTPError not encountered")
@@ -1165,10 +1165,10 @@ class GithubTest(EnhancedTestCase):
             "EASYBUILD_DEBUG=1",
         ]
         for pattern in patterns:
-            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['full']))
+            self.assertIn(pattern, res['full'])
 
         for pattern in patterns[:2]:
-            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['overview']))
+            self.assertIn(pattern, res['full'])
 
         # mock create_gist function, we don't want to actually create a gist every time we run this test...
         def fake_create_gist(*args, **kwargs):
@@ -1183,12 +1183,12 @@ class GithubTest(EnhancedTestCase):
             "https://github.com/easybuilders/easybuild-easyconfigs/pull/123",
         ])
         for pattern in patterns:
-            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['full']))
+            self.assertIn(pattern, res['full'])
 
         for pattern in patterns[:3]:
-            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['overview']))
+            self.assertIn(pattern, res['full'])
 
-        self.assertTrue("**SUCCESS** _test.eb_" in res['overview'])
+        self.assertIn("**SUCCESS** _test.eb_", res['overview'])
 
     def test_is_patch_for(self):
         """Test for is_patch_for function."""

@@ -44,7 +44,7 @@ class LicenseTest(EnhancedTestCase):
         lics = what_licenses()
         commonlicenses = ['LicenseVeryRestrictive', 'LicenseGPLv2', 'LicenseGPLv3']
         for lic in commonlicenses:
-            self.assertTrue(lic in lics, "%s found in %s" % (lic, lics.keys()))
+            self.assertIn(lic, lics)
 
     def test_default_license(self):
         """Verify that the default License class is very restrictive"""

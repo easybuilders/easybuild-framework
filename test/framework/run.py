@@ -721,7 +721,7 @@ class RunTest(EnhancedTestCase):
         init_logging(logfile, silent=True)
         check_log_for_errors(input_text, [(r"\b(error|crashed)\b", WARN)])
         stop_logging(logfile)
-        self.assertTrue(expected_msg in read_file(logfile))
+        self.assertIn(expected_msg, read_file(logfile))
 
         expected_msg = r"Found 2 error\(s\) in command output \(output: error found\n\ttest failed\)"
         write_file(logfile, '')
@@ -734,7 +734,7 @@ class RunTest(EnhancedTestCase):
         ])
         stop_logging(logfile)
         expected_msg = "Found 1 potential error(s) in command output (output: the process crashed with 0)"
-        self.assertTrue(expected_msg in read_file(logfile))
+        self.assertIn(expected_msg, read_file(logfile))
 
 
 def suite():

@@ -167,18 +167,18 @@ class ParallelBuildTest(EnhancedTestCase):
         self.assertEqual(len(jobs[1].deps), 0)
 
         # only dependency for toy/0.0-deps is intel/2018a (dep marked as external module is filtered out)
-        self.assertTrue('toy-0.0-deps.eb' in jobs[2].script)
+        self.assertIn('toy-0.0-deps.eb', jobs[2].script)
         self.assertEqual(len(jobs[2].deps), 1)
-        self.assertTrue('intel-2018a.eb' in jobs[2].deps[0].script)
+        self.assertIn('intel-2018a.eb', jobs[2].deps[0].script)
 
         # dependencies for gzip/1.4-GCC-4.6.3: GCC/4.6.3 (toolchain) + toy/.0.0-deps
-        self.assertTrue('gzip-1.4-GCC-4.6.3.eb' in jobs[3].script)
+        self.assertIn('gzip-1.4-GCC-4.6.3.eb', jobs[3].script)
         self.assertEqual(len(jobs[3].deps), 2)
         regex = re.compile(r'toy-0.0-deps\.eb.* --hidden')
         script_txt = jobs[3].deps[0].script
         fail_msg = "Pattern '%s' should be found in: %s" % (regex.pattern, script_txt)
         self.assertTrue(regex.search(script_txt), fail_msg)
-        self.assertTrue('GCC-4.6.3.eb' in jobs[3].deps[1].script)
+        self.assertIn('GCC-4.6.3.eb', jobs[3].deps[1].script)
 
         # also test use of --pre-create-installdir
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')

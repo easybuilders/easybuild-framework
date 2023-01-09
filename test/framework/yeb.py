@@ -122,8 +122,8 @@ class YebTest(EnhancedTestCase):
         ecdict['sources'].append(fn)
 
         ecdict_bis = ec.parser.get_config_dict()
-        self.assertTrue(fn in ecdict['sources'])
-        self.assertFalse(fn in ecdict_bis['sources'])
+        self.assertIn(fn, ecdict['sources'])
+        self.assertNotIn(fn, ecdict_bis['sources'])
 
     def test_is_yeb_format(self):
         """ Test is_yeb_format function """
