@@ -53,15 +53,16 @@ jobs:
     # see https://github.com/apptainer/singularity/issues/5390#issuecomment-899111181
     - name: install Singularity
       run: |
+        sudo apt-get update
         # install alien, which can be used to convert RPMs to Debian packages
-        sudo apt install alien
+        sudo apt-get install alien
         alien --version
         # determine latest version of Singularity available in EPEL, and download RPM
         singularity_rpm=$(curl -sL https://dl.fedoraproject.org/pub/archive/epel/8.5/Everything/x86_64/Packages/s/ | grep singularity | sed 's/.*singularity/singularity/g' | sed 's/rpm.*/rpm/g')
         curl -OL https://dl.fedoraproject.org/pub/archive/epel/8.5/Everything/x86_64/Packages/s/${singularity_rpm}
         # convert Singularity RPM to Debian package, and install it
         sudo alien -d ${singularity_rpm}
-        sudo apt install ./singularity*.deb
+        sudo apt-get install ./singularity*.deb
         singularity --version
 
     - name: install sources
