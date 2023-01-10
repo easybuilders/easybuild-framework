@@ -25,13 +25,19 @@ jobs:
 
     - name: install OS & Python packages
       run: |
-        # ensure package list is up to date to avoid 404's for old packages
-        sudo apt update -yqq
-        # for building Singularity images
-        sudo apt install rpm
-        sudo apt install yum
         # for modules tool
-        sudo apt install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
+        APT_PKGS="lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev"
+        # for building Singularity images
+        APT_PKGS+=" rpm yum"
+
+        # Avoid apt-get update, as we don't really need it,
+        # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
+        if ! sudo apt-get install $APT_PKGS; then
+          # Try to update cache, then try again to resolve 404s of old packages
+          sudo apt-get update -yqq || true
+          sudo apt-get install $APT_PKGS
+        fi
+
         # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
         # needed for Ubuntu 18.04, but not for Ubuntu 20.04, so skipping symlinking if posix.so already exists
         if [ ! -e /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so ] ; then
@@ -53,15 +59,16 @@ jobs:
     # see https://github.com/apptainer/singularity/issues/5390#issuecomment-899111181
     - name: install Singularity
       run: |
+        sudo apt-get update
         # install alien, which can be used to convert RPMs to Debian packages
-        sudo apt install alien
+        sudo apt-get install alien
         alien --version
         # determine latest version of Singularity available in EPEL, and download RPM
         singularity_rpm=$(curl -sL https://dl.fedoraproject.org/pub/archive/epel/8.5/Everything/x86_64/Packages/s/ | grep singularity | sed 's/.*singularity/singularity/g' | sed 's/rpm.*/rpm/g')
         curl -OL https://dl.fedoraproject.org/pub/archive/epel/8.5/Everything/x86_64/Packages/s/${singularity_rpm}
         # convert Singularity RPM to Debian package, and install it
         sudo alien -d ${singularity_rpm}
-        sudo apt install ./singularity*.deb
+        sudo apt-get install ./singularity*.deb
         singularity --version
 
     - name: install sources
