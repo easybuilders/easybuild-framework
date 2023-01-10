@@ -1038,6 +1038,7 @@ class ModulesTest(EnhancedTestCase):
 
         # GCC/4.6.3 is *not* an available Core module
         os.environ['LC_ALL'] = 'C'
+        os.environ['LANG'] = 'C'
         self.assertErrorRegex(EasyBuildError, load_err_msg, self.modtool.load, ['GCC/4.6.3'])
 
         # GCC/6.4.0-2.28 is one of the available Core modules

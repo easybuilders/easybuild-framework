@@ -2042,6 +2042,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # Do this before loading the easyblock to check the non-translated output below
         os.environ['LC_ALL'] = 'C'
+        os.environ['LANG'] = 'C'
 
         # this import only works here, since EB_toy is a test easyblock
         from easybuild.easyblocks.toy import EB_toy
@@ -2057,7 +2058,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.silent = True
         error_pattern = r"Sanity check failed: extensions sanity check failed for 1 extensions: toy\n"
         error_pattern += r"failing sanity check for 'toy' extension: "
-        error_pattern += r'command "thisshouldfail" failed; output:\n/bin/bash: thisshouldfail: command not found'
+        error_pattern += r'command "thisshouldfail" failed; output:\n/bin/bash:.* thisshouldfail: command not found'
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.run_all_steps, True)
 
         # purposely put sanity check command in place that breaks the build,
