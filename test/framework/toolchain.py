@@ -1700,7 +1700,7 @@ class ToolchainTest(EnhancedTestCase):
         ]
         tc.prepare(deps=deps)
         mods = ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28']
-        self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
+        self.assertEqual(sorted(m['mod_name'] for m in self.modtool.list()), sorted(mods))
 
     def test_prepare_deps_external(self):
         """Test preparing for a toolchain when dependencies and external modules are involved."""
@@ -1728,7 +1728,7 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain('GCC', version='6.4.0-2.28')
         tc.prepare(deps=deps)
         mods = ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28', 'toy/0.0']
-        self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
+        self.assertEqual(sorted(m['mod_name'] for m in self.modtool.list()), sorted(mods))
         self.assertTrue(os.environ['EBROOTTOY'].endswith('software/toy/0.0'))
         self.assertEqual(os.environ['EBVERSIONTOY'], '0.0')
         self.assertNotIn('EBROOTFOOBAR', os.environ)
