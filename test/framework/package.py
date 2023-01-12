@@ -152,9 +152,11 @@ def mock_fpm(tmpdir):
 class PackageTest(EnhancedTestCase):
     """Tests for packaging support."""
 
+    pnsNames = ['EasyBuildDebFriendlyPNS', 'EasyBuildPNS']
+
     def test_avail_package_naming_schemes(self):
         """Test avail_package_naming_schemes()"""
-        self.assertEqual(sorted(avail_package_naming_schemes().keys()), ['EasyBuildDebFriendlyPNS', 'EasyBuildPNS'])
+        self.assertEqual(sorted(avail_package_naming_schemes().keys()), self.pnsNames)
 
     def test_check_pkg_support(self):
         """Test check_pkg_support()."""
@@ -175,7 +177,7 @@ class PackageTest(EnhancedTestCase):
 
     def test_active_pns(self):
         """Test use of ActivePNS."""
-        for pns_type in ['EasyBuildDebFriendlyPNS', 'EasyBuildPNS']:
+        for pns_type in self.pnsNames:
             os.environ['EASYBUILD_PACKAGE_NAMING_SCHEME'] = pns_type
             init_config(build_options={'silent': True})
 
@@ -186,16 +188,14 @@ class PackageTest(EnhancedTestCase):
 
             pns = ActivePNS()
 
+            self.assertEqual(pns.name(ec), 'OpenMPI-2.1.2-GCC-6.4.0-2.28')
+            self.assertEqual(pns.release(ec), '1')
             if get_package_naming_scheme() == "EasyBuildPNS":
                 # default: EasyBuild package naming scheme, pkg release 1
-                self.assertEqual(pns.name(ec), 'OpenMPI-2.1.2-GCC-6.4.0-2.28')
                 self.assertEqual(pns.version(ec), 'eb-%s' % EASYBUILD_VERSION)
-                self.assertEqual(pns.release(ec), '1')
             elif get_package_naming_scheme() == "EasyBuildDebFriendlyPNS":
                 # default: EasyBuild deb friendly package naming scheme, pkg release 1
-                self.assertEqual(pns.name(ec), 'OpenMPI-2.1.2-GCC-6.4.0-2.28')
                 self.assertEqual(pns.version(ec), '%s-eb' % EASYBUILD_VERSION)
-                self.assertEqual(pns.release(ec), '1')
 
     def test_package(self):
         """Test package function."""
