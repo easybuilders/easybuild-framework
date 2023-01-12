@@ -192,7 +192,7 @@ class PackageTest(EnhancedTestCase):
         elif get_package_naming_scheme() == "EasyBuildDebFriendlyPNS":
             # default: EasyBuild deb friendly package naming scheme, pkg release 1
             self.assertEqual(pns.name(ec), 'OpenMPI-2.1.2-GCC-6.4.0-2.28')
-            self.assertEqual(pns.version(ec), '%s_eb' % EASYBUILD_VERSION)
+            self.assertEqual(pns.version(ec), '%s-eb' % EASYBUILD_VERSION)
             self.assertEqual(pns.release(ec), '1')
 
     def test_package(self):
