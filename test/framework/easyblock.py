@@ -2530,6 +2530,15 @@ class EasyBlockTest(EnhancedTestCase):
         # sources can also have dict entries
         eb.cfg['sources'] = [{'filename': 'toy-0.0.tar.gz', 'download_fileame': 'toy.tar.gz'}]
         self.assertEqual(eb.check_checksums(), [])
+        # Same in extensions: Single source as dict, checksum as string
+        eb.cfg['exts_list'] = [(
+            'toy-ext', '42',
+            {
+                'sources': {'filename': 'toy-ext.tar.gz'},
+                'checksums': '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487',
+            }
+        )]
+        self.assertEqual(eb.check_checksums(), [])
 
         # no checksums in easyconfig, then picked up from checksums.json next to easyconfig file
         test_ec = os.path.join(self.test_prefix, 'test.eb')
