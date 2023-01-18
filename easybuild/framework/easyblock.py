@@ -2418,6 +2418,11 @@ class EasyBlock(object):
         sources = ent.get('sources', [])
         patches = ent.get('patches', [])
         checksums = ent.get('checksums', [])
+        # Single source should be re-wrapped as a list, and checksums with it
+        if isinstance(sources, dict):
+            sources = [sources]
+        if isinstance(checksums, string_type):
+            checksums = [checksums]
 
         if not checksums:
             checksums_from_json = self.get_checksums_from_json()
