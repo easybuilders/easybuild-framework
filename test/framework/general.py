@@ -129,7 +129,7 @@ class GeneralTest(EnhancedTestCase):
         res = import_available_modules('easybuild.tools.repository')
         self.assertEqual(len(res), 5)
         # don't check all, since some required specific Python packages to be installed...
-        self.assertTrue(easybuild.tools.repository.filerepo in res)
+        self.assertIn(easybuild.tools.repository.filerepo, res)
 
         # replicate situation where import_available_modules failed when running in directory where modules are located
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2659

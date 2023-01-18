@@ -556,7 +556,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_architecture_native(self):
         """Test getting the CPU architecture."""
         arch = get_cpu_architecture()
-        self.assertTrue(arch in CPU_ARCHITECTURES)
+        self.assertIn(arch, CPU_ARCHITECTURES)
 
     def test_cpu_architecture(self):
         """Test getting the CPU architecture (mocked)."""
@@ -601,7 +601,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_vendor_native(self):
         """Test getting CPU vendor."""
         cpu_vendor = get_cpu_vendor()
-        self.assertTrue(cpu_vendor in CPU_VENDORS)
+        self.assertIn(cpu_vendor, CPU_VENDORS)
 
     def test_cpu_vendor_linux(self):
         """Test getting CPU vendor (mocked for Linux)."""
@@ -694,12 +694,12 @@ class SystemToolsTest(EnhancedTestCase):
     def test_os_type(self):
         """Test getting OS type."""
         os_type = get_os_type()
-        self.assertTrue(os_type in [DARWIN, LINUX])
+        self.assertIn(os_type, [DARWIN, LINUX])
 
     def test_shared_lib_ext_native(self):
         """Test getting extension for shared libraries."""
         ext = get_shared_lib_ext()
-        self.assertTrue(ext in ['dylib', 'so'])
+        self.assertIn(ext, ['dylib', 'so'])
 
     def test_shared_lib_ext_linux(self):
         """Test getting extension for shared libraries (mocked for Linux)."""
@@ -889,7 +889,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.assertFalse(stderr)
 
-        self.assertTrue(py_maj_ver in [2, 3])
+        self.assertIn(py_maj_ver, [2, 3])
         if py_maj_ver == 2:
             self.assertTrue(py_min_ver == 7)
         else:

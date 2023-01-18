@@ -264,7 +264,7 @@ class BuildLogTest(EnhancedTestCase):
         expected = "\nWARNING: Test log message with a logger involved.\n\n"
         run_check(["Test log message with a logger involved."], expected_stderr=expected, log=logger)
         log_txt = read_file(tmp_logfile)
-        self.assertTrue("WARNING Test log message with a logger involved." in log_txt)
+        self.assertIn("WARNING Test log message with a logger involved.", log_txt)
 
     def test_print_error(self):
         """Test print_error"""

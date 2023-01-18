@@ -110,7 +110,7 @@ class ModulesTest(EnhancedTestCase):
         modify_env(os.environ, self.orig_environ, verbose=False)
         self.reset_modulepath([os.path.join(testdir, 'modules')])
 
-        self.assertFalse('EBROOTGCC' in os.environ)
+        self.assertNotIn('EBROOTGCC', os.environ)
         self.modtool.run_module(['load', 'GCC/6.4.0-2.28'])
         self.assertEqual(os.environ['EBROOTGCC'], '/prefix/software/GCC/6.4.0-2.28')
 
@@ -170,7 +170,7 @@ class ModulesTest(EnhancedTestCase):
             self.assertTrue(regex.search(out), "Pattern '%s' should be found in: %s" % (regex.pattern, out))
 
         # OpenBLAS module did *not* get loaded
-        self.assertFalse('EBROOTOPENBLAS' in os.environ)
+        self.assertNotIn('EBROOTOPENBLAS', os.environ)
         res = self.modtool.list()
         expected = ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28']
         self.assertEqual(sorted([x['mod_name'] for x in res]), expected)
@@ -215,9 +215,9 @@ class ModulesTest(EnhancedTestCase):
         if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.7.5'):
             # with recent versions of Lmod, also the hidden modules are included in the output of 'avail'
             self.assertEqual(len(ms), TEST_MODULES_COUNT + 3)
-            self.assertTrue('bzip2/.1.0.6' in ms)
-            self.assertTrue('toy/.0.0-deps' in ms)
-            self.assertTrue('OpenMPI/.2.1.2-GCC-6.4.0-2.28' in ms)
+            self.assertIn('bzip2/.1.0.6', ms)
+            self.assertIn('toy/.0.0-deps', ms)
+            self.assertIn('OpenMPI/.2.1.2-GCC-6.4.0-2.28', ms)
         else:
             self.assertEqual(len(ms), TEST_MODULES_COUNT)
 
@@ -292,11 +292,11 @@ class ModulesTest(EnhancedTestCase):
         write_file(os.path.join(java_mod_dir, '.modulerc'), modulerc_tcl_txt)
 
         avail_mods = self.modtool.available()
-        self.assertTrue('Java/1.8.0_181' in avail_mods)
+        self.assertIn('Java/1.8.0_181', avail_mods)
         if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
-            self.assertTrue('Java/1.8' in avail_mods)
-            self.assertTrue('Java/site_default' in avail_mods)
-            self.assertTrue('JavaAlias' in avail_mods)
+            self.assertIn('Java/1.8', avail_mods)
+            self.assertIn('Java/site_default', avail_mods)
+            self.assertIn('JavaAlias', avail_mods)
             self.assertEqual(self.modtool.exist(['JavaAlias']), [True])
 
         self.assertEqual(self.modtool.exist(['Java/1.8', 'Java/1.8.0_181']), [True, True])
@@ -344,7 +344,7 @@ class ModulesTest(EnhancedTestCase):
         mkdir(os.path.join(self.test_prefix, 'Core'))
         shutil.move(java_mod_dir, os.path.join(self.test_prefix, 'Core', 'Java'))
 
-        self.assertTrue('Core/Java/1.8.0_181' in self.modtool.available())
+        self.assertIn('Core/Java/1.8.0_181', self.modtool.available())
         self.assertEqual(self.modtool.exist(['Core/Java/1.8.0_181']), [True])
         # there's a workaround to ensure that module wrappers/aliases are recognized when they're
         # being checked with the full module name (see https://github.com/TACC/Lmod/issues/446);
@@ -366,8 +366,8 @@ class ModulesTest(EnhancedTestCase):
                        ]))
 
             avail_mods = self.modtool.available()
-            self.assertTrue('Java/1.8.0_181' in avail_mods)
-            self.assertTrue('Java/1.8' in avail_mods)
+            self.assertIn('Java/1.8.0_181', avail_mods)
+            self.assertIn('Java/1.8', avail_mods)
             self.assertEqual(self.modtool.exist(['Java/1.8', 'Java/1.8.0_181']), [True, True])
 
             # check for an alias with a different version suffix than the base module
@@ -379,7 +379,7 @@ class ModulesTest(EnhancedTestCase):
 
             # back to HMNS setup
             shutil.move(java_mod_dir, os.path.join(self.test_prefix, 'Core', 'Java'))
-            self.assertTrue('Core/Java/1.8.0_181' in self.modtool.available())
+            self.assertIn('Core/Java/1.8.0_181', self.modtool.available())
             self.assertEqual(self.modtool.exist(['Core/Java/1.8.0_181']), [True])
             self.assertEqual(self.modtool.exist(['Core/Java/1.8']), [True])
             self.assertEqual(self.modtool.exist(['Core/Java/site_default']), [True])
@@ -410,7 +410,7 @@ class ModulesTest(EnhancedTestCase):
 
         for m in ms:
             self.modtool.load([m])
-            self.assertTrue(m in self.modtool.loaded_modules())
+            self.assertIn(m, self.modtool.loaded_modules())
             self.modtool.purge()
 
         # trying to load a module not on the top level of a hierarchy should fail
@@ -431,7 +431,7 @@ class ModulesTest(EnhancedTestCase):
 
         # GCC should be loaded, but should not be listed last (OpenMPI was loaded last)
         loaded_modules = self.modtool.loaded_modules()
-        self.assertTrue('GCC/6.4.0-2.28' in loaded_modules)
+        self.assertIn('GCC/6.4.0-2.28', loaded_modules)
         self.assertFalse(loaded_modules[-1] == 'GCC/6.4.0-2.28')
 
         # if GCC is loaded again, $EBROOTGCC should be set again, and GCC should be listed last
@@ -444,7 +444,7 @@ class ModulesTest(EnhancedTestCase):
 
         if isinstance(self.modtool, Lmod):
             # order of loaded modules only changes with Lmod
-            self.assertTrue(self.modtool.loaded_modules()[-1] == 'GCC/6.4.0-2.28')
+            self.assertEqual(self.modtool.loaded_modules()[-1], 'GCC/6.4.0-2.28')
 
         # set things up for checking that GCC does *not* get reloaded when requested
         if 'EBROOTGCC' in os.environ:
@@ -452,12 +452,12 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.load(['OpenMPI/2.1.2-GCC-6.4.0-2.28'])
         if isinstance(self.modtool, Lmod):
             # order of loaded modules only changes with Lmod
-            self.assertTrue(self.modtool.loaded_modules()[-1] == 'OpenMPI/2.1.2-GCC-6.4.0-2.28')
+            self.assertEqual(self.modtool.loaded_modules()[-1], 'OpenMPI/2.1.2-GCC-6.4.0-2.28')
 
         # reloading can be disabled using allow_reload=False
         self.modtool.load(['GCC/6.4.0-2.28'], allow_reload=False)
         self.assertEqual(os.environ.get('EBROOTGCC'), None)
-        self.assertFalse(loaded_modules[-1] == 'GCC/6.4.0-2.28')
+        self.assertNotEqual(loaded_modules[-1], 'GCC/6.4.0-2.28')
 
     def test_show(self):
         """Test for ModulesTool.show method."""
@@ -638,13 +638,13 @@ class ModulesTest(EnhancedTestCase):
         ms = self.modtool.available()
 
         self.modtool.load([ms[0]])
-        self.assertTrue(len(self.modtool.loaded_modules()) > 0)
+        self.assertGreater(len(self.modtool.loaded_modules()), 0)
 
         self.modtool.purge()
-        self.assertTrue(len(self.modtool.loaded_modules()) == 0)
+        self.assertEqual(len(self.modtool.loaded_modules()), 0)
 
         self.modtool.purge()
-        self.assertTrue(len(self.modtool.loaded_modules()) == 0)
+        self.assertEqual(len(self.modtool.loaded_modules()), 0)
 
     def test_get_software_root_version_libdir(self):
         """Test get_software_X functions."""
@@ -1038,6 +1038,7 @@ class ModulesTest(EnhancedTestCase):
 
         # GCC/4.6.3 is *not* an available Core module
         os.environ['LC_ALL'] = 'C'
+        os.environ['LANG'] = 'C'
         self.assertErrorRegex(EasyBuildError, load_err_msg, self.modtool.load, ['GCC/4.6.3'])
 
         # GCC/6.4.0-2.28 is one of the available Core modules
@@ -1119,18 +1120,18 @@ class ModulesTest(EnhancedTestCase):
         # fetch cache entry
         avail_cache_key = list(mod.MODULE_AVAIL_CACHE.keys())[0]
         cached_res = mod.MODULE_AVAIL_CACHE[avail_cache_key]
-        self.assertTrue(cached_res == res)
+        self.assertEqual(cached_res, res)
 
         # running avail again results in getting cached result, exactly the same result as before
         # depending on the modules tool being used, it may not be the same list instance, because of post-processing
-        self.assertTrue(self.modtool.available() == res)
+        self.assertEqual(self.modtool.available(), res)
 
         # run 'show', should be all cached
         show_res_gcc = self.modtool.show('GCC/6.4.0-2.28')
         show_res_fftw = self.modtool.show('FFTW')
         self.assertEqual(len(mod.MODULE_SHOW_CACHE), 2)
-        self.assertTrue(show_res_gcc in mod.MODULE_SHOW_CACHE.values())
-        self.assertTrue(show_res_fftw in mod.MODULE_SHOW_CACHE.values())
+        self.assertIn(show_res_gcc, mod.MODULE_SHOW_CACHE.values())
+        self.assertIn(show_res_fftw, mod.MODULE_SHOW_CACHE.values())
         self.assertTrue(self.modtool.show('GCC/6.4.0-2.28') is show_res_gcc)
         self.assertTrue(self.modtool.show('FFTW') is show_res_fftw)
 
@@ -1158,7 +1159,7 @@ class ModulesTest(EnhancedTestCase):
             ])
             write_file(os.path.join(self.test_prefix, subdir, 'test'), modtxt)
 
-        self.assertFalse(test_dir1 in os.environ.get('MODULEPATH', ''))
+        self.assertNotIn(test_dir1, os.environ.get('MODULEPATH', ''))
         self.modtool.use(test_dir1)
         self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir1))
         self.modtool.use(test_dir2)
@@ -1177,21 +1178,21 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.unload(['test'])
 
         self.modtool.unuse(test_dir3)
-        self.assertFalse(test_dir3 in os.environ.get('MODULEPATH', ''))
+        self.assertNotIn(test_dir3, os.environ.get('MODULEPATH', ''))
 
         self.modtool.load(['test'])
         self.assertEqual(os.getenv('TEST123'), 'two')
         self.modtool.unload(['test'])
 
         self.modtool.unuse(test_dir2)
-        self.assertFalse(test_dir2 in os.environ.get('MODULEPATH', ''))
+        self.assertNotIn(test_dir2, os.environ.get('MODULEPATH', ''))
 
         self.modtool.load(['test'])
         self.assertEqual(os.getenv('TEST123'), 'one')
         self.modtool.unload(['test'])
 
         self.modtool.unuse(test_dir1)
-        self.assertFalse(test_dir1 in os.environ.get('MODULEPATH', ''))
+        self.assertNotIn(test_dir1, os.environ.get('MODULEPATH', ''))
 
         # also test use with high priority
         self.modtool.use(test_dir2, priority=10000)
@@ -1228,7 +1229,7 @@ class ModulesTest(EnhancedTestCase):
             self.modtool.use(test_dir1)
             self.assertEqual(os.environ['MODULEPATH'], test_dir1)
             self.modtool.unuse(test_dir1)
-            self.assertFalse('MODULEPATH' in os.environ)
+            self.assertNotIn('MODULEPATH', os.environ)
             os.environ['MODULEPATH'] = old_module_path  # Restore
 
     def test_add_and_remove_module_path(self):
@@ -1299,16 +1300,16 @@ class ModulesTest(EnhancedTestCase):
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/1756,
         # https://bugzilla.redhat.com/show_bug.cgi?id=1326075
         modules_dir = os.path.abspath(os.path.join(self.test_prefix, 'modules'))
-        self.assertFalse(modules_dir in os.environ['MODULEPATH'])
+        self.assertNotIn(modules_dir, os.environ['MODULEPATH'])
 
         mkdir(modules_dir, parents=True)
         self.modtool.use(modules_dir)
         modulepath = os.environ['MODULEPATH']
-        self.assertTrue(modules_dir in modulepath)
+        self.assertIn(modules_dir, modulepath)
 
         out, _ = run_cmd("bash -c 'echo MODULEPATH: $MODULEPATH'", simple=False)
         self.assertEqual(out.strip(), "MODULEPATH: %s" % modulepath)
-        self.assertTrue(modules_dir in out)
+        self.assertIn(modules_dir, out)
 
     def test_load_in_hierarchy(self):
         """Test whether loading a module in a module hierarchy results in loading the correct module."""
@@ -1455,7 +1456,7 @@ class ModulesTest(EnhancedTestCase):
         stderr = check_loaded_modules()
         warning_msg = "WARNING: Found defined $EBROOT* environment variables without matching loaded module: "
         warning_msg = "$EBROOTSOFTWAREWITHOUTAMATCHINGMODULE\n"
-        self.assertTrue(warning_msg in stderr)
+        self.assertIn(warning_msg, stderr)
 
         build_options.update({'check_ebroot_env_vars': 'error'})
         init_config(build_options=build_options)

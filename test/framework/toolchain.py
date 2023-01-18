@@ -95,7 +95,7 @@ class ToolchainTest(EnhancedTestCase):
         ec_file = find_full_path(os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.4.eb'))
         ec = EasyConfig(ec_file, validate=False)
         tc = ec.toolchain
-        self.assertTrue('debug' in tc.options)
+        self.assertIn('debug', tc.options)
 
     def test_unknown_toolchain(self):
         """Test search_toolchain function for not available toolchains."""
@@ -168,7 +168,7 @@ class ToolchainTest(EnhancedTestCase):
             stderr = self.get_stderr()
             self.mock_stderr(False)
             self.assertTrue(tc.is_system_toolchain())
-            self.assertTrue(dummy_depr_warning in stderr, "Found '%s' in: %s" % (dummy_depr_warning, stderr))
+            self.assertIn(dummy_depr_warning, stderr)
 
     def test_toolchain_prepare_sysroot(self):
         """Test build environment setup done by Toolchain.prepare in case --sysroot is specified."""
@@ -294,7 +294,7 @@ class ToolchainTest(EnhancedTestCase):
         for key, prev_val, new_val in [('CC', 'foo', 'gcc'), ('CXX', 'bar', 'g++')]:
             warning_msg = "WARNING: $%s was defined as '%s', " % (key, prev_val)
             warning_msg += "but is now set to '%s' in minimal build environment" % new_val
-            self.assertTrue(warning_msg in stderr)
+            self.assertIn(warning_msg, stderr)
 
         self.assertEqual(os.getenv('CC'), 'gcc')
         self.assertEqual(os.getenv('CXX'), 'g++')
@@ -334,7 +334,7 @@ class ToolchainTest(EnhancedTestCase):
 
         warning_msg = "WARNING: 'nosuchcommand' command not found in $PATH, "
         warning_msg += "not setting $CC in minimal build environment"
-        self.assertTrue(warning_msg in stderr)
+        self.assertIn(warning_msg, stderr)
         self.assertEqual(stdout, '')
 
         self.assertEqual(os.getenv('CC'), None)
@@ -557,7 +557,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
-            self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP['defaultopt'] in flags)
+            self.assertIn(tc.COMPILER_SHARED_OPTION_MAP['defaultopt'], flags)
 
         # check other optimization flags
         for opt in ['noopt', 'lowopt', 'opt']:
@@ -568,9 +568,9 @@ class ToolchainTest(EnhancedTestCase):
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
-                        self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP[opt] in flags)
+                        self.assertIn(tc.COMPILER_SHARED_OPTION_MAP[opt], flags)
                     else:
-                        self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP[opt] in flags)
+                        self.assertIn(tc.COMPILER_SHARED_OPTION_MAP[opt], flags)
                 self.modtool.purge()
 
     def test_optimization_flags_combos(self):
@@ -586,7 +586,7 @@ class ToolchainTest(EnhancedTestCase):
         for var in flag_vars:
             flags = tc.get_variable(var)
             flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['lowopt']
-            self.assertTrue(flag in flags)
+            self.assertIn(flag, flags)
         self.modtool.purge()
 
         tc = self.get_toolchain('foss', version='2018a')
@@ -595,7 +595,7 @@ class ToolchainTest(EnhancedTestCase):
         for var in flag_vars:
             flags = tc.get_variable(var)
             flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['noopt']
-            self.assertTrue(flag in flags)
+            self.assertIn(flag, flags)
         self.modtool.purge()
 
         tc = self.get_toolchain('foss', version='2018a')
@@ -604,7 +604,7 @@ class ToolchainTest(EnhancedTestCase):
         for var in flag_vars:
             flags = tc.get_variable(var)
             flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['noopt']
-            self.assertTrue(flag in flags)
+            self.assertIn(flag, flags)
 
     def test_misc_flags_shared(self):
         """Test whether shared compiler flags are set correctly."""
@@ -622,9 +622,9 @@ class ToolchainTest(EnhancedTestCase):
                 for var in flag_vars:
                     flags = tc.get_variable(var).split()
                     if enable:
-                        self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
+                        self.assertIn(flag, flags, "%s: True means %s in %s" % (opt, flag, flags))
                     else:
-                        self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
+                        self.assertNotIn(flag, flags, "%s: False means no %s in %s" % (opt, flag, flags))
                 self.modtool.purge()
 
         value = '--see-if-this-propagates'
@@ -643,10 +643,10 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
         self.assertTrue(tc.get_variable('CXXFLAGS').endswith(' ' + value))
         for var in flag_vars:
-            self.assertTrue(value not in tc.get_variable(var))
+            self.assertNotIn(value, tc.get_variable(var))
             # https://github.com/easybuilders/easybuild-framework/pull/3571
             # catch variable resued inside loop
-            self.assertTrue("-o -n -l -y" not in tc.get_variable(var))
+            self.assertNotIn("-o -n -l -y", tc.get_variable(var))
         self.modtool.purge()
 
     def test_misc_flags_unique(self):
@@ -671,9 +671,9 @@ class ToolchainTest(EnhancedTestCase):
                     for key, value in option.items():
                         flag = "-%s" % value
                         if enable == key:
-                            self.assertTrue(flag in flags, "%s: %s means %s in %s" % (opt, enable, flag, flags))
+                            self.assertIn(flag, flags, "%s: %s means %s in %s" % (opt, enable, flag, flags))
                         else:
-                            self.assertTrue(flag not in flags, "%s: %s means no %s in %s" % (opt, enable, flag, flags))
+                            self.assertNotIn(flag, flags, "%s: %s means no %s in %s" % (opt, enable, flag, flags))
                 self.modtool.purge()
 
     def test_override_optarch(self):
@@ -695,9 +695,9 @@ class ToolchainTest(EnhancedTestCase):
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
-                        self.assertTrue(flag in flags, "optarch: True means %s in %s" % (flag, flags))
+                        self.assertIn(flag, flags, "optarch: True means %s in %s" % (flag, flags))
                     else:
-                        self.assertFalse(flag in flags, "optarch: False means no %s in %s" % (flag, flags))
+                        self.assertNotIn(flag, flags, "optarch: False means no %s in %s" % (flag, flags))
                 self.modtool.purge()
 
     def test_optarch_generic(self):
@@ -739,10 +739,10 @@ class ToolchainTest(EnhancedTestCase):
                         tup = (key, tcversion, tcopts, generic_flags, val)
                         if generic:
                             error_msg = "(%s, %s, %s) '%s' flags should be found in: '%s'"
-                            self.assertTrue(generic_flags in val, error_msg % tup)
+                            self.assertIn(generic_flags, val, error_msg % tup)
                         else:
                             error_msg = "(%s, %s, %s) '%s' flags should not be found in: '%s'"
-                            self.assertFalse(generic_flags in val, error_msg % tup)
+                            self.assertNotIn(generic_flags, val, error_msg % tup)
 
                     modules.modules_tool().purge()
 
@@ -756,14 +756,14 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({})
         tc.prepare()
         self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a53')
-        self.assertTrue('-mcpu=cortex-a53' in os.environ['CFLAGS'])
+        self.assertIn('-mcpu=cortex-a53', os.environ['CFLAGS'])
         self.modtool.purge()
 
         tc = self.get_toolchain("GCCcore", version="6.2.0")
         tc.set_options({})
         tc.prepare()
         self.assertEqual(tc.options.options_map['optarch'], 'mcpu=native')
-        self.assertTrue('-mcpu=native' in os.environ['CFLAGS'])
+        self.assertIn('-mcpu=native', os.environ['CFLAGS'])
         self.modtool.purge()
 
         st.get_cpu_model = lambda: 'ARM Cortex-A53 + Cortex-A72'
@@ -771,7 +771,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({})
         tc.prepare()
         self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a72.cortex-a53')
-        self.assertTrue('-mcpu=cortex-a72.cortex-a53' in os.environ['CFLAGS'])
+        self.assertIn('-mcpu=cortex-a72.cortex-a53', os.environ['CFLAGS'])
         self.modtool.purge()
 
     def test_compiler_dependent_optarch(self):
@@ -852,13 +852,13 @@ class ToolchainTest(EnhancedTestCase):
                 # Check that the correct flags are there
                 if enable and flags != '':
                     error_msg = "optarch: True means '%s' in '%s'" % (flags, set_flags)
-                    self.assertTrue(flags in set_flags, "optarch: True means '%s' in '%s'")
+                    self.assertIn(flags, set_flags, "optarch: True means '%s' in '%s'")
 
                 # Check that there aren't any unexpected flags
                 else:
                     for blacklisted_flag in blacklist:
                         error_msg = "optarch: False means no '%s' in '%s'" % (blacklisted_flag, set_flags)
-                        self.assertFalse(blacklisted_flag in set_flags, error_msg)
+                        self.assertNotIn(blacklisted_flag, set_flags, error_msg)
 
             self.modtool.purge()
 
@@ -900,9 +900,9 @@ class ToolchainTest(EnhancedTestCase):
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
-                        self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
+                        self.assertIn(flag, flags, "%s: True means %s in %s" % (opt, flag, flags))
                     else:
-                        self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
+                        self.assertNotIn(flag, flags, "%s: False means no %s in %s" % (opt, flag, flags))
                 self.modtool.purge()
 
     def test_precision_flags(self):
@@ -1261,7 +1261,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.comp_family(prefix='CUDA'), "CUDA")
 
         # check CUDA runtime lib
-        self.assertTrue("-lrt -lcudart" in tc.get_variable('LIBS'))
+        self.assertIn("-lrt -lcudart", tc.get_variable('LIBS'))
 
     def setup_sandbox_for_foss_fftw(self, moddir, fftwver='3.3.7'):
         """Set up sandbox for foss FFTW and FFTW.MPI"""
@@ -1377,12 +1377,12 @@ class ToolchainTest(EnhancedTestCase):
 
         for flag in ['-mt_mpi', '-fopenmp']:
             for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
-                self.assertTrue(flag in tc.get_variable(var))
+                self.assertIn(flag, tc.get_variable(var))
 
         # -openmp is deprecated for new Intel compiler versions
-        self.assertFalse('-openmp' in tc.get_variable('CFLAGS'))
-        self.assertFalse('-openmp' in tc.get_variable('CXXFLAGS'))
-        self.assertFalse('-openmp' in tc.get_variable('FFLAGS'))
+        self.assertNotIn('-openmp', tc.get_variable('CFLAGS'))
+        self.assertNotIn('-openmp', tc.get_variable('CXXFLAGS'))
+        self.assertNotIn('-openmp', tc.get_variable('FFLAGS'))
 
         self.assertEqual(tc.get_variable('CC'), 'mpiicc')
         self.assertEqual(tc.get_variable('CXX'), 'mpiicpc')
@@ -1405,7 +1405,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
         self.assertEqual(tc.get_variable('MPIFC'), 'mpiifort')
         for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
-            self.assertTrue('-openmp' in tc.get_variable(var))
+            self.assertIn('-openmp', tc.get_variable(var))
 
         # with compiler-only toolchain the $MPI* variables are not defined
         mpi_vars = ('MPICC', 'MPICXX', 'MPIF77', 'MPIF90', 'MPIFC')
@@ -1700,7 +1700,7 @@ class ToolchainTest(EnhancedTestCase):
         ]
         tc.prepare(deps=deps)
         mods = ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28']
-        self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
+        self.assertEqual(sorted(m['mod_name'] for m in self.modtool.list()), sorted(mods))
 
     def test_prepare_deps_external(self):
         """Test preparing for a toolchain when dependencies and external modules are involved."""
@@ -1728,10 +1728,10 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain('GCC', version='6.4.0-2.28')
         tc.prepare(deps=deps)
         mods = ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28', 'toy/0.0']
-        self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
+        self.assertEqual(sorted(m['mod_name'] for m in self.modtool.list()), sorted(mods))
         self.assertTrue(os.environ['EBROOTTOY'].endswith('software/toy/0.0'))
         self.assertEqual(os.environ['EBVERSIONTOY'], '0.0')
-        self.assertFalse('EBROOTFOOBAR' in os.environ)
+        self.assertNotIn('EBROOTFOOBAR', os.environ)
 
         # with metadata
         deps[1] = {
@@ -1749,7 +1749,7 @@ class ToolchainTest(EnhancedTestCase):
         os.environ['FOOBAR_PREFIX'] = '/foo/bar'
         tc.prepare(deps=deps)
         mods = ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28', 'toy/0.0']
-        self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
+        self.assertEqual(sorted(m['mod_name'] for m in self.modtool.list()), sorted(mods))
         self.assertEqual(os.environ['EBROOTTOY'], '/foo/bar')
         self.assertEqual(os.environ['EBVERSIONTOY'], '1.2.3')
         self.assertEqual(os.environ['EBROOTFOOBAR'], '/foo/bar')
@@ -1890,25 +1890,25 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel4)
         self.assertEqual(os.environ.get('LIBFFT', "(not set)"), libfft_intel4)
         self.assertEqual(os.environ.get('LIBFFT_MT', "(not set)"), libfft_mt_intel4)
-        self.assertTrue(libscalack_intel4 in os.environ['LIBSCALAPACK'])
+        self.assertIn(libscalack_intel4, os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
         tc = self.get_toolchain('intel', version='2012a')
         tc.prepare()
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel3)
-        self.assertTrue(libscalack_intel3 in os.environ['LIBSCALAPACK'])
+        self.assertIn(libscalack_intel3, os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
         tc = self.get_toolchain('intel', version='2018a')
         tc.prepare()
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel4)
-        self.assertTrue(libscalack_intel4 in os.environ['LIBSCALAPACK'])
+        self.assertIn(libscalack_intel4, os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
         tc = self.get_toolchain('intel', version='2012a')
         tc.prepare()
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel3)
-        self.assertTrue(libscalack_intel3 in os.environ['LIBSCALAPACK'])
+        self.assertIn(libscalack_intel3, os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
         libscalack_intel4 = libscalack_intel4.replace('_lp64', '_ilp64')
@@ -1916,7 +1916,7 @@ class ToolchainTest(EnhancedTestCase):
         opts = {'i8': True}
         tc.set_options(opts)
         tc.prepare()
-        self.assertTrue(libscalack_intel4 in os.environ['LIBSCALAPACK'])
+        self.assertIn(libscalack_intel4, os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
         tc = self.get_toolchain('fosscuda', version='2018a')
@@ -2892,7 +2892,7 @@ class ToolchainTest(EnhancedTestCase):
         # new $TMPDIR should be /tmp/xxxxxx
         tmpdir = os.environ.get('TMPDIR')
         self.assertTrue(tmpdir.startswith('/tmp'))
-        self.assertTrue(len(tmpdir) in (11, 13))
+        self.assertIn(len(tmpdir), (11, 13))
 
         # also test cleanup method to ensure short $TMPDIR is cleaned up properly
         self.assertTrue(os.path.exists(tmpdir))

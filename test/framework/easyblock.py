@@ -91,7 +91,7 @@ class EasyBlockTest(EnhancedTestCase):
             extra_options.values()
             for key in extra_options.keys():
                 self.assertTrue(isinstance(extra_options[key], list))
-                self.assertTrue(len(extra_options[key]), 3)
+                self.assertEqual(len(extra_options[key]), 3)
 
         name = "pi"
         version = "3.14"
@@ -127,7 +127,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(exeb1.cfg['name'], 'foo')
         extra_options = exeb1.extra_options()
         check_extra_options_format(extra_options)
-        self.assertTrue('options' in extra_options)
+        self.assertIn('options', extra_options)
         # Reporting test failure should work also for the extension EB
         self.assertRaises(EasyBuildError, exeb1.report_test_failure, "Fails")
 
@@ -137,7 +137,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(exeb2.cfg['version'], '3.14')
         extra_options = exeb2.extra_options()
         check_extra_options_format(extra_options)
-        self.assertTrue('options' in extra_options)
+        self.assertIn('options', extra_options)
         # Reporting test failure should work also for the extension EB
         self.assertRaises(EasyBuildError, exeb2.report_test_failure, "Fails")
 
@@ -149,7 +149,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(texeb.cfg['name'], 'bar')
         extra_options = texeb.extra_options()
         check_extra_options_format(extra_options)
-        self.assertTrue('options' in extra_options)
+        self.assertIn('options', extra_options)
         self.assertEqual(extra_options['extra_param'], [None, "help", CUSTOM])
 
         # cleanup
@@ -241,7 +241,7 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(os.path.samefile(default_symlink, pi_modfile))
         else:
             dot_version_txt = read_file(os.path.join(fake_mod_data[0], 'pi', '.version'))
-            self.assertTrue("set ModulesVersion 3.14" in dot_version_txt)
+            self.assertIn("set ModulesVersion 3.14", dot_version_txt)
 
         eb.clean_up_fake_module(fake_mod_data)
 
@@ -304,7 +304,7 @@ class EasyBlockTest(EnhancedTestCase):
                 r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, %s\)\)' % (home, pj_usermodsdir),
             ])
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % module_syntax)
+            self.fail("Unknown module syntax: %s" % module_syntax)
 
         for regex in regexs:
             regex = re.compile(regex, re.M)
@@ -349,7 +349,7 @@ class EasyBlockTest(EnhancedTestCase):
                     r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, %s\)\)' % (module_envvar, pj_usermodsdir),
                 ])
             else:
-                self.assertTrue(False, "Unknown module syntax: %s" % module_syntax)
+                self.fail("Unknown module syntax: %s" % module_syntax)
 
             for regex in regexs:
                 regex = re.compile(regex, re.M)
@@ -386,7 +386,7 @@ class EasyBlockTest(EnhancedTestCase):
         mkdir(os.path.join(config.install_path(), "existing_dir", usermodsdir_extension), parents=True)
         change_dir(os.path.join(config.install_path(), "existing_dir"))
         self.modtool.run_module('load', 'mytest')
-        self.assertFalse(usermodsdir_extension in os.environ['MODULEPATH'])
+        self.assertNotIn(usermodsdir_extension, os.environ['MODULEPATH'])
         self.modtool.run_module('unload', 'mytest')
         change_dir(cwd)
 
@@ -396,14 +396,14 @@ class EasyBlockTest(EnhancedTestCase):
 
         # Check MODULEPATH when neither directories exist
         self.modtool.run_module('load', 'mytest')
-        self.assertFalse(site_modules in os.environ['MODULEPATH'])
-        self.assertFalse(user_modules in os.environ['MODULEPATH'])
+        self.assertNotIn(site_modules, os.environ['MODULEPATH'])
+        self.assertNotIn(user_modules, os.environ['MODULEPATH'])
         self.modtool.run_module('unload', 'mytest')
         # Now create the directory for site modules
         mkdir(site_modules, parents=True)
         self.modtool.run_module('load', 'mytest')
         self.assertTrue(os.environ['MODULEPATH'].startswith(site_modules))
-        self.assertFalse(user_modules in os.environ['MODULEPATH'])
+        self.assertNotIn(user_modules, os.environ['MODULEPATH'])
         self.modtool.run_module('unload', 'mytest')
         # Now create the directory for user modules
         mkdir(user_modules, parents=True)
@@ -453,14 +453,14 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^prepend_path\("CLASSPATH", pathJoin\(root, "bla.jar"\)\)$', guess, re.M))
             self.assertTrue(re.search(r'^prepend_path\("CLASSPATH", pathJoin\(root, "foo.jar"\)\)$', guess, re.M))
             self.assertTrue(re.search(r'^prepend_path\("MANPATH", pathJoin\(root, "share/man"\)\)$', guess, re.M))
-            self.assertTrue('prepend_path("CMAKE_PREFIX_PATH", root)' in guess)
+            self.assertIn('prepend_path("CMAKE_PREFIX_PATH", root)', guess)
             # bin/ is not added to $PATH if it doesn't include files
             self.assertFalse(re.search(r'^prepend_path\("PATH", pathJoin\(root, "bin"\)\)$', guess, re.M))
             self.assertFalse(re.search(r'^prepend_path\("PATH", pathJoin\(root, "sbin"\)\)$', guess, re.M))
             # no include/ subdirectory, so no $CPATH update statement
             self.assertFalse(re.search(r'^prepend_path\("CPATH", .*\)$', guess, re.M))
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         # check that bin is only added to PATH if there are files in there
         write_file(os.path.join(eb.installdir, 'bin', 'test'), 'test')
@@ -473,7 +473,7 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^prepend_path\("PATH", pathJoin\(root, "bin"\)\)$', guess, re.M))
             self.assertFalse(re.search(r'^prepend_path\("PATH", pathJoin\(root, "sbin"\)\)$', guess, re.M))
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         # Check that lib64 is only added to CMAKE_LIBRARY_PATH if there are files in there
         # but only if it is not a symlink to lib
@@ -481,7 +481,7 @@ class EasyBlockTest(EnhancedTestCase):
         if get_module_syntax() == 'Tcl':
             self.assertFalse(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
         elif get_module_syntax() == 'Lua':
-            self.assertFalse('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))' in guess)
+            self.assertNotIn('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))', guess)
         # -- With files
         write_file(os.path.join(eb.installdir, 'lib64', 'libfoo.so'), 'test')
         with eb.module_generator.start_module_creation():
@@ -489,7 +489,7 @@ class EasyBlockTest(EnhancedTestCase):
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
         elif get_module_syntax() == 'Lua':
-            self.assertTrue('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))' in guess)
+            self.assertIn('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))', guess)
         # -- With files in lib and lib64 symlinks to lib
         write_file(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'test')
         shutil.rmtree(os.path.join(eb.installdir, 'lib64'))
@@ -499,7 +499,7 @@ class EasyBlockTest(EnhancedTestCase):
         if get_module_syntax() == 'Tcl':
             self.assertFalse(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
         elif get_module_syntax() == 'Lua':
-            self.assertFalse('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))' in guess)
+            self.assertNotIn('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))', guess)
 
         # With files in /lib and /lib64 symlinked to /lib there should be exactly 1 entry for (LD_)LIBRARY_PATH
         # pointing to /lib
@@ -521,7 +521,7 @@ class EasyBlockTest(EnhancedTestCase):
         elif get_module_syntax() == 'Lua':
             self.assertTrue(re.match(r'^\nprepend_path\("PATH", pathJoin\(root, "bin"\)\)\n$', txt, re.M))
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         # check for correct behaviour if empty string is specified as one of the values
         # prepend-path statements should be included for both the 'bin' subdir and the install root
@@ -535,7 +535,7 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(re.search(r'\nprepend_path\("PATH", pathJoin\(root, "bin"\)\)\n', txt, re.M))
             self.assertTrue(re.search(r'\nprepend_path\("PATH", root\)\n', txt, re.M))
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         # check for correct order of prepend statements when providing a list (and that no duplicates are allowed)
         eb.make_module_req_guess = lambda: {'LD_LIBRARY_PATH': ['lib/pathC', 'lib/pathA', 'lib/pathB', 'lib/pathA']}
@@ -561,7 +561,7 @@ class EasyBlockTest(EnhancedTestCase):
                                        r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/pathA"\)\)\n',
                                        txt, re.M))
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         # If PATH or LD_LIBRARY_PATH contain only folders, do not add an entry
         sub_lib_path = os.path.join('lib', 'path_folders')
@@ -629,7 +629,7 @@ class EasyBlockTest(EnhancedTestCase):
                 r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-2018a-easybuild-devel"\)\)',
             ]))
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         defaulttxt = eb.make_module_extra().strip()
         self.assertTrue(expected_default.match(defaulttxt),
@@ -714,7 +714,7 @@ class EasyBlockTest(EnhancedTestCase):
                 'end',
             ])
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         expected = use_load
         self.assertEqual(eb.make_module_deppaths().strip(), expected)
@@ -776,7 +776,7 @@ class EasyBlockTest(EnhancedTestCase):
                 'end',
             ])
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         expected = tc_load + '\n\n' + fftw_load + '\n\n' + lapack_load
         self.assertEqual(eb.make_module_dep().strip(), expected)
@@ -801,7 +801,7 @@ class EasyBlockTest(EnhancedTestCase):
                 'end',
             ])
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
         expected = tc_load + '\n\n' + fftw_load + '\n\n' + lapack_load
         self.assertEqual(eb.make_module_dep(unload_info=unload_info).strip(), expected)
 
@@ -1134,14 +1134,12 @@ class EasyBlockTest(EnhancedTestCase):
 
         # 'ext1' should be in eb.ext_instances
         eb_exts = [x.name for x in eb.ext_instances]
-        self.assertTrue('ext1' in eb_exts)
+        self.assertIn('ext1', eb_exts)
         # 'EXT-2' should not
-        self.assertFalse('EXT-2' in eb_exts)
-        self.assertFalse('EXT_2' in eb_exts)
-        self.assertFalse('ext-2' in eb_exts)
-        self.assertFalse('ext_2' in eb_exts)
+        self.assertNotIn('EXT-2', eb_exts)
+        self.assertNotIn('ext_2', eb_exts)
         # 'ext3' should not
-        self.assertFalse('ext3' in eb_exts)
+        self.assertNotIn('ext3', eb_exts)
 
         # cleanup
         eb.close_log()
@@ -1223,7 +1221,7 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^setenv\("EBVERSION%s", "%s"\)$' % (name.upper(), version), txt, re.M))
 
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         for (key, val) in modextravars.items():
             pushenv = False
@@ -1238,7 +1236,7 @@ class EasyBlockTest(EnhancedTestCase):
             elif get_module_syntax() == 'Lua':
                 regex = re.compile(r'^%s\("%s", "%s"\)$' % (env_setter, key, val), re.M)
             else:
-                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+                self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (key, vals) in modextrapaths.items():
@@ -1250,7 +1248,7 @@ class EasyBlockTest(EnhancedTestCase):
                 elif get_module_syntax() == 'Lua':
                     regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
                 else:
-                    self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+                    self.fail("Unknown module syntax: %s" % get_module_syntax())
                 self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
                 # Check for duplicates
                 num_prepends = len(regex.findall(txt))
@@ -1262,7 +1260,7 @@ class EasyBlockTest(EnhancedTestCase):
             elif get_module_syntax() == 'Lua':
                 regex = re.compile(r'^\s*load\("%s"\)$' % os.path.join(name, ver), re.M)
             else:
-                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+                self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('test', '1.2.3')]:
@@ -1271,7 +1269,7 @@ class EasyBlockTest(EnhancedTestCase):
             elif get_module_syntax() == 'Lua':
                 regex = re.compile(r'^\s*load\("%s/.%s"\)$' % (name, ver), re.M)
             else:
-                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+                self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]:
@@ -1280,7 +1278,7 @@ class EasyBlockTest(EnhancedTestCase):
             elif get_module_syntax() == 'Lua':
                 regex = re.compile(r'^\s*load\("%s/.?%s"\)$' % (name, ver), re.M)
             else:
-                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+                self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertFalse(regex.search(txt), "Pattern '%s' *not* found in %s" % (regex.pattern, txt))
 
         os.environ['TEST_PUSHENV'] = '0'
@@ -1637,7 +1635,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.fetch_patches()
         self.assertEqual(len(eb.patches), 2)
         self.assertEqual(eb.patches[0]['name'], toy_patch)
-        self.assertFalse('level' in eb.patches[0])
+        self.assertNotIn('level', eb.patches[0])
 
         # reset
         eb.patches = []
@@ -1851,11 +1849,11 @@ class EasyBlockTest(EnhancedTestCase):
 
         self.assertEqual(exts_file_info[2]['name'], 'barbar')
         self.assertEqual(exts_file_info[2]['src'], os.path.join(toy_ext_sources, 'barbar-0.0.tar.gz'))
-        self.assertFalse('patches' in exts_file_info[2])
+        self.assertNotIn('patches', exts_file_info[2])
 
         self.assertEqual(exts_file_info[3]['name'], 'toy')
         self.assertEqual(exts_file_info[3]['src'], os.path.join(toy_sources, 'toy-0.0.tar.gz'))
-        self.assertFalse('patches' in exts_file_info[3])
+        self.assertNotIn('patches', exts_file_info[3])
 
         # location of files is missing when fetch_files is set to False
         exts_file_info = toy_eb.collect_exts_file_info(fetch_files=False, verify_checksums=False)
@@ -1866,19 +1864,19 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(exts_file_info[0], {'name': 'ls'})
 
         self.assertEqual(exts_file_info[1]['name'], 'bar')
-        self.assertFalse('src' in exts_file_info[1])
+        self.assertNotIn('src', exts_file_info[1])
         self.assertEqual(exts_file_info[1]['patches'][0]['name'], bar_patch1)
-        self.assertFalse('path' in exts_file_info[1]['patches'][0])
+        self.assertNotIn('path', exts_file_info[1]['patches'][0])
         self.assertEqual(exts_file_info[1]['patches'][1]['name'], bar_patch2)
-        self.assertFalse('path' in exts_file_info[1]['patches'][1])
+        self.assertNotIn('path', exts_file_info[1]['patches'][1])
 
         self.assertEqual(exts_file_info[2]['name'], 'barbar')
-        self.assertFalse('src' in exts_file_info[2])
-        self.assertFalse('patches' in exts_file_info[2])
+        self.assertNotIn('src', exts_file_info[2])
+        self.assertNotIn('patches', exts_file_info[2])
 
         self.assertEqual(exts_file_info[3]['name'], 'toy')
-        self.assertFalse('src' in exts_file_info[3])
-        self.assertFalse('patches' in exts_file_info[3])
+        self.assertNotIn('src', exts_file_info[3])
+        self.assertNotIn('patches', exts_file_info[3])
 
         error_msg = "Can't verify checksums for extension files if they are not being fetched"
         self.assertErrorRegex(EasyBuildError, error_msg, toy_eb.collect_exts_file_info, fetch_files=False)
@@ -1977,13 +1975,13 @@ class EasyBlockTest(EnhancedTestCase):
                 elif get_module_syntax() == 'Lua':
                     self.assertFalse(re.search('load("%s")' % dep, modtxt), failmsg)
                 else:
-                    self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+                    self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         # modpath_extensions_for should spit out correct result, even if modules are loaded
         icc_mod = 'icc/%s' % intel_ver
         impi_mod = 'impi/5.1.2.150'
         self.modtool.load([icc_mod])
-        self.assertTrue(impi_modfile_path in self.modtool.show(impi_mod))
+        self.assertIn(impi_modfile_path, self.modtool.show(impi_mod))
         self.modtool.load([impi_mod])
         expected = {
             icc_mod: [os.path.join(modpath, 'Compiler', 'intel', intel_ver)],
@@ -2019,7 +2017,7 @@ class EasyBlockTest(EnhancedTestCase):
         # verify that patches were applied
         toydir = os.path.join(eb.builddir, 'toy-0.0')
         self.assertEqual(sorted(os.listdir(toydir)), ['toy-extra.txt', 'toy.source'])
-        self.assertTrue("and very proud of it" in read_file(os.path.join(toydir, 'toy.source')))
+        self.assertIn("and very proud of it", read_file(os.path.join(toydir, 'toy.source')))
         self.assertEqual(read_file(os.path.join(toydir, 'toy-extra.txt')), 'moar!\n')
 
         # check again with backup of patched files enabled
@@ -2031,8 +2029,8 @@ class EasyBlockTest(EnhancedTestCase):
         # verify that patches were applied
         toydir = os.path.join(eb.builddir, 'toy-0.0')
         self.assertEqual(sorted(os.listdir(toydir)), ['toy-extra.txt', 'toy.source', 'toy.source.orig'])
-        self.assertTrue("and very proud of it" in read_file(os.path.join(toydir, 'toy.source')))
-        self.assertFalse("and very proud of it" in read_file(os.path.join(toydir, 'toy.source.orig')))
+        self.assertIn("and very proud of it", read_file(os.path.join(toydir, 'toy.source')))
+        self.assertNotIn("and very proud of it", read_file(os.path.join(toydir, 'toy.source.orig')))
         self.assertEqual(read_file(os.path.join(toydir, 'toy-extra.txt')), 'moar!\n')
 
     def test_extensions_sanity_check(self):
@@ -2044,6 +2042,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # Do this before loading the easyblock to check the non-translated output below
         os.environ['LC_ALL'] = 'C'
+        os.environ['LANG'] = 'C'
 
         # this import only works here, since EB_toy is a test easyblock
         from easybuild.easyblocks.toy import EB_toy
@@ -2059,7 +2058,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.silent = True
         error_pattern = r"Sanity check failed: extensions sanity check failed for 1 extensions: toy\n"
         error_pattern += r"failing sanity check for 'toy' extension: "
-        error_pattern += r'command "thisshouldfail" failed; output:\n/bin/bash: thisshouldfail: command not found'
+        error_pattern += r'command "thisshouldfail" failed; output:\n/bin/bash:.* thisshouldfail: command not found'
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.run_all_steps, True)
 
         # purposely put sanity check command in place that breaks the build,
@@ -2238,7 +2237,7 @@ class EasyBlockTest(EnhancedTestCase):
         # see also https://github.com/easybuilders/easybuild-framework/issues/2186
         self.setup_hierarchical_modules()
 
-        self.assertTrue('GCC/6.4.0-2.28' in self.modtool.available())
+        self.assertIn('GCC/6.4.0-2.28', self.modtool.available())
 
         self.reset_modulepath([])
         self.assertEqual(os.environ.get('MODULEPATH'), None)
@@ -2369,7 +2368,7 @@ class EasyBlockTest(EnhancedTestCase):
             elif isinstance(ext, tuple):
                 self.assertEqual(ext[2].get('checksums', []), [])
             else:
-                self.assertTrue(False, "Incorrect extension type: %s" % type(ext))
+                self.fail("Incorrect extension type: %s" % type(ext))
 
         # put checksums.json in place next to easyconfig file being used for the tests
         toy_checksums_json = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'checksums.json')
@@ -2624,7 +2623,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(all(key.startswith('easybuild.easyblocks') for key in easyblocks))
 
         for modname in ['foo', 'generic.bar', 'toy', 'gcc', 'hpl']:
-            self.assertTrue('easybuild.easyblocks.%s' % modname in easyblocks)
+            self.assertIn('easybuild.easyblocks.%s' % modname, easyblocks)
 
         foo = easyblocks['easybuild.easyblocks.foo']
         self.assertEqual(foo['class'], 'EB_foo')

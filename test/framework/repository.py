@@ -173,7 +173,7 @@ class RepositoryTest(EnhancedTestCase):
             self.assertTrue(os.path.exists(path))
             ectxt = read_file(path)
             self.assertTrue(ectxt.startswith("# Built with EasyBuild version"))
-            self.assertTrue("# Build statistics" in ectxt)
+            self.assertIn("# Build statistics", ectxt)
             ecdict = EasyConfigParser(path).get_config_dict()
             self.assertEqual(ecdict['buildstats'], expected_buildstats)
 

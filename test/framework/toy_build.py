@@ -327,7 +327,7 @@ class ToyBuildTest(EnhancedTestCase):
             regex = re.compile(mod_load_msg, re.M)
             self.assertTrue(regex.search(toy_module_txt), "Pattern '%s' found in: %s" % (regex.pattern, toy_module_txt))
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         # newline between "I AM toy v0.0" (modloadmsg) and "oh hai!" (mod*footer) is added automatically
         expected = "\nTHANKS FOR LOADING ME\nI AM toy v0.0\n"
@@ -774,7 +774,7 @@ class ToyBuildTest(EnhancedTestCase):
                     regex = re.compile(pattern % group_name, re.M)
                     self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
             else:
-                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+                self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         write_file(test_ec, read_file(toy_ec) + "\ngroup = ('%s', 'custom message', 'extra item')\n" % group_name)
         self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, do_build=True,
@@ -832,7 +832,7 @@ class ToyBuildTest(EnhancedTestCase):
         elif get_module_syntax() == 'Lua':
             load_regex_template = r'load\("%s/.*"\)'
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         modtxt = read_file(toy_module_path)
         for dep in ['foss', 'GCC', 'OpenMPI']:
@@ -883,7 +883,7 @@ class ToyBuildTest(EnhancedTestCase):
             regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
             self.assertTrue(regex.search(modtxt), "Pattern '%s' found in %s" % (regex.pattern, modtxt))
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
         os.remove(toy_module_path)
 
         # ... unless they shouldn't be
@@ -898,7 +898,7 @@ class ToyBuildTest(EnhancedTestCase):
             regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
             self.assertFalse(regex.search(modtxt), "Pattern '%s' found in %s" % (regex.pattern, modtxt))
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
         os.remove(toy_module_path)
 
         # test module path with system/system build
@@ -941,7 +941,7 @@ class ToyBuildTest(EnhancedTestCase):
             regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
             self.assertTrue(regex.search(modtxt), "Pattern '%s' found in %s" % (regex.pattern, modtxt))
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
         os.remove(toy_module_path)
 
         # building a toolchain module should also work
@@ -1556,7 +1556,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'puts stderr "oh hai\!"$',
             ])
         else:
-            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         mod_txt_regex = re.compile(mod_txt_regex_pattern)
         msg = "Pattern '%s' matches with: %s" % (mod_txt_regex.pattern, toy_mod_txt)
@@ -2028,7 +2028,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertEqual(len(hidden_toy_mod_backups), backups_hidden)
 
             first_toy_lua_mod_backup = (toy_mod_backups or hidden_toy_mod_backups)[0]
-            self.assertTrue('.bak_' in os.path.basename(first_toy_lua_mod_backup))
+            self.assertIn('.bak_', os.path.basename(first_toy_lua_mod_backup))
 
             # check messages in stdout/stderr
             regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bak, re.M)
@@ -2162,7 +2162,7 @@ class ToyBuildTest(EnhancedTestCase):
         ]
         env_file = read_file(reprod_dumpenv)
         for pattern in patterns:
-            self.assertTrue(pattern in env_file)
+            self.assertIn(pattern, env_file)
 
         # Check that the toytoy easyblock is recorded in the reprod easyconfig
         ec = EasyConfig(reprod_ec)
@@ -2170,7 +2170,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure start_dir is not recorded in the dumped easyconfig, this does not appear in the original easyconfig
         # and is representative of values that are (typically) set by the easyblock steps (which are also dumped)
-        self.assertFalse('start_dir' in ec.parser.get_config_dict())
+        self.assertNotIn('start_dir', ec.parser.get_config_dict())
 
         # Check for child easyblock existence
         child_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toytoy.py')
@@ -2278,7 +2278,7 @@ class ToyBuildTest(EnhancedTestCase):
         ]
         env_file = read_file(reprod_dumpenv)
         for pattern in patterns:
-            self.assertTrue(pattern in env_file)
+            self.assertIn(pattern, env_file)
 
     def test_toy_sanity_check_commands(self):
         """Test toy build with extra sanity check commands."""
@@ -2418,7 +2418,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt = regex.sub('', toy_ec_txt)
         write_file(test_ec, test_ec_txt)
 
-        self.assertFalse('sanity_check_' in test_ec_txt)
+        self.assertNotIn('sanity_check_', test_ec_txt)
 
         # create custom easyblock for toy that has a custom sanity_check_step
         toy_easyblock = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
@@ -2667,8 +2667,8 @@ class ToyBuildTest(EnhancedTestCase):
         # by default, /lib and /usr are included in RPATH filter,
         # together with temporary directory and build directory
         rpath_filter_paths = grab_gcc_rpath_wrapper_args()['filter_paths'].split(',')
-        self.assertTrue('/lib.*' in rpath_filter_paths)
-        self.assertTrue('/usr.*' in rpath_filter_paths)
+        self.assertIn('/lib.*', rpath_filter_paths)
+        self.assertIn('/usr.*', rpath_filter_paths)
         self.assertTrue(any(p.startswith(os.getenv('TMPDIR')) for p in rpath_filter_paths))
         self.assertTrue(any(p.startswith(self.test_buildpath) for p in rpath_filter_paths))
 
@@ -2700,8 +2700,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # check whether rpath filter was set correctly
         rpath_filter_paths = grab_gcc_rpath_wrapper_args()['filter_paths'].split(',')
-        self.assertTrue('/test.*' in rpath_filter_paths)
-        self.assertTrue('/foo/bar.*' in rpath_filter_paths)
+        self.assertIn('/test.*', rpath_filter_paths)
+        self.assertIn('/foo/bar.*', rpath_filter_paths)
         self.assertTrue(any(p.startswith(os.getenv('TMPDIR')) for p in rpath_filter_paths))
         self.assertTrue(any(p.startswith(self.test_buildpath) for p in rpath_filter_paths))
 
@@ -3009,7 +3009,7 @@ class ToyBuildTest(EnhancedTestCase):
                 '}',
             ])
 
-        self.assertTrue(expected in toy_mod_txt, "Pattern '%s' should be found in: %s" % (expected, toy_mod_txt))
+        self.assertIn(expected, toy_mod_txt)
 
         # also check relevant parts of "module help" and whatis bits
         expected_descr = '\n'.join([
@@ -3019,7 +3019,7 @@ class ToyBuildTest(EnhancedTestCase):
             "* GCC/4.6.3 (default), GCC/7.3.0-2.30",
         ])
         error_msg_descr = "Pattern '%s' should be found in: %s" % (expected_descr, toy_mod_txt)
-        self.assertTrue(expected_descr in toy_mod_txt, error_msg_descr)
+        self.assertIn(expected_descr, toy_mod_txt, error_msg_descr)
 
         if get_module_syntax() == 'Lua':
             expected_whatis = "whatis([==[Compatible modules: GCC/4.6.3 (default), GCC/7.3.0-2.30]==])"
@@ -3027,22 +3027,22 @@ class ToyBuildTest(EnhancedTestCase):
             expected_whatis = "module-whatis {Compatible modules: GCC/4.6.3 (default), GCC/7.3.0-2.30}"
 
         error_msg_whatis = "Pattern '%s' should be found in: %s" % (expected_whatis, toy_mod_txt)
-        self.assertTrue(expected_whatis in toy_mod_txt, error_msg_whatis)
+        self.assertIn(expected_whatis, toy_mod_txt, error_msg_whatis)
 
         def check_toy_load(depends_on=False):
             # by default, toy/0.0 should load GCC/4.6.3 (first listed GCC version in multi_deps)
             self.modtool.load(['toy/0.0'])
             loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
-            self.assertTrue('toy/0.0' in loaded_mod_names)
-            self.assertTrue('GCC/4.6.3' in loaded_mod_names)
-            self.assertFalse('GCC/7.3.0-2.30' in loaded_mod_names)
+            self.assertIn('toy/0.0', loaded_mod_names)
+            self.assertIn('GCC/4.6.3', loaded_mod_names)
+            self.assertNotIn('GCC/7.3.0-2.30', loaded_mod_names)
 
             if depends_on:
                 # check behaviour when unloading toy (should also unload GCC/4.6.3)
                 self.modtool.unload(['toy/0.0'])
                 loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
-                self.assertFalse('toy/0.0' in loaded_mod_names)
-                self.assertFalse('GCC/4.6.3' in loaded_mod_names)
+                self.assertNotIn('toy/0.0', loaded_mod_names)
+                self.assertNotIn('GCC/4.6.3', loaded_mod_names)
             else:
                 # just undo (don't use 'purge', make cause problems in test environment), to prepare for next test
                 self.modtool.unload(['toy/0.0', 'GCC/4.6.3'])
@@ -3050,20 +3050,20 @@ class ToyBuildTest(EnhancedTestCase):
             # if GCC/7.3.0-2.30 is loaded first, then GCC/4.6.3 is not loaded by loading toy/0.0
             self.modtool.load(['GCC/7.3.0-2.30'])
             loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
-            self.assertTrue('GCC/7.3.0-2.30' in loaded_mod_names)
+            self.assertIn('GCC/7.3.0-2.30', loaded_mod_names)
 
             self.modtool.load(['toy/0.0'])
             loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
-            self.assertTrue('toy/0.0' in loaded_mod_names)
-            self.assertTrue('GCC/7.3.0-2.30' in loaded_mod_names)
-            self.assertFalse('GCC/4.6.3' in loaded_mod_names)
+            self.assertIn('toy/0.0', loaded_mod_names)
+            self.assertIn('GCC/7.3.0-2.30', loaded_mod_names)
+            self.assertNotIn('GCC/4.6.3', loaded_mod_names)
 
             if depends_on:
                 # check behaviour when unloading toy (should *not* unload GCC/7.3.0-2.30)
                 self.modtool.unload(['toy/0.0'])
                 loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
-                self.assertFalse('toy/0.0' in loaded_mod_names)
-                self.assertTrue('GCC/7.3.0-2.30' in loaded_mod_names)
+                self.assertNotIn('toy/0.0', loaded_mod_names)
+                self.assertIn('GCC/7.3.0-2.30', loaded_mod_names)
             else:
                 # just undo
                 self.modtool.unload(['toy/0.0', 'GCC/7.3.0-2.30'])
@@ -3071,20 +3071,20 @@ class ToyBuildTest(EnhancedTestCase):
             # having GCC/4.6.3 loaded already is also fine
             self.modtool.load(['GCC/4.6.3'])
             loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
-            self.assertTrue('GCC/4.6.3' in loaded_mod_names)
+            self.assertIn('GCC/4.6.3', loaded_mod_names)
 
             self.modtool.load(['toy/0.0'])
             loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
-            self.assertTrue('toy/0.0' in loaded_mod_names)
-            self.assertTrue('GCC/4.6.3' in loaded_mod_names)
-            self.assertFalse('GCC/7.3.0-2.30' in loaded_mod_names)
+            self.assertIn('toy/0.0', loaded_mod_names)
+            self.assertIn('GCC/4.6.3', loaded_mod_names)
+            self.assertNotIn('GCC/7.3.0-2.30', loaded_mod_names)
 
             if depends_on:
                 # check behaviour when unloading toy (should *not* unload GCC/4.6.3)
                 self.modtool.unload(['toy/0.0'])
                 loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
-                self.assertFalse('toy/0.0' in loaded_mod_names)
-                self.assertTrue('GCC/4.6.3' in loaded_mod_names)
+                self.assertNotIn('toy/0.0', loaded_mod_names)
+                self.assertIn('GCC/4.6.3', loaded_mod_names)
             else:
                 # just undo
                 self.modtool.unload(['toy/0.0', 'GCC/4.6.3'])
@@ -3098,13 +3098,13 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(ec_file=test_ec)
         toy_mod_txt = read_file(toy_mod_file)
 
-        self.assertFalse(expected in toy_mod_txt, "Pattern '%s' should not be found in: %s" % (expected, toy_mod_txt))
+        self.assertNotIn(expected, toy_mod_txt)
 
         self.modtool.load(['toy/0.0'])
         loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
-        self.assertTrue('toy/0.0' in loaded_mod_names)
-        self.assertFalse('GCC/4.6.3' in loaded_mod_names)
-        self.assertFalse('GCC/7.3.0-2.30' in loaded_mod_names)
+        self.assertIn('toy/0.0', loaded_mod_names)
+        self.assertNotIn('GCC/4.6.3', loaded_mod_names)
+        self.assertNotIn('GCC/7.3.0-2.30', loaded_mod_names)
 
         # also check relevant parts of "module help" and whatis bits (no '(default)' here!)
         expected_descr_no_default = '\n'.join([
@@ -3114,7 +3114,7 @@ class ToyBuildTest(EnhancedTestCase):
             "* GCC/4.6.3, GCC/7.3.0-2.30",
         ])
         error_msg_descr = "Pattern '%s' should be found in: %s" % (expected_descr_no_default, toy_mod_txt)
-        self.assertTrue(expected_descr_no_default in toy_mod_txt, error_msg_descr)
+        self.assertIn(expected_descr_no_default, toy_mod_txt, error_msg_descr)
 
         if get_module_syntax() == 'Lua':
             expected_whatis_no_default = "whatis([==[Compatible modules: GCC/4.6.3, GCC/7.3.0-2.30]==])"
@@ -3122,7 +3122,7 @@ class ToyBuildTest(EnhancedTestCase):
             expected_whatis_no_default = "module-whatis {Compatible modules: GCC/4.6.3, GCC/7.3.0-2.30}"
 
         error_msg_whatis = "Pattern '%s' should be found in: %s" % (expected_whatis_no_default, toy_mod_txt)
-        self.assertTrue(expected_whatis_no_default in toy_mod_txt, error_msg_whatis)
+        self.assertIn(expected_whatis_no_default, toy_mod_txt, error_msg_whatis)
 
         # restore original environment to continue testing with a clean slate
         modify_env(os.environ, self.orig_environ, verbose=False)
@@ -3159,11 +3159,11 @@ class ToyBuildTest(EnhancedTestCase):
                     '}',
                 ])
 
-            self.assertTrue(expected in toy_mod_txt, "Pattern '%s' should be found in: %s" % (expected, toy_mod_txt))
+            self.assertIn(expected, toy_mod_txt)
             error_msg_descr = "Pattern '%s' should be found in: %s" % (expected_descr, toy_mod_txt)
-            self.assertTrue(expected_descr in toy_mod_txt, error_msg_descr)
+            self.assertIn(expected_descr, toy_mod_txt, error_msg_descr)
             error_msg_whatis = "Pattern '%s' should be found in: %s" % (expected_whatis, toy_mod_txt)
-            self.assertTrue(expected_whatis in toy_mod_txt, error_msg_whatis)
+            self.assertIn(expected_whatis, toy_mod_txt, error_msg_whatis)
 
             check_toy_load(depends_on=True)
 
@@ -3488,13 +3488,13 @@ class ToyBuildTest(EnhancedTestCase):
                 self.mock_stdout(False)
 
                 if any('--wait-on-lock=' in x for x in all_args):
-                    self.assertTrue("Use of --wait-on-lock is deprecated" in stderr)
+                    self.assertIn("Use of --wait-on-lock is deprecated", stderr)
                 else:
                     self.assertEqual(stderr, '')
 
                 wait_matches = wait_regex.findall(stdout)
                 # we can't rely on an exact number of 'waiting' messages, so let's go with a range...
-                self.assertTrue(len(wait_matches) in range(2, 5))
+                self.assertIn(len(wait_matches), range(2, 5))
 
                 self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
 
@@ -3511,7 +3511,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.mock_stdout(False)
 
         wait_matches = wait_regex.findall(stdout)
-        self.assertTrue(len(wait_matches) in range(2, 5))
+        self.assertIn(len(wait_matches), range(2, 5))
 
         # when there is no lock in place, --wait-on-lock* has no impact
         remove_dir(toy_lock_path)
@@ -3611,7 +3611,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # the tilde character included here is a Unicode tilde character, not a regular ASCII tilde (~)
         descr = "This description includes a unicode tilde character: ∼, for your entertainment."
-        self.assertFalse('~' in descr)
+        self.assertNotIn('~', descr)
 
         regex = re.compile(r'^description\s*=.*', re.M)
         test_ec_txt = regex.sub(r'description = "%s"' % descr, toy_ec_txt)
@@ -3652,7 +3652,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue(os.path.exists(lib_path))
         self.assertFalse(os.path.exists(lib64_path))
-        self.assertFalse('lib64' in os.listdir(toy_installdir))
+        self.assertNotIn('lib64', os.listdir(toy_installdir))
         self.assertTrue(os.path.isdir(lib_path))
         self.assertFalse(os.path.islink(lib_path))
 
@@ -3695,7 +3695,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue(os.path.exists(lib64_path))
         self.assertFalse(os.path.exists(lib_path))
-        self.assertFalse('lib' in os.listdir(toy_installdir))
+        self.assertNotIn('lib', os.listdir(toy_installdir))
         self.assertTrue(os.path.isdir(lib64_path))
         self.assertFalse(os.path.islink(lib64_path))
 
@@ -3784,7 +3784,7 @@ class ToyBuildTest(EnhancedTestCase):
         args = ['--ignore-test-failure']
         stdout, stderr = self.run_test_toy_build_with_output(extra_args=args, verify=False, testing=False)
 
-        self.assertTrue("Build succeeded (with --ignore-test-failure) for 1 out of 1" in stdout)
+        self.assertIn("Build succeeded (with --ignore-test-failure) for 1 out of 1", stdout)
         self.assertFalse(stderr)
 
     def test_toy_post_install_patches(self):
