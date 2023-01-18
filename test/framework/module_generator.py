@@ -1239,6 +1239,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
         ec2mod_map = default_ec2mod_map
         test_mns()
 
+        # check how an incorrect dependency specification is handled;
+        # accidentally using SYSTEM as 3rd tuple element should trigger a useful error,
+        # not a nasty crash; cfr. https://github.com/easybuilders/easybuild-framework/issues/4181
+        faulty_dep_spec = {
+            'name': 'test',
+            'version': '1.2.3',
+            'versionsuffix': {'name': 'system', 'version': 'system'},
+        }
+        error_pattern = "versionsuffix value should be a string, found 'dict'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ActiveMNS().det_full_module_name, faulty_dep_spec)
+
     def test_mod_name_validation(self):
         """Test module naming validation."""
         # module name must be a string

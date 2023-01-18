@@ -760,6 +760,15 @@ class EasyConfigTest(EnhancedTestCase):
         # only version key is strictly needed
         self.assertEqual(det_full_ec_version({'version': '1.2.3'}), '1.2.3')
 
+        # check how faulty dep spec is handled
+        faulty_dep_spec = {
+            'name': 'test',
+            'version': '1.2.3',
+            'versionsuffix': {'name': 'system', 'version': 'system'},
+        }
+        error_pattern = "versionsuffix value should be a string, found 'dict'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, det_full_ec_version, faulty_dep_spec)
+
     def test_obtain_easyconfig(self):
         """test obtaining an easyconfig file given certain specifications"""
         init_config(build_options={'silent': True})
