@@ -45,6 +45,9 @@ from StringIO import StringIO  # noqa
 from urllib import urlencode  # noqa
 from urllib2 import HTTPError, HTTPSHandler, Request, URLError, build_opener, urlopen  # noqa
 
+# Use the safe version. In Python 3.2+ this is the default already
+ConfigParser = configparser.SafeConfigParser
+
 
 # reload function (built-in in Python 2)
 reload = reload
