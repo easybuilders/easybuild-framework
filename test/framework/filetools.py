@@ -2507,13 +2507,13 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(hits[4].endswith('/hwloc-1.11.8-GCC-7.3.0-2.30.eb'))
 
         # also test case-sensitive searching
-        var_defs, hits_ignore_case = ft.search_file([test_ecs], 'HWLOC', silent=True, case_sensitive=True)
+        var_defs, hits_case_sensitive = ft.search_file([test_ecs], 'HWLOC', silent=True, case_sensitive=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits_ignore_case, [])
+        self.assertEqual(hits_case_sensitive, [])
 
-        var_defs, hits_ignore_case = ft.search_file([test_ecs], 'hwloc', silent=True, case_sensitive=True)
+        var_defs, hits_case_sensitive = ft.search_file([test_ecs], 'hwloc', silent=True, case_sensitive=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits_ignore_case, hits)
+        self.assertEqual(hits_case_sensitive, hits)
 
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
@@ -2569,7 +2569,8 @@ class FileToolsTest(EnhancedTestCase):
             # no hits for any of these in test easyconfigs
             self.assertEqual(hits, [])
 
-        # create hit for netCDF-C++ search in empty directory
+        # create hit for netCDF-C++ search in empty directory,
+        # to avoid accidental matches in other files already present (log files, etc.)
         ec_dir = tempfile.mkdtemp()
         test_ec = os.path.join(ec_dir, 'netCDF-C++-4.2-foss-2019a.eb')
         ft.write_file(test_ec, ''),
