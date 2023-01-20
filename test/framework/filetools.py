@@ -2507,13 +2507,13 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(hits[4].endswith('/hwloc-1.11.8-GCC-7.3.0-2.30.eb'))
 
         # also test case-sensitive searching
-        var_defs, hits_bis = ft.search_file([test_ecs], 'HWLOC', silent=True, case_sensitive=True)
+        var_defs, hits_ignore_case = ft.search_file([test_ecs], 'HWLOC', silent=True, case_sensitive=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits_bis, [])
+        self.assertEqual(hits_ignore_case, [])
 
-        var_defs, hits_bis = ft.search_file([test_ecs], 'hwloc', silent=True, case_sensitive=True)
+        var_defs, hits_ignore_case = ft.search_file([test_ecs], 'hwloc', silent=True, case_sensitive=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits_bis, hits)
+        self.assertEqual(hits_ignore_case, hits)
 
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
@@ -2569,13 +2569,14 @@ class FileToolsTest(EnhancedTestCase):
             # no hits for any of these in test easyconfigs
             self.assertEqual(hits, [])
 
-        # create hit for netCDF-C++ search
-        test_ec = os.path.join(self.test_prefix, 'netCDF-C++-4.2-foss-2019a.eb')
-        ft.write_file(test_ec, '')
+        # create hit for netCDF-C++ search in empty directory
+        ec_dir = tempfile.mkdtemp()
+        test_ec = os.path.join(ec_dir, 'netCDF-C++-4.2-foss-2019a.eb')
+        ft.write_file(test_ec, ''),
         for pattern in ['netCDF-C++', 'CDF', 'C++', '^netCDF']:
-            var_defs, hits = ft.search_file([self.test_prefix], pattern, terse=True, filename_only=True)
-            self.assertEqual(var_defs, [])
-            self.assertEqual(hits, ['netCDF-C++-4.2-foss-2019a.eb'])
+            var_defs, hits = ft.search_file([ec_dir], pattern, terse=True, filename_only=True)
+            self.assertEqual(var_defs, [], msg='For pattern ' + pattern)
+            self.assertEqual(hits, ['netCDF-C++-4.2-foss-2019a.eb'], msg='For pattern ' + pattern)
 
         # check how simply invalid queries are handled
         for pattern in ['*foo', '(foo', ')foo', 'foo)', 'foo(']:
