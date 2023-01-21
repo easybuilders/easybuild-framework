@@ -2878,6 +2878,11 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_build_hooks(self):
         """Test use of --hooks."""
+        toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec) + "\nexts_list = [('bar', '0.0'), ('toy', '0.0')]"
+        write_file(test_ec, test_ec_txt)
+
         hooks_file = os.path.join(self.test_prefix, 'my_hooks.py')
         hooks_file_txt = textwrap.dedent("""
             import os
@@ -2908,6 +2913,12 @@ class ToyBuildTest(EnhancedTestCase):
                 print('in module-write hook hook for %s' % os.path.basename(module_path))
                 return module_txt.replace('Toy C program, 100% toy.', 'Not a toy anymore')
 
+            def post_extension_hook(ext):
+                print('installing of extension %s is done!' % ext.name)
+
+            def pre_sanitycheck_hook(self):
+                print('pre_sanity_check_hook')
+
             def end_hook():
                print('end hook triggered, all done!')
         """)
@@ -2915,7 +2926,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.test_toy_build(extra_args=['--hooks=%s' % hooks_file], raise_error=True)
+        self.test_toy_build(ec_file=test_ec, extra_args=['--hooks=%s' % hooks_file], raise_error=True)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
@@ -2927,12 +2938,16 @@ class ToyBuildTest(EnhancedTestCase):
             toy_mod_file += '.lua'
 
         self.assertEqual(stderr, '')
-        # There are 4 modules written:
-        # Sanitycheck for extensions and main easyblock (1 each), main and devel module
+        # parse hook is triggered 3 times: once for main install, and then again for each extension;
+        # module write hook is triggered 5 times:
+        # - before installing extensions
+        # - for fake module file being created during sanity check (triggered twice, for main + toy install)
+        # - for final module file
+        # - for devel module file
         expected_output = textwrap.dedent("""
             == Running start hook...
             start hook triggered
-            == Running parse hook for toy-0.0.eb...
+            == Running parse hook for test.eb...
             toy 0.0
             ['%(name)s-%(version)s.tar.gz']
             echo toy
@@ -2943,6 +2958,22 @@ class ToyBuildTest(EnhancedTestCase):
             == Running post-install hook...
             in post-install hook for toy v0.0
             bin, lib
+            == Running module_write hook...
+            in module-write hook hook for {mod_name}
+            == Running parse hook...
+            toy 0.0
+            ['%(name)s-%(version)s.tar.gz']
+            echo toy
+            == Running parse hook...
+            toy 0.0
+            ['%(name)s-%(version)s.tar.gz']
+            echo toy
+            == Running post-extension hook...
+            installing of extension bar is done!
+            == Running post-extension hook...
+            installing of extension toy is done!
+            == Running pre-sanitycheck hook...
+            pre_sanity_check_hook
             == Running module_write hook...
             in module-write hook hook for {mod_name}
             == Running module_write hook...
