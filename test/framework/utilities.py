@@ -236,7 +236,7 @@ class EnhancedTestCase(TestCase):
         self.allow_deprecated_behaviour()
 
         # restore original Python search path
-        sys.path = self.orig_sys_path
+        sys.path[:] = self.orig_sys_path
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
