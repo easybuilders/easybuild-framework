@@ -121,7 +121,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         for possible_dir in possible_start_dirs:
             if os.path.isdir(possible_dir):
                 self.cfg['start_dir'] = possible_dir
-                self.log.info("Using start_dir: %s", possible_dir)
+                self.log.debug("Using start_dir: %s", possible_dir)
                 return
 
             self.log.debug("Tentative start dir not found: %s" % possible_dir)
