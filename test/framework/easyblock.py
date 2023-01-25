@@ -2164,6 +2164,50 @@ class EasyBlockTest(EnhancedTestCase):
         err_pattern = "Specified start dir .*/toy-0.0/thisstartdirisnotthere does not exist"
         self.assertErrorRegex(EasyBuildError, err_pattern, check_start_dir, 'whatever')
 
+    def test_extension_set_start_dir(self):
+        """Test start dir with extensions."""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]
+
+        cwd = os.getcwd()
+        self.assertTrue(os.path.exists(cwd))
+
+        def check_ext_start_dir(expected_start_dir):
+            """Check start dir."""
+            # make sure we're in an existing directory at the start
+            change_dir(cwd)
+            eb = EasyBlock(ec['ec'])
+            eb.extensions_step(fetch=True, install=False)
+            # extract sources of the extension
+            ext = eb.ext_instances[-1]
+            ext.run(unpack_src=True)
+            abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
+            self.assertTrue(os.path.samefile(ext.cfg['start_dir'], abs_expected_start_dir))
+            self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
+
+        ec['ec']['exts_defaultclass'] = 'DummyExtension'
+
+        # default (no start_dir specified): use unpacked dir as start dir
+        ec['ec']['exts_list'] = [
+            ('barbar', '0.0', {}),
+        ]
+        check_ext_start_dir('barbar/barbar-0.0')
+
+        # use start dir defined in extension
+        ec['ec']['exts_list'] = [
+            ('barbar', '0.0', {
+                'start_dir': 'src'}),
+        ]
+        check_ext_start_dir('barbar/barbar-0.0/src')
+
+        # clean error when specified start dir does not exist
+        ec['ec']['exts_list'] = [
+            ('barbar', '0.0', {
+                'start_dir': 'nonexistingdir'}),
+        ]
+        err_pattern = "Failed to change from .*barbar/barbar-0.0 to nonexistingdir.*"
+        self.assertErrorRegex(EasyBuildError, err_pattern, check_ext_start_dir, 'whatever')
+
     def test_prepare_step(self):
         """Test prepare step (setting up build environment)."""
         test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
