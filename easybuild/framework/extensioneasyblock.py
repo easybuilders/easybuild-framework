@@ -105,13 +105,29 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         Uses existing value of self.start_dir if it is already set and exists
         otherwise self.ext_dir (path to extracted source) if that is set and exists, similar to guess_start_dir
         """
-        possible_dirs = (self.start_dir, self.ext_dir)
-        for possible_dir in possible_dirs:
-            if possible_dir and os.path.isdir(possible_dir):
+        start_dir = ''
+        if self.cfg['start_dir']:
+            start_dir = self.cfg['start_dir']
+
+        if os.path.isabs(start_dir) and os.path.isdir(start_dir):
+            self.log.info("Using user provided start_dir: %s", start_dir)
+            return
+
+        possible_start_dirs = []
+        for base_dir in (self.start_dir, self.ext_dir):
+            if base_dir and os.path.isdir(base_dir):
+                possible_start_dirs.append(os.path.join(base_dir, start_dir))
+
+        for possible_dir in possible_start_dirs:
+            if os.path.isdir(possible_dir):
                 self.cfg['start_dir'] = possible_dir
-                self.log.debug("Using start_dir: %s", self.start_dir)
+                self.log.info("Using start_dir: %s", possible_dir)
                 return
-        self.log.debug("Unable to determine start_dir as none of these paths is set and exists: %s", possible_dirs)
+
+            self.log.debug("Tentative start dir not found: %s" % possible_dir)
+
+        tested_paths = ', '.join(possible_start_dirs)
+        self.log.debug("Unable to determine start_dir as none of the tentative paths exist: %s" % tested_paths)
 
     def run(self, unpack_src=False):
         """Common operations for extensions: unpacking sources, patching, ..."""
