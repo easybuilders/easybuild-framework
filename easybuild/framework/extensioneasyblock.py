@@ -107,9 +107,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         """
         start_dir, ext_start_dir = '', ''
 
-        # Use provided start dir if it is an absolute path
         if self.start_dir:
             start_dir = self.start_dir
+            # Use provided start dir if it is an absolute path
             if os.path.isabs(start_dir) and os.path.isdir(start_dir):
                 self.log.info("Using user provided start dir: %s", start_dir)
                 return
