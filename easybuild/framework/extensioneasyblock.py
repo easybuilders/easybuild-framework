@@ -120,8 +120,8 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.log.debug("Using extension start dir: %s", ext_start_dir)
         else:
             # non-existing start dir means wrong input from user
-            self.log.debug("Provided start dir for extension does not exist: %s" % ext_start_dir)
-        
+            self.log.debug("Provided start dir for extension does not exist: %s", ext_start_dir)
+
     def run(self, unpack_src=False):
         """Common operations for extensions: unpacking sources, patching, ..."""
 
