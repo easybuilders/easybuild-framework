@@ -116,6 +116,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         # Generate absolute start dir from ext_dir
         if self.ext_dir:
+            # User may have provided a _relative_ path for self.start_dir (now stored in start_dir)
             ext_start_dir = os.path.join(self.ext_dir, start_dir)
             if os.path.isdir(ext_start_dir):
                 self.cfg['start_dir'] = ext_start_dir
