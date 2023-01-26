@@ -105,27 +105,23 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         Uses existing value of self.start_dir if it is already set, an absolute path and exists
         otherwise use self.ext_dir (path to extracted source) as base dir if that is set and exists.
         """
-        start_dir, ext_start_dir = '', ''
+        ext_start_dir = ''
 
         if self.start_dir:
-            start_dir = self.start_dir
-            # Use provided start dir if it is an absolute path
-            if os.path.isabs(start_dir) and os.path.isdir(start_dir):
-                self.log.info("Using user provided start dir: %s", start_dir)
-                return
+            ext_start_dir = self.start_dir
 
-        # Generate absolute start dir from ext_dir
-        if self.ext_dir:
-            # User may have provided a _relative_ path for self.start_dir (now stored in start_dir)
-            ext_start_dir = os.path.join(self.ext_dir, start_dir)
-            if os.path.isdir(ext_start_dir):
-                self.cfg['start_dir'] = ext_start_dir
-                self.log.debug("Using start dir: %s", ext_start_dir)
-                return
+        if not os.path.isabs(ext_start_dir) and self.ext_dir:
+            # start dir is either empty or a _relative_ path provided by user through self.start_dir
+            # generate absolute path from ext_dir
+            ext_start_dir = os.path.join(self.ext_dir, ext_start_dir)
 
-        tested_dirs = ', '.join([d for d in (start_dir, ext_start_dir) if d])
-        self.log.debug("Unable to determine extension start dir as none of the tentative dirs exist: %s" % tested_dirs)
-
+        if os.path.isdir(ext_start_dir):
+            self.cfg['start_dir'] = ext_start_dir
+            self.log.debug("Using extension start dir: %s", ext_start_dir)
+        else:
+            # non-existing start dir means wrong input from user
+            self.log.debug("Provided start dir for extension does not exist: %s" % ext_start_dir)
+        
     def run(self, unpack_src=False):
         """Common operations for extensions: unpacking sources, patching, ..."""
 
