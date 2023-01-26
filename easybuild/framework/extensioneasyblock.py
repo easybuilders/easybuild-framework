@@ -105,7 +105,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         Uses existing value of self.start_dir if it is already set, an absolute path and exists
         otherwise use self.ext_dir (path to extracted source) as base dir if that is set and exists.
         """
-        start_dir = ''
+        start_dir, ext_start_dir = '', ''
 
         # Use provided start dir if it is an absolute path
         if self.start_dir:
@@ -122,7 +122,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                 self.log.debug("Using start dir: %s", ext_start_dir)
                 return
 
-        tested_dirs = ', '.join([d for d in [start_dir, ext_start_dir] if d])
+        tested_dirs = ', '.join([d for d in (start_dir, ext_start_dir) if d])
         self.log.debug("Unable to determine extension start dir as none of the tentative dirs exist: %s" % tested_dirs)
 
     def run(self, unpack_src=False):
