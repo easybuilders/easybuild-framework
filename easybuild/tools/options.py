@@ -696,6 +696,7 @@ class EasyBuildOptions(GeneralOption):
             'include-easyblocks-from-pr': ("Include easyblocks from specified PR", 'strlist', 'store', [],
                                            {'metavar': 'PR#'}),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
+            'keyring-github-token': ("Plaintext GitHub token (requires --github-user)", str, 'store', None),
             'close-pr': ("Close pull request", int, 'store', None, {'metavar': 'PR#'}),
             'close-pr-msg': ("Custom close message for pull request closed with --close-pr; ", str, 'store', None),
             'close-pr-reasons': ("Close reason for pull request closed with --close-pr; "

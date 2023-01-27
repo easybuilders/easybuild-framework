@@ -2164,7 +2164,12 @@ def check_github():
 
 
 def fetch_github_token(user):
-    """Fetch GitHub token for specified user from keyring."""
+    """Fetch GitHub token for specified user.
+
+    Sources used for the token are, in order:
+      - keyring option (--keyring-github-token or ENV{'EASYBUILD_KEYRING_GITHUB_TOKEN'})
+      - keyring.getpassword(KEYRING_GITHUB_TOKEN, user)
+    """
 
     token, msg = None, None
 
@@ -2175,7 +2180,7 @@ def fetch_github_token(user):
         msg += "required Python module https://pypi.python.org/pypi/keyring is not available."
     else:
         try:
-            token = keyring.get_password(KEYRING_GITHUB_TOKEN, user)
+            token = build_option('keyring_github_token') or keyring.get_password(KEYRING_GITHUB_TOKEN, user)
         except Exception as err:
             _log.warning("Exception occurred when fetching GitHub token: %s", err)
 

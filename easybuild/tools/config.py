@@ -223,6 +223,7 @@ BUILD_OPTIONS_CMDLINE = {
         'github_user',
         'github_org',
         'group',
+        'keyring_github_token',
         'hide_deps',
         'hide_toolchains',
         'http_header_fields_urlpat',
