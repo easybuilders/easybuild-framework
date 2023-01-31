@@ -2213,7 +2213,6 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertIn(warning_pattern, stderr)
         self.mock_stderr(False)
 
-
     def test_prepare_step(self):
         """Test prepare step (setting up build environment)."""
         test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
