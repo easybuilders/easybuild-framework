@@ -100,18 +100,27 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         self.ext_dir = None  # dir where extension source was unpacked
 
     def _set_start_dir(self):
-        """Set value for self.start_dir
+        """Set absolute path of self.start_dir similarly to EasyBlock.guess_start_dir
 
-        Uses existing value of self.start_dir if it is already set and exists
-        otherwise self.ext_dir (path to extracted source) if that is set and exists, similar to guess_start_dir
+        Uses existing value of self.start_dir if it is already set, an absolute path and exists
+        otherwise use self.ext_dir (path to extracted source) as base dir if that is set and exists.
         """
-        possible_dirs = (self.start_dir, self.ext_dir)
-        for possible_dir in possible_dirs:
-            if possible_dir and os.path.isdir(possible_dir):
-                self.cfg['start_dir'] = possible_dir
-                self.log.debug("Using start_dir: %s", self.start_dir)
-                return
-        self.log.debug("Unable to determine start_dir as none of these paths is set and exists: %s", possible_dirs)
+        ext_start_dir = ''
+
+        if self.start_dir:
+            ext_start_dir = self.start_dir
+
+        if not os.path.isabs(ext_start_dir) and self.ext_dir:
+            # start dir is either empty or a _relative_ path provided by user through self.start_dir
+            # generate absolute path from ext_dir
+            ext_start_dir = os.path.join(self.ext_dir, ext_start_dir)
+
+        if os.path.isdir(ext_start_dir):
+            self.cfg['start_dir'] = ext_start_dir
+            self.log.debug("Using extension start dir: %s", ext_start_dir)
+        else:
+            # non-existing start dir means wrong input from user
+            self.log.debug("Provided start dir for extension does not exist: %s", ext_start_dir)
 
     def run(self, unpack_src=False):
         """Common operations for extensions: unpacking sources, patching, ..."""
