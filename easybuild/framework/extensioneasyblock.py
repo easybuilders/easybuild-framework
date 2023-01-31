@@ -121,7 +121,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.log.debug("Using extension start dir: %s", ext_start_dir)
         else:
             # non-existing start dir means wrong input from user
-            warn_msg = "Provided start dir (%s) for extension does not exist: %s" % ext_start_dir
+            warn_msg = "Provided start dir (%s) for extension does not exist: %s" % (self.start_dir, ext_start_dir)
             self.log.warning(warn_msg)
             print_warning(warn_msg, silent=build_option('silent'))
 
