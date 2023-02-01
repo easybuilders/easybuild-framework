@@ -33,7 +33,8 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import change_dir, extract_file
 from easybuild.tools.utilities import remove_unwanted_chars, trace_msg
 
@@ -120,7 +121,10 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.log.debug("Using extension start dir: %s", ext_start_dir)
         else:
             # non-existing start dir means wrong input from user
-            self.log.debug("Provided start dir for extension does not exist: %s", ext_start_dir)
+            warn_msg = "Provided start dir (%s) for extension %s does not exist: %s" % (self.start_dir, self.name,
+                                                                                        ext_start_dir)
+            self.log.warning(warn_msg)
+            print_warning(warn_msg, silent=build_option('silent'))
 
     def run(self, unpack_src=False):
         """Common operations for extensions: unpacking sources, patching, ..."""

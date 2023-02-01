@@ -2205,8 +2205,13 @@ class EasyBlockTest(EnhancedTestCase):
             ('barbar', '0.0', {
                 'start_dir': 'nonexistingdir'}),
         ]
+        self.mock_stderr(True)
         err_pattern = "Failed to change from .*barbar/barbar-0.0 to nonexistingdir.*"
         self.assertErrorRegex(EasyBuildError, err_pattern, check_ext_start_dir, 'whatever')
+        stderr = self.get_stderr()
+        warning_pattern = "WARNING: Provided start dir (nonexistingdir) for extension barbar does not exist"
+        self.assertIn(warning_pattern, stderr)
+        self.mock_stderr(False)
 
     def test_prepare_step(self):
         """Test prepare step (setting up build environment)."""
