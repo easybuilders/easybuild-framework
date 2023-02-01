@@ -30,6 +30,7 @@ Various test utility functions.
 """
 import copy
 import fileinput
+import functools
 import os
 import re
 import shutil
@@ -603,6 +604,25 @@ def requires_graphviz():
     except ImportError:
         ok = False
     return unittest.skipUnless(ok, "graphviz is not available")
+
+
+def requires_pysvn():
+    try:
+        from pysvn import ClientError # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    if 'CI' in os.environ:
+        # For CI skip silently, not easy enough to install,
+        # see https://github.com/leafvmaple/pysvn/issues/1
+        def decorator(test_item):
+            @functools.wraps(test_item)
+            def skip_wrapper(*args, **kwargs):
+                return
+            return skip_wrapper
+        return decorator
+    else:
+        return unittest.skipUnless(ok, "PySVN is not available, use e.g. apt-get install python3-svn")
 
 
 def requires_PyYAML():
