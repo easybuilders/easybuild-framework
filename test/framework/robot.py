@@ -51,10 +51,10 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import copy_file, mkdir, read_file, write_file
-from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import invalidate_module_caches_for, reset_module_caches
 from easybuild.tools.robot import check_conflicts, det_robot_path, resolve_dependencies, search_easyconfigs
+from test.framework.github import requires_github_token
 from test.framework.utilities import find_full_path
 
 
@@ -113,7 +113,6 @@ class RobotTest(EnhancedTestCase):
     def setUp(self):
         """Set up test."""
         super(RobotTest, self).setUp()
-        self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
         self.orig_experimental = easybuild.framework.easyconfig.tools._log.experimental
         self.orig_modtool = self.modtool
 
@@ -753,11 +752,9 @@ class RobotTest(EnhancedTestCase):
             regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
+    @requires_github_token()
     def test_github_det_easyconfig_paths_from_pr(self):
         """Test det_easyconfig_paths function, with --from-pr enabled as well."""
-        if self.github_token is None:
-            self.skipTest("No GitHub token available?")
-
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
