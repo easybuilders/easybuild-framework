@@ -245,7 +245,6 @@ jobs:
             # try and make sure output of running tests is clean (no printed messages/warnings)
             IGNORE_PATTERNS="no GitHub token available"
             IGNORE_PATTERNS+="|Skipping test_dep_graph"
-            IGNORE_PATTERNS+="|requires Lmod as modules tool"
             IGNORE_PATTERNS+="|stty: 'standard input': Inappropriate ioctl for device"
             IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 3.7"
             IGNORE_PATTERNS+="|from cryptography.* import "
