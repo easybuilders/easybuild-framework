@@ -810,6 +810,8 @@ class ModulesTest(EnhancedTestCase):
     def test_path_to_top_of_module_tree_lua(self):
         """Test path_to_top_of_module_tree function on modules in Lua syntax."""
         if not isinstance(self.modtool, Lmod):
+            if os.environ.get('TEST_EASYBUILD_MODULES_TOOL') != 'Lmod':
+                return  # Treat as success as nothing to do
             self.skipTest("Requires Lmod as modules tool")
 
         orig_modulepath = os.environ.get('MODULEPATH')
