@@ -880,9 +880,14 @@ def check_os_dependency(dep):
 
         # try locate if it's available
         if not found and which('locate'):
-            cmd = 'locate --regexp "/%s$"' % dep
-            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
-                            stream_output=False)
+            cmd = 'locate -c --regexp "/%s$"' % dep
+            out, ec = run_cmd(cmd, simple=False, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
+                              stream_output=False)
+            try:
+                found = (ec == 0 and int(out.strip()) > 0)
+            except ValueError:
+                # Returned something else than an int -> Error
+                found = False
 
     return found
 
