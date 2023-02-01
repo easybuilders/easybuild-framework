@@ -89,6 +89,25 @@ def requires_github_access():
         return decorator
 
 
+def requires_github_token():
+    """Require a github token to be available unless $FORCE_EB_GITHUB_TESTS is set"""
+    if 'FORCE_EB_GITHUB_TESTS' in os.environ:
+        return unittest.skipIf(False, None)
+    github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
+    if os.getenv('GITHUB_EVENT_NAME') != 'pull_request':
+        return unittest.skipUnless(github_token, "No GitHub token available")
+    elif github_token:
+        return unittest.skipIf(False, None)
+    else:
+        # For pull requests silently skip if no token is available as that is expected
+        def decorator(test_item):
+            @functools.wraps(test_item)
+            def skip_wrapper(*args, **kwargs):
+                return
+            return skip_wrapper
+        return decorator
+
+
 class GithubTest(EnhancedTestCase):
     """ small test for The github package
     This should not be to much, since there is an hourly limit of request
@@ -106,8 +125,6 @@ class GithubTest(EnhancedTestCase):
             username, token = GITHUB_TEST_ACCOUNT, self.github_token
 
         self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, username, None, token)
-
-        self.skip_github_tests = self.github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
 
         self.orig_testing_create_gist = easybuild.tools.testing.create_gist
 
@@ -188,11 +205,9 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(pick_default_branch('easybuilders'), 'main')
         self.assertEqual(pick_default_branch('foobar'), 'master')
 
+    @requires_github_token()
     def test_github_walk(self):
         """test the gitubfs walk function"""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         try:
             expected = [
                 (None, ['a_directory', 'second_dir'], ['README.md']),
@@ -203,21 +218,17 @@ class GithubTest(EnhancedTestCase):
         except IOError:
             pass
 
+    @requires_github_token()
     def test_github_read_api(self):
         """Test the githubfs read function"""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         try:
             self.assertEqual(self.ghfs.read("a_directory/a_file.txt").strip(), b"this is a line of text")
         except IOError:
             pass
 
+    @requires_github_token()
     def test_github_read(self):
         """Test the githubfs read function without using the api"""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         try:
             fp = self.ghfs.read("a_directory/a_file.txt", api=False)
             self.assertEqual(read_file(fp).strip(), "this is a line of text")
@@ -225,11 +236,9 @@ class GithubTest(EnhancedTestCase):
         except (IOError, OSError):
             pass
 
+    @requires_github_token()
     def test_github_add_pr_labels(self):
         """Test add_pr_labels function."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         build_options = {
             'pr_target_account': GITHUB_USER,
             'pr_target_repo': GITHUB_EASYBLOCKS_REPO,
@@ -266,11 +275,9 @@ class GithubTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.assertIn("PR #8006 should be labelled 'update'", stdout)
 
+    @requires_github_token()
     def test_github_fetch_pr_data(self):
         """Test fetch_pr_data function."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         pr_data, _ = gh.fetch_pr_data(1, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT)
 
         self.assertEqual(pr_data['number'], 1)
@@ -287,11 +294,9 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(pr_data['reviews'][0]['user']['login'], 'boegel')
         self.assertEqual(pr_data['status_last_commit'], None)
 
+    @requires_github_token()
     def test_github_list_prs(self):
         """Test list_prs function."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         parameters = ('closed', 'created', 'asc')
 
         init_config(build_options={'pr_target_account': GITHUB_USER,
@@ -308,11 +313,9 @@ class GithubTest(EnhancedTestCase):
 
         self.assertEqual(expected, output)
 
+    @requires_github_token()
     def test_github_reasons_for_closing(self):
         """Test reasons_for_closing function."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         repo_owner = gh.GITHUB_EB_MAIN
         repo_name = gh.GITHUB_EASYCONFIGS_REPO
 
@@ -346,11 +349,9 @@ class GithubTest(EnhancedTestCase):
         for pattern in patterns:
             self.assertIn(pattern, stdout)
 
+    @requires_github_token()
     def test_github_close_pr(self):
         """Test close_pr function."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         build_options = {
             'dry_run': True,
             'github_user': GITHUB_TEST_ACCOUNT,
@@ -390,11 +391,9 @@ class GithubTest(EnhancedTestCase):
         for pattern in patterns:
             self.assertIn(pattern, stdout)
 
+    @requires_github_token()
     def test_github_fetch_easyblocks_from_pr(self):
         """Test fetch_easyblocks_from_pr function."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         init_config(build_options={
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
@@ -416,11 +415,9 @@ class GithubTest(EnhancedTestCase):
             except URLError as err:
                 print("Ignoring URLError '%s' in test_fetch_easyblocks_from_pr" % err)
 
+    @requires_github_token()
     def test_github_fetch_easyconfigs_from_pr(self):
         """Test fetch_easyconfigs_from_pr function."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         init_config(build_options={
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
@@ -466,11 +463,9 @@ class GithubTest(EnhancedTestCase):
             except URLError as err:
                 print("Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err)
 
+    @requires_github_token()
     def test_github_fetch_files_from_pr_cache(self):
         """Test caching for fetch_files_from_pr."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         init_config(build_options={
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
@@ -526,6 +521,7 @@ class GithubTest(EnhancedTestCase):
         res = gh.fetch_easyblocks_from_pr(12345, tmpdir)
         self.assertEqual(sorted(pr12345_files), sorted(res))
 
+    @requires_github_token()
     def test_fetch_files_from_commit(self):
         """Test fetch_files_from_commit function."""
 
@@ -585,22 +581,18 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(len(res), 1)
         self.assertIn("v4.9.0 (30 December 2023)", read_file(res[0]))
 
+    @requires_github_token()
     def test_github_fetch_latest_commit_sha(self):
         """Test fetch_latest_commit_sha function."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         sha = gh.fetch_latest_commit_sha('easybuild-framework', 'easybuilders', github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
         sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'easybuilders', github_user=GITHUB_TEST_ACCOUNT,
                                          branch='develop')
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
 
+    @requires_github_token()
     def test_github_download_repo(self):
         """Test download_repo function."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         cwd = os.getcwd()
 
         # default: download tarball for master branch of easybuilders/easybuild-easyconfigs repo
@@ -666,11 +658,10 @@ class GithubTest(EnhancedTestCase):
                               path=self.test_prefix, commit='0000000000000000000000000000000000000000')
 
     @unittest.skipIf(not HAVE_KEYRING, "keyring module not available")
+    @requires_github_token()
     def test_install_github_token(self):
         """Test for install_github_token function."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
+        random_user = ''.join(random.choice(ascii_letters) for _ in range(10))
         random_user = ''.join(random.choice(ascii_letters) for _ in range(10))
         self.assertEqual(gh.fetch_github_token(random_user), None)
 
@@ -702,11 +693,9 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(token == self.github_token)
 
     @unittest.skipIf(not HAVE_KEYRING, "keyring module not available")
+    @requires_github_token()
     def test_validate_github_token(self):
         """Test for validate_github_token function."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         self.assertTrue(gh.validate_github_token(self.github_token, GITHUB_TEST_ACCOUNT))
 
         # if a token in the old format is available, test with that too
@@ -719,11 +708,9 @@ class GithubTest(EnhancedTestCase):
         if finegrained_token:
             self.assertTrue(gh.validate_github_token(finegrained_token, GITHUB_TEST_ACCOUNT))
 
+    @requires_github_token()
     def test_github_find_easybuild_easyconfig(self):
         """Test for find_easybuild_easyconfig function"""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
         expected = os.path.join('e', 'EasyBuild', r'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
@@ -762,12 +749,9 @@ class GithubTest(EnhancedTestCase):
 
             self.assertEqual(gh.find_software_name_for_patch('test.patch', [self.test_prefix]), None)
 
+    @requires_github_token()
     def test_github_det_commit_status(self):
         """Test det_commit_status function."""
-
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         # ancient commit, from Jenkins era, no commit status available anymore
         commit_sha = 'ec5d6f7191676a86a18404616691796a352c5f1d'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
@@ -1058,11 +1042,9 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual([i[0] for i in res], patch_paths)
         self.assertEqual([i[1] for i in res], ['A', 'patched_bundle', 'patched_bundle'])
 
+    @requires_github_token()
     def test_github_restclient(self):
         """Test use of RestClient."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         client = RestClient('https://api.github.com', username=GITHUB_TEST_ACCOUNT, token=self.github_token)
 
         status, body = client.repos['easybuilders']['testrepository'].contents.a_directory['a_file.txt'].get()
@@ -1092,22 +1074,18 @@ class GithubTest(EnhancedTestCase):
             httperror_hit = True
         self.assertTrue(httperror_hit, "expected HTTPError not encountered")
 
+    @requires_github_token()
     def test_github_create_delete_gist(self):
         """Test create_gist and delete_gist."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         test_txt = "This is just a test."
 
         gist_url = gh.create_gist(test_txt, 'test.txt', github_user=GITHUB_TEST_ACCOUNT, github_token=self.github_token)
         gist_id = gist_url.split('/')[-1]
         gh.delete_gist(gist_id, github_user=GITHUB_TEST_ACCOUNT, github_token=self.github_token)
 
+    @requires_github_token()
     def test_github_det_account_branch_for_pr(self):
         """Test det_account_branch_for_pr."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         init_config(build_options={
             'pr_target_account': 'easybuilders',
             'pr_target_repo': 'easybuild-easyconfigs',
@@ -1220,11 +1198,9 @@ class GithubTest(EnhancedTestCase):
         regex = re.compile(pattern)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' doesn't match: %s" % (regex.pattern, stdout))
 
+    @requires_github_token()
     def test_github_pr_test_report(self):
         """Test for post_pr_test_report function."""
-        if self.skip_github_tests:
-            self.skipTest("No GitHub token available?")
-
         init_config(build_options={
             'dry_run': True,
             'github_user': GITHUB_TEST_ACCOUNT,

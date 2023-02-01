@@ -188,6 +188,16 @@ jobs:
             # create file owned by root but writable by anyone (used by test_copy_file)
             sudo touch /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
             sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
+
+            if [ "$GITHUB_REPOSITORY_OWNER" == 'easybuilders' ] || [ '${{github.event.pull_request.head.repo.owner}}' == 'easybuilders' ]; then
+              FORCE_EB_GITHUB_TESTS=1
+            else
+              echo "Not force-enabling Github tests"
+              echo "\$GITHUB_EVENT_NAME=GITHUB_EVENT_NAME"
+              echo "\$GITHUB_REPOSITORY_OWNER=$GITHUB_REPOSITORY_OWNER"
+              echo "PR HEAD repo owner=${{github.event.pull_request.head.repo.owner}}"
+            fi
+
             # run test suite
             python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
             # try and make sure output of running tests is clean (no printed messages/warnings)
