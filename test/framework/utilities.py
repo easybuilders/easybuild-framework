@@ -576,6 +576,15 @@ def requires_autopep8():
     return unittest.skipUnless(ok, "autopep8 is not available")
 
 
+def requires_GC3Pie():
+    try:
+        import gc3libs  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "GC3Pie not available")
+
+
 def requires_pygraph():
     try:
         # do specific import, since python-graph-dot is not compatible with setuptools >= 82.0.0
