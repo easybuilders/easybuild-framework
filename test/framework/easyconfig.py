@@ -74,7 +74,8 @@ from easybuild.tools.options import parse_external_modules_metadata
 from easybuild.tools.py2vs3 import OrderedDict, reload
 from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import AARCH64, KNOWN_ARCH_CONSTANTS, POWER, X86_64
-from easybuild.tools.systemtools import get_cpu_architecture, get_shared_lib_ext
+from easybuild.tools.systemtools import get_cpu_architecture, get_shared_lib_ext, get_os_name, get_os_version
+
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str, quote_py_str
 from test.framework.utilities import find_full_path
@@ -1278,12 +1279,15 @@ class EasyConfigTest(EnhancedTestCase):
         ]
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
 
-    def test_constants_import(self):
-        """Test importing constants works"""
-        # Sanity check that importing an EC constant works as-if using EASYCONFIG_CONSTANTS
-        from easybuild.framework.easyconfig.constants import SYSTEM
-        self.assertEqual(SYSTEM, easyconfig.constants.EASYCONFIG_CONSTANTS['SYSTEM'][0])
-        # Check each individual constant
+    def test_constant_import(self):
+        """Test importing EC constants works"""
+        from easybuild.framework.easyconfig.constants import SYSTEM, OS_NAME, OS_VERSION
+        self.assertEqual(SYSTEM, {'name': 'system', 'version': 'system'})
+        self.assertEqual(OS_NAME, get_os_name())
+        self.assertEqual(OS_VERSION, get_os_version())
+
+    def test_constant_import_values(self):
+        """Test that importing an EC constant works as-if using EASYCONFIG_CONSTANTS"""
         constants = __import__('easybuild.framework.easyconfig.constants', fromlist=[None])
         for name, (value, _doc) in easyconfig.constants.EASYCONFIG_CONSTANTS.items():
             self.assertTrue(hasattr(constants, name), 'Missing ' + name)
