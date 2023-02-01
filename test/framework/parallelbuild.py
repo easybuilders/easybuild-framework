@@ -44,7 +44,7 @@ from easybuild.tools.job.pbs_python import PbsPython
 from easybuild.tools.options import parse_options
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel, submit_jobs
 from easybuild.tools.robot import resolve_dependencies
-
+from test.framework.utilities import requires_GC3Pie
 
 # test GC3Pie configuration with large resource specs
 GC3PIE_LOCAL_CONFIGURATION = """[resource/ebtestlocalhost]
@@ -213,14 +213,9 @@ class ParallelBuildTest(EnhancedTestCase):
         PbsPython.ppn = PbsPython_ppn
         pbs_python.PbsJob = pbs_python_PbsJob
 
+    @requires_GC3Pie()
     def test_build_easyconfigs_in_parallel_gc3pie(self):
         """Test build_easyconfigs_in_parallel(), using GC3Pie with local config as backend for --job."""
-        try:
-            import gc3libs  # noqa (ignore unused import)
-        except ImportError:
-            print("GC3Pie not available, skipping test")
-            return
-
         # put GC3Pie config in place to use local host and fork/exec
         resourcedir = os.path.join(self.test_prefix, 'gc3pie')
         gc3pie_cfgfile = os.path.join(self.test_prefix, 'gc3pie_local.ini')
