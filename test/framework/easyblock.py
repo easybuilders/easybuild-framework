@@ -46,7 +46,7 @@ from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, update_build_option
-from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_file
+from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_dir, remove_file
 from easybuild.tools.filetools import verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
 from easybuild.tools.modules import EnvironmentModules, Lmod, reset_module_caches
@@ -2172,7 +2172,7 @@ class EasyBlockTest(EnhancedTestCase):
         cwd = os.getcwd()
         self.assertTrue(os.path.exists(cwd))
 
-        def check_ext_start_dir(expected_start_dir):
+        def check_ext_start_dir(expected_start_dir, unpack_src=True):
             """Check start dir."""
             # make sure we're in an existing directory at the start
             change_dir(cwd)
@@ -2180,10 +2180,14 @@ class EasyBlockTest(EnhancedTestCase):
             eb.extensions_step(fetch=True, install=False)
             # extract sources of the extension
             ext = eb.ext_instances[-1]
-            ext.run(unpack_src=True)
-            abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
-            self.assertTrue(os.path.samefile(ext.cfg['start_dir'], abs_expected_start_dir))
-            self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
+            ext.run(unpack_src=unpack_src)
+            if expected_start_dir is None:
+                self.assertIsNone(ext.cfg['start_dir'])
+            else:
+                abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
+                self.assertTrue(os.path.samefile(ext.cfg['start_dir'], abs_expected_start_dir))
+                self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
+            remove_dir(eb.builddir)
 
         ec['ec']['exts_defaultclass'] = 'DummyExtension'
 
@@ -2191,27 +2195,31 @@ class EasyBlockTest(EnhancedTestCase):
         ec['ec']['exts_list'] = [
             ('barbar', '0.0', {}),
         ]
-        check_ext_start_dir('barbar/barbar-0.0')
+        with self.mocked_stdout_stderr():
+            check_ext_start_dir('barbar/barbar-0.0')
+            check_ext_start_dir(None, unpack_src=False)
+            self.assertFalse(self.get_stderr())
 
         # use start dir defined in extension
         ec['ec']['exts_list'] = [
             ('barbar', '0.0', {
                 'start_dir': 'src'}),
         ]
-        check_ext_start_dir('barbar/barbar-0.0/src')
+        with self.mocked_stdout_stderr():
+            check_ext_start_dir('barbar/barbar-0.0/src')
+            self.assertFalse(self.get_stderr())
 
         # clean error when specified start dir does not exist
         ec['ec']['exts_list'] = [
             ('barbar', '0.0', {
                 'start_dir': 'nonexistingdir'}),
         ]
-        self.mock_stderr(True)
-        err_pattern = "Failed to change from .*barbar/barbar-0.0 to nonexistingdir.*"
-        self.assertErrorRegex(EasyBuildError, err_pattern, check_ext_start_dir, 'whatever')
-        stderr = self.get_stderr()
+        with self.mocked_stdout_stderr():
+            err_pattern = "Failed to change from .*barbar/barbar-0.0 to nonexistingdir.*"
+            self.assertErrorRegex(EasyBuildError, err_pattern, check_ext_start_dir, 'whatever')
+            stderr = self.get_stderr()
         warning_pattern = "WARNING: Provided start dir (nonexistingdir) for extension barbar does not exist"
         self.assertIn(warning_pattern, stderr)
-        self.mock_stderr(False)
 
     def test_prepare_step(self):
         """Test prepare step (setting up build environment)."""

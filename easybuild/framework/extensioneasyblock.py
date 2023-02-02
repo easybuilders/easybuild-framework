@@ -106,10 +106,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         Uses existing value of self.start_dir if it is already set, an absolute path and exists
         otherwise use self.ext_dir (path to extracted source) as base dir if that is set and exists.
         """
-        ext_start_dir = ''
-
-        if self.start_dir:
-            ext_start_dir = self.start_dir
+        ext_start_dir = self.start_dir or ''
 
         if not os.path.isabs(ext_start_dir) and self.ext_dir:
             # start dir is either empty or a _relative_ path provided by user through self.start_dir
@@ -119,6 +116,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         if os.path.isdir(ext_start_dir):
             self.cfg['start_dir'] = ext_start_dir
             self.log.debug("Using extension start dir: %s", ext_start_dir)
+        elif self.start_dir is None:
+            # This may be on purpose, e.g. for Python WHL files which do not get extracted
+            self.log.debug("Start dir is not set.")
         else:
             # non-existing start dir means wrong input from user
             warn_msg = "Provided start dir (%s) for extension %s does not exist: %s" % (self.start_dir, self.name,
