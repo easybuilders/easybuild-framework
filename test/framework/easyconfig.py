@@ -3795,6 +3795,26 @@ class EasyConfigTest(EnhancedTestCase):
 
         error_pattern = r"easyconfig file '.*/test.eb' is marked as deprecated:\nthis is just a test\n \(see also"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+        with self.mocked_stdout_stderr():
+            # But this can be silenced
+            init_config(build_options={'silence_deprecation_warnings': ['easyconfig']})
+            EasyConfig(test_ec)
+            self.assertFalse(self.get_stderr())
+            self.assertFalse(self.get_stdout())
+
+    def test_deprecated_toolchain(self):
+        """Test use of deprecatd toolchain"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        deprecated_toolchain_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a.eb')
+        init_config(build_options={'silence_deprecation_warnings': [], 'unit_testing_mode': False})
+        error_pattern = r"toolchain 'gompi/2018a' is marked as deprecated \(see also"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, deprecated_toolchain_ec)
+        with self.mocked_stdout_stderr():
+            # But this can be silenced
+            init_config(build_options={'silence_deprecation_warnings': ['toolchain'], 'unit_testing_mode': False})
+            EasyConfig(deprecated_toolchain_ec)
+            self.assertFalse(self.get_stderr())
+            self.assertFalse(self.get_stdout())
 
     def test_filename(self):
         """Test filename method of EasyConfig class."""
