@@ -308,7 +308,7 @@ class ContainersTest(EnhancedTestCase):
             ]
             self.check_regexs(regexs, stdout)
 
-            self.assertTrue(os.path.exists(os.path.join(containerpath, 'toy-0.0.%s' % ext)))
+            self.assertExists(os.path.join(containerpath, 'toy-0.0.%s' % ext))
 
             remove_file(os.path.join(containerpath, 'Singularity.toy-0.0'))
 
@@ -330,7 +330,7 @@ class ContainersTest(EnhancedTestCase):
         self.check_regexs(regexs, stdout)
 
         cont_img = os.path.join(containerpath, 'foo-bar.img')
-        self.assertTrue(os.path.exists(cont_img))
+        self.assertExists(cont_img)
 
         remove_file(os.path.join(containerpath, 'Singularity.foo-bar'))
 
@@ -348,7 +348,7 @@ class ContainersTest(EnhancedTestCase):
             "WARNING: overwriting existing container image at %s due to --force" % cont_img,
         ])
         self.check_regexs(regexs, stdout)
-        self.assertTrue(os.path.exists(cont_img))
+        self.assertExists(cont_img)
 
         # also check behaviour under --extended-dry-run
         args.append('--extended-dry-run')

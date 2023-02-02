@@ -34,6 +34,7 @@ Authors:
 * Kenneth Hoste (Ghent University)
 """
 import difflib
+import os
 import pprint
 import re
 import sys
@@ -116,6 +117,18 @@ class TestCase(OrigTestCase):
                 limit = ''
 
             raise AssertionError("%s:\nDIFF%s:\n%s" % (msg, limit, ''.join(diff[:self.ASSERT_MAX_DIFF])))
+
+    def assertExists(self, path, msg=None):
+        """Assert the given path exists"""
+        if msg is None:
+            msg = "'%s' should exist" % path
+        self.assertTrue(os.path.exists(path), msg)
+
+    def assertNotExists(self, path, msg=None):
+        """Assert the given path exists"""
+        if msg is None:
+            msg = "'%s' should not exist" % path
+        self.assertFalse(os.path.exists(path), msg)
 
     def setUp(self):
         """Prepare test case."""

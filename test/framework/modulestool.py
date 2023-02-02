@@ -130,7 +130,7 @@ class ModulesToolTest(EnhancedTestCase):
         # redefine 'module' function with correct module command
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
         mt = MockModulesTool(testing=True)
-        self.assertTrue(isinstance(mt.loaded_modules(), list))  # dummy usage
+        self.assertIsInstance(mt.loaded_modules(), list)  # dummy usage
 
         # a warning should be logged if the 'module' function is undefined
         del os.environ['module']
