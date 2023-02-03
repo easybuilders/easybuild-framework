@@ -103,8 +103,10 @@ class ExtensionEasyBlock(EasyBlock, Extension):
     def _set_start_dir(self):
         """Set absolute path of self.start_dir similarly to EasyBlock.guess_start_dir
 
-        Uses existing value of self.start_dir if it is already set, an absolute path and exists
-        otherwise use self.ext_dir (path to extracted source) as base dir if that is set and exists.
+        Uses existing value of self.start_dir if it is set.
+        If self.ext_dir (path to extracted source) is set, it is used as the base dir for relative paths.
+        Otherwise (e.g. for non-extracted extensions like Python WHL files) or when the computed start_dir
+        does not exist the start dir is not changed.
         """
         ext_start_dir = self.start_dir or ''
 
@@ -113,7 +115,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # generate absolute path from ext_dir
             ext_start_dir = os.path.join(self.ext_dir, ext_start_dir)
 
-        if os.path.isdir(ext_start_dir):
+        if ext_start_dir and os.path.isdir(ext_start_dir):
             self.cfg['start_dir'] = ext_start_dir
             self.log.debug("Using extension start dir: %s", ext_start_dir)
         elif self.start_dir is None:

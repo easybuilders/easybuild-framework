@@ -2184,9 +2184,16 @@ class EasyBlockTest(EnhancedTestCase):
             if expected_start_dir is None:
                 self.assertIsNone(ext.cfg['start_dir'])
             else:
-                abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
+                if os.path.isabs(expected_start_dir):
+                    abs_expected_start_dir = expected_start_dir
+                else:
+                    abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
                 self.assertTrue(os.path.samefile(ext.cfg['start_dir'], abs_expected_start_dir))
+            if unpack_src:
                 self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
+            else:
+                # When not unpacking we don't change the CWD
+                self.assertEqual(os.getcwd(), cwd)
             remove_dir(eb.builddir)
 
         ec['ec']['exts_defaultclass'] = 'DummyExtension'
@@ -2220,6 +2227,22 @@ class EasyBlockTest(EnhancedTestCase):
             stderr = self.get_stderr()
         warning_pattern = "WARNING: Provided start dir (nonexistingdir) for extension barbar does not exist"
         self.assertIn(warning_pattern, stderr)
+
+        # No error when using relative path in non-extracted source for some reason
+        ec['ec']['exts_list'] = [
+            ('barbar', '0.0', {
+                'start_dir': '.'}),  # The current path which does exist
+        ]
+        with self.mocked_stdout_stderr():
+            check_ext_start_dir(cwd, unpack_src=False)
+            self.assertFalse(self.get_stderr())
+        ec['ec']['exts_list'] = [
+            ('barbar', '0.0', {
+                'start_dir': '..'}),  # The parent path which also exists
+        ]
+        with self.mocked_stdout_stderr():
+            check_ext_start_dir(os.path.dirname(cwd), unpack_src=False)
+            self.assertFalse(self.get_stderr())
 
     def test_prepare_step(self):
         """Test prepare step (setting up build environment)."""
