@@ -108,17 +108,19 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         Otherwise (e.g. for non-extracted extensions like Python WHL files) or when the computed start_dir
         does not exist the start dir is not changed.
         """
-        ext_start_dir = self.start_dir or ''
-
-        if not os.path.isabs(ext_start_dir) and self.ext_dir:
-            # start dir is either empty or a _relative_ path provided by user through self.start_dir
-            # generate absolute path from ext_dir
-            ext_start_dir = os.path.join(self.ext_dir, ext_start_dir)
+        ext_start_dir = self.start_dir
+        if self.ext_dir:
+            if ext_start_dir:
+                # If start_dir is relative, resolve it using ext_dir as a base
+                ext_start_dir = os.path.join(self.ext_dir, ext_start_dir)
+            else:
+                # start_dir is not set -> Use ext_dir
+                ext_start_dir = self.ext_dir
 
         if ext_start_dir and os.path.isdir(ext_start_dir):
             self.cfg['start_dir'] = ext_start_dir
             self.log.debug("Using extension start dir: %s", ext_start_dir)
-        elif self.start_dir is None:
+        elif ext_start_dir is None:
             # This may be on purpose, e.g. for Python WHL files which do not get extracted
             self.log.debug("Start dir is not set.")
         else:
