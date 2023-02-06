@@ -112,6 +112,8 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         """
         ext_start_dir = self.start_dir
         if self.ext_dir:
+            if not os.path.isabs(self.ext_dir):
+                raise EasyBuildError("ext_dir must be an absolute path. Is: '%s'", self.ext_dir)
             if ext_start_dir:
                 ext_start_dir = os.path.join(self.ext_dir, ext_start_dir)
             else:
