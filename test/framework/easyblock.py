@@ -2182,13 +2182,14 @@ class EasyBlockTest(EnhancedTestCase):
             ext = eb.ext_instances[-1]
             ext.run(unpack_src=unpack_src)
             if expected_start_dir is None:
-                self.assertIsNone(ext.cfg['start_dir'])
+                self.assertIsNone(ext.start_dir)
             else:
                 if os.path.isabs(expected_start_dir):
                     abs_expected_start_dir = expected_start_dir
                 else:
                     abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
-                self.assertTrue(os.path.samefile(ext.cfg['start_dir'], abs_expected_start_dir))
+                self.assertTrue(os.path.samefile(ext.start_dir, abs_expected_start_dir))
+                self.assertEqual(ext.start_dir, abs_expected_start_dir)
             if unpack_src:
                 self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
             else:
@@ -2234,14 +2235,14 @@ class EasyBlockTest(EnhancedTestCase):
                 'start_dir': '.'}),  # The current path which does exist
         ]
         with self.mocked_stdout_stderr():
-            check_ext_start_dir(cwd, unpack_src=False)
+            check_ext_start_dir(os.path.join(cwd, '.'), unpack_src=False)
             self.assertFalse(self.get_stderr())
         ec['ec']['exts_list'] = [
             ('barbar', '0.0', {
                 'start_dir': '..'}),  # The parent path which also exists
         ]
         with self.mocked_stdout_stderr():
-            check_ext_start_dir(os.path.dirname(cwd), unpack_src=False)
+            check_ext_start_dir(os.path.join(cwd, '..'), unpack_src=False)
             self.assertFalse(self.get_stderr())
 
     def test_prepare_step(self):

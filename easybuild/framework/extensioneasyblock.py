@@ -105,17 +105,24 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         Uses existing value of self.start_dir if it is set.
         If self.ext_dir (path to extracted source) is set, it is used as the base dir for relative paths.
-        Otherwise (e.g. for non-extracted extensions like Python WHL files) or when the computed start_dir
-        does not exist the start dir is not changed.
+        Otherwise (e.g. for non-extracted extensions like Python WHL files) the current working directory
+        is used as the base dir.
+        When neither start_dir nor ext_dir are set or when the computed start_dir does not exist
+        the start dir is not changed.
         """
         ext_start_dir = self.start_dir
         if self.ext_dir:
             if ext_start_dir:
-                # If start_dir is relative, resolve it using ext_dir as a base
                 ext_start_dir = os.path.join(self.ext_dir, ext_start_dir)
             else:
-                # start_dir is not set -> Use ext_dir
+                # start_dir is not set or empty -> Use ext_dir
                 ext_start_dir = self.ext_dir
+        elif ext_start_dir is not None:
+            # Resolve relative to current dir
+            if ext_start_dir:
+                ext_start_dir = os.path.join(os.getcwd(), ext_start_dir)
+            else:
+                ext_start_dir = os.getcwd()
 
         if ext_start_dir and os.path.isdir(ext_start_dir):
             self.cfg['start_dir'] = ext_start_dir
