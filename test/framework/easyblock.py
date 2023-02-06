@@ -2182,18 +2182,20 @@ class EasyBlockTest(EnhancedTestCase):
             ext = eb.ext_instances[-1]
             ext.run(unpack_src=unpack_src)
 
-            if unpack_src:
-                self.assertTrue(ext.start_dir is None or os.path.isabs(ext.start_dir))
-
             if expected_start_dir is None:
                 self.assertIsNone(ext.start_dir)
             else:
+                self.assertTrue(os.path.isabs(ext.start_dir))
+                if ext.start_dir != os.sep:
+                    self.assertFalse(ext.start_dir.endswith(os.sep))
                 if os.path.isabs(expected_start_dir):
                     abs_expected_start_dir = expected_start_dir
                 else:
                     abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
-                self.assertTrue(os.path.samefile(ext.start_dir, abs_expected_start_dir))
                 self.assertEqual(ext.start_dir, abs_expected_start_dir)
+                if not os.path.exists(eb.builddir):
+                    eb.make_builddir()  # Required to exist for samefile
+                self.assertTrue(os.path.samefile(ext.start_dir, abs_expected_start_dir))
             if unpack_src:
                 self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
             else:
@@ -2236,17 +2238,19 @@ class EasyBlockTest(EnhancedTestCase):
         # No error when using relative path in non-extracted source for some reason
         ec['ec']['exts_list'] = [
             ('barbar', '0.0', {
-                'start_dir': '.'}),  # The current path which does exist
+                'start_dir': '.'}),  # The build directory which does exist
         ]
         with self.mocked_stdout_stderr():
-            check_ext_start_dir(os.path.join(cwd, '.'), unpack_src=False)
+            check_ext_start_dir('.', unpack_src=False)
             self.assertFalse(self.get_stderr())
+
+        # Support / (absolute path) if explicitely requested
         ec['ec']['exts_list'] = [
             ('barbar', '0.0', {
-                'start_dir': '..'}),  # The parent path which also exists
+                'start_dir': os.sep}),
         ]
         with self.mocked_stdout_stderr():
-            check_ext_start_dir(os.path.join(cwd, '..'), unpack_src=False)
+            check_ext_start_dir(os.sep, unpack_src=False)
             self.assertFalse(self.get_stderr())
 
     def test_prepare_step(self):
