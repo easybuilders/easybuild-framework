@@ -103,30 +103,25 @@ class ExtensionEasyBlock(EasyBlock, Extension):
     def _set_start_dir(self):
         """Set absolute path of self.start_dir similarly to EasyBlock.guess_start_dir
 
-        Uses existing value of self.start_dir if it is set.
+        Uses existing value of self.start_dir defaulting to self.ext_dir.
         If self.ext_dir (path to extracted source) is set, it is used as the base dir for relative paths.
-        Otherwise (e.g. for non-extracted extensions like Python WHL files) the current working directory
-        is used as the base dir.
+        Otherwise otherwise self.builddir is used as the base.
         When neither start_dir nor ext_dir are set or when the computed start_dir does not exist
         the start dir is not changed.
+        The computed start dir will not end in path separators
         """
         ext_start_dir = self.start_dir
         if self.ext_dir:
             if not os.path.isabs(self.ext_dir):
                 raise EasyBuildError("ext_dir must be an absolute path. Is: '%s'", self.ext_dir)
-            if ext_start_dir:
-                ext_start_dir = os.path.join(self.ext_dir, ext_start_dir)
-            else:
-                # start_dir is not set or empty -> Use ext_dir
-                ext_start_dir = self.ext_dir
+            ext_start_dir = os.path.join(self.ext_dir, ext_start_dir or '')
         elif ext_start_dir is not None:
-            # Resolve relative to current dir
-            if ext_start_dir:
-                ext_start_dir = os.path.join(os.getcwd(), ext_start_dir)
-            else:
-                ext_start_dir = os.getcwd()
+            if not os.path.isabs(self.builddir):
+                raise EasyBuildError("builddir must be an absolute path. Is: '%s'", self.builddir)
+            ext_start_dir = os.path.join(self.builddir, ext_start_dir)
 
         if ext_start_dir and os.path.isdir(ext_start_dir):
+            ext_start_dir = ext_start_dir.rstrip(os.sep) or os.sep
             self.cfg['start_dir'] = ext_start_dir
             self.log.debug("Using extension start dir: %s", ext_start_dir)
         elif ext_start_dir is None:
