@@ -37,7 +37,8 @@ import sys
 import textwrap
 import unittest
 from string import ascii_letters
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from test.framework.utilities import (EnhancedTestCase, TestLoaderFiltered, init_config,
+                                      skip_never, skip_silentCI_unless)
 from time import gmtime
 from unittest import TextTestRunner
 from urllib.request import HTTPError, URLError
@@ -74,14 +75,13 @@ GITHUB_BRANCH = 'main'
 
 
 def requires_github_access():
-    """Silently skip for pull requests unless $FORCE_EB_GITHUB_TESTS is set
+    """Skip for pull requests unless $FORCE_EB_GITHUB_TESTS is set
 
     Useful when the test uses e.g. `git` commands to download from Github and would run into rate limits
     """
-    return unittest.skipUnless(
-        os.environ.get('FORCE_EB_GITHUB_TESTS', '0') != '0' or os.getenv('GITHUB_EVENT_NAME') != 'pull_request',
-        "Skipping test requiring GitHub access"
-    )
+    if 'FORCE_EB_GITHUB_TESTS' in os.environ:
+        return skip_never
+    return skip_silentCI_unless(os.getenv('GITHUB_EVENT_NAME') != 'pull_request', "Requires GitHub access")
 
 
 def ignore_rate_limit_in_pr(test_item):
@@ -103,20 +103,13 @@ def ignore_rate_limit_in_pr(test_item):
 def requires_github_token():
     """Require a github token to be available unless $FORCE_EB_GITHUB_TESTS is set"""
     if 'FORCE_EB_GITHUB_TESTS' in os.environ:
-        return unittest.skipIf(False, None)
+        return skip_never
     github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
-    if os.getenv('GITHUB_EVENT_NAME') != 'pull_request':
-        return unittest.skipUnless(github_token, "No GitHub token available")
-    elif github_token:
-        return unittest.skipIf(False, None)
-    else:
+    if os.getenv('GITHUB_EVENT_NAME') == 'pull_request':
         # For pull requests silently skip if no token is available as that is expected
-        def decorator(test_item):
-            @functools.wraps(test_item)
-            def skip_wrapper(*args, **kwargs):
-                return
-            return skip_wrapper
-        return decorator
+        return skip_silentCI_unless(github_token, "No GitHub token available")
+    else:
+        return unittest.skipUnless(github_token, "No GitHub token available")
 
 
 class GithubTest(EnhancedTestCase):
