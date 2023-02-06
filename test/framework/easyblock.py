@@ -2244,6 +2244,16 @@ class EasyBlockTest(EnhancedTestCase):
             check_ext_start_dir('.', unpack_src=False)
             self.assertFalse(self.get_stderr())
 
+        # Keep absolute path in start_dir
+        assert os.path.isabs(self.test_prefix)
+        ec['ec']['exts_list'] = [
+            ('barbar', '0.0', {
+                'start_dir': self.test_prefix}),
+        ]
+        with self.mocked_stdout_stderr():
+            check_ext_start_dir(self.test_prefix, unpack_src=False)
+            self.assertFalse(self.get_stderr())
+
         # Support / (absolute path) if explicitely requested
         ec['ec']['exts_list'] = [
             ('barbar', '0.0', {
