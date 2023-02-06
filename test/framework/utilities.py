@@ -48,7 +48,7 @@ import easybuild.tools.module_naming_scheme.toolchain as mns_toolchain
 from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
-from easybuild.tools import config
+from easybuild.tools import config, LooseVersion
 from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes, update_build_option
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
@@ -568,7 +568,12 @@ def requires_GC3Pie():
         ok = True
     except ImportError:
         ok = False
-    return unittest.skipUnless(ok, "GC3Pie not available")
+    if LooseVersion(sys.version) < '3.11':
+        return unittest.skipUnless(ok, "GC3Pie not available")
+    else:
+        # GC3Pie not available for Python 3.11 so silently skip:
+        # https://github.com/gc3pie/gc3pie/issues/674
+        return skip_silentCI_unless(ok, "GC3Pie not available")
 
 
 def requires_pygraph():
