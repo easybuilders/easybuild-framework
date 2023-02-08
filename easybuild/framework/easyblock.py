@@ -2908,7 +2908,7 @@ class EasyBlock(object):
                         # check whether file should be patched by checking whether it has a shebang we want to tweak;
                         # this also helps to skip binary files we may be hitting (but only with Python 3)
                         if os.path.isdir(path):
-                            self.log.info("Skipping shebang fix for directory '%s'", path)
+                            self.log.debug("Skipping shebang fix for directory '%s'", path)
                             continue
 
                         try:
