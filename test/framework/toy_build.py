@@ -3183,58 +3183,60 @@ class ToyBuildTest(EnhancedTestCase):
             "    'cp -a %(installdir)s/bin/toy %(installdir)s/bin/toy.sh',",
 
             # hardcoded path to bin/python
-            "   'echo \"#!/usr/bin/python\\n# test\" > %(installdir)s/bin/t1.py',",
+            "    'echo \"#!/usr/bin/python\\n# test\" > %(installdir)s/bin/t1.py',",
             # hardcoded path to bin/python3.6
-            "   'echo \"#!/software/Python/3.6.6-foss-2018b/bin/python3.6\\n# test\" > %(installdir)s/bin/t2.py',",
+            "    'echo \"#!/software/Python/3.6.6-foss-2018b/bin/python3.6\\n# test\" > %(installdir)s/bin/t2.py',",
             # already OK, should remain the same
-            "   'echo \"#!/usr/bin/env python\\n# test\" > %(installdir)s/bin/t3.py',",
+            "    'echo \"#!/usr/bin/env python\\n# test\" > %(installdir)s/bin/t3.py',",
             # space after #! + 'env python3'
-            "   'echo \"#! /usr/bin/env python3\\n# test\" > %(installdir)s/bin/t4.py',",
+            "    'echo \"#! /usr/bin/env python3\\n# test\" > %(installdir)s/bin/t4.py',",
             # 'env python3.6'
-            "   'echo \"#!/usr/bin/env python3.6\\n# test\" > %(installdir)s/bin/t5.py',",
+            "    'echo \"#!/usr/bin/env python3.6\\n# test\" > %(installdir)s/bin/t5.py',",
             # shebang with space, should strip the space
-            "   'echo \"#! /usr/bin/env python\\n# test\" > %(installdir)s/bin/t6.py',",
+            "    'echo \"#! /usr/bin/env python\\n# test\" > %(installdir)s/bin/t6.py',",
             # no shebang python
-            "   'echo \"# test\" > %(installdir)s/bin/t7.py',",
+            "    'echo \"# test\" > %(installdir)s/bin/t7.py',",
             # shebang bash
-            "   'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/b1.sh',",
+            "    'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/b1.sh',",
+            # directory, should be skipped (not crash)
+            "    'mkdir %(installdir)s/bin/testdir',",
 
             # tests for perl shebang
             # hardcoded path to bin/perl
-            "   'echo \"#!/usr/bin/perl\\n# test\" > %(installdir)s/bin/t1.pl',",
+            "    'echo \"#!/usr/bin/perl\\n# test\" > %(installdir)s/bin/t1.pl',",
             # hardcoded path to bin/perl5
-            "   'echo \"#!/software/Perl/5.28.1-GCCcore-7.3.0/bin/perl5\\n# test\" > %(installdir)s/bin/t2.pl',",
+            "    'echo \"#!/software/Perl/5.28.1-GCCcore-7.3.0/bin/perl5\\n# test\" > %(installdir)s/bin/t2.pl',",
             # already OK, should remain the same
-            "   'echo \"#!/usr/bin/env perl\\n# test\" > %(installdir)s/bin/t3.pl',",
+            "    'echo \"#!/usr/bin/env perl\\n# test\" > %(installdir)s/bin/t3.pl',",
             # hardcoded perl with extra arguments
-            "   'echo \"#!/usr/bin/perl -w\\n# test\" > %(installdir)s/bin/t4.pl',",
+            "    'echo \"#!/usr/bin/perl -w\\n# test\" > %(installdir)s/bin/t4.pl',",
             # space after #! + 'env perl5'
-            "   'echo \"#!/usr/bin/env perl5\\n# test\" > %(installdir)s/bin/t5.pl',",
+            "    'echo \"#!/usr/bin/env perl5\\n# test\" > %(installdir)s/bin/t5.pl',",
             # shebang with space, should strip the space
-            "   'echo \"#! /usr/bin/env perl\\n# test\" > %(installdir)s/bin/t6.pl',",
+            "    'echo \"#! /usr/bin/env perl\\n# test\" > %(installdir)s/bin/t6.pl',",
             # no shebang perl
-            "   'echo \"# test\" > %(installdir)s/bin/t7.pl',",
+            "    'echo \"# test\" > %(installdir)s/bin/t7.pl',",
             # shebang bash
-            "   'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/b2.sh',",
+            "    'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/b2.sh',",
 
             # tests for bash shebang
             # hardcoded path to bin/bash
-            "   'echo \"#!/bin/bash\\n# test\" > %(installdir)s/bin/t1.sh',",
+            "    'echo \"#!/bin/bash\\n# test\" > %(installdir)s/bin/t1.sh',",
             # hardcoded path to usr/bin/bash
-            "   'echo \"#!/usr/bin/bash\\n# test\" > %(installdir)s/bin/t2.sh',",
+            "    'echo \"#!/usr/bin/bash\\n# test\" > %(installdir)s/bin/t2.sh',",
             # already OK, should remain the same
-            "   'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/t3.sh',",
+            "    'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/t3.sh',",
             # shebang with space, should strip the space
-            "   'echo \"#! /usr/bin/env bash\\n# test\" > %(installdir)s/bin/t4.sh',",
+            "    'echo \"#! /usr/bin/env bash\\n# test\" > %(installdir)s/bin/t4.sh',",
             # no shebang sh
-            "   'echo \"# test\" > %(installdir)s/bin/t5.sh',",
+            "    'echo \"# test\" > %(installdir)s/bin/t5.sh',",
             # shebang python
-            "   'echo \"#!/usr/bin/env python\\n# test\" > %(installdir)s/bin/b1.py',",
+            "    'echo \"#!/usr/bin/env python\\n# test\" > %(installdir)s/bin/b1.py',",
             # shebang perl
-            "   'echo \"#!/usr/bin/env perl\\n# test\" > %(installdir)s/bin/b1.pl',",
-
+            "    'echo \"#!/usr/bin/env perl\\n# test\" > %(installdir)s/bin/b1.pl',",
             "]",
             "fix_python_shebang_for = ['bin/t1.py', 'bin/t*.py', 'nosuchdir/*.py', 'bin/toy.python', 'bin/b1.sh']",
+            "fix_python_shebang_for += ['bin/testdir']",
             "fix_perl_shebang_for = ['bin/t*.pl', 'bin/b2.sh', 'bin/toy.perl']",
             "fix_bash_shebang_for = ['bin/t*.sh', 'bin/b1.py', 'bin/b1.pl', 'bin/toy.sh']",
         ])
