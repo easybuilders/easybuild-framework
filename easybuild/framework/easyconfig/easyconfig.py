@@ -1781,9 +1781,9 @@ class EasyConfig(object):
         """Set value of specified easyconfig parameter (help text & co is left untouched)"""
         if key in self._config:
             # raise an error if we are replacing a value with templates by a value with templates resolved
-            if "%(" in self._config[key][0] and not "%(" in value:
-                raise EasyBuildError("Replacing value of templated parameter '%s' with a value with templates
-                                      resolved. Old value: %s, new value: %s" % (key, self._config[key][0], value))
+            if "%(" in self._config[key][0] and "%(" not in value:
+                raise EasyBuildError("Replacing value of templated parameter '%s' with a value with templates"
+                                     "resolved. Old value: %s, new value: %s" % (key, self._config[key][0], value))
             self._config[key][0] = value
         else:
             raise EasyBuildError("Use of unknown easyconfig parameter '%s' when setting parameter value to '%s'",
