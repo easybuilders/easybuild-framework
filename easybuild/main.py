@@ -62,6 +62,7 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
+from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import adjust_permissions, cleanup, copy_files, dump_index, load_index
 from easybuild.tools.filetools import locate_files, read_file, register_lock_cleanup_signal_handlers, write_file
 from easybuild.tools.github import check_github, close_pr, find_easybuild_easyconfig
@@ -186,6 +187,10 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
         update_progress_bar(STATUS_BAR, label=status_label)
 
     stop_progress_bar(STATUS_BAR)
+
+    # restore original environment for any next software builds
+    _log.info("Resetting environment")
+    restore_env(init_env)
 
     return res
 
