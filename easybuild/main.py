@@ -188,10 +188,6 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
     stop_progress_bar(STATUS_BAR)
 
-    # restore original environment for any next software builds
-    _log.info("Resetting environment")
-    restore_env(init_env)
-
     return res
 
 
@@ -237,6 +233,9 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     """
     easystack = parse_easystack(easystack_path)
 
+    # keep copy of original environment, so we can restore it for every easystack entry
+    init_env = copy.deepcopy(os.environ)
+
     global _log
 
     # TODO: insert fast loop that validates if all command line options are valid. If there are errors in options,
@@ -249,9 +248,13 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     do_cleanup = True
     for (path, ec_opts) in easystack.ec_opt_tuples:
         _log.debug("Starting build for %s" % path)
+
         # wipe easyconfig caches
         easyconfig._easyconfigs_cache.clear()
         easyconfig._easyconfig_files_cache.clear()
+
+        # restore environment
+        restore_env(init_env)
 
         # If EasyConfig specific arguments were supplied in EasyStack file
         # merge arguments with original command line args
