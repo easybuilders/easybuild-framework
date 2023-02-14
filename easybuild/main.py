@@ -62,6 +62,7 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
+from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import adjust_permissions, cleanup, copy_files, dump_index, load_index
 from easybuild.tools.filetools import locate_files, read_file, register_lock_cleanup_signal_handlers, write_file
 from easybuild.tools.github import check_github, close_pr, find_easybuild_easyconfig
@@ -232,6 +233,9 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     """
     easystack = parse_easystack(easystack_path)
 
+    # keep copy of original environment, so we can restore it for every easystack entry
+    init_env = copy.deepcopy(os.environ)
+
     global _log
 
     # TODO: insert fast loop that validates if all command line options are valid. If there are errors in options,
@@ -244,9 +248,13 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     do_cleanup = True
     for (path, ec_opts) in easystack.ec_opt_tuples:
         _log.debug("Starting build for %s" % path)
+
         # wipe easyconfig caches
         easyconfig._easyconfigs_cache.clear()
         easyconfig._easyconfig_files_cache.clear()
+
+        # restore environment
+        restore_env(init_env)
 
         # If EasyConfig specific arguments were supplied in EasyStack file
         # merge arguments with original command line args
