@@ -395,17 +395,15 @@ def to_sanity_check_paths_entry(spec):
         elif isinstance(elem, list):
             result.append(tuple(elem))
         elif isinstance(elem, dict):
-            result.append({})
             for key, value in elem.items():
                 if not isinstance(key, string_type):
                     raise EasyBuildError("Expected keys to be of type string, got %s (%s)", key, type(key))
-                if isinstance(value, (string_type, tuple)):
-                    result[-1][key] = value
                 elif isinstance(value, list):
-                    result[-1][key] = tuple(value)
-                else:
+                    elem[key] = tuple(value)
+                elif not isinstance(value, (string_type, tuple)):
                     raise EasyBuildError("Expected elements to be of type string, tuple or list, got %s (%s)",
                                          value, type(value))
+            result.append(elem)
         else:
             raise EasyBuildError("Expected elements to be of type string, tuple or list, got %s (%s)", elem, type(elem))
 
