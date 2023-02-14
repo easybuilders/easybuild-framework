@@ -103,22 +103,30 @@ class ExtensionEasyBlock(EasyBlock, Extension):
     def _set_start_dir(self):
         """Set absolute path of self.start_dir similarly to EasyBlock.guess_start_dir
 
-        Uses existing value of self.start_dir if it is already set, an absolute path and exists
-        otherwise use self.ext_dir (path to extracted source) as base dir if that is set and exists.
+        Uses existing value of self.start_dir defaulting to self.ext_dir.
+        If self.ext_dir (path to extracted source) is set, it is used as the base dir for relative paths.
+        Otherwise otherwise self.builddir is used as the base.
+        When neither start_dir nor ext_dir are set or when the computed start_dir does not exist
+        the start dir is not changed.
+        The computed start dir will not end in path separators
         """
-        ext_start_dir = ''
+        ext_start_dir = self.start_dir
+        if self.ext_dir:
+            if not os.path.isabs(self.ext_dir):
+                raise EasyBuildError("ext_dir must be an absolute path. Is: '%s'", self.ext_dir)
+            ext_start_dir = os.path.join(self.ext_dir, ext_start_dir or '')
+        elif ext_start_dir is not None:
+            if not os.path.isabs(self.builddir):
+                raise EasyBuildError("builddir must be an absolute path. Is: '%s'", self.builddir)
+            ext_start_dir = os.path.join(self.builddir, ext_start_dir)
 
-        if self.start_dir:
-            ext_start_dir = self.start_dir
-
-        if not os.path.isabs(ext_start_dir) and self.ext_dir:
-            # start dir is either empty or a _relative_ path provided by user through self.start_dir
-            # generate absolute path from ext_dir
-            ext_start_dir = os.path.join(self.ext_dir, ext_start_dir)
-
-        if os.path.isdir(ext_start_dir):
+        if ext_start_dir and os.path.isdir(ext_start_dir):
+            ext_start_dir = ext_start_dir.rstrip(os.sep) or os.sep
             self.cfg['start_dir'] = ext_start_dir
             self.log.debug("Using extension start dir: %s", ext_start_dir)
+        elif ext_start_dir is None:
+            # This may be on purpose, e.g. for Python WHL files which do not get extracted
+            self.log.debug("Start dir is not set.")
         else:
             # non-existing start dir means wrong input from user
             warn_msg = "Provided start dir (%s) for extension %s does not exist: %s" % (self.start_dir, self.name,
