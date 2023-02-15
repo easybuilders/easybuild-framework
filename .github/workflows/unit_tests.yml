@@ -127,7 +127,7 @@ jobs:
         # and only when testing with Lua as module syntax,
         # to avoid hitting GitHub rate limit;
         # tests that require a GitHub token are skipped automatically when no GitHub token is available
-        if [[ ! "${{matrix.modules_tool}}" =~ 'Lmod-7' ]] && [[ ! "${{matrix.modules_tool}}" =~ 'modules-' ]] && [[ "${{matrix.modules_syntax}}" == 'Lua' ]]; then
+        if [[ ! "${{matrix.modules_tool}}" =~ 'Lmod-7' ]] && [[ ! "${{matrix.modules_tool}}" =~ 'modules-' ]] && [[ "${{matrix.module_syntax}}" == 'Lua' ]]; then
           if [ ! -z $GITHUB_TOKEN ]; then
             if [ "x${{matrix.python}}" == 'x2.6' ];
               then SET_KEYRING="keyring.set_keyring(keyring.backends.file.PlaintextKeyring())";
