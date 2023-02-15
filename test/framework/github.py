@@ -29,11 +29,13 @@ Unit tests for talking to GitHub.
 @author: Kenneth Hoste (Ghent University)
 """
 import base64
+import functools
 import os
 import random
 import re
 import sys
 import textwrap
+import unittest
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from time import gmtime
 from unittest import TextTestRunner
@@ -67,6 +69,23 @@ GITHUB_USER = "easybuilders"
 GITHUB_REPO = "testrepository"
 # branch to test
 GITHUB_BRANCH = 'main'
+
+
+def requires_github_access():
+    """Silently skip for pull requests unless $FORCE_EB_GITHUB_TESTS is set
+
+    Useful when the test uses e.g. `git` commands to download from Github and would run into rate limits
+    """
+    if 'FORCE_EB_GITHUB_TESTS' in os.environ or os.getenv('GITHUB_EVENT_NAME') != 'pull_request':
+        return unittest.skipIf(False, None)
+    else:
+        # For pull requests silently skip to avoid rate limits
+        def decorator(test_item):
+            @functools.wraps(test_item)
+            def skip_wrapper(*args, **kwargs):
+                return
+            return skip_wrapper
+        return decorator
 
 
 class GithubTest(EnhancedTestCase):
@@ -1038,6 +1057,7 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([configuremake])), 'thisisjustatest')
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([toy_eb])), 'thisisjustatest')
 
+    @requires_github_access()
     def test_push_branch_to_github(self):
         """Test push_branch_to_github."""
 

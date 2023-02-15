@@ -36,13 +36,13 @@ import tempfile
 import shutil
 import stat
 import sys
-from distutils.version import StrictVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.tools import StrictVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir

@@ -36,6 +36,7 @@ import stat
 import sys
 import tempfile
 import textwrap
+import warnings
 from easybuild.tools import LooseVersion
 from unittest import TextTestRunner
 
@@ -6297,12 +6298,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
             else:
                 version_class = LooseVersion
 
-            ver1 = version_class('1.2.3')
-            ver2 = version_class('4.5.6')
-            ver3 = version_class('1.2.3dev')
-            ver4 = version_class('system')
-            ver5 = version_class('rc3')
-            ver6 = version_class('v1802')
+            with warnings.catch_warnings():
+                if use_distutils:
+                    warnings.simplefilter("ignore", category=DeprecationWarning)
+                ver1 = version_class('1.2.3')
+                ver2 = version_class('4.5.6')
+                ver3 = version_class('1.2.3dev')
+                ver4 = version_class('system')
+                ver5 = version_class('rc3')
+                ver6 = version_class('v1802')
 
             # some versions are included multiple times on purpose,
             # to also test comparison between equal LooseVersion instances

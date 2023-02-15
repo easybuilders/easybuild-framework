@@ -40,6 +40,7 @@ import stat
 import sys
 import tempfile
 import time
+from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from easybuild.tools import run
@@ -2746,6 +2747,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r'^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M)
         self.assertTrue(regex.search(res), "Pattern '%s' found in: %s" % (regex.pattern, res))
 
+    @requires_github_access()
     def test_get_source_tarball_from_git(self):
         """Test get_source_tarball_from_git function."""
 

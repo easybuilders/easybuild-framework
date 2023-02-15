@@ -34,10 +34,9 @@ import sys
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
-from distutils.version import StrictVersion
 
 from easybuild.base import fancylogger
-from easybuild.tools import modules
+from easybuild.tools import modules, StrictVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, which, write_file
 from easybuild.tools.modules import Lmod
