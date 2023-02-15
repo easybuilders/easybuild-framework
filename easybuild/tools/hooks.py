@@ -61,7 +61,7 @@ TESTCASES_STEP = 'testcases'
 
 START = 'start'
 PARSE = 'parse'
-EXTENSION_INSTALL = 'extension'
+SINGLE_EXTENSION = 'single_extension'
 MODULE_WRITE = 'module_write'
 END = 'end'
 
@@ -84,8 +84,8 @@ HOOK_NAMES = [
     # pre/post extension (singular) hook is triggered when installing individual extensions,
     # post-extensions hook is triggered after installation of extensions
     PRE_PREF + EXTENSIONS_STEP,
-    PRE_PREF + EXTENSION_INSTALL,
-    POST_PREF + EXTENSION_INSTALL,
+    PRE_PREF + SINGLE_EXTENSION,
+    POST_PREF + SINGLE_EXTENSION,
     POST_PREF + EXTENSIONS_STEP,
 ] + [p + x for x in STEP_NAMES[STEP_NAMES.index(EXTENSIONS_STEP)+1:STEP_NAMES.index(MODULE_STEP)]
      for p in [PRE_PREF, POST_PREF]] + [

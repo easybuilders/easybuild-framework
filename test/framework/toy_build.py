@@ -2913,7 +2913,7 @@ class ToyBuildTest(EnhancedTestCase):
                 print('in module-write hook hook for %s' % os.path.basename(module_path))
                 return module_txt.replace('Toy C program, 100% toy.', 'Not a toy anymore')
 
-            def post_extension_hook(ext):
+            def post_single_extension_hook(ext):
                 print('installing of extension %s is done!' % ext.name)
 
             def pre_sanitycheck_hook(self):
@@ -2968,9 +2968,9 @@ class ToyBuildTest(EnhancedTestCase):
             toy 0.0
             ['%(name)s-%(version)s.tar.gz']
             echo toy
-            == Running post-extension hook...
+            == Running post-single_extension hook...
             installing of extension bar is done!
-            == Running post-extension hook...
+            == Running post-single_extension hook...
             installing of extension toy is done!
             == Running pre-sanitycheck hook...
             pre_sanity_check_hook

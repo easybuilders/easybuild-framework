@@ -62,7 +62,7 @@ class HooksTest(EnhancedTestCase):
             'def pre_install_hook(self):',
             '    print("this is run before install step")',
             '',
-            'def pre_extension_hook(ext):',
+            'def pre_single_extension_hook(ext):',
             '    print("this is run before installing an extension")',
         ])
         write_file(self.test_hooks_pymod, test_hooks_pymod_txt)
@@ -75,7 +75,13 @@ class HooksTest(EnhancedTestCase):
         hooks = load_hooks(self.test_hooks_pymod)
 
         self.assertEqual(len(hooks), 5)
-        expected = ['parse_hook', 'post_configure_hook', 'pre_extension_hook', 'pre_install_hook', 'start_hook']
+        expected = [
+            'parse_hook',
+            'post_configure_hook',
+            'pre_install_hook',
+            'pre_single_extension_hook',
+            'start_hook',
+        ]
         self.assertEqual(sorted(hooks.keys()), expected)
         self.assertTrue(all(callable(h) for h in hooks.values()))
 
@@ -105,7 +111,7 @@ class HooksTest(EnhancedTestCase):
 
         post_configure_hook = [hooks[k] for k in hooks if k == 'post_configure_hook'][0]
         pre_install_hook = [hooks[k] for k in hooks if k == 'pre_install_hook'][0]
-        pre_extension_hook = [hooks[k] for k in hooks if k == 'pre_extension_hook'][0]
+        pre_single_extension_hook = [hooks[k] for k in hooks if k == 'pre_single_extension_hook'][0]
         start_hook = [hooks[k] for k in hooks if k == 'start_hook'][0]
 
         self.assertEqual(find_hook('configure', hooks), None)
@@ -116,9 +122,9 @@ class HooksTest(EnhancedTestCase):
         self.assertEqual(find_hook('install', hooks, pre_step_hook=True), pre_install_hook)
         self.assertEqual(find_hook('install', hooks, post_step_hook=True), None)
 
-        self.assertEqual(find_hook('extension', hooks), None)
-        self.assertEqual(find_hook('extension', hooks, pre_step_hook=True), pre_extension_hook)
-        self.assertEqual(find_hook('extension', hooks, post_step_hook=True), None)
+        self.assertEqual(find_hook('single_extension', hooks), None)
+        self.assertEqual(find_hook('single_extension', hooks, pre_step_hook=True), pre_single_extension_hook)
+        self.assertEqual(find_hook('single_extension', hooks, post_step_hook=True), None)
 
         self.assertEqual(find_hook('extensions', hooks), None)
         self.assertEqual(find_hook('extensions', hooks, pre_step_hook=True), None)
@@ -151,8 +157,8 @@ class HooksTest(EnhancedTestCase):
         run_hook('install', hooks, post_step_hook=True, args=[None])
         run_hook('extensions', hooks, pre_step_hook=True, args=[None])
         for _ in range(3):
-            run_hook('extension', hooks, pre_step_hook=True, args=[None])
-            run_hook('extension', hooks, post_step_hook=True, args=[None])
+            run_hook('single_extension', hooks, pre_step_hook=True, args=[None])
+            run_hook('single_extension', hooks, post_step_hook=True, args=[None])
         run_hook('extensions', hooks, post_step_hook=True, args=[None])
         stdout = self.get_stdout()
         stderr = self.get_stderr()
@@ -169,11 +175,11 @@ class HooksTest(EnhancedTestCase):
             "running foo helper method",
             "== Running pre-install hook...",
             "this is run before install step",
-            "== Running pre-extension hook...",
+            "== Running pre-single_extension hook...",
             "this is run before installing an extension",
-            "== Running pre-extension hook...",
+            "== Running pre-single_extension hook...",
             "this is run before installing an extension",
-            "== Running pre-extension hook...",
+            "== Running pre-single_extension hook...",
             "this is run before installing an extension",
         ])
 
