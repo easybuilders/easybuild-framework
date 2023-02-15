@@ -701,7 +701,7 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Expected value to be a dict", to_sanity_check_paths_dict, [])
         error_msg = "Expected value to be a list"
         self.assertErrorRegex(EasyBuildError, error_msg, to_sanity_check_paths_dict, {'files': 'foo', 'dirs': []})
-        error_msg = "Expected elements to be of type string, tuple or list"
+        error_msg = "Expected elements to be of type string, tuple/list or dict"
         self.assertErrorRegex(EasyBuildError, error_msg, to_sanity_check_paths_dict, {'files': [], 'dirs': [1]})
 
     def test_to_checksums(self):

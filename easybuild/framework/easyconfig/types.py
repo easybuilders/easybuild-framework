@@ -405,7 +405,8 @@ def to_sanity_check_paths_entry(spec):
                                          value, type(value))
             result.append(elem)
         else:
-            raise EasyBuildError("Expected elements to be of type string, tuple or list, got %s (%s)", elem, type(elem))
+            raise EasyBuildError("Expected elements to be of type string, tuple/list or dict, got %s (%s)",
+                                 elem, type(elem))
 
     return result
 
