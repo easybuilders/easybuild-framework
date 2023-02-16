@@ -38,6 +38,7 @@ from inspect import cleandoc
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
+import easybuild.tools.systemtools as st
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
@@ -2743,6 +2744,32 @@ class EasyBlockTest(EnhancedTestCase):
         hpl = easyblocks['easybuild.easyblocks.hpl']
         self.assertEqual(hpl['class'], 'EB_HPL')
         self.assertTrue(hpl['loc'].endswith('sandbox/easybuild/easyblocks/h/hpl.py'))
+
+    def test_arch_specific_sanity_check(self):
+        """Tests that the correct version is chosen for this architecture"""
+
+        my_arch = st.get_cpu_architecture()
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "test"',
+            'version = "0.2"',
+            'homepage = "https://example.com"',
+            'description = "test"',
+            'toolchain = SYSTEM',
+            'sanity_check_paths = {',
+            "  'files': [{'arch=%s': 'correct.a'}, 'default.a']," % my_arch,
+            "  'dirs': [{'arch=%s': ('correct', 'alternative')}, {'arch=no-arch': 'not-used'}]," % my_arch,
+            '}',
+        ])
+        self.writeEC()
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        paths, _, _ = eb._sanity_check_step_common(None, None)
+
+        self.assertEqual(set(paths.keys()), set(('files', 'dirs')))
+        self.assertEqual(paths['files'], ['correct.a', 'default.a'])
+        self.assertEqual(paths['dirs'], [('correct', 'alternative')])
 
     def test_sanity_check_paths_verification(self):
         """Test verification of sanity_check_paths w.r.t. keys & values."""

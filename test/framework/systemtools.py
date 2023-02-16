@@ -51,7 +51,7 @@ from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, g
 from easybuild.tools.systemtools import get_cpu_family, get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
 from easybuild.tools.systemtools import get_gcc_version, get_glibc_version, get_os_type, get_os_name, get_os_version
 from easybuild.tools.systemtools import get_platform_name, get_shared_lib_ext, get_system_info, get_total_memory
-from easybuild.tools.systemtools import find_library_path, locate_solib, pick_dep_version
+from easybuild.tools.systemtools import find_library_path, locate_solib, pick_dep_version, pick_system_specific_value
 
 
 PROC_CPUINFO_TXT = None
@@ -932,6 +932,38 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, {'foo': '1.2', 'bar': '2.3'})
         error_pattern = r"Unknown value type for version: .* \(1.23\), should be string value"
         self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, 1.23)
+
+    def test_pick_system_specific_value(self):
+        """Test pick_system_specific_value function."""
+
+        self.assertEqual(pick_system_specific_value('test-desc', None), None)
+        self.assertEqual(pick_system_specific_value('test-desc', '1.2.3'), '1.2.3')
+        self.assertEqual(pick_system_specific_value('test-desc', (42, 'foobar')), (42, 'foobar'))
+
+        option_dict = {
+            'arch=x86_64': '1.2.3-amd64',
+            'arch=POWER': '1.2.3-ppc64le',
+            'arch=*': '1.2.3-other',
+        }
+
+        st.get_cpu_architecture = lambda: X86_64
+        self.assertEqual(pick_system_specific_value('test-desc', option_dict), '1.2.3-amd64')
+
+        st.get_cpu_architecture = lambda: POWER
+        self.assertEqual(pick_system_specific_value('test-desc', option_dict), '1.2.3-ppc64le')
+
+        st.get_cpu_architecture = lambda: "NON_EXISTING_ARCH"
+        self.assertEqual(pick_system_specific_value('test-desc', option_dict), '1.2.3-other')
+
+        error_pattern = "Found empty dict as test-desc"
+        self.assertErrorRegex(EasyBuildError, error_pattern, pick_system_specific_value, 'test-desc', {})
+
+        error_pattern = r"Unexpected keys in test-desc: foo \(only 'arch=' keys are supported\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, pick_system_specific_value, 'test-desc',
+                              {'foo': '1'})
+        error_pattern = r"Unexpected keys in test-desc: foo \(only 'arch=' keys are supported\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, pick_system_specific_value, 'test-desc',
+                              {'foo': '1', 'arch=POWER': '2'})
 
     def test_check_os_dependency(self):
         """Test check_os_dependency."""
