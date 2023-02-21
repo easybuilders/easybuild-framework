@@ -1783,7 +1783,7 @@ class EasyBlockTest(EnhancedTestCase):
             if res is not None:
                 loc = os.path.join(tmpdir, 't', 'toy', fn)
                 self.assertEqual(res, loc)
-                self.assertExists(loc), "%s file is found at %s" % (fn, loc)
+                self.assertExists(loc)
                 txt = read_file(loc)
                 eb_regex = re.compile("EasyBuild: building software with ease")
                 self.assertTrue(eb_regex.search(txt), "Pattern '%s' found in: %s" % (eb_regex.pattern, txt))

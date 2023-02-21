@@ -198,7 +198,7 @@ class EasyConfigParserTest(EnhancedTestCase):
 
         # make sure both keys and values are of appropriate types
         for constant_name in constants:
-            self.assertIsInstance(constant_name, string_type)
+            self.assertIsInstance(constant_name, string_type, "Constant name %s is a string" % constant_name)
             val = constants[constant_name]
             fail_msg = "The constant %s should have an acceptable type, found %s (%s)" % (constant_name,
                                                                                           type(val), str(val))

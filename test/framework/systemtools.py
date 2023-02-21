@@ -401,7 +401,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_avail_core_count_native(self):
         """Test getting core count."""
         core_count = get_avail_core_count()
-        self.assertIsInstance(core_count, int), "core_count has type int: %s, %s" % (core_count, type(core_count))
+        self.assertIsInstance(core_count, int)
         self.assertTrue(core_count > 0, "core_count %d > 0" % core_count)
 
     def test_avail_core_count_linux(self):
