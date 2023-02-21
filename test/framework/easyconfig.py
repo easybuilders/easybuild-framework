@@ -3803,7 +3803,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertFalse(self.get_stdout())
 
     def test_deprecated_toolchain(self):
-        """Test use of deprecatd toolchain"""
+        """Test use of deprecated toolchain"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         deprecated_toolchain_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a.eb')
         init_config(build_options={'silence_deprecation_warnings': [], 'unit_testing_mode': False})
