@@ -911,10 +911,6 @@ class EasyBuildOptions(GeneralOption):
         if self.options.deprecated:
             build_log.CURRENT_VERSION = LooseVersion(self.options.deprecated)
 
-        # Convert this to an empty list if not set to simplify usage
-        if self.options.silence_deprecation_warnings is None:
-            self.options.silence_deprecation_warnings = []
-
         # log to specified value of --unittest-file
         if self.options.unittest_file:
             fancylogger.logToFile(self.options.unittest_file, max_bytes=0)
