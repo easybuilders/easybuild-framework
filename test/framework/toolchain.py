@@ -107,7 +107,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test for system toolchain."""
         for ver in ['system', '']:
             tc = self.get_toolchain('system', version=ver)
-            self.assertTrue(isinstance(tc, SystemToolchain))
+            self.assertIsInstance(tc, SystemToolchain)
 
     def test_foss_toolchain(self):
         """Test for foss toolchain."""
@@ -519,9 +519,9 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         ldflags = tc.get_variable('LDFLAGS', typ=list)
-        self.assertTrue(isinstance(ldflags, list))
+        self.assertIsInstance(ldflags, list)
         if len(ldflags) > 0:
-            self.assertTrue(isinstance(ldflags[0], string_type))
+            self.assertIsInstance(ldflags[0], string_type)
 
     def test_validate_pass_by_value(self):
         """
@@ -1678,12 +1678,12 @@ class ToolchainTest(EnhancedTestCase):
         mpdbf = params['mpdbf']
         regex = re.compile('^--file=.*/mpdboot$')
         self.assertTrue(regex.match(mpdbf), "'%s' should match pattern '%s'" % (mpdbf, regex.pattern))
-        self.assertTrue(os.path.exists(mpdbf.split('=')[1]))
+        self.assertExists(mpdbf.split('=')[1])
 
         nodesfile = params['nodesfile']
         regex = re.compile('^-machinefile /.*/nodes$')
         self.assertTrue(regex.match(nodesfile), "'%s' should match pattern '%s'" % (nodesfile, regex.pattern))
-        self.assertTrue(os.path.exists(nodesfile.split(' ')[1]))
+        self.assertExists(nodesfile.split(' ')[1])
 
     def test_prepare_deps(self):
         """Test preparing for a toolchain when dependencies are involved."""
@@ -1968,7 +1968,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         for key in ['EBROOTICC', 'EBROOTIFORT', 'EBVERSIONICC', 'EBVERSIONIFORT']:
-            self.assertTrue(os.getenv(key) is None)
+            self.assertIsNone(os.getenv(key))
 
         # install fake iccifort module with no dependencies
         fake_iccifort = os.path.join(self.test_prefix, 'iccifort', '2018.1.163')
@@ -2004,7 +2004,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         for key in ['EBROOTICC', 'EBROOTIFORT', 'EBVERSIONICC', 'EBVERSIONIFORT', 'EBROOTCUDA', 'EBVERSIONCUDA']:
-            self.assertTrue(os.getenv(key) is None)
+            self.assertIsNone(os.getenv(key))
 
         # install fake iccifortcuda module with no dependencies
         fake_iccifortcuda = os.path.join(self.test_prefix, 'iccifortcuda', '2018b')
@@ -2895,9 +2895,9 @@ class ToolchainTest(EnhancedTestCase):
         self.assertIn(len(tmpdir), (11, 13))
 
         # also test cleanup method to ensure short $TMPDIR is cleaned up properly
-        self.assertTrue(os.path.exists(tmpdir))
+        self.assertExists(tmpdir)
         tc.cleanup()
-        self.assertFalse(os.path.exists(tmpdir))
+        self.assertNotExists(tmpdir)
 
         os.environ['TMPDIR'] = orig_tmpdir
 

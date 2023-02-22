@@ -1144,7 +1144,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(r'.*/toy-0.0.eb copied to %s' % test_ec)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
-        self.assertTrue(os.path.exists(test_ec))
+        self.assertExists(test_ec)
         self.assertEqual(toy_ec_txt, read_file(test_ec))
 
         remove_file(test_ec)
@@ -1152,7 +1152,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # basic test: copying one easyconfig file to a non-existing relative path
         cwd = change_dir(self.test_prefix)
         target_fn = 'test.eb'
-        self.assertFalse(os.path.exists(target_fn))
+        self.assertNotExists(target_fn)
 
         args = ['--copy-ec', 'toy-0.0.eb', target_fn]
         stdout = self.mocked_main(args)
@@ -1161,7 +1161,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         change_dir(cwd)
 
-        self.assertTrue(os.path.exists(test_ec))
+        self.assertExists(test_ec)
         self.assertEqual(toy_ec_txt, read_file(test_ec))
 
         # copying one easyconfig into an existing directory
@@ -1173,20 +1173,20 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         copied_toy_ec = os.path.join(test_target_dir, 'toy-0.0.eb')
-        self.assertTrue(os.path.exists(copied_toy_ec))
+        self.assertExists(copied_toy_ec)
         self.assertEqual(toy_ec_txt, read_file(copied_toy_ec))
 
         remove_dir(test_target_dir)
 
         def check_copied_files():
             """Helper function to check result of copying multiple easyconfigs."""
-            self.assertTrue(os.path.exists(test_target_dir))
+            self.assertExists(test_target_dir)
             self.assertEqual(sorted(os.listdir(test_target_dir)), ['bzip2-1.0.6-GCC-4.9.2.eb', 'toy-0.0.eb'])
             copied_toy_ec = os.path.join(test_target_dir, 'toy-0.0.eb')
-            self.assertTrue(os.path.exists(copied_toy_ec))
+            self.assertExists(copied_toy_ec)
             self.assertEqual(toy_ec_txt, read_file(copied_toy_ec))
             copied_bzip2_ec = os.path.join(test_target_dir, 'bzip2-1.0.6-GCC-4.9.2.eb')
-            self.assertTrue(os.path.exists(copied_bzip2_ec))
+            self.assertExists(copied_bzip2_ec)
             self.assertEqual(bzip2_ec_txt, read_file(copied_bzip2_ec))
 
         # copying multiple easyconfig files to a non-existing target directory (which is created automatically)
@@ -1201,7 +1201,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # same but with relative path for target dir
         change_dir(self.test_prefix)
         args[-1] = os.path.basename(test_target_dir)
-        self.assertFalse(os.path.exists(args[-1]))
+        self.assertNotExists(args[-1])
 
         stdout = self.mocked_main(args)
         self.assertEqual(stdout, '2 file(s) copied to test_target_dir')
@@ -1225,7 +1225,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile('.*/toy-0.0.eb copied to .*/%s' % os.path.basename(test_working_dir))
         self.assertTrue(regex.match(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         copied_toy_cwd = os.path.join(test_working_dir, 'toy-0.0.eb')
-        self.assertTrue(os.path.exists(copied_toy_cwd))
+        self.assertExists(copied_toy_cwd)
         self.assertEqual(read_file(copied_toy_cwd), toy_ec_txt)
 
         # --copy-ec without arguments results in a proper error
@@ -1261,11 +1261,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check that the files exist
         for pr_file in all_files_pr8007:
-            self.assertTrue(os.path.exists(os.path.join(test_working_dir, pr_file)))
+            self.assertExists(os.path.join(test_working_dir, pr_file))
             remove_file(os.path.join(test_working_dir, pr_file))
 
         # copying all files touched by PR to a non-existing target directory (which is created automatically)
-        self.assertFalse(os.path.exists(test_target_dir))
+        self.assertNotExists(test_target_dir)
         args = ['--copy-ec', '--from-pr', '8007', test_target_dir]
         stdout = self.mocked_main(args)
 
@@ -1273,7 +1273,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
         for pr_file in all_files_pr8007:
-            self.assertTrue(os.path.exists(os.path.join(test_target_dir, pr_file)))
+            self.assertExists(os.path.join(test_target_dir, pr_file))
         remove_dir(test_target_dir)
 
         # test where we select a single easyconfig file from a PR
@@ -1297,7 +1297,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(r"%s copied to .*/bat.eb" % ec_filename)
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
-        self.assertTrue(os.path.exists(bat_ec))
+        self.assertExists(bat_ec)
         self.assertIn("name = 'bat'", read_file(bat_ec))
 
         change_dir(cwd)
@@ -1312,7 +1312,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertEqual(os.listdir(test_working_dir), [patch_fn])
         patch_path = os.path.join(test_working_dir, patch_fn)
-        self.assertTrue(os.path.exists(patch_path))
+        self.assertExists(patch_path)
         self.assertTrue(is_patch_file(patch_path))
         remove_file(patch_path)
 
@@ -1348,7 +1348,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout = self.mocked_main(args)
         regex = re.compile(r'.*/%s copied to %s' % (ec_pr11521, test_ec))
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
-        self.assertTrue(os.path.exists(test_ec))
+        self.assertExists(test_ec)
         self.assertIn("name = 'ExifTool'", read_file(test_ec))
         remove_file(test_ec)
 
@@ -2376,7 +2376,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(errtxt)
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertTrue(os.path.exists(copied_ec))
+        self.assertExists(copied_ec)
 
         self.mock_stdout(True)
         self.mock_stderr(True)
@@ -2389,9 +2389,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(errtxt)
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertTrue(
-            os.path.exists(os.path.join(self.test_buildpath, tweaked_ecs_dir, 'foo-1.2.3-GCC-6.4.0-2.28.eb'))
-        )
+        self.assertExists(os.path.join(self.test_buildpath, tweaked_ecs_dir, 'foo-1.2.3-GCC-6.4.0-2.28.eb'))
 
     def test_software_version_ordering(self):
         """Test whether software versions are correctly ordered when using --software."""
@@ -2504,7 +2502,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure --disable-cleanup-builddir works
         args.append('--disable-cleanup-builddir')
         self.eb_main(args, do_build=True, verbose=True)
-        self.assertTrue(os.path.exists(toy_buildpath), "Build dir %s is retained when requested" % toy_buildpath)
+        self.assertExists(toy_buildpath, "Build dir %s is retained when requested" % toy_buildpath)
         shutil.rmtree(toy_buildpath)
 
         # make sure build dir stays in case of failed build
@@ -2514,7 +2512,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--try-amend=prebuildopts=nosuchcommand &&',
         ]
         self.eb_main(args, do_build=True)
-        self.assertTrue(os.path.exists(toy_buildpath), "Build dir %s is retained after failed build" % toy_buildpath)
+        self.assertExists(toy_buildpath, "Build dir %s is retained after failed build" % toy_buildpath)
 
     def test_filter_deps(self):
         """Test use of --filter-deps."""
@@ -3652,7 +3650,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_mod += '.lua'
-        self.assertTrue(os.path.exists(toy_mod), "Found %s" % toy_mod)
+        self.assertExists(toy_mod)
 
     def test_include_toolchains(self):
         """Test --include-toolchains."""
@@ -3729,7 +3727,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # default: cleanup tmpdir & logfile
         self.eb_main(args, raise_error=True, testing=False)
         self.assertEqual(os.listdir(tmpdir), [])
-        self.assertFalse(os.path.exists(self.logfile))
+        self.assertNotExists(self.logfile)
 
         # disable cleaning up tmpdir
         args.append('--disable-cleanup-tmpdir')
@@ -3737,10 +3735,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tmpdir_files = os.listdir(tmpdir)
         # tmpdir and logfile are still there \o/
         self.assertTrue(len(tmpdir_files) == 1)
-        self.assertTrue(os.path.exists(self.logfile))
+        self.assertExists(self.logfile)
         # tweaked easyconfigs is still there \o/
         tweaked_dir = os.path.join(tmpdir, tmpdir_files[0], 'tweaked_easyconfigs')
-        self.assertTrue(os.path.exists(os.path.join(tweaked_dir, 'toy-1.0.eb')))
+        self.assertExists(os.path.join(tweaked_dir, 'toy-1.0.eb'))
 
     def test_github_preview_pr(self):
         """Test --preview-pr."""
@@ -3892,10 +3890,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check requirements for test
         init_config([], build_options={'robot_path': os.environ['EASYBUILD_ROBOT_PATHS']})
-        self.assertFalse(os.path.exists(robot_find_easyconfig('hwloc', '1.11.8-gompi-2018a') or 'nosuchfile'))
-        self.assertTrue(os.path.exists(robot_find_easyconfig('hwloc', '1.11.8-GCC-6.4.0-2.28')))
-        self.assertTrue(os.path.exists(robot_find_easyconfig('SQLite', '3.8.10.2-gompi-2018a')))
-        self.assertTrue(os.path.exists(robot_find_easyconfig('SQLite', '3.8.10.2-GCC-6.4.0-2.28')))
+        self.assertNotExists(robot_find_easyconfig('hwloc', '1.11.8-gompi-2018a') or 'nosuchfile')
+        self.assertExists(robot_find_easyconfig('hwloc', '1.11.8-GCC-6.4.0-2.28'))
+        self.assertExists(robot_find_easyconfig('SQLite', '3.8.10.2-gompi-2018a'))
+        self.assertExists(robot_find_easyconfig('SQLite', '3.8.10.2-GCC-6.4.0-2.28'))
 
         args = [
             ec_file,
@@ -4264,7 +4262,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         res = [d for d in res if os.path.basename(d) != os.path.basename(git_working_dir)]
         if len(res) == 1:
             unstaged_file_full = os.path.join(res[0], unstaged_file)
-            self.assertFalse(os.path.exists(unstaged_file_full), "%s not found in %s" % (unstaged_file, res[0]))
+            self.assertNotExists(unstaged_file_full), "%s not found in %s" % (unstaged_file, res[0])
         else:
             self.fail("Found copy of easybuild-easyconfigs working copy")
 
@@ -4323,7 +4321,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # modifying an existing easyconfig requires a custom PR title
         gcc_ec = os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb')
-        self.assertTrue(os.path.exists(gcc_ec))
+        self.assertExists(gcc_ec)
 
         args = [
             '--new-pr',
@@ -4631,7 +4629,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_eb = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
-        self.assertTrue(os.path.exists(toy_eb))
+        self.assertExists(toy_eb)
 
         args = [
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -4955,7 +4953,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             # check whether scripts were dumped
             env_script = os.path.join(self.test_prefix, '%s.env' % name)
-            self.assertTrue(os.path.exists(env_script))
+            self.assertExists(env_script)
 
         # existing .env files are not overwritten, unless forced
         os.chdir(self.test_prefix)
@@ -5550,14 +5548,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         if get_module_syntax() == 'Lua':
             toy_mod += '.lua'
 
-        self.assertTrue(os.path.exists(toy_mod))
+        self.assertExists(toy_mod)
 
         if get_module_syntax() == 'Lua':
             self.assertTrue(os.path.islink(os.path.join(toy_mod_dir, 'default')))
             self.assertEqual(os.readlink(os.path.join(toy_mod_dir, 'default')), '0.0-deps.lua')
         elif get_module_syntax() == 'Tcl':
             toy_dot_version = os.path.join(toy_mod_dir, '.version')
-            self.assertTrue(os.path.exists(toy_dot_version))
+            self.assertExists(toy_dot_version)
             toy_dot_version_txt = read_file(toy_dot_version)
             self.assertIn("set ModulesVersion 0.0-deps", toy_dot_version_txt)
         else:
@@ -5661,7 +5659,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         # make sure software install directory is *not* created (see bug issue #3064)
-        self.assertFalse(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy')))
+        self.assertNotExists(os.path.join(self.test_installpath, 'software', 'toy'))
 
         # SHA256 is default type of checksums used
         self.assertIn("injecting sha256 checksums in", stdout)
@@ -6040,7 +6038,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # purposely use a non-existing directory as log directory
         tmp_logdir = os.path.join(self.test_prefix, 'tmp-logs')
-        self.assertFalse(os.path.exists(tmp_logdir))
+        self.assertNotExists(tmp_logdir)
 
         # force passing logfile=None to main in eb_main
         self.logfile = None
@@ -6230,12 +6228,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         if get_module_syntax() == 'Lua':
             toy_mod += '.lua'
 
-        self.assertTrue(os.path.exists(toy_mod), "%s should exist" % toy_mod)
+        self.assertExists(toy_mod)
 
         toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
         for path in (os.path.join('bin', 'barbar'), os.path.join('lib', 'libbarbar.a')):
             path = os.path.join(toy_installdir, path)
-            self.assertFalse(os.path.exists(path), "Path %s should not exist" % path)
+            self.assertNotExists(path)
 
     def test_fake_vsc_include(self):
         """Test whether fake 'vsc' namespace is triggered for modules included via --include-*."""
@@ -6385,7 +6383,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_sysroot(self):
         """Test use of --sysroot option."""
 
-        self.assertTrue(os.path.exists(self.test_prefix))
+        self.assertExists(self.test_prefix)
 
         sysroot_arg = '--sysroot=' + self.test_prefix
         stdout, stderr = self._run_mock_eb([sysroot_arg, '--show-config'], raise_error=True)
@@ -6438,18 +6436,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for val in ('foo,toy,bar', '.*', 't.y'):
             self.eb_main(args + ['--accept-eula-for=' + val], do_build=True, raise_error=True)
 
-            self.assertTrue(os.path.exists(toy_modfile))
+            self.assertExists(toy_modfile)
 
             remove_dir(self.test_installpath)
-            self.assertFalse(os.path.exists(toy_modfile))
+            self.assertNotExists(toy_modfile)
 
             # also check use of $EASYBUILD_ACCEPT_EULA to accept EULA for specified software
             os.environ['EASYBUILD_ACCEPT_EULA_FOR'] = val
             self.eb_main(args, do_build=True, raise_error=True)
-            self.assertTrue(os.path.exists(toy_modfile))
+            self.assertExists(toy_modfile)
 
             remove_dir(self.test_installpath)
-            self.assertFalse(os.path.exists(toy_modfile))
+            self.assertNotExists(toy_modfile)
 
             del os.environ['EASYBUILD_ACCEPT_EULA_FOR']
 
@@ -6463,7 +6461,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertIn("Use accept-eula-for configuration setting rather than accept-eula", stderr)
 
         remove_dir(self.test_installpath)
-        self.assertFalse(os.path.exists(toy_modfile))
+        self.assertNotExists(toy_modfile)
 
         # also via $EASYBUILD_ACCEPT_EULA
         self.mock_stderr(True)
@@ -6472,18 +6470,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stderr(False)
 
-        self.assertTrue(os.path.exists(toy_modfile))
+        self.assertExists(toy_modfile)
         self.assertIn("Use accept-eula-for configuration setting rather than accept-eula", stderr)
 
         remove_dir(self.test_installpath)
-        self.assertFalse(os.path.exists(toy_modfile))
+        self.assertNotExists(toy_modfile)
 
         # also check accepting EULA via 'accept_eula = True' in easyconfig file
         self.disallow_deprecated_behaviour()
         del os.environ['EASYBUILD_ACCEPT_EULA']
         write_file(test_ec, test_ec_txt + '\naccept_eula = True')
         self.eb_main(args, do_build=True, raise_error=True)
-        self.assertTrue(os.path.exists(toy_modfile))
+        self.assertExists(toy_modfile)
 
     def test_config_abs_path(self):
         """Test ensuring of absolute path values for path configuration options."""
@@ -6645,14 +6643,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # libtoy module should be installed, module file should at least set EBROOTLIBTOY
         mod_dir = os.path.join(self.test_installpath, 'modules', 'all')
         mod_path = os.path.join(mod_dir, 'libtoy', '0.0') + mod_ext
-        self.assertTrue(os.path.exists(mod_path))
+        self.assertExists(mod_path)
         self.modtool.use(mod_dir)
         self.modtool.load(['libtoy'])
-        self.assertTrue(os.path.exists(os.environ['EBROOTLIBTOY']))
+        self.assertExists(os.environ['EBROOTLIBTOY'])
 
         # module should be hidden and in different install path
         mod_path = os.path.join(hidden_installpath, 'modules', 'all', 'toy', '.0.0') + mod_ext
-        self.assertTrue(os.path.exists(mod_path))
+        self.assertExists(mod_path)
 
         # check build options that were put in place for last easyconfig
         self.assertFalse(build_option('hidden'))
@@ -6718,13 +6716,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         eb_go, settings = set_up_configuration(args=['--debug', '--module-syntax=Tcl'], silent=True)
 
         # 2nd part of return value is a tuple with various settings
-        self.assertTrue(isinstance(settings, tuple))
+        self.assertIsInstance(settings, tuple)
         self.assertEqual(len(settings), 9)
         self.assertEqual(settings[0], {})  # build specs
-        self.assertTrue(isinstance(settings[1], EasyBuildLog))  # EasyBuildLog instance
+        self.assertIsInstance(settings[1], EasyBuildLog)  # EasyBuildLog instance
         self.assertTrue(settings[2].endswith('.log'))  # path to log file
-        self.assertTrue(os.path.exists(settings[2]))
-        self.assertTrue(isinstance(settings[3], list))  # list of robot paths
+        self.assertExists(settings[2])
+        self.assertIsInstance(settings[3], list)  # list of robot paths
         self.assertEqual(len(settings[3]), 1)
         self.assertTrue(os.path.samefile(settings[3][0], os.environ['EASYBUILD_ROBOT_PATHS']))
         self.assertEqual(settings[4], None)  # search query

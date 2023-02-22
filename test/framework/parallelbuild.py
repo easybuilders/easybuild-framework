@@ -186,16 +186,16 @@ class ParallelBuildTest(EnhancedTestCase):
 
         # installation directory doesn't exist yet before submission
         toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
-        self.assertFalse(os.path.exists(toy_installdir))
+        self.assertNotExists(toy_installdir)
 
         jobs = submit_jobs(ordered_ecs, '', testing=False)
         self.assertEqual(len(jobs), 1)
 
         # software install dir is created (by default) as part of job submission process (fetch_step is run)
-        self.assertTrue(os.path.exists(toy_installdir))
+        self.assertExists(toy_installdir)
         remove_dir(toy_installdir)
         remove_dir(os.path.dirname(toy_installdir))
-        self.assertFalse(os.path.exists(toy_installdir))
+        self.assertNotExists(toy_installdir)
 
         # installation directory does *not* get created when --pre-create-installdir is used
         build_options['pre_create_installdir'] = False
@@ -203,7 +203,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         jobs = submit_jobs(ordered_ecs, '', testing=False)
         self.assertEqual(len(jobs), 1)
-        self.assertFalse(os.path.exists(toy_installdir))
+        self.assertNotExists(toy_installdir)
 
         # restore mocked stuff
         PbsPython.__init__ = PbsPython__init__
@@ -265,8 +265,8 @@ class ParallelBuildTest(EnhancedTestCase):
         toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_modfile += '.lua'
-        self.assertTrue(os.path.exists(toy_modfile))
-        self.assertTrue(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy')))
+        self.assertExists(toy_modfile)
+        self.assertExists(os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy'))
 
         # also check what happens when a job fails (an error should be raised)
         test_ecfile = os.path.join(self.test_prefix, 'test.eb')

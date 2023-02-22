@@ -102,9 +102,9 @@ class EasyBuildLibTest(TestCase):
         self.configure()
 
         # mkdir works fine if set_up_configuration was called first
-        self.assertFalse(os.path.exists(test_dir))
+        self.assertNotExists(test_dir)
         mkdir(test_dir)
-        self.assertTrue(os.path.exists(test_dir))
+        self.assertExists(test_dir)
 
     def test_modules_tool(self):
         """Test use of modules_tool function in the context of using EasyBuild framework as a library."""

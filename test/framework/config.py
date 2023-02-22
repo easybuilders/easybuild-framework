@@ -341,8 +341,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
         cv1 = ConfigurationVariables()
         cv2 = ConfigurationVariables()
         cv3 = ConfigurationVariables({'foo': 'bar'})  # note: argument is ignored, an instance is already available
-        self.assertTrue(cv1 is cv2)
-        self.assertTrue(cv1 is cv3)
+        self.assertIs(cv1, cv2)
+        self.assertIs(cv1, cv3)
 
     def test_build_options(self):
         """Test usage of BuildOptions."""
@@ -353,8 +353,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
         bo1 = BuildOptions()
         bo2 = BuildOptions()
         bo3 = BuildOptions({'foo': 'bar'})  # note: argument is ignored, an instance is already available
-        self.assertTrue(bo1 is bo2)
-        self.assertTrue(bo1 is bo3)
+        self.assertIs(bo1, bo2)
+        self.assertIs(bo1, bo3)
 
         # test basic functionality
         BuildOptions.__class__._instances.clear()
@@ -394,7 +394,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         # there should be only one BuildOptions instance
         bo2 = BuildOptions()
-        self.assertTrue(bo is bo2)
+        self.assertIs(bo, bo2)
 
     def test_XDG_CONFIG_env_vars(self):
         """Test effect of XDG_CONFIG* environment variables on default configuration."""

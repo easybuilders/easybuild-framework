@@ -136,7 +136,7 @@ class EasyConfigParserTest(EnhancedTestCase):
 
         # dependencies should be parsed correctly
         deps = ec['dependencies']
-        self.assertTrue(isinstance(deps[0], Dependency))
+        self.assertIsInstance(deps[0], Dependency)
         self.assertEqual(deps[0].name(), 'zlib')
         self.assertEqual(deps[0].version(), '1.2.5')
 
@@ -198,11 +198,11 @@ class EasyConfigParserTest(EnhancedTestCase):
 
         # make sure both keys and values are of appropriate types
         for constant_name in constants:
-            self.assertTrue(isinstance(constant_name, string_type), "Constant name %s is a string" % constant_name)
+            self.assertIsInstance(constant_name, string_type, "Constant name %s is a string" % constant_name)
             val = constants[constant_name]
             fail_msg = "The constant %s should have an acceptable type, found %s (%s)" % (constant_name,
                                                                                           type(val), str(val))
-            self.assertTrue(isinstance(val, (string_type, dict, tuple)), fail_msg)
+            self.assertIsInstance(val, (string_type, dict, tuple), fail_msg)
 
         # check a couple of randomly picked constant values
         self.assertEqual(constants['SOURCE_TAR_GZ'], '%(name)s-%(version)s.tar.gz')

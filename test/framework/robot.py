@@ -627,7 +627,7 @@ class RobotTest(EnhancedTestCase):
         mkdir(subdir_hwloc, parents=True)
         shutil.copy2(os.path.join(test_ecs_path, 'h', 'hwloc', hwloc_ec), subdir_hwloc)
         shutil.copy2(os.path.join(test_ecs_path, 'i', 'intel', 'intel-2018a.eb'), self.test_prefix)
-        self.assertFalse(os.path.exists(test_ec))
+        self.assertNotExists(test_ec)
 
         args = [
             os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
@@ -696,7 +696,7 @@ class RobotTest(EnhancedTestCase):
 
         test_ec = 'toy-0.0-deps.eb'
         shutil.copy2(os.path.join(test_ecs_path, 't', 'toy', test_ec), self.test_prefix)
-        self.assertFalse(os.path.exists(test_ec))
+        self.assertNotExists(test_ec)
 
         args = [
             '--search-paths=%s' % self.test_prefix,  # add to search path
@@ -727,7 +727,7 @@ class RobotTest(EnhancedTestCase):
         test_ec = 'toy-0.0-deps.eb'
         shutil.copy2(os.path.join(test_ecs_path, 't', 'toy', test_ec), self.test_prefix)
         shutil.copy2(os.path.join(test_ecs_path, 'i', 'intel', 'intel-2018a.eb'), self.test_prefix)
-        self.assertFalse(os.path.exists(test_ec))
+        self.assertNotExists(test_ec)
 
         gompi_2018b_txt = '\n'.join([
             "easyblock = 'Toolchain'",

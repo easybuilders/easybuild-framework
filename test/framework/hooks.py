@@ -78,7 +78,7 @@ class HooksTest(EnhancedTestCase):
         # test caching of hooks
         remove_file(self.test_hooks_pymod)
         cached_hooks = load_hooks(self.test_hooks_pymod)
-        self.assertTrue(cached_hooks is hooks)
+        self.assertIs(cached_hooks, hooks)
 
         # hooks file can be empty
         empty_hooks_path = os.path.join(self.test_prefix, 'empty_hooks.py')
@@ -88,7 +88,7 @@ class HooksTest(EnhancedTestCase):
 
         # loading another hooks file doesn't affect cached hooks
         prev_hooks = load_hooks(self.test_hooks_pymod)
-        self.assertTrue(prev_hooks is hooks)
+        self.assertIs(prev_hooks, hooks)
 
         # clearing cached hooks results in error because hooks file is not found
         easybuild.tools.hooks._cached_hooks = {}
