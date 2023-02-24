@@ -339,6 +339,8 @@ class EasyBuildOptions(GeneralOption):
         # override options
         descr = ("Override options", "Override default EasyBuild behavior.")
 
+        all_deprecations = ('python2', 'Lmod6', 'easyconfig', 'toolchain')
+
         opts = OrderedDict({
             'accept-eula': ("Accept EULA for specified software [DEPRECATED, use --accept-eula-for instead!]",
                             'strlist', 'store', []),
@@ -494,7 +496,9 @@ class EasyBuildOptions(GeneralOption):
             'set-default-module': ("Set the generated module as default", None, 'store_true', False),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
             'show-progress-bar': ("Show progress bar in terminal output", None, 'store_true', True),
-            'silence-deprecation-warnings': ("Silence specified deprecation warnings", 'strlist', 'extend', None),
+            'silence-deprecation-warnings': (
+                "Silence specified deprecation warnings out of (%s)" % ', '.join(all_deprecations),
+                'strlist', 'extend', []),
             'skip-extensions': ("Skip installation of extensions", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'skip-test-step': ("Skip running the test step (e.g. unit tests)", None, 'store_true', False),
