@@ -119,6 +119,12 @@ class Extension(object):
         for key in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
             self.cfg.template_values[key[0]] = str(getattr(self.master, key[0], None))
 
+        # We can't inherit the 'start_dir' value from the parent (which will be set, and will most likely be wrong).
+        # It should be specified for the extension specifically, or be empty (so it is auto-derived).
+        self.cfg['start_dir'] = self.ext.get('options', {}).get('start_dir', None)
+        # Also clear the template
+        del self.cfg.template_values['start_dir']
+
         # list of source/patch files: we use an empty list as default value like in EasyBlock
         self.src = resolve_template(self.ext.get('src', []), self.cfg.template_values)
         self.src_extract_cmd = self.ext.get('extract_cmd', None)

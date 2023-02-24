@@ -1284,6 +1284,52 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertEqual(len(doc.split('\n')), sum([2 * len(temps) - 1] + [len(x) for x in temps]))
 
+    def test_start_dir_template(self):
+        """Test the %(startdir)s template"""
+
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]
+
+        self.contents = textwrap.dedent("""
+            name = 'toy'
+            version = '0.0'
+
+            homepage = 'https://easybuilders.github.io/easybuild'
+            description = 'Toy C program, 100% toy.'
+
+            toolchain = SYSTEM
+
+            sources = [SOURCE_TAR_GZ]
+
+            preconfigopts = 'echo start_dir in configure is %(start_dir)s && '
+            prebuildopts = 'echo start_dir in build is %(start_dir)s && '
+
+            exts_defaultclass = 'EB_Toy'
+            exts_list = [
+               ('bar', '0.0', {
+                   'sources': ['bar-0.0-local.tar.gz'],
+                   'preconfigopts': 'echo start_dir in extension configure is %(start_dir)s && ',
+                   'prebuildopts': 'echo start_dir in extension build is %(start_dir)s && ',
+               }),
+            ]
+
+            moduleclass = 'tools'
+        """)
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+        from easybuild.easyblocks.toy import EB_toy
+        eb = EB_toy(ec)
+        eb.cfg['stop'] = 'extensions'
+        with self.mocked_stdout_stderr():
+            eb.run_all_steps(False)
+        logtxt = read_file(eb.logfile)
+        start_dir = os.path.join(eb.builddir, 'toy-0.0')
+        self.assertIn('start_dir in configure is %s/ &&' % start_dir, logtxt)
+        self.assertIn('start_dir in build is %s/ &&' % start_dir, logtxt)
+        ext_start_dir = os.path.join(eb.builddir, 'bar', 'bar-0.0')
+        self.assertIn('start_dir in extension configure is %s &&' % ext_start_dir, logtxt)
+        self.assertIn('start_dir in extension build is %s &&' % ext_start_dir, logtxt)
+
     def test_constant_doc(self):
         """test constant documentation"""
         doc = avail_easyconfig_constants()
