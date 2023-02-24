@@ -40,9 +40,9 @@ Authors:
 import os
 import re
 import shlex
-from distutils.version import StrictVersion
 
 from easybuild.base import fancylogger
+from easybuild.tools import StrictVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS

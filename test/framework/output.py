@@ -60,22 +60,20 @@ class OutputTest(EnhancedTestCase):
             expected_progress_bar_class = DummyRich
 
         progress_bar = status_bar(ignore_cache=True)
-        error_msg = "%s should be instance of class %s" % (progress_bar, expected_progress_bar_class)
-        self.assertTrue(isinstance(progress_bar, expected_progress_bar_class), error_msg)
+        self.assertIsInstance(progress_bar, expected_progress_bar_class)
 
         update_build_option('output_style', 'basic')
         progress_bar = status_bar(ignore_cache=True)
-        self.assertTrue(isinstance(progress_bar, DummyRich))
+        self.assertIsInstance(progress_bar, DummyRich)
 
         if HAVE_RICH:
             update_build_option('output_style', 'rich')
             progress_bar = status_bar(ignore_cache=True)
-            error_msg = "%s should be instance of class %s" % (progress_bar, expected_progress_bar_class)
-            self.assertTrue(isinstance(progress_bar, expected_progress_bar_class), error_msg)
+            self.assertIsInstance(progress_bar, expected_progress_bar_class)
 
         update_build_option('show_progress_bar', False)
         progress_bar = status_bar(ignore_cache=True)
-        self.assertTrue(isinstance(progress_bar, DummyRich))
+        self.assertIsInstance(progress_bar, DummyRich)
 
     def test_get_output_style(self):
         """Test get_output_style function."""
@@ -152,9 +150,9 @@ class OutputTest(EnhancedTestCase):
         for pbar_type in PROGRESS_BAR_TYPES:
             pbar = get_progress_bar(pbar_type, ignore_cache=True)
             if HAVE_RICH:
-                self.assertTrue(isinstance(pbar, rich.progress.Progress))
+                self.assertIsInstance(pbar, rich.progress.Progress)
             else:
-                self.assertTrue(isinstance(pbar, DummyRich))
+                self.assertIsInstance(pbar, DummyRich)
 
     def test_get_start_update_stop_progress_bar(self):
         """

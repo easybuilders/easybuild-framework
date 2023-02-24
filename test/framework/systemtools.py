@@ -51,7 +51,7 @@ from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, g
 from easybuild.tools.systemtools import get_cpu_family, get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
 from easybuild.tools.systemtools import get_gcc_version, get_glibc_version, get_os_type, get_os_name, get_os_version
 from easybuild.tools.systemtools import get_platform_name, get_shared_lib_ext, get_system_info, get_total_memory
-from easybuild.tools.systemtools import find_library_path, locate_solib, pick_dep_version
+from easybuild.tools.systemtools import find_library_path, locate_solib, pick_dep_version, pick_system_specific_value
 
 
 PROC_CPUINFO_TXT = None
@@ -401,7 +401,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_avail_core_count_native(self):
         """Test getting core count."""
         core_count = get_avail_core_count()
-        self.assertTrue(isinstance(core_count, int), "core_count has type int: %s, %s" % (core_count, type(core_count)))
+        self.assertIsInstance(core_count, int)
         self.assertTrue(core_count > 0, "core_count %d > 0" % core_count)
 
     def test_avail_core_count_linux(self):
@@ -422,7 +422,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_model_native(self):
         """Test getting CPU model."""
         cpu_model = get_cpu_model()
-        self.assertTrue(isinstance(cpu_model, string_type))
+        self.assertIsInstance(cpu_model, string_type)
 
     def test_cpu_model_linux(self):
         """Test getting CPU model (mocked for Linux)."""
@@ -460,8 +460,9 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_speed_native(self):
         """Test getting CPU speed."""
         cpu_speed = get_cpu_speed()
-        self.assertTrue(isinstance(cpu_speed, float) or cpu_speed is None)
-        self.assertTrue(cpu_speed is None or cpu_speed > 0.0)
+        if cpu_speed is not None:
+            self.assertIsInstance(cpu_speed, float)
+            self.assertTrue(cpu_speed > 0.0)
 
     def test_cpu_speed_linux(self):
         """Test getting CPU speed (mocked for Linux)."""
@@ -494,7 +495,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_features_native(self):
         """Test getting CPU features."""
         cpu_feat = get_cpu_features()
-        self.assertTrue(isinstance(cpu_feat, list))
+        self.assertIsInstance(cpu_feat, list)
         self.assertTrue(len(cpu_feat) >= 0)
         self.assertTrue(all(isinstance(x, string_type) for x in cpu_feat))
 
@@ -580,7 +581,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_arch_name_native(self):
         """Test getting CPU arch name."""
         arch_name = get_cpu_arch_name()
-        self.assertTrue(isinstance(arch_name, string_type))
+        self.assertIsInstance(arch_name, string_type)
 
     def test_cpu_arch_name(self):
         """Test getting CPU arch name."""
@@ -714,12 +715,12 @@ class SystemToolsTest(EnhancedTestCase):
     def test_platform_name_native(self):
         """Test getting platform name."""
         platform_name_nover = get_platform_name()
-        self.assertTrue(isinstance(platform_name_nover, string_type))
+        self.assertIsInstance(platform_name_nover, string_type)
         len_nover = len(platform_name_nover.split('-'))
         self.assertTrue(len_nover >= 3)
 
         platform_name_ver = get_platform_name(withversion=True)
-        self.assertTrue(isinstance(platform_name_ver, string_type))
+        self.assertIsInstance(platform_name_ver, string_type)
         len_ver = len(platform_name_ver.split('-'))
         self.assertTrue(platform_name_ver.startswith(platform_name_ver))
         self.assertTrue(len_ver >= len_nover)
@@ -764,7 +765,8 @@ class SystemToolsTest(EnhancedTestCase):
     def test_gcc_version_native(self):
         """Test getting gcc version."""
         gcc_version = get_gcc_version()
-        self.assertTrue(isinstance(gcc_version, string_type) or gcc_version is None)
+        if gcc_version is not None:
+            self.assertIsInstance(gcc_version, string_type)
 
     def test_gcc_version_linux(self):
         """Test getting gcc version (mocked for Linux)."""
@@ -816,12 +818,12 @@ class SystemToolsTest(EnhancedTestCase):
     def test_get_total_memory_native(self):
         """Test the function that gets the total memory."""
         memtotal = get_total_memory()
-        self.assertTrue(isinstance(memtotal, int))
+        self.assertIsInstance(memtotal, int)
 
     def test_system_info(self):
         """Test getting system info."""
         system_info = get_system_info()
-        self.assertTrue(isinstance(system_info, dict))
+        self.assertIsInstance(system_info, dict)
 
     def test_det_parallelism_native(self):
         """Test det_parallelism function (native calls)."""
@@ -932,6 +934,38 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, {'foo': '1.2', 'bar': '2.3'})
         error_pattern = r"Unknown value type for version: .* \(1.23\), should be string value"
         self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, 1.23)
+
+    def test_pick_system_specific_value(self):
+        """Test pick_system_specific_value function."""
+
+        self.assertEqual(pick_system_specific_value('test-desc', None), None)
+        self.assertEqual(pick_system_specific_value('test-desc', '1.2.3'), '1.2.3')
+        self.assertEqual(pick_system_specific_value('test-desc', (42, 'foobar')), (42, 'foobar'))
+
+        option_dict = {
+            'arch=x86_64': '1.2.3-amd64',
+            'arch=POWER': '1.2.3-ppc64le',
+            'arch=*': '1.2.3-other',
+        }
+
+        st.get_cpu_architecture = lambda: X86_64
+        self.assertEqual(pick_system_specific_value('test-desc', option_dict), '1.2.3-amd64')
+
+        st.get_cpu_architecture = lambda: POWER
+        self.assertEqual(pick_system_specific_value('test-desc', option_dict), '1.2.3-ppc64le')
+
+        st.get_cpu_architecture = lambda: "NON_EXISTING_ARCH"
+        self.assertEqual(pick_system_specific_value('test-desc', option_dict), '1.2.3-other')
+
+        error_pattern = "Found empty dict as test-desc"
+        self.assertErrorRegex(EasyBuildError, error_pattern, pick_system_specific_value, 'test-desc', {})
+
+        error_pattern = r"Unexpected keys in test-desc: foo \(only 'arch=' keys are supported\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, pick_system_specific_value, 'test-desc',
+                              {'foo': '1'})
+        error_pattern = r"Unexpected keys in test-desc: foo \(only 'arch=' keys are supported\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, pick_system_specific_value, 'test-desc',
+                              {'foo': '1', 'arch=POWER': '2'})
 
     def test_check_os_dependency(self):
         """Test check_os_dependency."""
@@ -1076,7 +1110,7 @@ class SystemToolsTest(EnhancedTestCase):
             if libc_obj:
                 libc_path = locate_solib(libc_obj)
                 self.assertEqual(os.path.basename(libc_path), libname)
-                self.assertTrue(os.path.exists(libc_path), "%s should exist" % libname)
+                self.assertExists(libc_path)
 
     def test_find_library_path(self):
         """Test find_library_path function (Linux and Darwin only)."""
@@ -1091,7 +1125,8 @@ class SystemToolsTest(EnhancedTestCase):
         if libname:
             lib_path = find_library_path(libname)
             self.assertEqual(os.path.basename(lib_path), libname)
-            self.assertTrue(os.path.exists(lib_path) or os_type == DARWIN, "%s should exist" % libname)
+            if os_type != DARWIN:
+                self.assertExists(lib_path)
 
 
 def suite():

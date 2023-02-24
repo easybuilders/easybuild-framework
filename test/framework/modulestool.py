@@ -34,10 +34,9 @@ import sys
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
-from distutils.version import StrictVersion
 
 from easybuild.base import fancylogger
-from easybuild.tools import modules
+from easybuild.tools import modules, StrictVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, which, write_file
 from easybuild.tools.modules import Lmod
@@ -130,7 +129,7 @@ class ModulesToolTest(EnhancedTestCase):
         # redefine 'module' function with correct module command
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
         mt = MockModulesTool(testing=True)
-        self.assertTrue(isinstance(mt.loaded_modules(), list))  # dummy usage
+        self.assertIsInstance(mt.loaded_modules(), list)  # dummy usage
 
         # a warning should be logged if the 'module' function is undefined
         del os.environ['module']

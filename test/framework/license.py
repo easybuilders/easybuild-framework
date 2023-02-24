@@ -62,7 +62,7 @@ class LicenseTest(EnhancedTestCase):
         """Test format of available licenses."""
         lics = what_licenses()
         for lic in lics:
-            self.assertTrue(isinstance(lic, string_type))
+            self.assertIsInstance(lic, string_type)
             self.assertTrue(lic.startswith('License'))
             self.assertTrue(issubclass(lics[lic], License))
 

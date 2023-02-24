@@ -100,7 +100,7 @@ from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_linked_libs_raw
-from easybuild.tools.systemtools import get_shared_lib_ext, use_group
+from easybuild.tools.systemtools import get_shared_lib_ext, pick_system_specific_value, use_group
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -2907,6 +2907,10 @@ class EasyBlock(object):
                     for path in paths:
                         # check whether file should be patched by checking whether it has a shebang we want to tweak;
                         # this also helps to skip binary files we may be hitting (but only with Python 3)
+                        if os.path.isdir(path):
+                            self.log.debug("Skipping shebang fix for directory '%s'", path)
+                            continue
+
                         try:
                             contents = read_file(path, mode='r')
                             should_patch = shebang_regex.match(contents)
@@ -3322,6 +3326,15 @@ class EasyBlock(object):
             error_msg = "Incorrect format for sanity_check_paths: should (only) have %s keys, "
             error_msg += "values should be lists (at least one non-empty)."
             raise EasyBuildError(error_msg % ', '.join("'%s'" % k for k in known_keys))
+
+        # Resolve arch specific entries
+        for values in paths.values():
+            new_values = []
+            for value in values:
+                value = pick_system_specific_value('sanity_check_paths', value, allow_none=True)
+                if value is not None:
+                    new_values.append(value)
+            values[:] = new_values
 
         # if enhance_sanity_check is not enabled, only sanity_check_commands specified in the easyconfig file are used,
         # the ones provided by the easyblock (via custom_commands) are ignored

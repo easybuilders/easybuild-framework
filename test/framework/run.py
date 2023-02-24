@@ -507,14 +507,14 @@ class RunTest(EnhancedTestCase):
 
         # check forced run
         outfile = os.path.join(self.test_prefix, 'cmd.out')
-        self.assertFalse(os.path.exists(outfile))
+        self.assertNotExists(outfile)
         self.mock_stdout(True)
         run_cmd("echo 'This is always echoed' > %s" % outfile, force_in_dry_run=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
         # nothing printed to stdout, but command was run
         self.assertEqual(txt, '')
-        self.assertTrue(os.path.exists(outfile))
+        self.assertExists(outfile)
         self.assertEqual(read_file(outfile), "This is always echoed\n")
 
         # Q&A commands

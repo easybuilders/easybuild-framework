@@ -75,7 +75,8 @@ from easybuild.tools.options import parse_external_modules_metadata
 from easybuild.tools.py2vs3 import OrderedDict, reload
 from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import AARCH64, KNOWN_ARCH_CONSTANTS, POWER, X86_64
-from easybuild.tools.systemtools import get_cpu_architecture, get_shared_lib_ext
+from easybuild.tools.systemtools import get_cpu_architecture, get_shared_lib_ext, get_os_name, get_os_version
+
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str, quote_py_str
 from test.framework.github import GITHUB_TEST_ACCOUNT
@@ -231,7 +232,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         eb = EasyConfig(self.eb_file)
         self.assertEqual(eb['toolchain'], {'name': 'system', 'version': 'system'})
-        self.assertTrue(isinstance(eb.toolchain, SystemToolchain))
+        self.assertIsInstance(eb.toolchain, SystemToolchain)
 
     def test_shlib_ext(self):
         """ inside easyconfigs shared_lib_ext should be set """
@@ -593,8 +594,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(toy_ext.cfg['prebuildopts'], expected_prebuildopts)
 
         # check whether files expected to be installed for 'toy' extension are in place
-        self.assertTrue(os.path.exists(os.path.join(pi_installdir, 'bin', 'toy')))
-        self.assertTrue(os.path.exists(os.path.join(pi_installdir, 'lib', 'libtoy.a')))
+        self.assertExists(os.path.join(pi_installdir, 'bin', 'toy'))
+        self.assertExists(os.path.join(pi_installdir, 'lib', 'libtoy.a'))
 
     def test_suggestions(self):
         """ If a typo is present, suggestions should be provided (if possible) """
@@ -688,9 +689,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['versionsuffix'], versuff)
         self.assertEqual(eb['toolchain']['version'], tcver)
         self.assertEqual(eb['patches'], new_patches)
-        self.assertTrue(eb['runtest'] is False)
-        self.assertTrue(eb['hidden'] is True)
-        self.assertTrue(eb['parallel'] is None)
+        self.assertIs(eb['runtest'], False)
+        self.assertIs(eb['hidden'], True)
+        self.assertIsNone(eb['parallel'])
         self.assertEqual(eb['test_none'], 'False')
         self.assertEqual(eb['test_bool'], 'True')
         self.assertEqual(eb['test_123'], 'None')
@@ -759,6 +760,15 @@ class EasyConfigTest(EnhancedTestCase):
 
         # only version key is strictly needed
         self.assertEqual(det_full_ec_version({'version': '1.2.3'}), '1.2.3')
+
+        # check how faulty dep spec is handled
+        faulty_dep_spec = {
+            'name': 'test',
+            'version': '1.2.3',
+            'versionsuffix': {'name': 'system', 'version': 'system'},
+        }
+        error_pattern = "versionsuffix value should be a string, found 'dict'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, det_full_ec_version, faulty_dep_spec)
 
     def test_obtain_easyconfig(self):
         """test obtaining an easyconfig file given certain specifications"""
@@ -1282,6 +1292,20 @@ class EasyConfigTest(EnhancedTestCase):
             easyconfig.constants.EASYCONFIG_CONSTANTS,
         ]
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
+
+    def test_constant_import(self):
+        """Test importing EC constants works"""
+        from easybuild.framework.easyconfig.constants import SYSTEM, OS_NAME, OS_VERSION
+        self.assertEqual(SYSTEM, {'name': 'system', 'version': 'system'})
+        self.assertEqual(OS_NAME, get_os_name())
+        self.assertEqual(OS_VERSION, get_os_version())
+
+    def test_constant_import_values(self):
+        """Test that importing an EC constant works as-if using EASYCONFIG_CONSTANTS"""
+        constants = __import__('easybuild.framework.easyconfig.constants', fromlist=[None])
+        for name, (value, _doc) in easyconfig.constants.EASYCONFIG_CONSTANTS.items():
+            self.assertTrue(hasattr(constants, name), 'Missing ' + name)
+            self.assertEqual(getattr(constants, name), value)
 
     def test_build_options(self):
         """Test configure/build/install options, both strings and lists."""
@@ -2237,14 +2261,14 @@ class EasyConfigTest(EnhancedTestCase):
         ectxt = read_file(test_ec)
         dumped_ec = EasyConfig(test_ec)
         self.assertEqual(ecdict, dumped_ec.asdict())
-        self.assertTrue(r"'toy', '0.0')," in ectxt)
+        self.assertIn("'toy', '0.0'),", ectxt)
         # test case where we ask for explicit toolchains
         ec.dump(test_ec, explicit_toolchains=True)
         self.assertEqual(ecdict, ec.asdict())
         ectxt = read_file(test_ec)
         dumped_ec = EasyConfig(test_ec)
         self.assertEqual(ecdict, dumped_ec.asdict())
-        self.assertTrue(r"'toy', '0.0', '', ('gompi', '2018a'))," in ectxt)
+        self.assertIn("'toy', '0.0', '', ('gompi', '2018a')),", ectxt)
 
     def test_dump_order(self):
         """Test order of easyconfig parameters in dumped easyconfig."""
@@ -2985,7 +3009,7 @@ class EasyConfigTest(EnhancedTestCase):
         # constant GPLv3 is resolved as string
         self.assertEqual(ec['software_license'], 'LicenseGPLv3')
         # software_license is defined as License subclass
-        self.assertTrue(isinstance(ec.software_license, LicenseGPLv3))
+        self.assertIsInstance(ec.software_license, LicenseGPLv3)
         self.assertTrue(issubclass(ec.software_license.__class__, License))
 
         ec['software_license'] = 'LicenseThatDoesNotExist'
@@ -3029,7 +3053,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec2 = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))
 
         # different instances, same parsed easyconfig
-        self.assertFalse(ec1 is ec2)
+        self.assertIsNot(ec1, ec2)
         self.assertEqual(ec1, ec2)
         self.assertTrue(ec1 == ec2)
         self.assertFalse(ec1 != ec2)
@@ -3083,7 +3107,7 @@ class EasyConfigTest(EnhancedTestCase):
         for orig_ec, src_ec in test_ecs:
             orig_ec = os.path.basename(orig_ec)
             copied_ec = os.path.join(ecs_target_dir, orig_ec[0].lower(), orig_ec.split('-')[0], orig_ec)
-            self.assertTrue(os.path.exists(copied_ec), "File %s exists" % copied_ec)
+            self.assertExists(copied_ec)
             self.assertEqual(read_file(copied_ec), read_file(os.path.join(self.test_prefix, src_ec)))
 
         # create test easyconfig that includes comments & build stats, just like an archived easyconfig
@@ -3663,7 +3687,7 @@ class EasyConfigTest(EnhancedTestCase):
         os.environ['EB_SCRIPT_PATH'] = eb_symlink
 
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
-        self.assertTrue(os.path.exists(res[0]))
+        self.assertExists(res[0])
         self.assertTrue(os.path.samefile(res[0], os.path.join(someprefix, 'easybuild', 'easyconfigs')))
 
         # Finally restore EB_SCRIPT_PATH value if set
@@ -3886,7 +3910,7 @@ class EasyConfigTest(EnhancedTestCase):
         # builddependencies should now be a non-empty list of lists, each with one entry corresponding to a GCC version
         builddeps = ec['builddependencies']
         self.assertTrue(builddeps)
-        self.assertTrue(isinstance(builddeps, list))
+        self.assertIsInstance(builddeps, list)
         self.assertEqual(len(builddeps), 3)
         self.assertTrue(all(isinstance(bd, list) for bd in builddeps))
         self.assertTrue(all(len(bd) == 1 for bd in builddeps))
@@ -3895,7 +3919,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # get_parsed_multi_deps() method basically returns same list
         multi_deps = ec.get_parsed_multi_deps()
-        self.assertTrue(isinstance(multi_deps, list))
+        self.assertIsInstance(multi_deps, list)
         self.assertEqual(len(multi_deps), 3)
         self.assertTrue(all(isinstance(bd, list) for bd in multi_deps))
         self.assertTrue(all(len(bd) == 1 for bd in multi_deps))
@@ -3907,7 +3931,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(test_ec)
         builddeps = ec['builddependencies']
         self.assertTrue(builddeps)
-        self.assertTrue(isinstance(builddeps, list))
+        self.assertIsInstance(builddeps, list)
         self.assertEqual(len(builddeps), 3)
         self.assertTrue(all(isinstance(bd, list) for bd in builddeps))
         self.assertTrue(all(len(bd) == 3 for bd in builddeps))
@@ -3922,7 +3946,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # get_parsed_multi_deps() method returns same list, but CMake & foo are not included
         multi_deps = ec.get_parsed_multi_deps()
-        self.assertTrue(isinstance(multi_deps, list))
+        self.assertIsInstance(multi_deps, list)
         self.assertEqual(len(multi_deps), 3)
         self.assertTrue(all(isinstance(bd, list) for bd in multi_deps))
         self.assertTrue(all(len(bd) == 1 for bd in multi_deps))
@@ -3959,7 +3983,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         builddeps = ec['builddependencies']
 
-        self.assertTrue(isinstance(builddeps, list))
+        self.assertIsInstance(builddeps, list)
         self.assertEqual(len(builddeps), 2)
         self.assertTrue(all(isinstance(bd, dict) for bd in builddeps))
 
@@ -4767,7 +4791,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec1 = process_easyconfig(toy_ec)[0]
         self.assertEqual(ec1['ec'].name, 'toy')
         self.assertEqual(ec1['ec'].version, '0.0')
-        self.assertTrue(isinstance(ec1['ec'].toolchain, SystemToolchain))
+        self.assertIsInstance(ec1['ec'].toolchain, SystemToolchain)
         self.assertTrue(os.path.samefile(ec1['ec'].path, toy_ec))
 
         # wipe toy easyconfig (but path still needs to exist)
@@ -4777,7 +4801,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec2 = process_easyconfig(toy_ec)[0]
         self.assertEqual(ec2['ec'].name, 'toy')
         self.assertEqual(ec2['ec'].version, '0.0')
-        self.assertTrue(isinstance(ec2['ec'].toolchain, SystemToolchain))
+        self.assertIsInstance(ec2['ec'].toolchain, SystemToolchain)
         self.assertTrue(os.path.samefile(ec2['ec'].path, toy_ec))
 
         # also check whether easyconfigs cache works with end-to-end test

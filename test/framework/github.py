@@ -29,11 +29,13 @@ Unit tests for talking to GitHub.
 @author: Kenneth Hoste (Ghent University)
 """
 import base64
+import functools
 import os
 import random
 import re
 import sys
 import textwrap
+import unittest
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from time import gmtime
 from unittest import TextTestRunner
@@ -67,6 +69,23 @@ GITHUB_USER = "easybuilders"
 GITHUB_REPO = "testrepository"
 # branch to test
 GITHUB_BRANCH = 'main'
+
+
+def requires_github_access():
+    """Silently skip for pull requests unless $FORCE_EB_GITHUB_TESTS is set
+
+    Useful when the test uses e.g. `git` commands to download from Github and would run into rate limits
+    """
+    if 'FORCE_EB_GITHUB_TESTS' in os.environ or os.getenv('GITHUB_EVENT_NAME') != 'pull_request':
+        return unittest.skipIf(False, None)
+    else:
+        # For pull requests silently skip to avoid rate limits
+        def decorator(test_item):
+            @functools.wraps(test_item)
+            def skip_wrapper(*args, **kwargs):
+                return
+            return skip_wrapper
+        return decorator
 
 
 class GithubTest(EnhancedTestCase):
@@ -258,7 +277,7 @@ class GithubTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.mock_stderr(False)
 
-        self.assertTrue(isinstance(res, list))
+        self.assertIsInstance(res, list)
         self.assertEqual(stderr.strip(), "WARNING: Using easyconfigs from closed PR #1844")
         patterns = [
             "Status of last commit is SUCCESS",
@@ -477,10 +496,10 @@ class GithubTest(EnhancedTestCase):
         path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
         repodir = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-main')
         self.assertTrue(os.path.samefile(path, repodir))
-        self.assertTrue(os.path.exists(repodir))
+        self.assertExists(repodir)
         shafile = os.path.join(repodir, 'latest-sha')
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
-        self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2019b.eb')))
+        self.assertExists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2019b.eb'))
 
         # current directory should not have changed after calling download_repo
         self.assertTrue(os.path.samefile(cwd, os.getcwd()))
@@ -505,7 +524,7 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertIn('easybuild', os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
-        self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py')))
+        self.assertExists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py'))
 
     def test_install_github_token(self):
         """Test for install_github_token function."""
@@ -573,7 +592,7 @@ class GithubTest(EnhancedTestCase):
         expected = os.path.join('e', 'EasyBuild', r'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
-        self.assertTrue(os.path.exists(path), "Path %s exists" % path)
+        self.assertExists(path)
 
     def test_github_find_patches(self):
         """ Test for find_software_name_for_patch """
@@ -1011,9 +1030,9 @@ class GithubTest(EnhancedTestCase):
         github_py = os.path.join(test_dir, 'github.py')
 
         configuremake = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
-        self.assertTrue(os.path.exists(configuremake))
+        self.assertExists(configuremake)
         toy_eb = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
-        self.assertTrue(os.path.exists(toy_eb))
+        self.assertExists(toy_eb)
 
         self.assertEqual(build_option('pr_target_repo'), None)
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([github_py])), 'easybuild-framework')
@@ -1038,6 +1057,7 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([configuremake])), 'thisisjustatest')
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([toy_eb])), 'thisisjustatest')
 
+    @requires_github_access()
     def test_push_branch_to_github(self):
         """Test push_branch_to_github."""
 

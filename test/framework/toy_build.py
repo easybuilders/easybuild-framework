@@ -125,14 +125,14 @@ class ToyBuildTest(EnhancedTestCase):
         msg = "module for toy build toy/%s found (path %s)" % (full_version, toy_module)
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
-        self.assertTrue(os.path.exists(toy_module), msg + error_msg)
+        self.assertExists(toy_module, msg + error_msg)
 
         # module file is symlinked according to moduleclass
         toy_module_symlink = os.path.join(installpath, 'modules', 'tools', name, full_version)
         if get_module_syntax() == 'Lua':
             toy_module_symlink += '.lua'
         self.assertTrue(os.path.islink(toy_module_symlink))
-        self.assertTrue(os.path.exists(toy_module_symlink))
+        self.assertExists(toy_module_symlink)
 
         # make sure installation log file and easyconfig file are copied to install dir
         software_path = os.path.join(installpath, 'software', name, full_version)
@@ -147,10 +147,10 @@ class ToyBuildTest(EnhancedTestCase):
                         "Found  at least 1 file at %s" % test_report_path_pattern)
 
         ec_file_path = os.path.join(software_path, 'easybuild', '%s-%s.eb' % (name, full_version))
-        self.assertTrue(os.path.exists(ec_file_path))
+        self.assertExists(ec_file_path)
 
         devel_module_path = os.path.join(software_path, 'easybuild', '%s-%s-easybuild-devel' % (name, full_version))
-        self.assertTrue(os.path.exists(devel_module_path))
+        self.assertExists(devel_module_path)
 
     def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
                        raise_error=False, test_report=None, name='toy', versionsuffix='', testing=True,
@@ -198,7 +198,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure full test report was dumped, and contains sensible information
         if test_report is not None:
-            self.assertTrue(os.path.exists(test_report))
+            self.assertExists(test_report)
             if test_report_regexs:
                 regex_patterns = test_report_regexs
             else:
@@ -481,7 +481,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.check_toy(tmpdir, outtxt)
 
-        self.assertTrue(os.path.exists(os.path.join(sourcepath, 't', 'toy', 'toy-0.0.tar.gz')))
+        self.assertExists(os.path.join(sourcepath, 't', 'toy', 'toy-0.0.tar.gz'))
 
         shutil.rmtree(tmpdir)
 
@@ -823,7 +823,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_module_path = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_module_path += '.lua'
-        self.assertTrue(os.path.exists(toy_module_path))
+        self.assertExists(toy_module_path)
 
         # check that toolchain load is expanded to loads for toolchain dependencies,
         # except for the ones that extend $MODULEPATH to make the toy module available
@@ -854,7 +854,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_module_path = os.path.join(mod_prefix, 'Compiler', 'GCC', '6.4.0-2.28', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_module_path += '.lua'
-        self.assertTrue(os.path.exists(toy_module_path))
+        self.assertExists(toy_module_path)
 
         # no dependencies or toolchain => no module load statements in module file
         modtxt = read_file(toy_module_path)
@@ -871,7 +871,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_module_path = os.path.join(mod_prefix, 'Compiler', 'GCC', '6.4.0-2.28', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_module_path += '.lua'
-        self.assertTrue(os.path.exists(toy_module_path))
+        self.assertExists(toy_module_path)
 
         # 'module use' statements to extend $MODULEPATH are present
         modtxt = read_file(toy_module_path)
@@ -911,7 +911,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_module_path = os.path.join(mod_prefix, 'Core', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_module_path += '.lua'
-        self.assertTrue(os.path.exists(toy_module_path))
+        self.assertExists(toy_module_path)
 
         # no dependencies or toolchain => no module load statements in module file
         modtxt = read_file(toy_module_path)
@@ -929,7 +929,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_module_path = os.path.join(mod_prefix, 'Core', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_module_path += '.lua'
-        self.assertTrue(os.path.exists(toy_module_path))
+        self.assertExists(toy_module_path)
 
         # no dependencies or toolchain => no module load statements in module file
         modtxt = read_file(toy_module_path)
@@ -957,7 +957,7 @@ class ToyBuildTest(EnhancedTestCase):
         args[0] = os.path.join(test_easyconfigs, 'g', 'gompi', 'gompi-2018a.eb')
         self.modtool.purge()
         self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
-        self.assertTrue(os.path.exists(gompi_module_path), "%s found" % gompi_module_path)
+        self.assertExists(gompi_module_path)
 
     def test_toy_hierarchical_subdir_user_modules(self):
         """
@@ -1116,7 +1116,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-gompi-2018a-test')
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
-        self.assertTrue(os.path.exists(toy_module))
+        self.assertExists(toy_module)
 
     def test_toy_hidden_cmdline(self):
         """Test installing a hidden module using the '--hidden' command line option."""
@@ -1127,10 +1127,10 @@ class ToyBuildTest(EnhancedTestCase):
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '.0.0')
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
-        self.assertTrue(os.path.exists(toy_module), 'Found hidden module %s' % toy_module)
+        self.assertExists(toy_module, 'Found hidden module %s' % toy_module)
         # installed software is not hidden
         toybin = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy')
-        self.assertTrue(os.path.exists(toybin))
+        self.assertExists(toybin)
 
     def test_toy_hidden_easyconfig(self):
         """Test installing a hidden module using the 'hidden = True' easyconfig parameter."""
@@ -1145,10 +1145,10 @@ class ToyBuildTest(EnhancedTestCase):
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '.0.0')
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
-        self.assertTrue(os.path.exists(toy_module), 'Found hidden module %s' % toy_module)
+        self.assertExists(toy_module, 'Found hidden module %s' % toy_module)
         # installed software is not hidden
         toybin = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy')
-        self.assertTrue(os.path.exists(toybin))
+        self.assertExists(toybin)
 
     def test_module_filepath_tweaking(self):
         """Test using --suffix-modules-path."""
@@ -1173,10 +1173,10 @@ class ToyBuildTest(EnhancedTestCase):
         if get_module_syntax() == 'Lua':
             mod_file_suffix += '.lua'
 
-        self.assertTrue(os.path.exists(os.path.join(mod_file_prefix, 'foobarbaz', 'toy', '0.0' + mod_file_suffix)))
-        self.assertTrue(os.path.exists(os.path.join(mod_file_prefix, 'TOOLS', 'toy', '0.0' + mod_file_suffix)))
+        self.assertExists(os.path.join(mod_file_prefix, 'foobarbaz', 'toy', '0.0' + mod_file_suffix))
+        self.assertExists(os.path.join(mod_file_prefix, 'TOOLS', 'toy', '0.0' + mod_file_suffix))
         self.assertTrue(os.path.islink(os.path.join(mod_file_prefix, 'TOOLS', 'toy', '0.0' + mod_file_suffix)))
-        self.assertTrue(os.path.exists(os.path.join(mod_file_prefix, 't', 'toy', '0.0' + mod_file_suffix)))
+        self.assertExists(os.path.join(mod_file_prefix, 't', 'toy', '0.0' + mod_file_suffix))
         self.assertTrue(os.path.islink(os.path.join(mod_file_prefix, 't', 'toy', '0.0' + mod_file_suffix)))
 
     def test_toy_archived_easyconfig(self):
@@ -1189,7 +1189,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(raise_error=True, extra_args=extra_args)
 
         archived_ec = os.path.join(repositorypath, 'toy', 'toy-0.0.eb')
-        self.assertTrue(os.path.exists(archived_ec))
+        self.assertExists(archived_ec)
         ec = EasyConfig(archived_ec)
         self.assertEqual(ec.name, 'toy')
         self.assertEqual(ec.version, '0.0')
@@ -1206,7 +1206,7 @@ class ToyBuildTest(EnhancedTestCase):
         installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
 
         patch_file = os.path.join(installdir, 'easybuild', 'toy-0.0_fix-silly-typo-in-printf-statement.patch')
-        self.assertTrue(os.path.exists(patch_file))
+        self.assertExists(patch_file)
 
         archived_patch_file = os.path.join(repositorypath, 'toy', 'toy-0.0_fix-silly-typo-in-printf-statement.patch')
         self.assertTrue(os.path.isfile(archived_patch_file))
@@ -1248,7 +1248,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # verify that post-install command for 'bar' extension was executed
         fn = 'created-via-postinstallcmds.txt'
-        self.assertTrue(os.path.exists(os.path.join(installdir, fn)))
+        self.assertExists(os.path.join(installdir, fn))
 
     def test_toy_extension_sources(self):
         """Test install toy that includes extensions with 'sources' spec (as single-item list)."""
@@ -1649,10 +1649,10 @@ class ToyBuildTest(EnhancedTestCase):
         args = common_args + ['--module-only']
         err_msg = "Sanity check failed"
         self.assertErrorRegex(EasyBuildError, err_msg, self.eb_main, args, do_build=True, raise_error=True)
-        self.assertFalse(os.path.exists(toy_mod))
+        self.assertNotExists(toy_mod)
 
         self.eb_main(args + ['--force'], do_build=True, raise_error=True)
-        self.assertTrue(os.path.exists(toy_mod))
+        self.assertExists(toy_mod)
 
         # make sure load statements for dependencies are included in additional module file generated with --module-only
         modtxt = read_file(toy_mod)
@@ -1665,15 +1665,15 @@ class ToyBuildTest(EnhancedTestCase):
         rebuild_args = args + ['--rebuild']
         err_msg = "Sanity check failed"
         self.assertErrorRegex(EasyBuildError, err_msg, self.eb_main, rebuild_args, do_build=True, raise_error=True)
-        self.assertFalse(os.path.exists(toy_mod))
+        self.assertNotExists(toy_mod)
 
         # installing another module under a different naming scheme and using Lua module syntax works fine
 
         # first actually build and install toy software + module
         prefix = os.path.join(self.test_installpath, 'software', 'toy', '0.0-deps')
         self.eb_main(common_args + ['--force'], do_build=True, raise_error=True)
-        self.assertTrue(os.path.exists(toy_mod))
-        self.assertTrue(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy', '0.0-deps', 'bin')))
+        self.assertExists(toy_mod)
+        self.assertExists(os.path.join(self.test_installpath, 'software', 'toy', '0.0-deps', 'bin'))
         modtxt = read_file(toy_mod)
         self.assertTrue(re.search("set root %s" % prefix, modtxt))
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
@@ -1685,9 +1685,9 @@ class ToyBuildTest(EnhancedTestCase):
             '--module-naming-scheme=MigrateFromEBToHMNS',
         ]
         toy_core_mod = os.path.join(self.test_installpath, 'modules', 'all', 'Core', 'toy', '0.0-deps')
-        self.assertFalse(os.path.exists(toy_core_mod))
+        self.assertNotExists(toy_core_mod)
         self.eb_main(args, do_build=True, raise_error=True)
-        self.assertTrue(os.path.exists(toy_core_mod))
+        self.assertExists(toy_core_mod)
         # existing install is reused
         modtxt2 = read_file(toy_core_mod)
         self.assertTrue(re.search("set root %s" % prefix, modtxt2))
@@ -1702,9 +1702,9 @@ class ToyBuildTest(EnhancedTestCase):
         os.remove(toy_core_mod)
         # remove the write permissions on the installation
         adjust_permissions(prefix, stat.S_IRUSR | stat.S_IXUSR, relative=False)
-        self.assertFalse(os.path.exists(toy_core_mod))
+        self.assertNotExists(toy_core_mod)
         self.eb_main(args, do_build=True, raise_error=True)
-        self.assertTrue(os.path.exists(toy_core_mod))
+        self.assertExists(toy_core_mod)
         # existing install is reused
         modtxt2 = read_file(toy_core_mod)
         self.assertTrue(re.search("set root %s" % prefix, modtxt2))
@@ -1727,9 +1727,9 @@ class ToyBuildTest(EnhancedTestCase):
                 '--module-syntax=Lua',
                 '--modules-tool=Lmod',
             ]
-            self.assertFalse(os.path.exists(toy_mod + '.lua'))
+            self.assertNotExists(toy_mod + '.lua')
             self.eb_main(args, do_build=True, raise_error=True)
-            self.assertTrue(os.path.exists(toy_mod + '.lua'))
+            self.assertExists(toy_mod + '.lua')
             # existing install is reused
             modtxt3 = read_file(toy_mod + '.lua')
             self.assertTrue(re.search('local root = "%s"' % prefix, modtxt3))
@@ -1784,7 +1784,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # first try normal --module-only, should work fine
         self.eb_main([test_ec, '--module-only'], do_build=True, raise_error=True)
-        self.assertTrue(os.path.exists(toy_mod))
+        self.assertExists(toy_mod)
         remove_file(toy_mod)
 
         # rename file required for barbar extension, so we can check whether sanity check catches it
@@ -1796,17 +1796,17 @@ class ToyBuildTest(EnhancedTestCase):
         for extra_args in (['--module-only'], ['--module-only', '--rebuild']):
             self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, [test_ec] + extra_args,
                                   do_build=True, raise_error=True)
-        self.assertFalse(os.path.exists(toy_mod))
+        self.assertNotExists(toy_mod)
 
         # failing sanity check for barbar extension is ignored when using --module-only --skip-extensions
         for extra_args in (['--module-only'], ['--module-only', '--rebuild']):
             self.eb_main([test_ec, '--skip-extensions'] + extra_args, do_build=True, raise_error=True)
-            self.assertTrue(os.path.exists(toy_mod))
+            self.assertExists(toy_mod)
             remove_file(toy_mod)
 
         # we can force module generation via --force (which skips sanity check entirely)
         self.eb_main([test_ec, '--module-only', '--force'], do_build=True, raise_error=True)
-        self.assertTrue(os.path.exists(toy_mod))
+        self.assertExists(toy_mod)
 
     def test_toy_exts_parallel(self):
         """
@@ -1921,11 +1921,11 @@ class ToyBuildTest(EnhancedTestCase):
 
         # install module once (without --module-only), so it can be backed up
         self.eb_main(args, do_build=True, raise_error=True)
-        self.assertTrue(os.path.exists(toy_mod))
+        self.assertExists(toy_mod)
 
         # forced reinstall, no backup of module file because --backup-modules (or --module-only) is not used
         self.eb_main(args, do_build=True, raise_error=True)
-        self.assertTrue(os.path.exists(toy_mod))
+        self.assertExists(toy_mod)
         toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bak_*'))
         self.assertEqual(len(toy_mod_backups), 0)
 
@@ -1937,7 +1937,7 @@ class ToyBuildTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertTrue(os.path.exists(toy_mod))
+        self.assertExists(toy_mod)
         toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bak_*'))
         self.assertEqual(len(toy_mod_backups), 1)
         first_toy_mod_backup = toy_mod_backups[0]
@@ -1989,7 +1989,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             # initial installation of Lua module file
             self.eb_main(args, do_build=True, raise_error=True)
-            self.assertTrue(os.path.exists(toy_mod))
+            self.assertExists(toy_mod)
             lua_toy_mods = glob.glob(os.path.join(toy_mod_dir, '*.lua*'))
             self.assertEqual(len(lua_toy_mods), 1)
             self.assertEqual(os.path.basename(toy_mod), os.path.basename(lua_toy_mods[0]))
@@ -2008,7 +2008,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.mock_stderr(False)
             self.mock_stdout(False)
 
-            self.assertTrue(os.path.exists(toy_mod))
+            self.assertExists(toy_mod)
             lua_toy_mods = glob.glob(os.path.join(toy_mod_dir, '*.lua*'))
             self.assertEqual(len(lua_toy_mods), 1)
             self.assertEqual(os.path.basename(toy_mod), os.path.basename(lua_toy_mods[0]))
@@ -2085,7 +2085,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(extra_args=extra_args)
 
         toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.321.foo' % EASYBUILD_VERSION)
-        self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)
+        self.assertExists(toypkg)
 
     def test_package_skip(self):
         """Test use of --package with --skip."""
@@ -2093,14 +2093,14 @@ class ToyBuildTest(EnhancedTestCase):
         pkgpath = os.path.join(self.test_prefix, 'packages')  # default path
 
         self.test_toy_build(['--packagepath=%s' % pkgpath])
-        self.assertFalse(os.path.exists(pkgpath), "%s is not created without use of --package" % pkgpath)
+        self.assertNotExists(pkgpath, "%s is not created without use of --package" % pkgpath)
 
         self.mock_stdout(True)
         self.test_toy_build(extra_args=['--package', '--skip'], verify=False)
         self.mock_stdout(False)
 
         toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.1.rpm' % EASYBUILD_VERSION)
-        self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)
+        self.assertExists(toypkg)
 
     def test_regtest(self):
         """Test use of --regtest."""
@@ -2108,10 +2108,9 @@ class ToyBuildTest(EnhancedTestCase):
 
         # just check whether module exists
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
-        msg = "module %s found" % toy_module
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
-        self.assertTrue(os.path.exists(toy_module), msg)
+        self.assertExists(toy_module)
 
     def test_minimal_toolchains(self):
         """Test toy build with --minimal-toolchains."""
@@ -2145,12 +2144,12 @@ class ToyBuildTest(EnhancedTestCase):
         reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod')
         reprod_ec = os.path.join(reprod_dir, 'toy-0.0.eb')
 
-        self.assertTrue(os.path.exists(reprod_ec))
+        self.assertExists(reprod_ec)
 
         # Also check that the dumpenv script is placed alongside it
         dumpenv_script = '%s.env' % os.path.splitext(reprod_ec)[0]
         reprod_dumpenv = os.path.join(reprod_dir, dumpenv_script)
-        self.assertTrue(os.path.exists(reprod_dumpenv))
+        self.assertExists(reprod_dumpenv)
 
         # Check contents of the dumpenv script
         patterns = [
@@ -2174,19 +2173,19 @@ class ToyBuildTest(EnhancedTestCase):
 
         # Check for child easyblock existence
         child_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toytoy.py')
-        self.assertTrue(os.path.exists(child_easyblock))
+        self.assertExists(child_easyblock)
         # Check for parent easyblock existence
         parent_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toy.py')
-        self.assertTrue(os.path.exists(parent_easyblock))
+        self.assertExists(parent_easyblock)
 
         # Make sure framework easyblock modules are not included
         for framework_easyblock in ['easyblock.py', 'extensioneasyblock.py']:
             path = os.path.join(reprod_dir, 'easyblocks', framework_easyblock)
-            self.assertFalse(os.path.exists(path))
+            self.assertNotExists(path)
 
         # Make sure hooks are also copied
         reprod_hooks = os.path.join(reprod_dir, 'hooks', hooks_filename)
-        self.assertTrue(os.path.exists(reprod_hooks))
+        self.assertExists(reprod_hooks)
 
     def test_reproducibility_ext_easyblocks(self):
         """Test toy build produces expected reproducibility files also when extensions are used"""
@@ -2209,22 +2208,22 @@ class ToyBuildTest(EnhancedTestCase):
         reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod')
         reprod_ec = os.path.join(reprod_dir, 'toy-0.0.eb')
 
-        self.assertTrue(os.path.exists(reprod_ec))
+        self.assertExists(reprod_ec)
 
         # Check for child easyblock existence
         child_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toytoy.py')
-        self.assertTrue(os.path.exists(child_easyblock))
+        self.assertExists(child_easyblock)
         # Check for parent easyblock existence
         parent_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toy.py')
-        self.assertTrue(os.path.exists(parent_easyblock))
+        self.assertExists(parent_easyblock)
         # Check for extension easyblock existence
         ext_easyblock = os.path.join(reprod_dir, 'easyblocks', 'toy_extension.py')
-        self.assertTrue(os.path.exists(ext_easyblock))
+        self.assertExists(ext_easyblock)
 
         # Make sure framework easyblock modules are not included
         for framework_easyblock in ['easyblock.py', 'extensioneasyblock.py']:
             path = os.path.join(reprod_dir, 'easyblocks', framework_easyblock)
-            self.assertFalse(os.path.exists(path))
+            self.assertNotExists(path)
 
     def test_toy_toy(self):
         """Test building two easyconfigs in a single go, with one depending on the other."""
@@ -2251,13 +2250,13 @@ class ToyBuildTest(EnhancedTestCase):
 
         mod1 = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-one')
         mod2 = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-two')
-        self.assertTrue(os.path.exists(mod1) or os.path.exists('%s.lua' % mod1))
-        self.assertTrue(os.path.exists(mod2) or os.path.exists('%s.lua' % mod2))
+        if get_module_syntax() == 'Lua':
+            mod1 += '.lua'
+            mod2 += '.lua'
+        self.assertExists(mod1)
+        self.assertExists(mod2)
 
-        if os.path.exists(mod2):
-            mod2_txt = read_file(mod2)
-        else:
-            mod2_txt = read_file('%s.lua' % mod2)
+        mod2_txt = read_file(mod2)
 
         load1_regex = re.compile('load.*toy/0.0-one', re.M)
         self.assertTrue(load1_regex.search(mod2_txt), "Pattern '%s' found in: %s" % (load1_regex.pattern, mod2_txt))
@@ -2266,7 +2265,7 @@ class ToyBuildTest(EnhancedTestCase):
         reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0-two', 'easybuild', 'reprod')
         dumpenv_script = os.path.join(reprod_dir, 'toy-0.0-two.env')
         reprod_dumpenv = os.path.join(reprod_dir, dumpenv_script)
-        self.assertTrue(os.path.exists(reprod_dumpenv))
+        self.assertExists(reprod_dumpenv)
 
         # Check contents of the dumpenv script
         patterns = [
@@ -2327,7 +2326,7 @@ class ToyBuildTest(EnhancedTestCase):
         if get_module_syntax() == 'Lua':
             toy_modfile += '.lua'
 
-        self.assertTrue(os.path.exists(toy_modfile))
+        self.assertExists(toy_modfile)
 
     def test_sanity_check_paths_lib64(self):
         """Test whether fallback in sanity check for lib64/ equivalents of library files works."""
@@ -2808,8 +2807,8 @@ class ToyBuildTest(EnhancedTestCase):
         modules_path = os.path.join(self.test_installpath, 'modules', 'all', 'Core')
 
         # install dirs for both installations should be there (using original software name)
-        self.assertTrue(os.path.exists(os.path.join(software_path, 'toy', '0.0-one', 'bin', 'toy')))
-        self.assertTrue(os.path.exists(os.path.join(software_path, 'toy', '0.0-two', 'bin', 'toy')))
+        self.assertExists(os.path.join(software_path, 'toy', '0.0-one', 'bin', 'toy'))
+        self.assertExists(os.path.join(software_path, 'toy', '0.0-two', 'bin', 'toy'))
 
         toytwo_name = '0.0-two'
         yot_name = '0.0-one'
@@ -2818,8 +2817,8 @@ class ToyBuildTest(EnhancedTestCase):
             yot_name += '.lua'
 
         # modules for both installations with alternative name should be there
-        self.assertTrue(os.path.exists(os.path.join(modules_path, 'toytwo', toytwo_name)))
-        self.assertTrue(os.path.exists(os.path.join(modules_path, 'yot', yot_name)))
+        self.assertExists(os.path.join(modules_path, 'toytwo', toytwo_name))
+        self.assertExists(os.path.join(modules_path, 'yot', yot_name))
 
         # only subdirectories for software should be created
         self.assertEqual(sorted(os.listdir(software_path)), sorted(['toy', '.locks']))
@@ -3183,58 +3182,60 @@ class ToyBuildTest(EnhancedTestCase):
             "    'cp -a %(installdir)s/bin/toy %(installdir)s/bin/toy.sh',",
 
             # hardcoded path to bin/python
-            "   'echo \"#!/usr/bin/python\\n# test\" > %(installdir)s/bin/t1.py',",
+            "    'echo \"#!/usr/bin/python\\n# test\" > %(installdir)s/bin/t1.py',",
             # hardcoded path to bin/python3.6
-            "   'echo \"#!/software/Python/3.6.6-foss-2018b/bin/python3.6\\n# test\" > %(installdir)s/bin/t2.py',",
+            "    'echo \"#!/software/Python/3.6.6-foss-2018b/bin/python3.6\\n# test\" > %(installdir)s/bin/t2.py',",
             # already OK, should remain the same
-            "   'echo \"#!/usr/bin/env python\\n# test\" > %(installdir)s/bin/t3.py',",
+            "    'echo \"#!/usr/bin/env python\\n# test\" > %(installdir)s/bin/t3.py',",
             # space after #! + 'env python3'
-            "   'echo \"#! /usr/bin/env python3\\n# test\" > %(installdir)s/bin/t4.py',",
+            "    'echo \"#! /usr/bin/env python3\\n# test\" > %(installdir)s/bin/t4.py',",
             # 'env python3.6'
-            "   'echo \"#!/usr/bin/env python3.6\\n# test\" > %(installdir)s/bin/t5.py',",
+            "    'echo \"#!/usr/bin/env python3.6\\n# test\" > %(installdir)s/bin/t5.py',",
             # shebang with space, should strip the space
-            "   'echo \"#! /usr/bin/env python\\n# test\" > %(installdir)s/bin/t6.py',",
+            "    'echo \"#! /usr/bin/env python\\n# test\" > %(installdir)s/bin/t6.py',",
             # no shebang python
-            "   'echo \"# test\" > %(installdir)s/bin/t7.py',",
+            "    'echo \"# test\" > %(installdir)s/bin/t7.py',",
             # shebang bash
-            "   'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/b1.sh',",
+            "    'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/b1.sh',",
+            # directory, should be skipped (not crash)
+            "    'mkdir %(installdir)s/bin/testdir',",
 
             # tests for perl shebang
             # hardcoded path to bin/perl
-            "   'echo \"#!/usr/bin/perl\\n# test\" > %(installdir)s/bin/t1.pl',",
+            "    'echo \"#!/usr/bin/perl\\n# test\" > %(installdir)s/bin/t1.pl',",
             # hardcoded path to bin/perl5
-            "   'echo \"#!/software/Perl/5.28.1-GCCcore-7.3.0/bin/perl5\\n# test\" > %(installdir)s/bin/t2.pl',",
+            "    'echo \"#!/software/Perl/5.28.1-GCCcore-7.3.0/bin/perl5\\n# test\" > %(installdir)s/bin/t2.pl',",
             # already OK, should remain the same
-            "   'echo \"#!/usr/bin/env perl\\n# test\" > %(installdir)s/bin/t3.pl',",
+            "    'echo \"#!/usr/bin/env perl\\n# test\" > %(installdir)s/bin/t3.pl',",
             # hardcoded perl with extra arguments
-            "   'echo \"#!/usr/bin/perl -w\\n# test\" > %(installdir)s/bin/t4.pl',",
+            "    'echo \"#!/usr/bin/perl -w\\n# test\" > %(installdir)s/bin/t4.pl',",
             # space after #! + 'env perl5'
-            "   'echo \"#!/usr/bin/env perl5\\n# test\" > %(installdir)s/bin/t5.pl',",
+            "    'echo \"#!/usr/bin/env perl5\\n# test\" > %(installdir)s/bin/t5.pl',",
             # shebang with space, should strip the space
-            "   'echo \"#! /usr/bin/env perl\\n# test\" > %(installdir)s/bin/t6.pl',",
+            "    'echo \"#! /usr/bin/env perl\\n# test\" > %(installdir)s/bin/t6.pl',",
             # no shebang perl
-            "   'echo \"# test\" > %(installdir)s/bin/t7.pl',",
+            "    'echo \"# test\" > %(installdir)s/bin/t7.pl',",
             # shebang bash
-            "   'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/b2.sh',",
+            "    'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/b2.sh',",
 
             # tests for bash shebang
             # hardcoded path to bin/bash
-            "   'echo \"#!/bin/bash\\n# test\" > %(installdir)s/bin/t1.sh',",
+            "    'echo \"#!/bin/bash\\n# test\" > %(installdir)s/bin/t1.sh',",
             # hardcoded path to usr/bin/bash
-            "   'echo \"#!/usr/bin/bash\\n# test\" > %(installdir)s/bin/t2.sh',",
+            "    'echo \"#!/usr/bin/bash\\n# test\" > %(installdir)s/bin/t2.sh',",
             # already OK, should remain the same
-            "   'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/t3.sh',",
+            "    'echo \"#!/usr/bin/env bash\\n# test\" > %(installdir)s/bin/t3.sh',",
             # shebang with space, should strip the space
-            "   'echo \"#! /usr/bin/env bash\\n# test\" > %(installdir)s/bin/t4.sh',",
+            "    'echo \"#! /usr/bin/env bash\\n# test\" > %(installdir)s/bin/t4.sh',",
             # no shebang sh
-            "   'echo \"# test\" > %(installdir)s/bin/t5.sh',",
+            "    'echo \"# test\" > %(installdir)s/bin/t5.sh',",
             # shebang python
-            "   'echo \"#!/usr/bin/env python\\n# test\" > %(installdir)s/bin/b1.py',",
+            "    'echo \"#!/usr/bin/env python\\n# test\" > %(installdir)s/bin/b1.py',",
             # shebang perl
-            "   'echo \"#!/usr/bin/env perl\\n# test\" > %(installdir)s/bin/b1.pl',",
-
+            "    'echo \"#!/usr/bin/env perl\\n# test\" > %(installdir)s/bin/b1.pl',",
             "]",
             "fix_python_shebang_for = ['bin/t1.py', 'bin/t*.py', 'nosuchdir/*.py', 'bin/toy.python', 'bin/b1.sh']",
+            "fix_python_shebang_for += ['bin/testdir']",
             "fix_perl_shebang_for = ['bin/t*.pl', 'bin/b2.sh', 'bin/toy.perl']",
             "fix_bash_shebang_for = ['bin/t*.sh', 'bin/b1.py', 'bin/b1.pl', 'bin/toy.sh']",
         ])
@@ -3380,7 +3381,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertFalse(stdout)
         regex = re.compile("WARNING: Likely ghost installation directory detected: %s" % toy_installdir)
         self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
-        self.assertTrue(os.path.exists(toy_installdir))
+        self.assertExists(toy_installdir)
 
         # cleanup of ghost installation directories can be enable via --remove-ghost-install-dirs
         write_file(toy_modfile, dummy_toy_mod_txt)
@@ -3391,7 +3392,7 @@ class ToyBuildTest(EnhancedTestCase):
         regex = re.compile("^== Ghost installation directory %s removed" % toy_installdir)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
-        self.assertFalse(os.path.exists(toy_installdir))
+        self.assertNotExists(toy_installdir)
 
     def test_toy_build_lock(self):
         """Test toy installation when a lock is already in place."""
@@ -3407,11 +3408,11 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, raise_error=True, verbose=False)
 
         # lock should still be there after it was hit
-        self.assertTrue(os.path.exists(toy_lock_path))
+        self.assertExists(toy_lock_path)
 
         # trying again should give same result
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, raise_error=True, verbose=False)
-        self.assertTrue(os.path.exists(toy_lock_path))
+        self.assertExists(toy_lock_path)
 
         locks_dir = os.path.join(self.test_prefix, 'locks')
 
@@ -3474,7 +3475,7 @@ class ToyBuildTest(EnhancedTestCase):
             if not os.path.exists(toy_lock_path):
                 mkdir(toy_lock_path)
 
-            self.assertTrue(os.path.exists(toy_lock_path))
+            self.assertExists(toy_lock_path)
 
             all_args = extra_args + opts
 
@@ -3517,7 +3518,7 @@ class ToyBuildTest(EnhancedTestCase):
         remove_dir(toy_lock_path)
         for opt in ['--wait-on-lock=1', '--wait-on-lock-limit=3', '--wait-on-lock-interval=1']:
             all_args = extra_args + [opt]
-            self.assertFalse(os.path.exists(toy_lock_path))
+            self.assertNotExists(toy_lock_path)
             self.mock_stderr(True)
             self.mock_stdout(True)
             self.test_toy_build(extra_args=all_args, verify=False, raise_error=True, testing=False)
@@ -3542,7 +3543,7 @@ class ToyBuildTest(EnhancedTestCase):
         orig_wd = os.getcwd()
 
         locks_dir = os.path.join(self.test_installpath, 'software', '.locks')
-        self.assertFalse(os.path.exists(locks_dir))
+        self.assertNotExists(locks_dir)
 
         orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
@@ -3634,12 +3635,12 @@ class ToyBuildTest(EnhancedTestCase):
         lib64_path = os.path.join(toy_installdir, 'lib64')
 
         # lib64 subdir exists, is not a symlink
-        self.assertTrue(os.path.exists(lib_path))
+        self.assertExists(lib_path)
         self.assertTrue(os.path.isdir(lib_path))
         self.assertFalse(os.path.islink(lib_path))
 
         # lib64 subdir is a symlink to lib subdir
-        self.assertTrue(os.path.exists(lib64_path))
+        self.assertExists(lib64_path)
         self.assertTrue(os.path.islink(lib64_path))
         self.assertTrue(os.path.samefile(lib_path, lib64_path))
 
@@ -3650,8 +3651,8 @@ class ToyBuildTest(EnhancedTestCase):
         remove_dir(self.test_installpath)
         self.test_toy_build(extra_args=['--disable-lib64-lib-symlink'])
 
-        self.assertTrue(os.path.exists(lib_path))
-        self.assertFalse(os.path.exists(lib64_path))
+        self.assertExists(lib_path)
+        self.assertNotExists(lib64_path)
         self.assertNotIn('lib64', os.listdir(toy_installdir))
         self.assertTrue(os.path.isdir(lib_path))
         self.assertFalse(os.path.islink(lib_path))
@@ -3676,12 +3677,12 @@ class ToyBuildTest(EnhancedTestCase):
         lib64_path = os.path.join(toy_installdir, 'lib64')
 
         # lib64 subdir exists, is not a symlink
-        self.assertTrue(os.path.exists(lib64_path))
+        self.assertExists(lib64_path)
         self.assertTrue(os.path.isdir(lib64_path))
         self.assertFalse(os.path.islink(lib64_path))
 
         # lib subdir is a symlink to lib64 subdir
-        self.assertTrue(os.path.exists(lib_path))
+        self.assertExists(lib_path)
         self.assertTrue(os.path.isdir(lib_path))
         self.assertTrue(os.path.islink(lib_path))
         self.assertTrue(os.path.samefile(lib_path, lib64_path))
@@ -3693,8 +3694,8 @@ class ToyBuildTest(EnhancedTestCase):
         remove_dir(self.test_installpath)
         self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib-lib64-symlink'])
 
-        self.assertTrue(os.path.exists(lib64_path))
-        self.assertFalse(os.path.exists(lib_path))
+        self.assertExists(lib64_path)
+        self.assertNotExists(lib_path)
         self.assertNotIn('lib', os.listdir(toy_installdir))
         self.assertTrue(os.path.isdir(lib64_path))
         self.assertFalse(os.path.islink(lib64_path))

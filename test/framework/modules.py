@@ -36,13 +36,13 @@ import tempfile
 import shutil
 import stat
 import sys
-from distutils.version import StrictVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.tools import StrictVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir
@@ -149,7 +149,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(res, [{'mod_name': 'GCC/6.4.0-2.28', 'default': None}])
 
         res = self.modtool.run_module('avail', 'GCC/4.6.3')
-        self.assertTrue(isinstance(res, list))
+        self.assertIsInstance(res, list)
         self.assertEqual(sorted([x['mod_name'] for x in res]), ['GCC/4.6.3'])
 
         # loading a module produces no output, so we get an empty list
@@ -248,8 +248,8 @@ class ModulesTest(EnhancedTestCase):
         test_modules_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
         if isinstance(self.modtool, Lmod):
             # make sure only the .lua module file is there, otherwise this test doesn't work as intended
-            self.assertTrue(os.path.exists(os.path.join(test_modules_path, 'bzip2', '.1.0.6.lua')))
-            self.assertFalse(os.path.exists(os.path.join(test_modules_path, 'bzip2', '.1.0.6')))
+            self.assertExists(os.path.join(test_modules_path, 'bzip2', '.1.0.6.lua'))
+            self.assertNotExists(os.path.join(test_modules_path, 'bzip2', '.1.0.6'))
             self.assertEqual(self.modtool.exist(['bzip2/.1.0.6']), [True])
 
         # exist also works on lists of module names
@@ -557,7 +557,7 @@ class ModulesTest(EnhancedTestCase):
         mkdir(core_mod_dir, parents=True)
 
         doesnotexist = os.path.join(self.test_prefix, 'doesnotexist')
-        self.assertFalse(os.path.exists(doesnotexist))
+        self.assertNotExists(doesnotexist)
 
         os.environ['MODULEPATH'] = '%s:%s' % (core_mod_dir, doesnotexist)
         modtool = modules_tool()
@@ -1081,7 +1081,7 @@ class ModulesTest(EnhancedTestCase):
         """Test mk_module_cache_key method."""
         os.environ['MODULEPATH'] = '%s:/tmp/test' % self.test_prefix
         res = self.modtool.mk_module_cache_key('thisisapartialkey')
-        self.assertTrue(isinstance(res, tuple))
+        self.assertIsInstance(res, tuple)
         self.assertEqual(res, ('MODULEPATH=%s:/tmp/test' % self.test_prefix, self.modtool.COMMAND, 'thisisapartialkey'))
 
         del os.environ['MODULEPATH']
@@ -1132,8 +1132,8 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(len(mod.MODULE_SHOW_CACHE), 2)
         self.assertIn(show_res_gcc, mod.MODULE_SHOW_CACHE.values())
         self.assertIn(show_res_fftw, mod.MODULE_SHOW_CACHE.values())
-        self.assertTrue(self.modtool.show('GCC/6.4.0-2.28') is show_res_gcc)
-        self.assertTrue(self.modtool.show('FFTW') is show_res_fftw)
+        self.assertIs(self.modtool.show('GCC/6.4.0-2.28'), show_res_gcc)
+        self.assertIs(self.modtool.show('FFTW'), show_res_fftw)
 
         # invalidate caches with correct path
         modulepaths = [p for p in os.environ.get('MODULEPATH', '').split(os.pathsep) if p]
@@ -1333,7 +1333,7 @@ class ModulesTest(EnhancedTestCase):
 
         # make sure that compiler-dependent hwloc test module exists
         gcc_mod_dir = os.path.join(mod_dir, 'Compiler', 'GCC', '6.4.0-2.28')
-        self.assertTrue(os.path.exists(os.path.join(gcc_mod_dir, 'hwloc', '1.11.8')))
+        self.assertExists(os.path.join(gcc_mod_dir, 'hwloc', '1.11.8'))
 
         # test loading of compiler-dependent hwloc test module
         self.modtool.purge()
@@ -1475,7 +1475,7 @@ class ModulesTest(EnhancedTestCase):
         warning_msg = "WARNING: Found defined $EBROOT* environment variables without matching loaded module: "
         warning_msg += "$EBROOTSOFTWAREWITHOUTAMATCHINGMODULE; unsetting them"
         self.assertEqual(stderr, warning_msg)
-        self.assertTrue(os.environ.get('EBROOTSOFTWAREWITHOUTAMATCHINGMODULE') is None)
+        self.assertIsNone(os.environ.get('EBROOTSOFTWAREWITHOUTAMATCHINGMODULE'))
 
         # specified action for detected loaded modules is verified early
         error_msg = "Unknown action specified to --detect-loaded-modules: sdvbfdgh"
