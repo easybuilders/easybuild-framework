@@ -120,8 +120,7 @@ jobs:
 
     - name: install GitHub token (if available)
       env:
-        # see https://github.com/<username>/easybuild-framework/settings/secrets
-        GITHUB_TOKEN: ${{secrets.TEST_GITHUB_TOKEN}}
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
       run: |
         # don't install GitHub token when testing with Lmod 7.x or non-Lmod module tools,
         # and only when testing with Lua as module syntax,
