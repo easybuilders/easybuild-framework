@@ -661,6 +661,66 @@ class CommandLineOptionsTest(EnhancedTestCase):
             run_test(custom='bar', extra_params=['bar_extra1', 'bar_extra2'], fmt=fmt)
             run_test(custom='EB_foofoo', extra_params=['foofoo_extra1', 'foofoo_extra2'], fmt=fmt)
 
+    def test_avail_hooks(self):
+        """
+        Test listing available hooks via --avail-hooks
+        """
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.eb_main(['--avail-hooks'], verbose=True, raise_error=True)
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertFalse(stderr)
+
+        expected = '\n'.join([
+            "List of supported hooks (in order of execution):",
+            "	start_hook",
+            "	parse_hook",
+            "	pre_fetch_hook",
+            "	post_fetch_hook",
+            "	pre_ready_hook",
+            "	post_ready_hook",
+            "	pre_source_hook",
+            "	post_source_hook",
+            "	pre_patch_hook",
+            "	post_patch_hook",
+            "	pre_prepare_hook",
+            "	post_prepare_hook",
+            "	pre_configure_hook",
+            "	post_configure_hook",
+            "	pre_build_hook",
+            "	post_build_hook",
+            "	pre_test_hook",
+            "	post_test_hook",
+            "	pre_install_hook",
+            "	post_install_hook",
+            "	pre_extensions_hook",
+            "	pre_single_extension_hook",
+            "	post_single_extension_hook",
+            "	post_extensions_hook",
+            "	pre_postproc_hook",
+            "	post_postproc_hook",
+            "	pre_sanitycheck_hook",
+            "	post_sanitycheck_hook",
+            "	pre_cleanup_hook",
+            "	post_cleanup_hook",
+            "	pre_module_hook",
+            "	module_write_hook",
+            "	post_module_hook",
+            "	pre_permissions_hook",
+            "	post_permissions_hook",
+            "	pre_package_hook",
+            "	post_package_hook",
+            "	pre_testcases_hook",
+            "	post_testcases_hook",
+            "	end_hook",
+            '',
+        ])
+        self.assertEqual(stdout, expected)
+
     # double underscore to make sure it runs first, which is required to detect certain types of bugs,
     # e.g. running with non-initialized EasyBuild config (truly mimicing 'eb --list-toolchains')
     def test__list_toolchains(self):

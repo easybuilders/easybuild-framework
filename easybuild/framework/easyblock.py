@@ -84,9 +84,9 @@ from easybuild.tools.filetools import find_backup_name_candidate, get_source_tar
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file, symlink
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
-from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
-from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
-from easybuild.tools.hooks import MODULE_WRITE, load_hooks, run_hook
+from easybuild.tools.hooks import MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP
+from easybuild.tools.hooks import POSTPROC_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP
+from easybuild.tools.hooks import SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook
 from easybuild.tools.run import check_async_cmd, run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
@@ -1851,6 +1851,8 @@ class EasyBlock(object):
 
             self.log.info("Starting extension %s", ext.name)
 
+            run_hook(SINGLE_EXTENSION, self.hooks, pre_step_hook=True, args=[ext])
+
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
 
@@ -1896,6 +1898,8 @@ class EasyBlock(object):
                             print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
 
             self.update_exts_progress_bar(progress_info, progress_size=1)
+
+            run_hook(SINGLE_EXTENSION, self.hooks, post_step_hook=True, args=[ext])
 
     def install_extensions_parallel(self, install=True):
         """
