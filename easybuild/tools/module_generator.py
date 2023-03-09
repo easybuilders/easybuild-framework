@@ -956,7 +956,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         msg = re.sub(r'((?<!\\)[%s])' % ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
         print_cmd = "puts stderr %s" % quote_str(msg, tcl=True)
         return '\n'.join(['', self.conditional_statement("module-info mode load", print_cmd, indent=False)])
-        
+
     def msg_on_unload(self, msg):
         """
         Add a message that should be printed when unloading the module.

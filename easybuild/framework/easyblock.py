@@ -1411,7 +1411,7 @@ class EasyBlock(object):
             if not modloadmsg.endswith('\n'):
                 modloadmsg += '\n'
             lines.append(self.module_generator.msg_on_load(modloadmsg))
-            
+
         modunloadmsg = self.cfg['modunloadmsg']
         if modunloadmsg:
             # add trailing newline to prevent that shell prompt is 'glued' to module unload/purge message
