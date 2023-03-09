@@ -502,6 +502,12 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
+    def msg_on_unload(self, msg):
+        """
+        Add a message that should be printed when unloading the module.
+        """
+        raise NotImplementedError
+
     def set_alias(self, key, value):
         """
         Generate set-alias statement in modulefile for the given key/value pair.
@@ -950,6 +956,15 @@ class ModuleGeneratorTcl(ModuleGenerator):
         msg = re.sub(r'((?<!\\)[%s])' % ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
         print_cmd = "puts stderr %s" % quote_str(msg, tcl=True)
         return '\n'.join(['', self.conditional_statement("module-info mode load", print_cmd, indent=False)])
+        
+    def msg_on_unload(self, msg):
+        """
+        Add a message that should be printed when unloading the module.
+        """
+        # escape any (non-escaped) characters with special meaning by prefixing them with a backslash
+        msg = re.sub(r'((?<!\\)[%s])' % ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
+        print_cmd = "puts stderr %s" % quote_str(msg, tcl=True)
+        return '\n'.join(['', self.conditional_statement("module-info mode unload", print_cmd, indent=False)])
 
     def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
         """
@@ -1383,6 +1398,14 @@ class ModuleGeneratorLua(ModuleGenerator):
         # take into account possible newlines in messages by using [==...==] (requires Lmod 5.8)
         stmt = 'io.stderr:write(%s%s%s)' % (self.START_STR, self.check_str(msg), self.END_STR)
         return '\n' + self.conditional_statement('mode() == "load"', stmt, indent=False)
+
+    def msg_on_unload(self, msg):
+        """
+        Add a message that should be printed when loading the module.
+        """
+        # take into account possible newlines in messages by using [==...==] (requires Lmod 5.8)
+        stmt = 'io.stderr:write(%s%s%s)' % (self.START_STR, self.check_str(msg), self.END_STR)
+        return '\n' + self.conditional_statement('mode() == "unload"', stmt, indent=False)
 
     def modulerc(self, module_version=None, filepath=None, modulerc_txt=None):
         """

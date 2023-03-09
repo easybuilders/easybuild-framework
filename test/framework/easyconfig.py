@@ -1100,6 +1100,13 @@ class EasyConfigTest(EnhancedTestCase):
                 'Perl: %%(perlver)s, %%(perlmajver)s, %%(perlminver)s, %%(perlshortver)s',
                 'R: %%(rver)s, %%(rmajver)s, %%(rminver)s, %%(rshortver)s',
             ]),
+            'modunloadmsg = "%s"' % '; '.join([
+                'CUDA: %%(cudaver)s, %%(cudamajver)s, %%(cudaminver)s, %%(cudashortver)s',
+                'Java: %%(javaver)s, %%(javamajver)s, %%(javaminver)s, %%(javashortver)s',
+                'Python: %%(pyver)s, %%(pymajver)s, %%(pyminver)s, %%(pyshortver)s',
+                'Perl: %%(perlver)s, %%(perlmajver)s, %%(perlminver)s, %%(perlshortver)s',
+                'R: %%(rver)s, %%(rmajver)s, %%(rminver)s, %%(rshortver)s',
+            ]),
             'modextrapaths = {"PI_MOD_NAME": "%%(module_name)s"}',
             'license_file = HOME + "/licenses/PI/license.txt"',
             "github_account = 'easybuilders'",
@@ -1139,6 +1146,7 @@ class EasyConfigTest(EnhancedTestCase):
                     "Perl: 5.22.0, 5, 22, 5.22; "
                     "R: 3.2.3, 3, 2, 3.2")
         self.assertEqual(ec['modloadmsg'], expected)
+        self.assertEqual(ec['modunloadmsg'], expected)
         self.assertEqual(ec['modextrapaths'], {'PI_MOD_NAME': 'PI/3.04-Python-2.7.10'})
         self.assertEqual(ec['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
@@ -1225,6 +1233,7 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
             'dependencies = [("Java", "11", "", SYSTEM)]',
             'modloadmsg = "Java: %(javaver)s, %(javamajver)s, %(javashortver)s"',
+            'modunloadmsg = "Java: %(javaver)s, %(javamajver)s, %(javashortver)s"',
         ])
         self.prep()
         eb = EasyConfig(self.eb_file)
@@ -1236,6 +1245,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertNotIn('javaminver', eb.template_values)
 
         self.assertEqual(eb['modloadmsg'], "Java: 11, 11, 11")
+        self.assertEqual(eb['modunloadmsg'], "Java: 11, 11, 11")
 
     def test_python_whl_templating(self):
         """test templating for Python wheels"""

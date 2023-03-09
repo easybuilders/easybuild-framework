@@ -1097,6 +1097,36 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(lua_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
 
+    def test_unload_msg(self):
+        """Test including an unload message in the module file."""
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = "\nif { [ module-info mode unload ] } {\nputs stderr \"test\"\n}\n"
+            self.assertEqual(expected, self.modgen.msg_on_unload('test'))
+
+            tcl_unload_msg = '\n'.join([
+                '',
+                "if { [ module-info mode unload ] } {",
+                "puts stderr \"test \\$test \\$test",
+                "test \\$foo \\$bar\"",
+                "}",
+                '',
+            ])
+            self.assertEqual(tcl_unload_msg, self.modgen.msg_on_unload('test $test \\$test\ntest $foo \\$bar'))
+
+        else:
+            expected = '\nif mode() == "unload" then\nio.stderr:write([==[test]==])\nend\n'
+            self.assertEqual(expected, self.modgen.msg_on_unload('test'))
+
+            lua_unload_msg = '\n'.join([
+                '',
+                'if mode() == "unload" then',
+                'io.stderr:write([==[test $test \\$test',
+                'test $foo \\$bar]==])',
+                'end',
+                '',
+            ])
+            self.assertEqual(lua_unload_msg, self.modgen.msg_on_unload('test $test \\$test\ntest $foo \\$bar'))
+
     def test_module_naming_scheme(self):
         """Test using default module naming scheme."""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
