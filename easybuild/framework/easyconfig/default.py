@@ -195,6 +195,7 @@ DEFAULT_CONFIG = {
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
     'modloadmsg': [{}, "Message that should be printed when generated module is loaded", MODULES],
+    'modunloadmsg': [{}, "Message that should be printed when generated module is unloaded", MODULES],
     'modluafooter': ["", "Footer to include in generated module file (Lua syntax)", MODULES],
     'modaltsoftname': [None, "Module name to use (rather than using software name", MODULES],
     'modtclfooter': ["", "Footer to include in generated module file (Tcl syntax)", MODULES],
