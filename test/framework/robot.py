@@ -145,7 +145,9 @@ class RobotTest(EnhancedTestCase):
             'spec': '_',
             'full_mod_name': 'name/version',
             'short_mod_name': 'name/version',
-            'dependencies': []
+            'dependencies': [],
+            'resolved_dependencies': [],
+            'depstat': 'C'
         }
         build_options = {
             'allow_modules_tool_mismatch': True,
@@ -1002,6 +1004,7 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'system', 'version': 'system'},
             'dependencies': [],
+            'resolved_dependencies': [],
             'full_mod_name': 'nodeps/1.2.3',
             'spec': 'nodeps-1.2.3.eb',
             'hidden': False,

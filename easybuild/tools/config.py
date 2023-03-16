@@ -210,6 +210,8 @@ BUILD_OPTIONS_CMDLINE = {
         'cuda_cache_maxsize',
         'cuda_compute_capabilities',
         'download_timeout',
+        'dry_run_builddependencies_char',
+        'dry_run_dependencies_char',
         'dump_test_report',
         'easyblock',
         'envvars_user_modules',

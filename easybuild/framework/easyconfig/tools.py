@@ -129,8 +129,10 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
         else:
             easyconfig = easyconfig.copy()
         deps = []
+        resolved_deps = []
         for dep in easyconfig['dependencies']:
             dep_mod_name = dep.get('full_mod_name', ActiveMNS().det_full_module_name(dep))
+            isresolved = True
 
             # always treat external modules as resolved,
             # since no corresponding easyconfig can be found for them
@@ -140,12 +142,12 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
             elif retain_all_deps and dep_mod_name not in avail_modules:
                 # if all dependencies should be retained, include dep unless it has been already
                 _log.debug("Retaining new dep %s in 'retain all deps' mode", dep_mod_name)
-                deps.append(dep)
+                isresolved = False
 
             # retain dep if it is (still) in the list of easyconfigs
             elif dep_mod_name in ec_mod_names:
                 _log.debug("Dep %s is (still) in list of easyconfigs, retaining it", dep_mod_name)
-                deps.append(dep)
+                isresolved = False
 
             # retain dep if corresponding module is not available yet;
             # fallback to checking with modtool.exist is required,
@@ -153,10 +155,20 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
             elif dep_mod_name not in avail_modules and not modtool.exist([dep_mod_name], skip_avail=True)[0]:
                 # no module available (yet) => retain dependency as one to be resolved
                 _log.debug("No module available for dep %s, retaining it", dep)
+                isresolved = False
+
+            if isresolved:
+                if 'full_mod_name' in dep:
+                    resolved_deps.append(dep['full_mod_name'])
+            else:
                 deps.append(dep)
 
         # update list of dependencies with only those unresolved
+        rdep = []
+        if 'resolved_dependencies' in easyconfig.keys():
+            rdep = easyconfig['resolved_dependencies']
         easyconfig['dependencies'] = deps
+        easyconfig['resolved_dependencies'] = rdep + [x for x in resolved_deps]
 
         # if all dependencies have been resolved, add module for this easyconfig in the list of available modules
         if not easyconfig['dependencies']:
