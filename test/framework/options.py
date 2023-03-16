@@ -4395,7 +4395,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt, assert_true=False)
 
-    def test_new_pr_warning_missing_patch(self):
+    def test_github_new_pr_warning_missing_patch(self):
         """Test warning printed by --new-pr (dry run only) when a specified patch file could not be found."""
 
         if self.github_token is None:
@@ -4620,7 +4620,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self._assert_regexs(regexs, txt)
 
-    def test_new_pr_easyblock(self):
+    def test_github_new_pr_easyblock(self):
         """
         Test using --new-pr to open an easyblocks PR
         """
