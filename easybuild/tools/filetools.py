@@ -63,6 +63,7 @@ from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
+from easybuild.tools.config import DEFAULT_DOWNLOAD_TIMEOUT
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
@@ -753,10 +754,6 @@ def download_file(filename, url, path, forced=False):
     _log.debug("Trying to download %s from %s to %s", filename, url, path)
 
     timeout = build_option('download_timeout')
-    if timeout is None:
-        # default to 10sec timeout if none was specified
-        # default system timeout (used is nothing is specified) may be infinite (?)
-        timeout = 10
     _log.debug("Using timeout of %s seconds for initiating download" % timeout)
 
     # parse option HTTP header fields for URLs containing a pattern
