@@ -393,7 +393,8 @@ class EasyBuildOptions(GeneralOption):
             'detect-loaded-modules': ("Detect loaded EasyBuild-generated modules, act accordingly; "
                                       "supported values: %s" % ', '.join(LOADED_MODULES_ACTIONS), None, 'store', WARN),
             'devel': ("Enable including of development log messages", None, 'store_true', False),
-            'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', DEFAULT_DOWNLOAD_TIMEOUT),
+            'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store',
+                                 DEFAULT_DOWNLOAD_TIMEOUT),
             'dump-autopep8': ("Reformat easyconfigs using autopep8 when dumping them", None, 'store_true', False),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),

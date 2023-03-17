@@ -63,7 +63,6 @@ from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
-from easybuild.tools.config import DEFAULT_DOWNLOAD_TIMEOUT
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
