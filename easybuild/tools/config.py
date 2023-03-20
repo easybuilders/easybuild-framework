@@ -254,7 +254,6 @@ BUILD_OPTIONS_CMDLINE = {
         'rpath_filter',
         'rpath_override_dirs',
         'required_linked_shared_libs',
-        'silence_deprecation_warnings',
         'skip',
         'stop',
         'subdir_user_modules',
@@ -335,6 +334,7 @@ BUILD_OPTIONS_CMDLINE = {
         'include_easyblocks_from_pr',
         'robot',
         'search_paths',
+        'silence_deprecation_warnings',
     ],
     WARN: [
         'check_ebroot_env_vars',

@@ -84,3 +84,7 @@ EASYCONFIG_CONSTANTS = {
     'OS_PKG_PAM_DEV': (('pam-devel', 'libpam0g-dev'),
                        "OS packages providing Pluggable Authentication Module (PAM) development support"),
 }
+
+# Add EasyConfig constants to export list
+globals().update({name: value for name, (value, _) in EASYCONFIG_CONSTANTS.items()})
+__all__ = ['EXTERNAL_MODULE_MARKER', 'EASYCONFIG_CONSTANTS'] + list(EASYCONFIG_CONSTANTS.keys())

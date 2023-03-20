@@ -465,7 +465,7 @@ class DocsTest(EnhancedTestCase):
             "====================    ================================================================",
         ])
 
-        self.assertTrue(check_configuremake in ebdoc, "Found '%s' in: %s" % (check_configuremake, ebdoc))
+        self.assertIn(check_configuremake, ebdoc)
         names = []
 
         for mod in modules:
@@ -473,7 +473,7 @@ class DocsTest(EnhancedTestCase):
                 eb_class = getattr(mod, name)
                 # skip imported classes that are not easyblocks
                 if eb_class.__module__.startswith(gen_easyblocks_pkg):
-                    self.assertTrue(name in ebdoc)
+                    self.assertIn(name, ebdoc)
                     names.append(name)
 
         toc = [":ref:`" + n + "`" for n in sorted(set(names))]
@@ -511,7 +511,7 @@ class DocsTest(EnhancedTestCase):
             "installopts         |Extra options for installation",
         ])
 
-        self.assertTrue(check_configuremake in ebdoc, "Found '%s' in: %s" % (check_configuremake, ebdoc))
+        self.assertIn(check_configuremake, ebdoc)
         names = []
 
         for mod in modules:
@@ -519,7 +519,7 @@ class DocsTest(EnhancedTestCase):
                 eb_class = getattr(mod, name)
                 # skip imported classes that are not easyblocks
                 if eb_class.__module__.startswith(gen_easyblocks_pkg):
-                    self.assertTrue(name in ebdoc)
+                    self.assertIn(name, ebdoc)
                     names.append(name)
 
         toc = ["\\[" + n + "\\]\\(#" + n.lower() + "\\)" for n in sorted(set(names))]
@@ -531,7 +531,7 @@ class DocsTest(EnhancedTestCase):
         """Test license_documentation function."""
         lic_docs = avail_easyconfig_licenses(output_format='txt')
         gplv3 = "GPLv3: The GNU General Public License"
-        self.assertTrue(gplv3 in lic_docs, "%s found in: %s" % (gplv3, lic_docs))
+        self.assertIn(gplv3, lic_docs)
 
         lic_docs = avail_easyconfig_licenses(output_format='rst')
         regex = re.compile(r"^``GPLv3``\s*The GNU General Public License", re.M)
@@ -804,7 +804,7 @@ class DocsTest(EnhancedTestCase):
             r"^## Template names/values derived from easyconfig instance",
             r"^``%\(version_major\)s``\s+|Major version",
             r"^## Template names/values for \(short\) software versions",
-            r"^``%\(pyshortver\)s``\s+|short version for Python \(<major>\.<minor>\)",
+            r"^``%\(pyshortver\)s``\s+|short version for Python \(``<major>\.<minor>``\)",
             r"^## Template constants that can be used in easyconfigs",
             r"^``SOURCE_TAR_GZ``\s+|Source \.tar\.gz bundle \(%\(name\)s-%\(version\)s.tar.gz\)",
         ]

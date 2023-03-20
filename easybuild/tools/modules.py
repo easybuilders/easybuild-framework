@@ -40,9 +40,9 @@ Authors:
 import os
 import re
 import shlex
-from distutils.version import StrictVersion
 
 from easybuild.base import fancylogger
+from easybuild.tools import StrictVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
@@ -274,9 +274,7 @@ class ModulesTool(object):
                     depr_msg = "Support for %s version < %s is deprecated, " % (self.NAME, self.DEPR_VERSION)
                     depr_msg += "found version %s" % self.version
 
-                    silence_deprecation_warnings = build_option('silence_deprecation_warnings') or []
-
-                    if self.version.startswith('6') and 'Lmod6' in silence_deprecation_warnings:
+                    if self.version.startswith('6') and 'Lmod6' in build_option('silence_deprecation_warnings'):
                         self.log.warning(depr_msg)
                     else:
                         self.log.deprecated(depr_msg, '5.0')

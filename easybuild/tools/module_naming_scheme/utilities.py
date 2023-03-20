@@ -38,6 +38,7 @@ import os
 import string
 
 from easybuild.base import fancylogger
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
@@ -62,7 +63,17 @@ def det_full_ec_version(ec):
         ecver = "%s-%s-%s" % (ec['version'], toolchain['name'], toolchain['version'])
 
     # prepend/append version prefix/suffix
-    ecver = ''.join([x for x in [ec.get('versionprefix', ''), ecver, ec.get('versionsuffix', '')] if x])
+    versionprefix = ec.get('versionprefix', '')
+    if not isinstance(versionprefix, string_type):
+        raise EasyBuildError("versionprefix value should be a string, found '%s': %s (full spec: %s)",
+                             type(versionprefix).__name__, versionprefix, ec)
+
+    versionsuffix = ec.get('versionsuffix', '')
+    if not isinstance(versionsuffix, string_type):
+        raise EasyBuildError("versionsuffix value should be a string, found '%s': %s (full spec: %s)",
+                             type(versionsuffix).__name__, versionsuffix, ec)
+
+    ecver = ''.join([x for x in [versionprefix, ecver, versionsuffix] if x])
 
     return ecver
 

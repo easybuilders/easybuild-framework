@@ -29,11 +29,13 @@ Unit tests for talking to GitHub.
 @author: Kenneth Hoste (Ghent University)
 """
 import base64
+import functools
 import os
 import random
 import re
 import sys
 import textwrap
+import unittest
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from time import gmtime
 from unittest import TextTestRunner
@@ -67,6 +69,23 @@ GITHUB_USER = "easybuilders"
 GITHUB_REPO = "testrepository"
 # branch to test
 GITHUB_BRANCH = 'main'
+
+
+def requires_github_access():
+    """Silently skip for pull requests unless $FORCE_EB_GITHUB_TESTS is set
+
+    Useful when the test uses e.g. `git` commands to download from Github and would run into rate limits
+    """
+    if 'FORCE_EB_GITHUB_TESTS' in os.environ or os.getenv('GITHUB_EVENT_NAME') != 'pull_request':
+        return unittest.skipIf(False, None)
+    else:
+        # For pull requests silently skip to avoid rate limits
+        def decorator(test_item):
+            @functools.wraps(test_item)
+            def skip_wrapper(*args, **kwargs):
+                return
+            return skip_wrapper
+        return decorator
 
 
 class GithubTest(EnhancedTestCase):
@@ -175,7 +194,7 @@ class GithubTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertTrue("Could not determine any missing labels for PR #11262" in stdout)
+        self.assertIn("Could not determine any missing labels for PR #11262", stdout)
 
         self.mock_stdout(True)
         self.mock_stderr(True)
@@ -183,7 +202,7 @@ class GithubTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertTrue("PR #8006 should be labelled 'update'" in stdout)
+        self.assertIn("PR #8006 should be labelled 'update'", stdout)
 
     def test_github_fetch_pr_data(self):
         """Test fetch_pr_data function."""
@@ -258,7 +277,7 @@ class GithubTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.mock_stderr(False)
 
-        self.assertTrue(isinstance(res, list))
+        self.assertIsInstance(res, list)
         self.assertEqual(stderr.strip(), "WARNING: Using easyconfigs from closed PR #1844")
         patterns = [
             "Status of last commit is SUCCESS",
@@ -267,7 +286,7 @@ class GithubTest(EnhancedTestCase):
             "* QEMU-2.4.0",
         ]
         for pattern in patterns:
-            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+            self.assertIn(pattern, stdout)
 
     def test_github_close_pr(self):
         """Test close_pr function."""
@@ -295,7 +314,7 @@ class GithubTest(EnhancedTestCase):
             "[DRY RUN] Closed easybuilders/testrepository PR #2",
         ]
         for pattern in patterns:
-            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+            self.assertIn(pattern, stdout)
 
         retest_msg = VALID_CLOSE_PR_REASONS['retest']
 
@@ -312,7 +331,7 @@ class GithubTest(EnhancedTestCase):
             "[DRY RUN] Reopened easybuilders/testrepository PR #2",
         ]
         for pattern in patterns:
-            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+            self.assertIn(pattern, stdout)
 
     def test_github_fetch_easyblocks_from_pr(self):
         """Test fetch_easyblocks_from_pr function."""
@@ -427,7 +446,7 @@ class GithubTest(EnhancedTestCase):
 
         # github_account value is None (results in using default 'easybuilders')
         cache_key = (7159, None, 'easybuild-easyconfigs', self.test_prefix)
-        self.assertTrue(cache_key in gh.fetch_files_from_pr._cache.keys())
+        self.assertIn(cache_key, gh.fetch_files_from_pr._cache.keys())
 
         cache_entry = gh.fetch_files_from_pr._cache[cache_key]
         self.assertEqual(sorted([os.path.basename(f) for f in cache_entry]), sorted(pr7159_filenames))
@@ -477,10 +496,10 @@ class GithubTest(EnhancedTestCase):
         path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
         repodir = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-main')
         self.assertTrue(os.path.samefile(path, repodir))
-        self.assertTrue(os.path.exists(repodir))
+        self.assertExists(repodir)
         shafile = os.path.join(repodir, 'latest-sha')
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
-        self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2019b.eb')))
+        self.assertExists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2019b.eb'))
 
         # current directory should not have changed after calling download_repo
         self.assertTrue(os.path.samefile(cwd, os.getcwd()))
@@ -503,9 +522,9 @@ class GithubTest(EnhancedTestCase):
         path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix,
                                 github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(os.path.samefile(path, repodir))
-        self.assertTrue('easybuild' in os.listdir(repodir))
+        self.assertIn('easybuild', os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
-        self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py')))
+        self.assertExists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py'))
 
     def test_install_github_token(self):
         """Test for install_github_token function."""
@@ -573,7 +592,7 @@ class GithubTest(EnhancedTestCase):
         expected = os.path.join('e', 'EasyBuild', r'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
-        self.assertTrue(os.path.exists(path), "Path %s exists" % path)
+        self.assertExists(path)
 
     def test_github_find_patches(self):
         """ Test for find_software_name_for_patch """
@@ -593,7 +612,7 @@ class GithubTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
 
-        self.assertTrue(ec == 'toy')
+        self.assertEqual(ec, 'toy')
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
         self.assertTrue(re.search(reg, txt))
 
@@ -667,7 +686,7 @@ class GithubTest(EnhancedTestCase):
             self.mock_stderr(False)
             self.assertEqual(res, expected_result)
             self.assertEqual(stdout, expected_stdout)
-            self.assertTrue(expected_warning in stderr, "Found '%s' in: %s" % (expected_warning, stderr))
+            self.assertIn(expected_warning, stderr)
             return stderr
 
         pr_data = {
@@ -920,12 +939,12 @@ class GithubTest(EnhancedTestCase):
         status, headers = client.head()
         self.assertEqual(status, 200)
         self.assertTrue(headers)
-        self.assertTrue('X-GitHub-Media-Type' in headers)
+        self.assertIn('X-GitHub-Media-Type', headers)
 
         httperror_hit = False
         try:
             status, body = client.user.emails.post(body='test@example.com')
-            self.assertTrue(False, 'posting to unauthorized endpoint did not throw a http error')
+            self.fail('posting to unauthorized endpoint did not throw a http error')
         except HTTPError:
             httperror_hit = True
         self.assertTrue(httperror_hit, "expected HTTPError not encountered")
@@ -933,7 +952,7 @@ class GithubTest(EnhancedTestCase):
         httperror_hit = False
         try:
             status, body = client.user.emails.delete(body='test@example.com')
-            self.assertTrue(False, 'deleting to unauthorized endpoint did not throw a http error')
+            self.fail('deleting to unauthorized endpoint did not throw a http error')
         except HTTPError:
             httperror_hit = True
         self.assertTrue(httperror_hit, "expected HTTPError not encountered")
@@ -1011,9 +1030,9 @@ class GithubTest(EnhancedTestCase):
         github_py = os.path.join(test_dir, 'github.py')
 
         configuremake = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
-        self.assertTrue(os.path.exists(configuremake))
+        self.assertExists(configuremake)
         toy_eb = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
-        self.assertTrue(os.path.exists(toy_eb))
+        self.assertExists(toy_eb)
 
         self.assertEqual(build_option('pr_target_repo'), None)
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([github_py])), 'easybuild-framework')
@@ -1038,6 +1057,7 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([configuremake])), 'thisisjustatest')
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([toy_eb])), 'thisisjustatest')
 
+    @requires_github_access()
     def test_push_branch_to_github(self):
         """Test push_branch_to_github."""
 
@@ -1165,10 +1185,10 @@ class GithubTest(EnhancedTestCase):
             "EASYBUILD_DEBUG=1",
         ]
         for pattern in patterns:
-            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['full']))
+            self.assertIn(pattern, res['full'])
 
         for pattern in patterns[:2]:
-            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['overview']))
+            self.assertIn(pattern, res['full'])
 
         # mock create_gist function, we don't want to actually create a gist every time we run this test...
         def fake_create_gist(*args, **kwargs):
@@ -1183,12 +1203,12 @@ class GithubTest(EnhancedTestCase):
             "https://github.com/easybuilders/easybuild-easyconfigs/pull/123",
         ])
         for pattern in patterns:
-            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['full']))
+            self.assertIn(pattern, res['full'])
 
         for pattern in patterns[:3]:
-            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['overview']))
+            self.assertIn(pattern, res['full'])
 
-        self.assertTrue("**SUCCESS** _test.eb_" in res['overview'])
+        self.assertIn("**SUCCESS** _test.eb_", res['overview'])
 
     def test_is_patch_for(self):
         """Test for is_patch_for function."""

@@ -212,7 +212,7 @@ class ContainersTest(EnhancedTestCase):
             self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
 
             # no OS packages are installed by default when starting from an existing image
-            self.assertFalse("yum install" in txt)
+            self.assertNotIn("yum install", txt)
 
             for pattern in pip_patterns + post_commands_patterns + [eb_pattern]:
                 regex = re.compile('^' + pattern, re.M)
@@ -308,7 +308,7 @@ class ContainersTest(EnhancedTestCase):
             ]
             self.check_regexs(regexs, stdout)
 
-            self.assertTrue(os.path.exists(os.path.join(containerpath, 'toy-0.0.%s' % ext)))
+            self.assertExists(os.path.join(containerpath, 'toy-0.0.%s' % ext))
 
             remove_file(os.path.join(containerpath, 'Singularity.toy-0.0'))
 
@@ -330,7 +330,7 @@ class ContainersTest(EnhancedTestCase):
         self.check_regexs(regexs, stdout)
 
         cont_img = os.path.join(containerpath, 'foo-bar.img')
-        self.assertTrue(os.path.exists(cont_img))
+        self.assertExists(cont_img)
 
         remove_file(os.path.join(containerpath, 'Singularity.foo-bar'))
 
@@ -348,7 +348,7 @@ class ContainersTest(EnhancedTestCase):
             "WARNING: overwriting existing container image at %s due to --force" % cont_img,
         ])
         self.check_regexs(regexs, stdout)
-        self.assertTrue(os.path.exists(cont_img))
+        self.assertExists(cont_img)
 
         # also check behaviour under --extended-dry-run
         args.append('--extended-dry-run')

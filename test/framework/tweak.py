@@ -85,7 +85,7 @@ class TweakTest(EnhancedTestCase):
         ecs_basename = [os.path.basename(ec) for ec in ecs]
         for gccver in gccvers:
             gcc_ec = 'GCC-%s.eb' % gccver
-            self.assertTrue(gcc_ec in ecs_basename, "%s is included in %s" % (gcc_ec, ecs_basename))
+            self.assertIn(gcc_ec, ecs_basename)
 
     def test_obtain_ec_for(self):
         """Test obtain_ec_for function."""
@@ -156,7 +156,7 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(tweaked_toy_ec_parsed['version'], '1.2.3')
         for key in [k for k in toy_ec_parsed.keys() if k not in ['checksums', 'version']]:
             val = toy_ec_parsed[key]
-            self.assertTrue(key in tweaked_toy_ec_parsed, "Parameter '%s' not defined in tweaked easyconfig file" % key)
+            self.assertIn(key, tweaked_toy_ec_parsed, "Parameter '%s' not defined in tweaked easyconfig file" % key)
             tweaked_val = tweaked_toy_ec_parsed.get(key)
             self.assertEqual(val, tweaked_val, "Different value for %s parameter: %s vs %s" % (key, val, tweaked_val))
 
@@ -436,11 +436,12 @@ class TweakTest(EnhancedTestCase):
         tweaked_dict = tweaked_ec['ec'].asdict()
         # First check the mapped toolchain
         key, value = 'toolchain', iccifort_binutils_tc
-        self.assertTrue(key in tweaked_dict and value == tweaked_dict[key])
+        self.assertIn(key, tweaked_dict)
+        self.assertEqual(value, tweaked_dict[key])
         # Also check that binutils has been mapped
         for key, value in {'name': 'binutils', 'version': '2.25', 'versionsuffix': ''}.items():
-            self.assertTrue(key in tweaked_dict['builddependencies'][0] and
-                            value == tweaked_dict['builddependencies'][0][key])
+            self.assertIn(key, tweaked_dict['builddependencies'][0])
+            self.assertEqual(tweaked_dict['builddependencies'][0][key], value)
 
         # Now test the case where we try to update the dependencies
         init_config(build_options=build_options)
@@ -450,15 +451,16 @@ class TweakTest(EnhancedTestCase):
         tweaked_dict = tweaked_ec['ec'].asdict()
         # First check the mapped toolchain
         key, value = 'toolchain', iccifort_binutils_tc
-        self.assertTrue(key in tweaked_dict and value == tweaked_dict[key])
+        self.assertIn(key, tweaked_dict)
+        self.assertEqual(value, tweaked_dict[key])
         # Also check that binutils has been mapped
         for key, value in {'name': 'binutils', 'version': '2.25', 'versionsuffix': ''}.items():
-            self.assertTrue(
-                key in tweaked_dict['builddependencies'][0] and value == tweaked_dict['builddependencies'][0][key]
-            )
+            self.assertIn(key, tweaked_dict['builddependencies'][0])
+            self.assertEqual(tweaked_dict['builddependencies'][0][key], value)
         # Also check that the gzip dependency was upgraded
         for key, value in {'name': 'gzip', 'version': '1.6', 'versionsuffix': ''}.items():
-            self.assertTrue(key in tweaked_dict['dependencies'][0] and value == tweaked_dict['dependencies'][0][key])
+            self.assertIn(key, tweaked_dict['dependencies'][0])
+            self.assertEqual(tweaked_dict['dependencies'][0][key], value)
 
         # Make sure there are checksums for our next test
         self.assertTrue(tweaked_dict['checksums'])
@@ -475,19 +477,21 @@ class TweakTest(EnhancedTestCase):
         tweaked_dict = tweaked_ec['ec'].asdict()
         # First check the mapped toolchain
         key, value = 'toolchain', iccifort_binutils_tc
-        self.assertTrue(key in tweaked_dict and value == tweaked_dict[key])
+        self.assertIn(key, tweaked_dict)
+        self.assertEqual(tweaked_dict[key], value)
         # Also check that binutils has been mapped
         for key, value in {'name': 'binutils', 'version': '2.25', 'versionsuffix': ''}.items():
-            self.assertTrue(
-                key in tweaked_dict['builddependencies'][0] and value == tweaked_dict['builddependencies'][0][key]
-            )
+            self.assertIn(key, tweaked_dict['builddependencies'][0])
+            self.assertEqual(tweaked_dict['builddependencies'][0][key], value)
         # Also check that the gzip dependency was upgraded
         for key, value in {'name': 'gzip', 'version': '1.6', 'versionsuffix': ''}.items():
-            self.assertTrue(key in tweaked_dict['dependencies'][0] and value == tweaked_dict['dependencies'][0][key])
+            self.assertIn(key, tweaked_dict['dependencies'][0])
+            self.assertEqual(tweaked_dict['dependencies'][0][key], value)
 
         # Finally check that the version was upgraded
         key, value = 'version', new_version
-        self.assertTrue(key in tweaked_dict and value == tweaked_dict[key])
+        self.assertIn(key, tweaked_dict)
+        self.assertEqual(tweaked_dict[key], value)
         # and that the checksum was removed
         self.assertFalse(tweaked_dict['checksums'])
 
@@ -513,7 +517,7 @@ class TweakTest(EnhancedTestCase):
             if isinstance(extension, tuple) and extension[0] == 'toy':
                 self.assertEqual(extension[1], new_version)
                 # Make sure checksum has been purged
-                self.assertFalse('checksums' in extension[2])
+                self.assertNotIn('checksums', extension[2])
                 hit_extension += 1
         self.assertEqual(hit_extension, 1, "Should only have updated one extension")
 

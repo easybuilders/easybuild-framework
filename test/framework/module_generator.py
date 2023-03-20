@@ -223,7 +223,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.modtool.load([module_name])
         full_module_name = module_name + '/' + version_one
 
-        self.assertTrue(full_module_name in self.modtool.loaded_modules())
+        self.assertIn(full_module_name, self.modtool.loaded_modules())
         self.modtool.purge()
 
         # setting bar version as default
@@ -231,7 +231,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.modtool.load([module_name])
         full_module_name = module_name + '/' + version_two
 
-        self.assertTrue(full_module_name in self.modtool.loaded_modules())
+        self.assertIn(full_module_name, self.modtool.loaded_modules())
         self.modtool.purge()
 
     def test_is_loaded(self):
@@ -970,7 +970,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.modtool.load([module_name])
         full_module_name = module_name + '/' + version_one
 
-        self.assertTrue(full_module_name in self.modtool.loaded_modules())
+        self.assertIn(full_module_name, self.modtool.loaded_modules())
         self.assertEqual(os.getenv(test_envvar), test_flags)
         self.modtool.purge()
 
@@ -1065,7 +1065,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(if_else_cond, expected)
 
         else:
-            self.assertTrue(False, "Unknown module syntax")
+            self.fail("Unknown module syntax")
 
     def test_load_msg(self):
         """Test including a load message in the module file."""
@@ -1096,6 +1096,36 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
             ])
             self.assertEqual(lua_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
+
+    def test_unload_msg(self):
+        """Test including an unload message in the module file."""
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = "\nif { [ module-info mode unload ] } {\nputs stderr \"test\"\n}\n"
+            self.assertEqual(expected, self.modgen.msg_on_unload('test'))
+
+            tcl_unload_msg = '\n'.join([
+                '',
+                "if { [ module-info mode unload ] } {",
+                "puts stderr \"test \\$test \\$test",
+                "test \\$foo \\$bar\"",
+                "}",
+                '',
+            ])
+            self.assertEqual(tcl_unload_msg, self.modgen.msg_on_unload('test $test \\$test\ntest $foo \\$bar'))
+
+        else:
+            expected = '\nif mode() == "unload" then\nio.stderr:write([==[test]==])\nend\n'
+            self.assertEqual(expected, self.modgen.msg_on_unload('test'))
+
+            lua_unload_msg = '\n'.join([
+                '',
+                'if mode() == "unload" then',
+                'io.stderr:write([==[test $test \\$test',
+                'test $foo \\$bar]==])',
+                'end',
+                '',
+            ])
+            self.assertEqual(lua_unload_msg, self.modgen.msg_on_unload('test $test \\$test\ntest $foo \\$bar'))
 
     def test_module_naming_scheme(self):
         """Test using default module naming scheme."""
@@ -1239,21 +1269,32 @@ class ModuleGeneratorTest(EnhancedTestCase):
         ec2mod_map = default_ec2mod_map
         test_mns()
 
+        # check how an incorrect dependency specification is handled;
+        # accidentally using SYSTEM as 3rd tuple element should trigger a useful error,
+        # not a nasty crash; cfr. https://github.com/easybuilders/easybuild-framework/issues/4181
+        faulty_dep_spec = {
+            'name': 'test',
+            'version': '1.2.3',
+            'versionsuffix': {'name': 'system', 'version': 'system'},
+        }
+        error_pattern = "versionsuffix value should be a string, found 'dict'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ActiveMNS().det_full_module_name, faulty_dep_spec)
+
     def test_mod_name_validation(self):
         """Test module naming validation."""
         # module name must be a string
-        self.assertTrue(not is_valid_module_name(('foo', 'bar')))
-        self.assertTrue(not is_valid_module_name(['foo', 'bar']))
-        self.assertTrue(not is_valid_module_name(123))
+        self.assertFalse(is_valid_module_name(('foo', 'bar')))
+        self.assertFalse(is_valid_module_name(['foo', 'bar']))
+        self.assertFalse(is_valid_module_name(123))
 
         # module name must be relative
-        self.assertTrue(not is_valid_module_name('/foo/bar'))
+        self.assertFalse(is_valid_module_name('/foo/bar'))
 
         # module name must only contain valid characters
-        self.assertTrue(not is_valid_module_name('foo\x0bbar'))
-        self.assertTrue(not is_valid_module_name('foo\x0cbar'))
-        self.assertTrue(not is_valid_module_name('foo\rbar'))
-        self.assertTrue(not is_valid_module_name('foo\0bar'))
+        self.assertFalse(is_valid_module_name('foo\x0bbar'))
+        self.assertFalse(is_valid_module_name('foo\x0cbar'))
+        self.assertFalse(is_valid_module_name('foo\rbar'))
+        self.assertFalse(is_valid_module_name('foo\0bar'))
 
         # valid module name must be accepted
         self.assertTrue(is_valid_module_name('gzip/foss-2018a-suffix'))

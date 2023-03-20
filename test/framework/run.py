@@ -507,14 +507,14 @@ class RunTest(EnhancedTestCase):
 
         # check forced run
         outfile = os.path.join(self.test_prefix, 'cmd.out')
-        self.assertFalse(os.path.exists(outfile))
+        self.assertNotExists(outfile)
         self.mock_stdout(True)
         run_cmd("echo 'This is always echoed' > %s" % outfile, force_in_dry_run=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
         # nothing printed to stdout, but command was run
         self.assertEqual(txt, '')
-        self.assertTrue(os.path.exists(outfile))
+        self.assertExists(outfile)
         self.assertEqual(read_file(outfile), "This is always echoed\n")
 
         # Q&A commands
@@ -721,7 +721,7 @@ class RunTest(EnhancedTestCase):
         init_logging(logfile, silent=True)
         check_log_for_errors(input_text, [(r"\b(error|crashed)\b", WARN)])
         stop_logging(logfile)
-        self.assertTrue(expected_msg in read_file(logfile))
+        self.assertIn(expected_msg, read_file(logfile))
 
         expected_msg = r"Found 2 error\(s\) in command output \(output: error found\n\ttest failed\)"
         write_file(logfile, '')
@@ -734,7 +734,7 @@ class RunTest(EnhancedTestCase):
         ])
         stop_logging(logfile)
         expected_msg = "Found 1 potential error(s) in command output (output: the process crashed with 0)"
-        self.assertTrue(expected_msg in read_file(logfile))
+        self.assertIn(expected_msg, read_file(logfile))
 
 
 def suite():

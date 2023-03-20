@@ -45,7 +45,7 @@ from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python 
 
 from easybuild.base.fancylogger import getLogger, setroot, setLogLevel, getDetailsLogLevels
 from easybuild.base.optcomplete import autocomplete, CompleterOption
-from easybuild.tools.py2vs3 import StringIO, configparser, string_type, subprocess_popen_text
+from easybuild.tools.py2vs3 import StringIO, configparser, ConfigParser, string_type, subprocess_popen_text
 from easybuild.tools.utilities import mk_md_table, mk_rst_table, nub, shell_quote
 
 try:
@@ -898,7 +898,6 @@ class GeneralOption(object):
     CONFIGFILES_INIT = []  # initial list of defaults, overwritten by go_configfiles options
     CONFIGFILES_IGNORE = []
     CONFIGFILES_MAIN_SECTION = 'MAIN'  # sectionname that contains the non-grouped/non-prefixed options
-    CONFIGFILE_PARSER = configparser.SafeConfigParser
     CONFIGFILE_CASESENSITIVE = True
 
     METAVAR_DEFAULT = True  # generate a default metavar
@@ -1150,7 +1149,8 @@ class GeneralOption(object):
                 if len(str(default)) == 0:
                     extra_help.append("default: ''")  # empty string
                 elif typ in ExtOption.TYPE_STRLIST:
-                    extra_help.append("default: %s" % sep.join(default))
+                    if default:
+                        extra_help.append("default: %s" % sep.join(default))
                 else:
                     extra_help.append("default: %s" % default)
 
@@ -1274,7 +1274,7 @@ class GeneralOption(object):
                 the 2nd level key,value is the key=value.
                 All section names, keys and values are converted to strings.
         """
-        self.configfile_parser = self.CONFIGFILE_PARSER()
+        self.configfile_parser = ConfigParser()
 
         # make case sensitive
         if self.CONFIGFILE_CASESENSITIVE:

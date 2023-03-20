@@ -29,6 +29,7 @@ Unit tests for easystack files
 @author: Kenneth Hoste (Ghent University)
 """
 import os
+import re
 import sys
 from unittest import TextTestRunner
 
@@ -126,6 +127,25 @@ class EasyStackTest(EnhancedTestCase):
         error_pattern = r"expected a dictionary with one key \(the EasyConfig name\), "
         error_pattern += r"instead found keys: .*, invalid_key"
         self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+
+    def test_easystack_restore_env_after_each_build(self):
+        """Test that the build environment is reset for each easystack item"""
+        test_es_txt = '\n'.join([
+            "easyconfigs:",
+            "  - toy-0.0-gompi-2018a.eb:",
+            "  - libtoy-0.0.eb:",
+        ])
+        test_es_path = os.path.join(self.test_prefix, 'test.yml')
+        write_file(test_es_path, test_es_txt)
+
+        args = [
+            '--experimental',
+            '--easystack',
+            test_es_path
+        ]
+        stdout = self.eb_main(args, do_build=True, raise_error=True)
+        regex = re.compile(r"WARNING Loaded modules detected: \[.*gompi/2018.*\]\n")
+        self.assertFalse(regex.search(stdout), "Pattern '%s' should not be found in: %s" % (regex.pattern, stdout))
 
     def test_missing_easyconfigs_key(self):
         """Test that EasyStack file that doesn't contain an EasyConfigs key will fail with sane error message"""

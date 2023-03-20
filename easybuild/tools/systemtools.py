@@ -41,6 +41,7 @@ import re
 import struct
 import sys
 import termios
+import warnings
 from ctypes.util import find_library
 from socket import gethostname
 from easybuild.tools.py2vs3 import subprocess_popen_text
@@ -734,7 +735,10 @@ def get_os_name():
     if hasattr(platform, 'linux_distribution'):
         # platform.linux_distribution is more useful, but only available since Python 2.6
         # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
-        os_name = platform.linux_distribution()[0].strip()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=PendingDeprecationWarning)
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            os_name = platform.linux_distribution()[0].strip()
 
     # take into account that on some OSs, platform.distribution returns an empty string as OS name,
     # for example on OpenSUSE Leap 15.2
@@ -771,7 +775,10 @@ def get_os_version():
 
     # platform.dist was removed in Python 3.8
     if hasattr(platform, 'dist'):
-        os_version = platform.dist()[1]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=PendingDeprecationWarning)
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            os_version = platform.dist()[1]
 
     # take into account that on some OSs, platform.dist returns an empty string as OS version,
     # for example on OpenSUSE Leap 15.2
@@ -873,9 +880,14 @@ def check_os_dependency(dep):
 
         # try locate if it's available
         if not found and which('locate'):
-            cmd = 'locate --regexp "/%s$"' % dep
-            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
-                            stream_output=False)
+            cmd = 'locate -c --regexp "/%s$"' % dep
+            out, ec = run_cmd(cmd, simple=False, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
+                              stream_output=False)
+            try:
+                found = (ec == 0 and int(out.strip()) > 0)
+            except ValueError:
+                # Returned something else than an int -> Error
+                found = False
 
     return found
 
@@ -1245,6 +1257,46 @@ def check_python_version():
     return (python_maj_ver, python_min_ver)
 
 
+def pick_system_specific_value(description, options_or_value, allow_none=False):
+    """Pick an entry for the current system when the input has multiple options
+
+    :param description: Descriptive string about the value to be retrieved. Used for logging.
+    :param options_or_value: Either a dictionary with options to choose from or a value of any other type
+    :param allow_none: When True and no matching arch key was found, return None instead of an error
+
+    :return options_or_value when it is not a dictionary or the matching entry (if existing)
+    """
+    result = options_or_value
+    if isinstance(options_or_value, dict):
+        if not options_or_value:
+            raise EasyBuildError("Found empty dict as %s!", description)
+        other_keys = [x for x in options_or_value.keys() if not x.startswith(ARCH_KEY_PREFIX)]
+        if other_keys:
+            other_keys = ','.join(sorted(other_keys))
+            raise EasyBuildError("Unexpected keys in %s: %s (only '%s' keys are supported)",
+                                 description, other_keys, ARCH_KEY_PREFIX)
+        host_arch_key = ARCH_KEY_PREFIX + get_cpu_architecture()
+        star_arch_key = ARCH_KEY_PREFIX + '*'
+        # check for specific 'arch=' key first
+        try:
+            result = options_or_value[host_arch_key]
+            _log.info("Selected %s from %s for %s (using key %s)",
+                      result, options_or_value, description, host_arch_key)
+        except KeyError:
+            # fall back to 'arch=*'
+            try:
+                result = options_or_value[star_arch_key]
+                _log.info("Selected %s from %s for %s (using fallback key %s)",
+                          result, options_or_value, description, star_arch_key)
+            except KeyError:
+                if allow_none:
+                    result = None
+                else:
+                    raise EasyBuildError("No matches for %s in %s (looking for %s)",
+                                         description, options_or_value, host_arch_key)
+    return result
+
+
 def pick_dep_version(dep_version):
     """
     Pick the correct dependency version to use for this system.
@@ -1252,41 +1304,16 @@ def pick_dep_version(dep_version):
     * a string value (or None)
     * a dict with options to choose from
 
-    Return value is the version to use.
+    Return value is the version to use or False to skip this dependency.
     """
-    if isinstance(dep_version, string_type):
-        _log.debug("Version is already a string ('%s'), OK", dep_version)
-        result = dep_version
-
-    elif dep_version is None:
+    if dep_version is None:
         _log.debug("Version is None, OK")
         result = None
-
-    elif isinstance(dep_version, dict):
-        arch_keys = [x for x in dep_version.keys() if x.startswith(ARCH_KEY_PREFIX)]
-        other_keys = [x for x in dep_version.keys() if x not in arch_keys]
-        if other_keys:
-            other_keys = ','.join(sorted(other_keys))
-            raise EasyBuildError("Unexpected keys in version: %s (only 'arch=' keys are supported)", other_keys)
-        if arch_keys:
-            host_arch_key = ARCH_KEY_PREFIX + get_cpu_architecture()
-            star_arch_key = ARCH_KEY_PREFIX + '*'
-            # check for specific 'arch=' key first
-            if host_arch_key in dep_version:
-                result = dep_version[host_arch_key]
-                _log.info("Version selected from %s using key %s: %s", dep_version, host_arch_key, result)
-            # fall back to 'arch=*'
-            elif star_arch_key in dep_version:
-                result = dep_version[star_arch_key]
-                _log.info("Version selected for %s using fallback key %s: %s", dep_version, star_arch_key, result)
-            else:
-                raise EasyBuildError("No matches for version in %s (looking for %s)", dep_version, host_arch_key)
-        else:
-            raise EasyBuildError("Found empty dict as version!")
-
     else:
-        typ = type(dep_version)
-        raise EasyBuildError("Unknown value type for version: %s (%s), should be string value", typ, dep_version)
+        result = pick_system_specific_value("version", dep_version)
+        if not isinstance(result, string_type) and result is not False:
+            typ = type(dep_version)
+            raise EasyBuildError("Unknown value type for version: %s (%s), should be string value", typ, dep_version)
 
     return result
 

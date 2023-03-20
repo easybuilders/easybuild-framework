@@ -32,13 +32,13 @@ Authors:
 * Kenneth Hoste (Ghent University)
 * Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
-from distutils.version import LooseVersion
 import re
 
 from easybuild.toolchains.iccifort import IccIfort
 from easybuild.toolchains.intel_compilers import IntelCompilersToolchain
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
+from easybuild.tools import LooseVersion
 
 
 class Iimkl(IccIfort, IntelCompilersToolchain, IntelMKL, IntelFFTW):
