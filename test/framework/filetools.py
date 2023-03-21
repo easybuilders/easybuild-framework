@@ -513,7 +513,7 @@ class FileToolsTest(EnhancedTestCase):
         if ft.HAVE_REQUESTS:
             res = ft.download_file(fn, url, target)
             self.assertTrue(res and os.path.exists(res))
-            self.assertIn("https://easybuilders.github.io/easybuild", ft.read_file(res))
+            self.assertIn("https://easybuild.io", ft.read_file(res))
 
         # without requests being available, error is raised
         ft.HAVE_REQUESTS = False
@@ -529,7 +529,7 @@ class FileToolsTest(EnhancedTestCase):
         if ft.HAVE_REQUESTS:
             res = ft.download_file(fn, url, target)
             self.assertTrue(res and os.path.exists(res))
-            self.assertIn("https://easybuilders.github.io/easybuild", ft.read_file(res))
+            self.assertIn("https://easybuild.io", ft.read_file(res))
 
         # without requests being available, error is raised
         ft.HAVE_REQUESTS = False
@@ -609,7 +609,7 @@ class FileToolsTest(EnhancedTestCase):
 
             self.assertIn("WARNING: Not checking server certificates while downloading README.rst", stderr)
             self.assertExists(res)
-            self.assertIn("https://easybuilders.github.io/easybuild", ft.read_file(res))
+            self.assertIn("https://easybuild.io", ft.read_file(res))
 
     def test_mkdir(self):
         """Test mkdir function."""
