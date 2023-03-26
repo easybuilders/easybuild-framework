@@ -26,7 +26,7 @@ jobs:
     strategy:
       matrix:
         # Don't run for Python 3.8, 3.9 , people should just use `pip install easybuild`
-        python: [2.7, 3.6, 3.7]
+        python: [3.6, 3.7]
         modules_tool:
           # use variables defined by 'setup' job above, see also
           # https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#needs-context
@@ -38,19 +38,10 @@ jobs:
           # also test with module tools other than Lmod (only Tcl syntax)
           - modules_tool: ${{needs.setup.outputs.modulesTcl}}
             module_syntax: Tcl
-            python: 2.7
-          - modules_tool: ${{needs.setup.outputs.modulesTcl}}
-            module_syntax: Tcl
             python: 3.6
           - modules_tool: ${{needs.setup.outputs.modules3}}
             module_syntax: Tcl
-            python: 2.7
-          - modules_tool: ${{needs.setup.outputs.modules3}}
-            module_syntax: Tcl
             python: 3.6
-          - modules_tool: ${{needs.setup.outputs.modules4}}
-            module_syntax: Tcl
-            python: 2.7
           - modules_tool: ${{needs.setup.outputs.modules4}}
             module_syntax: Tcl
             python: 3.6
