@@ -22,7 +22,6 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 #
-import sys
 
 # all functionality provided by the py3 modules is made available via the easybuild.tools.py2vs3 namespace
 from easybuild.tools.py2vs3.py3 import *  # noqa

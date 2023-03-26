@@ -46,9 +46,6 @@ jobs:
             module_syntax: Lua
         include:
           # Test different Python 3 versions with Lmod 8.x (with both Lua and Tcl module syntax)
-          - python: 3.5
-            modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Lua
           - python: 3.7
             modules_tool: ${{needs.setup.outputs.lmod8}}
             module_syntax: Lua
