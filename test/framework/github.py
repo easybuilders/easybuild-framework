@@ -1113,7 +1113,7 @@ class GithubTest(EnhancedTestCase):
 
         patterns = [
             r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+            r"^See https://gist.github.com/username/DRY_RUN for a full test report.'",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
