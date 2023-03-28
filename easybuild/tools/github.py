@@ -2126,7 +2126,7 @@ def check_github():
     except Exception as err:
         _log.warning("Exception occurred when trying to create & delete gist: %s", err)
 
-    if gist_url and re.match('https://gist.github.com/[0-9a-f]+$', gist_url):
+    if gist_url and re.match('https://gist.github.com/%s/[0-9a-f]+$' % github_user, gist_url):
         check_res = "OK"
     else:
         check_res = "FAIL (gist_url: %s)" % gist_url
