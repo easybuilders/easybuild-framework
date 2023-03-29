@@ -3,14 +3,8 @@
 keyring
 keyrings.alt
 
-# GitPython 3.1.15 deprecates Python 3.5
-GitPython==3.1.14; python_version < '3.6'
-GitPython; python_version >= '3.6'
-
-# autopep8
+GitPython
 autopep8
-
-# PyYAML
 PyYAML
 
 # optional Python packages for EasyBuild
@@ -25,6 +19,4 @@ requests
 
 archspec
 
-cryptography; python_version >= '3.5' and python_version < '3.11'
-
-rich; python_version >= '3.6'
+rich
