@@ -1113,7 +1113,7 @@ class GithubTest(EnhancedTestCase):
 
         patterns = [
             r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/username/DRY_RUN for a full test report.'",
+            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -1130,7 +1130,7 @@ class GithubTest(EnhancedTestCase):
 
         patterns = [
             r"^\[DRY RUN\] Adding comment to easybuild-easyblocks issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -1150,7 +1150,7 @@ class GithubTest(EnhancedTestCase):
 
         patterns = [
             r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
             r"Using easyblocks from PR\(s\) https://github.com/easybuilders/easybuild-easyblocks/pull/6789",
         ]
         for pattern in patterns:
@@ -1192,13 +1192,13 @@ class GithubTest(EnhancedTestCase):
 
         # mock create_gist function, we don't want to actually create a gist every time we run this test...
         def fake_create_gist(*args, **kwargs):
-            return 'https://gist.github.com/test'
+            return 'https://gist.github.com/%s/test' % GITHUB_TEST_ACCOUNT
 
         easybuild.tools.testing.create_gist = fake_create_gist
 
         res = create_test_report("just a test", ecs_with_res, init_session_state, pr_nrs=[123], gist_log=True)
 
-        patterns.insert(2, "https://gist.github.com/test")
+        patterns.insert(2, "https://gist.github.com/%s/test" % GITHUB_TEST_ACCOUNT)
         patterns.extend([
             "https://github.com/easybuilders/easybuild-easyconfigs/pull/123",
         ])

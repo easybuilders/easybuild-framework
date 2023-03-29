@@ -589,7 +589,9 @@ def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
     }
 
     if dry_run:
-        status, data = HTTP_STATUS_CREATED, {'html_url': 'https://gist.github.com/username/DRY_RUN'}
+        if github_user is None:
+            github_user = 'username'
+        status, data = HTTP_STATUS_CREATED, {'html_url': 'https://gist.github.com/%s/DRY_RUN' % github_user}
     else:
         g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
         status, data = g.gists.post(body=body)
