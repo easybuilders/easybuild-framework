@@ -84,9 +84,9 @@ from easybuild.tools.filetools import find_backup_name_candidate, get_source_tar
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file, symlink
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
-from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
-from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
-from easybuild.tools.hooks import MODULE_WRITE, load_hooks, run_hook
+from easybuild.tools.hooks import MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP
+from easybuild.tools.hooks import POSTPROC_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP
+from easybuild.tools.hooks import SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook
 from easybuild.tools.run import check_async_cmd, run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
@@ -100,7 +100,7 @@ from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_linked_libs_raw
-from easybuild.tools.systemtools import get_shared_lib_ext, use_group
+from easybuild.tools.systemtools import get_shared_lib_ext, pick_system_specific_value, use_group
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -1412,6 +1412,13 @@ class EasyBlock(object):
                 modloadmsg += '\n'
             lines.append(self.module_generator.msg_on_load(modloadmsg))
 
+        modunloadmsg = self.cfg['modunloadmsg']
+        if modunloadmsg:
+            # add trailing newline to prevent that shell prompt is 'glued' to module unload/purge message
+            if not modunloadmsg.endswith('\n'):
+                modunloadmsg += '\n'
+            lines.append(self.module_generator.msg_on_unload(modunloadmsg))
+
         for (key, value) in self.cfg['modaliases'].items():
             lines.append(self.module_generator.set_alias(key, value))
 
@@ -1851,6 +1858,8 @@ class EasyBlock(object):
 
             self.log.info("Starting extension %s", ext.name)
 
+            run_hook(SINGLE_EXTENSION, self.hooks, pre_step_hook=True, args=[ext])
+
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
 
@@ -1896,6 +1905,8 @@ class EasyBlock(object):
                             print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
 
             self.update_exts_progress_bar(progress_info, progress_size=1)
+
+            run_hook(SINGLE_EXTENSION, self.hooks, post_step_hook=True, args=[ext])
 
     def install_extensions_parallel(self, install=True):
         """
@@ -3326,6 +3337,15 @@ class EasyBlock(object):
             error_msg = "Incorrect format for sanity_check_paths: should (only) have %s keys, "
             error_msg += "values should be lists (at least one non-empty)."
             raise EasyBuildError(error_msg % ', '.join("'%s'" % k for k in known_keys))
+
+        # Resolve arch specific entries
+        for values in paths.values():
+            new_values = []
+            for value in values:
+                value = pick_system_specific_value('sanity_check_paths', value, allow_none=True)
+                if value is not None:
+                    new_values.append(value)
+            values[:] = new_values
 
         # if enhance_sanity_check is not enabled, only sanity_check_commands specified in the easyconfig file are used,
         # the ones provided by the easyblock (via custom_commands) are ignored

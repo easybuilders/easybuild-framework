@@ -277,7 +277,7 @@ class GithubTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.mock_stderr(False)
 
-        self.assertTrue(isinstance(res, list))
+        self.assertIsInstance(res, list)
         self.assertEqual(stderr.strip(), "WARNING: Using easyconfigs from closed PR #1844")
         patterns = [
             "Status of last commit is SUCCESS",
@@ -496,10 +496,10 @@ class GithubTest(EnhancedTestCase):
         path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
         repodir = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-main')
         self.assertTrue(os.path.samefile(path, repodir))
-        self.assertTrue(os.path.exists(repodir))
+        self.assertExists(repodir)
         shafile = os.path.join(repodir, 'latest-sha')
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
-        self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2019b.eb')))
+        self.assertExists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2019b.eb'))
 
         # current directory should not have changed after calling download_repo
         self.assertTrue(os.path.samefile(cwd, os.getcwd()))
@@ -524,7 +524,7 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertIn('easybuild', os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
-        self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py')))
+        self.assertExists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py'))
 
     def test_install_github_token(self):
         """Test for install_github_token function."""
@@ -592,7 +592,7 @@ class GithubTest(EnhancedTestCase):
         expected = os.path.join('e', 'EasyBuild', r'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
-        self.assertTrue(os.path.exists(path), "Path %s exists" % path)
+        self.assertExists(path)
 
     def test_github_find_patches(self):
         """ Test for find_software_name_for_patch """
@@ -1030,9 +1030,9 @@ class GithubTest(EnhancedTestCase):
         github_py = os.path.join(test_dir, 'github.py')
 
         configuremake = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
-        self.assertTrue(os.path.exists(configuremake))
+        self.assertExists(configuremake)
         toy_eb = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
-        self.assertTrue(os.path.exists(toy_eb))
+        self.assertExists(toy_eb)
 
         self.assertEqual(build_option('pr_target_repo'), None)
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([github_py])), 'easybuild-framework')
@@ -1113,7 +1113,7 @@ class GithubTest(EnhancedTestCase):
 
         patterns = [
             r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -1130,7 +1130,7 @@ class GithubTest(EnhancedTestCase):
 
         patterns = [
             r"^\[DRY RUN\] Adding comment to easybuild-easyblocks issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -1150,7 +1150,7 @@ class GithubTest(EnhancedTestCase):
 
         patterns = [
             r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
             r"Using easyblocks from PR\(s\) https://github.com/easybuilders/easybuild-easyblocks/pull/6789",
         ]
         for pattern in patterns:
@@ -1192,13 +1192,13 @@ class GithubTest(EnhancedTestCase):
 
         # mock create_gist function, we don't want to actually create a gist every time we run this test...
         def fake_create_gist(*args, **kwargs):
-            return 'https://gist.github.com/test'
+            return 'https://gist.github.com/%s/test' % GITHUB_TEST_ACCOUNT
 
         easybuild.tools.testing.create_gist = fake_create_gist
 
         res = create_test_report("just a test", ecs_with_res, init_session_state, pr_nrs=[123], gist_log=True)
 
-        patterns.insert(2, "https://gist.github.com/test")
+        patterns.insert(2, "https://gist.github.com/%s/test" % GITHUB_TEST_ACCOUNT)
         patterns.extend([
             "https://github.com/easybuilders/easybuild-easyconfigs/pull/123",
         ])

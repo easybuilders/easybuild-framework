@@ -63,7 +63,8 @@ from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
 from easybuild.tools.build_log import init_logging, log_start, print_msg, print_warning, raise_easybuilderror
 from easybuild.tools.config import CHECKSUM_PRIORITY_CHOICES, DEFAULT_CHECKSUM_PRIORITY
 from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE, DEFAULT_ALLOW_LOADED_MODULES
-from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_ENV_FOR_SHEBANG, DEFAULT_ENVVAR_USERS_MODULES
+from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_DOWNLOAD_TIMEOUT
+from easybuild.tools.config import DEFAULT_ENV_FOR_SHEBANG, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE, DEFAULT_JOB_BACKEND
 from easybuild.tools.config import DEFAULT_JOB_EB_CMD, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
 from easybuild.tools.config import DEFAULT_MINIMAL_BUILD_ENV, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
@@ -339,6 +340,8 @@ class EasyBuildOptions(GeneralOption):
         # override options
         descr = ("Override options", "Override default EasyBuild behavior.")
 
+        all_deprecations = ('python2', 'Lmod6', 'easyconfig', 'toolchain')
+
         opts = OrderedDict({
             'accept-eula': ("Accept EULA for specified software [DEPRECATED, use --accept-eula-for instead!]",
                             'strlist', 'store', []),
@@ -390,7 +393,8 @@ class EasyBuildOptions(GeneralOption):
             'detect-loaded-modules': ("Detect loaded EasyBuild-generated modules, act accordingly; "
                                       "supported values: %s" % ', '.join(LOADED_MODULES_ACTIONS), None, 'store', WARN),
             'devel': ("Enable including of development log messages", None, 'store_true', False),
-            'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', None),
+            'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store',
+                                 DEFAULT_DOWNLOAD_TIMEOUT),
             'dump-autopep8': ("Reformat easyconfigs using autopep8 when dumping them", None, 'store_true', False),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
@@ -494,7 +498,9 @@ class EasyBuildOptions(GeneralOption):
             'set-default-module': ("Set the generated module as default", None, 'store_true', False),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
             'show-progress-bar': ("Show progress bar in terminal output", None, 'store_true', True),
-            'silence-deprecation-warnings': ("Silence specified deprecation warnings", 'strlist', 'extend', None),
+            'silence-deprecation-warnings': (
+                "Silence specified deprecation warnings out of (%s)" % ', '.join(all_deprecations),
+                'strlist', 'extend', []),
             'skip-extensions': ("Skip installation of extensions", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'skip-test-step': ("Skip running the test step (e.g. unit tests)", None, 'store_true', False),

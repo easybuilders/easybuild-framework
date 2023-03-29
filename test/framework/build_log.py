@@ -388,26 +388,26 @@ class BuildLogTest(EnhancedTestCase):
         tmp_logfile = os.path.join(self.test_prefix, 'test.log')
         log, logfile = init_logging(tmp_logfile, silent=True)
         self.assertEqual(logfile, tmp_logfile)
-        self.assertTrue(os.path.exists(logfile))
-        self.assertTrue(isinstance(log, EasyBuildLog))
+        self.assertExists(logfile)
+        self.assertIsInstance(log, EasyBuildLog)
 
         stop_logging(logfile)
 
         # no log provided, so create one (should be file in $TMPDIR)
         log, logfile = init_logging(None, silent=True)
-        self.assertTrue(os.path.exists(logfile))
+        self.assertExists(logfile)
         self.assertEqual(os.path.dirname(logfile), tmpdir)
-        self.assertTrue(isinstance(log, EasyBuildLog))
+        self.assertIsInstance(log, EasyBuildLog)
 
         stop_logging(logfile)
 
         # no problem with specifying a different directory to put log file in (even if it doesn't exist yet)
         tmp_logdir = os.path.join(self.test_prefix, 'tmp_logs')
-        self.assertFalse(os.path.exists(tmp_logdir))
+        self.assertNotExists(tmp_logdir)
 
         log, logfile = init_logging(None, silent=True, tmp_logdir=tmp_logdir)
         self.assertEqual(os.path.dirname(logfile), tmp_logdir)
-        self.assertTrue(isinstance(log, EasyBuildLog))
+        self.assertIsInstance(log, EasyBuildLog)
 
         stop_logging(logfile)
 
@@ -416,9 +416,9 @@ class BuildLogTest(EnhancedTestCase):
         log, logfile = init_logging(None)
         stdout = self.get_stdout()
         self.mock_stdout(False)
-        self.assertTrue(os.path.exists(logfile))
+        self.assertExists(logfile)
         self.assertEqual(os.path.dirname(logfile), tmpdir)
-        self.assertTrue(isinstance(log, EasyBuildLog))
+        self.assertIsInstance(log, EasyBuildLog)
         self.assertTrue(stdout.startswith("== Temporary log file in case of crash"))
 
         stop_logging(logfile)
@@ -428,7 +428,7 @@ class BuildLogTest(EnhancedTestCase):
         log, logfile = init_logging(None, logtostdout=True)
         self.mock_stdout(False)
         self.assertEqual(logfile, None)
-        self.assertTrue(isinstance(log, EasyBuildLog))
+        self.assertIsInstance(log, EasyBuildLog)
 
         stop_logging(logfile, logtostdout=True)
 

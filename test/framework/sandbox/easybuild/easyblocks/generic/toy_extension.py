@@ -64,7 +64,7 @@ class Toy_Extension(ExtensionEasyBlock):
         Install toy extension.
         """
         if self.src:
-            EB_toy.build_step(self.master, name=self.name, buildopts=self.cfg['buildopts'])
+            EB_toy.build_step(self.master, name=self.name, cfg=self.cfg)
 
             if self.cfg['toy_ext_param']:
                 run_cmd(self.cfg['toy_ext_param'])
@@ -79,7 +79,7 @@ class Toy_Extension(ExtensionEasyBlock):
 
         if self.src:
             super(Toy_Extension, self).run(unpack_src=True)
-            EB_toy.configure_step(self.master, name=self.name)
+            EB_toy.configure_step(self.master, name=self.name, cfg=self.cfg)
 
     def run_async(self):
         """

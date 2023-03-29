@@ -1097,6 +1097,36 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(lua_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
 
+    def test_unload_msg(self):
+        """Test including an unload message in the module file."""
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = "\nif { [ module-info mode unload ] } {\nputs stderr \"test\"\n}\n"
+            self.assertEqual(expected, self.modgen.msg_on_unload('test'))
+
+            tcl_unload_msg = '\n'.join([
+                '',
+                "if { [ module-info mode unload ] } {",
+                "puts stderr \"test \\$test \\$test",
+                "test \\$foo \\$bar\"",
+                "}",
+                '',
+            ])
+            self.assertEqual(tcl_unload_msg, self.modgen.msg_on_unload('test $test \\$test\ntest $foo \\$bar'))
+
+        else:
+            expected = '\nif mode() == "unload" then\nio.stderr:write([==[test]==])\nend\n'
+            self.assertEqual(expected, self.modgen.msg_on_unload('test'))
+
+            lua_unload_msg = '\n'.join([
+                '',
+                'if mode() == "unload" then',
+                'io.stderr:write([==[test $test \\$test',
+                'test $foo \\$bar]==])',
+                'end',
+                '',
+            ])
+            self.assertEqual(lua_unload_msg, self.modgen.msg_on_unload('test $test \\$test\ntest $foo \\$bar'))
+
     def test_module_naming_scheme(self):
         """Test using default module naming scheme."""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
@@ -1238,6 +1268,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
         ec2mod_map = default_ec2mod_map
         test_mns()
+
+        # check how an incorrect dependency specification is handled;
+        # accidentally using SYSTEM as 3rd tuple element should trigger a useful error,
+        # not a nasty crash; cfr. https://github.com/easybuilders/easybuild-framework/issues/4181
+        faulty_dep_spec = {
+            'name': 'test',
+            'version': '1.2.3',
+            'versionsuffix': {'name': 'system', 'version': 'system'},
+        }
+        error_pattern = "versionsuffix value should be a string, found 'dict'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ActiveMNS().det_full_module_name, faulty_dep_spec)
 
     def test_mod_name_validation(self):
         """Test module naming validation."""

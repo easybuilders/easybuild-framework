@@ -1149,7 +1149,8 @@ class GeneralOption(object):
                 if len(str(default)) == 0:
                     extra_help.append("default: ''")  # empty string
                 elif typ in ExtOption.TYPE_STRLIST:
-                    extra_help.append("default: %s" % sep.join(default))
+                    if default:
+                        extra_help.append("default: %s" % sep.join(default))
                 else:
                     extra_help.append("default: %s" % default)
 
