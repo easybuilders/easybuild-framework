@@ -39,7 +39,6 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import EasyConfigFormat
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.tools import LooseVersion
-from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import INDENT_4SPACES, only_if_module_is_available, quote_str
 
 
@@ -162,7 +161,7 @@ def quote_yaml_special_chars(val):
     Single quotes inside the string are escaped by doubling them.
     (see: http://symfony.com/doc/current/components/yaml/yaml_format.html#strings)
     """
-    if isinstance(val, string_type):
+    if isinstance(val, str):
         if "'" in val or YAML_SPECIAL_CHARS.intersection(val):
             val = "'%s'" % val.replace("'", "''")
 
