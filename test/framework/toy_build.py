@@ -41,6 +41,7 @@ import sys
 import tempfile
 import textwrap
 from easybuild.tools import LooseVersion
+from importlib import reload
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner
