@@ -87,6 +87,7 @@ import traceback
 import weakref
 
 from easybuild.tools import LooseVersion
+from easybuild.tools.py2vs3 import raise_with_traceback
 
 
 def _env_to_boolean(varname, default=False):
@@ -327,7 +328,7 @@ class FancyLogger(logging.getLoggerClass()):
             exception = self.RAISE_EXCEPTION_CLASS
 
         self.RAISE_EXCEPTION_LOG_METHOD(fullmessage)
-        raise exception(message).with_traceback(tb)
+        raise_with_traceback(exception, message, tb)
 
     # pylint: disable=unused-argument
     def deprecated(self, msg, cur_ver, max_ver, depth=2, exception=None, log_callback=None, *args, **kwargs):
@@ -587,7 +588,7 @@ def logToFile(filename, enable=True, filehandler=None, name=None, max_bytes=MAX_
             os.makedirs(directory)
         except Exception as ex:
             exc, detail, tb = sys.exc_info()
-            raise exc("Cannot create logdirectory %s: %s \n detail: %s" % (directory, ex, detail)).with_traceback(tb)
+            raise_with_traceback(exc, "Cannot create logdirectory %s: %s \n detail: %s" % (directory, ex, detail), tb)
 
     return _logToSomething(
         logging.handlers.RotatingFileHandler,
