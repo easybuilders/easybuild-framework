@@ -58,6 +58,8 @@ import tempfile
 import time
 import zlib
 from functools import partial
+from html.parser import HTMLParser
+from urllib import request
 
 from easybuild.base import fancylogger
 from easybuild.tools import run
@@ -66,7 +68,6 @@ from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, pr
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
-from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars, trace_msg
 
 try:
@@ -393,7 +394,7 @@ def remove(paths):
 
     :param paths: path(s) to remove
     """
-    if isinstance(paths, string_type):
+    if isinstance(paths, str):
         paths = [paths]
 
     _log.info("Removing %d files & directories", len(paths))
@@ -787,8 +788,8 @@ def download_file(filename, url, path, forced=False):
                     _log.debug("Custom HTTP header field set: %s (value omitted from log)", key)
 
     # for backward compatibility, and to avoid relying on 3rd party Python library 'requests'
-    url_req = std_urllib.Request(url, headers=headers)
-    used_urllib = std_urllib
+    url_req = request.Request(url, headers=headers)
+    used_urllib = request
     switch_to_requests = False
 
     while not downloaded and attempt_cnt < max_attempts:
@@ -796,13 +797,11 @@ def download_file(filename, url, path, forced=False):
         try:
             if insecure:
                 print_warning("Not checking server certificates while downloading %s from %s." % (filename, url))
-            if used_urllib is std_urllib:
-                # urllib2 (Python 2) / urllib.request (Python 3) does the right thing for http proxy setups,
-                # urllib does not!
+            if used_urllib is request:
                 if insecure:
-                    url_fd = std_urllib.urlopen(url_req, timeout=timeout, context=ssl._create_unverified_context())
+                    url_fd = request.urlopen(url_req, timeout=timeout, context=ssl._create_unverified_context())
                 else:
-                    url_fd = std_urllib.urlopen(url_req, timeout=timeout)
+                    url_fd = request.urlopen(url_req, timeout=timeout)
                 status_code = url_fd.getcode()
                 size = det_file_size(url_fd.info())
             else:
@@ -825,7 +824,7 @@ def download_file(filename, url, path, forced=False):
             downloaded = True
             url_fd.close()
         except used_urllib.HTTPError as err:
-            if used_urllib is std_urllib:
+            if used_urllib is request:
                 status_code = err.code
             if status_code == 403 and attempt_cnt == 1:
                 switch_to_requests = True
@@ -845,7 +844,7 @@ def download_file(filename, url, path, forced=False):
 
         if not downloaded and attempt_cnt < max_attempts:
             _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))
-            if used_urllib is std_urllib and switch_to_requests:
+            if used_urllib is request and switch_to_requests:
                 if not HAVE_REQUESTS:
                     raise EasyBuildError("SSL issues with urllib2. If you are using RHEL/CentOS 6.x please "
                                          "install the python-requests and pyOpenSSL RPM packages and try again.")
@@ -1274,7 +1273,7 @@ def verify_checksum(path, checksums):
                 # Set to None and allow to fail elsewhere
                 checksum = None
 
-        if isinstance(checksum, string_type):
+        if isinstance(checksum, str):
             # if no checksum type is specified, it is assumed to be MD5 (32 characters) or SHA256 (64 characters)
             if len(checksum) == 64:
                 typ = CHECKSUM_TYPE_SHA256
@@ -1318,7 +1317,7 @@ def verify_checksum(path, checksums):
 def is_sha256_checksum(value):
     """Check whether provided string is a SHA256 checksum."""
     res = False
-    if isinstance(value, string_type):
+    if isinstance(value, str):
         if re.match('^[0-9a-f]{64}$', value):
             res = True
             _log.debug("String value '%s' has the correct format to be a SHA256 checksum", value)
@@ -1490,7 +1489,7 @@ def create_patch_info(patch_spec):
 
         # string value as patch argument can be either path where patch should be applied,
         # or path to where a non-patch file should be copied
-        elif isinstance(patch_arg, string_type):
+        elif isinstance(patch_arg, str):
             if patch_spec[0].endswith('.patch'):
                 patch_info['sourcepath'] = patch_arg
             # non-patch files are assumed to be files to copy
@@ -1500,7 +1499,7 @@ def create_patch_info(patch_spec):
             raise EasyBuildError("Wrong patch spec '%s', only int/string are supported as 2nd element",
                                  str(patch_spec))
 
-    elif isinstance(patch_spec, string_type):
+    elif isinstance(patch_spec, str):
         validate_patch_spec(patch_spec)
         patch_info = {'name': patch_spec}
     elif isinstance(patch_spec, dict):
@@ -1651,7 +1650,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb', on_missing_m
         raise EasyBuildError('Invalid value passed to on_missing_match: %s (allowed: %s)',
                              on_missing_match, ', '.join(allowed_values))
 
-    if isinstance(paths, string_type):
+    if isinstance(paths, str):
         paths = [paths]
 
     # only report when in 'dry run' mode
@@ -2326,7 +2325,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
 
     # always consider $LM_LICENSE_FILE
     lic_env_vars = ['LM_LICENSE_FILE']
-    if isinstance(custom_env_vars, string_type):
+    if isinstance(custom_env_vars, str):
         lic_env_vars.insert(0, custom_env_vars)
     elif custom_env_vars is not None:
         lic_env_vars = custom_env_vars + lic_env_vars
@@ -2581,7 +2580,7 @@ def copy(paths, target_path, force_in_dry_run=False, **kwargs):
     :param force_in_dry_run: force running the command during dry run
     :param kwargs: additional named arguments to pass down to copy_dir
     """
-    if isinstance(paths, string_type):
+    if isinstance(paths, str):
         paths = [paths]
 
     _log.info("Copying %d files & directories to %s", len(paths), target_path)

@@ -32,10 +32,10 @@ Authors:
 * Jørgen Nordmoen (University of Oslo)
 """
 import functools
+from collections import OrderedDict
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
-from easybuild.tools.py2vs3 import OrderedDict
 
 try:
     from rich.console import Console, Group
