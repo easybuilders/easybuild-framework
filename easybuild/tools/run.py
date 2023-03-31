@@ -50,7 +50,6 @@ import easybuild.tools.asyncprocess as asyncprocess
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
-from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import trace_msg
 
 
@@ -84,7 +83,7 @@ def run_cmd_cache(func):
         # cache key is combination of command and input provided via stdin
         key = (cmd, kwargs.get('inp', None))
         # fetch from cache if available, cache it if it's not, but only on cmd strings
-        if isinstance(cmd, string_type) and key in cache:
+        if isinstance(cmd, str) and key in cache:
             _log.debug("Using cached value for command '%s': %s", cmd, cache[key])
             return cache[key]
         else:
@@ -151,7 +150,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     """
     cwd = os.getcwd()
 
-    if isinstance(cmd, string_type):
+    if isinstance(cmd, str):
         cmd_msg = cmd.strip()
     elif isinstance(cmd, list):
         cmd_msg = ' '.join(cmd)
@@ -228,7 +227,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         if isinstance(cmd, list):
             exec_cmd = None
             cmd.insert(0, '/usr/bin/env')
-        elif isinstance(cmd, string_type):
+        elif isinstance(cmd, str):
             cmd = '/usr/bin/env %s' % cmd
         else:
             raise EasyBuildError("Don't know how to prefix with /usr/bin/env for commands of type %s", type(cmd))
@@ -372,7 +371,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     """
     cwd = os.getcwd()
 
-    if not isinstance(cmd, string_type) and len(cmd) > 1:
+    if not isinstance(cmd, str) and len(cmd) > 1:
         # We use shell=True and hence we should really pass the command as a string
         # When using a list then every element past the first is passed to the shell itself, not the command!
         raise EasyBuildError("The command passed must be a string!")
@@ -447,7 +446,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 
     def check_answers_list(answers):
         """Make sure we have a list of answers (as strings)."""
-        if isinstance(answers, string_type):
+        if isinstance(answers, str):
             answers = [answers]
         elif not isinstance(answers, list):
             if cmd_log:
@@ -717,7 +716,7 @@ def extract_errors_from_log(log_txt, reg_exps):
     actions = (IGNORE, WARN, ERROR)
 
     # promote single string value to list, since code below expects a list
-    if isinstance(reg_exps, string_type):
+    if isinstance(reg_exps, str):
         reg_exps = [reg_exps]
 
     re_tuples = []

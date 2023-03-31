@@ -40,6 +40,7 @@ import stat
 import sys
 import tempfile
 import time
+from io import StringIO
 from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -48,7 +49,7 @@ import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import IGNORE, ERROR, build_option, update_build_option
 from easybuild.tools.multidiff import multidiff
-from easybuild.tools.py2vs3 import StringIO, std_urllib
+from easybuild.tools.py2vs3 import std_urllib
 
 
 class FileToolsTest(EnhancedTestCase):

@@ -45,6 +45,7 @@ import shutil
 import sys
 import tempfile
 import pwd
+from collections import OrderedDict
 
 import easybuild.tools.environment as env
 from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
@@ -97,7 +98,6 @@ from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
-from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.robot import det_robot_path
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
@@ -1104,7 +1104,7 @@ class EasyBuildOptions(GeneralOption):
 
         opt_val = getattr(self.options, opt_name)
         if opt_val:
-            if isinstance(opt_val, string_type):
+            if isinstance(opt_val, str):
                 setattr(self.options, opt_name, self.get_cfg_opt_abs_path(opt_name, opt_val))
             elif isinstance(opt_val, list):
                 abs_paths = [self.get_cfg_opt_abs_path(opt_name, p) for p in opt_val]
@@ -1827,7 +1827,7 @@ def parse_external_modules_metadata(cfgs):
                 unknown_keys.setdefault(mod, []).append(key)
 
         for key in ['name', 'version']:
-            if isinstance(entry.get(key), string_type):
+            if isinstance(entry.get(key), str):
                 entry[key] = [entry[key]]
                 _log.debug("Transformed external module metadata value %s for %s into a single-value list: %s",
                            key, mod, entry[key])
