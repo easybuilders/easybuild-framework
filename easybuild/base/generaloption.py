@@ -45,7 +45,7 @@ from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python 
 
 from easybuild.base.fancylogger import getLogger, setroot, setLogLevel, getDetailsLogLevels
 from easybuild.base.optcomplete import autocomplete, CompleterOption
-from easybuild.tools.py2vs3 import StringIO, configparser, ConfigParser, string_type, subprocess_popen_text
+from easybuild.tools.py2vs3 import StringIO, configparser, ConfigParser, subprocess_popen_text
 from easybuild.tools.utilities import mk_md_table, mk_rst_table, nub, shell_quote
 
 try:
@@ -133,7 +133,7 @@ def get_empty_add_flex(allvalues, self=None):
     empty = None
 
     if isinstance(allvalues, (list, tuple)):
-        if isinstance(allvalues[0], string_type):
+        if isinstance(allvalues[0], str):
             empty = ''
 
     if empty is None:
@@ -464,7 +464,7 @@ class ExtOptionParser(OptionParser):
         # --longopt=value, so no issues there either.
 
         # following checks assume that value is a string (not a store_or_None)
-        if not isinstance(value, string_type):
+        if not isinstance(value, str):
             return None
 
         cmdline_index = None
@@ -1191,7 +1191,7 @@ class GeneralOption(object):
                         # choices
                         nameds['choices'] = ["%s" % x for x in extra_detail]  # force to strings
                         hlp += ' (choices: %s)' % ', '.join(nameds['choices'])
-                    elif isinstance(extra_detail, string_type) and len(extra_detail) == 1:
+                    elif isinstance(extra_detail, str) and len(extra_detail) == 1:
                         args.insert(0, "-%s" % extra_detail)
                     elif isinstance(extra_detail, (dict,)):
                         # extract any optcomplete completer hints

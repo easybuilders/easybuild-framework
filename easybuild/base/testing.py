@@ -47,8 +47,6 @@ except ImportError:
 
 from unittest import TestCase as OrigTestCase
 
-from easybuild.tools.py2vs3 import string_type
-
 
 def nicediff(txta, txtb, offset=5):
     """
@@ -85,7 +83,7 @@ class TestCase(OrigTestCase):
     def is_string(self, x):
         """test if the variable x is a string)"""
         try:
-            return isinstance(x, string_type)
+            return isinstance(x, str)
         except NameError:
             return isinstance(x, str)
 

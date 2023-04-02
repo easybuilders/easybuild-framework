@@ -39,7 +39,7 @@ from string import digits
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.py2vs3 import ascii_letters, string_type
+from easybuild.tools.py2vs3 import ascii_letters
 
 
 _log = fancylogger.getLogger('tools.utilities')
@@ -72,7 +72,7 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False, escape_back
     :param tcl: Boolean for whether we are quoting for Tcl syntax
     """
 
-    if isinstance(val, string_type):
+    if isinstance(val, str):
         # escape backslashes
         if escape_backslash:
             val = val.replace('\\', '\\\\')
@@ -164,7 +164,7 @@ def only_if_module_is_available(modnames, pkgname=None, url=None):
     if pkgname and url is None:
         url = 'https://pypi.python.org/pypi/%s' % pkgname
 
-    if isinstance(modnames, string_type):
+    if isinstance(modnames, str):
         modnames = (modnames,)
 
     def wrap(orig):
