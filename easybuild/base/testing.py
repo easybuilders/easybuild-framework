@@ -39,11 +39,7 @@ import pprint
 import re
 import sys
 from contextlib import contextmanager
-
-try:
-    from cStringIO import StringIO  # Python 2
-except ImportError:
-    from io import StringIO  # Python 3
+from io import StringIO
 
 from unittest import TestCase as OrigTestCase
 
