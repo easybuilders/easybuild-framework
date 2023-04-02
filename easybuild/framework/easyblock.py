@@ -97,7 +97,6 @@ from easybuild.tools.modules import get_software_root_env_var_name, get_software
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
 from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.package.utilities import package
-from easybuild.tools.py2vs3 import extract_method_name
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_linked_libs_raw
 from easybuild.tools.systemtools import get_shared_lib_ext, pick_system_specific_value, use_group
