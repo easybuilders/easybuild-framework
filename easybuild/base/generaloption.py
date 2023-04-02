@@ -48,7 +48,7 @@ from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python 
 
 from easybuild.base.fancylogger import getLogger, setroot, setLogLevel, getDetailsLogLevels
 from easybuild.base.optcomplete import autocomplete, CompleterOption
-from easybuild.tools.py2vs3 import subprocess_popen_text
+from easybuild.tools.asyncprocess import subprocess_popen_text
 from easybuild.tools.utilities import mk_md_table, mk_rst_table, nub, shell_quote
 
 try:

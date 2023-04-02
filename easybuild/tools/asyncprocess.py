@@ -152,6 +152,24 @@ class Popen(subprocess.Popen):
 message = "Other end disconnected!"
 
 
+def subprocess_popen_text(cmd, **kwargs):
+    """Call subprocess.Popen in text mode with specified named arguments."""
+    # open stdout/stderr in text mode in Popen when using Python 3
+    kwargs.setdefault('stderr', subprocess.PIPE)
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, **kwargs)
+
+
+def subprocess_terminate(proc, timeout):
+    """Terminate the subprocess if it hasn't finished after the given timeout"""
+    try:
+        proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        for pipe in (proc.stdout, proc.stderr, proc.stdin):
+            if pipe:
+                pipe.close()
+        proc.terminate()
+
+
 def recv_some(p, t=.2, e=1, tr=5, stderr=0):
     if tr < 1:
         tr = 1

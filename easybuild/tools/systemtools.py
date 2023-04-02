@@ -45,7 +45,7 @@ import warnings
 from collections import OrderedDict
 from ctypes.util import find_library
 from socket import gethostname
-from easybuild.tools.py2vs3 import subprocess_popen_text
+from easybuild.tools.asyncprocess import subprocess_popen_text
 
 # pkg_resources is provided by the setuptools Python package,
 # which we really want to keep as an *optional* dependency
