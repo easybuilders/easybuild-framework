@@ -36,6 +36,7 @@ import sys
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.py2vs3 import reload
 from easybuild.tools.utilities import only_if_module_is_available
 
 try:
