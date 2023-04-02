@@ -37,6 +37,7 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.py2vs3 import string_type
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
 
@@ -271,7 +272,7 @@ def to_toolchain_dict(spec):
     :param spec: a comma-separated string with two or three values, or a 2/3-element list of strings, or a dict
     """
     # check if spec is a string or a list of two values; else, it can not be converted
-    if isinstance(spec, str):
+    if isinstance(spec, string_type):
         spec = spec.split(',')
 
     if isinstance(spec, (list, tuple)):
@@ -313,11 +314,11 @@ def to_list_of_strings(value):
     res = None
 
     # if value is already of correct type, we don't need to change anything
-    if isinstance(value, list) and all(isinstance(s, str) for s in value):
+    if isinstance(value, list) and all(isinstance(s, string_type) for s in value):
         res = value
-    elif isinstance(value, str):
+    elif isinstance(value, string_type):
         res = [value]
-    elif isinstance(value, tuple) and all(isinstance(s, str) for s in value):
+    elif isinstance(value, tuple) and all(isinstance(s, string_type) for s in value):
         res = list(value)
     else:
         raise EasyBuildError("Don't know how to convert provided value to a list of strings: %s", value)
@@ -340,7 +341,7 @@ def to_list_of_strings_and_tuples(spec):
         raise EasyBuildError("Expected value to be a list, found %s (%s)", spec, type(spec))
 
     for elem in spec:
-        if isinstance(elem, (str, tuple)):
+        if isinstance(elem, (string_type, tuple)):
             str_tup_list.append(elem)
         elif isinstance(elem, list):
             str_tup_list.append(tuple(elem))
@@ -365,7 +366,7 @@ def to_list_of_strings_and_tuples_and_dicts(spec):
         raise EasyBuildError("Expected value to be a list, found %s (%s)", spec, type(spec))
 
     for elem in spec:
-        if isinstance(elem, (str, tuple, dict)):
+        if isinstance(elem, (string_type, tuple, dict)):
             str_tup_list.append(elem)
         elif isinstance(elem, list):
             str_tup_list.append(tuple(elem))
@@ -391,17 +392,17 @@ def to_sanity_check_paths_entry(spec):
         raise EasyBuildError("Expected value to be a list, found %s (%s)", spec, type(spec))
 
     for elem in spec:
-        if isinstance(elem, (str, tuple)):
+        if isinstance(elem, (string_type, tuple)):
             result.append(elem)
         elif isinstance(elem, list):
             result.append(tuple(elem))
         elif isinstance(elem, dict):
             for key, value in elem.items():
-                if not isinstance(key, str):
+                if not isinstance(key, string_type):
                     raise EasyBuildError("Expected keys to be of type string, got %s (%s)", key, type(key))
                 elif isinstance(value, list):
                     elem[key] = tuple(value)
-                elif not isinstance(value, (str, tuple)):
+                elif not isinstance(value, (string_type, tuple)):
                     raise EasyBuildError("Expected elements to be of type string, tuple or list, got %s (%s)",
                                          value, type(value))
             result.append(elem)
@@ -514,11 +515,11 @@ def to_checksums(checksums):
         # * a tuple with 2 elements: checksum type + checksum value
         # * a list of checksums (i.e. multiple checksums for a single file)
         # * a dict (filename to checksum mapping)
-        if isinstance(checksum, str):
+        if isinstance(checksum, string_type):
             res.append(checksum)
         elif isinstance(checksum, (list, tuple)):
             # 2 elements + only string/int values => a checksum tuple
-            if len(checksum) == 2 and all(isinstance(x, (str, int)) for x in checksum):
+            if len(checksum) == 2 and all(isinstance(x, (string_type, int)) for x in checksum):
                 res.append(tuple(checksum))
             else:
                 res.append(to_checksums(checksum))
@@ -542,9 +543,9 @@ def ensure_iterable_license_specs(specs):
     """
     if specs is None:
         license_specs = [None]
-    elif isinstance(specs, str):
+    elif isinstance(specs, string_type):
         license_specs = [specs]
-    elif isinstance(specs, (list, tuple)) and all(isinstance(x, str) for x in specs):
+    elif isinstance(specs, (list, tuple)) and all(isinstance(x, string_type) for x in specs):
         license_specs = list(specs)
     else:
         msg = "Unsupported type %s for easyconfig parameter 'license_file'! " % type(specs)
@@ -619,25 +620,25 @@ CHECKABLE_TYPES = [CHECKSUM_LIST, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST
                    STRING_OR_TUPLE_DICT, STRING_OR_TUPLE_OR_DICT_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
-EASY_TYPES = [str, bool, dict, int, list, str, tuple]
+EASY_TYPES = [string_type, bool, dict, int, list, str, tuple]
 
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
     'checksums': CHECKSUMS,
     'docurls': LIST_OF_STRINGS,
-    'name': str,
+    'name': string_type,
     'osdependencies': STRING_OR_TUPLE_LIST,
     'patches': STRING_OR_TUPLE_OR_DICT_LIST,
     'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
     'toolchain': TOOLCHAIN_DICT,
-    'version': str,
+    'version': string_type,
 }
 # add all dependency types as dependencies
 for dep in DEPENDENCY_PARAMETERS:
     PARAMETER_TYPES[dep] = DEPENDENCIES
 
 TYPE_CONVERSION_FUNCTIONS = {
-    str: str,
+    string_type: str,
     float: float,
     int: int,
     str: str,

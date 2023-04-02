@@ -41,6 +41,7 @@ from easybuild.framework.easyconfig.types import to_list_of_strings, to_list_of_
 from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples_and_dicts
 from easybuild.framework.easyconfig.types import to_sanity_check_paths_dict, to_toolchain_dict
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.py2vs3 import string_type
 
 
 class TypeCheckingTest(EnhancedTestCase):
@@ -247,9 +248,9 @@ class TypeCheckingTest(EnhancedTestCase):
     def test_convert_value_type(self):
         """Test convert_value_type function."""
         # to string
-        self.assertEqual(convert_value_type(100, str), '100')
+        self.assertEqual(convert_value_type(100, string_type), '100')
         self.assertEqual(convert_value_type((100,), str), '(100,)')
-        self.assertEqual(convert_value_type([100], str), '[100]')
+        self.assertEqual(convert_value_type([100], string_type), '[100]')
         self.assertEqual(convert_value_type(None, str), 'None')
 
         # to int/float
@@ -268,7 +269,7 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(convert_value_type((), LIST_OF_STRINGS), [])
 
         # idempotency
-        self.assertEqual(convert_value_type('foo', str), 'foo')
+        self.assertEqual(convert_value_type('foo', string_type), 'foo')
         self.assertEqual(convert_value_type('foo', str), 'foo')
         self.assertEqual(convert_value_type(100, int), 100)
         self.assertEqual(convert_value_type(1.6, float), 1.6)

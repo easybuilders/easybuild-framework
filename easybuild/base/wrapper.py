@@ -6,17 +6,7 @@ with attribution required
 Original code by http://stackoverflow.com/users/416467/kindall from answer 4 of
 http://stackoverflow.com/questions/9057669/how-can-i-intercept-calls-to-pythons-magic-methods-in-new-style-classes
 """
-
-
-def mk_wrapper_baseclass(metaclass):
-
-    class WrapperBase(object, metaclass=metaclass):
-        """
-        Wrapper class that provides proxy access to an instance of some internal instance.
-        """
-        __wraps__ = None
-
-    return WrapperBase
+from easybuild.tools.py2vs3 import mk_wrapper_baseclass
 
 
 class WrapperMeta(type):

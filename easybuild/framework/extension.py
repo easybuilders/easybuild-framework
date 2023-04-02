@@ -43,6 +43,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RU
 from easybuild.tools.build_log import EasyBuildError, raise_nosupport
 from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import check_async_cmd, run_cmd
+from easybuild.tools.py2vs3 import string_type
 
 
 def resolve_exts_filter_template(exts_filter, ext):
@@ -53,7 +54,7 @@ def resolve_exts_filter_template(exts_filter, ext):
     :return: (cmd, input) as a tuple of strings
     """
 
-    if isinstance(exts_filter, str) or len(exts_filter) != 2:
+    if isinstance(exts_filter, string_type) or len(exts_filter) != 2:
         raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
 
     cmd, cmdinput = exts_filter

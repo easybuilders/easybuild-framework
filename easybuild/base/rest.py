@@ -40,10 +40,9 @@ import base64
 import copy
 import json
 from functools import partial
-from urllib.request import HTTPSHandler, Request, build_opener
-from urllib.parse import urlencode
 
 from easybuild.base import fancylogger
+from easybuild.tools.py2vs3 import HTTPSHandler, Request, build_opener, json_loads, string_type, urlencode
 
 
 class Client(object):
@@ -181,7 +180,7 @@ class Client(object):
         else:
             body = conn.read()
             try:
-                pybody = json.loads(body)
+                pybody = json_loads(body)
             except ValueError:
                 pybody = body
         fancylogger.getLogger().debug('reponse len: %s ', len(pybody))
@@ -207,7 +206,7 @@ class Client(object):
         # value passed to 'data' must be a 'bytes' value (not 'str') in Python 3.x, but a string value in Python 2
         # hence, we encode the value obtained (if needed)
         # this doesn't affect the value type in Python 2, and makes it a 'bytes' value in Python 3
-        if isinstance(body, str):
+        if isinstance(body, string_type):
             body = body.encode('utf-8')
 
         request = Request(self.url + sep + url, data=body)

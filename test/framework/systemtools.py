@@ -40,6 +40,7 @@ from unittest import TextTestRunner
 import easybuild.tools.systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, read_file, symlink, which, write_file
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
@@ -421,7 +422,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_model_native(self):
         """Test getting CPU model."""
         cpu_model = get_cpu_model()
-        self.assertIsInstance(cpu_model, str)
+        self.assertIsInstance(cpu_model, string_type)
 
     def test_cpu_model_linux(self):
         """Test getting CPU model (mocked for Linux)."""
@@ -496,7 +497,7 @@ class SystemToolsTest(EnhancedTestCase):
         cpu_feat = get_cpu_features()
         self.assertIsInstance(cpu_feat, list)
         self.assertTrue(len(cpu_feat) >= 0)
-        self.assertTrue(all(isinstance(x, str) for x in cpu_feat))
+        self.assertTrue(all(isinstance(x, string_type) for x in cpu_feat))
 
     def test_cpu_features_linux(self):
         """Test getting CPU features (mocked for Linux)."""
@@ -580,7 +581,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_arch_name_native(self):
         """Test getting CPU arch name."""
         arch_name = get_cpu_arch_name()
-        self.assertIsInstance(arch_name, str)
+        self.assertIsInstance(arch_name, string_type)
 
     def test_cpu_arch_name(self):
         """Test getting CPU arch name."""
@@ -714,12 +715,12 @@ class SystemToolsTest(EnhancedTestCase):
     def test_platform_name_native(self):
         """Test getting platform name."""
         platform_name_nover = get_platform_name()
-        self.assertIsInstance(platform_name_nover, str)
+        self.assertIsInstance(platform_name_nover, string_type)
         len_nover = len(platform_name_nover.split('-'))
         self.assertTrue(len_nover >= 3)
 
         platform_name_ver = get_platform_name(withversion=True)
-        self.assertIsInstance(platform_name_ver, str)
+        self.assertIsInstance(platform_name_ver, string_type)
         len_ver = len(platform_name_ver.split('-'))
         self.assertTrue(platform_name_ver.startswith(platform_name_ver))
         self.assertTrue(len_ver >= len_nover)
@@ -739,12 +740,12 @@ class SystemToolsTest(EnhancedTestCase):
     def test_os_name(self):
         """Test getting OS name."""
         os_name = get_os_name()
-        self.assertTrue(isinstance(os_name, str) or os_name == UNKNOWN)
+        self.assertTrue(isinstance(os_name, string_type) or os_name == UNKNOWN)
 
     def test_os_version(self):
         """Test getting OS version."""
         os_version = get_os_version()
-        self.assertTrue(isinstance(os_version, str) or os_version == UNKNOWN)
+        self.assertTrue(isinstance(os_version, string_type) or os_version == UNKNOWN)
 
         # make sure that bug fixed in https://github.com/easybuilders/easybuild-framework/issues/3952
         # does not surface again, by mocking what's needed to make get_os_version fall into SLES-specific path
@@ -765,7 +766,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting gcc version."""
         gcc_version = get_gcc_version()
         if gcc_version is not None:
-            self.assertIsInstance(gcc_version, str)
+            self.assertIsInstance(gcc_version, string_type)
 
     def test_gcc_version_linux(self):
         """Test getting gcc version (mocked for Linux)."""
@@ -782,7 +783,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_glibc_version_native(self):
         """Test getting glibc version."""
         glibc_version = get_glibc_version()
-        self.assertTrue(isinstance(glibc_version, str) or glibc_version == UNKNOWN)
+        self.assertTrue(isinstance(glibc_version, string_type) or glibc_version == UNKNOWN)
 
     def test_glibc_version_linux(self):
         """Test getting glibc version (mocked for Linux)."""

@@ -39,6 +39,7 @@ Authors:
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.py2vs3 import string_type
 
 
 class ToolchainOptions(dict):
@@ -104,7 +105,7 @@ class ToolchainOptions(dict):
                 'value': value,
             })
 
-            if isinstance(res, str):
+            if isinstance(res, string_type):
                 # allow for template
                 res = self.options_map[name] % templatedict
             elif isinstance(res, (list, tuple,)):

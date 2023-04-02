@@ -37,6 +37,7 @@ from easybuild.tools import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 
@@ -143,7 +144,7 @@ class VersionOperator(object):
         if not self:
             raise EasyBuildError('Not a valid %s. Not initialised yet?', self.__class__.__name__)
 
-        if isinstance(test_version, str):
+        if isinstance(test_version, string_type):
             test_version = self._convert(test_version)
         elif not isinstance(test_version, EasyVersion):
             raise EasyBuildError("test: argument should be a string or EasyVersion (type %s)", type(test_version))
@@ -639,7 +640,7 @@ class OrderedVersionOperators(object):
         :param update: if versop_new already exist and has data set, try to update the existing data with the new data;
                        instead of overriding the existing data with the new data (method used for updating is .update)
         """
-        if isinstance(versop_new, str):
+        if isinstance(versop_new, string_type):
             versop_new = VersionOperator(versop_new)
         elif not isinstance(versop_new, VersionOperator):
             raise EasyBuildError("add: argument must be a VersionOperator instance or string: %s; type %s",

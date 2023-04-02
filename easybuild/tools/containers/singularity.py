@@ -41,6 +41,7 @@ from easybuild.tools.config import build_option, container_path
 from easybuild.tools.containers.base import ContainerGenerator
 from easybuild.tools.filetools import read_file, remove_file, which
 from easybuild.tools.run import run_cmd
+from easybuild.tools.py2vs3 import string_type
 
 
 ARCH = 'arch'  # Arch Linux
@@ -298,7 +299,7 @@ class SingularityContainer(ContainerGenerator):
 
         install_os_deps = []
         for osdep in osdeps:
-            if isinstance(osdep, str):
+            if isinstance(osdep, string_type):
                 install_os_deps.append("yum install --quiet --assumeyes %s" % osdep)
             # tuple entry indicates multiple options
             elif isinstance(osdep, tuple):

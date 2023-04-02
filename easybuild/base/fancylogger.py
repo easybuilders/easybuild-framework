@@ -87,7 +87,7 @@ import traceback
 import weakref
 
 from easybuild.tools import LooseVersion
-from easybuild.tools.py2vs3 import raise_with_traceback
+from easybuild.tools.py2vs3 import raise_with_traceback, string_type
 
 
 def _env_to_boolean(varname, default=False):
@@ -214,11 +214,11 @@ class MissingLevelName(KeyError):
 
 def getLevelInt(level_name):
     """Given a level name, return the int value"""
-    if not isinstance(level_name, str):
+    if not isinstance(level_name, string_type):
         raise TypeError('Provided name %s is not a string (type %s)' % (level_name, type(level_name)))
 
     level = logging.getLevelName(level_name)
-    if isinstance(level, str):
+    if isinstance(level, string_type):
         raise MissingLevelName('Unknown loglevel name %s' % level_name)
 
     return level
@@ -741,7 +741,7 @@ def setLogLevel(level):
     """
     Set a global log level for all FancyLoggers
     """
-    if isinstance(level, str):
+    if isinstance(level, string_type):
         level = getLevelInt(level)
     logger = getLogger(fname=False, clsname=False)
     logger.setLevel(level)

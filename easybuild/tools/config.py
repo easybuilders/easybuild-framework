@@ -45,12 +45,11 @@ import random
 import tempfile
 import time
 from abc import ABCMeta
-from string import ascii_letters
 
 from easybuild.base import fancylogger
 from easybuild.base.frozendict import FrozenDictKnownKeys
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.py2vs3 import create_base_metaclass
+from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
 
 try:
     import rich  # noqa
@@ -522,7 +521,7 @@ def init(options, config_options_dict):
 
     # make sure source path is a list
     sourcepath = tmpdict['sourcepath']
-    if isinstance(sourcepath, str):
+    if isinstance(sourcepath, string_type):
         tmpdict['sourcepath'] = sourcepath.split(':')
         _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
     elif not isinstance(sourcepath, (tuple, list)):

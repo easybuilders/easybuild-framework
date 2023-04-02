@@ -50,6 +50,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir
 from easybuild.tools.filetools import read_file, symlink, write_file, which
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.mpi import get_mpi_cmd_template
@@ -520,7 +521,7 @@ class ToolchainTest(EnhancedTestCase):
         ldflags = tc.get_variable('LDFLAGS', typ=list)
         self.assertIsInstance(ldflags, list)
         if len(ldflags) > 0:
-            self.assertIsInstance(ldflags[0], str)
+            self.assertIsInstance(ldflags[0], string_type)
 
     def test_validate_pass_by_value(self):
         """

@@ -33,7 +33,6 @@ import re
 import shutil
 import sys
 import tempfile
-from importlib import reload
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -47,6 +46,7 @@ from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, init_build_options
 from easybuild.tools.filetools import copy_dir, mkdir, write_file
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX
+from easybuild.tools.py2vs3 import reload
 
 
 class EasyBuildConfigTest(EnhancedTestCase):

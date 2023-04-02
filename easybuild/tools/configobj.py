@@ -27,6 +27,8 @@ import sys
 
 from codecs import BOM_UTF8, BOM_UTF16, BOM_UTF16_BE, BOM_UTF16_LE
 
+from easybuild.tools.py2vs3 import string_type
+
 
 # imported lazily to avoid startup performance hit if it isn't used
 compiler = None
@@ -560,11 +562,11 @@ class Section(dict):
         """Fetch the item and do string interpolation."""
         val = dict.__getitem__(self, key)
         if self.main.interpolation:
-            if isinstance(val, str):
+            if isinstance(val, string_type):
                 return self._interpolate(key, val)
             if isinstance(val, list):
                 def _check(entry):
-                    if isinstance(entry, str):
+                    if isinstance(entry, string_type):
                         return self._interpolate(key, entry)
                     return entry
                 new = [_check(entry) for entry in val]
@@ -586,7 +588,7 @@ class Section(dict):
         ``unrepr`` must be set when setting a value to a dictionary, without
         creating a new sub-section.
         """
-        if not isinstance(key, (bytes, str)):
+        if not isinstance(key, (bytes, string_type)):
             raise ValueError('The key "%s" is not a string.' % key)
 
         # add the comment
@@ -620,11 +622,11 @@ class Section(dict):
             if key not in self:
                 self.scalars.append(key)
             if not self.main.stringify:
-                if isinstance(value, str):
+                if isinstance(value, string_type):
                     pass
                 elif isinstance(value, (list, tuple)):
                     for entry in value:
-                        if not isinstance(entry, str):
+                        if not isinstance(entry, string_type):
                             raise TypeError('Value is not a string "%s".' % entry)
                 else:
                     raise TypeError('Value is not a string "%s".' % value)
@@ -944,7 +946,7 @@ class Section(dict):
             return val
         else:
             try:
-                if not isinstance(val, str):
+                if not isinstance(val, string_type):
                     # TODO: Why do we raise a KeyError here?
                     raise KeyError()
                 else:
@@ -1208,7 +1210,7 @@ class ConfigObj(Section):
         self._load(infile, configspec)
 
     def _load(self, infile, configspec):
-        if isinstance(infile, str):
+        if isinstance(infile, string_type):
             self.filename = infile
             if os.path.isfile(infile):
                 with open(infile, 'r') as fh:
@@ -1429,7 +1431,7 @@ class ConfigObj(Section):
                     else:
                         infile = newline
                     # UTF8 - don't decode
-                    if isinstance(infile, str):
+                    if isinstance(infile, string_type):
                         return infile.splitlines(True)
                     else:
                         return infile
@@ -1437,7 +1439,7 @@ class ConfigObj(Section):
                 return self._decode(infile, encoding)
 
         # No BOM discovered and no encoding specified, just return
-        if isinstance(infile, (bytes, str)):
+        if isinstance(infile, (bytes, string_type)):
             # infile read from a file will be a single string
             return infile.splitlines(True)
         return infile
@@ -1455,7 +1457,7 @@ class ConfigObj(Section):
 
         if is a string, it also needs converting to a list.
         """
-        if isinstance(infile, str):
+        if isinstance(infile, string_type):
             # can't be unicode
             # NOTE: Could raise a ``UnicodeDecodeError``
             return infile.decode(encoding).splitlines(True)
@@ -1480,7 +1482,7 @@ class ConfigObj(Section):
         Used by ``stringify`` within validate, to turn non-string values
         into strings.
         """
-        if not isinstance(value, str):
+        if not isinstance(value, string_type):
             return str(value)
         else:
             return value
@@ -1728,7 +1730,7 @@ class ConfigObj(Section):
                 return self._quote(value[0], multiline=False) + ','
             return ', '.join([self._quote(val, multiline=False)
                               for val in value])
-        if not isinstance(value, str):
+        if not isinstance(value, string_type):
             if self.stringify:
                 value = str(value)
             else:
@@ -2273,7 +2275,7 @@ class ConfigObj(Section):
         This method raises a ``ReloadError`` if the ConfigObj doesn't have
         a filename attribute pointing to a file.
         """
-        if not isinstance(self.filename, str):
+        if not isinstance(self.filename, string_type):
             raise ReloadError()
 
         filename = self.filename
