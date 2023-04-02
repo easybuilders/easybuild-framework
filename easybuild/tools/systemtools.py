@@ -42,6 +42,7 @@ import struct
 import sys
 import termios
 import warnings
+from collections import OrderedDict
 from ctypes.util import find_library
 from socket import gethostname
 from easybuild.tools.py2vs3 import subprocess_popen_text
@@ -64,7 +65,6 @@ from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import IGNORE
 from easybuild.tools.filetools import is_readable, read_file, which
-from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.run import run_cmd
 
 

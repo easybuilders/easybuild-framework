@@ -39,6 +39,7 @@ Authors:
 import copy
 import inspect
 import os
+from collections import OrderedDict
 from easybuild.tools import LooseVersion
 
 from easybuild.base import fancylogger
@@ -59,7 +60,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.py2vs3 import OrderedDict, ascii_lowercase
+from easybuild.tools.py2vs3 import ascii_lowercase
 from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import INDENT_2SPACES, INDENT_4SPACES
