@@ -40,10 +40,11 @@ import base64
 import copy
 import json
 from functools import partial
-from urllib.request import HTTPSHandler, Request
+from urllib.parse import urlencode
+from urllib.request import HTTPSHandler, Request, build_opener
 
 from easybuild.base import fancylogger
-from easybuild.tools.py2vs3 import build_opener, json_loads, urlencode
+from easybuild.tools.py2vs3 import json_loads
 
 
 class Client(object):
