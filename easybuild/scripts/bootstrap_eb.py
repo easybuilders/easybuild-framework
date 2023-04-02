@@ -140,7 +140,10 @@ def error(msg, exit=True):
 
 def mock_stdout_stderr():
     """Mock stdout/stderr channels"""
-    from io import StringIO
+    try:
+        from cStringIO import StringIO
+    except ImportError:
+        from io import StringIO
     orig_stdout, orig_stderr = sys.stdout, sys.stderr
     sys.stdout.flush()
     sys.stdout = StringIO()
