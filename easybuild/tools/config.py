@@ -49,8 +49,8 @@ from string import ascii_letters
 
 from easybuild.base import fancylogger
 from easybuild.base.frozendict import FrozenDictKnownKeys
+from easybuild.base.wrapper import create_base_metaclass
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.py2vs3 import create_base_metaclass
 
 try:
     import rich  # noqa

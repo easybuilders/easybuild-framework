@@ -51,6 +51,7 @@ from collections import OrderedDict
 
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
+from easybuild.base.wrapper import create_base_metaclass
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS, EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
@@ -75,7 +76,6 @@ from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.py2vs3 import create_base_metaclass
 from easybuild.tools.systemtools import check_os_dependency, pick_dep_version
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
