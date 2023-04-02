@@ -59,6 +59,7 @@ import time
 import zlib
 from functools import partial
 from html.parser import HTMLParser
+from urllib import request
 
 from easybuild.base import fancylogger
 from easybuild.tools import run
@@ -67,7 +68,6 @@ from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, pr
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
-from easybuild.tools.py2vs3 import std_urllib
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars, trace_msg
 
 try:
@@ -788,8 +788,8 @@ def download_file(filename, url, path, forced=False):
                     _log.debug("Custom HTTP header field set: %s (value omitted from log)", key)
 
     # for backward compatibility, and to avoid relying on 3rd party Python library 'requests'
-    url_req = std_urllib.Request(url, headers=headers)
-    used_urllib = std_urllib
+    url_req = request.Request(url, headers=headers)
+    used_urllib = request
     switch_to_requests = False
 
     while not downloaded and attempt_cnt < max_attempts:
@@ -797,13 +797,13 @@ def download_file(filename, url, path, forced=False):
         try:
             if insecure:
                 print_warning("Not checking server certificates while downloading %s from %s." % (filename, url))
-            if used_urllib is std_urllib:
+            if used_urllib is request:
                 # urllib2 (Python 2) / urllib.request (Python 3) does the right thing for http proxy setups,
                 # urllib does not!
                 if insecure:
-                    url_fd = std_urllib.urlopen(url_req, timeout=timeout, context=ssl._create_unverified_context())
+                    url_fd = request.urlopen(url_req, timeout=timeout, context=ssl._create_unverified_context())
                 else:
-                    url_fd = std_urllib.urlopen(url_req, timeout=timeout)
+                    url_fd = request.urlopen(url_req, timeout=timeout)
                 status_code = url_fd.getcode()
                 size = det_file_size(url_fd.info())
             else:
@@ -826,7 +826,7 @@ def download_file(filename, url, path, forced=False):
             downloaded = True
             url_fd.close()
         except used_urllib.HTTPError as err:
-            if used_urllib is std_urllib:
+            if used_urllib is request:
                 status_code = err.code
             if status_code == 403 and attempt_cnt == 1:
                 switch_to_requests = True
@@ -846,7 +846,7 @@ def download_file(filename, url, path, forced=False):
 
         if not downloaded and attempt_cnt < max_attempts:
             _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))
-            if used_urllib is std_urllib and switch_to_requests:
+            if used_urllib is request and switch_to_requests:
                 if not HAVE_REQUESTS:
                     raise EasyBuildError("SSL issues with urllib2. If you are using RHEL/CentOS 6.x please "
                                          "install the python-requests and pyOpenSSL RPM packages and try again.")
