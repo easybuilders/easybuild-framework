@@ -44,7 +44,6 @@ from urllib.parse import urlencode
 from urllib.request import HTTPSHandler, Request, build_opener
 
 from easybuild.base import fancylogger
-from easybuild.tools.py2vs3 import json_loads
 
 
 class Client(object):
@@ -182,7 +181,7 @@ class Client(object):
         else:
             body = conn.read()
             try:
-                pybody = json_loads(body)
+                pybody = json.loads(body)
             except ValueError:
                 pybody = body
         fancylogger.getLogger().debug('reponse len: %s ', len(pybody))
