@@ -34,12 +34,11 @@ import glob
 import os
 import re
 import sys
-from string import digits
+from string import ascii_letters, digits
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.py2vs3 import ascii_letters
 
 
 _log = fancylogger.getLogger('tools.utilities')
