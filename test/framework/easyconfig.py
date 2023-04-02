@@ -39,6 +39,7 @@ import sys
 import tempfile
 import textwrap
 from easybuild.tools import LooseVersion
+from importlib import reload
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -72,7 +73,7 @@ from easybuild.tools.filetools import remove_dir, remove_file, symlink, write_fi
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
-from easybuild.tools.py2vs3 import OrderedDict, reload
+from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import AARCH64, KNOWN_ARCH_CONSTANTS, POWER, X86_64
 from easybuild.tools.systemtools import get_cpu_architecture, get_shared_lib_ext, get_os_name, get_os_version

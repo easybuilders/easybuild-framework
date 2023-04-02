@@ -38,6 +38,7 @@ import tempfile
 import textwrap
 import warnings
 from easybuild.tools import LooseVersion
+from importlib import reload
 from unittest import TextTestRunner
 
 import easybuild.main
@@ -63,7 +64,7 @@ from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, opts_dict_to_eb_opts, parse_external_modules_metadata
 from easybuild.tools.options import set_up_configuration, set_tmpdir, use_color
-from easybuild.tools.py2vs3 import URLError, reload, sort_looseversions
+from easybuild.tools.py2vs3 import URLError, sort_looseversions
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import HAVE_ARCHSPEC
