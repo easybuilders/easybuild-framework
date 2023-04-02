@@ -44,12 +44,12 @@ from io import StringIO
 from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
+from urllib import request
 from easybuild.tools import run
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import IGNORE, ERROR, build_option, update_build_option
 from easybuild.tools.multidiff import multidiff
-from easybuild.tools.py2vs3 import std_urllib
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -405,7 +405,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # also try with actual HTTP header
         try:
-            fh = std_urllib.urlopen(test_url)
+            fh = request.urlopen(test_url)
             self.assertEqual(ft.det_file_size(fh.info()), expected_size)
             fh.close()
 
@@ -417,7 +417,7 @@ class FileToolsTest(EnhancedTestCase):
                 res.close()
             except ImportError:
                 pass
-        except std_urllib.URLError:
+        except request.URLError:
             print("Skipping online test for det_file_size (working offline)")
 
     def test_download_file(self):
@@ -438,8 +438,8 @@ class FileToolsTest(EnhancedTestCase):
 
         # install broken proxy handler for opening local files
         # this should make urlopen use this broken proxy for downloading from a file:// URL
-        proxy_handler = std_urllib.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
-        std_urllib.install_opener(std_urllib.build_opener(proxy_handler))
+        proxy_handler = request.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
+        request.install_opener(request.build_opener(proxy_handler))
 
         # downloading over a broken proxy results in None return value (failed download)
         # this tests whether proxies are taken into account by download_file
@@ -449,7 +449,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(target_location, '')
 
         # restore a working file handler, and retest download of local file
-        std_urllib.install_opener(std_urllib.build_opener(std_urllib.FileHandler()))
+        request.install_opener(request.build_opener(request.FileHandler()))
         res = ft.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location, "'download' of local file works after removing broken proxy")
 
@@ -466,10 +466,10 @@ class FileToolsTest(EnhancedTestCase):
         target_location = os.path.join(self.test_prefix, 'jenkins_robots.txt')
         url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
         try:
-            std_urllib.urlopen(url)
+            request.urlopen(url)
             res = ft.download_file(fn, url, target_location)
             self.assertEqual(res, target_location, "download with specified timeout works")
-        except std_urllib.URLError:
+        except request.URLError:
             print("Skipping timeout test in test_download_file (working offline)")
 
         # also test behaviour of download_file under --dry-run
