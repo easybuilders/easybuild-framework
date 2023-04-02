@@ -36,8 +36,6 @@ import stat
 import sys
 import tempfile
 import textwrap
-import warnings
-from easybuild.tools import LooseVersion
 from importlib import reload
 from unittest import TextTestRunner
 from urllib.request import URLError
