@@ -3905,7 +3905,7 @@ class EasyBlock(object):
 
         for step_method in step_methods:
             # Remove leading underscore from e.g. "_test_step"
-            method_name = extract_method_name(step_method).lstrip('_')
+            method_name = '_'.join(step_method.__code__.co_names).lstrip('_')
             self.log.info("Running method %s part of step %s", method_name, step)
 
             if self.dry_run:
