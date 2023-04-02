@@ -31,6 +31,7 @@ Authors:
 * Jens Timmerman (Ghent University)
 """
 
+import configparser
 import copy
 import difflib
 import inspect
@@ -39,6 +40,7 @@ import os
 import re
 import sys
 import textwrap
+from configparser import ConfigParser
 from functools import reduce
 from io import StringIO
 from optparse import Option, OptionGroup, OptionParser, OptionValueError, Values
@@ -46,7 +48,7 @@ from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python 
 
 from easybuild.base.fancylogger import getLogger, setroot, setLogLevel, getDetailsLogLevels
 from easybuild.base.optcomplete import autocomplete, CompleterOption
-from easybuild.tools.py2vs3 import configparser, ConfigParser, subprocess_popen_text
+from easybuild.tools.py2vs3 import subprocess_popen_text
 from easybuild.tools.utilities import mk_md_table, mk_rst_table, nub, shell_quote
 
 try:
