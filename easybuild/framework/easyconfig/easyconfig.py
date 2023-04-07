@@ -56,7 +56,6 @@ from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION, retrieve_blocks_in_spec
-from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION, is_yeb_format
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
@@ -571,10 +570,7 @@ class EasyConfig(object):
     def filename(self):
         """Determine correct filename for this easyconfig file."""
 
-        if is_yeb_format(self.path, self.rawtxt):
-            ext = YEB_FORMAT_EXTENSION
-        else:
-            ext = EB_FORMAT_EXTENSION
+        ext = EB_FORMAT_EXTENSION
 
         return '%s-%s%s' % (self.name, det_full_ec_version(self), ext)
 

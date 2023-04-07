@@ -55,7 +55,6 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
-from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, get_paths_for
 from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.tools import LooseVersion, build_log, run  # build_log should always stay there, to ensure EasyBuildLog
@@ -1160,11 +1159,11 @@ class EasyBuildOptions(GeneralOption):
             # which makes it susceptible to 'eating' the following argument/option;
             # for example: with 'eb -r foo', 'foo' must be an existing directory (or 'eb foo -r' should be used);
             # when multiple directories are specified, we deliberately do not enforce that all of them exist;
-            # if a single argument is passed to --robot/-r that ends with '.eb' or '.yeb', we assume it's an easyconfig
+            # if a single argument is passed to --robot/-r that ends with '.eb' we assume it's an easyconfig
             if len(self.options.robot) == 1:
                 robot_arg = self.options.robot[0]
                 if not os.path.isdir(robot_arg):
-                    if robot_arg.endswith(EB_FORMAT_EXTENSION) or robot_arg.endswith(YEB_FORMAT_EXTENSION):
+                    if robot_arg.endswith(EB_FORMAT_EXTENSION):
                         info_msg = "Sole --robot argument %s is not an existing directory, "
                         info_msg += "promoting it to a stand-alone argument since it looks like an easyconfig file name"
                         self.log.info(info_msg, robot_arg)

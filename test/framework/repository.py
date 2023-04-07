@@ -188,20 +188,6 @@ class RepositoryTest(EnhancedTestCase):
         orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
 
-        if 'yaml' in sys.modules:
-            toy_yeb_file = os.path.join(test_easyconfigs, 'yeb', 'toy-0.0.yeb')
-            path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23}, None)
-            check_ec(path, [{'time': 1.23}])
-
-            stats1 = {'time': 1.23, 'size': 123}
-            stats2 = [{'time': 0.9, 'size': 2}]
-            path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', stats1, stats2)
-            check_ec(path, stats2 + [stats1])
-
-            easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
-        else:
-            print("Skipping .yeb part of test_add_easyconfig (no PyYAML available)")
-
     def tearDown(self):
         """Clean up after test."""
         super(RepositoryTest, self).tearDown()

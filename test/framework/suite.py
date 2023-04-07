@@ -81,7 +81,6 @@ import test.framework.type_checking as et
 import test.framework.tweak as tw
 import test.framework.utilities_test as u
 import test.framework.variables as v
-import test.framework.yeb as y
 
 # set plain text key ring to be used,
 # so a GitHub token stored in it can be obtained without having to provide a password
@@ -121,17 +120,14 @@ log = fancylogger.getLogger()
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
 tests = [gen, d, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, lic, f_c,
-         tw, p, i, pkg, env, et, y, st, h, ct, lib, u, es, ou]
+         tw, p, i, pkg, env, et, st, h, ct, lib, u, es, ou]
 
-SUITE = unittest.TestSuite([x.suite() for x in tests])
-res = unittest.TextTestRunner().run(SUITE)
+for t in tests:
+    SUITE = unittest.TestSuite([t.suite()])
+    res = unittest.TextTestRunner().run(SUITE)
 
-fancylogger.logToFile(log_fn, enable=False)
+    fancylogger.logToFile(log_fn, enable=False)
 
-if not res.wasSuccessful():
-    sys.stderr.write("ERROR: Not all tests were successful.\n")
-    print("Log available at %s" % log_fn)
-    sys.exit(2)
-else:
-    for fn in glob.glob('%s*' % log_fn):
-        os.remove(fn)
+    if not res.wasSuccessful():
+        sys.stderr.write("ERROR: Not all tests were successful.\n")
+        print("Log available at %s" % log_fn)

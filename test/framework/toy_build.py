@@ -2562,19 +2562,14 @@ class ToyBuildTest(EnhancedTestCase):
         del sys.modules['easybuild.easyblocks.toy']
 
     def test_toy_dumped_easyconfig(self):
-        """ Test dumping of file in eb_filerepo in both .eb and .yeb format """
+        """ Test dumping of file in eb_filerepo in both .eb format """
         filename = 'toy-0.0'
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
         paths = [
             os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', '%s.eb' % filename),
-            os.path.join(test_ecs_dir, 'yeb', '%s.yeb' % filename),
         ]
 
         for path in paths:
-
-            if path.endswith('.yeb') and 'yaml' not in sys.modules:
-                print("Skipping .yeb part of test_toy_dumped_easyconfig (no PyYAML available)")
-                continue
 
             args = [
                 path,

@@ -29,8 +29,7 @@ dependencies = [
     # it's nice to have an up to date openssl for security reasons
 ]
 
-# zlib is only included here for the sake of testing parsing of .yeb easyconfigs!
-osdependencies = ['zlib', ('openssl-devel', 'libssl-dev', 'libopenssl-devel')]
+osdependencies = [('openssl-devel', 'libssl-dev', 'libopenssl-devel')]
 
 # order is important!
 # package versions updated May 28th 2015
