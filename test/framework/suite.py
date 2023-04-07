@@ -122,12 +122,15 @@ log = fancylogger.getLogger()
 tests = [gen, d, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, lic, f_c,
          tw, p, i, pkg, env, et, st, h, ct, lib, u, es, ou]
 
-for t in tests:
-    SUITE = unittest.TestSuite([t.suite()])
-    res = unittest.TextTestRunner().run(SUITE)
+SUITE = unittest.TestSuite([x.suite() for x in tests])
+res = unittest.TextTestRunner().run(SUITE)
 
-    fancylogger.logToFile(log_fn, enable=False)
+fancylogger.logToFile(log_fn, enable=False)
 
-    if not res.wasSuccessful():
-        sys.stderr.write("ERROR: Not all tests were successful.\n")
-        print("Log available at %s" % log_fn)
+if not res.wasSuccessful():
+    sys.stderr.write("ERROR: Not all tests were successful.\n")
+    print("Log available at %s" % log_fn)
+    sys.exit(2)
+else:
+    for fn in glob.glob('%s*' % log_fn):
+        os.remove(fn)
