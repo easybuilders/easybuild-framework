@@ -93,7 +93,6 @@ except Exception:
 def this_is_easybuild():
     """Standard starting message"""
     top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
-    # !!! bootstrap_eb.py script checks hard on the string below, so adjust with sufficient care !!!
     msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s."
     msg = msg % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
 
