@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,8 +27,10 @@
 Easyconfig licenses module that provides all licenses that can
 be used within an Easyconfig file.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 
 from easybuild.base import fancylogger

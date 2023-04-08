@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,17 +25,19 @@
 """
 Toolchain mpi module. Contains all MPI related classes
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import copy
 import os
 import tempfile
-from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import write_file

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,10 +26,12 @@
 EasyBuild support for gmkl compiler toolchain (includes GCC,
 Intel Math Kernel Library (MKL), and Intel FFTW wrappers, and CUDA).
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
-:author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Calcul Canada)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+* Maxime Boissonneault (Universite Laval, Calcul Quebec, Calcul Canada)
 """
 
 from easybuild.toolchains.gcccuda import GccCUDA

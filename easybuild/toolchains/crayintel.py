@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2021 Ghent University
+# Copyright 2014-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +25,10 @@
 """
 CrayIntel toolchain: Intel compilers and MPI via Cray compiler drivers + LibSci (PrgEnv-intel) and Cray FFTW
 
-:author: Petar Forai (IMP/IMBA, Austria)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Petar Forai (IMP/IMBA, Austria)
+* Kenneth Hoste (Ghent University)
 """
 from easybuild.toolchains.compiler.craype import CrayPEIntel
 from easybuild.toolchains.linalg.libsci import LibSci

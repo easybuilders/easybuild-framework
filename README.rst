@@ -1,9 +1,10 @@
+.. image:: https://github.com/easybuilders/easybuild/raw/develop/logo/png/easybuild_logo_2022_horizontal_dark_bg_transparent.png
+   :align: center
+   :height: 400px
+   
 .. image:: https://github.com/easybuilders/easybuild-framework/workflows/EasyBuild%20framework%20unit%20tests/badge.svg?branch=develop
 
-.. image:: https://easybuilders.github.io/easybuild/images/easybuild_logo_small.png
-   :align: center
-
-`EasyBuild <https://easybuilders.github.io/easybuild>`_ is a software build
+`EasyBuild <https://easybuild.io>`_ is a software build
 and installation framework that allows you to manage (scientific) software
 on High Performance Computing (HPC) systems in an efficient way.
 
@@ -12,7 +13,7 @@ supports the implementation and use of so-called easyblocks which
 implement the software install procedure for a particular (group of) software
 package(s).
 
-The EasyBuild documentation is available at http://easybuild.readthedocs.org/.
+The EasyBuild documentation is available at http://docs.easybuild.io/.
 
 The EasyBuild framework source code is hosted on GitHub, along
 with an issue tracker for bug reports and feature requests, see

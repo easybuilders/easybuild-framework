@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,9 +25,11 @@
 """
 Utility module for working with github
 
-:author: Jens Timmerman (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Toon Willems (Ghent University)
+Authors:
+
+* Jens Timmerman (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Toon Willems (Ghent University)
 """
 import base64
 import copy
@@ -43,13 +45,13 @@ import sys
 import tempfile
 import time
 from datetime import datetime, timedelta
-from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, copy_easyblocks, copy_framework_files
@@ -587,7 +589,9 @@ def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
     }
 
     if dry_run:
-        status, data = HTTP_STATUS_CREATED, {'html_url': 'https://gist.github.com/DRY_RUN'}
+        if github_user is None:
+            github_user = 'username'
+        status, data = HTTP_STATUS_CREATED, {'html_url': 'https://gist.github.com/%s/DRY_RUN' % github_user}
     else:
         g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
         status, data = g.gists.post(body=body)
@@ -1018,9 +1022,13 @@ def is_patch_for(patch_name, ec):
 
     with ec.disable_templating():
         # take into account both list of extensions (via exts_list) and components (cfr. Bundle easyblock)
-        for entry in itertools.chain(ec['exts_list'], ec.get('components', [])):
+        for entry in itertools.chain(ec['exts_list'], ec.get('components') or []):
             if isinstance(entry, (list, tuple)) and len(entry) == 3 and isinstance(entry[2], dict):
-                templates = {'name': entry[0], 'version': entry[1]}
+                templates = {
+                    'name': entry[0],
+                    'namelower': entry[0].lower(),
+                    'version': entry[1],
+                }
                 options = entry[2]
                 patches.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
                                for p in options.get('patches', []))
@@ -1070,7 +1078,7 @@ def find_software_name_for_patch(patch_name, ec_dirs):
     Scan all easyconfigs in the robot path(s) to determine which software a patch file belongs to
 
     :param patch_name: name of the patch file
-    :param ecs_dirs: list of directories to consider when looking for easyconfigs
+    :param ec_dirs: list of directories to consider when looking for easyconfigs
     :return: name of the software that this patch file belongs to (if found)
     """
 
@@ -1796,6 +1804,15 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
             for patch in ec.asdict()['patches']:
                 if isinstance(patch, tuple):
                     patch = patch[0]
+                elif isinstance(patch, dict):
+                    patch_info = {}
+                    for key in patch.keys():
+                        patch_info[key] = patch[key]
+                    if 'name' not in patch_info.keys():
+                        raise EasyBuildError("Wrong patch spec '%s', when using a dict 'name' entry must be supplied",
+                                             str(patch))
+                    patch = patch_info['name']
+
                 if patch not in paths['patch_files'] and not os.path.isfile(os.path.join(os.path.dirname(ec_path),
                                                                             patch)):
                     print_warning("new patch file %s, referenced by %s, is not included in this PR" %
@@ -2073,7 +2090,8 @@ def check_github():
     elif github_user:
         if 'git' in sys.modules:
             ver, req_ver = git.__version__, '1.0'
-            if LooseVersion(ver) < LooseVersion(req_ver):
+            version_regex = re.compile('^[0-9.]+$')
+            if version_regex.match(ver) and LooseVersion(ver) < LooseVersion(req_ver):
                 check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (ver, req_ver)
             elif "Could not read from remote repository" in str(push_err):
                 check_res = "FAIL (GitHub SSH key missing? %s)" % push_err
@@ -2110,7 +2128,7 @@ def check_github():
     except Exception as err:
         _log.warning("Exception occurred when trying to create & delete gist: %s", err)
 
-    if gist_url and re.match('https://gist.github.com/[0-9a-f]+$', gist_url):
+    if gist_url and re.match('https://gist.github.com/%s/[0-9a-f]+$' % github_user, gist_url):
         check_res = "OK"
     else:
         check_res = "FAIL (gist_url: %s)" % gist_url

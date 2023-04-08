@@ -1,5 +1,10 @@
 import pkgutil
 
+# Import fake version
+import easybuild.tools.version
+
+VERSION = easybuild.tools.version.VERSION
+
 subdirs = [chr(x) for x in range(ord('a'), ord('z') + 1)] + ['0']
 for subdir in subdirs:
     __path__ = pkgutil.extend_path(__path__, '%s.%s' % (__name__, subdir))

@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,19 +28,21 @@ This python module implements the environment modules functionality:
  - checking for available modules
  - ...
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: David Brown (Pacific Northwest National Laboratory)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* David Brown (Pacific Northwest National Laboratory)
 """
 import os
 import re
 import shlex
-from distutils.version import StrictVersion
 
 from easybuild.base import fancylogger
+from easybuild.tools import StrictVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
@@ -272,9 +274,7 @@ class ModulesTool(object):
                     depr_msg = "Support for %s version < %s is deprecated, " % (self.NAME, self.DEPR_VERSION)
                     depr_msg += "found version %s" % self.version
 
-                    silence_deprecation_warnings = build_option('silence_deprecation_warnings') or []
-
-                    if self.version.startswith('6') and 'Lmod6' in silence_deprecation_warnings:
+                    if self.version.startswith('6') and 'Lmod6' in build_option('silence_deprecation_warnings'):
                         self.log.warning(depr_msg)
                     else:
                         self.log.deprecated(depr_msg, '5.0')
@@ -462,7 +462,7 @@ class ModulesTool(object):
         else:
             # filter out tail of paths that already matches tail of target, to avoid unnecessary 'unuse' commands
             idx = 1
-            while(curr_mod_paths[-idx:] == self.mod_paths[-idx:]):
+            while curr_mod_paths[-idx:] == self.mod_paths[-idx:]:
                 idx += 1
             self.log.debug("Not prepending %d last entries of %s", idx - 1, self.mod_paths)
 
@@ -1288,7 +1288,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
-        :param name: a (partial) module name for filtering (default: None)
+        :param mod_name: a (partial) module name for filtering (default: None)
         """
         mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name)
         # strip off slash at beginning, if it's there
@@ -1402,7 +1402,7 @@ class Lmod(ModulesTool):
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
-        :param name: a (partial) module name for filtering (default: None)
+        :param mod_name: a (partial) module name for filtering (default: None)
         """
         # make hidden modules visible (requires Lmod 5.7.5)
         extra_args = [self.SHOW_HIDDEN_OPTION]

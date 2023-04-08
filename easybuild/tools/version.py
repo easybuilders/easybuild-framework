@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,14 +25,16 @@
 """
 Module that takes control of versioning.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
 """
 import os
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 from socket import gethostname
 
 # note: release candidates should be versioned as a pre-release, e.g. "1.1rc1"
@@ -43,7 +45,7 @@ from socket import gethostname
 # recent setuptools versions will *TRANSFORM* something like 'X.Y.Zdev' into 'X.Y.Z.dev0', with a warning like
 #   UserWarning: Normalizing '2.4.0dev' to '2.4.0.dev0'
 # This causes problems further up the dependency chain...
-VERSION = LooseVersion('4.5.4.dev0')
+VERSION = LooseVersion('4.7.2.dev0')
 UNKNOWN = 'UNKNOWN'
 
 

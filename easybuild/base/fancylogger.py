@@ -1,5 +1,5 @@
 #
-# Copyright 2011-2021 Ghent University
+# Copyright 2011-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -69,9 +69,11 @@ Logging to a udp server:
  - set an environment variable FANCYLOG_SERVER and FANCYLOG_SERVER_PORT (optionally)
  - this will make fancylogger log to that that server and port instead of the screen.
 
-:author: Jens Timmerman (Ghent University)
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Jens Timmerman (Ghent University)
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 
 from collections import namedtuple
@@ -83,8 +85,8 @@ import sys
 import threading
 import traceback
 import weakref
-from distutils.version import LooseVersion
 
+from easybuild.tools import LooseVersion
 from easybuild.tools.py2vs3 import raise_with_traceback, string_type
 
 
@@ -341,10 +343,7 @@ class FancyLogger(logging.getLoggerClass()):
         loose_cv = LooseVersion(cur_ver)
         loose_mv = LooseVersion(max_ver)
 
-        loose_cv.version = loose_cv.version[:depth]
-        loose_mv.version = loose_mv.version[:depth]
-
-        if loose_cv >= loose_mv:
+        if loose_cv.version[:depth] >= loose_mv.version[:depth]:
             self.raiseException("DEPRECATED (since v%s) functionality used: %s" % (max_ver, msg), exception=exception)
         else:
             deprecation_msg = "Deprecated functionality, will no longer work in v%s: %s" % (max_ver, msg)
@@ -380,9 +379,9 @@ class FancyLogger(logging.getLoggerClass()):
 
         def write_and_flush_stream(hdlr, data=None):
             """Write to stream and flush the handler"""
-            if (not hasattr(hdlr, 'stream')) or hdlr.stream is None:
+            if getattr(hdlr, 'stream', None) is None:
                 # no stream or not initialised.
-                raise("write_and_flush_stream failed. No active stream attribute.")
+                raise ValueError("write_and_flush_stream failed. No active stream attribute.")
             if data is not None:
                 hdlr.stream.write(data)
                 hdlr.flush()
@@ -826,7 +825,7 @@ def setroot(fancyrecord=FANCYLOG_FANCYRECORD):
     Set a FancyLogger instance as the logging root logger
     with (effective)loglevel of current root FancyLogger
 
-    :param fancyrecord is enabled or not (default FANCYLOG_FANCYRECORD module constant)
+    :param fancyrecord: is enabled or not (default FANCYLOG_FANCYRECORD module constant)
 
     Detecting the loglevel is best-effort, better to set the loglevel after setroot()
     """

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,9 +25,11 @@
 """
 Support for FLAME as toolchain linear algebra library.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Sebastian Achilles (Forschungszentrum Juelich GmbH)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Sebastian Achilles (Forschungszentrum Juelich GmbH)
 """
 
 from easybuild.toolchains.linalg.lapack import Lapack

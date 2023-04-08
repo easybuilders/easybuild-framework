@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -64,12 +64,12 @@ class Toy_Extension(ExtensionEasyBlock):
         Install toy extension.
         """
         if self.src:
-            EB_toy.build_step(self.master, name=self.name, buildopts=self.cfg['buildopts'])
+            EB_toy.build_step(self.master, name=self.name, cfg=self.cfg)
 
             if self.cfg['toy_ext_param']:
                 run_cmd(self.cfg['toy_ext_param'])
 
-            return self.module_generator.set_environment('TOY_EXT_%s' % self.name.upper(), self.name)
+            return self.module_generator.set_environment('TOY_EXT_%s' % self.name.upper().replace('-', '_'), self.name)
 
     def prerun(self):
         """
@@ -79,7 +79,7 @@ class Toy_Extension(ExtensionEasyBlock):
 
         if self.src:
             super(Toy_Extension, self).run(unpack_src=True)
-            EB_toy.configure_step(self.master, name=self.name)
+            EB_toy.configure_step(self.master, name=self.name, cfg=self.cfg)
 
     def run_async(self):
         """

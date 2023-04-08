@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,12 +25,14 @@
 """
 EasyBuild support for GCC compiler toolchain.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
-from distutils.version import LooseVersion
 import re
 
 from easybuild.toolchains.gcccore import GCCcore
+from easybuild.tools import LooseVersion
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 

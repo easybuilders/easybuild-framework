@@ -4,6 +4,201 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.7.1 (March 20th 2023)
+------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add option to make sanity_check_paths arch dependent (#3845)
+  - add support for %(start_dir)s easyconfig template (#4073)
+  - add Ubuntu friendly package naming scheme EasyBuildDebFriendlyPNS (#4115)
+  - allow to directly import constants from easybuild.framework.easyconfig.constants (#4144)
+  - accept single source as dict and single checksum in check_checksums_for (#4180)
+  - add pre/post extension hook that is triggered before/after individual extension installations (#4193)
+  - enforce absolute paths as start dir of extensions (#4196)
+  - print warning when non-existing `start_dir` is specified for extension (#4201)
+  - add support to silence deprecation warning for easyconfigs and toolchains (#4207)
+  - skip directories when fixing shebangs (#4209)
+  - add support for 'modunloadmsg' easyconfig parameter (#4223)
+- various bug fixes, including:
+  - fix use of `locate` in `check_os_dependency` (#4166)
+  - add VERSION to easybuild.easyblocks namespace in test sandbox (#4171)
+  - also apply filter to asyncprocess test subsuite (#4172)
+  - don't use deprecated SafeConfigParser when running with Python 3.x (#4173)
+  - update CI workflows to run 'apt-get update' if installation of packages via 'apt-get install' failed, likely due to stale apt cache (#4176)
+  - fixes for findPythonDeps script (#4179)
+  - check type of versionsuffix value in det_full_ec_version, and raise useful error message if it's not a string (#4184)
+  - avoid GC3Pie deprecation warning (#4185)
+  - correctly restore sys.path in tests (#4186)
+  - suppress output of --skip-test-step test (#4187)
+  - fix flaky test_search_file due to accidental matches for `.*C++` search pattern (#4190)
+  - silence distutils deprecation warnings (#4204)
+  - improve handling of start_dir and add tests for cases where either ext_dir or initial start_dir or both are unset or None (#4206)
+  - restore initial environment before processing each easystack item (#4213)
+  - make test_help_long work on small terminals (#4218)
+- other changes:
+  - use better test assertions by replacing use of assertFalse/assertTrue (#4170, #4205)
+  - remove Travis CI configuration file (#4174)
+  - filter out deprecation warnings for platform.dist in get_os_version and platform.linux_distribution in get_os_name (#4175)
+  - only give read permissions in GitHub Actions workflows (#4182)
+  - fix website/docs links in README (#4199)
+  - only print "default: " for configuration option of strlist type if default is not empty (#4220)
+
+
+v4.7.0 (January 9th 2023)
+-------------------------
+
+feature release
+
+- print deprecation warning with running EasyBuild with Python 2 (#4136)
+- various enhancements, including:
+  - add support for checksums specified in external `checksums.json` file (#3749)
+  - vendor distutils.version.LooseVersion as easybuild.tools.LooseVersion (since distutils is deprecated in Python 3.10) (#3794, #4156)
+  - take into account custom configuration options specified in easystack file (#4057)
+  - add support for using --output-format=md (MarkDown) (#4117, #4155)
+  - add support for --filter-rpath-sanity-libs to skip RPATH sanity check for designated libraries (#4119)
+  - add sanity_check_load_module method to EasyBlock to provide control over when module is loaded during sanity check step (#4125)
+  - add eb_bash_completion_local.bash script to setup.py (#4127)
+  - check whether nvidia-smi/rocm-smi command is available before trying to run it in `get_gpu_info` (#4131)
+  - add gfbf as subtoolchain of foss (#4143)
+  - add support for postinstallmsgs (#4145)
+  - make iimkl toolchain aware of intel-compilers (#4146)
+  - add definition for nvofbf toolchain (#4157, #4163)
+- various bug fixes, including:
+  - also use EasyConfig instances cache in process_easyconfig when build_specs is empty dict (#4107)
+  - fix build options that should have empty list as default value (#4108)
+  - catch easyconfig parsing failure so we can generate and post a test report (#4109)
+  - add explicit return when no checksums match those specified in a tuple (#4112)
+  - tweak findPythonDeps.py script to use canonical package names (#4118)
+  - add `-fdefault-double-8` to `r8` toolchain compiler option for GCC (to be consistent with Intel) (#4121)
+  - always start with empty list for banned/requires libraries to avoid that corresponding build option is updated in-place (#4137)
+  - fix container tests by using EPEL archive URL for downloading Singularity RPM (#4138)
+  - use -march=x86-64 -mtune=generic instead of -xSSE2 when using Intel oneAPI compilers (#4147)
+  - partially skip test_det_copy_ec_specs if no GitHub token is available (#4149)
+- other changes:
+  - drop support for easystack files using 'software' top-level key (#4057)
+  - also run unit tests with Python 3.11 + add Python 3.11 to classifiers in setup.py (#4092, #4141)
+  - use new EasyBuild logo in README (#4123)
+  - automatically cancel Github Action workflow runs for outdated commits (#4132)
+  - auto-enable use of oneAPI C/C++ compilers for intel-compilers >= 2022.2.0 (#4135)
+  - trim CI test configurations to avoid hitting GitHub rate limits (#4148)
+  - various tweaks to docstrings and help messages to fix problems with auto-generated documentation in MarkDown format (#4129, #4130, #4154, #4160, #4162, #4168)
+  - update copyright lines for 2023 (#4161)
+
+
+v4.6.2 (October 21st 2022)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add support for easystack file that contains easyconfig filenames + implement parsing of configuration options (#4021)
+  - skip over unset $EB_PYTHON/$EB_INSTALLPYTHON in eb wrappeer script (#4080)
+  - add GITHUB_RELEASE and GITHUB_LOWER_RELEASE templates (#4084)
+  - add `%(cuda_cc_cmake)s` template (#4087)
+- various bug fixes, including:
+  - make check_sha256_checksums verify all checksums if they're specified as a dict value (#4076)
+  - replace use of symlink with copied files in `alt_location` tests to fix failing EasyBuild installation on BeeGFS (#4083)
+  - fix trying to generate RPATH wrappers for Clang (#4088)
+  - make sure that GitPython version is a proper version before checking minimal required version (#4090, #4091)
+  - first look for patch in alt_location when it is specified (#4093)
+- other changes:
+  - make scripts executable (#4081)
+  - make --inject-checksums inject dictionary value for checksums which maps filename to SHA256 checksum (#4085)
+  - update to v3 of actions/checkout and actions/setup-python in CI workflows (#4089)
+  - use SYSTEM template constant in dependencies instead of True in framework tests (#4094)
+
+
+v4.6.1 (September 12th 2022)
+----------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add script to find dependencies of Python packages (#3839)
+  - add 'ai' default module class (#4053)
+- various bug fixes, including:
+  - fix code style issues reported by recent flake8 linter (#4049)
+  - stick to autopep8 < 1.7.0 with Python 2.7 (#4055)
+  - ensure we call EasyBlock.patch_step for postinstallpatches (#4063)
+  - fix leaked handles in set_columns, complete_cmd, run_cmd_qa, det_terminal_size functions + tests (#4066)
+  - fix `quote_str` when string with both ' and " ends with a double quote (#4068)
+  - fix type-checking of patches to allow dict values + correctly handle patches specified as dict values in --new-pr (#4070)
+  - relax toolchain test by accepting both -march=native (x86_64) and -mcpu=native (aarch64) (#4071)
+- other changes:
+  - run python in the same process as `eb` wrapper script by using `exec` (#4048)
+  - add get_linked_libs_raw function, and use it from both check_linked_shared_libs and sanity_check_rpath (#4051)
+  - update CI workflows (except container tests) to use Ubuntu 20.04, since Ubuntu 18.04 is deprecated (#4064)
+  - use SYSTEM constant for dependency that uses system toolchain in dumped easyconfig (#4069)
+
+
+v4.6.0 (July 8th 2022)
+----------------------
+
+feature release
+
+- various enhancements, including:
+  - allow searching for sources/patches in alternative location by specifying 'alt_location' in source/patch spec (#3994)
+  - show URLs used for download attempts in trace output (#4026)
+  - add support for setting environment variables via 'pushenv' with modextravars (#4030)
+  - add support for OneAPI compilers using toolchain option 'oneapi' (#4031, #4032, #4039)
+  - make check_linked_shared_libs more robust by taking into account that 'ldd' may fail (#4033)
+  - fall back to sequential extension install if parallel install is not implemented (#4034)
+  - add support for using template values in name/version of extensions (#4036)
+- various bug fixes, including:
+  - make sure that ARCH constant has 'aarch64' (rather than 'arm64') as value on macOS ARM (#4018)
+  - tweak 'eb' wrapper script to correctly handle errors when python command being considered fails to run (#4019)
+  - tweak is_patch_for function to make it more robust (#4028)
+- other changes:
+  - update Lmod used to run tests to version 8.7.6 (#4027, #4030)
+  - tweak apply_patch to not create .orig files (by default) when applying patch files (#4038)
+
+
+v4.5.5 (June 8th 2022)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add toolchain definitions for nvompi (NVHPC + OpenMPI) (#3969), nvpsmpi (NVHPC + ParaStationMPI) (#3970), gfbf (GCC, FlexiBLAS, FFTW) (#4006)
+  - add support for FFTW.MPI toolchain component ($FFT*DIR variables) (#4012)
+  - add support for customizing EasyBuild command used in jobs via --job-eb-cmd (#4016)
+- various bug fixes, including:
+  - fix copying of easyconfig file with --copy-ec without --rebuild if module is already installed (#3993)
+  - ignore deprecation warnings regarding cryptography in Python 3.6 + Blowfish with Python 3.10 in test suite output (#3999)
+  - fix typo in debug log message in easyblock.py (#4000)
+  - fix printing of list of attempted download URLs when url-encoded characters are used in URL (#4005)
+  - set $FFT(W)_LIB_DIR to imkl-FFTW's lib path in build environment if usempi toolchain option is enabled (#4011)
+  - correctly identify Apple Silicon M1 as Arm 64-bit by also considering arm64 next to aarch64 (#4014)
+  - fix 'eb --show-system-info' on Apple M1 system (#4015)
+- other changes:
+  - change 'eb' command to import easybuild.framework to check if EasyBuild framework is available (#3995, #3998)
+
+
+v4.5.4 (March 31st 2022)
+------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - warn about potentially missing patches in --new-pr (#3759, #3966)
+  - add support for 'clone_into' field in git_config source spec to specify different name for top-level directory (#3949)
+  - add bash completion for easyconfigs from local dir but not robot search path (#3953)
+  - add a 'sync pr' message when the PR has a mergeable state but is showing a failed status for the test suite on the last commit (#3967)
+  - add gmpit toolchain definition (GCC + MPItrampoline) (#3971)
+  - use 'zypper search -i' to check whether specified OS dependency is installed on openSUSE + make sure that rpm is considered for checking OS dependencies on RHEL8 (#3973)
+  - add support for post-install patches (#3974)
+  - add support for 'download_instructions' easyconfig parameter key to specify some download or installation steps for user in case of complicated way of obtaining needed files (#3976, #3981)
+  - also try collecting AMD GPU info (via rocm-smi) for --show-system-info (#3978, #3982)
+- various bug fixes, including:
+  - ensure --review-pr can find dependencies included in PR (#3979)
+  - run 'apt-get update' in GitHub Actions workflow for container tests to update container package list before installing anything (#3985)
+- other changes:
+  - enable code linting check for all supported Python versions (#3725)
+  - update copyright lines for 2022 (#3986)
+
+
 v4.5.3 (February 11th 2022)
 ---------------------------
 

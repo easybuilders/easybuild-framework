@@ -1,5 +1,6 @@
-# #
-# Copyright 2016-2021 Ghent University
+#!/usr/bin/env python
+##
+# Copyright 2016-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,7 +27,9 @@
 Overhaul all @param and @author tags for rst API documentation
 (@param x --> :param x: and @author --> :author:)
 
-:author: Caroline De Brouwer (Ghent University)
+Authors:
+
+* Caroline De Brouwer (Ghent University)
 """
 
 import os

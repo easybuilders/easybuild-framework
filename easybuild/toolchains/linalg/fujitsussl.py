@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2021 Ghent University
+# Copyright 2014-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,7 +25,9 @@
 """
 Support for Fujitsu's SSL library, which provides BLAS/LAPACK support.
 
-:author: Miguel Dias Costa (National University of Singapore)
+Authors:
+
+* Miguel Dias Costa (National University of Singapore)
 """
 import os
 

@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2021 Ghent University
+# Copyright 2014-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,8 +26,10 @@
 Support for Cray's LibSci library, which provides BLAS/LAPACK support.
 cfr. https://www.nersc.gov/users/software/programming-libraries/math-libraries/libsci/
 
-:author: Petar Forai (IMP/IMBA, Austria)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Petar Forai (IMP/IMBA, Austria)
+* Kenneth Hoste (Ghent University)
 """
 import os
 

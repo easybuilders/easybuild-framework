@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2021 Ghent University
+# Copyright 2015-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,7 +36,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.tools.config import log_path
+from easybuild.tools.config import get_package_naming_scheme, log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
@@ -152,9 +152,11 @@ def mock_fpm(tmpdir):
 class PackageTest(EnhancedTestCase):
     """Tests for packaging support."""
 
+    pnsNames = ['EasyBuildDebFriendlyPNS', 'EasyBuildPNS']
+
     def test_avail_package_naming_schemes(self):
         """Test avail_package_naming_schemes()"""
-        self.assertEqual(sorted(avail_package_naming_schemes().keys()), ['EasyBuildPNS'])
+        self.assertEqual(sorted(avail_package_naming_schemes().keys()), self.pnsNames)
 
     def test_check_pkg_support(self):
         """Test check_pkg_support()."""
@@ -175,19 +177,25 @@ class PackageTest(EnhancedTestCase):
 
     def test_active_pns(self):
         """Test use of ActivePNS."""
-        init_config(build_options={'silent': True})
+        for pns_type in self.pnsNames:
+            os.environ['EASYBUILD_PACKAGE_NAMING_SCHEME'] = pns_type
+            init_config(build_options={'silent': True})
 
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easyconfigs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
-        test_ec = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
-        ec = EasyConfig(test_ec, validate=False)
+            topdir = os.path.dirname(os.path.abspath(__file__))
+            test_easyconfigs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
+            test_ec = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
+            ec = EasyConfig(test_ec, validate=False)
 
-        pns = ActivePNS()
+            pns = ActivePNS()
 
-        # default: EasyBuild package naming scheme, pkg release 1
-        self.assertEqual(pns.name(ec), 'OpenMPI-2.1.2-GCC-6.4.0-2.28')
-        self.assertEqual(pns.version(ec), 'eb-%s' % EASYBUILD_VERSION)
-        self.assertEqual(pns.release(ec), '1')
+            self.assertEqual(pns.name(ec), 'OpenMPI-2.1.2-GCC-6.4.0-2.28')
+            self.assertEqual(pns.release(ec), '1')
+            if get_package_naming_scheme() == "EasyBuildPNS":
+                # default: EasyBuild package naming scheme, pkg release 1
+                self.assertEqual(pns.version(ec), 'eb-%s' % EASYBUILD_VERSION)
+            elif get_package_naming_scheme() == "EasyBuildDebFriendlyPNS":
+                # default: EasyBuild deb friendly package naming scheme, pkg release 1
+                self.assertEqual(pns.version(ec), '%s-eb' % EASYBUILD_VERSION)
 
     def test_package(self):
         """Test package function."""

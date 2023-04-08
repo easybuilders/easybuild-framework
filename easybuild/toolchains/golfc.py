@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +25,10 @@
 """
 EasyBuild support for golfc compiler toolchain (includes GCC+CUDA, OpenBLAS, LAPACK, and FFTW).
 
-:author: Kenneth Hoste (Ghent University)
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
 from easybuild.toolchains.gcccuda import GccCUDA

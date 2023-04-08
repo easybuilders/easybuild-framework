@@ -26,7 +26,7 @@ sources = ['%(name)s-%(version)s.tar.gz']
 # download location for source files
 source_urls = [GNU_SOURCE]
 
-hiddendependencies = [('toy', '0.0', '-deps', True)]
+hiddendependencies = [('toy', '0.0', '-deps', SYSTEM)]
 dependencies = hiddendependencies  # hidden deps must be included in list of deps
 
 # make sure the gzip and gunzip binaries are available after installation

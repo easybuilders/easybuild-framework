@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,14 +25,17 @@
 """
 Support for FFTW (Fastest Fourier Transform in the West) as toolchain FFT library.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.fft import Fft
+from easybuild.tools.modules import get_software_root
 
 
 class Fftw(Fft):
@@ -56,6 +59,11 @@ class Fftw(Fft):
         fftw_libs = ["fftw%s" % suffix]
         if self.options.get('usempi', False):
             fftw_libs.insert(0, "fftw%s_mpi" % suffix)
+            fftwmpiroot = get_software_root('FFTW.MPI')
+            if fftwmpiroot:
+                # get libfft%_mpi via the FFTW.MPI module
+                self.FFT_MODULE_NAME = ['FFTW.MPI']
+
         fftw_libs_mt = ["fftw%s" % suffix]
         if self.options.get('openmp', False):
             fftw_libs_mt.insert(0, "fftw%s_omp" % suffix)

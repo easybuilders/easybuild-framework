@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,12 +26,14 @@
 """
 This describes the easyconfig version class. To be used in EasyBuild for anything related to version checking
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import operator as op
 import re
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
@@ -117,7 +119,7 @@ class VersionOperator(object):
 
     def is_valid(self):
         """Check if this is a valid VersionOperator. Suffix can be anything."""
-        return not(self.version is None or self.operator is None)
+        return not (self.version is None or self.operator is None)
 
     def set(self, versop_str):
         """

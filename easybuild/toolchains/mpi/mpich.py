@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,12 +25,14 @@
 """
 Support for MPICH as toolchain MPI library.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Jens Timmerman (Ghent University)
+* Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_VARIABLES
 from easybuild.tools.toolchain.mpi import Mpi

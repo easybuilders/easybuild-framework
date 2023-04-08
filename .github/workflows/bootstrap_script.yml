@@ -1,12 +1,20 @@
 # documentation: https://help.github.com/en/articles/workflow-syntax-for-github-actions
 name: test EasyBuild bootstrap script
 on: [push, pull_request]
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+concurrency:
+  group: ${{format('{0}:{1}:{2}', github.repository, github.ref, github.workflow)}}
+  cancel-in-progress: true
+
 jobs:
   setup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
         lmod7: Lmod-7.8.22
-        lmod8: Lmod-8.4.27
+        lmod8: Lmod-8.7.6
         modulesTcl: modules-tcl-1.147
         modules3: modules-3.2.10
         modules4: modules-4.1.4
@@ -14,7 +22,7 @@ jobs:
       - run: "true"
   build:
     needs: setup
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         # Don't run for Python 3.8, 3.9 , people should just use `pip install easybuild`
@@ -54,21 +62,27 @@ jobs:
             lc_all: C
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: ${{matrix.python}}
         architecture: x64
 
     - name: install OS & Python packages
       run: |
-        # disable apt-get update, we don't really need it,
-        # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
-        # sudo apt-get update
         # for modules tool
-        sudo apt-get install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
+        APT_PKGS="lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev"
+
+        # Avoid apt-get update, as we don't really need it,
+        # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
+        if ! sudo apt-get install $APT_PKGS; then
+          # Try to update cache, then try again to resolve 404s of old packages
+          sudo apt-get update -yqq || true
+          sudo apt-get install $APT_PKGS
+        fi
+
         # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
         # needed for Ubuntu 18.04, but not for Ubuntu 20.04, so skipping symlinking if posix.so already exists
         if [ ! -e /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so ] ; then
@@ -107,7 +121,7 @@ jobs:
           EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
           EB_BOOTSTRAP_SHA256SUM=$(sha256sum easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
           EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-          EB_BOOTSTRAP_EXPECTED="20210715.01 784dd29063d941be2d8b70e4c2eec12a9afe360f3ef8f753dcb518abf43ca7de"
+          EB_BOOTSTRAP_EXPECTED="20210715.01 935979de3a4c30b24c3617ff7cd7c40cbd4d815cee5be0c99810cc21f21182f1"
           test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
 
           # test bootstrap script

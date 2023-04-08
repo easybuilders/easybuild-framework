@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,9 +27,11 @@
 Easyconfig templates module that provides templating that can
 be used within an Easyconfig file.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
+* Kenneth Hoste (Ghent University)
 """
 import re
 import platform
@@ -73,6 +75,7 @@ TEMPLATE_NAMES_LOWER = [
 TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
     ('builddir', "Build directory"),
     ('installdir', "Installation directory"),
+    ('start_dir', "Directory in which the build process begins"),
 ]
 # software names for which to define <pref>ver and <pref>shortver templates
 TEMPLATE_SOFTWARE_VERSIONS = [
@@ -90,6 +93,7 @@ TEMPLATE_NAMES_DYNAMIC = [
     ('mpi_cmd_prefix', "Prefix command for running MPI programs (with default number of ranks)"),
     ('cuda_compute_capabilities', "Comma-separated list of CUDA compute capabilities, as specified via "
      "--cuda-compute-capabilities configuration option or via cuda_compute_capabilities easyconfig parameter"),
+    ('cuda_cc_cmake', "List of CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+"),
     ('cuda_cc_space_sep', "Space-separated list of CUDA compute capabilities"),
     ('cuda_cc_semicolon_sep', "Semicolon-separated list of CUDA compute capabilities"),
     ('cuda_sm_comma_sep', "Comma-separated list of sm_* values that correspond with CUDA compute capabilities"),
@@ -113,6 +117,10 @@ TEMPLATE_CONSTANTS = [
      'GitHub source URL (namelower is used if github_account easyconfig parameter is not specified)'),
     ('GITHUB_LOWER_SOURCE', 'https://github.com/%(github_account)s/%(namelower)s/archive',
      'GitHub source URL (lowercase name, namelower is used if github_account easyconfig parameter is not specified)'),
+    ('GITHUB_RELEASE', 'https://github.com/%(github_account)s/%(name)s/releases/download/v%(version)s',
+     'GitHub release URL (namelower is used if github_account easyconfig parameter is not specified)'),
+    ('GITHUB_LOWER_RELEASE', 'https://github.com/%(github_account)s/%(namelower)s/releases/download/v%(version)s',
+     'GitHub release URL (namelower is used if github_account easyconfig parameter is not specified)'),
     ('GNU_SAVANNAH_SOURCE', 'https://download-mirror.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
     ('GNU_SOURCE', 'https://ftpmirror.gnu.org/gnu/%(namelower)s',
@@ -353,6 +361,7 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
         template_values['cuda_compute_capabilities'] = ','.join(cuda_compute_capabilities)
         template_values['cuda_cc_space_sep'] = ' '.join(cuda_compute_capabilities)
         template_values['cuda_cc_semicolon_sep'] = ';'.join(cuda_compute_capabilities)
+        template_values['cuda_cc_cmake'] = ';'.join(cc.replace('.', '') for cc in cuda_compute_capabilities)
         sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_compute_capabilities]
         template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
         template_values['cuda_sm_space_sep'] = ' '.join(sm_values)

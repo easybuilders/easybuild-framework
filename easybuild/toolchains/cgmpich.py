@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -28,7 +28,9 @@
 """
 EasyBuild support for cgompi compiler toolchain (includes Clang, GFortran and MPICH).
 
-:author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+Authors:
+
+* Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
 from easybuild.toolchains.clanggcc import ClangGcc

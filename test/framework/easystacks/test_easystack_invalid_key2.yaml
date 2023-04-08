@@ -1,0 +1,14 @@
+easyconfigs:
+    - binutils-2.25-GCCcore-4.9.3:
+        options: {
+          'debug': True,
+          'from-pr': 12345,
+        }
+      invalid_key: {}
+    - binutils-2.26-GCCcore-4.9.3
+    - foss-2018a:
+        options: {
+          'enforce-checksums': True,
+          'robot': True,
+        }
+    - toy-0.0-gompi-2018a-test

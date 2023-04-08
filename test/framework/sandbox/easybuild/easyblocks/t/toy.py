@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -91,26 +91,37 @@ class EB_toy(ExtensionEasyBlock):
 
         return super(EB_toy, self).run_all_steps(*args, **kwargs)
 
-    def configure_step(self, name=None):
+    def configure_step(self, name=None, cfg=None):
         """Configure build of toy."""
         if name is None:
             name = self.name
+        # Allow overwrite from Toy-Extension
+        if cfg is None:
+            cfg = self.cfg
         # make sure Python system dep is handled correctly when specified
-        if self.cfg['allow_system_deps']:
+        if cfg['allow_system_deps']:
             if get_software_root('Python') != 'Python' or get_software_version('Python') != platform.python_version():
                 raise EasyBuildError("Sanity check on allowed Python system dep failed.")
+
+        cmd = ' '.join([
+            cfg['preconfigopts'],
+            'echo "Configured"',
+            cfg['configopts']
+        ])
+        run_cmd(cmd)
 
         if os.path.exists("%s.source" % name):
             os.rename('%s.source' % name, '%s.c' % name)
 
-    def build_step(self, name=None, buildopts=None):
+    def build_step(self, name=None, cfg=None):
         """Build toy."""
-        if buildopts is None:
-            buildopts = self.cfg['buildopts']
+        # Allow overwrite from Toy-Extension
+        if cfg is None:
+            cfg = self.cfg
         if name is None:
             name = self.name
 
-        cmd = compose_toy_build_cmd(self.cfg, name, self.cfg['prebuildopts'], buildopts)
+        cmd = compose_toy_build_cmd(self.cfg, name, cfg['prebuildopts'], cfg['buildopts'])
         run_cmd(cmd)
 
     def install_step(self, name=None):

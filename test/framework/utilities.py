@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -236,7 +236,7 @@ class EnhancedTestCase(TestCase):
         self.allow_deprecated_behaviour()
 
         # restore original Python search path
-        sys.path = self.orig_sys_path
+        sys.path[:] = self.orig_sys_path
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
@@ -285,9 +285,10 @@ class EnhancedTestCase(TestCase):
         self.modtool.set_mod_paths()
 
     def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False,
-                reset_env=True, raise_systemexit=False, testing=True, redo_init_config=True):
+                reset_env=True, raise_systemexit=False, testing=True, redo_init_config=True, clear_caches=True):
         """Helper method to call EasyBuild main function."""
-        cleanup()
+
+        cleanup(clear_caches=clear_caches)
 
         # always run main in unit testing mode (which for example allows for using deprecated toolchains);
         # note: don't change 'args' value, which is passed by reference!
@@ -328,7 +329,7 @@ class EnhancedTestCase(TestCase):
 
         if redo_init_config:
             # make sure config is reinitialized
-            init_config(with_include=False)
+            init_config(with_include=False, clear_caches=clear_caches)
 
         # restore environment to what it was before running main,
         # changes may have been made by eb_main (e.g. $TMPDIR & co)
@@ -445,26 +446,28 @@ class TestLoaderFiltered(unittest.TestLoader):
         return self.suiteClass(test_cases)
 
 
-def cleanup():
+def cleanup(clear_caches=True):
     """Perform cleanup of singletons and caches."""
+
     # clear Singleton instances, to start afresh
     Singleton._instances.clear()
 
-    # empty caches
-    tc_utils._initial_toolchain_instances.clear()
-    easyconfig._easyconfigs_cache.clear()
-    easyconfig._easyconfig_files_cache.clear()
-    easyconfig.get_toolchain_hierarchy.clear()
-    mns_toolchain._toolchain_details_cache.clear()
+    # clear various caches, to start with a clean slate
+    if clear_caches:
+        tc_utils._initial_toolchain_instances.clear()
+        easyconfig._easyconfigs_cache.clear()
+        easyconfig._easyconfig_files_cache.clear()
+        easyconfig.get_toolchain_hierarchy.clear()
+        mns_toolchain._toolchain_details_cache.clear()
 
     # reset to make sure tempfile picks up new temporary directory to use
     tempfile.tempdir = None
 
 
-def init_config(args=None, build_options=None, with_include=True):
+def init_config(args=None, build_options=None, with_include=True, clear_caches=True):
     """(re)initialize configuration"""
 
-    cleanup()
+    cleanup(clear_caches=clear_caches)
 
     # initialize configuration so config.get_modules_tool function works
     eb_go = eboptions.parse_options(args=args, with_include=with_include)

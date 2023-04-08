@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,7 +25,9 @@
 """
 EasyBuild support for ffmpi compiler toolchain (includes Fujitsu Compiler and MPI).
 
-:author: Miguel Dias Costa (National University of Singapore)
+Authors:
+
+* Miguel Dias Costa (National University of Singapore)
 """
 from easybuild.toolchains.fcc import FCC
 from easybuild.toolchains.mpi.fujitsumpi import FujitsuMPI
