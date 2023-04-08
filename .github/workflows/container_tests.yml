@@ -11,11 +11,10 @@ concurrency:
 
 jobs:
   build:
-    # stick to Ubuntu 18.04, where we can still easily install yum via 'apt install'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python: [2.7, 3.6]
+        python: [2.7, 3.7]
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
@@ -31,7 +30,7 @@ jobs:
         # for modules tool
         APT_PKGS="lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev"
         # for building Singularity images
-        APT_PKGS+=" rpm yum"
+        APT_PKGS+=" rpm dnf"
 
         # Avoid apt-get update, as we don't really need it,
         # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
@@ -39,12 +38,6 @@ jobs:
           # Try to update cache, then try again to resolve 404s of old packages
           sudo apt-get update -yqq || true
           sudo apt-get install $APT_PKGS
-        fi
-
-        # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
-        # needed for Ubuntu 18.04, but not for Ubuntu 20.04, so skipping symlinking if posix.so already exists
-        if [ ! -e /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so ] ; then
-            sudo ln -s /usr/lib/x86_64-linux-gnu/lua/5.2/posix_c.so /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so
         fi
 
     - name: install Lmod
@@ -104,7 +97,7 @@ jobs:
           # see https://docs.easybuild.io/en/latest/Containers.html
           curl -OL https://raw.githubusercontent.com/easybuilders/easybuild-easyconfigs/develop/easybuild/easyconfigs/b/bzip2/bzip2-1.0.8.eb
           export EASYBUILD_CONTAINERPATH=$PWD
-          export EASYBUILD_CONTAINER_CONFIG='bootstrap=yum,osversion=7'
+          export EASYBUILD_CONTAINER_CONFIG='bootstrap=docker,from=ghcr.io/easybuilders/centos-7.9-python3-amd64'
           eb bzip2-1.0.8.eb --containerize --experimental --container-build-image
           singularity exec bzip2-1.0.8.sif command -v bzip2 | grep '/app/software/bzip2/1.0.8/bin/bzip2' || (echo "Path to bzip2 '$which_bzip2' is not correct" && exit 1)
           singularity exec bzip2-1.0.8.sif bzip2 --help
