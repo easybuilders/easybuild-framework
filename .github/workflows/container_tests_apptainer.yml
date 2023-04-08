@@ -1,14 +1,21 @@
 # documentation: https://help.github.com/en/articles/workflow-syntax-for-github-actions
 name: Tests for Apptainer container support
 on: [push, pull_request]
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+concurrency:
+  group: ${{format('{0}:{1}:{2}', github.repository, github.ref, github.workflow)}}
+  cancel-in-progress: true
+
 jobs:
   build:
-    # stick to Ubuntu 18.04, where we can still easily install yum via 'apt-get install'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python: [2.7, 3.6]
-        apptainer: [1.0.0]
+        python: [2.7, 3.7]
+        apptainer: [1.0.0, 1.1.7]
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
@@ -23,7 +30,7 @@ jobs:
       run: |
         # for building CentOS 7 container images
         sudo apt-get install rpm
-        sudo apt-get install yum
+        sudo apt-get install dnf
         # for modules tool
         sudo apt-get install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
         # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
@@ -82,7 +89,7 @@ jobs:
           # see https://docs.easybuild.io/en/latest/Containers.html
           curl -OL https://raw.githubusercontent.com/easybuilders/easybuild-easyconfigs/develop/easybuild/easyconfigs/b/bzip2/bzip2-1.0.8.eb
           export EASYBUILD_CONTAINERPATH=$PWD
-          export EASYBUILD_CONTAINER_CONFIG='bootstrap=yum,osversion=7'
+          export EASYBUILD_CONTAINER_CONFIG='bootstrap=docker,from=ghcr.io/easybuilders/centos-7.9-python3-amd64'
           export EASYBUILD_CONTAINER_TYPE='apptainer'
           eb bzip2-1.0.8.eb --containerize --experimental --container-build-image
           apptainer exec bzip2-1.0.8.sif command -v bzip2 | grep '/app/software/bzip2/1.0.8/bin/bzip2' || (echo "Path to bzip2 '$which_bzip2' is not correct" && exit 1)
