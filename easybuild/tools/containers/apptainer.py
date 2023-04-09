@@ -1,4 +1,4 @@
-# Copyright 2022-2022 Ghent University
+# Copyright 2022-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -59,7 +59,7 @@ class ApptainerContainer(SingularityContainer):
         return res.group(0)
 
     def build_image(self, recipe_path):
-        """Build container image by calling out to 'sudo singularity build'."""
+        """Build container image by calling out to 'sudo apptainer build'."""
 
         cont_path = container_path()
         def_file = os.path.basename(recipe_path)
@@ -98,15 +98,15 @@ class ApptainerContainer(SingularityContainer):
                 raise EasyBuildError("Container image already exists at %s, not overwriting it without --force",
                                      img_path)
 
-        # resolve full path to 'singularity' binary, since it may not be available via $PATH under sudo...
-        singularity = which('apptainer')
+        # resolve full path to 'apptainer' binary, since it may not be available via $PATH under sudo...
+        apptainer = which('apptainer')
         cmd_env = ''
 
-        singularity_tmpdir = self.tmpdir
-        if singularity_tmpdir:
-            cmd_env += 'APPTAINER_TMPDIR=%s' % singularity_tmpdir
+        apptainer_tmpdir = self.tmpdir
+        if apptainer_tmpdir:
+            cmd_env += 'APPTAINER_TMPDIR=%s' % apptainer_tmpdir
 
-        cmd = ' '.join(['sudo', cmd_env, singularity, 'build', cmd_opts, img_path, recipe_path])
+        cmd = ' '.join(['sudo', cmd_env, apptainer, 'build', cmd_opts, img_path, recipe_path])
         print_msg("Running '%s', you may need to enter your 'sudo' password..." % cmd)
         run_cmd(cmd, stream_output=True)
         print_msg("Apptainer image created at %s" % img_path, log=self.log)
