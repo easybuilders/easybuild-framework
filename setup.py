@@ -96,7 +96,6 @@ implement support for installing particular (groups of) software packages.""",
         'eb_bash_completion.bash',
         'eb_bash_completion_local.bash',
         # utility scripts
-        'easybuild/scripts/bootstrap_eb.py',
         'easybuild/scripts/install_eb_dep.sh',
     ],
     data_files=[
