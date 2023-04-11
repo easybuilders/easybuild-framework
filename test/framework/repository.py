@@ -35,7 +35,6 @@ import tempfile
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
-import easybuild.tools.build_log
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
@@ -184,9 +183,6 @@ class RepositoryTest(EnhancedTestCase):
 
         path = repo.add_easyconfig(toy_eb_file, 'test', '1.0', {'time': 1.23, 'size': 123}, [{'time': 0.9, 'size': 2}])
         check_ec(path, [{'time': 0.9, 'size': 2}, {'time': 1.23, 'size': 123}])
-
-        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
-        easybuild.tools.build_log.EXPERIMENTAL = True
 
     def tearDown(self):
         """Clean up after test."""
