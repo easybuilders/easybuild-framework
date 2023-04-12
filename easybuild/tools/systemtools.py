@@ -211,7 +211,7 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
     'python-hglib': ('hglib', "using Mercurial repository as easyconfigs archive"),
     'requests': (None, "fallback library for downloading files"),
     'Rich': (None, "eb command rich terminal output"),
-    'PyYAML': ('yaml', "easystack files and .yeb easyconfig format"),
+    'PyYAML': ('yaml', "easystack files easyconfig format"),
     'setuptools': ('pkg_resources', "obtaining information on Python packages via pkg_resources module"),
 }
 

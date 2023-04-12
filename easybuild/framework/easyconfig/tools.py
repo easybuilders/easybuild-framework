@@ -52,7 +52,6 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_info, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
-from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
@@ -412,7 +411,7 @@ def parse_easyconfigs(paths, validate=True):
     return easyconfigs, generated_ecs
 
 
-def stats_to_str(stats, isyeb=False):
+def stats_to_str(stats):
     """
     Pretty print build statistics to string.
     """
@@ -422,13 +421,7 @@ def stats_to_str(stats, isyeb=False):
     txt = "{\n"
     pref = "    "
     for key in sorted(stats):
-        if isyeb:
-            val = stats[key]
-            if isinstance(val, tuple):
-                val = list(val)
-            key, val = quote_yaml_special_chars(key), quote_yaml_special_chars(val)
-        else:
-            key, val = quote_str(key), quote_str(stats[key])
+        key, val = quote_str(key), quote_str(stats[key])
         txt += "%s%s: %s,\n" % (pref, key, val)
     txt += "}"
     return txt
