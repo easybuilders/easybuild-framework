@@ -47,9 +47,11 @@ import functools
 import os
 import re
 from contextlib import contextmanager
+from collections import OrderedDict
 
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
+from easybuild.base.wrapper import create_base_metaclass
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS, EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
@@ -73,7 +75,6 @@ from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.py2vs3 import OrderedDict, create_base_metaclass, string_type
 from easybuild.tools.systemtools import check_os_dependency, pick_dep_version
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
@@ -234,7 +235,7 @@ def det_subtoolchain_version(current_tc, subtoolchain_names, optional_toolchains
     subtoolchain_version = None
 
     # ensure we always have a tuple of alternative subtoolchain names, which makes things easier below
-    if isinstance(subtoolchain_names, string_type):
+    if isinstance(subtoolchain_names, str):
         subtoolchain_names = (subtoolchain_names,)
 
     system_subtoolchain = False
@@ -620,7 +621,7 @@ class EasyConfig(object):
         Update an easyconfig parameter with the specified value (i.e. append to it).
         Note: For dictionary easyconfig parameters, 'allow_duplicate' is ignored (since it's meaningless).
         """
-        if isinstance(value, string_type):
+        if isinstance(value, str):
             inval = [value]
         elif isinstance(value, (list, dict, tuple)):
             inval = value
@@ -638,7 +639,7 @@ class EasyConfig(object):
         # Grab current parameter value so we can modify it
         param_value = copy.deepcopy(self[key])
 
-        if isinstance(param_value, string_type):
+        if isinstance(param_value, str):
             for item in inval:
                 # re.search: only add value to string if it's not there yet (surrounded by whitespace)
                 if allow_duplicate or (not re.search(r'(^|\s+)%s(\s+|$)' % re.escape(item), param_value)):
@@ -829,7 +830,7 @@ class EasyConfig(object):
 
         deprecated = self['deprecated']
         if deprecated:
-            if isinstance(deprecated, string_type):
+            if isinstance(deprecated, str):
                 if 'easyconfig' not in build_option('silence_deprecation_warnings'):
                     depr_msgs.append("easyconfig file '%s' is marked as deprecated:\n%s\n" % (path, deprecated))
             else:
@@ -907,7 +908,7 @@ class EasyConfig(object):
         not_found = []
         for dep in self['osdependencies']:
             # make sure we have a tuple
-            if isinstance(dep, string_type):
+            if isinstance(dep, str):
                 dep = (dep,)
             elif not isinstance(dep, tuple):
                 raise EasyBuildError("Non-tuple value type for OS dependency specification: %s (type %s)",
@@ -1986,7 +1987,7 @@ def resolve_template(value, tmpl_dict):
         - value: some python object (supported are string, tuple/list, dict or some mix thereof)
         - tmpl_dict: template dictionary
     """
-    if isinstance(value, string_type):
+    if isinstance(value, str):
         # simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
         #         but ignore a string like '%(name)s'
         # behaviour of strings like '%(name)s',

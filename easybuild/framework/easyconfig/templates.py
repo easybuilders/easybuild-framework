@@ -38,7 +38,6 @@ import platform
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
 from easybuild.tools.config import build_option
 
@@ -306,7 +305,7 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
             else:
                 raise EasyBuildError("Unexpected type for dependency: %s", dep)
 
-            if isinstance(dep_name, string_type) and dep_version:
+            if isinstance(dep_name, str) and dep_version:
                 pref = name_to_prefix.get(dep_name.lower())
                 if pref:
                     dep_version = pick_dep_version(dep_version)

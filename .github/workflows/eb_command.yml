@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        python: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9, '3.10', '3.11']
+        python: [3.6, 3.7, 3.8, 3.9, '3.10', '3.11']
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
@@ -91,7 +91,7 @@ jobs:
           pymajver=$(python -c 'import sys; print(sys.version_info[0])')
           pymajminver=$(python -c 'import sys; print(".".join(str(x) for x in sys.version_info[:2]))')
           # check patterns in verbose output
-          for pattern in "^>> Considering .python.\.\.\." "^>> .python. version: ${pymajminver}\.[0-9]\+, which matches Python ${pymajver} version requirement" "^>> 'python' is able to import 'easybuild.framework', so retaining it" "^>> Selected Python command: python \(.*/bin/python\)" "^This is EasyBuild 4\.[0-9.]\+"; do
+          for pattern in "^>> Considering .python3.\.\.\." "^>> .python3. version: ${pymajminver}\.[0-9]\+, which matches Python ${pymajver} version requirement" "^>> 'python3' is able to import 'easybuild.framework', so retaining it" "^>> Selected Python command: python3 \(.*/bin/python3\)" "^This is EasyBuild 4\.[0-9.]\+"; do
               echo "Looking for pattern \"${pattern}\" in eb_version.out..."
               grep "$pattern" eb_version.out
           done

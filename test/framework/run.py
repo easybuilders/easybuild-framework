@@ -49,9 +49,8 @@ import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
-from easybuild.tools.run import parse_log_for_error, run_cmd, run_cmd_qa
+from easybuild.tools.run import parse_log_for_error, run_cmd, run_cmd_qa, subprocess_terminate
 from easybuild.tools.config import ERROR, IGNORE, WARN
-from easybuild.tools.py2vs3 import subprocess_terminate
 
 
 class RunTest(EnhancedTestCase):

@@ -42,9 +42,10 @@ import struct
 import sys
 import termios
 import warnings
+from collections import OrderedDict
 from ctypes.util import find_library
 from socket import gethostname
-from easybuild.tools.py2vs3 import subprocess_popen_text
+from easybuild.tools.run import subprocess_popen_text
 
 # pkg_resources is provided by the setuptools Python package,
 # which we really want to keep as an *optional* dependency
@@ -64,7 +65,6 @@ from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import IGNORE
 from easybuild.tools.filetools import is_readable, read_file, which
-from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.run import run_cmd
 
 
@@ -1024,12 +1024,12 @@ def check_linked_shared_libs(path, required_patterns=None, banned_patterns=None)
     if required_patterns is None:
         required_regexs = []
     else:
-        required_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in required_patterns]
+        required_regexs = [re.compile(p) if isinstance(p, str) else p for p in required_patterns]
 
     if banned_patterns is None:
         banned_regexs = []
     else:
-        banned_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in banned_patterns]
+        banned_regexs = [re.compile(p) if isinstance(p, str) else p for p in banned_patterns]
 
     # resolve symbolic links (unless they're broken)
     if os.path.islink(path) and os.path.exists(path):
@@ -1311,7 +1311,7 @@ def pick_dep_version(dep_version):
         result = None
     else:
         result = pick_system_specific_value("version", dep_version)
-        if not isinstance(result, string_type) and result is not False:
+        if not isinstance(result, str) and result is not False:
             typ = type(dep_version)
             raise EasyBuildError("Unknown value type for version: %s (%s), should be string value", typ, dep_version)
 
