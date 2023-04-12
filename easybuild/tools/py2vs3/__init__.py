@@ -23,8 +23,14 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from easybuild.base import fancylogger
+
 # all functionality provided by the py3 modules is made available via the easybuild.tools.py2vs3 namespace
 from easybuild.tools.py2vs3.py3 import *  # noqa
+
+
+_log = fancylogger.getLogger('py2vs3', fname=False)
+_log.deprecated("Using py2vs3 is deprecated, since EasyBuild no longer runs on Python 2.", '6.0')
 
 
 # based on six's 'with_metaclass' function
