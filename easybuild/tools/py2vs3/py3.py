@@ -34,7 +34,6 @@ Authors:
 # these are not used here, but imported from here in other places
 import configparser  # noqa
 import json
-import subprocess
 import sys
 import urllib.request as std_urllib  # noqa
 from collections import OrderedDict  # noqa
@@ -59,8 +58,8 @@ try:
 except ImportError:
     HAVE_DISTUTILS = False
 
-from easybuild.base.wrapper import mk_wrapper_baseclass
-from easybuild.tools.run import subprocess_popen_text, subprocess_terminate
+from easybuild.base.wrapper import mk_wrapper_baseclass  # noqa
+from easybuild.tools.run import subprocess_popen_text, subprocess_terminate  # noqa
 
 # string type that can be used in 'isinstance' calls
 string_type = str

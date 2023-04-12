@@ -25,7 +25,7 @@
 
 from easybuild.base import fancylogger
 
-from easybuild.base.wrapper import create_base_metaclass
+from easybuild.base.wrapper import create_base_metaclass  # noqa
 
 # all functionality provided by the py3 modules is made available via the easybuild.tools.py2vs3 namespace
 from easybuild.tools.py2vs3.py3 import *  # noqa
