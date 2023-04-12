@@ -62,12 +62,6 @@ except ImportError:
 # string type that can be used in 'isinstance' calls
 string_type = str
 
-warning_lines = [
-    "Using py2vs3 is deprecated, since EasyBuild no longer runs on Python 2.",
-    "This module will be removed in a future EasyBuild Version.",
-]
-sys.stderr.write('\n\n' + '\n'.join(warning_lines) + '\n\n\n')
-
 
 def json_loads(body):
     """Wrapper for json.loads that takes into account that Python versions older than 3.6 require a string value."""
