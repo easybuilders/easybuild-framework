@@ -59,6 +59,7 @@ try:
 except ImportError:
     HAVE_DISTUTILS = False
 
+from easybuild.base.wrapper import mk_wrapper_baseclass
 from easybuild.tools.run import subprocess_popen_text, subprocess_terminate
 
 # string type that can be used in 'isinstance' calls
@@ -85,17 +86,6 @@ def raise_with_traceback(exception_class, message, traceback):
 def extract_method_name(method_func):
     """Extract method name from lambda function."""
     return '_'.join(method_func.__code__.co_names)
-
-
-def mk_wrapper_baseclass(metaclass):
-
-    class WrapperBase(object, metaclass=metaclass):
-        """
-        Wrapper class that provides proxy access to an instance of some internal instance.
-        """
-        __wraps__ = None
-
-    return WrapperBase
 
 
 def safe_cmp_looseversions(v1, v2):

@@ -25,16 +25,11 @@
 
 from easybuild.base import fancylogger
 
+from easybuild.base.wrapper import create_base_metaclass
+
 # all functionality provided by the py3 modules is made available via the easybuild.tools.py2vs3 namespace
 from easybuild.tools.py2vs3.py3 import *  # noqa
 
 
 _log = fancylogger.getLogger('py2vs3', fname=False)
 _log.deprecated("Using py2vs3 is deprecated, since EasyBuild no longer runs on Python 2.", '6.0')
-
-
-# based on six's 'with_metaclass' function
-# see also https://stackoverflow.com/questions/18513821/python-metaclass-understanding-the-with-metaclass
-def create_base_metaclass(base_class_name, metaclass, *bases):
-    """Create new class with specified metaclass based on specified base class(es)."""
-    return metaclass(base_class_name, bases, {})
