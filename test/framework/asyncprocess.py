@@ -34,7 +34,8 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 import easybuild.tools.asyncprocess as p
-from easybuild.tools.asyncprocess import Popen, subprocess_terminate
+from easybuild.tools.asyncprocess import Popen
+from easybuild.tools.run import subprocess_terminate
 
 
 class AsyncProcessTest(EnhancedTestCase):

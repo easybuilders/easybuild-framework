@@ -43,7 +43,6 @@ import shlex
 
 from easybuild.base import fancylogger
 from easybuild.tools import StrictVersion
-from easybuild.tools.asyncprocess import subprocess_popen_text
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
@@ -51,7 +50,7 @@ from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
 from easybuild.tools.filetools import convert_name, mkdir, normalize_path, path_matches, read_file, which, write_file
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_cmd, subprocess_popen_text
 from easybuild.tools.utilities import get_subclasses, nub
 
 # software root/version environment variable name prefixes
