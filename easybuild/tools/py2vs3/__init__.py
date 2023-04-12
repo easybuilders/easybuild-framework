@@ -22,6 +22,7 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 #
+import sys
 
 from easybuild.base import fancylogger
 
@@ -33,3 +34,26 @@ from easybuild.tools.py2vs3.py3 import *  # noqa
 
 _log = fancylogger.getLogger('py2vs3', fname=False)
 _log.deprecated("Using py2vs3 is deprecated, since EasyBuild no longer runs on Python 2.", '6.0')
+
+
+def python2_is_deprecated():
+    """
+    Print warning when using Python 2, since the support for running EasyBuild with it is deprecated.
+    """
+    if sys.version_info[0] == 2:
+        full_py_ver = '.'.join(str(x) for x in sys.version_info[:3])
+        warning_lines = [
+            "Running EasyBuild with Python v2.x is deprecated, found Python v%s." % full_py_ver,
+            "Support for running EasyBuild with Python v2.x will be removed in EasyBuild v5.0.",
+            '',
+            "It is strongly recommended to start using Python v3.x for running EasyBuild,",
+            "see https://docs.easybuild.io/en/latest/Python-2-3-compatibility.html for more information.",
+        ]
+        max_len = max(len(x) for x in warning_lines)
+        for i in range(len(warning_lines)):
+            line_len = len(warning_lines[i])
+            warning_lines[i] = '!!! ' + warning_lines[i] + ' ' * (max_len - line_len) + ' !!!'
+        max_len = max(len(x) for x in warning_lines)
+        warning_lines.insert(0, '!' * max_len)
+        warning_lines.append('!' * max_len)
+        sys.stderr.write('\n\n' + '\n'.join(warning_lines) + '\n\n\n')
