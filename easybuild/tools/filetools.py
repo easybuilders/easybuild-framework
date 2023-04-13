@@ -1963,7 +1963,7 @@ def check_lock(lock_name):
     Check whether a lock with specified name already exists.
 
     If it exists, either wait until it's released, or raise an error
-    (depending on --wait-on-lock configuration option).
+    (depending on --wait-on-lock-* configuration option).
     """
     lock_path = det_lock_path(lock_name)
     if os.path.exists(lock_path):
@@ -1971,22 +1971,6 @@ def check_lock(lock_name):
 
         wait_interval = build_option('wait_on_lock_interval')
         wait_limit = build_option('wait_on_lock_limit')
-
-        # --wait-on-lock is deprecated, should use --wait-on-lock-limit and --wait-on-lock-interval instead
-        wait_on_lock = build_option('wait_on_lock')
-        if wait_on_lock is not None:
-            depr_msg = "Use of --wait-on-lock is deprecated, use --wait-on-lock-limit and --wait-on-lock-interval"
-            _log.deprecated(depr_msg, '5.0')
-
-            # if --wait-on-lock-interval has default value and --wait-on-lock is specified too, the latter wins
-            # (required for backwards compatibility)
-            if wait_interval == DEFAULT_WAIT_ON_LOCK_INTERVAL and wait_on_lock > 0:
-                wait_interval = wait_on_lock
-
-            # if --wait-on-lock-limit is not specified we need to wait indefinitely if --wait-on-lock is specified,
-            # since the original semantics of --wait-on-lock was that it specified the waiting time interval (no limit)
-            if not wait_limit:
-                wait_limit = -1
 
         # wait limit could be zero (no waiting), -1 (no waiting limit) or non-zero value (waiting limit in seconds)
         if wait_limit != 0:
