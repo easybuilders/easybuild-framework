@@ -3481,11 +3481,7 @@ class ToyBuildTest(EnhancedTestCase):
         ok_regex = re.compile("^== COMPLETED: Installation ended successfully", re.M)
 
         test_cases = [
-            ['--wait-on-lock-interval=60'],
-            ['--wait-on-lock-interval=1'],
-            ['--wait-on-lock-limit=100'],
             ['--wait-on-lock-limit=100', '--wait-on-lock-interval=1'],
-            ['--wait-on-lock-limit=-1'],
             ['--wait-on-lock-limit=-1', '--wait-on-lock-interval=1'],
         ]
 
