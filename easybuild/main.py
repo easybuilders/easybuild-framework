@@ -77,7 +77,6 @@ from easybuild.tools.output import start_progress_bar, stop_progress_bar, update
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
-from easybuild.tools.py2vs3 import python2_is_deprecated
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_easybuild_deps
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
@@ -602,9 +601,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     init_session_state = session_state()
     eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
     options, orig_paths = eb_go.options, eb_go.args
-
-    if 'python2' not in build_option('silence_deprecation_warnings'):
-        python2_is_deprecated()
 
     global _log
     (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,

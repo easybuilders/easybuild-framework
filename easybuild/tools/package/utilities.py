@@ -39,12 +39,12 @@ import tempfile
 import pprint
 
 from easybuild.base import fancylogger
+from easybuild.base.wrapper import create_base_metaclass
 from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, Singleton
 from easybuild.tools.config import build_option, get_package_naming_scheme, log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import change_dir, which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
-from easybuild.tools.py2vs3 import create_base_metaclass
 from easybuild.tools.run import run_cmd
 from easybuild.tools.utilities import get_subclasses, import_available_modules
 

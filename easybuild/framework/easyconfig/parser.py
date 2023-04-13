@@ -37,11 +37,9 @@ import re
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
-from easybuild.framework.easyconfig.format.yeb import FormatYeb, is_yeb_format
 from easybuild.framework.easyconfig.types import PARAMETER_TYPES, check_type_of_param_value
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.py2vs3 import string_type
 
 
 # deprecated easyconfig parameters, and their replacements
@@ -161,7 +159,7 @@ class EasyConfigParser(object):
         except IOError as err:
             raise EasyBuildError('Failed to obtain content with %s: %s', self.get_fn, err)
 
-        if not isinstance(self.rawcontent, string_type):
+        if not isinstance(self.rawcontent, str):
             msg = 'rawcontent is not a string: type %s, content %s' % (type(self.rawcontent), self.rawcontent)
             raise EasyBuildError("Unexpected result for raw content: %s", msg)
 
@@ -189,11 +187,8 @@ class EasyConfigParser(object):
     def _set_formatter(self, filename):
         """Obtain instance of the formatter"""
         if self._formatter is None:
-            if is_yeb_format(filename, self.rawcontent):
-                self._formatter = FormatYeb()
-            else:
-                klass = self._get_format_version_class()
-                self._formatter = klass()
+            klass = self._get_format_version_class()
+            self._formatter = klass()
         self._formatter.parse(self.rawcontent)
 
     def set_format_text(self):

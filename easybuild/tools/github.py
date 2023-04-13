@@ -45,6 +45,8 @@ import sys
 import tempfile
 import time
 from datetime import datetime, timedelta
+from string import ascii_letters
+from urllib.request import HTTPError, URLError, urlopen
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
@@ -57,7 +59,6 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, copy_easyblocks, copy_framework_files
 from easybuild.tools.filetools import det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import get_easyblock_class_name, mkdir, read_file, symlink, which, write_file
-from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import nub, only_if_module_is_available
 
@@ -589,7 +590,9 @@ def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
     }
 
     if dry_run:
-        status, data = HTTP_STATUS_CREATED, {'html_url': 'https://gist.github.com/DRY_RUN'}
+        if github_user is None:
+            github_user = 'username'
+        status, data = HTTP_STATUS_CREATED, {'html_url': 'https://gist.github.com/%s/DRY_RUN' % github_user}
     else:
         g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
         status, data = g.gists.post(body=body)
@@ -2126,7 +2129,7 @@ def check_github():
     except Exception as err:
         _log.warning("Exception occurred when trying to create & delete gist: %s", err)
 
-    if gist_url and re.match('https://gist.github.com/[0-9a-f]+$', gist_url):
+    if gist_url and re.match('https://gist.github.com/%s/[0-9a-f]+$' % github_user, gist_url):
         check_res = "OK"
     else:
         check_res = "FAIL (gist_url: %s)" % gist_url

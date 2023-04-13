@@ -45,6 +45,7 @@ import shutil
 import sys
 import tempfile
 import pwd
+from collections import OrderedDict
 
 import easybuild.tools.environment as env
 from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
@@ -55,7 +56,6 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
-from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, get_paths_for
 from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.tools import LooseVersion, build_log, run  # build_log should always stay there, to ensure EasyBuildLog
@@ -97,7 +97,6 @@ from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
-from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.robot import det_robot_path
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
@@ -1104,7 +1103,7 @@ class EasyBuildOptions(GeneralOption):
 
         opt_val = getattr(self.options, opt_name)
         if opt_val:
-            if isinstance(opt_val, string_type):
+            if isinstance(opt_val, str):
                 setattr(self.options, opt_name, self.get_cfg_opt_abs_path(opt_name, opt_val))
             elif isinstance(opt_val, list):
                 abs_paths = [self.get_cfg_opt_abs_path(opt_name, p) for p in opt_val]
@@ -1160,11 +1159,11 @@ class EasyBuildOptions(GeneralOption):
             # which makes it susceptible to 'eating' the following argument/option;
             # for example: with 'eb -r foo', 'foo' must be an existing directory (or 'eb foo -r' should be used);
             # when multiple directories are specified, we deliberately do not enforce that all of them exist;
-            # if a single argument is passed to --robot/-r that ends with '.eb' or '.yeb', we assume it's an easyconfig
+            # if a single argument is passed to --robot/-r that ends with '.eb' we assume it's an easyconfig
             if len(self.options.robot) == 1:
                 robot_arg = self.options.robot[0]
                 if not os.path.isdir(robot_arg):
-                    if robot_arg.endswith(EB_FORMAT_EXTENSION) or robot_arg.endswith(YEB_FORMAT_EXTENSION):
+                    if robot_arg.endswith(EB_FORMAT_EXTENSION):
                         info_msg = "Sole --robot argument %s is not an existing directory, "
                         info_msg += "promoting it to a stand-alone argument since it looks like an easyconfig file name"
                         self.log.info(info_msg, robot_arg)
@@ -1827,7 +1826,7 @@ def parse_external_modules_metadata(cfgs):
                 unknown_keys.setdefault(mod, []).append(key)
 
         for key in ['name', 'version']:
-            if isinstance(entry.get(key), string_type):
+            if isinstance(entry.get(key), str):
                 entry[key] = [entry[key]]
                 _log.debug("Transformed external module metadata value %s for %s into a single-value list: %s",
                            key, mod, entry[key])

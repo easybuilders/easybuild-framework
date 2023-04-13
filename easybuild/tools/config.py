@@ -45,11 +45,12 @@ import random
 import tempfile
 import time
 from abc import ABCMeta
+from string import ascii_letters
 
 from easybuild.base import fancylogger
 from easybuild.base.frozendict import FrozenDictKnownKeys
+from easybuild.base.wrapper import create_base_metaclass
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
 
 try:
     import rich  # noqa
@@ -84,9 +85,10 @@ CONT_IMAGE_FORMATS = [
     CONT_IMAGE_FORMAT_SQUASHFS,
 ]
 
+CONT_TYPE_APPTAINER = 'apptainer'
 CONT_TYPE_DOCKER = 'docker'
 CONT_TYPE_SINGULARITY = 'singularity'
-CONT_TYPES = [CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
+CONT_TYPES = [CONT_TYPE_APPTAINER, CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
 DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
 DEFAULT_BRANCH = 'develop'
@@ -521,7 +523,7 @@ def init(options, config_options_dict):
 
     # make sure source path is a list
     sourcepath = tmpdict['sourcepath']
-    if isinstance(sourcepath, string_type):
+    if isinstance(sourcepath, str):
         tmpdict['sourcepath'] = sourcepath.split(':')
         _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
     elif not isinstance(sourcepath, (tuple, list)):

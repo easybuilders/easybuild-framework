@@ -52,7 +52,6 @@ from easybuild.tools.filetools import verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
 from easybuild.tools.modules import EnvironmentModules, Lmod, reset_module_caches
 from easybuild.tools.version import get_git_revision, this_is_easybuild
-from easybuild.tools.py2vs3 import string_type
 
 
 class EasyBlockTest(EnhancedTestCase):
@@ -431,7 +430,7 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(os.path.join(eb.installdir, 'foo.jar'), 'foo.jar')
         write_file(os.path.join(eb.installdir, 'bla.jar'), 'bla.jar')
         for path in ('bin', ('bin', 'testdir'), 'sbin', 'share', ('share', 'man'), 'lib', 'lib64'):
-            if isinstance(path, string_type):
+            if isinstance(path, str):
                 path = (path, )
             os.mkdir(os.path.join(eb.installdir, *path))
         # this is not a path that should be picked up
@@ -1241,7 +1240,7 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (key, vals) in modextrapaths.items():
-            if isinstance(vals, string_type):
+            if isinstance(vals, str):
                 vals = [vals]
             for val in vals:
                 if get_module_syntax() == 'Tcl':
@@ -2463,7 +2462,7 @@ class EasyBlockTest(EnhancedTestCase):
         # make sure that test easyconfig file indeed doesn't contain any checksums (either top-level or for extensions)
         self.assertEqual(ec_json['ec']['checksums'], [])
         for ext in ec_json['ec']['exts_list']:
-            if isinstance(ext, string_type):
+            if isinstance(ext, str):
                 continue
             elif isinstance(ext, tuple):
                 self.assertEqual(ext[2].get('checksums', []), [])
