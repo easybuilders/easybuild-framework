@@ -266,7 +266,7 @@ class GithubTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        pr_data, _ = gh.fetch_pr_data(1844, repo_owner, repo_name, GITHUB_TEST_ACCOUNT, full=True)
+        pr_data, _ = gh.fetch_pr_data(16080, repo_owner, repo_name, GITHUB_TEST_ACCOUNT, full=True)
 
         self.mock_stdout(True)
         self.mock_stderr(True)
@@ -278,12 +278,12 @@ class GithubTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         self.assertIsInstance(res, list)
-        self.assertEqual(stderr.strip(), "WARNING: Using easyconfigs from closed PR #1844")
+        self.assertEqual(stderr.strip(), "WARNING: Using easyconfigs from closed PR #16080")
         patterns = [
             "Status of last commit is SUCCESS",
             "Last comment on",
             "No activity since",
-            "* QEMU-2.4.0",
+            "* c-ares-1.18.1",
         ]
         for pattern in patterns:
             self.assertIn(pattern, stdout)
