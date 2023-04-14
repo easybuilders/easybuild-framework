@@ -2,8 +2,8 @@
 name: EasyBuild framework unit tests
 on: [push, pull_request]
 
-#permissions:
-  #contents: read # to fetch code (actions/checkout)
+permissions:
+  contents: read # to fetch code (actions/checkout)
 
 concurrency:
   group: ${{format('{0}:{1}:{2}', github.repository, github.ref, github.workflow)}}
@@ -120,7 +120,10 @@ jobs:
 
     - name: install GitHub token (if available)
       env:
-        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        # token (owned by @boegelbot) with gist permissions (required for some of the tests for GitHub integration);
+        # this token is not available in pull requests, so tests that require it are skipped in PRs,
+        # and are only run after the PR gets merged
+        GITHUB_TOKEN: ${{secrets.CI_UNIT_TESTS_GITHUB_TOKEN}}
       run: |
         # don't install GitHub token when testing with Lmod 7.x or non-Lmod module tools,
         # and only when testing with Lua as module syntax,
