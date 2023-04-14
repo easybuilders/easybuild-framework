@@ -4152,7 +4152,21 @@ class EasyConfigTest(EnhancedTestCase):
 
         # parsing now works
         ec = EasyConfig(test_ec)
-
+        self.assertEqual(ec['configopts'], "--foobar --barfoo --barfoobaz")
+        self.assertFalse(stderr)
+        stdout = stdout.split('\n')
+        self.assertEqual(len(stdout), 6)
+        patterns = [
+            r"^\* \[1/1\] fixing .*/test.eb\.\.\. FIXED!$",
+            r"^\s*\(changes made in place, original copied to .*/test.eb.orig_[0-9_]+\)$",
+            r'^$',
+            r"^All done! Fixed 1 easyconfigs \(out of 1 found\).$",
+            r'^$',
+            r'^$',
+        ]
+        for idx, pattern in enumerate(patterns):
+            self.assertTrue(re.match(pattern, stdout[idx]), "Pattern '%s' matches '%s'" % (pattern, stdout[idx]))
+            
         # cleanup
         remove_file(glob.glob(os.path.join(test_ec + '.orig*'))[0])
 
