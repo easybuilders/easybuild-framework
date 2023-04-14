@@ -247,11 +247,6 @@ def det_subtoolchain_version(current_tc, subtoolchain_names, optional_toolchains
         # system toolchain: bottom of the hierarchy
         if is_system_toolchain(subtoolchain_name):
             add_system_to_minimal_toolchains = build_option('add_system_to_minimal_toolchains')
-            if not add_system_to_minimal_toolchains and build_option('add_dummy_to_minimal_toolchains'):
-                depr_msg = "Use --add-system-to-minimal-toolchains instead of --add-dummy-to-minimal-toolchains"
-                _log.deprecated(depr_msg, '5.0')
-                add_system_to_minimal_toolchains = True
-
             system_subtoolchain = True
 
             if add_system_to_minimal_toolchains and not incl_capabilities:
@@ -2483,8 +2478,6 @@ def copy_patch_files(patch_specs, target_dir):
 def fix_deprecated_easyconfigs(paths):
     """Fix use of deprecated functionality in easyconfigs at specified locations."""
 
-    dummy_tc_regex = re.compile(r'^toolchain\s*=\s*{.*name.*dummy.*}', re.M)
-
     easyconfig_paths = []
     for path in paths:
         easyconfig_paths.extend(find_easyconfigs(path))
@@ -2496,11 +2489,6 @@ def fix_deprecated_easyconfigs(paths):
         print_msg("* [%d/%d] fixing %s... ", idx, cnt, path, prefix=False, newline=False)
 
         fixed = False
-
-        # fix use of 'dummy' toolchain, use SYSTEM constant instead
-        if dummy_tc_regex.search(ectxt):
-            ectxt = dummy_tc_regex.sub("toolchain = SYSTEM", ectxt)
-            fixed = True
 
         # fix use of local variables with a name other than a single letter or 'local_*'
         ec = EasyConfig(path, local_var_naming_check=LOCAL_VAR_NAMING_CHECK_LOG)

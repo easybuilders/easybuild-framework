@@ -345,9 +345,6 @@ class EasyBuildOptions(GeneralOption):
             'accept-eula': ("Accept EULA for specified software [DEPRECATED, use --accept-eula-for instead!]",
                             'strlist', 'store', []),
             'accept-eula-for': ("Accept EULA for specified software", 'strlist', 'store', []),
-            'add-dummy-to-minimal-toolchains': ("Include dummy toolchain in minimal toolchain searches "
-                                                "[DEPRECATED, use --add-system-to-minimal-toolchains instead!]",
-                                                None, 'store_true', False),
             'add-system-to-minimal-toolchains': ("Include system toolchain in minimal toolchain searches",
                                                  None, 'store_true', False),
             'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
