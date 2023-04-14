@@ -633,45 +633,46 @@ class GithubTest(EnhancedTestCase):
             print("Skipping test_det_commit_status, no GitHub token available?")
             return
 
-        # ancient commit, from Jenkins era
+        # ancient commit, from Jenkins era, no commit status available anymore
         commit_sha = 'ec5d6f7191676a86a18404616691796a352c5f1d'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'success')
+        self.assertEqual(res, None)
 
-        # commit with failing tests from Travis CI era (no GitHub Actions yet)
-        commit_sha = 'd0c62556caaa78944722dc84bbb1072bf9688f74'
-        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'failure')
-
-        # commit with passing tests from Travis CI era (no GitHub Actions yet)
+        # ancient commit with passing tests from Travis CI era (no GitHub Actions yet),
+        # no commit status available anymore
         commit_sha = '21354990e4e6b4ca169b93d563091db4c6b2693e'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'success')
+        self.assertEqual(res, None)
 
-        # commit with failing tests, tested by both Travis CI and GitHub Actions
-        commit_sha = '3a596de93dd95b651b0d1503562d888409364a96'
-        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'failure')
-
-        # commit with passing tests, tested by both Travis CI and GitHub Actions
+        # ancient commit tested by both Travis CI and GitHub Actions, no commit status available anymore
         commit_sha = '1fba8ac835d62e78cdc7988b08f4409a1570cef1'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'success')
+        self.assertEqual(res, None)
 
-        # commit with failing tests, only tested by GitHub Actions
+        # old commit only tested by GitHub Actions, no commit status available anymore
         commit_sha = 'd7130683f02fe8284df3557f0b2fd3947c2ea153'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'failure')
+        self.assertEqual(res, None)
 
-        # commit with passing tests, only tested by GitHub Actions
-        commit_sha = 'e6df09700a1b90c63b4f760eda4b590ee1a9c2fd'
-        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'success')
-
-        # commit in test repo where no CI is running at all
+        # commit in test repo where no CI is running at all, no None as result
         commit_sha = '8456f867b03aa001fd5a6fe5a0c4300145c065dc'
         res = gh.det_commit_status('easybuilders', GITHUB_REPO, commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, None)
+
+        # recent commit (2023-04-11) with cancelled checks (GitHub Actions only)
+        commit_sha = 'c074f0bb3110c27d9969c3d0b19dde3eca868bd4'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'cancelled')
+
+        # recent commit (2023-04-10) with failing checks (GitHub Actions only)
+        commit_sha = '1b4a45c62d7deaf19125756c46dc8f011fef66e1'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'failure')
+
+        # recent commit (2023-04-10) with successful checks (GitHub Actions only)
+        commit_sha = '56812a347acbaaa87f229fe319425020fe399647'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'success')
 
     def test_github_check_pr_eligible_to_merge(self):
         """Test check_pr_eligible_to_merge function"""
