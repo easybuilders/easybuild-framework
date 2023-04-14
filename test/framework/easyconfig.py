@@ -4166,7 +4166,7 @@ class EasyConfigTest(EnhancedTestCase):
         ]
         for idx, pattern in enumerate(patterns):
             self.assertTrue(re.match(pattern, stdout[idx]), "Pattern '%s' matches '%s'" % (pattern, stdout[idx]))
-            
+
         # cleanup
         remove_file(glob.glob(os.path.join(test_ec + '.orig*'))[0])
 
