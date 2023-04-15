@@ -515,10 +515,6 @@ class EasyBuildOptions(GeneralOption):
                                      None, 'store_true', False),
             'verify-easyconfig-filenames': ("Verify whether filename of specified easyconfigs matches with contents",
                                             None, 'store_true', False),
-            'wait-on-lock': ("Wait for lock to be released; 0 implies no waiting (exit with an error if the lock "
-                             "already exists), non-zero value specified waiting interval [DEPRECATED: "
-                             "use --wait-on-lock-interval and --wait-on-lock-limit instead]",
-                             int, 'store_or_None', None),
             'wait-on-lock-interval': ("Wait interval (in seconds) to use when waiting for existing lock to be removed",
                                       int, 'store', DEFAULT_WAIT_ON_LOCK_INTERVAL),
             'wait-on-lock-limit': ("Maximum amount of time (in seconds) to wait until lock is released (0 means no "

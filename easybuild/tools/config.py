@@ -263,7 +263,6 @@ BUILD_OPTIONS_CMDLINE = {
         'test_report_env_filter',
         'testoutput',
         'umask',
-        'wait_on_lock',
         'zip_logs',
     ],
     False: [

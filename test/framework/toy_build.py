@@ -3476,27 +3476,16 @@ class ToyBuildTest(EnhancedTestCase):
                 signal.alarm(0)
 
         # wait for lock to be removed, with 1 second interval of checking;
-        # check with both --wait-on-lock-interval and deprecated --wait-on-lock options
 
         wait_regex = re.compile("^== lock .*_software_toy_0.0.lock exists, waiting 1 seconds", re.M)
         ok_regex = re.compile("^== COMPLETED: Installation ended successfully", re.M)
 
         test_cases = [
-            ['--wait-on-lock=1'],
-            ['--wait-on-lock=1', '--wait-on-lock-interval=60'],
-            ['--wait-on-lock=100', '--wait-on-lock-interval=1'],
-            ['--wait-on-lock-limit=100', '--wait-on-lock=1'],
             ['--wait-on-lock-limit=100', '--wait-on-lock-interval=1'],
-            ['--wait-on-lock-limit=-1', '--wait-on-lock=1'],
             ['--wait-on-lock-limit=-1', '--wait-on-lock-interval=1'],
         ]
 
         for opts in test_cases:
-
-            if any('--wait-on-lock=' in x for x in opts):
-                self.allow_deprecated_behaviour()
-            else:
-                self.disallow_deprecated_behaviour()
 
             if not os.path.exists(toy_lock_path):
                 mkdir(toy_lock_path)
@@ -3514,10 +3503,7 @@ class ToyBuildTest(EnhancedTestCase):
                 self.mock_stderr(False)
                 self.mock_stdout(False)
 
-                if any('--wait-on-lock=' in x for x in all_args):
-                    self.assertIn("Use of --wait-on-lock is deprecated", stderr)
-                else:
-                    self.assertEqual(stderr, '')
+                self.assertEqual(stderr, '')
 
                 wait_matches = wait_regex.findall(stdout)
                 # we can't rely on an exact number of 'waiting' messages, so let's go with a range...
@@ -3542,7 +3528,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # when there is no lock in place, --wait-on-lock* has no impact
         remove_dir(toy_lock_path)
-        for opt in ['--wait-on-lock=1', '--wait-on-lock-limit=3', '--wait-on-lock-interval=1']:
+        for opt in ['--wait-on-lock-limit=3', '--wait-on-lock-interval=1']:
             all_args = extra_args + [opt]
             self.assertNotExists(toy_lock_path)
             self.mock_stderr(True)
