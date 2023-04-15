@@ -1765,15 +1765,6 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertNotIn("I'm a toy, and very proud of it", ft.read_file(toy_source_path))
 
-        # mock stderr to catch deprecation warning caused by setting 'use_git_am'
-        self.allow_deprecated_behaviour()
-        self.mock_stderr(True)
-        ft.apply_patch(toy_patch, self.test_prefix, use_git_am=True)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-        self.assertIn("I'm a toy, and very proud of it", ft.read_file(toy_source_path))
-        self.assertIn("'use_git_am' named argument in apply_patch function has been renamed to 'use_git'", stderr)
-
     def test_copy_file(self):
         """Test copy_file function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
