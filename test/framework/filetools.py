@@ -1635,11 +1635,16 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.create_patch_info('foo.patch'), {'name': 'foo.patch'})
         self.assertEqual(ft.create_patch_info(('foo.patch', 1)), {'name': 'foo.patch', 'level': 1})
         self.assertEqual(ft.create_patch_info(('foo.patch', 'subdir')), {'name': 'foo.patch', 'sourcepath': 'subdir'})
+        self.assertEqual(ft.create_patch_info(('foo.txt', 'subdir')), {'name': 'foo.txt', 'copy': 'subdir'})
         self.assertEqual(ft.create_patch_info({'name': 'foo.patch'}), {'name': 'foo.patch'})
         self.assertEqual(ft.create_patch_info({'name': 'foo.patch', 'sourcepath': 'subdir'}),
                          {'name': 'foo.patch', 'sourcepath': 'subdir'})
+        self.assertEqual(ft.create_patch_info({'name': 'foo.txt', 'copy': 'subdir'}),
+                         {'name': 'foo.txt', 'copy': 'subdir'})
         self.assertEqual(ft.create_patch_info({'name': 'foo.patch', 'sourcepath': 'subdir', 'alt_location': 'alt'}),
                          {'name': 'foo.patch', 'sourcepath': 'subdir', 'alt_location': 'alt'})
+        self.assertEqual(ft.create_patch_info({'name': 'foo.txt', 'copy': 'subdir', 'alt_location': 'alt'}),
+                         {'name': 'foo.txt', 'copy': 'subdir', 'alt_location': 'alt'})
 
         # faulty input
         error_msg = "Wrong patch spec"
