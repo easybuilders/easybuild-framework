@@ -1646,25 +1646,15 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.create_patch_info({'name': 'foo.txt', 'copy': 'subdir', 'alt_location': 'alt'}),
                          {'name': 'foo.txt', 'copy': 'subdir', 'alt_location': 'alt'})
 
-        self.allow_deprecated_behaviour()
-        self.mock_stderr(True)
-        self.assertEqual(ft.create_patch_info('foo.txt'), {'name': 'foo.txt'})
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-        self.disallow_deprecated_behaviour()
-        expected_warning = "Use of patch file with filename that doesn't end with correct extension: foo.txt "
-        expected_warning += "(should be any of: .patch, .patch.bz2, .patch.gz, .patch.xz)"
-        fail_msg = "Warning '%s' should appear in stderr output: %s" % (expected_warning, stderr)
-        self.assertIn(expected_warning, stderr, fail_msg)
-
-        # deprecation warning is treated as an error in context of unit test suite
-        expected_error = expected_warning.replace('(', '\\(').replace(')', '\\)')
+        expected_error = r"Wrong patch spec \(foo.txt\), extension type should be any of .patch, .patch.bz2, "
+        expected_error += ".patch.gz, .patch.xz."
         self.assertErrorRegex(EasyBuildError, expected_error, ft.create_patch_info, 'foo.txt')
 
         # faulty input
         error_msg = "Wrong patch spec"
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, None)
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'copy': 'subdir'})
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'name': 'foo.txt'})
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'name': 'foo.txt', 'random': 'key'})
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info,
                               {'name': 'foo.txt', 'copy': 'subdir', 'sourcepath': 'subdir'})
