@@ -533,14 +533,6 @@ class EasyBlock(object):
         else:
             self.log.info("Added patches: %s", self.patches)
 
-    def fetch_extension_sources(self, skip_checksums=False):
-        """
-        Fetch source and patch files for extensions (DEPRECATED, use collect_exts_file_info instead).
-        """
-        depr_msg = "EasyBlock.fetch_extension_sources is deprecated, use EasyBlock.collect_exts_file_info instead"
-        self.log.deprecated(depr_msg, '5.0')
-        return self.collect_exts_file_info(fetch_files=True, verify_checksums=not skip_checksums)
-
     def collect_exts_file_info(self, fetch_files=True, verify_checksums=True):
         """
         Collect information on source and patch files for extensions.

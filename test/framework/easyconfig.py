@@ -4710,7 +4710,7 @@ class EasyConfigTest(EnhancedTestCase):
             '    ("test-ext-one", "0.0", {',
             '        "sources": ["test-ext-one-0.0-part1.tgz", "test-ext-one-0.0-part2.zip"],',
             # if both 'sources' and 'source_tmpl' are specified, 'source_tmpl' is ignored,
-            # see EasyBlock.fetch_extension_sources, so it should be too when counting files
+            # see EasyBlock.collect_exts_file_info, so it should be too when counting files
             '        "source_tmpl": "test-ext-one-%(version)s.tar.gz",',
             '    }),',
             '    ("test-ext-two", "0.0", {',
