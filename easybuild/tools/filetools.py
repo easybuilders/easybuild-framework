@@ -1540,17 +1540,13 @@ def validate_patch_spec(patch_spec):
         _log.deprecated(msg, '5.0')
 
 
-def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=False, use_git=False):
+def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git=False):
     """
     Apply a patch to source code in directory dest
     - assume unified diff created with "diff -ru old new"
 
     Raises EasyBuildError on any error and returns True on success
     """
-
-    if use_git_am:
-        _log.deprecated("'use_git_am' named argument in apply_patch function has been renamed to 'use_git'", '5.0')
-        use_git = True
 
     if build_option('extended_dry_run'):
         # skip checking of files in dry run mode
