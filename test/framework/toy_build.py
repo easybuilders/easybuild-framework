@@ -41,6 +41,7 @@ import sys
 import tempfile
 import textwrap
 from easybuild.tools import LooseVersion
+from importlib import reload
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner
@@ -56,7 +57,6 @@ from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file,
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
-from easybuild.tools.py2vs3 import reload, string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
@@ -734,7 +734,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         for group in [group_name, (group_name, "Hey, you're not in the '%s' group!" % group_name)]:
 
-            if isinstance(group, string_type):
+            if isinstance(group, str):
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = '%s'\n" % group)
             else:
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = %s\n" % str(group))
@@ -2562,19 +2562,14 @@ class ToyBuildTest(EnhancedTestCase):
         del sys.modules['easybuild.easyblocks.toy']
 
     def test_toy_dumped_easyconfig(self):
-        """ Test dumping of file in eb_filerepo in both .eb and .yeb format """
+        """ Test dumping of file in eb_filerepo in both .eb format """
         filename = 'toy-0.0'
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
         paths = [
             os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', '%s.eb' % filename),
-            os.path.join(test_ecs_dir, 'yeb', '%s.yeb' % filename),
         ]
 
         for path in paths:
-
-            if path.endswith('.yeb') and 'yaml' not in sys.modules:
-                print("Skipping .yeb part of test_toy_dumped_easyconfig (no PyYAML available)")
-                continue
 
             args = [
                 path,
@@ -3481,27 +3476,16 @@ class ToyBuildTest(EnhancedTestCase):
                 signal.alarm(0)
 
         # wait for lock to be removed, with 1 second interval of checking;
-        # check with both --wait-on-lock-interval and deprecated --wait-on-lock options
 
         wait_regex = re.compile("^== lock .*_software_toy_0.0.lock exists, waiting 1 seconds", re.M)
         ok_regex = re.compile("^== COMPLETED: Installation ended successfully", re.M)
 
         test_cases = [
-            ['--wait-on-lock=1'],
-            ['--wait-on-lock=1', '--wait-on-lock-interval=60'],
-            ['--wait-on-lock=100', '--wait-on-lock-interval=1'],
-            ['--wait-on-lock-limit=100', '--wait-on-lock=1'],
             ['--wait-on-lock-limit=100', '--wait-on-lock-interval=1'],
-            ['--wait-on-lock-limit=-1', '--wait-on-lock=1'],
             ['--wait-on-lock-limit=-1', '--wait-on-lock-interval=1'],
         ]
 
         for opts in test_cases:
-
-            if any('--wait-on-lock=' in x for x in opts):
-                self.allow_deprecated_behaviour()
-            else:
-                self.disallow_deprecated_behaviour()
 
             if not os.path.exists(toy_lock_path):
                 mkdir(toy_lock_path)
@@ -3519,10 +3503,7 @@ class ToyBuildTest(EnhancedTestCase):
                 self.mock_stderr(False)
                 self.mock_stdout(False)
 
-                if any('--wait-on-lock=' in x for x in all_args):
-                    self.assertIn("Use of --wait-on-lock is deprecated", stderr)
-                else:
-                    self.assertEqual(stderr, '')
+                self.assertEqual(stderr, '')
 
                 wait_matches = wait_regex.findall(stdout)
                 # we can't rely on an exact number of 'waiting' messages, so let's go with a range...
@@ -3547,7 +3528,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # when there is no lock in place, --wait-on-lock* has no impact
         remove_dir(toy_lock_path)
-        for opt in ['--wait-on-lock=1', '--wait-on-lock-limit=3', '--wait-on-lock-interval=1']:
+        for opt in ['--wait-on-lock-limit=3', '--wait-on-lock-interval=1']:
             all_args = extra_args + [opt]
             self.assertNotExists(toy_lock_path)
             self.mock_stderr(True)

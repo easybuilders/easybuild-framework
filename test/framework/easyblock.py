@@ -52,7 +52,6 @@ from easybuild.tools.filetools import verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
 from easybuild.tools.modules import EnvironmentModules, Lmod, reset_module_caches
 from easybuild.tools.version import get_git_revision, this_is_easybuild
-from easybuild.tools.py2vs3 import string_type
 
 
 class EasyBlockTest(EnhancedTestCase):
@@ -431,7 +430,7 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(os.path.join(eb.installdir, 'foo.jar'), 'foo.jar')
         write_file(os.path.join(eb.installdir, 'bla.jar'), 'bla.jar')
         for path in ('bin', ('bin', 'testdir'), 'sbin', 'share', ('share', 'man'), 'lib', 'lib64'):
-            if isinstance(path, string_type):
+            if isinstance(path, str):
                 path = (path, )
             os.mkdir(os.path.join(eb.installdir, *path))
         # this is not a path that should be picked up
@@ -1241,7 +1240,7 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (key, vals) in modextrapaths.items():
-            if isinstance(vals, string_type):
+            if isinstance(vals, str):
                 vals = [vals]
             for val in vals:
                 if get_module_syntax() == 'Tcl':
@@ -2444,13 +2443,6 @@ class EasyBlockTest(EnhancedTestCase):
         error_msg = "Checksum verification for extension source bar-0.0.tar.gz failed"
         self.assertErrorRegex(EasyBuildError, error_msg, eb.collect_exts_file_info)
 
-        # also check with deprecated fetch_extension_sources method
-        self.allow_deprecated_behaviour()
-        self.mock_stderr(True)
-        self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_extension_sources)
-        self.mock_stderr(False)
-        self.disallow_deprecated_behaviour()
-
         # create test easyconfig from which checksums have been stripped
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         ectxt = read_file(toy_ec)
@@ -2463,7 +2455,7 @@ class EasyBlockTest(EnhancedTestCase):
         # make sure that test easyconfig file indeed doesn't contain any checksums (either top-level or for extensions)
         self.assertEqual(ec_json['ec']['checksums'], [])
         for ext in ec_json['ec']['exts_list']:
-            if isinstance(ext, string_type):
+            if isinstance(ext, str):
                 continue
             elif isinstance(ext, tuple):
                 self.assertEqual(ext[2].get('checksums', []), [])
@@ -2498,16 +2490,9 @@ class EasyBlockTest(EnhancedTestCase):
         error_msg = "Checksum verification for .*/toy-0.0.tar.gz using .* failed"
         self.assertErrorRegex(EasyBuildError, error_msg, eb.checksum_step)
 
-        # also check verification of checksums for extensions, which is part of fetch_extension_sources
+        # also check verification of checksums for extensions, which is part of collect_exts_file_info
         error_msg = "Checksum verification for extension source bar-0.0.tar.gz failed"
         self.assertErrorRegex(EasyBuildError, error_msg, eb.collect_exts_file_info)
-
-        # also check with deprecated fetch_extension_sources method
-        self.allow_deprecated_behaviour()
-        self.mock_stderr(True)
-        self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_extension_sources)
-        self.mock_stderr(False)
-        self.disallow_deprecated_behaviour()
 
         # if --ignore-checksums is enabled, faulty checksums are reported but otherwise ignored (no error)
         build_options = {
@@ -2534,19 +2519,6 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.assertEqual(stdout, '')
         self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz")
-
-        # also check with deprecated fetch_extension_sources method
-        self.allow_deprecated_behaviour()
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        eb.fetch_extension_sources()
-        stderr = self.get_stderr()
-        stdout = self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
-        self.assertEqual(stdout, '')
-        self.assertTrue(stderr.strip().endswith("WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz"))
-        self.disallow_deprecated_behaviour()
 
     def test_check_checksums(self):
         """Test for check_checksums_for and check_checksums methods."""

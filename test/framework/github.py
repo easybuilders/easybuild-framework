@@ -36,9 +36,11 @@ import re
 import sys
 import textwrap
 import unittest
+from string import ascii_letters
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from time import gmtime
 from unittest import TextTestRunner
+from urllib.request import HTTPError, URLError
 
 import easybuild.tools.testing
 from easybuild.base.rest import RestClient
@@ -52,7 +54,6 @@ from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_RE
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import is_patch_for, pick_default_branch
 from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
-from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
 
 try:
@@ -1113,7 +1114,7 @@ class GithubTest(EnhancedTestCase):
 
         patterns = [
             r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -1130,7 +1131,7 @@ class GithubTest(EnhancedTestCase):
 
         patterns = [
             r"^\[DRY RUN\] Adding comment to easybuild-easyblocks issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -1150,7 +1151,7 @@ class GithubTest(EnhancedTestCase):
 
         patterns = [
             r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
             r"Using easyblocks from PR\(s\) https://github.com/easybuilders/easybuild-easyblocks/pull/6789",
         ]
         for pattern in patterns:
@@ -1192,13 +1193,13 @@ class GithubTest(EnhancedTestCase):
 
         # mock create_gist function, we don't want to actually create a gist every time we run this test...
         def fake_create_gist(*args, **kwargs):
-            return 'https://gist.github.com/test'
+            return 'https://gist.github.com/%s/test' % GITHUB_TEST_ACCOUNT
 
         easybuild.tools.testing.create_gist = fake_create_gist
 
         res = create_test_report("just a test", ecs_with_res, init_session_state, pr_nrs=[123], gist_log=True)
 
-        patterns.insert(2, "https://gist.github.com/test")
+        patterns.insert(2, "https://gist.github.com/%s/test" % GITHUB_TEST_ACCOUNT)
         patterns.extend([
             "https://github.com/easybuilders/easybuild-easyconfigs/pull/123",
         ])

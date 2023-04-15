@@ -36,9 +36,9 @@ import stat
 import sys
 import tempfile
 import textwrap
-import warnings
-from easybuild.tools import LooseVersion
+from importlib import reload
 from unittest import TextTestRunner
+from urllib.request import URLError
 
 import easybuild.main
 import easybuild.tools.build_log
@@ -63,7 +63,6 @@ from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, opts_dict_to_eb_opts, parse_external_modules_metadata
 from easybuild.tools.options import set_up_configuration, set_tmpdir, use_color
-from easybuild.tools.py2vs3 import URLError, reload, sort_looseversions
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import HAVE_ARCHSPEC
@@ -6343,50 +6342,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         eb = EasyBlock(EasyConfig(toy_ec))
         self.assertTrue(eb.installdir.endswith('/software/Core/toy/0.0'))
 
-    def test_sort_looseversions(self):
-        """Test sort_looseversions function."""
-        # Test twice: With the standard distutils LooseVersion (when available) and with our class
-        # Note that our class directly allows sorting but should also work with sort_loosversions
-        for use_distutils in (True, False):
-            if use_distutils:
-                try:
-                    from distutils.version import LooseVersion as version_class
-                except ImportError:
-                    continue
-            else:
-                version_class = LooseVersion
-
-            with warnings.catch_warnings():
-                if use_distutils:
-                    warnings.simplefilter("ignore", category=DeprecationWarning)
-                ver1 = version_class('1.2.3')
-                ver2 = version_class('4.5.6')
-                ver3 = version_class('1.2.3dev')
-                ver4 = version_class('system')
-                ver5 = version_class('rc3')
-                ver6 = version_class('v1802')
-
-            # some versions are included multiple times on purpose,
-            # to also test comparison between equal LooseVersion instances
-            input = [ver3, ver5, ver1, ver2, ver4, ver6, ver3, ver4, ver1]
-            expected = [ver1, ver1, ver3, ver3, ver2, ver5, ver4, ver4, ver6]
-            self.assertEqual(sort_looseversions(input), expected)
-            if not use_distutils:
-                self.assertEqual(sorted(input), expected)
-
-            # also test on list of tuples consisting of a LooseVersion instance + a string
-            # (as in the list_software_* functions)
-            suff1 = ''
-            suff2 = '-foo'
-            suff3 = '-bar'
-            input = [(ver3, suff1), (ver5, suff3), (ver1, suff2), (ver2, suff3), (ver4, suff1),
-                     (ver6, suff2), (ver3, suff3), (ver4, suff3), (ver1, suff1)]
-            expected = [(ver1, suff1), (ver1, suff2), (ver3, suff1), (ver3, suff3), (ver2, suff3),
-                        (ver5, suff3), (ver4, suff1), (ver4, suff3), (ver6, suff2)]
-            self.assertEqual(sort_looseversions(input), expected)
-            if not use_distutils:
-                self.assertEqual(sorted(input), expected)
-
     def test_cuda_compute_capabilities(self):
         """Test --cuda-compute-capabilities configuration option."""
         args = ['--cuda-compute-capabilities=3.5,6.2,7.0', '--show-config']
@@ -6511,34 +6466,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             del os.environ['EASYBUILD_ACCEPT_EULA_FOR']
 
-        # also check deprecated --accept-eula configuration option
-        self.allow_deprecated_behaviour()
-
-        self.mock_stderr(True)
-        self.eb_main(args + ['--accept-eula=foo,toy,bar'], do_build=True, raise_error=True)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-        self.assertIn("Use accept-eula-for configuration setting rather than accept-eula", stderr)
-
-        remove_dir(self.test_installpath)
-        self.assertNotExists(toy_modfile)
-
-        # also via $EASYBUILD_ACCEPT_EULA
-        self.mock_stderr(True)
-        os.environ['EASYBUILD_ACCEPT_EULA'] = 'toy'
-        self.eb_main(args, do_build=True, raise_error=True)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-
-        self.assertExists(toy_modfile)
-        self.assertIn("Use accept-eula-for configuration setting rather than accept-eula", stderr)
-
-        remove_dir(self.test_installpath)
-        self.assertNotExists(toy_modfile)
-
         # also check accepting EULA via 'accept_eula = True' in easyconfig file
-        self.disallow_deprecated_behaviour()
-        del os.environ['EASYBUILD_ACCEPT_EULA']
         write_file(test_ec, test_ec_txt + '\naccept_eula = True')
         self.eb_main(args, do_build=True, raise_error=True)
         self.assertExists(toy_modfile)

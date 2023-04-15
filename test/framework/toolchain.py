@@ -50,7 +50,6 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir
 from easybuild.tools.filetools import read_file, symlink, write_file, which
-from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.mpi import get_mpi_cmd_template
@@ -114,23 +113,11 @@ class ToolchainTest(EnhancedTestCase):
         self.get_toolchain("foss", version="2018a")
 
     def test_get_variable_system_toolchain(self):
-        """Test get_variable on system/dummy toolchain"""
+        """Test get_variable on system toolchain"""
 
         # system toolchain version doesn't really matter, but fine...
         for ver in ['system', '']:
             tc = self.get_toolchain('system', version=ver)
-            tc.prepare()
-            self.assertEqual(tc.get_variable('CC'), '')
-            self.assertEqual(tc.get_variable('CXX', typ=str), '')
-            self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
-
-        # dummy toolchain is deprecated, so we need to allow for it (and catch the warnings that get printed)
-        self.allow_deprecated_behaviour()
-
-        for ver in ['dummy', '']:
-            self.mock_stderr(True)
-            tc = self.get_toolchain('dummy', version=ver)
-            self.mock_stderr(False)
             tc.prepare()
             self.assertEqual(tc.get_variable('CC'), '')
             self.assertEqual(tc.get_variable('CXX', typ=str), '')
@@ -152,23 +139,6 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.prepend_module_path(self.test_prefix)
         tc = self.get_toolchain('intel', version='2018a')
         self.assertFalse(tc.is_system_toolchain())
-
-        # using dummy toolchain is deprecated, so to test for that we need to explicitely allow using deprecated stuff
-        error_pattern = "Use of 'dummy' toolchain is deprecated"
-        for ver in ['dummy', '']:
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.get_toolchain, 'dummy', version=ver)
-
-        dummy_depr_warning = "WARNING: Deprecated functionality, will no longer work in v5.0: Use of 'dummy' toolchain"
-
-        self.allow_deprecated_behaviour()
-
-        for ver in ['dummy', '']:
-            self.mock_stderr(True)
-            tc = self.get_toolchain('dummy', version=ver)
-            stderr = self.get_stderr()
-            self.mock_stderr(False)
-            self.assertTrue(tc.is_system_toolchain())
-            self.assertIn(dummy_depr_warning, stderr)
 
     def test_toolchain_prepare_sysroot(self):
         """Test build environment setup done by Toolchain.prepare in case --sysroot is specified."""
@@ -521,7 +491,7 @@ class ToolchainTest(EnhancedTestCase):
         ldflags = tc.get_variable('LDFLAGS', typ=list)
         self.assertIsInstance(ldflags, list)
         if len(ldflags) > 0:
-            self.assertIsInstance(ldflags[0], string_type)
+            self.assertIsInstance(ldflags[0], str)
 
     def test_validate_pass_by_value(self):
         """

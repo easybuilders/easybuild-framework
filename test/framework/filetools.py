@@ -40,15 +40,16 @@ import stat
 import sys
 import tempfile
 import time
+from io import StringIO
 from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
+from urllib import request
 from easybuild.tools import run
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import IGNORE, ERROR, build_option, update_build_option
 from easybuild.tools.multidiff import multidiff
-from easybuild.tools.py2vs3 import StringIO, std_urllib
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -404,7 +405,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # also try with actual HTTP header
         try:
-            fh = std_urllib.urlopen(test_url)
+            fh = request.urlopen(test_url)
             self.assertEqual(ft.det_file_size(fh.info()), expected_size)
             fh.close()
 
@@ -416,7 +417,7 @@ class FileToolsTest(EnhancedTestCase):
                 res.close()
             except ImportError:
                 pass
-        except std_urllib.URLError:
+        except request.URLError:
             print("Skipping online test for det_file_size (working offline)")
 
     def test_download_file(self):
@@ -437,8 +438,8 @@ class FileToolsTest(EnhancedTestCase):
 
         # install broken proxy handler for opening local files
         # this should make urlopen use this broken proxy for downloading from a file:// URL
-        proxy_handler = std_urllib.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
-        std_urllib.install_opener(std_urllib.build_opener(proxy_handler))
+        proxy_handler = request.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
+        request.install_opener(request.build_opener(proxy_handler))
 
         # downloading over a broken proxy results in None return value (failed download)
         # this tests whether proxies are taken into account by download_file
@@ -448,7 +449,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(target_location, '')
 
         # restore a working file handler, and retest download of local file
-        std_urllib.install_opener(std_urllib.build_opener(std_urllib.FileHandler()))
+        request.install_opener(request.build_opener(request.FileHandler()))
         res = ft.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location, "'download' of local file works after removing broken proxy")
 
@@ -465,10 +466,10 @@ class FileToolsTest(EnhancedTestCase):
         target_location = os.path.join(self.test_prefix, 'jenkins_robots.txt')
         url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
         try:
-            std_urllib.urlopen(url)
+            request.urlopen(url)
             res = ft.download_file(fn, url, target_location)
             self.assertEqual(res, target_location, "download with specified timeout works")
-        except std_urllib.URLError:
+        except request.URLError:
             print("Skipping timeout test in test_download_file (working offline)")
 
         # also test behaviour of download_file under --dry-run
@@ -1764,15 +1765,6 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertNotIn("I'm a toy, and very proud of it", ft.read_file(toy_source_path))
 
-        # mock stderr to catch deprecation warning caused by setting 'use_git_am'
-        self.allow_deprecated_behaviour()
-        self.mock_stderr(True)
-        ft.apply_patch(toy_patch, self.test_prefix, use_git_am=True)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-        self.assertIn("I'm a toy, and very proud of it", ft.read_file(toy_source_path))
-        self.assertIn("'use_git_am' named argument in apply_patch function has been renamed to 'use_git'", stderr)
-
     def test_copy_file(self):
         """Test copy_file function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
@@ -2275,29 +2267,9 @@ class FileToolsTest(EnhancedTestCase):
 
         ft.remove_dir(os.path.join(self.test_prefix, 'toy-0.0'))
 
-        # a deprecation warning is printed (which is an error in this context)
-        # if the 'change_into_dir' named argument was left unspecified
-        error_pattern = "extract_file function was called without specifying value for change_into_dir"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.extract_file, toy_tarball, self.test_prefix)
-        self.allow_deprecated_behaviour()
-
-        # make sure we're not in self.test_prefix now (checks below assumes so)
-        self.assertFalse(os.path.samefile(os.getcwd(), self.test_prefix))
-
-        # by default, extract_file changes to directory in which source file was unpacked
-        self.mock_stderr(True)
-        path = ft.extract_file(toy_tarball, self.test_prefix)
-        stderr = self.get_stderr().strip()
-        self.mock_stderr(False)
-        self.assertTrue(os.path.samefile(path, self.test_prefix))
-        self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
-        regex = re.compile("^WARNING: .*extract_file function was called without specifying value for change_into_dir")
-        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
-
         ft.change_dir(cwd)
         self.assertFalse(os.path.samefile(os.getcwd(), self.test_prefix))
 
-        # no deprecation warning when change_into_dir is set to True
         self.mock_stderr(True)
         path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=True)
         stderr = self.get_stderr().strip()

@@ -97,7 +97,6 @@ from easybuild.tools.modules import get_software_root_env_var_name, get_software
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
 from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.package.utilities import package
-from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_linked_libs_raw
 from easybuild.tools.systemtools import get_shared_lib_ext, pick_system_specific_value, use_group
@@ -420,7 +419,7 @@ class EasyBlock(object):
 
         if source is None:
             raise EasyBuildError("fetch_source called with empty 'source' argument")
-        elif isinstance(source, string_type):
+        elif isinstance(source, str):
             filename = source
         elif isinstance(source, dict):
             # Making a copy to avoid modifying the object with pops
@@ -478,7 +477,7 @@ class EasyBlock(object):
         # Single source should be re-wrapped as a list, and checksums with it
         if isinstance(sources, dict):
             sources = [sources]
-        if isinstance(checksums, string_type):
+        if isinstance(checksums, str):
             checksums = [checksums]
 
         # Loop over the list of sources; list of checksums must match >= in size
@@ -533,14 +532,6 @@ class EasyBlock(object):
             return patches
         else:
             self.log.info("Added patches: %s", self.patches)
-
-    def fetch_extension_sources(self, skip_checksums=False):
-        """
-        Fetch source and patch files for extensions (DEPRECATED, use collect_exts_file_info instead).
-        """
-        depr_msg = "EasyBlock.fetch_extension_sources is deprecated, use EasyBlock.collect_exts_file_info instead"
-        self.log.deprecated(depr_msg, '5.0')
-        return self.collect_exts_file_info(fetch_files=True, verify_checksums=not skip_checksums)
 
     def collect_exts_file_info(self, fetch_files=True, verify_checksums=True):
         """
@@ -626,7 +617,7 @@ class EasyBlock(object):
 
                         # always pass source spec as dict value to fetch_source method,
                         # mostly so we can inject stuff like source URLs
-                        if isinstance(source, string_type):
+                        if isinstance(source, str):
                             source = {'filename': source}
                         elif not isinstance(source, dict):
                             raise EasyBuildError("Incorrect value type for source of extension %s: %s",
@@ -655,7 +646,7 @@ class EasyBlock(object):
                         src_fn = ext_options.get('source_tmpl')
                         if src_fn is None:
                             src_fn = default_source_tmpl
-                        elif not isinstance(src_fn, string_type):
+                        elif not isinstance(src_fn, str):
                             error_msg = "source_tmpl value must be a string! (found value of type '%s'): %s"
                             raise EasyBuildError(error_msg, type(src_fn).__name__, src_fn)
 
@@ -727,7 +718,7 @@ class EasyBlock(object):
 
                     exts_sources.append(ext_src)
 
-            elif isinstance(ext, string_type):
+            elif isinstance(ext, str):
                 exts_sources.append({'name': ext})
 
             else:
@@ -892,7 +883,7 @@ class EasyBlock(object):
 
                     url_filename = download_filename or filename
 
-                    if isinstance(url, string_type):
+                    if isinstance(url, str):
                         if url[-1] in ['=', '/']:
                             fullurl = "%s%s" % (url, url_filename)
                         else:
@@ -1398,7 +1389,7 @@ class EasyBlock(object):
             lines.append(self.module_generator.set_environment(key, value))
 
         for (key, value) in self.cfg['modextrapaths'].items():
-            if isinstance(value, string_type):
+            if isinstance(value, str):
                 value = [value]
             elif not isinstance(value, (tuple, list)):
                 raise EasyBuildError("modextrapaths dict value %s (type: %s) is not a list or tuple",
@@ -1553,7 +1544,7 @@ class EasyBlock(object):
         }
 
         for key, reqs in sorted(requirements.items()):
-            if isinstance(reqs, string_type):
+            if isinstance(reqs, str):
                 self.log.warning("Hoisting string value %s into a list before iterating over it", reqs)
                 reqs = [reqs]
             if self.dry_run:
@@ -2432,7 +2423,7 @@ class EasyBlock(object):
         # Single source should be re-wrapped as a list, and checksums with it
         if isinstance(sources, dict):
             sources = [sources]
-        if isinstance(checksums, string_type):
+        if isinstance(checksums, str):
             checksums = [checksums]
 
         if not checksums:
@@ -2510,7 +2501,7 @@ class EasyBlock(object):
         for ext in self.cfg['exts_list']:
             # just skip extensions for which only a name is specified
             # those are just there to check for things that are in the "standard library"
-            if not isinstance(ext, string_type):
+            if not isinstance(ext, str):
                 ext_name = ext[0]
                 # take into account that extension may be a 2-tuple with just name/version
                 ext_opts = ext[2] if len(ext) == 3 else {}
@@ -2600,7 +2591,7 @@ class EasyBlock(object):
         if build_option('rpath_override_dirs') is not None:
             # make sure we have a list
             rpath_overrides = build_option('rpath_override_dirs')
-            if isinstance(rpath_overrides, string_type):
+            if isinstance(rpath_overrides, str):
                 rpath_override_dirs = rpath_overrides.split(':')
                 # Filter out any empty values
                 rpath_override_dirs = list(filter(None, rpath_override_dirs))
@@ -2730,7 +2721,7 @@ class EasyBlock(object):
 
         # obtain name and module path for default extention class
         exts_defaultclass = self.cfg['exts_defaultclass']
-        if isinstance(exts_defaultclass, string_type):
+        if isinstance(exts_defaultclass, str):
             # proper way: derive module path from specified class name
             default_class = exts_defaultclass
             default_class_modpath = get_module_path(default_class, generic=True)
@@ -2907,7 +2898,7 @@ class EasyBlock(object):
             shebang_regex = re.compile(r'^#![ ]*.*[/ ]%s.*' % lang)
             fix_shebang_for = self.cfg['fix_%s_shebang_for' % lang]
             if fix_shebang_for:
-                if isinstance(fix_shebang_for, string_type):
+                if isinstance(fix_shebang_for, str):
                     fix_shebang_for = [fix_shebang_for]
 
                 shebang = '#!%s %s' % (env_for_shebang, lang)
@@ -2957,7 +2948,7 @@ class EasyBlock(object):
                 raise EasyBuildError(error_msg, commands)
 
             for cmd in commands:
-                if not isinstance(cmd, string_type):
+                if not isinstance(cmd, str):
                     raise EasyBuildError("Invalid element in 'postinstallcmds', not a string: %s", cmd)
                 run_cmd(cmd, simple=True, log_ok=True, log_all=True)
 
@@ -3368,7 +3359,7 @@ class EasyBlock(object):
         for i, command in enumerate(commands):
             # set command to default. This allows for config files with
             # non-tuple commands
-            if isinstance(command, string_type):
+            if isinstance(command, str):
                 self.log.debug("Using %s as sanity check command" % command)
                 commands[i] = command
             else:
@@ -3531,7 +3522,7 @@ class EasyBlock(object):
             (typ, check_fn) = path_keys_and_check[key]
 
             for xs in paths[key]:
-                if isinstance(xs, string_type):
+                if isinstance(xs, str):
                     xs = (xs,)
                 elif not isinstance(xs, tuple):
                     raise EasyBuildError("Unsupported type %s encountered in '%s', not a string or tuple",
@@ -3905,7 +3896,7 @@ class EasyBlock(object):
 
         for step_method in step_methods:
             # Remove leading underscore from e.g. "_test_step"
-            method_name = extract_method_name(step_method).lstrip('_')
+            method_name = '_'.join(step_method.__code__.co_names).lstrip('_')
             self.log.info("Running method %s part of step %s", method_name, step)
 
             if self.dry_run:
