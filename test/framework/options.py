@@ -6466,34 +6466,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             del os.environ['EASYBUILD_ACCEPT_EULA_FOR']
 
-        # also check deprecated --accept-eula configuration option
-        self.allow_deprecated_behaviour()
-
-        self.mock_stderr(True)
-        self.eb_main(args + ['--accept-eula=foo,toy,bar'], do_build=True, raise_error=True)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-        self.assertIn("Use accept-eula-for configuration setting rather than accept-eula", stderr)
-
-        remove_dir(self.test_installpath)
-        self.assertNotExists(toy_modfile)
-
-        # also via $EASYBUILD_ACCEPT_EULA
-        self.mock_stderr(True)
-        os.environ['EASYBUILD_ACCEPT_EULA'] = 'toy'
-        self.eb_main(args, do_build=True, raise_error=True)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-
-        self.assertExists(toy_modfile)
-        self.assertIn("Use accept-eula-for configuration setting rather than accept-eula", stderr)
-
-        remove_dir(self.test_installpath)
-        self.assertNotExists(toy_modfile)
-
         # also check accepting EULA via 'accept_eula = True' in easyconfig file
-        self.disallow_deprecated_behaviour()
-        del os.environ['EASYBUILD_ACCEPT_EULA']
         write_file(test_ec, test_ec_txt + '\naccept_eula = True')
         self.eb_main(args, do_build=True, raise_error=True)
         self.assertExists(toy_modfile)

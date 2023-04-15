@@ -342,8 +342,6 @@ class EasyBuildOptions(GeneralOption):
         all_deprecations = ('python2', 'Lmod6', 'easyconfig', 'toolchain')
 
         opts = OrderedDict({
-            'accept-eula': ("Accept EULA for specified software [DEPRECATED, use --accept-eula-for instead!]",
-                            'strlist', 'store', []),
             'accept-eula-for': ("Accept EULA for specified software", 'strlist', 'store', []),
             'add-dummy-to-minimal-toolchains': ("Include dummy toolchain in minimal toolchain searches "
                                                 "[DEPRECATED, use --add-system-to-minimal-toolchains instead!]",
