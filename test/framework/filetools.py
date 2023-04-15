@@ -1646,6 +1646,10 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.create_patch_info({'name': 'foo.txt', 'copy': 'subdir', 'alt_location': 'alt'}),
                          {'name': 'foo.txt', 'copy': 'subdir', 'alt_location': 'alt'})
 
+        expected_error = r"Wrong patch spec \(foo.txt\), extension type should be any of .patch, .patch.bz2, "
+        expected_error += ".patch.gz, .patch.xz."
+        self.assertErrorRegex(EasyBuildError, expected_error, ft.create_patch_info, 'foo.txt')
+
         # faulty input
         error_msg = "Wrong patch spec"
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, None)
