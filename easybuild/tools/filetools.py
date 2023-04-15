@@ -1535,9 +1535,8 @@ def create_patch_info(patch_spec):
 def validate_patch_spec(patch_spec):
     allowed_patch_exts = ['.patch' + x for x in ('',) + ZIPPED_PATCH_EXTS]
     if not any(patch_spec.endswith(x) for x in allowed_patch_exts):
-        msg = "Use of patch file with filename that doesn't end with correct extension: %s " % patch_spec
-        msg += "(should be any of: %s)" % (', '.join(allowed_patch_exts))
-        _log.deprecated(msg, '5.0')
+        raise EasyBuildError("Wrong patch spec (%s), extension type should be any of %s." %
+                             (patch_spec, ', '.join(allowed_patch_exts)))
 
 
 def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=False, use_git=False):

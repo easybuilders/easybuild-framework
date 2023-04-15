@@ -1635,36 +1635,17 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.create_patch_info('foo.patch'), {'name': 'foo.patch'})
         self.assertEqual(ft.create_patch_info(('foo.patch', 1)), {'name': 'foo.patch', 'level': 1})
         self.assertEqual(ft.create_patch_info(('foo.patch', 'subdir')), {'name': 'foo.patch', 'sourcepath': 'subdir'})
-        self.assertEqual(ft.create_patch_info(('foo.txt', 'subdir')), {'name': 'foo.txt', 'copy': 'subdir'})
         self.assertEqual(ft.create_patch_info({'name': 'foo.patch'}), {'name': 'foo.patch'})
         self.assertEqual(ft.create_patch_info({'name': 'foo.patch', 'sourcepath': 'subdir'}),
                          {'name': 'foo.patch', 'sourcepath': 'subdir'})
-        self.assertEqual(ft.create_patch_info({'name': 'foo.txt', 'copy': 'subdir'}),
-                         {'name': 'foo.txt', 'copy': 'subdir'})
         self.assertEqual(ft.create_patch_info({'name': 'foo.patch', 'sourcepath': 'subdir', 'alt_location': 'alt'}),
                          {'name': 'foo.patch', 'sourcepath': 'subdir', 'alt_location': 'alt'})
-        self.assertEqual(ft.create_patch_info({'name': 'foo.txt', 'copy': 'subdir', 'alt_location': 'alt'}),
-                         {'name': 'foo.txt', 'copy': 'subdir', 'alt_location': 'alt'})
-
-        self.allow_deprecated_behaviour()
-        self.mock_stderr(True)
-        self.assertEqual(ft.create_patch_info('foo.txt'), {'name': 'foo.txt'})
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-        self.disallow_deprecated_behaviour()
-        expected_warning = "Use of patch file with filename that doesn't end with correct extension: foo.txt "
-        expected_warning += "(should be any of: .patch, .patch.bz2, .patch.gz, .patch.xz)"
-        fail_msg = "Warning '%s' should appear in stderr output: %s" % (expected_warning, stderr)
-        self.assertIn(expected_warning, stderr, fail_msg)
-
-        # deprecation warning is treated as an error in context of unit test suite
-        expected_error = expected_warning.replace('(', '\\(').replace(')', '\\)')
-        self.assertErrorRegex(EasyBuildError, expected_error, ft.create_patch_info, 'foo.txt')
 
         # faulty input
         error_msg = "Wrong patch spec"
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, None)
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'copy': 'subdir'})
+        self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'name': 'foo.txt'})
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info, {'name': 'foo.txt', 'random': 'key'})
         self.assertErrorRegex(EasyBuildError, error_msg, ft.create_patch_info,
                               {'name': 'foo.txt', 'copy': 'subdir', 'sourcepath': 'subdir'})
