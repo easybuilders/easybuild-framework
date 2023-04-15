@@ -2276,29 +2276,9 @@ class FileToolsTest(EnhancedTestCase):
 
         ft.remove_dir(os.path.join(self.test_prefix, 'toy-0.0'))
 
-        # a deprecation warning is printed (which is an error in this context)
-        # if the 'change_into_dir' named argument was left unspecified
-        error_pattern = "extract_file function was called without specifying value for change_into_dir"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.extract_file, toy_tarball, self.test_prefix)
-        self.allow_deprecated_behaviour()
-
-        # make sure we're not in self.test_prefix now (checks below assumes so)
-        self.assertFalse(os.path.samefile(os.getcwd(), self.test_prefix))
-
-        # by default, extract_file changes to directory in which source file was unpacked
-        self.mock_stderr(True)
-        path = ft.extract_file(toy_tarball, self.test_prefix)
-        stderr = self.get_stderr().strip()
-        self.mock_stderr(False)
-        self.assertTrue(os.path.samefile(path, self.test_prefix))
-        self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
-        regex = re.compile("^WARNING: .*extract_file function was called without specifying value for change_into_dir")
-        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
-
         ft.change_dir(cwd)
         self.assertFalse(os.path.samefile(os.getcwd(), self.test_prefix))
 
-        # no deprecation warning when change_into_dir is set to True
         self.mock_stderr(True)
         path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=True)
         stderr = self.get_stderr().strip()
