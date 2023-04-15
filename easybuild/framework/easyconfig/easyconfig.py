@@ -776,7 +776,7 @@ class EasyConfig(object):
         for ext in self['exts_list']:
             if isinstance(ext, tuple) and len(ext) >= 3:
                 ext_opts = ext[2]
-                # check for 'sources' first, since that's also considered first by EasyBlock.fetch_extension_sources
+                # check for 'sources' first, since that's also considered first by EasyBlock.collect_exts_file_info
                 if 'sources' in ext_opts:
                     cnt += len(ext_opts['sources'])
                 elif 'source_tmpl' in ext_opts:
