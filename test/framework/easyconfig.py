@@ -52,7 +52,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, copy_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import det_subtoolchain_version, fix_deprecated_easyconfigs
-from easybuild.framework.easyconfig.easyconfig import is_generic_easyblock, get_easyblock_class, get_module_path
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path
 from easybuild.framework.easyconfig.easyconfig import letter_dir_for, process_easyconfig, resolve_template
 from easybuild.framework.easyconfig.easyconfig import triage_easyconfig_params, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
@@ -3737,22 +3737,6 @@ class EasyConfigTest(EnhancedTestCase):
         # Finally restore EB_SCRIPT_PATH value if set
         if env_eb_script_path:
             os.environ['EB_SCRIPT_PATH'] = env_eb_script_path
-
-    def test_is_generic_easyblock(self):
-        """Test for is_generic_easyblock function."""
-
-        # is_generic_easyblock in easyconfig.py is deprecated, moved to filetools.py
-        self.allow_deprecated_behaviour()
-
-        self.mock_stderr(True)
-
-        for name in ['Binary', 'ConfigureMake', 'CMakeMake', 'PythonPackage', 'JAR']:
-            self.assertTrue(is_generic_easyblock(name))
-
-        for name in ['EB_bzip2', 'EB_DL_underscore_POLY_underscore_Classic', 'EB_GCC', 'EB_WRF_minus_Fire']:
-            self.assertFalse(is_generic_easyblock(name))
-
-        self.mock_stderr(False)
 
     def test_get_module_path(self):
         """Test get_module_path function."""
