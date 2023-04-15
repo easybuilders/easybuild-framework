@@ -568,10 +568,6 @@ def init_build_options(build_options=None, cmdline_options=None):
             _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
 
-        if not cmdline_options.accept_eula_for and cmdline_options.accept_eula:
-            _log.deprecated("Use accept-eula-for configuration setting rather than accept-eula.", '5.0')
-            cmdline_options.accept_eula_for = cmdline_options.accept_eula
-
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]
         active_build_options.update(dict([(key, getattr(cmdline_options, key)) for key in cmdline_build_option_names]))
         # other options which can be derived but have no perfectly matching cmdline option
@@ -609,9 +605,6 @@ def build_option(key, **kwargs):
     build_options = BuildOptions()
     if key in build_options:
         return build_options[key]
-    elif key == 'accept_eula':
-        _log.deprecated("Use accept_eula_for build option rather than accept_eula.", '5.0')
-        return build_options['accept_eula_for']
     elif 'default' in kwargs:
         return kwargs['default']
     else:
