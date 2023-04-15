@@ -3576,19 +3576,6 @@ class EasyConfigTest(EnhancedTestCase):
                     for subtoolchain_name in subtoolchains[current_tc['name']]]
         self.assertEqual(versions, [None, ''])
 
-        # --add-dummy-to-minimal-toolchains is still supported, but deprecated
-        self.allow_deprecated_behaviour()
-        init_config(build_options={'add_system_to_minimal_toolchains': False, 'add_dummy_to_minimal_toolchains': True})
-        self.mock_stderr(True)
-        versions = [det_subtoolchain_version(current_tc, subtoolchain_name, optional_toolchains, cands)
-                    for subtoolchain_name in subtoolchains[current_tc['name']]]
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-        self.assertEqual(versions, [None, ''])
-        depr_msg = "WARNING: Deprecated functionality, will no longer work in v5.0: "
-        depr_msg += "Use --add-system-to-minimal-toolchains instead of --add-dummy-to-minimal-toolchains"
-        self.assertIn(depr_msg, stderr)
-
         # and GCCcore if existing too
         init_config(build_options={'add_system_to_minimal_toolchains': True})
         current_tc = {'name': 'GCC', 'version': '4.9.3-2.25'}
@@ -4130,9 +4117,6 @@ class EasyConfigTest(EnhancedTestCase):
         """Test fix_deprecated_easyconfigs function."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
-        gzip_ec = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.4.eb')
-
-        gzip_ec_txt = read_file(gzip_ec)
         toy_ec_txt = read_file(toy_ec)
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
@@ -4149,115 +4133,42 @@ class EasyConfigTest(EnhancedTestCase):
         regex = re.compile(r'^(toolchain\s*=.*)$', re.M)
         test_ectxt = regex.sub(r'\1\n\nsome_list = [x + "1" for x in ["one", "two", "three"]]', test_ectxt)
 
-        # test fixing the use of 'dummy' toolchain to SYSTEM
-        tc_regex = re.compile('^toolchain = .*', re.M)
-        tc_strs = [
-            "{'name': 'dummy', 'version': 'dummy'}",
-            "{'name': 'dummy', 'version': ''}",
-            "{'name': 'dummy', 'version': '1.2.3'}",
-            "{'version': '', 'name': 'dummy'}",
-            "{'version': 'dummy', 'name': 'dummy'}",
-        ]
-
         unknown_params_error_pattern = "Use of 2 unknown easyconfig parameters detected in test.eb: foo, some_list"
 
-        for tc_str in tc_strs:
-            # first check if names of local variables get fixed if 'dummy' toolchain is not used
-            init_config(build_options={'local_var_naming_check': 'error', 'silent': True})
+        # check if names of local variables get fixed
+        init_config(build_options={'local_var_naming_check': 'error', 'silent': True})
 
-            write_file(test_ec, test_ectxt)
-            self.assertErrorRegex(EasyBuildError, unknown_params_error_pattern, EasyConfig, test_ec)
+        write_file(test_ec, test_ectxt)
+        self.assertErrorRegex(EasyBuildError, unknown_params_error_pattern, EasyConfig, test_ec)
 
-            self.mock_stderr(True)
-            self.mock_stdout(True)
-            fix_deprecated_easyconfigs([test_ec])
-            stderr, stdout = self.get_stderr(), self.get_stdout()
-            self.mock_stderr(False)
-            self.mock_stdout(False)
-            self.assertFalse(stderr)
-            self.assertIn("test.eb... FIXED!", stdout)
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        fix_deprecated_easyconfigs([test_ec])
+        stderr, stdout = self.get_stderr(), self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertFalse(stderr)
+        self.assertIn("test.eb... FIXED!", stdout)
 
-            # parsing now works
-            ec = EasyConfig(test_ec)
+        # parsing now works
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--foobar --barfoo --barfoobaz")
+        self.assertFalse(stderr)
+        stdout = stdout.split('\n')
+        self.assertEqual(len(stdout), 6)
+        patterns = [
+            r"^\* \[1/1\] fixing .*/test.eb\.\.\. FIXED!$",
+            r"^\s*\(changes made in place, original copied to .*/test.eb.orig_[0-9_]+\)$",
+            r'^$',
+            r"^All done! Fixed 1 easyconfigs \(out of 1 found\).$",
+            r'^$',
+            r'^$',
+        ]
+        for idx, pattern in enumerate(patterns):
+            self.assertTrue(re.match(pattern, stdout[idx]), "Pattern '%s' matches '%s'" % (pattern, stdout[idx]))
 
-            # cleanup
-            remove_file(glob.glob(os.path.join(test_ec + '.orig*'))[0])
-
-            # now inject use of 'dummy' toolchain
-            write_file(test_ec, tc_regex.sub("toolchain = %s" % tc_str, test_ectxt))
-
-            test_ec_txt = read_file(test_ec)
-            regex = re.compile("^toolchain = {.*'name': 'dummy'.*$", re.M)
-            self.assertTrue(regex.search(test_ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, test_ec_txt))
-
-            # mimic default behaviour where only warnings are being printed;
-            # use of dummy toolchain or local variables not following recommended naming scheme is not fatal by default
-            init_config(build_options={'local_var_naming_check': 'warn', 'silent': False})
-            self.mock_stderr(True)
-            self.mock_stdout(True)
-            ec = EasyConfig(test_ec)
-            stderr, stdout = self.get_stderr(), self.get_stdout()
-            self.mock_stderr(False)
-            self.mock_stdout(False)
-
-            self.assertFalse(stdout)
-
-            warnings = [
-                "WARNING: Use of 2 unknown easyconfig parameters detected in test.eb: foo, some_list",
-                "Use of 'dummy' toolchain is deprecated, use 'system' toolchain instead",
-            ]
-            for warning in warnings:
-                self.assertIn(warning, stderr)
-
-            init_config(build_options={'local_var_naming_check': 'error', 'silent': True})
-
-            # easyconfig doesn't parse because of local variables with name other than 'local_*'
-            self.assertErrorRegex(EasyBuildError, unknown_params_error_pattern, EasyConfig, test_ec)
-
-            self.mock_stderr(True)
-            self.mock_stdout(True)
-            fix_deprecated_easyconfigs([toy_ec, test_ec, gzip_ec])
-            stderr, stdout = self.get_stderr(), self.get_stdout()
-            self.mock_stderr(False)
-            self.mock_stdout(False)
-
-            ectxt = read_file(test_ec)
-            self.assertFalse(regex.search(ectxt), "Pattern '%s' *not* found in: %s" % (regex.pattern, ectxt))
-            regex = re.compile("^toolchain = SYSTEM$", re.M)
-            self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
-
-            self.assertEqual(gzip_ec_txt, read_file(gzip_ec))
-            self.assertEqual(toy_ec_txt, read_file(toy_ec))
-            self.assertTrue(test_ec_txt != read_file(test_ec))
-
-            # original easyconfig is backed up automatically
-            test_ecs = sorted([f for f in os.listdir(self.test_prefix) if f.startswith('test.eb')])
-            self.assertEqual(len(test_ecs), 2)
-            backup_test_ec = os.path.join(self.test_prefix, test_ecs[1])
-            self.assertEqual(test_ec_txt, read_file(backup_test_ec))
-
-            remove_file(backup_test_ec)
-
-            # parsing works now, toolchain is replaced with system toolchain
-            ec = EasyConfig(test_ec)
-            self.assertEqual(ec['toolchain'], {'name': 'system', 'version': 'system'})
-            self.assertEqual(ec['configopts'], "--foobar --barfoo --barfoobaz")
-
-            self.assertFalse(stderr)
-            stdout = stdout.split('\n')
-            self.assertEqual(len(stdout), 8)
-            patterns = [
-                r"^\* \[1/3\] fixing .*/t/toy/toy-0.0.eb\.\.\. \(no changes made\)$",
-                r"^\* \[2/3\] fixing .*/test.eb\.\.\. FIXED!$",
-                r"^\s*\(changes made in place, original copied to .*/test.eb.orig_[0-9_]+\)$",
-                r"^\* \[3/3\] fixing .*/g/gzip/gzip-1.4.eb\.\.\. \(no changes made\)$",
-                r'^$',
-                r"^All done! Fixed 1 easyconfigs \(out of 3 found\).$",
-                r'^$',
-                r'^$',
-            ]
-            for idx, pattern in enumerate(patterns):
-                self.assertTrue(re.match(pattern, stdout[idx]), "Pattern '%s' matches '%s'" % (pattern, stdout[idx]))
+        # cleanup
+        remove_file(glob.glob(os.path.join(test_ec + '.orig*'))[0])
 
     def test_parse_list_comprehension_scope(self):
         """Test parsing of an easyconfig file that uses a local variable in list comprehension."""
