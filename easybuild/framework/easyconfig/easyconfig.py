@@ -1950,12 +1950,6 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err)
 
 
-def is_generic_easyblock(easyblock):
-    """Return whether specified easyblock name is a generic easyblock or not."""
-    _log.deprecated("is_generic_easyblock function was moved to easybuild.tools.filetools", '5.0')
-    return filetools.is_generic_easyblock(easyblock)
-
-
 def get_module_path(name, generic=None, decode=True):
     """
     Determine the module path for a given easyblock or software name,
