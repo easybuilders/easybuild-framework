@@ -2690,11 +2690,15 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
             for cmd in cmds:
                 run.run_cmd(cmd, log_all=True, simple=True, regexp=False, path=repo_name, trace=False)
 
-    # create an archive and delete the git repo directory
-    if keep_git_dir:
-        tar_cmd = ['tar', 'cfvz', targetpath, repo_name]
-    else:
-        tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
+    # When CentOS 7 is phased out and tar>1.28 is everywhere, replace find-sort-pipe with tar-flag
+    # '--sort=name' and place LC_ALL in front of tar. Also remove flags --null, --no-recursion, and
+    # --files-from - from the flags to tar. See https://reproducible-builds.org/docs/archives/
+    tar_cmd = ['find', repo_name, '-print0', '-path \'*/.git\' -prune' if not keep_git_dir else '', '|',
+               'LC_ALL=C', 'sort', '--zero-terminated', '|',
+               'GZIP=--no-name', 'tar', '--create', '--file', targetpath, '--no-recursion',
+               '--gzip', '--mtime="1970-01-01 00:00Z"', '--owner=0', '--group=0',
+               '--numeric-owner', '--format=gnu', '--null',
+               '--no-recursion', '--files-from -']
     run.run_cmd(' '.join(tar_cmd), log_all=True, simple=True, regexp=False, trace=False)
 
     # cleanup (repo_name dir does not exist in dry run mode)
