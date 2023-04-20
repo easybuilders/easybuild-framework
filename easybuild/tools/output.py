@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # #
-# Copyright 2021-2022 Ghent University
+# Copyright 2021-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,8 +26,10 @@
 """
 Tools for controlling output to terminal produced by EasyBuild.
 
-:author: Kenneth Hoste (Ghent University)
-:author: Jørgen Nordmoen (University of Oslo)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Jørgen Nordmoen (University of Oslo)
 """
 import functools
 

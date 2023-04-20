@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2022 Ghent University
+# Copyright 2014-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,8 +34,10 @@ The compiler drivers are quite similar to EB toolchains as they include
 linker and compiler directives to use the Cray libraries for their MPI (and network drivers)
 Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 
-:author: Petar Forai (IMP/IMBA, Austria)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Petar Forai (IMP/IMBA, Austria)
+* Kenneth Hoste (Ghent University)
 """
 import copy
 

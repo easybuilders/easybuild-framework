@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -236,7 +236,7 @@ class EnhancedTestCase(TestCase):
         self.allow_deprecated_behaviour()
 
         # restore original Python search path
-        sys.path = self.orig_sys_path
+        sys.path[:] = self.orig_sys_path
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic

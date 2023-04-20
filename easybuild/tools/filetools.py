@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2022 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,18 +25,20 @@
 """
 Set of file tools.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
-:author: Ward Poelmans (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
-:author: Sotiris Fragkiskos (NTUA, CERN)
-:author: Davide Vanzo (ACCRE, Vanderbilt University)
-:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
-:author: Maxime Boissonneault (Compute Canada)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
+* Ward Poelmans (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
+* Sotiris Fragkiskos (NTUA, CERN)
+* Davide Vanzo (ACCRE, Vanderbilt University)
+* Damian Alvarez (Forschungszentrum Juelich GmbH)
+* Maxime Boissonneault (Compute Canada)
 """
 import datetime
 import difflib
@@ -1248,8 +1250,8 @@ def verify_checksum(path, checksums):
     """
     Verify checksum of specified file.
 
-    :param file: path of file to verify checksum of
-    :param checksum: checksum value (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
+    :param path: path of file to verify checksum of
+    :param checksums: checksum values (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
     """
 
     filename = os.path.basename(path)
@@ -1300,6 +1302,9 @@ def verify_checksum(path, checksums):
                         return True
                     else:
                         _log.info("Ignoring non-matching checksum for %s (%s)...", path, cand_checksum)
+
+                # no matching checksums
+                return False
         else:
             raise EasyBuildError("Invalid checksum spec '%s', should be a string (MD5) or 2-tuple (type, value).",
                                  checksum)

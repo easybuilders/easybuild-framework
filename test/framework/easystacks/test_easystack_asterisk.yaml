@@ -1,6 +1,0 @@
-software:
-  binutils:
-    toolchains:
-      GCCcore-4.9.3:
-        versions:
-            "2.11.*"

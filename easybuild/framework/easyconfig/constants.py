@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2022 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,8 +27,10 @@
 Easyconfig constants module that provides all constants that can
 be used within an Easyconfig file.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import os
 import platform
@@ -78,10 +80,18 @@ EASYCONFIG_CONSTANTS = {
     'OS_PKG_OPENSSL_LIB': (('libssl', 'libopenssl'),
                            "OS packages providing openSSL libraries"),
     'OS_PKG_OPENSSL_DEV': (('openssl-devel', 'libssl-dev', 'libopenssl-devel'),
-                           "OS packages providing openSSL developement support"),
+                           "OS packages providing openSSL development support"),
     'OS_PKG_PAM_DEV': (('pam-devel', 'libpam0g-dev'),
-                       "OS packages providing Pluggable Authentication Module (PAM) developement support"),
+                       "OS packages providing Pluggable Authentication Module (PAM) development support"),
 }
+
+# Add EasyConfig constants to export list
+globals().update({name: value for name, (value, _) in EASYCONFIG_CONSTANTS.items()})
+__all__ = ['EXTERNAL_MODULE_MARKER', 'EASYCONFIG_CONSTANTS'] + list(EASYCONFIG_CONSTANTS.keys())
+
+# Add EasyConfig constants to export list
+globals().update({name: value for name, (value, _) in EASYCONFIG_CONSTANTS.items()})
+__all__ = ['EXTERNAL_MODULE_MARKER', 'EASYCONFIG_CONSTANTS'] + list(EASYCONFIG_CONSTANTS.keys())
 
 # package names for openssl-dev, pam-devel, and rdma-core-devel do not include the devel suffix on arch distros.
 # simply adding the arch names to the tuples below would falsely satisfy the dependencies on some non-arch distros,

@@ -1,6 +1,14 @@
 # documentation: https://help.github.com/en/articles/workflow-syntax-for-github-actions
 name: test EasyBuild bootstrap script
 on: [push, pull_request]
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+concurrency:
+  group: ${{format('{0}:{1}:{2}', github.repository, github.ref, github.workflow)}}
+  cancel-in-progress: true
+
 jobs:
   setup:
     runs-on: ubuntu-20.04
@@ -64,11 +72,17 @@ jobs:
 
     - name: install OS & Python packages
       run: |
-        # disable apt update, we don't really need it,
-        # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
-        # sudo apt update
         # for modules tool
-        sudo apt install lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev
+        APT_PKGS="lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev"
+
+        # Avoid apt-get update, as we don't really need it,
+        # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
+        if ! sudo apt-get install $APT_PKGS; then
+          # Try to update cache, then try again to resolve 404s of old packages
+          sudo apt-get update -yqq || true
+          sudo apt-get install $APT_PKGS
+        fi
+
         # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
         # needed for Ubuntu 18.04, but not for Ubuntu 20.04, so skipping symlinking if posix.so already exists
         if [ ! -e /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so ] ; then
@@ -107,7 +121,7 @@ jobs:
           EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
           EB_BOOTSTRAP_SHA256SUM=$(sha256sum easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
           EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-          EB_BOOTSTRAP_EXPECTED="20210715.01 0ffdc17ed7eacf78369c9cd6743728f36e61bb8bf5c1bdc1e23cf2040b1ce301"
+          EB_BOOTSTRAP_EXPECTED="20210715.01 935979de3a4c30b24c3617ff7cd7c40cbd4d815cee5be0c99810cc21f21182f1"
           test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
 
           # test bootstrap script

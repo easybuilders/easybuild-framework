@@ -1,5 +1,5 @@
 #
-# Copyright 2019-2022 Ghent University
+# Copyright 2019-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,7 +27,9 @@ Functionality to facilitate keeping code compatible with Python 2 & Python 3.
 
 Implementations for Python 2.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 # these are not used here, but imported from here in other places
 import ConfigParser as configparser  # noqa
@@ -42,6 +44,9 @@ from string import lowercase as ascii_lowercase  # noqa
 from StringIO import StringIO  # noqa
 from urllib import urlencode  # noqa
 from urllib2 import HTTPError, HTTPSHandler, Request, URLError, build_opener, urlopen  # noqa
+
+# Use the safe version. In Python 3.2+ this is the default already
+ConfigParser = configparser.SafeConfigParser
 
 
 # reload function (built-in in Python 2)

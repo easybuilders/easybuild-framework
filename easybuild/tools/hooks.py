@@ -1,5 +1,5 @@
 # #
-# Copyright 2017-2022 Ghent University
+# Copyright 2017-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,7 +25,9 @@
 """
 Hook support.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 import difflib
 import imp
@@ -59,6 +61,7 @@ TESTCASES_STEP = 'testcases'
 
 START = 'start'
 PARSE = 'parse'
+SINGLE_EXTENSION = 'single_extension'
 MODULE_WRITE = 'module_write'
 END = 'end'
 
@@ -71,7 +74,31 @@ STEP_NAMES = [FETCH_STEP, READY_STEP, SOURCE_STEP, PATCH_STEP, PREPARE_STEP, CON
               INSTALL_STEP, EXTENSIONS_STEP, POSTPROC_STEP, SANITYCHECK_STEP, CLEANUP_STEP, MODULE_STEP,
               PERMISSIONS_STEP, PACKAGE_STEP, TESTCASES_STEP]
 
-HOOK_NAMES = [START, PARSE, MODULE_WRITE] + [p + s for s in STEP_NAMES for p in [PRE_PREF, POST_PREF]] + [END]
+# hook names (in order of being triggered)
+HOOK_NAMES = [
+    START,
+    PARSE,
+] + [p + x for x in STEP_NAMES[:STEP_NAMES.index(EXTENSIONS_STEP)]
+     for p in [PRE_PREF, POST_PREF]] + [
+    # pre-extensions hook is triggered before starting installation of extensions,
+    # pre/post extension (singular) hook is triggered when installing individual extensions,
+    # post-extensions hook is triggered after installation of extensions
+    PRE_PREF + EXTENSIONS_STEP,
+    PRE_PREF + SINGLE_EXTENSION,
+    POST_PREF + SINGLE_EXTENSION,
+    POST_PREF + EXTENSIONS_STEP,
+] + [p + x for x in STEP_NAMES[STEP_NAMES.index(EXTENSIONS_STEP)+1:STEP_NAMES.index(MODULE_STEP)]
+     for p in [PRE_PREF, POST_PREF]] + [
+    # pre-module hook hook is triggered before starting module step which creates module file,
+    # module_write hook is triggered when module file has been written,
+    # post-module hook hook is triggered before after running module step
+    PRE_PREF + MODULE_STEP,
+    MODULE_WRITE,
+    POST_PREF + MODULE_STEP,
+] + [p + x for x in STEP_NAMES[STEP_NAMES.index(MODULE_STEP)+1:]
+     for p in [PRE_PREF, POST_PREF]] + [
+    END,
+]
 KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
 
 

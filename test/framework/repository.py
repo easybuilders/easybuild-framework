@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -86,7 +86,7 @@ class RepositoryTest(EnhancedTestCase):
         try:
             repo.init()
             self.assertEqual(os.path.basename(repo.wc), 'testrepository')
-            self.assertTrue(os.path.exists(os.path.join(repo.wc, 'README.md')))
+            self.assertExists(os.path.join(repo.wc, 'README.md'))
             shutil.rmtree(repo.wc)
         except EasyBuildError as err:
             print("ignoring failed subtest in test_gitrepo, testing offline?")
@@ -126,7 +126,7 @@ class RepositoryTest(EnhancedTestCase):
 
         repo = SvnRepository(test_repo_url)
         repo.init()
-        self.assertTrue(os.path.exists(os.path.join(repo.wc, 'trunk', 'README.md')))
+        self.assertExists(os.path.join(repo.wc, 'trunk', 'README.md'))
         shutil.rmtree(repo.wc)
 
     # this test is disabled because it fails in Travis as a result of bitbucket disabling TLS 1.0/1.1
@@ -147,7 +147,7 @@ class RepositoryTest(EnhancedTestCase):
 
         repo = HgRepository(test_repo_url)
         repo.init()
-        self.assertTrue(os.path.exists(os.path.join(repo.wc, 'README')))
+        self.assertExists(os.path.join(repo.wc, 'README'))
         shutil.rmtree(repo.wc)
 
     def test_init_repository(self):
@@ -170,10 +170,10 @@ class RepositoryTest(EnhancedTestCase):
 
         def check_ec(path, expected_buildstats):
             """Check easyconfig at specified path"""
-            self.assertTrue(os.path.exists(path))
+            self.assertExists(path)
             ectxt = read_file(path)
             self.assertTrue(ectxt.startswith("# Built with EasyBuild version"))
-            self.assertTrue("# Build statistics" in ectxt)
+            self.assertIn("# Build statistics", ectxt)
             ecdict = EasyConfigParser(path).get_config_dict()
             self.assertEqual(ecdict['buildstats'], expected_buildstats)
 

@@ -119,7 +119,7 @@ def print_deps(package, verbose):
 
     installed_modules = {mod.project_name for mod in pkg_resources.working_set}
     if verbose:
-        print("Installed modules: %s" % installed_modules)
+        print("Installed modules: " + ', '.join(sorted(installed_modules)))
 
     # iterate over deps in reverse order, get rid of duplicates along the way
     # also filter out Python packages that are already installed in current environment
@@ -187,7 +187,7 @@ if args.ec:
         run_cmd(['eb', args.ec, '--dump-env', '--force'], action_desc='Dump build environment')
         os.chdir(old_dir)
 
-        cmd = 'source %s/*.env && %s %s "%s"' % (tmp_dir, sys.executable, sys.argv[0], args.package)
+        cmd = "source %s/*.env && python %s '%s'" % (tmp_dir, sys.argv[0], args.package)
         if args.verbose:
             cmd += ' --verbose'
             print('Restarting script in new build environment')

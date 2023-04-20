@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,12 +25,14 @@
 """
 EasyBuild support for gimpi compiler toolchain (includes GCC and Intel MPI).
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import re
-from distutils.version import LooseVersion
 
+from easybuild.tools import LooseVersion
 from easybuild.toolchains.gcc import GccToolchain
 from easybuild.toolchains.mpi.intelmpi import IntelMPI
 

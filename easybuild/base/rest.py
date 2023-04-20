@@ -31,8 +31,10 @@ Mainly the RestClient, which you can use to easily pythonify a rest api.
 
 based on https://github.com/jpaugh/agithub/commit/1e2575825b165c1cb7cbd85c22e2561fc4d434d3
 
-:author: Jonathan Paugh
-:author: Jens Timmerman
+Authors:
+
+* Jonathan Paugh
+* Jens Timmerman
 """
 import base64
 import copy

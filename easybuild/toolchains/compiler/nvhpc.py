@@ -29,9 +29,11 @@
 Support for NVIDIA HPC SDK ('NVHPC') compilers (nvc, nvc++, nvfortran) as toolchain compilers.
 NVHPC is the successor of the PGI compilers, on which this file is based upon.
 
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
-:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
-:author: Andreas Herten (Forschungszentrum Juelich GmbH)
+Authors:
+
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+* Damian Alvarez (Forschungszentrum Juelich GmbH)
+* Andreas Herten (Forschungszentrum Juelich GmbH)
 """
 
 import easybuild.tools.systemtools as systemtools

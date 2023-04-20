@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +25,10 @@
 """
 Utility module for modifying os.environ
 
-:author: Toon Willems (Ghent University)
-:author: Ward Poelmans (Ghent University)
+Authors:
+
+* Toon Willems (Ghent University)
+* Ward Poelmans (Ghent University)
 """
 import copy
 import os

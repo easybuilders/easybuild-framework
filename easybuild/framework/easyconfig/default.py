@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2022 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,12 +26,14 @@
 """
 Easyconfig module that contains the default EasyConfig configuration parameters.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
 """
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
@@ -90,12 +92,12 @@ DEFAULT_CONFIG = {
     'checksums': [[], "Checksums for sources and patches", BUILD],
     'configopts': ['', 'Extra options passed to configure (default already has --prefix)', BUILD],
     'cuda_compute_capabilities': [[], "List of CUDA compute capabilities to build with (if supported)", BUILD],
-    'download_instructions': ['', "Specify steps to aquire necessary file, if obtaining it is difficult", BUILD],
+    'download_instructions': ['', "Specify steps to acquire necessary file, if obtaining it is difficult", BUILD],
     'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
                         "based on the software name", BUILD],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
     'enhance_sanity_check': [False, "Indicate that additional sanity check commands & paths should enhance "
-                             "the existin sanity check, not replace it", BUILD],
+                             "the existing sanity check, not replace it", BUILD],
     'fix_bash_shebang_for': [None, "List of files for which Bash shebang should be fixed "
                                    "to '#!/usr/bin/env bash' (glob patterns supported)", BUILD],
     'fix_perl_shebang_for': [None, "List of files for which Perl shebang should be fixed "
@@ -116,6 +118,7 @@ DEFAULT_CONFIG = {
     'pretestopts': ['', 'Extra prefix options for test.', BUILD],
     'postinstallcmds': [[], 'Commands to run after the install step.', BUILD],
     'postinstallpatches': [[], 'Patch files to apply after running the install step.', BUILD],
+    'postinstallmsgs': [[], 'Messages to print after running the install step.', BUILD],
     'required_linked_shared_libs': [[], "List of shared libraries (names, file names, or paths) which must be "
                                         "linked in all installed binaries/libraries", BUILD],
     'runtest': [None, ('Indicates if a test should be run after make; should specify argument '
@@ -192,6 +195,7 @@ DEFAULT_CONFIG = {
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
     'modloadmsg': [{}, "Message that should be printed when generated module is loaded", MODULES],
+    'modunloadmsg': [{}, "Message that should be printed when generated module is unloaded", MODULES],
     'modluafooter': ["", "Footer to include in generated module file (Lua syntax)", MODULES],
     'modaltsoftname': [None, "Module name to use (rather than using software name", MODULES],
     'modtclfooter': ["", "Footer to include in generated module file (Tcl syntax)", MODULES],

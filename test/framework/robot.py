@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -202,15 +202,15 @@ class RobotTest(EnhancedTestCase):
         res = resolve_dependencies([deepcopy(easyconfig_moredeps)], self.modtool)
         self.assertEqual(len(res), 2)
         full_mod_names = [ec['full_mod_name'] for ec in res]
-        self.assertFalse('toy/.0.0-deps' in full_mod_names)
+        self.assertNotIn('toy/.0.0-deps', full_mod_names)
 
         res = resolve_dependencies([deepcopy(easyconfig_moredeps)], self.modtool, retain_all_deps=True)
         self.assertEqual(len(res), 4)  # hidden dep toy/.0.0-deps (+1) depends on (fake) intel/2018a (+1)
         self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
         full_mod_names = [ec['full_mod_name'] for ec in res]
-        self.assertTrue('toy/.0.0-deps' in full_mod_names)
-        self.assertTrue('intel/2018a' in full_mod_names)
+        self.assertIn('toy/.0.0-deps', full_mod_names)
+        self.assertIn('intel/2018a', full_mod_names)
 
         # here we have included a dependency in the easyconfig list
         easyconfig['full_mod_name'] = 'gzip/1.4'
@@ -482,7 +482,7 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual(len(res), 10)
         mods = [x['full_mod_name'] for x in res]
         self.assertEqual(mods, all_mods_ordered)
-        self.assertTrue('SQLite/3.8.10.2-GCC-6.4.0-2.28' in mods)
+        self.assertIn('SQLite/3.8.10.2-GCC-6.4.0-2.28', mods)
 
         # test taking into account existing modules
         # with an SQLite module with foss/2018a in place, this toolchain should be used rather than GCC/6.4.0-2.28
@@ -497,8 +497,8 @@ class RobotTest(EnhancedTestCase):
         res = resolve_dependencies([bar], self.modtool, retain_all_deps=True)
         self.assertEqual(len(res), 10)
         mods = [x['full_mod_name'] for x in res]
-        self.assertTrue('SQLite/3.8.10.2-foss-2018a' in mods)
-        self.assertFalse('SQLite/3.8.10.2-GCC-6.4.0-2.28' in mods)
+        self.assertIn('SQLite/3.8.10.2-foss-2018a', mods)
+        self.assertNotIn('SQLite/3.8.10.2-GCC-6.4.0-2.28', mods)
 
         # Check whether having 2 version of system toolchain is ok
         # Clear easyconfig and toolchain caches
@@ -543,8 +543,8 @@ class RobotTest(EnhancedTestCase):
         res = resolve_dependencies([bar], self.modtool, retain_all_deps=True)
         self.assertEqual(len(res), 11)
         mods = [x['full_mod_name'] for x in res]
-        self.assertTrue('impi/5.1.2.150' in mods)
-        self.assertTrue('gzip/1.4' in mods)
+        self.assertIn('impi/5.1.2.150', mods)
+        self.assertIn('gzip/1.4', mods)
 
     def test_resolve_dependencies_missing(self):
         """Test handling of missing dependencies in resolve_dependencies function."""
@@ -627,7 +627,7 @@ class RobotTest(EnhancedTestCase):
         mkdir(subdir_hwloc, parents=True)
         shutil.copy2(os.path.join(test_ecs_path, 'h', 'hwloc', hwloc_ec), subdir_hwloc)
         shutil.copy2(os.path.join(test_ecs_path, 'i', 'intel', 'intel-2018a.eb'), self.test_prefix)
-        self.assertFalse(os.path.exists(test_ec))
+        self.assertNotExists(test_ec)
 
         args = [
             os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
@@ -696,7 +696,7 @@ class RobotTest(EnhancedTestCase):
 
         test_ec = 'toy-0.0-deps.eb'
         shutil.copy2(os.path.join(test_ecs_path, 't', 'toy', test_ec), self.test_prefix)
-        self.assertFalse(os.path.exists(test_ec))
+        self.assertNotExists(test_ec)
 
         args = [
             '--search-paths=%s' % self.test_prefix,  # add to search path
@@ -727,7 +727,7 @@ class RobotTest(EnhancedTestCase):
         test_ec = 'toy-0.0-deps.eb'
         shutil.copy2(os.path.join(test_ecs_path, 't', 'toy', test_ec), self.test_prefix)
         shutil.copy2(os.path.join(test_ecs_path, 'i', 'intel', 'intel-2018a.eb'), self.test_prefix)
-        self.assertFalse(os.path.exists(test_ec))
+        self.assertNotExists(test_ec)
 
         gompi_2018b_txt = '\n'.join([
             "easyblock = 'Toolchain'",
@@ -1109,10 +1109,10 @@ class RobotTest(EnhancedTestCase):
         res = resolve_dependencies(easyconfigs, self.modtool, retain_all_deps=True)
         specs = [ec['spec'] for ec in res]
         # Check it picks up the tweaked OpenMPI
-        self.assertTrue(tweaked_openmpi in specs)
+        self.assertIn(tweaked_openmpi, specs)
         # Check it picks up the untweaked dependency of the tweaked OpenMPI
         untweaked_hwloc = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb')
-        self.assertTrue(untweaked_hwloc in specs)
+        self.assertIn(untweaked_hwloc, specs)
 
     def test_robot_find_subtoolchain_for_dep(self):
         """Test robot_find_subtoolchain_for_dep."""
@@ -1392,7 +1392,7 @@ class RobotTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         self.assertTrue(conflicts)
-        self.assertTrue("Conflict found for dependencies of foss-2018a: GCC-4.6.4 vs GCC-6.4.0-2.28" in stderr)
+        self.assertIn("Conflict found for dependencies of foss-2018a: GCC-4.6.4 vs GCC-6.4.0-2.28", stderr)
 
         # conflicts between specified easyconfigs are also detected
 
@@ -1407,7 +1407,7 @@ class RobotTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         self.assertTrue(conflicts)
-        self.assertTrue("Conflict between (dependencies of) easyconfigs: GCC-4.9.3-2.25 vs GCC-6.4.0-2.28" in stderr)
+        self.assertIn("Conflict between (dependencies of) easyconfigs: GCC-4.9.3-2.25 vs GCC-6.4.0-2.28", stderr)
 
         # indirect conflict on dependencies
         ecs, _ = parse_easyconfigs([
@@ -1420,7 +1420,7 @@ class RobotTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         self.assertTrue(conflicts)
-        self.assertTrue("Conflict between (dependencies of) easyconfigs: GCC-4.9.2 vs GCC-6.4.0-2.28" in stderr)
+        self.assertIn("Conflict between (dependencies of) easyconfigs: GCC-4.9.2 vs GCC-6.4.0-2.28", stderr)
 
         # test use of check_inter_ec_conflicts
         self.assertFalse(check_conflicts(ecs, self.modtool, check_inter_ec_conflicts=False), "No conflicts found")

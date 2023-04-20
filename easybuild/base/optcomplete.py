@@ -50,8 +50,10 @@ argument.
 You need to activate bash completion using the shell script function that comes
 with optcomplete (see http://furius.ca/optcomplete for more details).
 
-:author: Martin Blais (blais@furius.ca)
-:author: Stijn De Weirdt (Ghent University)
+Authors:
+
+* Martin Blais (blais@furius.ca)
+* Stijn De Weirdt (Ghent University)
 
 This is a copy of optcomplete.py (changeset 17:e0a9131a94cc)
 from source: https://hg.furius.ca/public/optcomplete

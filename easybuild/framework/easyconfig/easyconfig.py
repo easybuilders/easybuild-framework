@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2022 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,17 +26,19 @@
 """
 Easyconfig module that contains the EasyConfig class.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
-:author: Ward Poelmans (Ghent University)
-:author: Alan O'Cais (Juelich Supercomputing Centre)
-:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
-:author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
-:author: Victor Holanda (CSCS, ETH Zurich)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
+* Ward Poelmans (Ghent University)
+* Alan O'Cais (Juelich Supercomputing Centre)
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+* Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
+* Victor Holanda (CSCS, ETH Zurich)
 """
 
 import copy
@@ -44,7 +46,6 @@ import difflib
 import functools
 import os
 import re
-from distutils.version import LooseVersion
 from contextlib import contextmanager
 
 import easybuild.tools.filetools as filetools
@@ -60,6 +61,7 @@ from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
@@ -832,14 +834,16 @@ class EasyConfig(object):
         deprecated = self['deprecated']
         if deprecated:
             if isinstance(deprecated, string_type):
-                depr_msgs.append("easyconfig file '%s' is marked as deprecated:\n%s\n" % (path, deprecated))
+                if 'easyconfig' not in build_option('silence_deprecation_warnings'):
+                    depr_msgs.append("easyconfig file '%s' is marked as deprecated:\n%s\n" % (path, deprecated))
             else:
                 raise EasyBuildError("Wrong type for value of 'deprecated' easyconfig parameter: %s", type(deprecated))
 
         if self.toolchain.is_deprecated():
             # allow use of deprecated toolchains when running unit tests,
             # because test easyconfigs/modules often use old toolchain versions (and updating them is far from trivial)
-            if not build_option('unit_testing_mode'):
+            if (not build_option('unit_testing_mode')
+                    and 'toolchain' not in build_option('silence_deprecation_warnings')):
                 depr_msgs.append("toolchain '%(name)s/%(version)s' is marked as deprecated" % self['toolchain'])
 
         if depr_msgs:
@@ -1299,7 +1303,7 @@ class EasyConfig(object):
         If none of the pairs is found, then an empty dictionary is returned.
 
         :param mod_name: name of the external module
-        :param metadata: already available metadata for this external module (if any)
+        :param existing_metadata: already available metadata for this external module (if any)
         """
         res = {}
 

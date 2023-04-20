@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2022 Ghent University
+# Copyright 2015-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +25,10 @@
 """
 Implementation of the EasyBuild packaging naming scheme
 
-:author: Robert Schmidt (Ottawa Hospital Research Institute)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Robert Schmidt (Ottawa Hospital Research Institute)
+* Kenneth Hoste (Ghent University)
 """
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme

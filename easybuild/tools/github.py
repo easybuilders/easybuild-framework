@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,9 +25,11 @@
 """
 Utility module for working with github
 
-:author: Jens Timmerman (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Toon Willems (Ghent University)
+Authors:
+
+* Jens Timmerman (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Toon Willems (Ghent University)
 """
 import base64
 import copy
@@ -43,13 +45,13 @@ import sys
 import tempfile
 import time
 from datetime import datetime, timedelta
-from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, copy_easyblocks, copy_framework_files
@@ -1074,7 +1076,7 @@ def find_software_name_for_patch(patch_name, ec_dirs):
     Scan all easyconfigs in the robot path(s) to determine which software a patch file belongs to
 
     :param patch_name: name of the patch file
-    :param ecs_dirs: list of directories to consider when looking for easyconfigs
+    :param ec_dirs: list of directories to consider when looking for easyconfigs
     :return: name of the software that this patch file belongs to (if found)
     """
 

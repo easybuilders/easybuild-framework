@@ -6,8 +6,9 @@ easyconfigs:
         }
     - binutils-2.26-GCCcore-4.9.3
     - foss-2018a:
-        options: {
-          'enforce-checksums': True,
-          'robot': True,
-        }
+        # no strict need for quotes as long as YAML parser doesn't get smart with value type (booleans, integers, ...);
+        # { and } are also optional in YAML to create a dictionary
+        options:
+          enforce-checksums: True
+          robot: True
     - toy-0.0-gompi-2018a-test
