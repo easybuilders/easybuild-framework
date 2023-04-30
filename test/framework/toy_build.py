@@ -238,6 +238,13 @@ class ToyBuildTest(EnhancedTestCase):
 
         return stdout, stderr
 
+    def run_eb_main_capture_output(self, *args, **kwargs):
+        """Run eb_main with specified arguments, capture stdout, and return output from eb_main"""
+        self.mock_stdout(True)
+        outtxt = self.eb_main(*args, **kwargs)
+        self.mock_stdout(False)
+        return outtxt
+
     def test_toy_broken(self):
         """Test deliberately broken toy build."""
         tmpdir = tempfile.mkdtemp()
@@ -247,8 +254,8 @@ class ToyBuildTest(EnhancedTestCase):
         broken_toy_ec_txt += "checksums = ['clearywrongMD5checksumoflength32']"
         write_file(broken_toy_ec, broken_toy_ec_txt)
         error_regex = "Checksum verification .* failed"
-        self.assertErrorRegex(EasyBuildError, error_regex, self.test_toy_build, ec_file=broken_toy_ec, tmpdir=tmpdir,
-                              verify=False, fails=True, verbose=False, raise_error=True)
+        self.assertErrorRegex(EasyBuildError, error_regex, self.run_test_toy_build_with_output, ec_file=broken_toy_ec,
+                              tmpdir=tmpdir, verify=False, fails=True, verbose=False, raise_error=True)
 
         # make sure log file is retained, also for failed build
         log_path_pattern = os.path.join(tmpdir, 'eb-*', 'easybuild-toy-0.0*.log')
@@ -260,8 +267,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test dumping full test report (doesn't raise an exception)
         test_report_fp = os.path.join(self.test_buildpath, 'full_test_report.md')
-        self.test_toy_build(ec_file=broken_toy_ec, tmpdir=tmpdir, verify=False, fails=True, verbose=False,
-                            raise_error=True, test_report=test_report_fp)
+        self.run_test_toy_build_with_output(ec_file=broken_toy_ec, tmpdir=tmpdir, verify=False, fails=True,
+                                            verbose=False, raise_error=True, test_report=test_report_fp)
 
         # cleanup
         shutil.rmtree(tmpdir)
@@ -302,7 +309,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--debug',
             '--force',
         ]
-        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        outtxt = self.run_eb_main_capture_output(args, do_build=True, verbose=True, raise_error=True)
         self.check_toy(self.test_installpath, outtxt, versionsuffix='-tweaked')
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-tweaked')
         if get_module_syntax() == 'Lua':
@@ -357,7 +364,7 @@ class ToyBuildTest(EnhancedTestCase):
             'verbose': False,
         }
         err_regex = r"Traceback[\S\s]*toy_buggy.py.*build_step[\S\s]*name 'run_cmd' is not defined"
-        self.assertErrorRegex(EasyBuildError, err_regex, self.test_toy_build, **kwargs)
+        self.assertErrorRegex(EasyBuildError, err_regex, self.run_test_toy_build_with_output, **kwargs)
 
     def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
@@ -378,7 +385,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--toolchain=system,system',
             '--experimental',
         ]
-        outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
+        outtxt = self.run_eb_main_capture_output(args, logfile=self.dummylogfn, do_build=True, verbose=True)
 
         self.check_toy(self.test_installpath, outtxt)
 
@@ -449,7 +456,8 @@ class ToyBuildTest(EnhancedTestCase):
                 '--toolchain=system,system',
                 '--experimental',
             ]
-            outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+            outtxt = self.run_eb_main_capture_output(args, logfile=self.dummylogfn, do_build=True, verbose=True,
+                                                     raise_error=True)
 
             specs['version'] = version
 
@@ -477,7 +485,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--unittest-file=%s' % self.logfile,
             '--force',
         ]
-        outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
+        outtxt = self.run_eb_main_capture_output(args, logfile=self.dummylogfn, do_build=True, verbose=True)
 
         self.check_toy(tmpdir, outtxt)
 
@@ -510,7 +518,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test specifying a non-existing group
         allargs = [test_ec] + args + ['--group=thisgroupdoesnotexist']
-        outtxt, err = self.eb_main(allargs, logfile=self.dummylogfn, do_build=True, return_error=True)
+        outtxt, err = self.run_eb_main_capture_output(allargs, logfile=self.dummylogfn, do_build=True,
+                                                      return_error=True)
         err_regex = re.compile("Failed to get group ID .* group does not exist")
         self.assertTrue(err_regex.search(outtxt), "Pattern '%s' found in '%s'" % (err_regex.pattern, outtxt))
 
@@ -543,7 +552,7 @@ class ToyBuildTest(EnhancedTestCase):
                 allargs.append("--umask=%s" % umask)
             if cfg_group is not None:
                 allargs.append("--group=%s" % cfg_group)
-            outtxt = self.eb_main(allargs, logfile=self.dummylogfn, do_build=True, verbose=True)
+            outtxt = self.run_eb_main_capture_output(allargs, logfile=self.dummylogfn, do_build=True, verbose=True)
 
             # verify that installation was correct
             self.check_toy(self.test_installpath, outtxt)
@@ -607,7 +616,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         # first check default behaviour
-        self.test_toy_build(ec_file=test_ec)
+        self.run_test_toy_build_with_output(ec_file=test_ec)
 
         toy_install_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
         toy_bin = os.path.join(toy_install_dir, 'bin', 'toy')
@@ -636,9 +645,8 @@ class ToyBuildTest(EnhancedTestCase):
             ['--rebuild', '--fetch'],
         )
         for extra_args in test_cases:
-            self.mock_stdout(True)
-            self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'] + extra_args, force=False)
-            self.mock_stdout(False)
+            self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=['--read-only-installdir'] + extra_args,
+                                                force=False)
 
             installdir_perms = os.stat(os.path.dirname(toy_install_dir)).st_mode & 0o777
             self.assertEqual(installdir_perms, 0o755, "%s has default permissions" % os.path.dirname(toy_install_dir))
@@ -659,7 +667,7 @@ class ToyBuildTest(EnhancedTestCase):
         shutil.rmtree(self.test_installpath)
 
         # also check --group-writable-installdir
-        self.test_toy_build(ec_file=test_ec, extra_args=['--group-writable-installdir'])
+        self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=['--group-writable-installdir'])
         installdir_perms = os.stat(toy_install_dir).st_mode & 0o777
         self.assertEqual(installdir_perms, 0o775, "%s has group write permissions" % self.test_installpath)
 
@@ -670,7 +678,8 @@ class ToyBuildTest(EnhancedTestCase):
         # this happens when for example using ModuleRC easyblock (because no devel module is created)
         test_ec_txt += "\nmake_module = False"
         write_file(test_ec, test_ec_txt)
-        self.test_toy_build(ec_file=test_ec, extra_args=['--read-only-installdir'], verify=False, raise_error=True)
+        self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=['--read-only-installdir'], verify=False,
+                                            raise_error=True)
 
         # restore original umask
         os.umask(orig_umask)
@@ -686,7 +695,7 @@ class ToyBuildTest(EnhancedTestCase):
             (('modules', 'all', 'toy'), False),
         ]
         # no gid/sticky bits by default
-        self.test_toy_build()
+        self.run_test_toy_build_with_output()
         for subdir, _ in subdirs:
             fullpath = os.path.join(self.test_installpath, *subdir)
             perms = os.stat(fullpath).st_mode
@@ -694,7 +703,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertFalse(perms & stat.S_ISVTX, "no sticky bit on %s" % fullpath)
 
         # git/sticky bits are set, but only on (re)created directories
-        self.test_toy_build(extra_args=['--set-gid-bit', '--sticky-bit'])
+        self.run_test_toy_build_with_output(extra_args=['--set-gid-bit', '--sticky-bit'])
         for subdir, bits_set in subdirs:
             fullpath = os.path.join(self.test_installpath, *subdir)
             perms = os.stat(fullpath).st_mode
@@ -707,7 +716,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # start with a clean slate, now gid/sticky bits should be set on everything
         shutil.rmtree(self.test_installpath)
-        self.test_toy_build(extra_args=['--set-gid-bit', '--sticky-bit'])
+        self.run_test_toy_build_with_output(extra_args=['--set-gid-bit', '--sticky-bit'])
         for subdir, _ in subdirs:
             fullpath = os.path.join(self.test_installpath, *subdir)
             perms = os.stat(fullpath).st_mode
@@ -2932,54 +2941,28 @@ class ToyBuildTest(EnhancedTestCase):
             toy_mod_file += '.lua'
 
         self.assertEqual(stderr, '')
+        mod_name=os.path.basename(toy_mod_file)
         # parse hook is triggered 3 times: once for main install, and then again for each extension;
         # module write hook is triggered 5 times:
         # - before installing extensions
         # - for fake module file being created during sanity check (triggered twice, for main + toy install)
         # - for final module file
         # - for devel module file
-        expected_output = textwrap.dedent("""
-            == Running start hook...
-            start hook triggered
-            == Running parse hook for test.eb...
-            toy 0.0
-            ['%(name)s-%(version)s.tar.gz']
-            echo toy
-            == Running pre-configure hook...
-            pre-configure: toy.source: True
-            == Running post-configure hook...
-            post-configure: toy.source: False
-            == Running post-install hook...
-            in post-install hook for toy v0.0
-            bin, lib
-            == Running module_write hook...
-            in module-write hook hook for {mod_name}
-            == Running parse hook...
-            toy 0.0
-            ['%(name)s-%(version)s.tar.gz']
-            echo toy
-            == Running parse hook...
-            toy 0.0
-            ['%(name)s-%(version)s.tar.gz']
-            echo toy
-            == Running post-single_extension hook...
-            installing of extension bar is done!
-            == Running post-single_extension hook...
-            installing of extension toy is done!
-            == Running pre-sanitycheck hook...
-            pre_sanity_check_hook
-            == Running module_write hook...
-            in module-write hook hook for {mod_name}
-            == Running module_write hook...
-            in module-write hook hook for {mod_name}
-            == Running module_write hook...
-            in module-write hook hook for {mod_name}
-            == Running module_write hook...
-            in module-write hook hook for {mod_name}
-            == Running end hook...
-            end hook triggered, all done!
-        """).strip().format(mod_name=os.path.basename(toy_mod_file))
-        self.assertEqual(stdout.strip(), expected_output)
+        expected_output_lines = [
+            "== Running start hook...\nstart hook triggered\n",
+            "== Running parse hook for test.eb...\ntoy 0.0\n['%(name)s-%(version)s.tar.gz']\necho toy\n",
+            "== Running pre-configure hook...\npre-configure: toy.source: True\n",
+            "== Running post-configure hook...\npost-configure: toy.source: False\n",
+            "== Running post-install hook...\nin post-install hook for toy v0.0\nbin, lib\n",
+            "== Running parse hook...\ntoy 0.0\n['%(name)s-%(version)s.tar.gz']\necho toy\n" * 2,  # twice
+            "== Running post-single_extension hook...\ninstalling of extension bar is done!\n",
+            "== Running post-single_extension hook...\ninstalling of extension toy is done!\n",
+            "== Running pre-sanitycheck hook...\npre_sanity_check_hook\n",
+            "== Running end hook...\nend hook triggered, all done!",
+        ]
+        for line in expected_output_lines:
+            self.assertIn(line, stdout.strip())
+        self.assertEqual(5, stdout.strip().count(f"== Running module_write hook...\nin module-write hook hook for {mod_name}\n"))
 
         toy_mod = read_file(toy_mod_file)
         self.assertIn('Not a toy anymore', toy_mod)
@@ -3404,7 +3387,6 @@ class ToyBuildTest(EnhancedTestCase):
         stdout, stderr = self.run_test_toy_build_with_output()
 
         # by default, a warning is printed for ghost installation directories (but they're left untouched)
-        self.assertFalse(stdout)
         regex = re.compile("WARNING: Likely ghost installation directory detected: %s" % toy_installdir)
         self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
         self.assertExists(toy_installdir)
@@ -3415,8 +3397,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertFalse(stderr)
 
-        regex = re.compile("^== Ghost installation directory %s removed" % toy_installdir)
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        regex = re.compile("== Ghost installation directory %s removed" % toy_installdir)
+        self.assertRegex(stdout, regex)
 
         self.assertNotExists(toy_installdir)
 

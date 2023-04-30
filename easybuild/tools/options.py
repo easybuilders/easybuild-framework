@@ -501,7 +501,7 @@ class EasyBuildOptions(GeneralOption):
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
-            'trace': ("Provide more information in output to stdout on progress", None, 'store_true', False, 'T'),
+            'trace': ("Provide more information in output to stdout on progress", None, 'store_true', True, 'T'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
             'update-modules-tool-cache': ("Update modules tool cache file(s) after generating module file",
