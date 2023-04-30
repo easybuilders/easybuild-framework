@@ -2941,7 +2941,7 @@ class ToyBuildTest(EnhancedTestCase):
             toy_mod_file += '.lua'
 
         self.assertEqual(stderr, '')
-        mod_name=os.path.basename(toy_mod_file)
+        mod_name = os.path.basename(toy_mod_file)
         # parse hook is triggered 3 times: once for main install, and then again for each extension;
         # module write hook is triggered 5 times:
         # - before installing extensions
@@ -2962,7 +2962,8 @@ class ToyBuildTest(EnhancedTestCase):
         ]
         for line in expected_output_lines:
             self.assertIn(line, stdout.strip())
-        self.assertEqual(5, stdout.strip().count(f"== Running module_write hook...\nin module-write hook hook for {mod_name}\n"))
+        txt = f"== Running module_write hook...\nin module-write hook hook for {mod_name}\n"
+        self.assertEqual(5, stdout.strip().count(txt))
 
         toy_mod = read_file(toy_mod_file)
         self.assertIn('Not a toy anymore', toy_mod)
