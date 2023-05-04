@@ -1714,19 +1714,18 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
 
                 title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
 
-                # if Python is listed as a dependency, then mention Python version(s) in PR title
-                pyver = []
+                # Find all suffixes
+                suffixes = []
                 for ec in file_info['ecs']:
-                    # iterate over all dependencies (incl. build dependencies & multi-deps)
-                    for dep in ec.dependencies():
-                        if dep['name'] == 'Python':
-                            # check whether Python is listed as a multi-dep if it's marked as a build dependency
-                            if dep['build_only'] and 'Python' not in ec['multi_deps']:
-                                continue
-                            else:
-                                pyver.append(dep['version'])
-                if pyver:
-                    title += " w/ Python %s" % ' + '.join(sorted(nub(pyver)))
+                    if 'versionsuffix' in ec and ec['versionsuffix']:
+                        suffixes.append(ec['versionsuffix'].strip('-').replace('-', ' '))
+                if suffixes:
+                    suffixes = sorted(nub(suffixes))
+                    if len(suffixes) <= 2:
+                        title_suffix = ', '.join(suffixes)
+                    else:
+                        title_suffix = ', '.join(suffixes[:2] + ['...'])
+                    title += " w/ " + title_suffix
         elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
             if file_info['eb_names'] and all(file_info['new']) and not deleted_paths:
                 plural = 's' if len(file_info['eb_names']) > 1 else ''
