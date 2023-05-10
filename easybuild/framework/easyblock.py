@@ -3132,13 +3132,14 @@ class EasyBlock(object):
 
                         # check whether RPATH section in 'readelf -d' output is there
                         if check_readelf_rpath:
+                            fail_msg = None
                             out, ec = run_cmd("readelf -d %s" % path, simple=False, trace=False)
                             if ec:
                                 fail_msg = "Failed to run 'readelf %s': %s" % (path, out)
-                                self.log.warning(fail_msg)
-                                fails.append(fail_msg)
                             elif not readelf_rpath_regex.search(out):
                                 fail_msg = "No '(RPATH)' found in 'readelf -d' output for %s: %s" % (path, out)
+
+                            if fail_msg:
                                 self.log.warning(fail_msg)
                                 fails.append(fail_msg)
                             else:
