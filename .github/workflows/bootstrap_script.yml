@@ -127,7 +127,11 @@ jobs:
           # test bootstrap script
           export PREFIX=/tmp/$USER/$GITHUB_SHA/eb_bootstrap
           export EASYBUILD_BOOTSTRAP_DEPRECATED=1
-          python easybuild/scripts/bootstrap_eb.py $PREFIX
+          if ! python easybuild/scripts/bootstrap_eb.py $PREFIX; then
+            # Output log file of stage 2 install then fail
+            cat /tmp/eb-*/easybuild-EasyBuild-*.log
+            false
+          fi
           unset EASYBUILD_BOOTSTRAP_DEPRECATED
           # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
           unset PYTHONPATH
