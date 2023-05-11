@@ -749,7 +749,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         patterns = [
             r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("8\.2\.8"\) then\n' +
-            r'\s*extensions\("bar/0.0,barbar/0.0,ls,toy/0.0"\)\nend$',
+            r'\s*extensions\("bar/0.0,barbar/1.2,toy/0.0,ulimit"\)\nend$',
         ]
 
         for pattern in patterns:

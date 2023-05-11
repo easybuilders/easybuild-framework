@@ -5747,7 +5747,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^==  \* bar-0\.0\.tar\.gz: %s$" % bar_tar_gz_sha256,
             r"^==  \* %s: %s$" % (bar_patch, bar_patch_sha256),
             r"^==  \* %s: %s$" % (bar_patch_bis, bar_patch_bis_sha256),
-            r"^==  \* barbar-0\.0\.tar\.gz: d5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838$",
+            r"^==  \* barbar-1\.2\.tar\.gz: d5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838$",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -5803,7 +5803,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(ec['checksums'], [{'toy-0.0.tar.gz': toy_source_sha256},
                                            {'toy-0.0_fix-silly-typo-in-printf-statement.patch': toy_patch_sha256}])
         self.assertEqual(ec['exts_default_options'], {'source_urls': ['http://example.com/%(name)s']})
-        self.assertEqual(ec['exts_list'][0], 'ls')
+        self.assertEqual(ec['exts_list'][0], 'ulimit')
         self.assertEqual(ec['exts_list'][1], ('bar', '0.0', {
             'buildopts': " && gcc bar.c -o anotherbar",
             'checksums': [
@@ -5817,7 +5817,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'unknowneasyconfigparameterthatshouldbeignored': 'foo',
             'keepsymlinks': True,
         }))
-        self.assertEqual(ec['exts_list'][2], ('barbar', '0.0', {
+        self.assertEqual(ec['exts_list'][2], ('barbar', '1.2', {
             'checksums': ['d5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838'],
             'start_dir': 'src',
         }))
