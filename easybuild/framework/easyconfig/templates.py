@@ -116,11 +116,13 @@ TEMPLATE_CONSTANTS = [
     ('GITHUB_SOURCE', 'https://github.com/%(github_account)s/%(name)s/archive',
      'GitHub source URL (if github_account easyconfig parameter is not specified, namelower is used in its place)'),
     ('GITHUB_LOWER_SOURCE', 'https://github.com/%(github_account)s/%(namelower)s/archive',
-     'GitHub source URL with lowercase name (if github_account easyconfig parameter is not specified, namelower is used in its place)'),
+     'GitHub source URL with lowercase name (if github_account easyconfig '
+     'parameter is not specified, namelower is used in its place)'),
     ('GITHUB_RELEASE', 'https://github.com/%(github_account)s/%(name)s/releases/download/v%(version)s',
      'GitHub release URL (if github_account easyconfig parameter is not specified, namelower is used in its place)'),
     ('GITHUB_LOWER_RELEASE', 'https://github.com/%(github_account)s/%(namelower)s/releases/download/v%(version)s',
-     'GitHub release URL (if github_account easyconfig parameter is not specified, namelower is used in its place)'),
+     'GitHub release URL with lowercase name (if github_account easyconfig '
+     'parameter is not specified, namelower is used in its place)'),
     ('GNU_SAVANNAH_SOURCE', 'https://download-mirror.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
     ('GNU_SOURCE', 'https://ftpmirror.gnu.org/gnu/%(namelower)s',
