@@ -116,7 +116,7 @@ TEMPLATE_CONSTANTS = [
     ('GITHUB_SOURCE', 'https://github.com/%(github_account)s/%(name)s/archive',
      'GitHub source URL (if github_account easyconfig parameter is not specified, namelower is used in its place)'),
     ('GITHUB_LOWER_SOURCE', 'https://github.com/%(github_account)s/%(namelower)s/archive',
-     'GitHub source URL (if github_account easyconfig parameter is not specified, namelower is used in its place)'),
+     'GitHub source URL with lowercase name (if github_account easyconfig parameter is not specified, namelower is used in its place)'),
     ('GITHUB_RELEASE', 'https://github.com/%(github_account)s/%(name)s/releases/download/v%(version)s',
      'GitHub release URL (if github_account easyconfig parameter is not specified, namelower is used in its place)'),
     ('GITHUB_LOWER_RELEASE', 'https://github.com/%(github_account)s/%(namelower)s/releases/download/v%(version)s',
