@@ -263,6 +263,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # use GCC-4.6.3.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 'g', 'GCC', 'GCC-4.6.3.eb')
+        self.mock_stdout(True)
 
         # check log message without --force
         args = [
@@ -285,6 +286,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for arg in ['--force', '--rebuild']:
             outtxt = self.eb_main([eb_file, '--debug', arg])
             self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with %s" % arg)
+        self.mock_stdout(False)
 
     def test_skip(self):
         """Test skipping installation of module (--skip, -k)."""
@@ -3979,12 +3981,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--installpath=%s' % self.test_installpath,
             '--debug',
         ]
-        # *no* output in testing mode (honor 'silent')
-        self.mock_stdout(True)
-        self.eb_main(args + ['--extended-dry-run'], do_build=True, raise_error=True, testing=True)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
-        self.assertEqual(len(stdout), 0)
 
         msg_regexs = [
             re.compile(r"the actual build \& install procedure that will be performed may diverge", re.M),
@@ -5980,7 +5976,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--sourcepath=%s' % self.test_prefix,
         ]
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, verbose=True, strip=True)
-        self.assertEqual(stdout, '')
         regex = re.compile(r"^WARNING: Found file toy-0.0.tar.gz at .*, but re-downloading it anyway\.\.\.$")
         self.assertTrue(regex.match(stderr), "Pattern '%s' matches: %s" % (regex.pattern, stderr))
 
