@@ -27,10 +27,10 @@ exts_default_options = {
 }
 
 exts_list = [
-    'ls',  # extension that is part of "standard library"
+    'ulimit',  # extension that is part of "standard library"
     ('bar', '0.0', {
         'buildopts': " && gcc bar.c -o anotherbar",
-        'checksums': ['f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7'],  # checksum for 
+        'checksums': ['f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7'],  # checksum for
         # custom extension filter to verify use of stdin value being passed to filter command
         'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
         'patches': [
@@ -43,7 +43,7 @@ exts_list = [
         # cfr. https://github.com/easybuilders/easybuild-framework/pull/3034
         'keepsymlinks': True,
     }),
-    ('barbar', '0.0', {
+    ('barbar', '1.2', {
         'start_dir': 'src',
     }),
     (name, version, {
