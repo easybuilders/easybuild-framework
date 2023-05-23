@@ -3087,7 +3087,7 @@ class EasyBlock(object):
         self.cfg['builddependencies'] = builddeps
         self.cfg.iterating = False
 
-    def sanity_check_rpath(self, rpath_dirs=None):
+    def sanity_check_rpath(self, rpath_dirs=None, check_readelf_rpath=True):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
 
         self.log.info("Checking RPATH linkage for binaries/libraries...")
@@ -3152,17 +3152,21 @@ class EasyBlock(object):
                             self.log.debug("Output of 'ldd %s' checked, looks OK", path)
 
                         # check whether RPATH section in 'readelf -d' output is there
-                        out, ec = run_cmd("readelf -d %s" % path, simple=False, trace=False)
-                        if ec:
-                            fail_msg = "Failed to run 'readelf %s': %s" % (path, out)
-                            self.log.warning(fail_msg)
-                            fails.append(fail_msg)
-                        elif not readelf_rpath_regex.search(out):
-                            fail_msg = "No '(RPATH)' found in 'readelf -d' output for %s: %s" % (path, out)
-                            self.log.warning(fail_msg)
-                            fails.append(fail_msg)
+                        if check_readelf_rpath:
+                            fail_msg = None
+                            out, ec = run_cmd("readelf -d %s" % path, simple=False, trace=False)
+                            if ec:
+                                fail_msg = "Failed to run 'readelf %s': %s" % (path, out)
+                            elif not readelf_rpath_regex.search(out):
+                                fail_msg = "No '(RPATH)' found in 'readelf -d' output for %s: %s" % (path, out)
+
+                            if fail_msg:
+                                self.log.warning(fail_msg)
+                                fails.append(fail_msg)
+                            else:
+                                self.log.debug("Output of 'readelf -d %s' checked, looks OK", path)
                         else:
-                            self.log.debug("Output of 'readelf -d %s' checked, looks OK", path)
+                            self.log.debug("Skipping the RPATH section check with 'readelf -d', as requested")
             else:
                 self.log.debug("Not sanity checking files in non-existing directory %s", dirpath)
 
