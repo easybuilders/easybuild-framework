@@ -68,7 +68,7 @@ class IntelCompilers(IntelIccIfort):
         self.variables.append_subdirs("LDFLAGS", root, subdirs=libpaths)
 
     def set_variables(self):
-        """Set the variables."""
+        """Set environment variables that define build environment."""
 
         oneapi = False
 

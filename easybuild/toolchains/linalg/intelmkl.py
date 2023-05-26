@@ -89,7 +89,7 @@ class IntelMKL(LinAlg):
         super(IntelMKL, self).__init__(*args, **kwargs)
 
     def set_variables(self):
-        """Set the variables"""
+        """Set environment variables that define build environment."""
 
         # for recent versions of Intel MKL, -ldl should be used for linking;
         # the Intel MKL Link Advisor specifies to always do this,

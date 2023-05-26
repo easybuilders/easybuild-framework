@@ -30,7 +30,7 @@ Authors:
 * Stijn De Weirdt (Ghent University)
 * Kenneth Hoste (Ghent University)
 """
-
+import os
 import re
 
 import easybuild.tools.systemtools as systemtools
@@ -110,7 +110,33 @@ class Gcc(Compiler):
     LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']
 
+    def __init__(self, *args, **kwargs):
+        """Compiler toolchain component constructor."""
+        super(Gcc, self).__init__(*args, **kwargs)
+
+        self.gcc_root = None
+        self.gcc_version = None
+
+    def _det_gcc_root(self):
+        """Determine GCC version being used."""
+        if self.gcc_root is None:
+            self.gcc_root = get_software_root('GCCcore')
+            if self.gcc_root is None:
+                self.gcc_root = get_software_root('GCC')
+                if self.gcc_root is None:
+                    raise EasyBuildError("Failed to determine software root for GCC")
+
+    def _det_gcc_version(self):
+        """Determine GCC version being used."""
+        if self.gcc_version is None:
+            self.gcc_version = get_software_version('GCCcore')
+            if self.gcc_version is None:
+                self.gcc_version = get_software_version('GCC')
+                if self.gcc_version is None:
+                    raise EasyBuildError("Failed to determine software version for GCC")
+
     def _set_compiler_vars(self):
+        """Set the compiler variables"""
         super(Gcc, self)._set_compiler_vars()
 
         if self.options.get('32bit', None):
@@ -124,13 +150,7 @@ class Gcc(Compiler):
         # append lib dir paths to LDFLAGS (only if the paths are actually there)
         # Note: hardcode 'GCC' here; we can not reuse COMPILER_MODULE_NAME because
         # it can be redefined by combining GCC with other compilers (e.g., Clang).
-        gcc_root = get_software_root('GCCcore')
-        if gcc_root is None:
-            gcc_root = get_software_root('GCC')
-            if gcc_root is None:
-                raise EasyBuildError("Failed to determine software root for GCC")
-
-        self.variables.append_subdirs("LDFLAGS", gcc_root, subdirs=["lib64", "lib"])
+        self.variables.append_subdirs("LDFLAGS", self.gcc_root, subdirs=["lib64", "lib"])
 
     def _set_optimal_architecture(self, default_optarch=None):
         """
@@ -140,13 +160,7 @@ class Gcc(Compiler):
                                 (--optarch and --optarch=GENERIC still override this value)
         """
         if default_optarch is None and self.arch == systemtools.AARCH64:
-            gcc_version = get_software_version('GCCcore')
-            if gcc_version is None:
-                gcc_version = get_software_version('GCC')
-                if gcc_version is None:
-                    raise EasyBuildError("Failed to determine software version for GCC")
-
-            if LooseVersion(gcc_version) < LooseVersion('6'):
+            if LooseVersion(self.gcc_version) < LooseVersion('6'):
                 # on AArch64, -mcpu=native is not supported prior to GCC 6,
                 # so try to guess a proper default optarch if none was specified
                 default_optarch = self._guess_aarch64_default_optarch()
@@ -184,3 +198,33 @@ class Gcc(Compiler):
                 self.log.debug("Using architecture-specific compiler optimization flag '%s'", default_optarch)
 
         return default_optarch
+
+    def _mold_linker_flag(self):
+        """Set correct compiler flag for using mold as linker."""
+        # for GCC < 12.1, -fuse-ld=mold is not supported yet, but -B option can be used instead;
+        # see https://github.com/rui314/mold#how-to-use ("classic way to use mold")
+        if self.options.get('linker', None) == 'mold' and LooseVersion(self.gcc_version) < LooseVersion('12.0'):
+            mold_root = get_software_root('mold')
+            if mold_root is None:
+                raise EasyBuildError("Failed to determine software root for mold")
+
+            mold_libexec_path = os.path.join(mold_root, 'libexec', 'mold')
+            if not os.path.exists(os.path.join(mold_libexec_path, 'ld')):
+                raise EasyBuildError("ld not found in %s" % mold_libexec_path)
+
+            self.options['linker'] = None
+            for flags_prefix in ('c', 'cxx', 'f', 'f90', 'fc'):
+                key = 'extra_%sflags' % flags_prefix
+                mold_ld_flag = '-B%s' % mold_libexec_path
+                flags = self.options.get(key, None)
+                if flags is not None:
+                    self.options[key] = ' '.join([mold_ld_flag, flags])
+                else:
+                    self.options[key] = mold_ld_flag
+
+    def set_variables(self, *args, **kwargs):
+        """Set environment variables that define build environment."""
+        self._det_gcc_root()
+        self._det_gcc_version()
+        self._mold_linker_flag()
+        super(Gcc, self).set_variables(*args, **kwargs)

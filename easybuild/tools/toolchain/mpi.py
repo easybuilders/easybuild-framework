@@ -184,7 +184,7 @@ class Mpi(Toolchain):
         self.log.devel('_set_mpi_options: all current options %s', self.options)
 
     def set_variables(self):
-        """Set the variables"""
+        """Set environment variables that define build environment."""
         self._set_mpi_compiler_variables()
         self._set_mpi_variables()
 

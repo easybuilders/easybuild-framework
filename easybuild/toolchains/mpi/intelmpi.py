@@ -93,7 +93,7 @@ class IntelMPI(Mpich2):
     MPI_LINK_INFO_OPTION = '-show'
 
     def set_variables(self):
-        """Intel MPI-specific updates to variables."""
+        """Set environment variables that define build environment."""
         super(IntelMPI, self).set_variables()
         # add -mt_mpi flag to ensure linking against thread-safe MPI library when OpenMP is enabled
         if self.options.get('openmp', None) and self.options.get('usempi', None):

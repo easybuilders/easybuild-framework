@@ -100,6 +100,7 @@ class Compiler(Toolchain):
         'extra_fflags': (None, "Specify extra FFLAGS options."),
         'extra_fcflags': (None, "Specify extra FCFLAGS options."),
         'extra_f90flags': (None, "Specify extra F90FLAGS options."),
+        'linker': (None, "Specify linker command to use"),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = None
@@ -122,12 +123,14 @@ class Compiler(Toolchain):
         'extra_fflags': '%(value)s',
         'extra_fcflags': '%(value)s',
         'extra_f90flags': '%(value)s',
+        'linker': 'fuse-ld=%(value)s',
     }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
     COMPILER_GENERIC_OPTION = None
 
-    COMPILER_FLAGS = ['debug', 'ieee', 'openmp', 'pic', 'shared', 'static', 'unroll', 'verbose']  # any compiler
+    # toolchain options that correspond to flags for any compiler
+    COMPILER_FLAGS = ['debug', 'ieee', 'linker', 'openmp', 'pic', 'shared', 'static', 'unroll', 'verbose']
     COMPILER_OPT_FLAGS = ['noopt', 'lowopt', DEFAULT_OPT_LEVEL, 'opt']  # optimisation args, ordered !
     COMPILER_PREC_FLAGS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose']  # precision flags, ordered !
 
@@ -168,7 +171,7 @@ class Compiler(Toolchain):
         super(Compiler, self).set_options(options)
 
     def set_variables(self):
-        """Set the variables"""
+        """Set environment variables that define build environment."""
         self._set_compiler_vars()
         self._set_optimal_architecture()
         self._set_compiler_flags()

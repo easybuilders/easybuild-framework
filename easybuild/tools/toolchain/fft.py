@@ -82,7 +82,7 @@ class Fft(Toolchain):
         self._add_dependency_variables(self.FFT_MODULE_NAME)
 
     def set_variables(self):
-        """Set the variables"""
+        """Set environment variables that define build environment."""
         self._set_fft_variables()
 
         self.log.devel('set_variables: FFT variables %s', self.variables)
