@@ -3,6 +3,26 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v4.7.2 (May 30th 2023)
+----------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - extend (experimental) support for generating container images with Apptainer (#3975)
+  - add default download timeout (#4226)
+  - make the RPATH section check with `readelf -d` in sanity check optional  (#4249)
+- various bug fixes, including:
+  - add `make_extension_string` and `_make_extension_list` methods to `EasyBlock` class, so easyblocks can customize them (#3697)
+  - fix typo in condition guarding installation of GitHub token in CI workflow to run unit tests + fix broken tests related to GitHub integration features (#4216)
+  - fix --check-github as gist url now includes username (#4231)
+  - switch to Ubuntu 22.04 in GitHub Actions workflow to run container tests (#4238)
+  - use "/usr/bin/env python" in test_run_cmd_script (#4241)
+- other changes:
+  - print potential errors after running a command only once (#4065)
+  - change github_* template descriptions to be somewhat clearer (#4251)
+  - remove workflow to test bootstrap script (#4255)
+
 
 v4.7.1 (March 20th 2023)
 ------------------------
