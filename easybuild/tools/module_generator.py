@@ -612,28 +612,17 @@ class ModuleGenerator(object):
 
     def _generate_extension_list(self):
         """
-        Generate a string with a comma-separated list of extensions.
-        """
-        # We need only name and version, so don't resolve templates
-        exts_list = self.app.cfg.get_ref('exts_list')
-        extensions = ', '.join(sorted(['-'.join(ext[:2]) for ext in exts_list], key=str.lower))
+        Generate a string with a list of extensions.
 
-        return extensions
+        The name and version are separated by name_version_sep and each extension is separated by ext_sep
+        """
+        return self.app.make_extension_string()
 
     def _generate_extensions_list(self):
         """
         Generate a list of all extensions in name/version format
         """
-        exts_list = self.app.cfg['exts_list']
-        # the format is extension_name/extension_version
-        exts_ver_list = []
-        for ext in exts_list:
-            if isinstance(ext, tuple):
-                exts_ver_list.append('%s/%s' % (ext[0], ext[1]))
-            elif isinstance(ext, string_type):
-                exts_ver_list.append(ext)
-
-        return sorted(exts_ver_list, key=str.lower)
+        return self.app.make_extension_string(name_version_sep='/', ext_sep=',').split(',')
 
     def _generate_help_text(self):
         """

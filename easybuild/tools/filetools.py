@@ -753,10 +753,6 @@ def download_file(filename, url, path, forced=False):
     _log.debug("Trying to download %s from %s to %s", filename, url, path)
 
     timeout = build_option('download_timeout')
-    if timeout is None:
-        # default to 10sec timeout if none was specified
-        # default system timeout (used is nothing is specified) may be infinite (?)
-        timeout = 10
     _log.debug("Using timeout of %s seconds for initiating download" % timeout)
 
     # parse option HTTP header fields for URLs containing a pattern

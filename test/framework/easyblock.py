@@ -1033,7 +1033,7 @@ class EasyBlockTest(EnhancedTestCase):
         toy_ec_txt = read_file(toy_ec_file)
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        test_ec_txt = toy_ec_txt.replace("('barbar', '0.0', {", "('barbar', '0.0', {'easyblock': 'DummyExtension',")
+        test_ec_txt = toy_ec_txt.replace("('barbar', '1.2', {", "('barbar', '1.2', {'easyblock': 'DummyExtension',")
         write_file(test_ec, test_ec_txt)
         ec = process_easyconfig(test_ec)[0]
         eb = get_easyblock_instance(ec)
@@ -1837,7 +1837,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertIsInstance(exts_file_info, list)
         self.assertEqual(len(exts_file_info), 4)
 
-        self.assertEqual(exts_file_info[0], {'name': 'ls'})
+        self.assertEqual(exts_file_info[0], {'name': 'ulimit'})
 
         self.assertEqual(exts_file_info[1]['name'], 'bar')
         self.assertEqual(exts_file_info[1]['src'], os.path.join(toy_ext_sources, 'bar-0.0.tar.gz'))
@@ -1849,7 +1849,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(exts_file_info[1]['patches'][1]['path'], os.path.join(toy_ext_sources, bar_patch2))
 
         self.assertEqual(exts_file_info[2]['name'], 'barbar')
-        self.assertEqual(exts_file_info[2]['src'], os.path.join(toy_ext_sources, 'barbar-0.0.tar.gz'))
+        self.assertEqual(exts_file_info[2]['src'], os.path.join(toy_ext_sources, 'barbar-1.2.tar.gz'))
         self.assertNotIn('patches', exts_file_info[2])
 
         self.assertEqual(exts_file_info[3]['name'], 'toy')
@@ -1862,7 +1862,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertIsInstance(exts_file_info, list)
         self.assertEqual(len(exts_file_info), 4)
 
-        self.assertEqual(exts_file_info[0], {'name': 'ls'})
+        self.assertEqual(exts_file_info[0], {'name': 'ulimit'})
 
         self.assertEqual(exts_file_info[1]['name'], 'bar')
         self.assertNotIn('src', exts_file_info[1])

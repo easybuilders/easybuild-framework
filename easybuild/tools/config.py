@@ -84,12 +84,14 @@ CONT_IMAGE_FORMATS = [
     CONT_IMAGE_FORMAT_SQUASHFS,
 ]
 
+CONT_TYPE_APPTAINER = 'apptainer'
 CONT_TYPE_DOCKER = 'docker'
 CONT_TYPE_SINGULARITY = 'singularity'
-CONT_TYPES = [CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
+CONT_TYPES = [CONT_TYPE_APPTAINER, CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
 DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
 DEFAULT_BRANCH = 'develop'
+DEFAULT_DOWNLOAD_TIMEOUT = 10
 DEFAULT_ENV_FOR_SHEBANG = '/usr/bin/env'
 DEFAULT_ENVVAR_USERS_MODULES = 'HOME'
 DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
@@ -209,7 +211,6 @@ BUILD_OPTIONS_CMDLINE = {
         'cuda_cache_dir',
         'cuda_cache_maxsize',
         'cuda_compute_capabilities',
-        'download_timeout',
         'dump_test_report',
         'easyblock',
         'envvars_user_modules',
@@ -347,6 +348,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_BRANCH: [
         'pr_target_branch',
+    ],
+    DEFAULT_DOWNLOAD_TIMEOUT: [
+        'download_timeout',
     ],
     DEFAULT_ENV_FOR_SHEBANG: [
         'env_for_shebang',
