@@ -2269,7 +2269,8 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(ec1, ec1_txt)
 
         with self.mocked_stdout_stderr():
-            self._test_toy_build(ec_file=ec1, verify=False, extra_args=['--minimal-toolchains', '--easyblock=EB_toytoy'])
+            self._test_toy_build(ec_file=ec1, verify=False,
+                                 extra_args=['--minimal-toolchains', '--easyblock=EB_toytoy'])
 
         # Check whether easyconfig is dumped to reprod/ subdir
         reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod')
@@ -3844,7 +3845,7 @@ class ToyBuildTest(EnhancedTestCase):
         # make sure default check passes (so we know better what triggered a failing test)
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=libtoy_ec, extra_args=['--module-only'], force=False,
-                                raise_error=True, verbose=False, verify=False)
+                                 raise_error=True, verbose=False, verify=False)
         remove_file(libtoy_modfile_path)
 
         # check specifying banned/required libraries via EasyBuild configuration option
@@ -3879,7 +3880,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=test_ec, extra_args=['--module-only'], force=False,
-                                raise_error=True, verbose=False, verify=False)
+                                 raise_error=True, verbose=False, verify=False)
 
         # one last time: supercombo (with patterns that should pass the check)
         test_ec_txt = read_file(libtoy_ec)
@@ -3894,7 +3895,7 @@ class ToyBuildTest(EnhancedTestCase):
         ]
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=test_ec, extra_args=args, force=False,
-                                raise_error=True, verbose=False, verify=False)
+                                 raise_error=True, verbose=False, verify=False)
 
     def test_toy_ignore_test_failure(self):
         """Check whether use of --ignore-test-failure is mentioned in build output."""
@@ -3943,8 +3944,8 @@ class ToyBuildTest(EnhancedTestCase):
         self.mock_stderr(True)
         self.mock_stdout(True)
         self._test_toy_build(ec_file=test_ec, force=False, raise_error=False, verify=False,
-                            test_report_regexs=[r"One or more OS dependencies were not found"],
-                            test_report=test_report_fp)
+                             test_report_regexs=[r"One or more OS dependencies were not found"],
+                             test_report=test_report_fp)
         stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
