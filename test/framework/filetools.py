@@ -574,7 +574,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(res, None)
 
         update_build_option('insecure_download', True)
-        self.mock_stderr(False)
+        self.mock_stdout(True)
         self.mock_stderr(True)
         res = ft.download_file(fn, url, target_path)
         stderr = self.get_stderr()
@@ -1688,7 +1688,8 @@ class FileToolsTest(EnhancedTestCase):
         """ Test apply_patch """
         testdir = os.path.dirname(os.path.abspath(__file__))
         toy_tar_gz = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
-        path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
 
@@ -1710,7 +1711,8 @@ class FileToolsTest(EnhancedTestCase):
 
         # This patch is dependent on the previous one
         toy_patch_gz = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_gzip.patch.gz')
-        self.assertTrue(ft.apply_patch(toy_patch_gz, path))
+        with self.mocked_stdout_stderr():
+            self.assertTrue(ft.apply_patch(toy_patch_gz, path))
         patched_gz = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
         pattern = "I'm a toy, and very very proud of it"
         self.assertIn(pattern, patched_gz)
@@ -1742,10 +1744,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.read_file(os.path.join(target_dir, 'subdir', 'target.txt')), '123')
 
         # cleanup and re-extract toy source tarball
-        ft.remove_dir(self.test_prefix)
-        ft.mkdir(self.test_prefix)
         ft.change_dir(self.test_prefix)
-        path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
 
         # test applying of patch with git
         toy_source_path = os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')
@@ -1770,8 +1771,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.read_file(new_file_path), "This is a new file\n")
 
         # cleanup & restore
-        ft.remove_dir(path)
-        path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
 
         self.assertNotIn("I'm a toy, and very proud of it", ft.read_file(toy_source_path))
 

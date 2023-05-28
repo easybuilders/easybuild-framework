@@ -514,7 +514,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(exts_sources[3]['name'], 'ext-pi')
         self.assertEqual(exts_sources[3]['version'], '3.0')
 
-        modfile = os.path.join(eb.make_module_step(), 'PI', '3.14' + eb.module_generator.MODULE_FILE_EXTENSION)
+        with self.mocked_stdout_stderr():
+            modfile = os.path.join(eb.make_module_step(), 'PI', '3.14' + eb.module_generator.MODULE_FILE_EXTENSION)
         modtxt = read_file(modfile)
         regex = re.compile('EBEXTSLISTPI.*ext1-1.0,ext2-2.0')
         self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
@@ -1973,7 +1974,8 @@ class EasyConfigTest(EnhancedTestCase):
         os.environ['PI_PREFIX'] = '/test/prefix/PI'
         os.environ['TEST_INC'] = '/test/prefix/test/include'
         ec.toolchain.dry_run = True
-        ec.toolchain.prepare(deps=ec.dependencies(), silent=True)
+        with self.mocked_stdout_stderr():
+            ec.toolchain.prepare(deps=ec.dependencies(), silent=True)
 
         self.assertEqual(os.environ.get('EBROOTBAR'), '/foo/bar')
         self.assertEqual(os.environ.get('EBROOTFOO'), '/foo/bar')
