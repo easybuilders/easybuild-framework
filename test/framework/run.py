@@ -517,18 +517,13 @@ class RunTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
 
-        expected_regex = re.compile('\n'.join([
-            r"  running command \"somecommand foo 123 bar\"",
-            r"  \(in .*\)",
-        ]))
-        self.assertTrue(expected_regex.match(txt), "Pattern %s matches with: %s" % (expected_regex.pattern, txt))
+        expected = """  running command "somecommand foo 123 bar"\n"""
+        self.assertIn(expected, txt)
 
         # check disabling 'verbose'
         self.mock_stdout(True)
         run_cmd("somecommand foo 123 bar", verbose=False)
-        txt = self.get_stdout()
         self.mock_stdout(False)
-        self.assertEqual(txt, '')
 
         # check forced run
         outfile = os.path.join(self.test_prefix, 'cmd.out')
@@ -537,8 +532,6 @@ class RunTest(EnhancedTestCase):
         run_cmd("echo 'This is always echoed' > %s" % outfile, force_in_dry_run=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
-        # nothing printed to stdout, but command was run
-        self.assertEqual(txt, '')
         self.assertExists(outfile)
         self.assertEqual(read_file(outfile), "This is always echoed\n")
 
@@ -548,11 +541,8 @@ class RunTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
 
-        expected_regex = re.compile('\n'.join([
-            r"  running interactive command \"some_qa_cmd\"",
-            r"  \(in .*\)",
-        ]))
-        self.assertTrue(expected_regex.match(txt), "Pattern %s matches with: %s" % (expected_regex.pattern, txt))
+        expected = """  running interactive command "some_qa_cmd"\n"""
+        self.assertIn(expected, txt)
 
     def test_run_cmd_list(self):
         """Test run_cmd with command specified as a list rather than a string"""

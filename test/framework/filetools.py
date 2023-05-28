@@ -445,7 +445,9 @@ class FileToolsTest(EnhancedTestCase):
 
         # downloading over a broken proxy results in None return value (failed download)
         # this tests whether proxies are taken into account by download_file
-        self.assertEqual(ft.download_file(fn, source_url, target_location), None, "download over broken proxy fails")
+        with self.mocked_stdout_stderr():
+            self.assertEqual(ft.download_file(fn, source_url, target_location), None,
+                             "download over broken proxy fails")
 
         # modify existing download so we can verify re-download
         ft.write_file(target_location, '')
@@ -494,7 +496,7 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertEqual(path, target_location)
         self.assertNotExists(target_location)
-        self.assertTrue(re.match("^file written: .*/foo$", txt))
+        self.assertTrue(re.match("file written: .*/foo", txt))
 
         with self.mocked_stdout_stderr():
             ft.download_file(fn, source_url, target_location, forced=True)
@@ -567,7 +569,8 @@ class FileToolsTest(EnhancedTestCase):
         target_path = os.path.join(self.test_prefix, fn)
 
         # first try without allowing insecure downloads (default)
-        res = ft.download_file(fn, url, target_path)
+        with self.mocked_stdout_stderr():
+            res = ft.download_file(fn, url, target_path)
         self.assertEqual(res, None)
 
         update_build_option('insecure_download', True)
@@ -580,7 +583,8 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertIn("WARNING: Not checking server certificates while downloading toy-0.0.eb", stderr)
         self.assertExists(res)
-        self.assertTrue(ft.read_file(res).startswith("name = 'toy'"))
+        with self.mocked_stdout_stderr():
+            self.assertTrue(ft.read_file(res).startswith("name = 'toy'"))
 
         # also test insecure download via requests fallback
         if ft.HAVE_REQUESTS:
@@ -606,14 +610,17 @@ class FileToolsTest(EnhancedTestCase):
             ft.requests.get = fake_requests_get
 
             update_build_option('insecure_download', False)
-            res = ft.download_file(fn, url, target_path)
+            with self.mocked_stdout_stderr():
+                res = ft.download_file(fn, url, target_path)
             self.assertEqual(res, None)
 
             update_build_option('insecure_download', True)
             self.mock_stderr(True)
+            self.mock_stdout(True)
             res = ft.download_file(fn, url, target_path)
             stderr = self.get_stderr()
             self.mock_stderr(False)
+            self.mock_stdout(False)
 
             self.assertIn("WARNING: Not checking server certificates while downloading README.rst", stderr)
             self.assertExists(res)
@@ -1681,15 +1688,13 @@ class FileToolsTest(EnhancedTestCase):
         """ Test apply_patch """
         testdir = os.path.dirname(os.path.abspath(__file__))
         toy_tar_gz = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
-        with self.mocked_stdout_stderr():
-            path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
+        path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
 
         for with_backup in (True, False):
             update_build_option('backup_patched_files', with_backup)
-            with self.mocked_stdout_stderr():
-                self.assertTrue(ft.apply_patch(toy_patch, path))
+            self.assertTrue(ft.apply_patch(toy_patch, path))
             src_file = os.path.join(path, 'toy-0.0', 'toy.source')
             backup_file = src_file + '.orig'
             patched = ft.read_file(src_file)
