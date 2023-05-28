@@ -152,9 +152,9 @@ class ToyBuildTest(EnhancedTestCase):
         devel_module_path = os.path.join(software_path, 'easybuild', '%s-%s-easybuild-devel' % (name, full_version))
         self.assertExists(devel_module_path)
 
-    def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
-                       raise_error=False, test_report=None, name='toy', versionsuffix='', testing=True,
-                       raise_systemexit=False, force=True, test_report_regexs=None):
+    def _test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
+                        raise_error=False, test_report=None, name='toy', versionsuffix='', testing=True,
+                        raise_systemexit=False, force=True, test_report_regexs=None):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -230,7 +230,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.test_toy_build(*args, **kwargs)
+        self._test_toy_build(*args, **kwargs)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
@@ -244,6 +244,11 @@ class ToyBuildTest(EnhancedTestCase):
         outtxt = self.eb_main(*args, **kwargs)
         self.mock_stdout(False)
         return outtxt
+
+    def test_toy_build(self):
+        """Base level test build"""
+        with self.mocked_stdout_stderr():
+            self._test_toy_build()
 
     def test_toy_broken(self):
         """Test deliberately broken toy build."""
@@ -800,7 +805,7 @@ class ToyBuildTest(EnhancedTestCase):
         ec_file = os.path.join(tmpdir, 'toy-0.0.eb')
         write_file(ec_file, "\nallow_system_deps = [('Python', SYS_PYTHON_VERSION)]\n", append=True)
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=ec_file)
+            self._test_toy_build(ec_file=ec_file)
         shutil.rmtree(tmpdir)
 
     def test_toy_hierarchical(self):
@@ -1102,7 +1107,7 @@ class ToyBuildTest(EnhancedTestCase):
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-2018a-test', extra_args=['--debug'])
+            self._test_toy_build(ec_file=test_ec, versionsuffix='-gompi-2018a-test', extra_args=['--debug'])
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-gompi-2018a-test')
         if get_module_syntax() == 'Lua':
@@ -1134,7 +1139,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, toy_ec_txt)
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-2018a-test', extra_args=["--filter-deps=FFTW"])
+            self._test_toy_build(ec_file=test_ec, versionsuffix='-gompi-2018a-test', extra_args=["--filter-deps=FFTW"])
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-gompi-2018a-test')
         if get_module_syntax() == 'Lua':
@@ -1146,7 +1151,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         ec_file = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=ec_file, extra_args=['--hidden'], verify=False)
+            self._test_toy_build(ec_file=ec_file, extra_args=['--hidden'], verify=False)
         # module file is hidden
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '.0.0')
         if get_module_syntax() == 'Lua':
@@ -1165,7 +1170,7 @@ class ToyBuildTest(EnhancedTestCase):
         ec_file = os.path.join(self.test_prefix, 'toy-0.0.eb')
         write_file(ec_file, "\nhidden = True\n", append=True)
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=ec_file, verify=False)
+            self._test_toy_build(ec_file=ec_file, verify=False)
         # module file is hidden
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '.0.0')
         if get_module_syntax() == 'Lua':
@@ -1213,7 +1218,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--repositorypath=%s' % repositorypath,
         ]
         with self.mocked_stdout_stderr():
-            self.test_toy_build(raise_error=True, extra_args=extra_args)
+            self._test_toy_build(raise_error=True, extra_args=extra_args)
 
         archived_ec = os.path.join(repositorypath, 'toy', 'toy-0.0.eb')
         self.assertExists(archived_ec)
@@ -1229,7 +1234,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--repositorypath=%s' % repositorypath,
         ]
         with self.mocked_stdout_stderr():
-            self.test_toy_build(raise_error=True, extra_args=extra_args)
+            self._test_toy_build(raise_error=True, extra_args=extra_args)
 
         installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
 
@@ -1266,7 +1271,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec)
+            self._test_toy_build(ec_file=test_ec)
 
         installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
 
@@ -1307,7 +1312,7 @@ class ToyBuildTest(EnhancedTestCase):
             ])
             write_file(test_ec, test_ec_txt)
             with self.mocked_stdout_stderr():
-                self.test_toy_build(ec_file=test_ec)
+                self._test_toy_build(ec_file=test_ec)
 
             # copy bar-0.0.tar.gz to <tmpdir>/bar-0.0-local.tar.gz, to be used below
             test_source_path = os.path.join(self.test_prefix, 'sources')
@@ -1336,7 +1341,7 @@ class ToyBuildTest(EnhancedTestCase):
             ])
             write_file(test_ec, test_ec_txt)
             with self.mocked_stdout_stderr():
-                self.test_toy_build(ec_file=test_ec, raise_error=True)
+                self._test_toy_build(ec_file=test_ec, raise_error=True)
 
             # check that checksums are picked up and verified
             test_ec_txt = '\n'.join([
@@ -1358,7 +1363,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             error_pattern = r"Checksum verification for extension source bar-0.0-local.tar.gz failed"
             with self.mocked_stdout_stderr():
-                self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
                                       raise_error=True, verbose=False)
 
             # test again with correct checksum for bar-0.0.tar.gz, but faulty checksum for patch file
@@ -1381,7 +1386,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             error_pattern = r"Checksum verification for extension patch bar-0.0_fix-local.patch failed"
             with self.mocked_stdout_stderr():
-                self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
                                       raise_error=True, verbose=False)
 
             # test again with correct checksums
@@ -1401,7 +1406,7 @@ class ToyBuildTest(EnhancedTestCase):
             ])
             write_file(test_ec, test_ec_txt)
             with self.mocked_stdout_stderr():
-                self.test_toy_build(ec_file=test_ec, raise_error=True)
+                self._test_toy_build(ec_file=test_ec, raise_error=True)
 
     def test_toy_extension_extract_cmd(self):
         """Test for custom extract_cmd specified for an extension."""
@@ -1426,7 +1431,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         error_pattern = "unzip .*/bar-0.0.tar.gz.* exited with exit code [1-9]"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
                                   raise_error=True, verbose=False)
 
     def test_toy_extension_sources_git_config(self):
@@ -1464,7 +1469,7 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ec_txt)
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec)
+            self._test_toy_build(ec_file=test_ec)
 
     def test_toy_module_fulltxt(self):
         """Strict text comparison of generated module file."""
@@ -1624,7 +1629,7 @@ class ToyBuildTest(EnhancedTestCase):
         start_env = copy.deepcopy(os.environ)
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=toy_ec, versionsuffix='-external-deps', verbose=True, raise_error=True)
+            self._test_toy_build(ec_file=toy_ec, versionsuffix='-external-deps', verbose=True, raise_error=True)
 
         self.modtool.load(['toy/0.0-external-deps'])
         # note build dependency is not loaded
@@ -1645,7 +1650,7 @@ class ToyBuildTest(EnhancedTestCase):
             err_msg = r"Unable to locate a modulefile for 'nosuchbuilddep/0.0.0'"
 
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, err_msg, self.test_toy_build, ec_file=toy_ec,
+            self.assertErrorRegex(EasyBuildError, err_msg, self._test_toy_build, ec_file=toy_ec,
                                   raise_error=True, verbose=False)
 
         extraectxt = "\ndependencies += [('nosuchmodule/1.2.3', EXTERNAL_MODULE)]"
@@ -1658,12 +1663,12 @@ class ToyBuildTest(EnhancedTestCase):
             err_msg = r"Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
 
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, err_msg, self.test_toy_build, ec_file=toy_ec,
+            self.assertErrorRegex(EasyBuildError, err_msg, self._test_toy_build, ec_file=toy_ec,
                                   raise_error=True, verbose=False)
 
         # --dry-run still works when external modules are missing; external modules are treated as if they were there
         with self.mocked_stdout_stderr():
-            outtxt = self.test_toy_build(ec_file=toy_ec, verbose=True, extra_args=['--dry-run'], verify=False)
+            outtxt = self._test_toy_build(ec_file=toy_ec, verbose=True, extra_args=['--dry-run'], verify=False)
         regex = re.compile(r"^ \* \[ \] .* \(module: toy/0.0-external-deps-broken2\)", re.M)
         self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
 
@@ -2140,7 +2145,7 @@ class ToyBuildTest(EnhancedTestCase):
         ]
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build(extra_args=extra_args)
+            self._test_toy_build(extra_args=extra_args)
 
         toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.321.foo' % EASYBUILD_VERSION)
         self.assertExists(toypkg)
@@ -2151,11 +2156,11 @@ class ToyBuildTest(EnhancedTestCase):
         pkgpath = os.path.join(self.test_prefix, 'packages')  # default path
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build(['--packagepath=%s' % pkgpath])
+            self._test_toy_build(['--packagepath=%s' % pkgpath])
         self.assertNotExists(pkgpath, "%s is not created without use of --package" % pkgpath)
 
         self.mock_stdout(True)
-        self.test_toy_build(extra_args=['--package', '--skip'], verify=False)
+        self._test_toy_build(extra_args=['--package', '--skip'], verify=False)
         self.mock_stdout(False)
 
         toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.1.rpm' % EASYBUILD_VERSION)
@@ -2164,7 +2169,7 @@ class ToyBuildTest(EnhancedTestCase):
     def test_regtest(self):
         """Test use of --regtest."""
         with self.mocked_stdout_stderr():
-            self.test_toy_build(extra_args=['--regtest', '--sequential'], verify=False)
+            self._test_toy_build(extra_args=['--regtest', '--sequential'], verify=False)
 
         # just check whether module exists
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
@@ -2176,7 +2181,7 @@ class ToyBuildTest(EnhancedTestCase):
         """Test toy build with --minimal-toolchains."""
         # this test doesn't check for anything specific to using minimal toolchains, only side-effects
         with self.mocked_stdout_stderr():
-            self.test_toy_build(extra_args=['--minimal-toolchains'])
+            self._test_toy_build(extra_args=['--minimal-toolchains'])
 
     def test_reproducibility(self):
         """Test toy build produces expected reproducibility files"""
@@ -2198,7 +2203,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # also use the easyblock with inheritance to fully test
         self.mock_stdout(True)
-        self.test_toy_build(extra_args=['--minimal-toolchains', '--easyblock=EB_toytoy', '--hooks=%s' % hooks_file])
+        self._test_toy_build(extra_args=['--minimal-toolchains', '--easyblock=EB_toytoy', '--hooks=%s' % hooks_file])
         self.mock_stdout(False)
 
         # Check whether easyconfig is dumped to reprod/ subdir
@@ -2264,7 +2269,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(ec1, ec1_txt)
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=ec1, verify=False, extra_args=['--minimal-toolchains', '--easyblock=EB_toytoy'])
+            self._test_toy_build(ec_file=ec1, verify=False, extra_args=['--minimal-toolchains', '--easyblock=EB_toytoy'])
 
         # Check whether easyconfig is dumped to reprod/ subdir
         reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod')
@@ -2309,7 +2314,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(ec2, ec2_txt)
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=self.test_prefix, verify=False)
+            self._test_toy_build(ec_file=self.test_prefix, verify=False)
 
         mod1 = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-one')
         mod2 = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-two')
@@ -2409,13 +2414,13 @@ class ToyBuildTest(EnhancedTestCase):
         # sanity check fails if lib64 fallback in sanity check is disabled
         error_pattern = r"Sanity check failed: no file found at 'lib/libtoy.a' or 'lib/libfoo.a' in "
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
                                   extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
                                   raise_error=True, verbose=False)
 
         # all is fine is lib64 fallback check is enabled (which it is by default)
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, raise_error=True)
+            self._test_toy_build(ec_file=test_ec, raise_error=True)
 
         # also check with 'lib' in sanity check dirs (special case)
         ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy'],", ectxt)
@@ -2424,12 +2429,12 @@ class ToyBuildTest(EnhancedTestCase):
 
         error_pattern = r"Sanity check failed: no \(non-empty\) directory found at 'lib' in "
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
                                   extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
                                   raise_error=True, verbose=False)
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
+            self._test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
 
         # also check other way around (lib64 -> lib)
         ectxt = read_file(ec_file)
@@ -2439,13 +2444,13 @@ class ToyBuildTest(EnhancedTestCase):
         # sanity check fails if lib64 fallback in sanity check is disabled, since lib64/libtoy.a is not there
         error_pattern = r"Sanity check failed: no file found at 'lib64/libtoy.a' in "
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
                                   extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
                                   raise_error=True, verbose=False)
 
         # sanity check passes when lib64 fallback is enabled (by default), since lib/libtoy.a is also considered
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
+            self._test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
 
         # also check with 'lib64' in sanity check dirs (special case)
         ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy'],", ectxt)
@@ -2454,12 +2459,12 @@ class ToyBuildTest(EnhancedTestCase):
 
         error_pattern = r"Sanity check failed: no \(non-empty\) directory found at 'lib64' in "
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
                                   extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
                                   raise_error=True, verbose=False)
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
+            self._test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
 
         # check whether fallback works for files that's more than 1 subdir deep
         ectxt = read_file(ec_file)
@@ -2469,7 +2474,7 @@ class ToyBuildTest(EnhancedTestCase):
         ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
         write_file(test_ec, ectxt)
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
+            self._test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
 
     def test_toy_build_enhanced_sanity_check(self):
         """Test enhancing of sanity check."""
@@ -2517,7 +2522,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # by default, sanity check commands & paths specified by easyblock are used
         self.mock_stdout(True)
-        self.test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+        self._test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
         stdout = self.get_stdout()
         self.mock_stdout(False)
 
@@ -2550,7 +2555,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         self.mock_stdout(True)
-        self.test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+        self._test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
         stdout = self.get_stdout()
         self.mock_stdout(False)
 
@@ -2574,7 +2579,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         self.mock_stdout(True)
-        self.test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+        self._test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
         stdout = self.get_stdout()
         self.mock_stdout(False)
 
@@ -2607,7 +2612,7 @@ class ToyBuildTest(EnhancedTestCase):
         ]
 
         self.mock_stdout(True)
-        self.test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+        self._test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
         stdout = self.get_stdout()
         self.mock_stdout(False)
 
@@ -2630,7 +2635,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         error_pattern = r" Missing mandatory key 'dirs' in sanity_check_paths."
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
                                   extra_args=eb_args, raise_error=True, verbose=False)
 
         del sys.modules['easybuild.easyblocks.toy']
@@ -2676,13 +2681,13 @@ class ToyBuildTest(EnhancedTestCase):
         ]
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build()
+            self._test_toy_build()
         toy_mod_txt = read_file(toy_mod_path)
         for regex in regexs:
             self.assertTrue(regex.search(toy_mod_txt), "Pattern '%s' found in: %s" % (regex.pattern, toy_mod_txt))
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build(extra_args=['--filter-env-vars=LD_LIBRARY_PATH,PATH'])
+            self._test_toy_build(extra_args=['--filter-env-vars=LD_LIBRARY_PATH,PATH'])
         toy_mod_txt = read_file(toy_mod_path)
         self.assertFalse(regexs[0].search(toy_mod_txt), "Pattern '%s' found in: %s" % (regexs[0].pattern, toy_mod_txt))
         self.assertTrue(regexs[1].search(toy_mod_txt), "Pattern '%s' found in: %s" % (regexs[1].pattern, toy_mod_txt))
@@ -2698,7 +2703,7 @@ class ToyBuildTest(EnhancedTestCase):
         for extra_args in [None, ['--minimal-toolchains']]:
             # sanity check will make sure all entries in buildopts list were taken into account
             with self.mocked_stdout_stderr():
-                self.test_toy_build(ec_file=toy_ec, extra_args=extra_args, versionsuffix='-iter')
+                self._test_toy_build(ec_file=toy_ec, extra_args=extra_args, versionsuffix='-iter')
 
             # verify whether dumped easyconfig contains original value for buildopts
             dumped_toy_ec = os.path.join(self.test_prefix, 'ebfiles_repo', 'toy', os.path.basename(toy_ec))
@@ -2736,7 +2741,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         args = ['--rpath']
         with self.mocked_stdout_stderr():
-            self.test_toy_build(extra_args=args, raise_error=True)
+            self._test_toy_build(extra_args=args, raise_error=True)
 
         # by default, /lib and /usr are included in RPATH filter,
         # together with temporary directory and build directory
@@ -2749,7 +2754,7 @@ class ToyBuildTest(EnhancedTestCase):
         # Check that we can use --rpath-override-dirs
         args = ['--rpath', '--rpath-override-dirs=/opt/eessi/2021.03/lib:/opt/eessi/lib']
         with self.mocked_stdout_stderr():
-            self.test_toy_build(extra_args=args, raise_error=True)
+            self._test_toy_build(extra_args=args, raise_error=True)
         rpath_include_paths = grab_gcc_rpath_wrapper_args()['include_paths'].split(',')
         # Make sure our directories appear in dirs to be included in the rpath (and in the right order)
         self.assertEqual(rpath_include_paths[0], '/opt/eessi/2021.03/lib')
@@ -2758,7 +2763,7 @@ class ToyBuildTest(EnhancedTestCase):
         # Check that when we use --rpath-override-dirs empty values are filtered
         args = ['--rpath', '--rpath-override-dirs=/opt/eessi/2021.03/lib::/opt/eessi/lib']
         with self.mocked_stdout_stderr():
-            self.test_toy_build(extra_args=args, raise_error=True)
+            self._test_toy_build(extra_args=args, raise_error=True)
         rpath_include_paths = grab_gcc_rpath_wrapper_args()['include_paths'].split(',')
         # Make sure our directories appear in dirs to be included in the rpath (and in the right order)
         self.assertEqual(rpath_include_paths[0], '/opt/eessi/2021.03/lib')
@@ -2768,13 +2773,13 @@ class ToyBuildTest(EnhancedTestCase):
         eb_args = ['--rpath', '--rpath-override-dirs=/opt/eessi/2021.03/lib:eessi/lib']
         error_pattern = r"Path used in rpath_override_dirs is not an absolute path: eessi/lib"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, extra_args=eb_args,
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, extra_args=eb_args,
                                   raise_error=True, verbose=False)
 
         # also test use of --rpath-filter
         args.extend(['--rpath-filter=/test.*,/foo/bar.*', '--disable-cleanup-tmpdir'])
         with self.mocked_stdout_stderr():
-            self.test_toy_build(extra_args=args, raise_error=True)
+            self._test_toy_build(extra_args=args, raise_error=True)
 
         # check whether rpath filter was set correctly
         rpath_filter_paths = grab_gcc_rpath_wrapper_args()['filter_paths'].split(',')
@@ -2790,7 +2795,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         write_file(toy_ec, toy_ec_txt)
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=toy_ec, extra_args=['--rpath'], raise_error=True)
+            self._test_toy_build(ec_file=toy_ec, extra_args=['--rpath'], raise_error=True)
 
     def test_toy_filter_rpath_sanity_libs(self):
         """Test use of --filter-rpath-sanity-libs."""
@@ -2801,7 +2806,7 @@ class ToyBuildTest(EnhancedTestCase):
         # This should just build succesfully
         args = ['--rpath']
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
+            self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
         libtoy_libdir = os.path.join(self.test_installpath, 'software', 'libtoy', '0.0', 'lib')
         toyapp_bin = os.path.join(self.test_installpath, 'software', 'toy-app', '0.0', 'bin', 'toy-app')
@@ -2822,7 +2827,7 @@ class ToyBuildTest(EnhancedTestCase):
         # Thus, the RPATH sanity check is expected to fail with libtoy.so not being found
         error_pattern = r"Sanity check failed\: Library libtoy\.so not found"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=toy_ec,
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
                                   extra_args=['--rpath', '--rpath-filter=.*libtoy.*'],
                                   name='toy-app', raise_error=True, verbose=False)
 
@@ -2831,7 +2836,7 @@ class ToyBuildTest(EnhancedTestCase):
         # the fact that libtoy.so is not found. Thus, this build should complete succesfully
         args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libtoy.so']
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
+            self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
         with self.mocked_stdout_stderr():
             out, ec = run_cmd("readelf -d %s" % toyapp_bin, simple=False)
@@ -2848,7 +2853,7 @@ class ToyBuildTest(EnhancedTestCase):
         # test again with list of library names passed to --filter-rpath-sanity-libs
         args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libfoo.so,libtoy.so,libbar.so']
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
+            self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
         with self.mocked_stdout_stderr():
             out, ec = run_cmd("readelf -d %s" % toyapp_bin, simple=False)
@@ -2892,7 +2897,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--robot-paths=%s' % self.test_prefix,
         ]
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=self.test_prefix, verify=False, extra_args=extra_args, raise_error=True)
+            self._test_toy_build(ec_file=self.test_prefix, verify=False, extra_args=extra_args, raise_error=True)
 
         software_path = os.path.join(self.test_installpath, 'software')
         modules_path = os.path.join(self.test_installpath, 'modules', 'all', 'Core')
@@ -2931,7 +2936,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.test_toy_build(ec_file=test_ec, extra_args=['--trace'], verify=False, testing=False)
+        self._test_toy_build(ec_file=test_ec, extra_args=['--trace'], verify=False, testing=False)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
@@ -3016,7 +3021,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.test_toy_build(ec_file=test_ec, extra_args=['--hooks=%s' % hooks_file], raise_error=True)
+        self._test_toy_build(ec_file=test_ec, extra_args=['--hooks=%s' % hooks_file], raise_error=True)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
@@ -3084,7 +3089,7 @@ class ToyBuildTest(EnhancedTestCase):
         os.environ['LMOD_DISABLE_SAME_NAME_AUTOSWAP'] = 'yes'
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec)
+            self._test_toy_build(ec_file=test_ec)
 
         toy_mod_file = os.path.join(test_mod_path, 'toy', '0.0')
         if get_module_syntax() == 'Lua':
@@ -3193,7 +3198,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         remove_file(toy_mod_file)
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec)
+            self._test_toy_build(ec_file=test_ec)
         toy_mod_txt = read_file(toy_mod_file)
 
         self.assertNotIn(expected, toy_mod_txt)
@@ -3236,7 +3241,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             remove_file(toy_mod_file)
             with self.mocked_stdout_stderr():
-                self.test_toy_build(ec_file=test_ec, extra_args=['--module-depends-on'], raise_error=True)
+                self._test_toy_build(ec_file=test_ec, extra_args=['--module-depends-on'], raise_error=True)
 
             toy_mod_txt = read_file(toy_mod_file)
 
@@ -3341,7 +3346,7 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ec_txt)
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, raise_error=True)
+            self._test_toy_build(ec_file=test_ec, raise_error=True)
 
         toy_bindir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin')
 
@@ -3376,7 +3381,7 @@ class ToyBuildTest(EnhancedTestCase):
         # now test with a custom env command
         extra_args = ['--env-for-shebang=/usr/bin/env -S']
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, extra_args=extra_args, raise_error=True)
+            self._test_toy_build(ec_file=test_ec, extra_args=extra_args, raise_error=True)
 
         toy_bindir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin')
 
@@ -3419,7 +3424,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--sysroot=/usr/../',  # sysroot must exist, and so must /usr/bin/env when appended to it
         ]
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, extra_args=extra_args, raise_error=True)
+            self._test_toy_build(ec_file=test_ec, extra_args=extra_args, raise_error=True)
 
         regexes_shebang['py'] = re.compile(r'^#!/usr/../usr/bin/env -S python\n# test$')
         regexes_shebang['pl'] = re.compile(r'^#!/usr/../usr/bin/env -S perl\n# test$')
@@ -3432,7 +3437,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--sysroot=/usr/../',  # sysroot must exist, and so must /usr/bin/env when appended to it
         ]
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, extra_args=extra_args, raise_error=True)
+            self._test_toy_build(ec_file=test_ec, extra_args=extra_args, raise_error=True)
 
         regexes_shebang['py'] = re.compile(r'^#!/usr/../usr/../usr/bin/env -S python\n# test$')
         regexes_shebang['pl'] = re.compile(r'^#!/usr/../usr/../usr/bin/env -S perl\n# test$')
@@ -3459,7 +3464,7 @@ class ToyBuildTest(EnhancedTestCase):
             write_file(test_ec, test_ec_txt)
 
             with self.mocked_stdout_stderr():
-                self.test_toy_build(ec_file=test_ec)
+                self._test_toy_build(ec_file=test_ec)
 
     def test_toy_ghost_installdir(self):
         """Test whether ghost installation directory is removed under --force."""
@@ -3510,14 +3515,14 @@ class ToyBuildTest(EnhancedTestCase):
 
         error_pattern = "Lock .*_software_toy_0.0.lock already exists, aborting!"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, raise_error=True, verbose=False)
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, raise_error=True, verbose=False)
 
         # lock should still be there after it was hit
         self.assertExists(toy_lock_path)
 
         # trying again should give same result
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, raise_error=True, verbose=False)
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, raise_error=True, verbose=False)
         self.assertExists(toy_lock_path)
 
         locks_dir = os.path.join(self.test_prefix, 'locks')
@@ -3525,18 +3530,18 @@ class ToyBuildTest(EnhancedTestCase):
         # no lock in place, so installation proceeds as normal
         extra_args = ['--locks-dir=%s' % locks_dir]
         with self.mocked_stdout_stderr():
-            self.test_toy_build(extra_args=extra_args, verify=True, raise_error=True)
+            self._test_toy_build(extra_args=extra_args, verify=True, raise_error=True)
 
         # put lock in place in custom locks dir, try again
         toy_lock_path = os.path.join(locks_dir, toy_lock_fn)
         mkdir(toy_lock_path, parents=True)
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build,
                                   extra_args=extra_args, raise_error=True, verbose=False)
 
         # also test use of --ignore-locks
         with self.mocked_stdout_stderr():
-            self.test_toy_build(extra_args=extra_args + ['--ignore-locks'], verify=True, raise_error=True)
+            self._test_toy_build(extra_args=extra_args + ['--ignore-locks'], verify=True, raise_error=True)
 
         orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
@@ -3581,7 +3586,7 @@ class ToyBuildTest(EnhancedTestCase):
             with RemoveLockAfter(3, toy_lock_path):
                 self.mock_stderr(True)
                 self.mock_stdout(True)
-                self.test_toy_build(extra_args=all_args, verify=False, raise_error=True, testing=False)
+                self._test_toy_build(extra_args=all_args, verify=False, raise_error=True, testing=False)
                 stderr, stdout = self.get_stderr(), self.get_stdout()
                 self.mock_stderr(False)
                 self.mock_stdout(False)
@@ -3600,7 +3605,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.mock_stderr(True)
         self.mock_stdout(True)
         error_pattern = r"Maximum wait time for lock /.*toy_0.0.lock to be released reached: [0-9]+ sec >= 3 sec"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, extra_args=all_args,
+        self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, extra_args=all_args,
                               verify=False, raise_error=True, testing=False)
         stderr, stdout = self.get_stderr(), self.get_stdout()
         self.mock_stderr(False)
@@ -3616,7 +3621,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertNotExists(toy_lock_path)
             self.mock_stderr(True)
             self.mock_stdout(True)
-            self.test_toy_build(extra_args=all_args, verify=False, raise_error=True, testing=False)
+            self._test_toy_build(extra_args=all_args, verify=False, raise_error=True, testing=False)
             stderr, stdout = self.get_stderr(), self.get_stdout()
             self.mock_stderr(False)
             self.mock_stdout(False)
@@ -3630,7 +3635,7 @@ class ToyBuildTest(EnhancedTestCase):
         error_pattern = r"Failed to create lock /.*_software_toy_0.0.lock:.* "
         error_pattern += r"(Read-only file system|Permission denied)"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build,
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build,
                                   extra_args=extra_args, raise_error=True, verbose=False)
 
     def test_toy_lock_cleanup_signals(self):
@@ -3686,7 +3691,7 @@ class ToyBuildTest(EnhancedTestCase):
 
                 self.mock_stderr(True)
                 self.mock_stdout(True)
-                self.assertErrorRegex(exc, '.*', self.test_toy_build, ec_file=test_ec, verify=False,
+                self.assertErrorRegex(exc, '.*', self._test_toy_build, ec_file=test_ec, verify=False,
                                       raise_error=True, testing=False, raise_systemexit=True)
 
                 stderr = self.get_stderr().strip()
@@ -3717,7 +3722,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, raise_error=True)
+            self._test_toy_build(ec_file=test_ec, raise_error=True)
 
     def test_toy_build_lib64_lib_symlink(self):
         """Check whether lib64 symlink to lib subdirectory is created."""
@@ -3726,7 +3731,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # by default, lib64 -> lib symlink is created (--lib64-lib-symlink is enabled by default)
         with self.mocked_stdout_stderr():
-            self.test_toy_build()
+            self._test_toy_build()
 
         toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
         lib_path = os.path.join(toy_installdir, 'lib')
@@ -3748,7 +3753,7 @@ class ToyBuildTest(EnhancedTestCase):
         # cleanup and try again with --disable-lib64-lib-symlink
         remove_dir(self.test_installpath)
         with self.mocked_stdout_stderr():
-            self.test_toy_build(extra_args=['--disable-lib64-lib-symlink'])
+            self._test_toy_build(extra_args=['--disable-lib64-lib-symlink'])
 
         self.assertExists(lib_path)
         self.assertNotExists(lib64_path)
@@ -3770,7 +3775,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # by default, lib -> lib64 symlink is created (--lib-lib64-symlink is enabled by default)
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec)
+            self._test_toy_build(ec_file=test_ec)
 
         toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
         lib_path = os.path.join(toy_installdir, 'lib')
@@ -3793,7 +3798,7 @@ class ToyBuildTest(EnhancedTestCase):
         # cleanup and try again with --disable-lib-lib64-symlink
         remove_dir(self.test_installpath)
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, extra_args=['--disable-lib-lib64-symlink'])
+            self._test_toy_build(ec_file=test_ec, extra_args=['--disable-lib-lib64-symlink'])
 
         self.assertExists(lib64_path)
         self.assertNotExists(lib_path)
@@ -3820,37 +3825,37 @@ class ToyBuildTest(EnhancedTestCase):
 
         # default check is done via EB_libtoy easyblock, which specifies several banned/required libraries
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=libtoy_ec, raise_error=True, verbose=False, verify=False)
+            self._test_toy_build(ec_file=libtoy_ec, raise_error=True, verbose=False, verify=False)
         remove_file(libtoy_modfile_path)
 
         # we can make the check fail by defining environment variables picked up by the EB_libtoy easyblock
         os.environ['EB_LIBTOY_BANNED_SHARED_LIBS'] = 'libtoy'
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.test_toy_build, force=False,
+            self.assertErrorRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
                                   ec_file=libtoy_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
         del os.environ['EB_LIBTOY_BANNED_SHARED_LIBS']
 
         os.environ['EB_LIBTOY_REQUIRED_SHARED_LIBS'] = 'thisisnottheremostlikely'
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.test_toy_build, force=False,
+            self.assertErrorRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
                                   ec_file=libtoy_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
         del os.environ['EB_LIBTOY_REQUIRED_SHARED_LIBS']
 
         # make sure default check passes (so we know better what triggered a failing test)
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=libtoy_ec, extra_args=['--module-only'], force=False,
+            self._test_toy_build(ec_file=libtoy_ec, extra_args=['--module-only'], force=False,
                                 raise_error=True, verbose=False, verify=False)
         remove_file(libtoy_modfile_path)
 
         # check specifying banned/required libraries via EasyBuild configuration option
         args = ['--banned-linked-shared-libs=%s,foobarbaz' % libtoy_fn, '--module-only']
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.test_toy_build, force=False,
+            self.assertErrorRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
                                   ec_file=libtoy_ec, extra_args=args, raise_error=True, verbose=False)
 
         args = ['--required-linked-shared=libs=foobarbazisnotthereforsure', '--module-only']
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.test_toy_build, force=False,
+            self.assertErrorRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
                                   ec_file=libtoy_ec, extra_args=args, raise_error=True, verbose=False)
 
         # check specifying banned/required libraries via easyconfig parameter
@@ -3858,14 +3863,14 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt += "\nbanned_linked_shared_libs = ['toy']"
         write_file(test_ec, test_ec_txt)
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.test_toy_build, force=False,
+            self.assertErrorRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
                                   ec_file=test_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
 
         test_ec_txt = read_file(libtoy_ec)
         test_ec_txt += "\nrequired_linked_shared_libs = ['thereisnosuchlibraryyoudummy']"
         write_file(test_ec, test_ec_txt)
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.test_toy_build, force=False,
+            self.assertErrorRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
                                   ec_file=test_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
 
         # check behaviour when alternate subdirectories are specified
@@ -3873,7 +3878,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt += "\nbin_lib_subdirs = ['', 'lib', 'lib64']"
         write_file(test_ec, test_ec_txt)
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, extra_args=['--module-only'], force=False,
+            self._test_toy_build(ec_file=test_ec, extra_args=['--module-only'], force=False,
                                 raise_error=True, verbose=False, verify=False)
 
         # one last time: supercombo (with patterns that should pass the check)
@@ -3888,7 +3893,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--module-only',
         ]
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, extra_args=args, force=False,
+            self._test_toy_build(ec_file=test_ec, extra_args=args, force=False,
                                 raise_error=True, verbose=False, verify=False)
 
     def test_toy_ignore_test_failure(self):
@@ -3912,7 +3917,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec)
+            self._test_toy_build(ec_file=test_ec)
 
         toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
         toy_readme_txt = read_file(os.path.join(toy_installdir, 'README'))
@@ -3937,7 +3942,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.test_toy_build(ec_file=test_ec, force=False, raise_error=False, verify=False,
+        self._test_toy_build(ec_file=test_ec, force=False, raise_error=False, verify=False,
                             test_report_regexs=[r"One or more OS dependencies were not found"],
                             test_report=test_report_fp)
         stdout = self.get_stdout()
@@ -3968,7 +3973,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.test_toy_build(ec_file=test_ec, test_report=test_report_fp)
+        self._test_toy_build(ec_file=test_ec, test_report=test_report_fp)
         stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
