@@ -1560,9 +1560,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
-        stdout = self.get_stdout().strip()
         self.mock_stderr(False)
-        self.mock_stdout(False)
         self.assertIn("Download instructions:\n\nManual download from example.com required", stderr)
 
         # create dummy source file
@@ -1575,7 +1573,6 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
-        stdout = self.get_stdout().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertIn("Download instructions:\n\nManual download from example.com required", stderr)
@@ -1590,7 +1587,6 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
-        stdout = self.get_stdout().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
 
@@ -1606,7 +1602,6 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
-        stdout = self.get_stdout().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertIn("Download instructions:\n\nExtension sources must be downloaded via example.com", stderr)
@@ -1620,7 +1615,6 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
-        stdout = self.get_stdout().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertIn("Download instructions:\n\nExtension sources must be downloaded via example.com", stderr)
