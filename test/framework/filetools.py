@@ -428,13 +428,15 @@ class FileToolsTest(EnhancedTestCase):
         test_dir = os.path.abspath(os.path.dirname(__file__))
         toy_source_dir = os.path.join(test_dir, 'sandbox', 'sources', 'toy')
         source_url = 'file://%s/%s' % (toy_source_dir, fn)
-        res = ft.download_file(fn, source_url, target_location)
+        with self.mocked_stdout_stderr():
+            res = ft.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location, "'download' of local file works")
         downloads = glob.glob(target_location + '*')
         self.assertEqual(len(downloads), 1)
 
         # non-existing files result in None return value
-        self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
+        with self.mocked_stdout_stderr():
+            self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
 
         # install broken proxy handler for opening local files
         # this should make urlopen use this broken proxy for downloading from a file:// URL
@@ -450,7 +452,8 @@ class FileToolsTest(EnhancedTestCase):
 
         # restore a working file handler, and retest download of local file
         request.install_opener(request.build_opener(request.FileHandler()))
-        res = ft.download_file(fn, source_url, target_location)
+        with self.mocked_stdout_stderr():
+            res = ft.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location, "'download' of local file works after removing broken proxy")
 
         # existing file was re-downloaded, so a backup should have been created of the existing file
@@ -467,7 +470,8 @@ class FileToolsTest(EnhancedTestCase):
         url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
         try:
             request.urlopen(url)
-            res = ft.download_file(fn, url, target_location)
+            with self.mocked_stdout_stderr():
+                res = ft.download_file(fn, url, target_location)
             self.assertEqual(res, target_location, "download with specified timeout works")
         except request.URLError:
             print("Skipping timeout test in test_download_file (working offline)")
@@ -492,7 +496,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertNotExists(target_location)
         self.assertTrue(re.match("^file written: .*/foo$", txt))
 
-        ft.download_file(fn, source_url, target_location, forced=True)
+        with self.mocked_stdout_stderr():
+            ft.download_file(fn, source_url, target_location, forced=True)
         self.assertExists(target_location)
         self.assertTrue(os.path.samefile(path, target_location))
 
@@ -566,9 +571,11 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(res, None)
 
         update_build_option('insecure_download', True)
+        self.mock_stderr(False)
         self.mock_stderr(True)
         res = ft.download_file(fn, url, target_path)
         stderr = self.get_stderr()
+        self.mock_stdout(False)
         self.mock_stderr(False)
 
         self.assertIn("WARNING: Not checking server certificates while downloading toy-0.0.eb", stderr)
@@ -1583,7 +1590,8 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_pypi_source_urls(self):
         """Test pypi_source_urls() function."""
-        res = ft.pypi_source_urls('easybuild')
+        with self.mocked_stdout_stderr():
+            res = ft.pypi_source_urls('easybuild')
         eb340_url = 'https://pypi.python.org/packages/'
         eb340_url += '93/41/574d01f352671fbc8589a436167e15a7f3e27ac0aa635d208eb29ee8fd4e/'
         eb340_url += 'easybuild-3.4.0.tar.gz#sha256=d870b27211f2224aab89bfd3279834ffb89ff00ad849a0dc2bf5cc1691efa9d2'
@@ -1602,7 +1610,8 @@ class FileToolsTest(EnhancedTestCase):
 
         # check for Python package that has yanked releases,
         # see https://github.com/easybuilders/easybuild-framework/issues/3301
-        res = ft.pypi_source_urls('ipython')
+        with self.mocked_stdout_stderr():
+            res = ft.pypi_source_urls('ipython')
         self.assertTrue(isinstance(res, list) and res)
         prefix = 'https://pypi.python.org/packages'
         for entry in res:
@@ -1613,21 +1622,25 @@ class FileToolsTest(EnhancedTestCase):
         """Test derive_alt_pypi_url() function."""
         url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz'
         alturl = url.replace('source/e/easybuild', '5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf')
-        self.assertEqual(ft.derive_alt_pypi_url(url), alturl)
+        with self.mocked_stdout_stderr():
+            self.assertEqual(ft.derive_alt_pypi_url(url), alturl)
 
         # test case to ensure that '.' characters in filename are escaped using '\.'
         # if not, the alternative URL for tornado-4.5b1.tar.gz is found...
         url = 'https://pypi.python.org/packages/source/t/tornado/tornado-4.5.1.tar.gz'
         alturl = url.replace('source/t/tornado', 'df/42/a180ee540e12e2ec1007ac82a42b09dd92e5461e09c98bf465e98646d187')
-        self.assertEqual(ft.derive_alt_pypi_url(url), alturl)
+        with self.mocked_stdout_stderr():
+            self.assertEqual(ft.derive_alt_pypi_url(url), alturl)
 
         # no crash on non-existing version
         url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-0.0.0.tar.gz'
-        self.assertEqual(ft.derive_alt_pypi_url(url), None)
+        with self.mocked_stdout_stderr():
+            self.assertEqual(ft.derive_alt_pypi_url(url), None)
 
         # no crash on non-existing package
         url = 'https://pypi.python.org/packages/source/n/nosuchpackageonpypiever/nosuchpackageonpypiever-0.0.0.tar.gz'
-        self.assertEqual(ft.derive_alt_pypi_url(url), None)
+        with self.mocked_stdout_stderr():
+            self.assertEqual(ft.derive_alt_pypi_url(url), None)
 
     def test_create_patch_info(self):
         """Test create_patch_info function."""
@@ -1668,13 +1681,15 @@ class FileToolsTest(EnhancedTestCase):
         """ Test apply_patch """
         testdir = os.path.dirname(os.path.abspath(__file__))
         toy_tar_gz = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
-        path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
 
         for with_backup in (True, False):
             update_build_option('backup_patched_files', with_backup)
-            self.assertTrue(ft.apply_patch(toy_patch, path))
+            with self.mocked_stdout_stderr():
+                self.assertTrue(ft.apply_patch(toy_patch, path))
             src_file = os.path.join(path, 'toy-0.0', 'toy.source')
             backup_file = src_file + '.orig'
             patched = ft.read_file(src_file)
@@ -2214,7 +2229,8 @@ class FileToolsTest(EnhancedTestCase):
         toy_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
 
         self.assertNotExists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source'))
-        path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=False)
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=False)
         self.assertExists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source'))
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         # still in same directory as before if change_into_dir is set to False
@@ -2224,7 +2240,8 @@ class FileToolsTest(EnhancedTestCase):
         toy_tarball_renamed = os.path.join(self.test_prefix, 'toy_tarball')
         shutil.copyfile(toy_tarball, toy_tarball_renamed)
 
-        path = ft.extract_file(toy_tarball_renamed, self.test_prefix, cmd="tar xfvz %s", change_into_dir=False)
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(toy_tarball_renamed, self.test_prefix, cmd="tar xfvz %s", change_into_dir=False)
         self.assertTrue(os.path.samefile(os.getcwd(), cwd))
         self.assertExists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source'))
         self.assertTrue(os.path.samefile(path, self.test_prefix))
@@ -2247,7 +2264,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertNotExists(os.path.join(self.test_prefix, 'toy-0.0'))
         self.assertTrue(re.search('running command "tar xzf .*/toy-0.0.tar.gz"', txt))
 
-        path = ft.extract_file(toy_tarball, self.test_prefix, forced=True, change_into_dir=False)
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(toy_tarball, self.test_prefix, forced=True, change_into_dir=False)
         self.assertExists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source'))
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertTrue(os.path.samefile(os.getcwd(), cwd))
@@ -2260,10 +2278,12 @@ class FileToolsTest(EnhancedTestCase):
         ft.change_dir(cwd)
         self.assertFalse(os.path.samefile(os.getcwd(), self.test_prefix))
 
+        self.mock_stdout(True)
         self.mock_stderr(True)
         path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=True)
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
+        self.mock_stdout(False)
 
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
