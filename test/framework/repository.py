@@ -94,7 +94,8 @@ class RepositoryTest(EnhancedTestCase):
         # filepath
         tmpdir = tempfile.mkdtemp()
         cmd = "cd %s && git clone --bare %s" % (tmpdir, test_repo_url)
-        _, ec = run_cmd(cmd, simple=False, log_all=False, log_ok=False)
+        with self.mocked_stdout_stderr():
+            _, ec = run_cmd(cmd, simple=False, log_all=False, log_ok=False)
 
         # skip remainder of test if creating bare git repo didn't work
         if ec == 0:
