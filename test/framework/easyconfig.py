@@ -560,7 +560,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
-        eb.fetch_step()
+        with self.mocked_stdout_stderr():
+            eb.fetch_step()
 
         # inject OS dependency that can not be fullfilled,
         # to check whether OS deps are validated again for each extension (they shouldn't be);
@@ -569,7 +570,8 @@ class EasyConfigTest(EnhancedTestCase):
         eb.cfg.rawtxt += "\nosdependencies = ['this_os_dep_does_not_exist']"
 
         # run extensions step to install 'toy' extension
-        eb.extensions_step()
+        with self.mocked_stdout_stderr():
+            eb.extensions_step()
 
         # check whether template values were resolved correctly in Extension instances that were created/used
         toy_ext = eb.ext_instances[0]
@@ -1448,9 +1450,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
-        eb.post_init()
-        eb.make_builddir()
-        eb.make_installdir()
+        with self.mocked_stdout_stderr():
+            eb.post_init()
+            eb.make_builddir()
+            eb.make_installdir()
         self.assertEqual(eb.builddir, eb.installdir)
         self.assertTrue(os.path.isdir(eb.builddir))
 
@@ -3254,7 +3257,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         # also check template values after running check_readiness_step (which runs set_parallel)
         eb = EasyBlock(ec)
-        eb.check_readiness_step()
+        with self.mocked_stdout_stderr():
+            eb.check_readiness_step()
 
         st.get_avail_core_count = orig_get_avail_core_count
 
@@ -4501,8 +4505,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertFalse(ec['recursive_module_unload'])
         eb = EasyBlock(ec)
         eb.builddir = self.test_prefix
-        eb.prepare_step()
-        eb.make_module_step()
+        with self.mocked_stdout_stderr():
+            eb.prepare_step()
+            eb.make_module_step()
         modtxt = read_file(test_module)
         fail_msg = "Pattern '%s' should be found in: %s" % (guarded_load_regex.pattern, modtxt)
         self.assertTrue(guarded_load_regex.search(modtxt), fail_msg)
@@ -4520,8 +4525,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(ec_bis['recursive_module_unload'])
         eb_bis = EasyBlock(ec_bis)
         eb_bis.builddir = self.test_prefix
-        eb_bis.prepare_step()
-        eb_bis.make_module_step()
+        with self.mocked_stdout_stderr():
+            eb_bis.prepare_step()
+            eb_bis.make_module_step()
         modtxt = read_file(test_module)
         fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
         self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
@@ -4532,8 +4538,9 @@ class EasyConfigTest(EnhancedTestCase):
         update_build_option('recursive_mod_unload', True)
         eb = EasyBlock(ec)
         eb.builddir = self.test_prefix
-        eb.prepare_step()
-        eb.make_module_step()
+        with self.mocked_stdout_stderr():
+            eb.prepare_step()
+            eb.make_module_step()
         modtxt = read_file(test_module)
         fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
         self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
@@ -4549,8 +4556,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec_bis['recursive_module_unload'], False)
         eb_bis = EasyBlock(ec_bis)
         eb_bis.builddir = self.test_prefix
-        eb_bis.prepare_step()
-        eb_bis.make_module_step()
+        with self.mocked_stdout_stderr():
+            eb_bis.prepare_step()
+            eb_bis.make_module_step()
         modtxt = read_file(test_module)
         fail_msg = "Pattern '%s' should be found in: %s" % (guarded_load_regex.pattern, modtxt)
         self.assertTrue(guarded_load_regex.search(modtxt), fail_msg)

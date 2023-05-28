@@ -5691,7 +5691,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_pattern += r"name: 'toy'; version: '0.0'; versionsuffix: ''; "
         error_pattern += r"toolchain name, version: 'system', 'system'\)"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, logfile=dummylogfn, raise_error=True)
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, logfile=dummylogfn,
+                                  raise_error=True)
 
         write_file(self.logfile, '')
 

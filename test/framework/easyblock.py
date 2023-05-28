@@ -1741,10 +1741,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(True)
         res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], force_download=True)
         stderr = self.get_stderr()
-        stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertEqual(stdout, '')
         msg = "WARNING: Found file toy-0.0.tar.gz at %s, but re-downloading it anyway..." % toy_tarball_path
         self.assertEqual(stderr.strip(), msg)
 

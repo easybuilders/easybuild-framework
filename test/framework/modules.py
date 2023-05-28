@@ -1307,7 +1307,8 @@ class ModulesTest(EnhancedTestCase):
         modulepath = os.environ['MODULEPATH']
         self.assertIn(modules_dir, modulepath)
 
-        out, _ = run_cmd("bash -c 'echo MODULEPATH: $MODULEPATH'", simple=False)
+        with self.mocked_stdout_stderr():
+            out, _ = run_cmd("bash -c 'echo MODULEPATH: $MODULEPATH'", simple=False)
         self.assertEqual(out.strip(), "MODULEPATH: %s" % modulepath)
         self.assertIn(modules_dir, out)
 
@@ -1530,7 +1531,8 @@ class ModulesTest(EnhancedTestCase):
         write_file(test_ec, "\nmodextravars = {'FOO': 'value with spaces'}", append=True)
 
         toy_eb = EasyBlock(EasyConfig(test_ec))
-        toy_eb.make_module_step()
+        with self.mocked_stdout_stderr():
+            toy_eb.make_module_step()
 
         expected_root = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
         ebroot = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'EBROOTTOY')
