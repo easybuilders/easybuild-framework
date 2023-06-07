@@ -519,7 +519,8 @@ class FileToolsTest(EnhancedTestCase):
 
         # if requests is available, file is downloaded
         if ft.HAVE_REQUESTS:
-            res = ft.download_file(fn, url, target)
+            with self.mocked_stdout_stderr():
+                res = ft.download_file(fn, url, target)
             self.assertTrue(res and os.path.exists(res))
             self.assertIn("https://easybuild.io", ft.read_file(res))
 
@@ -535,7 +536,8 @@ class FileToolsTest(EnhancedTestCase):
 
         # if requests is available, file is downloaded
         if ft.HAVE_REQUESTS:
-            res = ft.download_file(fn, url, target)
+            with self.mocked_stdout_stderr():
+                res = ft.download_file(fn, url, target)
             self.assertTrue(res and os.path.exists(res))
             self.assertIn("https://easybuild.io", ft.read_file(res))
 
