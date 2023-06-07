@@ -3964,7 +3964,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--color=never',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             '--review-pr=5365',
-            '--review-pr-max=1',
+                '--review-pr-max=1',
         ]
         self.eb_main(args, raise_error=True, testing=True)
         txt = self.get_stdout()
@@ -4918,7 +4918,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO,
                                        'develop/easybuild/easyconfigs/z/zlib/zlib-1.2.11-GCCcore-6.4.0.eb'])
         ec_fn = os.path.basename(full_url)
-        ec = download_file(ec_fn, full_url, path=os.path.join(self.test_prefix, ec_fn))
+        with self.mocked_stdout_stderr():
+            ec = download_file(ec_fn, full_url, path=os.path.join(self.test_prefix, ec_fn))
 
         # try to open new pr with unchanged file
         args = [
