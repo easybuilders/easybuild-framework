@@ -542,7 +542,7 @@ class RunTest(EnhancedTestCase):
         """Testing use of run_cmd with shell=False to call external scripts"""
         py_test_script = os.path.join(self.test_prefix, 'test.py')
         write_file(py_test_script, '\n'.join([
-            '#!/usr/bin/python',
+            '#!/usr/bin/env python',
             'print("hello")',
         ]))
         adjust_permissions(py_test_script, stat.S_IXUSR)

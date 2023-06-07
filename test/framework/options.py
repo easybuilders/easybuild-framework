@@ -4452,7 +4452,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt, assert_true=False)
 
-    def test_new_pr_warning_missing_patch(self):
+    def test_github_new_pr_warning_missing_patch(self):
         """Test warning printed by --new-pr (dry run only) when a specified patch file could not be found."""
 
         if self.github_token is None:
@@ -4677,7 +4677,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self._assert_regexs(regexs, txt)
 
-    def test_new_pr_easyblock(self):
+    def test_github_new_pr_easyblock(self):
         """
         Test using --new-pr to open an easyblocks PR
         """
@@ -4750,7 +4750,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         expected_stdout = '\n'.join([
             "Checking eligibility of easybuilders/easybuild-easyconfigs PR #4781 for merging...",
-            "* test suite passes: OK",
             "* last test report is successful: OK",
             "* no pending change requests: OK",
             "* milestone is set: OK (3.3.1)",
@@ -4758,6 +4757,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         expected_stderr = '\n'.join([
             "* targets some_branch branch: FAILED; found 'develop' => not eligible for merging!",
+            # since commit status for old PRs is no longer available, so test suite check fails
+            "* test suite passes: (status: None) => not eligible for merging!",
             "* approved review: MISSING => not eligible for merging!",
             '',
             "WARNING: Review indicates this PR should not be merged (use -f/--force to do so anyway)",
@@ -4767,24 +4768,24 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # full eligible merged PR, default target branch
         del args[-1]
-        args[1] = '4832'
+        args[1] = '17065'
 
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         expected_stdout = '\n'.join([
-            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #4832 for merging...",
+            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #17065 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* last test report is successful: OK",
             "* no pending change requests: OK",
-            "* approved review: OK (by wpoely86)",
-            "* milestone is set: OK (3.3.1)",
+            "* approved review: OK (by SebastianAchilles)",
+            "* milestone is set: OK (4.7.1)",
             "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
             '',
-            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #4832: 'Going in, thanks @boegel!'",
-            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #4832",
+            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #17065: 'Going in, thanks @boegel!'",
+            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #17065",
         ])
         expected_stderr = ''
         self.assertEqual(stderr.strip(), expected_stderr)
@@ -4793,7 +4794,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # --merge-pr also works on easyblocks (& framework) PRs
         args = [
             '--merge-pr',
-            '1206',
+            '2805',
             '--pr-target-repo=easybuild-easyblocks',
             '-D',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -4801,12 +4802,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
         self.assertEqual(stderr.strip(), '')
         expected_stdout = '\n'.join([
-            "Checking eligibility of easybuilders/easybuild-easyblocks PR #1206 for merging...",
+            "Checking eligibility of easybuilders/easybuild-easyblocks PR #2805 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* no pending change requests: OK",
-            "* approved review: OK (by migueldiascosta)",
-            "* milestone is set: OK (3.3.1)",
+            "* approved review: OK (by ocaisa)",
+            "* milestone is set: OK (4.6.2)",
             "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
@@ -5745,7 +5746,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^==  \* bar-0\.0\.tar\.gz: %s$" % bar_tar_gz_sha256,
             r"^==  \* %s: %s$" % (bar_patch, bar_patch_sha256),
             r"^==  \* %s: %s$" % (bar_patch_bis, bar_patch_bis_sha256),
-            r"^==  \* barbar-0\.0\.tar\.gz: d5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838$",
+            r"^==  \* barbar-1\.2\.tar\.gz: d5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838$",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -5801,7 +5802,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(ec['checksums'], [{'toy-0.0.tar.gz': toy_source_sha256},
                                            {'toy-0.0_fix-silly-typo-in-printf-statement.patch': toy_patch_sha256}])
         self.assertEqual(ec['exts_default_options'], {'source_urls': ['http://example.com/%(name)s']})
-        self.assertEqual(ec['exts_list'][0], 'ls')
+        self.assertEqual(ec['exts_list'][0], 'ulimit')
         self.assertEqual(ec['exts_list'][1], ('bar', '0.0', {
             'buildopts': " && gcc bar.c -o anotherbar",
             'checksums': [
@@ -5815,7 +5816,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'unknowneasyconfigparameterthatshouldbeignored': 'foo',
             'keepsymlinks': True,
         }))
-        self.assertEqual(ec['exts_list'][2], ('barbar', '0.0', {
+        self.assertEqual(ec['exts_list'][2], ('barbar', '1.2', {
             'checksums': ['d5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838'],
             'start_dir': 'src',
         }))
