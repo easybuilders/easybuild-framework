@@ -3964,7 +3964,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--color=never',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             '--review-pr=5365',
-                '--review-pr-max=1',
+            '--review-pr-max=1',
         ]
         self.eb_main(args, raise_error=True, testing=True)
         txt = self.get_stdout()
