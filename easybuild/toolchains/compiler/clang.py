@@ -34,7 +34,6 @@ Authors:
 """
 
 import easybuild.tools.systemtools as systemtools
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
 
