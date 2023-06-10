@@ -1711,7 +1711,7 @@ class SimpleOption(GeneralOption):
     PARSER = SimpleOptionParser
     SETROOTLOGGER = True
 
-    def __init__(self, go_dict=None, descr=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
+    def __init__(self, go_dict=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
         """Initialisation
         :param go_dict: General Option option dict
         :param short_groupdescr: short description of main options
@@ -1740,18 +1740,13 @@ class SimpleOption(GeneralOption):
 
         super(SimpleOption, self).__init__(**kwargs)
 
-        if descr is not None:
-            # TODO: as there is no easy/clean way to access the version of the vsc-base package,
-            # this is equivalent to a warning
-            self.log.deprecated('SimpleOption descr argument', '2.5.0', '3.0.0')
-
     def main_options(self):
         if self.go_dict is not None:
             prefix = None
             self.add_group_parser(self.go_dict, self.descr, prefix=prefix)
 
 
-def simple_option(go_dict=None, descr=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
+def simple_option(go_dict=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
     """A function that returns a single level GeneralOption option parser
 
     :param go_dict: General Option option dict
@@ -1765,5 +1760,5 @@ def simple_option(go_dict=None, descr=None, short_groupdescr=None, long_groupdes
 
     the generated help will include the docstring
     """
-    return SimpleOption(go_dict=go_dict, descr=descr, short_groupdescr=short_groupdescr,
-                        long_groupdescr=long_groupdescr, config_files=config_files)
+    return SimpleOption(go_dict=go_dict, short_groupdescr=short_groupdescr, long_groupdescr=long_groupdescr,
+                        config_files=config_files)
