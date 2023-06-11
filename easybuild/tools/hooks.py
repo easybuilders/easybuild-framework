@@ -123,7 +123,7 @@ def load_hooks(hooks_path):
                 _log.info("Importing hooks implementation from %s...", hooks_path)
                 try:
                     # import module that defines hooks, and collect all functions of which name ends with '_hook'
-                    imported_hooks = imp.load_source(hooks_filename, hooks_path)
+                    imported_hooks = load_source(hooks_filename, hooks_path)
                     for attr in dir(imported_hooks):
                         if attr.endswith(HOOK_SUFF):
                             hook = getattr(imported_hooks, attr)
