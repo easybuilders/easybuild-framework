@@ -403,20 +403,6 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     return toolchain_hierarchy
 
 
-@contextmanager
-def disable_templating(ec):
-    """Temporarily disable templating on the given EasyConfig
-
-    Usage:
-        with disable_templating(ec):
-            # Do what you want without templating
-        # Templating set to previous value
-    """
-    _log.deprecated("disable_templating(ec) was replaced by ec.disable_templating()", '5.0')
-    with ec.disable_templating() as old_value:
-        yield old_value
-
-
 class EasyConfig(object):
     """
     Class which handles loading, reading, validation of easyconfigs
@@ -1857,19 +1843,10 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
     _log.nosupport('Use det_full_ec_version from easybuild.tools.module_generator instead of %s' % old_fn, '2.0')
 
 
-def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error_on_missing_easyblock=None, **kwargs):
+def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error_on_missing_easyblock=True, **kwargs):
     """
     Get class for a particular easyblock (or use default)
     """
-    if 'default_fallback' in kwargs:
-        msg = "Named argument 'default_fallback' for get_easyblock_class is deprecated, "
-        msg += "use 'error_on_missing_easyblock' instead"
-        _log.deprecated(msg, '4.0')
-        if error_on_missing_easyblock is None:
-            error_on_missing_easyblock = kwargs['default_fallback']
-    elif error_on_missing_easyblock is None:
-        error_on_missing_easyblock = True
-
     cls = None
     try:
         if easyblock:
