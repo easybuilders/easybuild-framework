@@ -484,7 +484,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     return base_dir
 
 
-def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=None, on_error=WARN):
+def which(cmd, retain_all=False, check_perms=True, log_ok=True, on_error=WARN):
     """
     Return (first) path in $PATH for specified command, or None if command is not found
 
