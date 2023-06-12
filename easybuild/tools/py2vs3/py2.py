@@ -33,6 +33,7 @@ Authors:
 """
 # these are not used here, but imported from here in other places
 import ConfigParser as configparser  # noqa
+import imp
 import json
 import subprocess
 import time
@@ -57,6 +58,11 @@ string_type = basestring
 
 # trivial wrapper for json.loads (Python 3 version is less trivial)
 json_loads = json.loads
+
+
+def load_source(filename, path):
+    """Load Python module"""
+    return imp.load_source(filename, path)
 
 
 def subprocess_popen_text(cmd, **kwargs):
