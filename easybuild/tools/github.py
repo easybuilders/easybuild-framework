@@ -1581,6 +1581,45 @@ def new_branch_github(paths, ecs, commit_msg=None):
     return res
 
 
+def det_pr_title(ecs):
+    """
+    Create title for PR based on first easyconfigs
+    :param ecs: list of parsed easyconfigs
+    """
+
+    # only use most common toolchain(s) in toolchain label of PR title
+    toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in ecs]
+    toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
+    toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
+
+    # only use most common module class(es) in moduleclass label of PR title
+    classes = [ec['moduleclass'] for ec in ecs]
+    classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
+    class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
+
+    names_and_versions = nub(["%s v%s" % (ec.name, ec.version) for ec in ecs])
+    if len(names_and_versions) <= 3:
+        main_title = ', '.join(names_and_versions)
+    else:
+        main_title = ', '.join(names_and_versions[:3] + ['...'])
+
+    title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+
+    # Find all suffixes
+    suffixes = []
+    for ec in ecs:
+        if 'versionsuffix' in ec and ec['versionsuffix']:
+            suffixes.append(ec['versionsuffix'].strip('-').replace('-', ' '))
+    if suffixes:
+        suffixes = sorted(nub(suffixes))
+        if len(suffixes) <= 2:
+            title += ' w/ ' + ', '.join(suffixes)
+        else:
+            title += ' w/ ' + ', '.join(suffixes[:2] + ['...'])
+
+    return title
+
+
 @only_if_module_is_available('git', pkgname='GitPython')
 def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None, pr_metadata=None, commit_msg=None):
     """
@@ -1691,41 +1730,10 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
 
     labels = det_pr_labels(file_info, pr_target_repo)
 
-    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
-        # only use most common toolchain(s) in toolchain label of PR title
-        toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
-        toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
-        toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
-
-        # only use most common module class(es) in moduleclass label of PR title
-        classes = [ec['moduleclass'] for ec in file_info['ecs']]
-        classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
-        class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
-
     if title is None:
         if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
             if file_info['ecs'] and all(file_info['new']) and not deleted_paths:
-                # mention software name/version in PR title (only first 3)
-                names_and_versions = nub(["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']])
-                if len(names_and_versions) <= 3:
-                    main_title = ', '.join(names_and_versions)
-                else:
-                    main_title = ', '.join(names_and_versions[:3] + ['...'])
-
-                title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
-
-                # Find all suffixes
-                suffixes = []
-                for ec in file_info['ecs']:
-                    if 'versionsuffix' in ec and ec['versionsuffix']:
-                        suffixes.append(ec['versionsuffix'].strip('-').replace('-', ' '))
-                if suffixes:
-                    suffixes = sorted(nub(suffixes))
-                    if len(suffixes) <= 2:
-                        title_suffix = ', '.join(suffixes)
-                    else:
-                        title_suffix = ', '.join(suffixes[:2] + ['...'])
-                    title += " w/ " + title_suffix
+                title = det_pr_title(file_info['ecs'])
         elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
             if file_info['eb_names'] and all(file_info['new']) and not deleted_paths:
                 plural = 's' if len(file_info['eb_names']) > 1 else ''
