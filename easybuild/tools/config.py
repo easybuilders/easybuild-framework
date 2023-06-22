@@ -304,7 +304,6 @@ BUILD_OPTIONS_CMDLINE = {
         'skip_test_cases',
         'skip_test_step',
         'sticky_bit',
-        'trace',
         'unit_testing_mode',
         'upload_test_report',
         'update_modules_tool_cache',
@@ -327,6 +326,7 @@ BUILD_OPTIONS_CMDLINE = {
         'mpi_tests',
         'pre_create_installdir',
         'show_progress_bar',
+        'trace',
     ],
     EMPTY_LIST: [
         'accept_eula_for',
