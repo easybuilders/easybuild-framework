@@ -115,7 +115,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None,
     elif isinstance(cmd, list):
         cmd_msg = ' '.join(cmd)
     else:
-        raise EasyBuildError("Unknown command type ('%s'): %s", type(cmd), cmd)
+        raise EasyBuildError(f"Unknown command type ('{type(cmd)}'): {cmd}")
 
     silent = build_option('silent')
 
@@ -128,8 +128,8 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None,
     # early exit in 'dry run' mode, after printing the command that would be run (unless 'hidden' is enabled)
     if build_option('extended_dry_run'):
         if not hidden:
-            msg = "  running command \"%s\"\n" % cmd_msg
-            msg += "  (in %s)" % work_dir
+            msg = f"  running command \"%{cmd_msg}s\"\n"
+            msg += f"  (in %{work_dir})"
             dry_run_msg(msg, silent=silent)
 
         return RunResult(output='', exit_code=0, stderr=None)
@@ -138,15 +138,18 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None,
     if not hidden:
         cmd_trace_msg(cmd_msg, start_time, work_dir, stdin, cmd_out_fp)
 
+    _log.info(f"Running command '{cmd_msg}' in {work_dir}")
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=shell)
 
     # return output as a regular string (UTF-8 characters get stripped out)
     output = proc.stdout.decode('ascii', 'ignore')
 
     res = RunResult(output=output, exit_code=proc.returncode, stderr=None)
+    _log.info(f"Command '{cmd_msg}' exited with exit code {res.exit_code} and output:\n%{res.output}")
 
     if not hidden:
-        trace_msg("command completed: exit %s, ran in %s" % (res.exit_code, time_str_since(start_time)))
+        time_since_start = time_str_since(start_time)
+        trace_msg(f"command completed: exit {res.exit_code}, ran in {time_since_start}")
 
     return res
 

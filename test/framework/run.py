@@ -47,7 +47,7 @@ from easybuild.base.fancylogger import setLogLevelDebug
 import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
-from easybuild.tools.filetools import adjust_permissions, read_file, write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, write_file
 from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
 from easybuild.tools.run import parse_log_for_error, run, run_cmd, run_cmd_qa, subprocess_terminate
 from easybuild.tools.config import ERROR, IGNORE, WARN
@@ -217,13 +217,42 @@ class RunTest(EnhancedTestCase):
 
         # Test that we can set the directory for the logfile
         log_path = os.path.join(self.test_prefix, 'chicken')
-        os.mkdir(log_path)
+        mkdir(log_path)
         logfile = None
         init_logging(logfile, silent=True, tmp_logdir=log_path)
         logfiles = os.listdir(log_path)
         self.assertEqual(len(logfiles), 1)
         self.assertTrue(logfiles[0].startswith("easybuild"))
         self.assertTrue(logfiles[0].endswith("log"))
+
+    def test_run_log(self):
+        """Test logging of executed commands with run function."""
+
+        fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
+        os.close(fd)
+
+        regex_start_cmd = re.compile("Running command 'echo hello' in /")
+        regex_cmd_exit = re.compile("Command 'echo hello' exited with exit code [0-9]* and output:")
+
+        # command output is always logged
+        init_logging(logfile, silent=True)
+        res = run("echo hello")
+        stop_logging(logfile)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'hello\n')
+        self.assertEqual(len(regex_start_cmd.findall(read_file(logfile))), 1)
+        self.assertEqual(len(regex_cmd_exit.findall(read_file(logfile))), 1)
+        write_file(logfile, '')
+
+        # with debugging enabled, exit code and output of command should only get logged once
+        setLogLevelDebug()
+
+        init_logging(logfile, silent=True)
+        self.assertTrue(run("echo hello"))
+        stop_logging(logfile)
+        self.assertEqual(len(regex_start_cmd.findall(read_file(logfile))), 1)
+        self.assertEqual(len(regex_cmd_exit.findall(read_file(logfile))), 1)
+        write_file(logfile, '')
 
     def test_run_cmd_negative_exit_code(self):
         """Test run_cmd function with command that has negative exit code."""
