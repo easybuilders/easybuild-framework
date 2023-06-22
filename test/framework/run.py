@@ -49,7 +49,7 @@ import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
-from easybuild.tools.run import parse_log_for_error, run_cmd, run_cmd_qa, subprocess_terminate
+from easybuild.tools.run import parse_log_for_error, run, run_cmd, run_cmd_qa, subprocess_terminate
 from easybuild.tools.config import ERROR, IGNORE, WARN
 
 
@@ -156,6 +156,29 @@ class RunTest(EnhancedTestCase):
             self.assertEqual(ec, 0)
             self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
             self.assertEqual(type(out), str)
+
+    def test_run_basic(self):
+        """Basic test for run function."""
+
+        res = run("echo hello")
+        self.assertEqual(res.output, "hello\n")
+        # no reason echo hello could fail
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(type(res.output), str)
+
+        # test running command that emits non-UTF-8 characters
+        # this is constructed to reproduce errors like:
+        # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2
+        # UnicodeEncodeError: 'ascii' codec can't encode character u'\u2018'
+        for text in [b"foo \xe2 bar", b"foo \u2018 bar"]:
+            test_file = os.path.join(self.test_prefix, 'foo.txt')
+            write_file(test_file, text)
+            cmd = "cat %s" % test_file
+
+            res = run(cmd)
+            self.assertEqual(res.exit_code, 0)
+            self.assertTrue(res.output.startswith('foo ') and res.output.endswith(' bar'))
+            self.assertEqual(type(res.output), str)
 
     def test_run_cmd_log(self):
         """Test logging of executed commands."""
