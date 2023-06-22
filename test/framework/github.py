@@ -50,7 +50,7 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_MERGEABLE_STATE_CLEAN
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
-from easybuild.tools.github import is_patch_for, pick_default_branch
+from easybuild.tools.github import det_pr_title, is_patch_for, pick_default_branch
 from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
@@ -115,6 +115,71 @@ class GithubTest(EnhancedTestCase):
         easybuild.tools.testing.create_gist = self.orig_testing_create_gist
 
         super(GithubTest, self).tearDown()
+
+    def test_det_pr_title(self):
+        """Test det_pr_title function"""
+        # check if patches for extensions are found
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = '%s'
+            version = '%s'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {'name': '%s', 'version': '%s'}
+            moduleclass = '%s'
+            %s
+        """)
+
+        # 1 easyconfig, with no versionsuffix
+        ecs = []
+        ecs.append(EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools', '')))
+        self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0] prog v1')
+
+        # 2 easyconfigs, with no versionsuffixes
+        ecs.append(EasyConfig(None, rawtxt=rawtxt % ('otherprog', '2', 'GCCcore', '11.2.0', 'lib', '')))
+        self.assertEqual(det_pr_title(ecs), '{lib,tools}[GCC/11.2.0,GCCcore/11.2.0] prog v1, otherprog v2')
+
+        # 3 easyconfigs, with no versionsuffixes
+        ecs.append(EasyConfig(None, rawtxt=rawtxt % ('extraprog', '3', 'foss', '2022a', 'astro', '')))
+        self.assertEqual(det_pr_title(ecs),
+                         '{astro,lib,tools}[GCC/11.2.0,GCCcore/11.2.0,foss/2022a] prog v1, otherprog v2, extraprog v3')
+
+        # 2 easyconfigs for the same prog, with no versionsuffixes
+        ecs[1] = EasyConfig(None, rawtxt=rawtxt % ('prog', '2', 'GCC', '11.3.0', 'tools', ''))
+        ecs.pop(2)
+        self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0,GCC/11.3.0] prog v1, prog v2')
+
+        # 1 easyconfig, with versionsuffix
+        ecs = []
+        ecs.append(EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
+                                                     'versionsuffix = "-Python-3.10.4"')))
+        self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0] prog v1 w/ Python 3.10.4')
+
+        # 1 easyconfig, with versionsuffix
+        ecs[0] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
+                                                   'versionsuffix = "-Python-3.10.4-CUDA-11.3.1"'))
+        self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0] prog v1 w/ Python 3.10.4 CUDA 11.3.1')
+
+        # 2 easyconfigs, with same versionsuffix
+        ecs[0] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
+                                                   'versionsuffix = "-Python-3.10.4"'))
+        ecs.append(EasyConfig(None, rawtxt=rawtxt % ('prog', '2', 'GCC', '11.3.0', 'tools',
+                                                     'versionsuffix = "-Python-3.10.4"')))
+        self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0,GCC/11.3.0] prog v1, prog v2 w/ Python 3.10.4')
+
+        # 2 easyconfigs, with different versionsuffix
+        ecs[0] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
+                                                   'versionsuffix = "-CUDA-11.3.1"'))
+        self.assertEqual(det_pr_title(ecs),
+                         '{tools}[GCC/11.2.0,GCC/11.3.0] prog v1, prog v2 w/ CUDA 11.3.1, Python 3.10.4')
+
+        # 2 easyconfigs, with unusual versionsuffixes
+        ecs[0] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
+                                                   'versionsuffix = "-contrib"'))
+        ecs[1] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
+                                                   'versionsuffix = "-Python-3.10.4-CUDA-11.3.1-contrib"'))
+        self.assertEqual(det_pr_title(ecs),
+                         '{tools}[GCC/11.2.0] prog v1 w/ Python 3.10.4 CUDA 11.3.1 contrib, contrib')
 
     def test_github_pick_default_branch(self):
         """Test pick_default_branch function."""
