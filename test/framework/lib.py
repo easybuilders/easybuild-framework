@@ -86,7 +86,9 @@ class EasyBuildLibTest(TestCase):
         self.configure()
 
         # run_cmd works fine if set_up_configuration was called first
+        self.mock_stdout(True)
         (out, ec) = run_cmd("echo hello")
+        self.mock_stdout(False)
         self.assertEqual(ec, 0)
         self.assertEqual(out, 'hello\n')
 
