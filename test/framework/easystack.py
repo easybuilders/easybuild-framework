@@ -143,7 +143,9 @@ class EasyStackTest(EnhancedTestCase):
             '--easystack',
             test_es_path
         ]
+        self.mock_stdout(True)
         stdout = self.eb_main(args, do_build=True, raise_error=True)
+        self.mock_stdout(False)
         regex = re.compile(r"WARNING Loaded modules detected: \[.*gompi/2018.*\]\n")
         self.assertFalse(regex.search(stdout), "Pattern '%s' should not be found in: %s" % (regex.pattern, stdout))
 

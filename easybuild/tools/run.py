@@ -622,19 +622,19 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     """
     if strictness == IGNORE:
         check_ec = False
-        use_regexp = False
+        fail_on_error_match = False
     elif strictness == WARN:
         check_ec = True
-        use_regexp = False
+        fail_on_error_match = False
     elif strictness == ERROR:
         check_ec = True
-        use_regexp = True
+        fail_on_error_match = True
     else:
         raise EasyBuildError("invalid strictness setting: %s", strictness)
 
     # allow for overriding the regexp setting
     if not regexp:
-        use_regexp = False
+        fail_on_error_match = False
 
     if ec and (log_all or log_ok):
         # We don't want to error if the user doesn't care
@@ -649,14 +649,16 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
             _log.debug('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
 
     # parse the stdout/stderr for errors when strictness dictates this or when regexp is passed in
-    if use_regexp or regexp:
-        res = parse_log_for_error(stdouterr, regexp, msg="Command used: %s" % cmd)
-        if len(res) > 0:
-            message = "Found %s errors in command output (output: %s)" % (len(res), "\n\t".join([r[0] for r in res]))
-            if use_regexp:
-                raise EasyBuildError(message)
+    if fail_on_error_match or regexp:
+        res = parse_log_for_error(stdouterr, regexp, stdout=False)
+        if res:
+            errors = "\n\t" + "\n\t".join([r[0] for r in res])
+            error_str = "error" if len(res) == 1 else "errors"
+            if fail_on_error_match:
+                raise EasyBuildError("Found %s %s in output of %s:%s", len(res), error_str, cmd, errors)
             else:
-                _log.warning(message)
+                _log.warning("Found %s potential %s (some may be harmless) in output of %s:%s",
+                             len(res), error_str, cmd, errors)
 
     if simple:
         if ec:
@@ -769,3 +771,21 @@ def check_log_for_errors(log_txt, reg_exps):
     if errors:
         raise EasyBuildError("Found %s error(s) in command output (output: %s)",
                              len(errors), "\n\t".join(errors))
+
+
+def subprocess_popen_text(cmd, **kwargs):
+    """Call subprocess.Popen in text mode with specified named arguments."""
+    # open stdout/stderr in text mode in Popen when using Python 3
+    kwargs.setdefault('stderr', subprocess.PIPE)
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, **kwargs)
+
+
+def subprocess_terminate(proc, timeout):
+    """Terminate the subprocess if it hasn't finished after the given timeout"""
+    try:
+        proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        for pipe in (proc.stdout, proc.stderr, proc.stdin):
+            if pipe:
+                pipe.close()
+        proc.terminate()

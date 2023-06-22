@@ -157,7 +157,8 @@ class GithubTest(EnhancedTestCase):
             return
 
         try:
-            fp = self.ghfs.read("a_directory/a_file.txt", api=False)
+            with self.mocked_stdout_stderr():
+                fp = self.ghfs.read("a_directory/a_file.txt", api=False)
             self.assertEqual(read_file(fp).strip(), "this is a line of text")
             os.remove(fp)
         except (IOError, OSError):
@@ -267,7 +268,7 @@ class GithubTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        pr_data, _ = gh.fetch_pr_data(1844, repo_owner, repo_name, GITHUB_TEST_ACCOUNT, full=True)
+        pr_data, _ = gh.fetch_pr_data(16080, repo_owner, repo_name, GITHUB_TEST_ACCOUNT, full=True)
 
         self.mock_stdout(True)
         self.mock_stderr(True)
@@ -279,12 +280,12 @@ class GithubTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         self.assertIsInstance(res, list)
-        self.assertEqual(stderr.strip(), "WARNING: Using easyconfigs from closed PR #1844")
+        self.assertEqual(stderr.strip(), "WARNING: Using easyconfigs from closed PR #16080")
         patterns = [
             "Status of last commit is SUCCESS",
             "Last comment on",
             "No activity since",
-            "* QEMU-2.4.0",
+            "* c-ares-1.18.1",
         ]
         for pattern in patterns:
             self.assertIn(pattern, stdout)
@@ -356,7 +357,8 @@ class GithubTest(EnhancedTestCase):
         for pr, all_ebs in [(1964, all_ebs_pr1964), (1967, all_ebs_pr1967), (1949, all_ebs_pr1949)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
-                eb_files = gh.fetch_easyblocks_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+                with self.mocked_stdout_stderr():
+                    eb_files = gh.fetch_easyblocks_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
                 self.assertEqual(sorted(all_ebs), sorted([os.path.basename(f) for f in eb_files]))
             except URLError as err:
                 print("Ignoring URLError '%s' in test_fetch_easyblocks_from_pr" % err)
@@ -407,7 +409,8 @@ class GithubTest(EnhancedTestCase):
         for pr, all_ecs in [(8007, all_ecs_pr8007), (6587, all_ecs_pr6587), (7159, all_ecs_pr7159)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
-                ec_files = gh.fetch_easyconfigs_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+                with self.mocked_stdout_stderr():
+                    ec_files = gh.fetch_easyconfigs_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
                 self.assertEqual(sorted(all_ecs), sorted([os.path.basename(f) for f in ec_files]))
             except URLError as err:
                 print("Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err)
@@ -439,7 +442,8 @@ class GithubTest(EnhancedTestCase):
             'SCOTCH-6.0.6-intel-2018a.eb',
             'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
         ]
-        pr7159_files = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        with self.mocked_stdout_stderr():
+            pr7159_files = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
         self.assertEqual(sorted(pr7159_filenames), sorted(os.path.basename(f) for f in pr7159_files))
 
         # check that cache has been populated for PR 7159
@@ -492,6 +496,7 @@ class GithubTest(EnhancedTestCase):
             return
 
         cwd = os.getcwd()
+        self.mock_stdout(True)
 
         # default: download tarball for master branch of easybuilders/easybuild-easyconfigs repo
         path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
@@ -526,6 +531,7 @@ class GithubTest(EnhancedTestCase):
         self.assertIn('easybuild', os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
         self.assertExists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py'))
+        self.mock_stdout(False)
 
     def test_install_github_token(self):
         """Test for install_github_token function."""
@@ -589,7 +595,8 @@ class GithubTest(EnhancedTestCase):
         if self.skip_github_tests:
             print("Skipping test_find_easybuild_easyconfig, no GitHub token available?")
             return
-        path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
+        with self.mocked_stdout_stderr():
+            path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
         expected = os.path.join('e', 'EasyBuild', r'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
@@ -617,15 +624,17 @@ class GithubTest(EnhancedTestCase):
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
         self.assertTrue(re.search(reg, txt))
 
+        self.mock_stdout(True)
         self.assertEqual(gh.find_software_name_for_patch('test.patch', []), None)
+        self.mock_stdout(False)
 
-        # check behaviour of find_software_name_for_patch when non-UTF8 patch files are present (only with Python 3)
-        if sys.version_info[0] >= 3:
-            non_utf8_patch = os.path.join(self.test_prefix, 'problem.patch')
-            with open(non_utf8_patch, 'wb') as fp:
-                fp.write(bytes("+  ximage->byte_order=T1_byte_order; /* Set t1lib\xb4s byteorder */\n", 'iso_8859_1'))
+        non_utf8_patch = os.path.join(self.test_prefix, 'problem.patch')
+        with open(non_utf8_patch, 'wb') as fp:
+            fp.write(bytes("+  ximage->byte_order=T1_byte_order; /* Set t1lib\xb4s byteorder */\n", 'iso_8859_1'))
 
-            self.assertEqual(gh.find_software_name_for_patch('test.patch', [self.test_prefix]), None)
+        self.mock_stdout(True)
+        self.assertEqual(gh.find_software_name_for_patch('test.patch', [self.test_prefix]), None)
+        self.mock_stdout(False)
 
     def test_github_det_commit_status(self):
         """Test det_commit_status function."""
@@ -634,45 +643,46 @@ class GithubTest(EnhancedTestCase):
             print("Skipping test_det_commit_status, no GitHub token available?")
             return
 
-        # ancient commit, from Jenkins era
+        # ancient commit, from Jenkins era, no commit status available anymore
         commit_sha = 'ec5d6f7191676a86a18404616691796a352c5f1d'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'success')
+        self.assertEqual(res, None)
 
-        # commit with failing tests from Travis CI era (no GitHub Actions yet)
-        commit_sha = 'd0c62556caaa78944722dc84bbb1072bf9688f74'
-        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'failure')
-
-        # commit with passing tests from Travis CI era (no GitHub Actions yet)
+        # ancient commit with passing tests from Travis CI era (no GitHub Actions yet),
+        # no commit status available anymore
         commit_sha = '21354990e4e6b4ca169b93d563091db4c6b2693e'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'success')
+        self.assertEqual(res, None)
 
-        # commit with failing tests, tested by both Travis CI and GitHub Actions
-        commit_sha = '3a596de93dd95b651b0d1503562d888409364a96'
-        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'failure')
-
-        # commit with passing tests, tested by both Travis CI and GitHub Actions
+        # ancient commit tested by both Travis CI and GitHub Actions, no commit status available anymore
         commit_sha = '1fba8ac835d62e78cdc7988b08f4409a1570cef1'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'success')
+        self.assertEqual(res, None)
 
-        # commit with failing tests, only tested by GitHub Actions
+        # old commit only tested by GitHub Actions, no commit status available anymore
         commit_sha = 'd7130683f02fe8284df3557f0b2fd3947c2ea153'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'failure')
+        self.assertEqual(res, None)
 
-        # commit with passing tests, only tested by GitHub Actions
-        commit_sha = 'e6df09700a1b90c63b4f760eda4b590ee1a9c2fd'
-        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'success')
-
-        # commit in test repo where no CI is running at all
+        # commit in test repo where no CI is running at all, no None as result
         commit_sha = '8456f867b03aa001fd5a6fe5a0c4300145c065dc'
         res = gh.det_commit_status('easybuilders', GITHUB_REPO, commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, None)
+
+        # recent commit (2023-04-11) with cancelled checks (GitHub Actions only)
+        commit_sha = 'c074f0bb3110c27d9969c3d0b19dde3eca868bd4'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'cancelled')
+
+        # recent commit (2023-04-10) with failing checks (GitHub Actions only)
+        commit_sha = '1b4a45c62d7deaf19125756c46dc8f011fef66e1'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'failure')
+
+        # recent commit (2023-04-10) with successful checks (GitHub Actions only)
+        commit_sha = '56812a347acbaaa87f229fe319425020fe399647'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'success')
 
     def test_github_check_pr_eligible_to_merge(self):
         """Test check_pr_eligible_to_merge function"""

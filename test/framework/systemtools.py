@@ -1031,7 +1031,8 @@ class SystemToolsTest(EnhancedTestCase):
 
         os_type = get_os_type()
         if os_type == LINUX:
-            out, _ = run_cmd("ldd %s" % bin_ls_path)
+            with self.mocked_stdout_stderr():
+                out, _ = run_cmd("ldd %s" % bin_ls_path)
         elif os_type == DARWIN:
             out, _ = run_cmd("otool -L %s" % bin_ls_path)
         else:

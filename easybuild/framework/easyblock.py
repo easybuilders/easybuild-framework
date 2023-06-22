@@ -533,14 +533,6 @@ class EasyBlock(object):
         else:
             self.log.info("Added patches: %s", self.patches)
 
-    def fetch_extension_sources(self, skip_checksums=False):
-        """
-        Fetch source and patch files for extensions (DEPRECATED, use collect_exts_file_info instead).
-        """
-        depr_msg = "EasyBlock.fetch_extension_sources is deprecated, use EasyBlock.collect_exts_file_info instead"
-        self.log.deprecated(depr_msg, '5.0')
-        return self.collect_exts_file_info(fetch_files=True, verify_checksums=not skip_checksums)
-
     def collect_exts_file_info(self, fetch_files=True, verify_checksums=True):
         """
         Collect information on source and patch files for extensions.
@@ -1435,7 +1427,7 @@ class EasyBlock(object):
 
         # set environment variable that specifies list of extensions
         # We need only name and version, so don't resolve templates
-        exts_list = ','.join(['-'.join(ext[:2]) for ext in self.cfg.get_ref('exts_list')])
+        exts_list = self.make_extension_string(ext_sep=',', sort=False)
         env_var_name = convert_name(self.name, upper=True)
         lines.append(self.module_generator.set_environment('EBEXTSLIST%s' % env_var_name, exts_list))
 
@@ -1715,6 +1707,27 @@ class EasyBlock(object):
     #
     # EXTENSIONS UTILITY FUNCTIONS
     #
+
+    def _make_extension_list(self):
+        """
+        Return a list of extension names and their versions included in this installation
+
+        Each entry should be a (name, version) tuple or just (name, ) if no version exists
+        """
+        # We need only name and version, so don't resolve templates
+        # Each extension in exts_list is either a string or a list/tuple with name, version as first entries
+        return [(ext, ) if isinstance(ext, str) else ext[:2] for ext in self.cfg.get_ref('exts_list')]
+
+    def make_extension_string(self, name_version_sep='-', ext_sep=', ', sort=True):
+        """
+        Generate a string with a list of extensions.
+
+        The name and version are separated by name_version_sep and each extension is separated by ext_sep
+        """
+        exts_list = (name_version_sep.join(ext) for ext in self._make_extension_list())
+        if sort:
+            exts_list = sorted(exts_list, key=str.lower)
+        return ext_sep.join(exts_list)
 
     def prepare_for_extensions(self):
         """
@@ -3065,7 +3078,7 @@ class EasyBlock(object):
         self.cfg['builddependencies'] = builddeps
         self.cfg.iterating = False
 
-    def sanity_check_rpath(self, rpath_dirs=None):
+    def sanity_check_rpath(self, rpath_dirs=None, check_readelf_rpath=True):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
 
         self.log.info("Checking RPATH linkage for binaries/libraries...")
@@ -3130,17 +3143,21 @@ class EasyBlock(object):
                             self.log.debug("Output of 'ldd %s' checked, looks OK", path)
 
                         # check whether RPATH section in 'readelf -d' output is there
-                        out, ec = run_cmd("readelf -d %s" % path, simple=False, trace=False)
-                        if ec:
-                            fail_msg = "Failed to run 'readelf %s': %s" % (path, out)
-                            self.log.warning(fail_msg)
-                            fails.append(fail_msg)
-                        elif not readelf_rpath_regex.search(out):
-                            fail_msg = "No '(RPATH)' found in 'readelf -d' output for %s: %s" % (path, out)
-                            self.log.warning(fail_msg)
-                            fails.append(fail_msg)
+                        if check_readelf_rpath:
+                            fail_msg = None
+                            out, ec = run_cmd("readelf -d %s" % path, simple=False, trace=False)
+                            if ec:
+                                fail_msg = "Failed to run 'readelf %s': %s" % (path, out)
+                            elif not readelf_rpath_regex.search(out):
+                                fail_msg = "No '(RPATH)' found in 'readelf -d' output for %s: %s" % (path, out)
+
+                            if fail_msg:
+                                self.log.warning(fail_msg)
+                                fails.append(fail_msg)
+                            else:
+                                self.log.debug("Output of 'readelf -d %s' checked, looks OK", path)
                         else:
-                            self.log.debug("Output of 'readelf -d %s' checked, looks OK", path)
+                            self.log.debug("Skipping the RPATH section check with 'readelf -d', as requested")
             else:
                 self.log.debug("Not sanity checking files in non-existing directory %s", dirpath)
 

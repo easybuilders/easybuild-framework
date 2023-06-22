@@ -20,7 +20,7 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: set up Python
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: ${{matrix.python}}
         architecture: x64
@@ -91,7 +91,7 @@ jobs:
           pymajver=$(python -c 'import sys; print(sys.version_info[0])')
           pymajminver=$(python -c 'import sys; print(".".join(str(x) for x in sys.version_info[:2]))')
           # check patterns in verbose output
-          for pattern in "^>> Considering .python3.\.\.\." "^>> .python3. version: ${pymajminver}\.[0-9]\+, which matches Python ${pymajver} version requirement" "^>> 'python3' is able to import 'easybuild.framework', so retaining it" "^>> Selected Python command: python3 \(.*/bin/python3\)" "^This is EasyBuild 4\.[0-9.]\+"; do
+          for pattern in "^>> Considering .python3.\.\.\." "^>> .python3. version: ${pymajminver}\.[0-9]\+, which matches Python ${pymajver} version requirement" "^>> 'python3' is able to import 'easybuild.framework', so retaining it" "^>> Selected Python command: python3 \(.*/bin/python3\)" "^This is EasyBuild 5\.[0-9.]\+"; do
               echo "Looking for pattern \"${pattern}\" in eb_version.out..."
               grep "$pattern" eb_version.out
           done
@@ -103,7 +103,7 @@ jobs:
           for eb_python in "python${pymajver}" "python${pymajminver}"; do
               export EB_PYTHON="${eb_python}"
               eb --version | tee eb_version.out 2>&1
-              for pattern in "^>> Considering .${eb_python}.\.\.\." "^>> .${eb_python}. version: ${pymajminver}\.[0-9]\+, which matches Python ${pymajver} version requirement" "^>> '${eb_python}' is able to import 'easybuild.framework', so retaining it" "^>> Selected Python command: ${eb_python} \(.*/bin/${eb_python}\)" "^This is EasyBuild 4\.[0-9.]\+"; do
+              for pattern in "^>> Considering .${eb_python}.\.\.\." "^>> .${eb_python}. version: ${pymajminver}\.[0-9]\+, which matches Python ${pymajver} version requirement" "^>> '${eb_python}' is able to import 'easybuild.framework', so retaining it" "^>> Selected Python command: ${eb_python} \(.*/bin/${eb_python}\)" "^This is EasyBuild 5\.[0-9.]\+"; do
                   echo "Looking for pattern \"${pattern}\" in eb_version.out..."
                   grep "$pattern" eb_version.out
               done

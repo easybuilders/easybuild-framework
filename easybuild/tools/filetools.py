@@ -65,8 +65,7 @@ from easybuild.base import fancylogger
 from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
-from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
-from easybuild.tools.config import build_option, install_path
+from easybuild.tools.config import ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN, build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars, trace_msg
 
@@ -430,7 +429,7 @@ def change_dir(path):
     return cwd
 
 
-def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False, change_into_dir=None):
+def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False, change_into_dir=False):
     """
     Extract file at given path to specified directory
     :param fn: path to file to extract
@@ -439,15 +438,9 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     :param extra_options: extra options to pass to extract command
     :param overwrite: overwrite existing unpacked file
     :param forced: force extraction in (extended) dry run mode
-    :param change_into_dir: change into resulting directory;
-                          None (current default) implies True, but this is deprecated,
-                          this named argument should be set to False or True explicitely
-                          (in a future major release, default will be changed to False)
+    :param change_into_dir: change into resulting directorys
     :return: path to directory (in case of success)
     """
-    if change_into_dir is None:
-        _log.deprecated("extract_file function was called without specifying value for change_into_dir", '5.0')
-        change_into_dir = True
 
     if not os.path.isfile(fn) and not build_option('extended_dry_run'):
         raise EasyBuildError("Can't extract file %s: no such file", fn)
@@ -1535,22 +1528,17 @@ def create_patch_info(patch_spec):
 def validate_patch_spec(patch_spec):
     allowed_patch_exts = ['.patch' + x for x in ('',) + ZIPPED_PATCH_EXTS]
     if not any(patch_spec.endswith(x) for x in allowed_patch_exts):
-        msg = "Use of patch file with filename that doesn't end with correct extension: %s " % patch_spec
-        msg += "(should be any of: %s)" % (', '.join(allowed_patch_exts))
-        _log.deprecated(msg, '5.0')
+        raise EasyBuildError("Wrong patch spec (%s), extension type should be any of %s." %
+                             (patch_spec, ', '.join(allowed_patch_exts)))
 
 
-def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=False, use_git=False):
+def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git=False):
     """
     Apply a patch to source code in directory dest
     - assume unified diff created with "diff -ru old new"
 
     Raises EasyBuildError on any error and returns True on success
     """
-
-    if use_git_am:
-        _log.deprecated("'use_git_am' named argument in apply_patch function has been renamed to 'use_git'", '5.0')
-        use_git = True
 
     if build_option('extended_dry_run'):
         # skip checking of files in dry run mode
@@ -1963,7 +1951,7 @@ def check_lock(lock_name):
     Check whether a lock with specified name already exists.
 
     If it exists, either wait until it's released, or raise an error
-    (depending on --wait-on-lock configuration option).
+    (depending on --wait-on-lock-* configuration option).
     """
     lock_path = det_lock_path(lock_name)
     if os.path.exists(lock_path):
@@ -1971,22 +1959,6 @@ def check_lock(lock_name):
 
         wait_interval = build_option('wait_on_lock_interval')
         wait_limit = build_option('wait_on_lock_limit')
-
-        # --wait-on-lock is deprecated, should use --wait-on-lock-limit and --wait-on-lock-interval instead
-        wait_on_lock = build_option('wait_on_lock')
-        if wait_on_lock is not None:
-            depr_msg = "Use of --wait-on-lock is deprecated, use --wait-on-lock-limit and --wait-on-lock-interval"
-            _log.deprecated(depr_msg, '5.0')
-
-            # if --wait-on-lock-interval has default value and --wait-on-lock is specified too, the latter wins
-            # (required for backwards compatibility)
-            if wait_interval == DEFAULT_WAIT_ON_LOCK_INTERVAL and wait_on_lock > 0:
-                wait_interval = wait_on_lock
-
-            # if --wait-on-lock-limit is not specified we need to wait indefinitely if --wait-on-lock is specified,
-            # since the original semantics of --wait-on-lock was that it specified the waiting time interval (no limit)
-            if not wait_limit:
-                wait_limit = -1
 
         # wait limit could be zero (no waiting), -1 (no waiting limit) or non-zero value (waiting limit in seconds)
         if wait_limit != 0:

@@ -756,8 +756,10 @@ class RobotTest(EnhancedTestCase):
         ]
 
         self.mock_stderr(True)
+        self.mock_stdout(True)
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
         self.mock_stderr(False)
+        self.mock_stdout(False)
 
         # full path doesn't matter (helps to avoid failing tests due to resolved symlinks)
         test_ecs_path = os.path.join('.*', 'test', 'framework', 'easyconfigs', 'test_ecs')

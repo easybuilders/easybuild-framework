@@ -342,12 +342,7 @@ class EasyBuildOptions(GeneralOption):
         all_deprecations = ('python2', 'Lmod6', 'easyconfig', 'toolchain')
 
         opts = OrderedDict({
-            'accept-eula': ("Accept EULA for specified software [DEPRECATED, use --accept-eula-for instead!]",
-                            'strlist', 'store', []),
             'accept-eula-for': ("Accept EULA for specified software", 'strlist', 'store', []),
-            'add-dummy-to-minimal-toolchains': ("Include dummy toolchain in minimal toolchain searches "
-                                                "[DEPRECATED, use --add-system-to-minimal-toolchains instead!]",
-                                                None, 'store_true', False),
             'add-system-to-minimal-toolchains': ("Include system toolchain in minimal toolchain searches",
                                                  None, 'store_true', False),
             'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
@@ -506,7 +501,7 @@ class EasyBuildOptions(GeneralOption):
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
-            'trace': ("Provide more information in output to stdout on progress", None, 'store_true', False, 'T'),
+            'trace': ("Provide more information in output to stdout on progress", None, 'store_true', True, 'T'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
             'update-modules-tool-cache': ("Update modules tool cache file(s) after generating module file",
@@ -520,10 +515,6 @@ class EasyBuildOptions(GeneralOption):
                                      None, 'store_true', False),
             'verify-easyconfig-filenames': ("Verify whether filename of specified easyconfigs matches with contents",
                                             None, 'store_true', False),
-            'wait-on-lock': ("Wait for lock to be released; 0 implies no waiting (exit with an error if the lock "
-                             "already exists), non-zero value specified waiting interval [DEPRECATED: "
-                             "use --wait-on-lock-interval and --wait-on-lock-limit instead]",
-                             int, 'store_or_None', None),
             'wait-on-lock-interval': ("Wait interval (in seconds) to use when waiting for existing lock to be removed",
                                       int, 'store', DEFAULT_WAIT_ON_LOCK_INTERVAL),
             'wait-on-lock-limit': ("Maximum amount of time (in seconds) to wait until lock is released (0 means no "
