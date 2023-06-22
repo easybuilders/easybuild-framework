@@ -162,7 +162,8 @@ class RunTest(EnhancedTestCase):
     def test_run_basic(self):
         """Basic test for run function."""
 
-        res = run("echo hello")
+        with self.mocked_stdout_stderr():
+            res = run("echo hello")
         self.assertEqual(res.output, "hello\n")
         # no reason echo hello could fail
         self.assertEqual(res.exit_code, 0)
@@ -177,7 +178,8 @@ class RunTest(EnhancedTestCase):
             write_file(test_file, text)
             cmd = "cat %s" % test_file
 
-            res = run(cmd)
+            with self.mocked_stdout_stderr():
+                res = run(cmd)
             self.assertEqual(res.exit_code, 0)
             self.assertTrue(res.output.startswith('foo ') and res.output.endswith(' bar'))
             self.assertEqual(type(res.output), str)
@@ -242,7 +244,8 @@ class RunTest(EnhancedTestCase):
 
         # command output is always logged
         init_logging(logfile, silent=True)
-        res = run("echo hello")
+        with self.mocked_stdout_stderr():
+            res = run("echo hello")
         stop_logging(logfile)
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, 'hello\n')
@@ -254,8 +257,11 @@ class RunTest(EnhancedTestCase):
         setLogLevelDebug()
 
         init_logging(logfile, silent=True)
-        self.assertTrue(run("echo hello"))
+        with self.mocked_stdout_stderr():
+            res = run("echo hello")
         stop_logging(logfile)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'hello\n')
         self.assertEqual(len(regex_start_cmd.findall(read_file(logfile))), 1)
         self.assertEqual(len(regex_cmd_exit.findall(read_file(logfile))), 1)
         write_file(logfile, '')
