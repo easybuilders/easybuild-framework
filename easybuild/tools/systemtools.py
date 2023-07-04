@@ -943,6 +943,8 @@ def get_glibc_version():
 
     if os_type == LINUX:
         glibc_ver_str = get_tool_version('ldd')
+        # note: get_tool_version replaces newlines with ';',
+        # hence the use of ';' below after the expected glibc version
         glibc_ver_regex = re.compile(r"^ldd \(.+\) (\d[\d.]+);")
         res = glibc_ver_regex.search(glibc_ver_str)
 
