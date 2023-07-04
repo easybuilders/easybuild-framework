@@ -761,6 +761,12 @@ class EasyConfigTest(EnhancedTestCase):
         # only version key is strictly needed
         self.assertEqual(det_full_ec_version({'version': '1.2.3'}), '1.2.3')
 
+        # versionprefix/versionsuffix can also be set to None,
+        # see https://github.com/easybuilders/easybuild-framework/issues/4281
+        cfg['versionprefix'] = None
+        cfg['versionsuffix'] = None
+        self.assertEqual(det_full_ec_version(cfg), '3.14')
+
         # check how faulty dep spec is handled
         faulty_dep_spec = {
             'name': 'test',
