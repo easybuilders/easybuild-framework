@@ -883,7 +883,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
         # no problems when running with a supported Python version
-        for pyver in [(3, 6), (3, 7)]:
+        for pyver in [(3, 6), (3, 7), (3, 11)]:
             mock_python_ver(*pyver)
             self.assertEqual(check_python_version(), pyver)
 
