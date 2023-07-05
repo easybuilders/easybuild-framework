@@ -40,8 +40,8 @@ keyboard_interrupt() {
 
 trap keyboard_interrupt SIGINT
 
-# Python 2.6+ or 3.5+ required
-REQ_MIN_PY2VER=6
+# Python 2.7+ or 3.5+ required
+REQ_MIN_PY2VER=7
 REQ_MIN_PY3VER=5
 
 EASYBUILD_MAIN='easybuild.main'
