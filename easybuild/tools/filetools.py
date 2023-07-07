@@ -44,7 +44,6 @@ import datetime
 import difflib
 import glob
 import hashlib
-import imp
 import inspect
 import itertools
 import os
@@ -66,7 +65,7 @@ from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, pr
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
-from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
+from easybuild.tools.py2vs3 import HTMLParser, load_source, std_urllib, string_type
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars, trace_msg
 
 try:
@@ -2801,7 +2800,7 @@ def install_fake_vsc():
 def get_easyblock_class_name(path):
     """Make sure file is an easyblock and get easyblock class name"""
     fn = os.path.basename(path).split('.')[0]
-    mod = imp.load_source(fn, path)
+    mod = load_source(fn, path)
     clsmembers = inspect.getmembers(mod, inspect.isclass)
     for cn, co in clsmembers:
         if co.__module__ == mod.__name__:
