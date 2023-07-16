@@ -1058,9 +1058,7 @@ class Toolchain(object):
             names should be a list of strings containing the name of the dependency
         """
         cpp_paths = ['include']
-        ld_paths = ['lib']
-        if not self.options.get('32bit', None):
-            ld_paths.insert(0, 'lib64')
+        ld_paths = ['lib64', 'lib']
 
         if cpp is not None:
             for p in cpp:

@@ -124,14 +124,11 @@ class IntelIccIfort(Compiler):
         if LooseVersion(icc_version) < LooseVersion('2011'):
             self.LIB_MULTITHREAD.insert(1, "guide")
 
-        libpaths = ['intel64']
-        if self.options.get('32bit', None):
-            libpaths.append('ia32')
-        libpaths = ['lib/%s' % x for x in libpaths]
+        libpath = 'lib/intel64'
         if LooseVersion(icc_version) > LooseVersion('2011.4') and LooseVersion(icc_version) < LooseVersion('2013_sp1'):
-            libpaths = ['compiler/%s' % x for x in libpaths]
+            libpath = 'compiler/%s' % libpath
 
-        self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
+        self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=[libpath])
 
     def set_variables(self):
         """Set the variables."""
