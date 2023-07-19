@@ -5061,7 +5061,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertTrue(options.options.fetch)
         self.assertEqual(options.options.stop, 'fetch')
-        self.assertEqual(options.options.modules_tool, None)
         self.assertTrue(options.options.ignore_locks)
         self.assertTrue(options.options.ignore_osdeps)
 

@@ -407,7 +407,7 @@ class EasyBuildOptions(GeneralOption):
             'extra-modules': ("List of extra modules to load after setting up the build environment",
                               'strlist', 'extend', None),
             'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
-                      "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
+                      "implies --stop=fetch and --ignore-osdeps", None, 'store_true', False),
             'filter-deps': ("List of dependencies that you do *not* want to install with EasyBuild, "
                             "because equivalent OS packages are installed. (e.g. --filter-deps=zlib,ncurses)",
                             'strlist', 'extend', None),
@@ -1187,7 +1187,6 @@ class EasyBuildOptions(GeneralOption):
             self.options.stop = FETCH_STEP
             self.options.ignore_locks = True
             self.options.ignore_osdeps = True
-            self.options.modules_tool = None
 
         # imply --disable-pre-create-installdir with --inject-checksums or --inject-checksums-to-json
         if self.options.inject_checksums or self.options.inject_checksums_to_json:
