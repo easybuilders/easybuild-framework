@@ -1921,6 +1921,12 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                 os.makedirs(path)
             else:
                 os.mkdir(path)
+        except FileExistsError as err:
+            if os.path.exists(path):
+                # This may happen if a parallel build creates the directory after we checked for its existance
+                _log.debug("Directory creation aborted as it seems it was already created: %s", err)
+            else:
+                raise EasyBuildError("Failed to create directory %s: %s", path, err)
         except OSError as err:
             raise EasyBuildError("Failed to create directory %s: %s", path, err)
 
