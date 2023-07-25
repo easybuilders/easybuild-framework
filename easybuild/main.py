@@ -734,5 +734,8 @@ if __name__ == "__main__":
         main()
     except EasyBuildError as err:
         print_error(err.msg)
-    except KeyboardInterrupt as err:
+    except KeyboardInterrupt as err:  
+        eb_go, cfg_settings = set_up_configuration(args=None, logfile=None, testing=None)
+        options, orig_paths = eb_go.options, eb_go.args
+        run_hook('cancel', load_hooks(options.hooks))
         print_error("Cancelled by user: %s" % err)
