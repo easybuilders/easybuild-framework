@@ -60,6 +60,7 @@ TEST_STEP = 'test'
 TESTCASES_STEP = 'testcases'
 
 START = 'start'
+POISED = 'poised'
 PARSE = 'parse'
 SINGLE_EXTENSION = 'single_extension'
 MODULE_WRITE = 'module_write'
@@ -77,6 +78,7 @@ STEP_NAMES = [FETCH_STEP, READY_STEP, SOURCE_STEP, PATCH_STEP, PREPARE_STEP, CON
 # hook names (in order of being triggered)
 HOOK_NAMES = [
     START,
+    POISED,
     PARSE,
 ] + [p + x for x in STEP_NAMES[:STEP_NAMES.index(EXTENSIONS_STEP)]
      for p in [PRE_PREF, POST_PREF]] + [
