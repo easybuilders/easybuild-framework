@@ -141,8 +141,8 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None,
     _log.info(f"Running command '{cmd_msg}' in {work_dir}")
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=shell)
 
-    # return output as a regular string (UTF-8 characters get stripped out)
-    output = proc.stdout.decode('ascii', 'ignore')
+    # return output as a regular string rather than a byte sequence (and non-UTF-8 characters get stripped out)
+    output = proc.stdout.decode('utf-8', 'ignore')
 
     res = RunResult(output=output, exit_code=proc.returncode, stderr=None)
     _log.info(f"Command '{cmd_msg}' exited with exit code {res.exit_code} and output:\n%{res.output}")
