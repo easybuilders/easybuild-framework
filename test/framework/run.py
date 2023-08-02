@@ -339,8 +339,6 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_trace(self):
         """Test run_cmd under --trace"""
-        # replace log.experimental with log.warning to allow experimental code
-        easybuild.tools.utilities._log.experimental = easybuild.tools.utilities._log.warning
 
         init_config(build_options={'trace': True})
 
@@ -360,6 +358,7 @@ class RunTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stdout(False)
         self.mock_stderr(False)
+        self.assertEqual(out, 'hello\n')
         self.assertEqual(ec, 0)
         self.assertEqual(stderr, '')
         regex = re.compile('\n'.join(pattern))
@@ -373,6 +372,7 @@ class RunTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stdout(False)
         self.mock_stderr(False)
+        self.assertEqual(out, 'hello')
         self.assertEqual(ec, 0)
         self.assertEqual(stderr, '')
         pattern.insert(3, r"\t\[input: hello\]")
@@ -388,6 +388,63 @@ class RunTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stdout(False)
         self.mock_stderr(False)
+        self.assertEqual(out, 'hello\n')
+        self.assertEqual(ec, 0)
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+
+    def test_run_trace_stdin(self):
+        """Test run under --trace + passing stdin input."""
+
+        init_config(build_options={'trace': True})
+
+        pattern = [
+            r"^  >> running command:",
+            r"\t\[started at: .*\]",
+            r"\t\[working dir: .*\]",
+            r"\techo hello",
+            r"  >> command completed: exit 0, ran in .*",
+        ]
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        res = run("echo hello")
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(res.output, 'hello\n')
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(stderr, '')
+        regex = re.compile('\n'.join(pattern))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        # also test with command that is fed input via stdin
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        res = run('cat', stdin='hello')
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(res.output, 'hello')
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(stderr, '')
+        pattern.insert(3, r"\t\[input: hello\]")
+        pattern[-2] = "\tcat"
+        regex = re.compile('\n'.join(pattern))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        # trace output can be disabled on a per-command basis by enabling 'hidden'
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        res = run("echo hello", hidden=True)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(res.output, 'hello\n')
+        self.assertEqual(res.exit_code, 0)
         self.assertEqual(stdout, '')
         self.assertEqual(stderr, '')
 

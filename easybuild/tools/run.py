@@ -104,7 +104,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None,
     """
 
     # temporarily raise a NotImplementedError until all options are implemented
-    if any((not fail_on_error, split_stderr, stdin, in_dry_run, work_dir, output_file, stream_output, asynchronous)):
+    if any((not fail_on_error, split_stderr, in_dry_run, work_dir, output_file, stream_output, asynchronous)):
         raise NotImplementedError
 
     if qa_patterns or qa_wait_patterns:
@@ -138,8 +138,12 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None,
     if not hidden:
         cmd_trace_msg(cmd_msg, start_time, work_dir, stdin, cmd_out_fp)
 
+    if stdin:
+        # 'input' value fed to subprocess.run must be a byte sequence
+        stdin = stdin.encode()
+
     _log.info(f"Running command '{cmd_msg}' in {work_dir}")
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=shell)
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, input=stdin, shell=shell)
 
     # return output as a regular string rather than a byte sequence (and non-UTF-8 characters get stripped out)
     output = proc.stdout.decode('utf-8', 'ignore')
