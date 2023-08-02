@@ -30,10 +30,10 @@ Authors:
 * Kenneth Hoste (Ghent University)
 """
 import difflib
-import imp
 import os
 
 from easybuild.base import fancylogger
+from easybuild.tools.py2vs3 import load_source
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 
@@ -123,7 +123,7 @@ def load_hooks(hooks_path):
                 _log.info("Importing hooks implementation from %s...", hooks_path)
                 try:
                     # import module that defines hooks, and collect all functions of which name ends with '_hook'
-                    imported_hooks = imp.load_source(hooks_filename, hooks_path)
+                    imported_hooks = load_source(hooks_filename, hooks_path)
                     for attr in dir(imported_hooks):
                         if attr.endswith(HOOK_SUFF):
                             hook = getattr(imported_hooks, attr)
