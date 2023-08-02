@@ -400,7 +400,7 @@ class RunTest(EnhancedTestCase):
 
         pattern = [
             r"^  >> running command:",
-            r"\t\[started at: .*\]",
+            r"\t\[started at: [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]\]",
             r"\t\[working dir: .*\]",
             r"\techo hello",
             r"  >> command completed: exit 0, ran in .*",

@@ -161,16 +161,24 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None,
 def cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp):
     """
     Helper function to construct and print trace message for command being run
+
+    :param cmd: command being run
+    :param start_time: datetime object indicating when command was started
+    :param work_dir: path of working directory in which command is run
+    :param stdin: stdin input value for command
+    :param cmd_out_fp: path to output log file for command
     """
+    start_time = start_time.strftime('%Y-%m-%d %H:%M:%S')
+
     lines = [
         "running command:",
-        "\t[started at: %s]" % start_time.strftime('%Y-%m-%d %H:%M:%S'),
-        "\t[working dir: %s]" % work_dir,
+        f"\t[started at: {start_time}]",
+        f"\t[working dir: {work_dir}]",
     ]
     if stdin:
-        lines.append("\t[input: %s]" % stdin)
+        lines.append(f"\t[input: {stdin}]")
     if cmd_out_fp:
-        lines.append("\t[output logged in %s]" % cmd_out_fp)
+        lines.append(f"\t[output logged in {cmd_out_fp}]")
 
     lines.append('\t' + cmd)
 
