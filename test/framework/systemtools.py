@@ -874,19 +874,23 @@ class SystemToolsTest(EnhancedTestCase):
 
         # mock running with different Python versions
         mock_python_ver(1, 4)
-        error_pattern = r"EasyBuild is not compatible \(yet\) with Python 1.4"
+        error_pattern = r"EasyBuild is not compatible with Python 1.4"
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
         mock_python_ver(4, 0)
         error_pattern = r"EasyBuild is not compatible \(yet\) with Python 4.0"
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
-        mock_python_ver(2, 6)
-        error_pattern = r"Python 2.7 is required when using Python 2, found Python 2.6"
+        mock_python_ver(2, 7)
+        error_pattern = r"EasyBuild is not compatible with Python 2.7"
+        self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
+
+        mock_python_ver(3, 5)
+        error_pattern = r"Python 3.6 or higher is required, found Python 3.5"
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
         # no problems when running with a supported Python version
-        for pyver in [(2, 7), (3, 5), (3, 6), (3, 7)]:
+        for pyver in [(3, 6), (3, 7), (3, 11)]:
             mock_python_ver(*pyver)
             self.assertEqual(check_python_version(), pyver)
 

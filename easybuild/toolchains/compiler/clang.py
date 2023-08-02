@@ -34,7 +34,6 @@ Authors:
 """
 
 import easybuild.tools.systemtools as systemtools
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
 
@@ -108,10 +107,3 @@ class Clang(Compiler):
 
     LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']
-
-    def _set_compiler_vars(self):
-        """Set compiler variables."""
-        super(Clang, self)._set_compiler_vars()
-
-        if self.options.get('32bit', None):
-            raise EasyBuildError("_set_compiler_vars: 32bit set, but no support yet for 32bit Clang in EasyBuild")

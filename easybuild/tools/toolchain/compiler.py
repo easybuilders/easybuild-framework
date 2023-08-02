@@ -89,7 +89,6 @@ class Compiler(Toolchain):
         'cstd': (None, "Specify C standard"),
         'shared': (False, "Build shared library"),
         'static': (False, "Build static library"),
-        '32bit': (False, "Compile 32bit target"),  # LA, FFTW
         'openmp': (False, "Enable OpenMP"),
         'vectorize': (None, "Enable compiler auto-vectorization, default except for noopt and lowopt"),
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
@@ -104,7 +103,6 @@ class Compiler(Toolchain):
     COMPILER_UNIQUE_OPTION_MAP = None
     COMPILER_SHARED_OPTION_MAP = {
         DEFAULT_OPT_LEVEL: 'O2',
-        '32bit': 'm32',
         'cstd': 'std=%(value)s',
         'debug': 'g',
         'lowopt': 'O1',
@@ -189,10 +187,6 @@ class Compiler(Toolchain):
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
-        is32bit = self.options.get('32bit', None)
-        if is32bit:
-            self.log.debug("_set_compiler_vars: 32bit set: changing compiler definitions")
-
         comp_var_tmpl_dict = {}
 
         # always include empty infix first for non-prefixed compilers (e.g., GCC, Intel, ...)
@@ -214,8 +208,6 @@ class Compiler(Toolchain):
                         self.log.warning("_set_compiler_vars: %s compiler variable %s undefined", infix, var)
 
                 self.variables[pref_var] = value
-                if is32bit:
-                    self.variables.nappend_el(pref_var, self.options.option('32bit'))
 
                 # update dictionary to complete compiler variable template
                 # to produce e.g. 'nvcc -ccbin=icpc' from 'nvcc -ccbin=%(CXX_base)'
