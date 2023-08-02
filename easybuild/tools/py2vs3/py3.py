@@ -66,6 +66,7 @@ from easybuild.tools.run import subprocess_popen_text, subprocess_terminate  # n
 string_type = str
 
 
+# note: also available in easybuild.tools.filetools, should be imported from there!
 def load_source(filename, path):
     """Load file as Python module"""
     spec = spec_from_file_location(filename, path)
