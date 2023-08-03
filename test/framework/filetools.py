@@ -39,7 +39,9 @@ import shutil
 import stat
 import sys
 import tempfile
+import textwrap
 import time
+import types
 from io import StringIO
 from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
@@ -3009,6 +3011,18 @@ class FileToolsTest(EnhancedTestCase):
 
         for name in ['EB_bzip2', 'EB_DL_underscore_POLY_underscore_Classic', 'EB_GCC', 'EB_WRF_minus_Fire']:
             self.assertFalse(ft.is_generic_easyblock(name))
+
+    def test_load_source(self):
+        """Test for load_source function."""
+        txt = textwrap.dedent("""
+        def foobar():
+            pass
+        """)
+        fp = os.path.join(self.test_prefix, 'foobar.py')
+        ft.write_file(fp, txt)
+        foobar = ft.load_source('foobar', fp)
+        self.assertTrue(isinstance(foobar, types.ModuleType))
+        self.assertTrue(isinstance(foobar.foobar, types.FunctionType))
 
     def test_get_easyblock_class_name(self):
         """Test for get_easyblock_class_name function."""
