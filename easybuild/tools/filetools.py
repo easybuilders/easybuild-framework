@@ -44,7 +44,6 @@ import datetime
 import difflib
 import glob
 import hashlib
-import imp
 import inspect
 import itertools
 import os
@@ -1911,6 +1910,12 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                 os.makedirs(path)
             else:
                 os.mkdir(path)
+        except FileExistsError as err:
+            if os.path.exists(path):
+                # This may happen if a parallel build creates the directory after we checked for its existence
+                _log.debug("Directory creation aborted as it seems it was already created: %s", err)
+            else:
+                raise EasyBuildError("Failed to create directory %s: %s", path, err)
         except OSError as err:
             raise EasyBuildError("Failed to create directory %s: %s", path, err)
 
@@ -2774,7 +2779,7 @@ def install_fake_vsc():
 def get_easyblock_class_name(path):
     """Make sure file is an easyblock and get easyblock class name"""
     fn = os.path.basename(path).split('.')[0]
-    mod = imp.load_source(fn, path)
+    mod = load_source(fn, path)
     clsmembers = inspect.getmembers(mod, inspect.isclass)
     for cn, co in clsmembers:
         if co.__module__ == mod.__name__:

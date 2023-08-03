@@ -324,7 +324,7 @@ def mocked_run_cmd(cmd, **kwargs):
     """Mocked version of run_cmd, with specified output for known commands."""
     known_cmds = {
         "gcc --version": "gcc (GCC) 5.1.1 20150618 (Red Hat 5.1.1-4)",
-        "ldd --version": "ldd (GNU libc) 2.12",
+        "ldd --version": "ldd (GNU libc) 2.12; ",
         "sysctl -n hw.cpufrequency_max": "2400000000",
         "sysctl -n hw.ncpu": '10',
         "sysctl -n hw.memsize": '8589934592',
@@ -790,6 +790,13 @@ class SystemToolsTest(EnhancedTestCase):
         st.run_cmd = mocked_run_cmd
         self.assertEqual(get_glibc_version(), '2.12')
 
+    def test_glibc_version_linux_gentoo(self):
+        """Test getting glibc version (mocked for Linux)."""
+        st.get_os_type = lambda: st.LINUX
+        ldd_version_out = "ldd (Gentoo 2.37-r3 (patchset 5)) 2.37; Copyright (C) 2023 Free Software Foundation, Inc."
+        st.get_tool_version = lambda _: ldd_version_out
+        self.assertEqual(get_glibc_version(), '2.37')
+
     def test_glibc_version_linux_musl_libc(self):
         """Test getting glibc version (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
@@ -867,19 +874,23 @@ class SystemToolsTest(EnhancedTestCase):
 
         # mock running with different Python versions
         mock_python_ver(1, 4)
-        error_pattern = r"EasyBuild is not compatible \(yet\) with Python 1.4"
+        error_pattern = r"EasyBuild is not compatible with Python 1.4"
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
         mock_python_ver(4, 0)
         error_pattern = r"EasyBuild is not compatible \(yet\) with Python 4.0"
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
-        mock_python_ver(2, 6)
-        error_pattern = r"Python 2.7 is required when using Python 2, found Python 2.6"
+        mock_python_ver(2, 7)
+        error_pattern = r"EasyBuild is not compatible with Python 2.7"
+        self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
+
+        mock_python_ver(3, 5)
+        error_pattern = r"Python 3.6 or higher is required, found Python 3.5"
         self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
 
         # no problems when running with a supported Python version
-        for pyver in [(2, 7), (3, 5), (3, 6), (3, 7)]:
+        for pyver in [(3, 6), (3, 7), (3, 11)]:
             mock_python_ver(*pyver)
             self.assertEqual(check_python_version(), pyver)
 

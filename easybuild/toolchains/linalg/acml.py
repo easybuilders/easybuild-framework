@@ -73,8 +73,6 @@ class Acml(LinAlg):
 
     def _set_blas_variables(self):
         """Fix the map a bit"""
-        if self.options.get('32bit', None):
-            raise EasyBuildError("_set_blas_variables: 32bit ACML not (yet) supported")
         try:
             for root in self.get_software_root(self.BLAS_MODULE_NAME):
                 subdirs = self.ACML_SUBDIRS_MAP[self.COMPILER_FAMILY]
