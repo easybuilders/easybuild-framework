@@ -429,7 +429,8 @@ def change_dir(path):
     return cwd
 
 
-def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False, change_into_dir=False):
+def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False, change_into_dir=False,
+                 trace=True):
     """
     Extract file at given path to specified directory
     :param fn: path to file to extract
@@ -439,6 +440,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     :param overwrite: overwrite existing unpacked file
     :param forced: force extraction in (extended) dry run mode
     :param change_into_dir: change into resulting directorys
+    :param trace: produce trace output for extract command being run
     :return: path to directory (in case of success)
     """
 
@@ -468,7 +470,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     if extra_options:
         cmd = "%s %s" % (cmd, extra_options)
 
-    run.run_cmd(cmd, simple=True, force_in_dry_run=forced)
+    run.run_cmd(cmd, simple=True, force_in_dry_run=forced, trace=trace)
 
     # note: find_base_dir also changes into the base dir!
     base_dir = find_base_dir()
@@ -739,7 +741,7 @@ def det_file_size(http_header):
     return res
 
 
-def download_file(filename, url, path, forced=False):
+def download_file(filename, url, path, forced=False, trace=True):
     """Download a file from the given URL, to the specified path."""
 
     insecure = build_option('insecure_download')
@@ -848,11 +850,13 @@ def download_file(filename, url, path, forced=False):
 
     if downloaded:
         _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
-        trace_msg("download succeeded: %s" % url)
+        if trace:
+            trace_msg("download succeeded: %s" % url)
         return path
     else:
         _log.warning("Download of %s to %s failed, done trying" % (url, path))
-        trace_msg("download failed: %s" % url)
+        if trace:
+            trace_msg("download failed: %s" % url)
         return None
 
 
