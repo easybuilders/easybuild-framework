@@ -33,9 +33,9 @@ import difflib
 import os
 
 from easybuild.base import fancylogger
-from easybuild.tools.py2vs3 import load_source
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
+from easybuild.tools.filetools import load_source
 
 
 _log = fancylogger.getLogger('hooks', fname=False)

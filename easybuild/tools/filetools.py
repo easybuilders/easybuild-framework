@@ -58,6 +58,7 @@ import time
 import zlib
 from functools import partial
 from html.parser import HTMLParser
+from importlib.util import spec_from_file_location, module_from_spec
 import urllib.request as std_urllib
 
 from easybuild.base import fancylogger
@@ -2774,6 +2775,14 @@ def install_fake_vsc():
     sys.path.insert(0, fake_vsc_path)
 
     return fake_vsc_path
+
+
+def load_source(filename, path):
+    """Load file as Python module"""
+    spec = spec_from_file_location(filename, path)
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def get_easyblock_class_name(path):
