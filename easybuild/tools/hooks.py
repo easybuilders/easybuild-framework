@@ -80,7 +80,6 @@ HOOK_NAMES = [
     START,
     PARSE,
     PRE_PREF + LOOP,
-    POST_PREF + LOOP,
 ] + [p + x for x in STEP_NAMES[:STEP_NAMES.index(EXTENSIONS_STEP)]
      for p in [PRE_PREF, POST_PREF]] + [
     # pre-extensions hook is triggered before starting installation of extensions,
@@ -100,6 +99,7 @@ HOOK_NAMES = [
     POST_PREF + MODULE_STEP,
 ] + [p + x for x in STEP_NAMES[STEP_NAMES.index(MODULE_STEP)+1:]
      for p in [PRE_PREF, POST_PREF]] + [
+    POST_PREF + LOOP,
     END,
 ]
 KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
