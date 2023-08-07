@@ -40,7 +40,7 @@ from unittest import TextTestRunner
 import easybuild.tools.systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, read_file, symlink, which, write_file
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import RunResult, run
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
@@ -320,8 +320,8 @@ def mocked_is_readable(mocked_fp, fp):
     return fp == mocked_fp
 
 
-def mocked_run_cmd(cmd, **kwargs):
-    """Mocked version of run_cmd, with specified output for known commands."""
+def mocked_run(cmd, **kwargs):
+    """Mocked version of run, with specified output for known commands."""
     known_cmds = {
         "gcc --version": "gcc (GCC) 5.1.1 20150618 (Red Hat 5.1.1-4)",
         "ldd --version": "ldd (GNU libc) 2.12; ",
@@ -340,12 +340,9 @@ def mocked_run_cmd(cmd, **kwargs):
         "ulimit -u": '40',
     }
     if cmd in known_cmds:
-        if 'simple' in kwargs and kwargs['simple']:
-            return True
-        else:
-            return (known_cmds[cmd], 0)
+        return RunResult(output=known_cmds[cmd], exit_code=0, stderr=None)
     else:
-        return run_cmd(cmd, **kwargs)
+        return run(cmd, **kwargs)
 
 
 def mocked_uname():
@@ -364,7 +361,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.orig_get_os_type = st.get_os_type
         self.orig_is_readable = st.is_readable
         self.orig_read_file = st.read_file
-        self.orig_run_cmd = st.run_cmd
+        self.orig_run = st.run
         self.orig_platform_dist = st.platform.dist if hasattr(st.platform, 'dist') else None
         self.orig_platform_uname = st.platform.uname
         self.orig_get_tool_version = st.get_tool_version
@@ -384,7 +381,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_cpu_architecture = self.orig_get_cpu_architecture
         st.get_os_name = self.orig_get_os_name
         st.get_os_type = self.orig_get_os_type
-        st.run_cmd = self.orig_run_cmd
+        st.run = self.orig_run
         if self.orig_platform_dist is not None:
             st.platform.dist = self.orig_platform_dist
         st.platform.uname = self.orig_platform_uname
@@ -415,7 +412,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_avail_core_count_darwin(self):
         """Test getting core count (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
-        st.run_cmd = mocked_run_cmd
+        st.run = mocked_run
         self.assertEqual(get_avail_core_count(), 10)
 
     def test_cpu_model_native(self):
@@ -453,7 +450,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_model_darwin(self):
         """Test getting CPU model (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
-        st.run_cmd = mocked_run_cmd
+        st.run = mocked_run
         self.assertEqual(get_cpu_model(), "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz")
 
     def test_cpu_speed_native(self):
@@ -488,7 +485,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_speed_darwin(self):
         """Test getting CPU speed (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
-        st.run_cmd = mocked_run_cmd
+        st.run = mocked_run
         self.assertEqual(get_cpu_speed(), 2400.0)
 
     def test_cpu_features_native(self):
@@ -543,7 +540,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_features_darwin(self):
         """Test getting CPU features (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
-        st.run_cmd = mocked_run_cmd
+        st.run = mocked_run
         expected = ['1gbpage', 'acpi', 'aes', 'apic', 'avx1.0', 'avx2', 'bmi1', 'bmi2', 'clfsh', 'cmov', 'cx16',
                     'cx8', 'de', 'ds', 'dscpl', 'dtes64', 'em64t', 'erms', 'est', 'f16c', 'fma', 'fpu', 'fpu_csds',
                     'fxsr', 'htt', 'invpcid', 'lahf', 'lzcnt', 'mca', 'mce', 'mmx', 'mon', 'movbe', 'msr', 'mtrr',
@@ -637,12 +634,12 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_vendor_darwin(self):
         """Test getting CPU vendor (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
-        st.run_cmd = mocked_run_cmd
+        st.run = mocked_run
         self.assertEqual(get_cpu_vendor(), INTEL)
 
     def test_cpu_family_native(self):
         """Test get_cpu_family function."""
-        run_cmd.clear_cache()
+        run.clear_cache()
         cpu_family = get_cpu_family()
         self.assertTrue(cpu_family in CPU_FAMILIES or cpu_family == UNKNOWN)
 
@@ -687,8 +684,8 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_family_darwin(self):
         """Test get_cpu_family function (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
-        st.run_cmd = mocked_run_cmd
-        run_cmd.clear_cache()
+        st.run = mocked_run
+        run.clear_cache()
         self.assertEqual(get_cpu_family(), INTEL)
 
     def test_os_type(self):
@@ -770,13 +767,14 @@ class SystemToolsTest(EnhancedTestCase):
     def test_gcc_version_linux(self):
         """Test getting gcc version (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
-        st.run_cmd = mocked_run_cmd
+        st.run = mocked_run
         self.assertEqual(get_gcc_version(), '5.1.1')
 
     def test_gcc_version_darwin(self):
         """Test getting gcc version (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
-        st.run_cmd = lambda *args, **kwargs: ("Apple LLVM version 7.0.0 (clang-700.1.76)", 0)
+        out = "Apple LLVM version 7.0.0 (clang-700.1.76)"
+        st.run = lambda *args, **kwargs: RunResult(output=out, exit_code=0, stderr=None)
         self.assertEqual(get_gcc_version(), None)
 
     def test_glibc_version_native(self):
@@ -787,7 +785,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_glibc_version_linux(self):
         """Test getting glibc version (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
-        st.run_cmd = mocked_run_cmd
+        st.run = mocked_run
         self.assertEqual(get_glibc_version(), '2.12')
 
     def test_glibc_version_linux_gentoo(self):
@@ -818,7 +816,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_get_total_memory_darwin(self):
         """Test the function that gets the total memory."""
         st.get_os_type = lambda: st.DARWIN
-        st.run_cmd = mocked_run_cmd
+        st.run = mocked_run
         self.assertEqual(get_total_memory(), 8192)
 
     def test_get_total_memory_native(self):
@@ -850,7 +848,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_avail_core_count = lambda: 8
         self.assertTrue(det_parallelism(), 8)
         # make 'ulimit -u' return '40', which should result in default (max) parallelism of 4 ((40-15)/6)
-        st.run_cmd = mocked_run_cmd
+        st.run = mocked_run
         self.assertTrue(det_parallelism(), 4)
         self.assertTrue(det_parallelism(par=6), 4)
         self.assertTrue(det_parallelism(maxpar=2), 2)
@@ -1039,15 +1037,16 @@ class SystemToolsTest(EnhancedTestCase):
         os_type = get_os_type()
         if os_type == LINUX:
             with self.mocked_stdout_stderr():
-                out, _ = run_cmd("ldd %s" % bin_ls_path)
+                res = run("ldd %s" % bin_ls_path)
         elif os_type == DARWIN:
-            out, _ = run_cmd("otool -L %s" % bin_ls_path)
+            with self.mocked_stdout_stderr():
+                res = run("otool -L %s" % bin_ls_path)
         else:
             raise EasyBuildError("Unknown OS type: %s" % os_type)
 
         shlib_ext = get_shared_lib_ext()
         lib_path_regex = re.compile(r'(?P<lib_path>[^\s]*/lib[^ ]+\.%s[^ ]*)' % shlib_ext, re.M)
-        lib_path = lib_path_regex.search(out).group(1)
+        lib_path = lib_path_regex.search(res.output).group(1)
 
         test_pattern_named_args = [
             # if no patterns are specified, result is always True
