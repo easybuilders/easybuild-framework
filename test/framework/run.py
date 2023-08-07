@@ -47,9 +47,9 @@ from easybuild.base.fancylogger import setLogLevelDebug
 import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
-from easybuild.tools.filetools import adjust_permissions, read_file, write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, write_file
 from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
-from easybuild.tools.run import parse_log_for_error, run_cmd, run_cmd_qa, subprocess_terminate
+from easybuild.tools.run import parse_log_for_error, run, run_cmd, run_cmd_qa, subprocess_terminate
 from easybuild.tools.config import ERROR, IGNORE, WARN
 
 
@@ -159,6 +159,32 @@ class RunTest(EnhancedTestCase):
             self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
             self.assertEqual(type(out), str)
 
+    def test_run_basic(self):
+        """Basic test for run function."""
+
+        with self.mocked_stdout_stderr():
+            res = run("echo hello")
+        self.assertEqual(res.output, "hello\n")
+        # no reason echo hello could fail
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(type(res.output), str)
+
+        # test running command that emits non-UTF-8 characters
+        # this is constructed to reproduce errors like:
+        # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2
+        # UnicodeEncodeError: 'ascii' codec can't encode character u'\u2018'
+        # (such errors are ignored by the 'run' implementation)
+        for text in [b"foo \xe2 bar", b"foo \u2018 bar"]:
+            test_file = os.path.join(self.test_prefix, 'foo.txt')
+            write_file(test_file, text)
+            cmd = "cat %s" % test_file
+
+            with self.mocked_stdout_stderr():
+                res = run(cmd)
+            self.assertEqual(res.exit_code, 0)
+            self.assertTrue(res.output.startswith('foo ') and res.output.endswith(' bar'))
+            self.assertEqual(type(res.output), str)
+
     def test_run_cmd_log(self):
         """Test logging of executed commands."""
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
@@ -200,13 +226,46 @@ class RunTest(EnhancedTestCase):
 
         # Test that we can set the directory for the logfile
         log_path = os.path.join(self.test_prefix, 'chicken')
-        os.mkdir(log_path)
+        mkdir(log_path)
         logfile = None
         init_logging(logfile, silent=True, tmp_logdir=log_path)
         logfiles = os.listdir(log_path)
         self.assertEqual(len(logfiles), 1)
         self.assertTrue(logfiles[0].startswith("easybuild"))
         self.assertTrue(logfiles[0].endswith("log"))
+
+    def test_run_log(self):
+        """Test logging of executed commands with run function."""
+
+        fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
+        os.close(fd)
+
+        regex_start_cmd = re.compile("Running command 'echo hello' in /")
+        regex_cmd_exit = re.compile("Command 'echo hello' exited with exit code [0-9]* and output:")
+
+        # command output is always logged
+        init_logging(logfile, silent=True)
+        with self.mocked_stdout_stderr():
+            res = run("echo hello")
+        stop_logging(logfile)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'hello\n')
+        self.assertEqual(len(regex_start_cmd.findall(read_file(logfile))), 1)
+        self.assertEqual(len(regex_cmd_exit.findall(read_file(logfile))), 1)
+        write_file(logfile, '')
+
+        # with debugging enabled, exit code and output of command should only get logged once
+        setLogLevelDebug()
+
+        init_logging(logfile, silent=True)
+        with self.mocked_stdout_stderr():
+            res = run("echo hello")
+        stop_logging(logfile)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'hello\n')
+        self.assertEqual(len(regex_start_cmd.findall(read_file(logfile))), 1)
+        self.assertEqual(len(regex_cmd_exit.findall(read_file(logfile))), 1)
+        write_file(logfile, '')
 
     def test_run_cmd_negative_exit_code(self):
         """Test run_cmd function with command that has negative exit code."""
@@ -281,8 +340,6 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_trace(self):
         """Test run_cmd under --trace"""
-        # replace log.experimental with log.warning to allow experimental code
-        easybuild.tools.utilities._log.experimental = easybuild.tools.utilities._log.warning
 
         init_config(build_options={'trace': True})
 
@@ -302,6 +359,7 @@ class RunTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stdout(False)
         self.mock_stderr(False)
+        self.assertEqual(out, 'hello\n')
         self.assertEqual(ec, 0)
         self.assertEqual(stderr, '')
         regex = re.compile('\n'.join(pattern))
@@ -315,6 +373,7 @@ class RunTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stdout(False)
         self.mock_stderr(False)
+        self.assertEqual(out, 'hello')
         self.assertEqual(ec, 0)
         self.assertEqual(stderr, '')
         pattern.insert(3, r"\t\[input: hello\]")
@@ -330,6 +389,63 @@ class RunTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stdout(False)
         self.mock_stderr(False)
+        self.assertEqual(out, 'hello\n')
+        self.assertEqual(ec, 0)
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+
+    def test_run_trace_stdin(self):
+        """Test run under --trace + passing stdin input."""
+
+        init_config(build_options={'trace': True})
+
+        pattern = [
+            r"^  >> running command:",
+            r"\t\[started at: [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]\]",
+            r"\t\[working dir: .*\]",
+            r"\techo hello",
+            r"  >> command completed: exit 0, ran in .*",
+        ]
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        res = run("echo hello")
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(res.output, 'hello\n')
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(stderr, '')
+        regex = re.compile('\n'.join(pattern))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        # also test with command that is fed input via stdin
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        res = run('cat', stdin='hello')
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(res.output, 'hello')
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(stderr, '')
+        pattern.insert(3, r"\t\[input: hello\]")
+        pattern[-2] = "\tcat"
+        regex = re.compile('\n'.join(pattern))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        # trace output can be disabled on a per-command basis by enabling 'hidden'
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        res = run("echo hello", hidden=True)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(res.output, 'hello\n')
+        self.assertEqual(res.exit_code, 0)
         self.assertEqual(stdout, '')
         self.assertEqual(stderr, '')
 

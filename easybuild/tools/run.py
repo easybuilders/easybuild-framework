@@ -44,6 +44,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections import namedtuple
 from datetime import datetime
 
 import easybuild.tools.asyncprocess as asyncprocess
@@ -71,6 +72,117 @@ CACHED_COMMANDS = [
     "type module",  # used in ModulesTool.check_module_function
     "ulimit -u",  # used in det_parallelism
 ]
+
+
+RunResult = namedtuple('RunResult', ('output', 'exit_code', 'stderr'))
+
+
+def run(cmd, fail_on_error=True, split_stderr=False, stdin=None,
+        hidden=False, in_dry_run=False, work_dir=None, shell=True,
+        output_file=False, stream_output=False, asynchronous=False,
+        qa_patterns=None, qa_wait_patterns=None):
+    """
+    Run specified (interactive) shell command, and capture output + exit code.
+
+    :param fail_on_error: fail on non-zero exit code (enabled by default)
+    :param split_stderr: split of stderr from stdout output
+    :param stdin: input to be sent to stdin (nothing if set to None)
+    :param hidden: do not show command in terminal output (when using --trace, or with --extended-dry-run / -x)
+    :param in_dry_run: also run command in dry run mode
+    :param work_dir: working directory to run command in (current working directory if None)
+    :param shell: execute command through a shell (enabled by default)
+    :param output_file: collect command output in temporary output file
+    :param stream_output: stream command output to stdout
+    :param asynchronous: run command asynchronously
+    :param qa_patterns: list of 2-tuples with patterns for questions + corresponding answers
+    :param qa_wait_patterns: list of 2-tuples with patterns for non-questions
+                             and number of iterations to allow these patterns to match with end out command output
+    :return: Named tuple with:
+    - output: command output, stdout+stderr combined if split_stderr is disabled, only stdout otherwise
+    - exit_code: exit code of command (integer)
+    - stderr: stderr output if split_stderr is enabled, None otherwise
+    """
+
+    # temporarily raise a NotImplementedError until all options are implemented
+    if any((not fail_on_error, split_stderr, in_dry_run, work_dir, output_file, stream_output, asynchronous)):
+        raise NotImplementedError
+
+    if qa_patterns or qa_wait_patterns:
+        raise NotImplementedError
+
+    if isinstance(cmd, str):
+        cmd_msg = cmd.strip()
+    elif isinstance(cmd, list):
+        cmd_msg = ' '.join(cmd)
+    else:
+        raise EasyBuildError(f"Unknown command type ('{type(cmd)}'): {cmd}")
+
+    silent = build_option('silent')
+
+    if work_dir is None:
+        work_dir = os.getcwd()
+
+    # output file for command output (only used if output_file is enabled)
+    cmd_out_fp = None
+
+    # early exit in 'dry run' mode, after printing the command that would be run (unless 'hidden' is enabled)
+    if build_option('extended_dry_run'):
+        if not hidden:
+            msg = f"  running command \"%{cmd_msg}s\"\n"
+            msg += f"  (in %{work_dir})"
+            dry_run_msg(msg, silent=silent)
+
+        return RunResult(output='', exit_code=0, stderr=None)
+
+    start_time = datetime.now()
+    if not hidden:
+        cmd_trace_msg(cmd_msg, start_time, work_dir, stdin, cmd_out_fp)
+
+    if stdin:
+        # 'input' value fed to subprocess.run must be a byte sequence
+        stdin = stdin.encode()
+
+    _log.info(f"Running command '{cmd_msg}' in {work_dir}")
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, input=stdin, shell=shell)
+
+    # return output as a regular string rather than a byte sequence (and non-UTF-8 characters get stripped out)
+    output = proc.stdout.decode('utf-8', 'ignore')
+
+    res = RunResult(output=output, exit_code=proc.returncode, stderr=None)
+    _log.info(f"Command '{cmd_msg}' exited with exit code {res.exit_code} and output:\n%{res.output}")
+
+    if not hidden:
+        time_since_start = time_str_since(start_time)
+        trace_msg(f"command completed: exit {res.exit_code}, ran in {time_since_start}")
+
+    return res
+
+
+def cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp):
+    """
+    Helper function to construct and print trace message for command being run
+
+    :param cmd: command being run
+    :param start_time: datetime object indicating when command was started
+    :param work_dir: path of working directory in which command is run
+    :param stdin: stdin input value for command
+    :param cmd_out_fp: path to output log file for command
+    """
+    start_time = start_time.strftime('%Y-%m-%d %H:%M:%S')
+
+    lines = [
+        "running command:",
+        f"\t[started at: {start_time}]",
+        f"\t[working dir: {work_dir}]",
+    ]
+    if stdin:
+        lines.append(f"\t[input: {stdin}]")
+    if cmd_out_fp:
+        lines.append(f"\t[output logged in {cmd_out_fp}]")
+
+    lines.append('\t' + cmd)
+
+    trace_msg('\n'.join(lines))
 
 
 def run_cmd_cache(func):
