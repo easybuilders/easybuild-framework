@@ -480,6 +480,14 @@ class FileToolsTest(EnhancedTestCase):
         except request.URLError:
             print("Skipping timeout test in test_download_file (working offline)")
 
+        # check whether disabling trace output works
+        target_location = os.path.join(self.test_prefix, 'test.txt')
+        with self.mocked_stdout_stderr():
+            ft.download_file(fn, source_url, target_location, forced=True, trace=False)
+            stdout = self.get_stdout()
+        self.assertEqual(stdout, '')
+        ft.remove_file(target_location)
+
         # also test behaviour of download_file under --dry-run
         build_options = {
             'extended_dry_run': True,
@@ -2288,16 +2296,23 @@ class FileToolsTest(EnhancedTestCase):
         ft.change_dir(cwd)
         self.assertFalse(os.path.samefile(os.getcwd(), self.test_prefix))
 
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=True)
-        stderr = self.get_stderr().strip()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=True)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
 
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
         self.assertFalse(stderr)
+        self.assertTrue("running command" in stdout)
+
+        # check whether disabling trace output works
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=True, trace=False)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+        self.assertFalse(stderr)
+        self.assertFalse(stdout)
 
     def test_remove(self):
         """Test remove_file, remove_dir and join remove functions."""
