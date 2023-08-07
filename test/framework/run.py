@@ -173,6 +173,7 @@ class RunTest(EnhancedTestCase):
         # this is constructed to reproduce errors like:
         # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2
         # UnicodeEncodeError: 'ascii' codec can't encode character u'\u2018'
+        # (such errors are ignored by the 'run' implementation)
         for text in [b"foo \xe2 bar", b"foo \u2018 bar"]:
             test_file = os.path.join(self.test_prefix, 'foo.txt')
             write_file(test_file, text)
