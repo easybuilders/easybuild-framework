@@ -61,7 +61,7 @@ TESTCASES_STEP = 'testcases'
 
 START = 'start'
 PARSE = 'parse'
-POISED = 'poised'
+LOOP = 'loop'
 SINGLE_EXTENSION = 'single_extension'
 MODULE_WRITE = 'module_write'
 END = 'end'
@@ -79,7 +79,8 @@ STEP_NAMES = [FETCH_STEP, READY_STEP, SOURCE_STEP, PATCH_STEP, PREPARE_STEP, CON
 HOOK_NAMES = [
     START,
     PARSE,
-    POISED,
+    PRE_PREF + LOOP,
+    POST_PREF + LOOP,
 ] + [p + x for x in STEP_NAMES[:STEP_NAMES.index(EXTENSIONS_STEP)]
      for p in [PRE_PREF, POST_PREF]] + [
     # pre-extensions hook is triggered before starting installation of extensions,
