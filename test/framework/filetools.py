@@ -2757,7 +2757,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(regex.search(res), "Pattern '%s' found in: %s" % (regex.pattern, res))
 
     @requires_github_access()
-    def test_get_source_tarball_from_git(self):
+    def test_github_get_source_tarball_from_git(self):
         """Test get_source_tarball_from_git function."""
 
         target_dir = os.path.join(self.test_prefix, 'target')
@@ -2790,18 +2790,18 @@ class FileToolsTest(EnhancedTestCase):
         git_repo = {'git_repo': 'git@github.com:easybuilders/testrepository.git'}  # Just to make the below shorter
         expected = '\n'.join([
             r'  running command "git clone --depth 1 --branch tag_for_tests %(git_repo)s"',
-            r"  \(in .*/tmp.*\)",
+            r"  \(in /.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in .*/tmp.*\)",
+            r"  \(in /.*\)",
         ]) % git_repo
         run_check()
 
         git_config['clone_into'] = 'test123'
         expected = '\n'.join([
             r'  running command "git clone --depth 1 --branch tag_for_tests %(git_repo)s test123"',
-            r"  \(in .*/tmp.*\)",
+            r"  \(in /.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git test123"',
-            r"  \(in .*/tmp.*\)",
+            r"  \(in /.*\)",
         ]) % git_repo
         run_check()
         del git_config['clone_into']
@@ -2809,18 +2809,18 @@ class FileToolsTest(EnhancedTestCase):
         git_config['recursive'] = True
         expected = '\n'.join([
             r'  running command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
-            r"  \(in .*/tmp.*\)",
+            r"  \(in /.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in .*/tmp.*\)",
+            r"  \(in /.*\)",
         ]) % git_repo
         run_check()
 
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
             r'  running command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
-            r"  \(in .*/tmp.*\)",
+            r"  \(in /.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz testrepository"',
-            r"  \(in .*/tmp.*\)",
+            r"  \(in /.*\)",
         ]) % git_repo
         run_check()
         del git_config['keep_git_dir']
@@ -2829,22 +2829,22 @@ class FileToolsTest(EnhancedTestCase):
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
             r'  running command "git clone --no-checkout %(git_repo)s"',
-            r"  \(in .*/tmp.*\)",
+            r"  \(in /.*\)",
             r'  running command "git checkout 8456f86 && git submodule update --init --recursive"',
             r"  \(in testrepository\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in .*/tmp.*\)",
+            r"  \(in /.*\)",
         ]) % git_repo
         run_check()
 
         del git_config['recursive']
         expected = '\n'.join([
             r'  running command "git clone --no-checkout %(git_repo)s"',
-            r"  \(in .*/tmp.*\)",
+            r"  \(in /.*\)",
             r'  running command "git checkout 8456f86"',
             r"  \(in testrepository\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in .*/tmp.*\)",
+            r"  \(in /.*\)",
         ]) % git_repo
         run_check()
 
@@ -2866,7 +2866,8 @@ class FileToolsTest(EnhancedTestCase):
             self.assertEqual(os.listdir(target_dir), ['test.tar.gz'])
             # Check that we indeed downloaded the right tag
             extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
-            extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
+            with self.mocked_stdout_stderr():
+                extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
             self.assertTrue(os.path.isfile(os.path.join(extracted_repo_dir, 'this-is-a-branch.txt')))
             os.remove(test_file)
 
@@ -2880,7 +2881,8 @@ class FileToolsTest(EnhancedTestCase):
             self.assertTrue(os.path.isfile(test_file))
             # Check that we indeed downloaded the tag and not the branch
             extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
-            extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
+            with self.mocked_stdout_stderr():
+                extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
             self.assertTrue(os.path.isfile(os.path.join(extracted_repo_dir, 'this-is-a-tag.txt')))
 
             del git_config['tag']
