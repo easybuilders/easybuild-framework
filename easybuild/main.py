@@ -69,7 +69,7 @@ from easybuild.tools.github import check_github, close_pr, find_easybuild_easyco
 from easybuild.tools.github import add_pr_labels, install_github_token, list_prs, merge_pr, new_branch_github, new_pr
 from easybuild.tools.github import new_pr_from_branch
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
-from easybuild.tools.hooks import CRASH, START, END, CANCEL, FAIL, load_hooks, run_hook
+from easybuild.tools.hooks import BUILD_AND_INSTALL_LOOP, PRE_PREF, POST_PREF, CRASH, START, END, CANCEL, FAIL, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import opts_dict_to_eb_opts, parse_options, set_up_configuration, use_color
 from easybuild.tools.output import COLOR_GREEN, COLOR_RED, STATUS_BAR, colorize, print_checks, rich_live_cm
@@ -545,8 +545,10 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         exit_on_failure = not (options.dump_test_report or options.upload_test_report)
 
         with rich_live_cm():
+            run_hook(PRE_PREF + BUILD_AND_INSTALL_LOOP, hooks, args=[ordered_ecs])
             ecs_with_res = build_and_install_software(ordered_ecs, init_session_state,
                                                       exit_on_failure=exit_on_failure)
+            run_hook(POST_PREF + BUILD_AND_INSTALL_LOOP, hooks, args=[ecs_with_res])
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 
