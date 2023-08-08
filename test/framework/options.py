@@ -679,6 +679,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "List of supported hooks (in order of execution):",
             "	start_hook",
             "	parse_hook",
+            "   pre_build_and_install_loop_hook"
             "	pre_fetch_hook",
             "	post_fetch_hook",
             "	pre_ready_hook",
@@ -716,7 +717,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "	post_package_hook",
             "	pre_testcases_hook",
             "	post_testcases_hook",
+            "   post_build_and_install_loop_hook"
             "	end_hook",
+            "   "
             '',
         ])
         self.assertEqual(stdout, expected)
