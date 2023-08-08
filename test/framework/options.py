@@ -718,8 +718,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "	post_testcases_hook",
             "	end_hook",
             "   fail_hook",
-            "   cancel_hook"
-            "   crash_hook"
+            "   cancel_hook",
+            "   crash_hook",
             '',
         ])
         self.assertEqual(stdout, expected)
