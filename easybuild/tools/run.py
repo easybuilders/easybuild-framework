@@ -84,8 +84,8 @@ def run_cmd_cache(func):
     @functools.wraps(func)
     def cache_aware_func(cmd, *args, **kwargs):
         """Retrieve cached result of selected commands, or run specified and collect & cache result."""
-        # cache key is combination of command and input provided via stdin
-        key = (cmd, kwargs.get('inp', None))
+        # cache key is combination of command and input provided via stdin ('stdin' for run, 'inp' for run_cmd)
+        key = (cmd, kwargs.get('stdin', None) or kwargs.get('inp', None))
         # fetch from cache if available, cache it if it's not, but only on cmd strings
         if isinstance(cmd, str) and key in cache:
             _log.debug("Using cached value for command '%s': %s", cmd, cache[key])

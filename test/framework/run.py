@@ -49,7 +49,7 @@ import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, write_file
 from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
-from easybuild.tools.run import parse_log_for_error, run, run_cmd, run_cmd_qa, subprocess_terminate
+from easybuild.tools.run import RunResult, parse_log_for_error, run, run_cmd, run_cmd_qa, subprocess_terminate
 from easybuild.tools.config import ERROR, IGNORE, WARN
 
 
@@ -736,6 +736,42 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(cached_out, 'bar')
 
         run_cmd.clear_cache()
+
+    def test_run_cache(self):
+        """Test caching for run"""
+        with self.mocked_stdout_stderr():
+            res = run("ulimit -u")
+            first_out = res.output
+        self.assertEqual(res.exit_code, 0)
+        with self.mocked_stdout_stderr():
+            res = run("ulimit -u")
+            cached_out = res.output
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(first_out, cached_out)
+
+        # inject value into cache to check whether executing command again really returns cached value
+        with self.mocked_stdout_stderr():
+            cached_res = RunResult(output="123456", exit_code=123, stderr=None)
+            run.update_cache({("ulimit -u", None): cached_res})
+            res = run("ulimit -u")
+        self.assertEqual(res.exit_code, 123)
+        self.assertEqual(res.output, "123456")
+
+        # also test with command that uses stdin
+        with self.mocked_stdout_stderr():
+            res = run("cat", stdin='foo')
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'foo')
+
+        # inject different output for cat with 'foo' as stdin to check whether cached value is used
+        with self.mocked_stdout_stderr():
+            cached_res = RunResult(output="bar", exit_code=123, stderr=None)
+            run.update_cache({('cat', 'foo'): cached_res})
+            res = run("cat", stdin='foo')
+        self.assertEqual(res.exit_code, 123)
+        self.assertEqual(res.output, 'bar')
+
+        run.clear_cache()
 
     def test_parse_log_error(self):
         """Test basic parse_log_for_error functionality."""
