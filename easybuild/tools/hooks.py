@@ -67,6 +67,7 @@ END = 'end'
 
 FAIL = 'fail'
 CANCEL = 'cancel'
+CRASH = 'crash'
 
 PRE_PREF = 'pre_'
 POST_PREF = 'post_'
@@ -103,6 +104,7 @@ HOOK_NAMES = [
     END,
     FAIL, 
     CANCEL,
+    CRASH,
 ]
 KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
 
