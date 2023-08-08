@@ -102,7 +102,7 @@ HOOK_NAMES = [
 ] + [p + x for x in STEP_NAMES[STEP_NAMES.index(MODULE_STEP)+1:]
      for p in [PRE_PREF, POST_PREF]] + [
     END,
-    FAIL, 
+    FAIL,
     CANCEL,
     CRASH,
 ]
