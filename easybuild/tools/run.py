@@ -74,7 +74,7 @@ CACHED_COMMANDS = [
 ]
 
 
-RunResult = namedtuple('RunResult', ('output', 'exit_code', 'stderr'))
+RunResult = namedtuple('RunResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir'))
 
 
 def run_cmd_cache(func):
@@ -142,9 +142,9 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
         raise NotImplementedError
 
     if isinstance(cmd, str):
-        cmd_msg = cmd.strip()
+        cmd_str = cmd.strip()
     elif isinstance(cmd, list):
-        cmd_msg = ' '.join(cmd)
+        cmd_str = ' '.join(cmd)
     else:
         raise EasyBuildError(f"Unknown command type ('{type(cmd)}'): {cmd}")
 
@@ -164,15 +164,15 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
     if not in_dry_run and build_option('extended_dry_run'):
         if not hidden:
             silent = build_option('silent')
-            msg = f"  running command \"{cmd_msg}\"\n"
+            msg = f"  running command \"{cmd_str}\"\n"
             msg += f"  (in {work_dir})"
             dry_run_msg(msg, silent=silent)
 
-        return RunResult(output='', exit_code=0, stderr=None)
+        return RunResult(cmd=cmd_str, exit_code=0, output='', stderr=None, work_dir=work_dir)
 
     start_time = datetime.now()
     if not hidden:
-        cmd_trace_msg(cmd_msg, start_time, work_dir, stdin, cmd_out_fp)
+        cmd_trace_msg(cmd_str, start_time, work_dir, stdin, cmd_out_fp)
 
     if stdin:
         # 'input' value fed to subprocess.run must be a byte sequence
@@ -185,7 +185,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
 
     stderr = subprocess.PIPE if split_stderr else subprocess.STDOUT
 
-    _log.info(f"Running command '{cmd_msg}' in {work_dir}")
+    _log.info(f"Running command '{cmd_str}' in {work_dir}")
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=stderr, check=fail_on_error,
                           env=env, input=stdin, shell=shell, executable=executable)
 
@@ -193,13 +193,13 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
     output = proc.stdout.decode('utf-8', 'ignore')
     stderr_output = proc.stderr.decode('utf-8', 'ignore') if split_stderr else None
 
-    res = RunResult(output=output, exit_code=proc.returncode, stderr=stderr_output)
+    res = RunResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr_output, work_dir=work_dir)
 
     if split_stderr:
-        log_msg = f"Command '{cmd_msg}' exited with exit code {res.exit_code}, "
+        log_msg = f"Command '{cmd_str}' exited with exit code {res.exit_code}, "
         log_msg += f"with stdout:\n{res.output}\nstderr:\n{res.stderr}"
     else:
-        log_msg = f"Command '{cmd_msg}' exited with exit code {res.exit_code} and output:\n{res.output}"
+        log_msg = f"Command '{cmd_str}' exited with exit code {res.exit_code} and output:\n{res.output}"
     _log.info(log_msg)
 
     if not hidden:

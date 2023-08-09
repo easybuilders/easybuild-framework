@@ -166,8 +166,11 @@ class RunTest(EnhancedTestCase):
             res = run("echo hello")
         self.assertEqual(res.output, "hello\n")
         # no reason echo hello could fail
+        self.assertEqual(res.cmd, "echo hello")
         self.assertEqual(res.exit_code, 0)
-        self.assertEqual(type(res.output), str)
+        self.assertTrue(isinstance(res.output, str))
+        self.assertEqual(res.stderr, None)
+        self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
 
         # test running command that emits non-UTF-8 characters
         # this is constructed to reproduce errors like:
@@ -181,9 +184,11 @@ class RunTest(EnhancedTestCase):
 
             with self.mocked_stdout_stderr():
                 res = run(cmd)
+            self.assertEqual(res.cmd, cmd)
             self.assertEqual(res.exit_code, 0)
             self.assertTrue(res.output.startswith('foo ') and res.output.endswith(' bar'))
-            self.assertEqual(type(res.output), str)
+            self.assertTrue(isinstance(res.output, str))
+            self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
 
     def test_run_cmd_log(self):
         """Test logging of executed commands."""
@@ -761,37 +766,47 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cache(self):
         """Test caching for run"""
+
+        cmd = "ulimit -u"
         with self.mocked_stdout_stderr():
-            res = run("ulimit -u")
+            res = run(cmd)
             first_out = res.output
         self.assertEqual(res.exit_code, 0)
+
         with self.mocked_stdout_stderr():
-            res = run("ulimit -u")
+            res = run(cmd)
             cached_out = res.output
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(first_out, cached_out)
 
         # inject value into cache to check whether executing command again really returns cached value
         with self.mocked_stdout_stderr():
-            cached_res = RunResult(output="123456", exit_code=123, stderr=None)
-            run.update_cache({("ulimit -u", None): cached_res})
-            res = run("ulimit -u")
+            cached_res = RunResult(cmd=cmd, output="123456", exit_code=123, stderr=None, work_dir='/test_ulimit')
+            run.update_cache({(cmd, None): cached_res})
+            res = run(cmd)
+        self.assertEqual(res.cmd, cmd)
         self.assertEqual(res.exit_code, 123)
         self.assertEqual(res.output, "123456")
+        self.assertEqual(res.stderr, None)
+        self.assertEqual(res.work_dir, '/test_ulimit')
 
         # also test with command that uses stdin
+        cmd = "cat"
         with self.mocked_stdout_stderr():
-            res = run("cat", stdin='foo')
+            res = run(cmd, stdin='foo')
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, 'foo')
 
         # inject different output for cat with 'foo' as stdin to check whether cached value is used
         with self.mocked_stdout_stderr():
-            cached_res = RunResult(output="bar", exit_code=123, stderr=None)
-            run.update_cache({('cat', 'foo'): cached_res})
-            res = run("cat", stdin='foo')
+            cached_res = RunResult(cmd=cmd, output="bar", exit_code=123, stderr=None, work_dir='/test_cat')
+            run.update_cache({(cmd, 'foo'): cached_res})
+            res = run(cmd, stdin='foo')
+        self.assertEqual(res.cmd, cmd)
         self.assertEqual(res.exit_code, 123)
         self.assertEqual(res.output, 'bar')
+        self.assertEqual(res.stderr, None)
+        self.assertEqual(res.work_dir, '/test_cat')
 
         run.clear_cache()
 
