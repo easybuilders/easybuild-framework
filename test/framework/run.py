@@ -49,7 +49,7 @@ import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, write_file
 from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
-from easybuild.tools.run import parse_log_for_error, run, run_cmd, run_cmd_qa, subprocess_terminate
+from easybuild.tools.run import RunResult, parse_log_for_error, run, run_cmd, run_cmd_qa, subprocess_terminate
 from easybuild.tools.config import ERROR, IGNORE, WARN
 
 
@@ -297,6 +297,28 @@ class RunTest(EnhancedTestCase):
             signal.signal(signal.SIGALRM, orig_sigalrm_handler)
             signal.alarm(0)
 
+    def test_run_fail_cmd(self):
+        """Test run function with command that has negative exit code."""
+        # define signal handler to call in case run takes too long
+        def handler(signum, _):
+            raise RuntimeError("Signal handler called with signal %s" % signum)
+
+        orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
+
+        try:
+            # set the signal handler and a 3-second alarm
+            signal.signal(signal.SIGALRM, handler)
+            signal.alarm(3)
+
+            with self.mocked_stdout_stderr():
+                res = run("kill -9 $$", fail_on_error=False)
+            self.assertEqual(res.exit_code, -9)
+
+        finally:
+            # cleanup: disable the alarm + reset signal handler for SIGALRM
+            signal.signal(signal.SIGALRM, orig_sigalrm_handler)
+            signal.alarm(0)
+
     def test_run_cmd_bis(self):
         """More 'complex' test for run_cmd function."""
         # a more 'complex' command to run, make sure all required output is there
@@ -305,6 +327,15 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(out.startswith('hello\nhello\n'))
         self.assertEqual(len(out), len("hello\n" * 300))
         self.assertEqual(ec, 0)
+
+    def test_run_bis(self):
+        """More 'complex' test for run function."""
+        # a more 'complex' command to run, make sure all required output is there
+        with self.mocked_stdout_stderr():
+            res = run("for j in `seq 1 3`; do for i in `seq 1 100`; do echo hello; done; sleep 1.4; done")
+        self.assertTrue(res.output.startswith('hello\nhello\n'))
+        self.assertEqual(len(res.output), len("hello\n" * 300))
+        self.assertEqual(res.exit_code, 0)
 
     def test_run_cmd_log_output(self):
         """Test run_cmd with log_output enabled"""
@@ -339,9 +370,7 @@ class RunTest(EnhancedTestCase):
             self.assertEqual(type(out), str)
 
     def test_run_cmd_trace(self):
-        """Test run_cmd under --trace"""
-
-        init_config(build_options={'trace': True})
+        """Test run_cmd in trace mode, and with tracing disabled."""
 
         pattern = [
             r"^  >> running command:",
@@ -352,6 +381,7 @@ class RunTest(EnhancedTestCase):
             r"  >> command completed: exit 0, ran in .*",
         ]
 
+        # trace output is enabled by default (since EasyBuild v5.0)
         self.mock_stdout(True)
         self.mock_stderr(True)
         (out, ec) = run_cmd("echo hello")
@@ -364,6 +394,22 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
         regex = re.compile('\n'.join(pattern))
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        init_config(build_options={'trace': False})
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        (out, ec) = run_cmd("echo hello")
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(out, 'hello\n')
+        self.assertEqual(ec, 0)
+        self.assertEqual(stderr, '')
+        self.assertEqual(stdout, '')
+
+        init_config(build_options={'trace': True})
 
         # also test with command that is fed input via stdin
         self.mock_stdout(True)
@@ -381,18 +427,93 @@ class RunTest(EnhancedTestCase):
         regex = re.compile('\n'.join(pattern))
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
-        # trace output can be disabled on a per-command basis
+        init_config(build_options={'trace': False})
+
         self.mock_stdout(True)
         self.mock_stderr(True)
-        (out, ec) = run_cmd("echo hello", trace=False)
+        (out, ec) = run_cmd('cat', inp='hello')
         stdout = self.get_stdout()
         stderr = self.get_stderr()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertEqual(out, 'hello\n')
+        self.assertEqual(out, 'hello')
         self.assertEqual(ec, 0)
-        self.assertEqual(stdout, '')
         self.assertEqual(stderr, '')
+        self.assertEqual(stdout, '')
+
+        # trace output can be disabled on a per-command basis
+        for trace in (True, False):
+            init_config(build_options={'trace': trace})
+
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            (out, ec) = run_cmd("echo hello", trace=False)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(out, 'hello\n')
+            self.assertEqual(ec, 0)
+            self.assertEqual(stdout, '')
+            self.assertEqual(stderr, '')
+
+    def test_run_trace(self):
+        """Test run in trace mode, and with tracing disabled."""
+
+        pattern = [
+            r"^  >> running command:",
+            r"\t\[started at: .*\]",
+            r"\t\[working dir: .*\]",
+            r"\t\[output logged in .*\]",
+            r"\techo hello",
+            r"  >> command completed: exit 0, ran in .*",
+        ]
+
+        # trace output is enabled by default (since EasyBuild v5.0)
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        res = run("echo hello")
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(res.output, 'hello\n')
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(stderr, '')
+        regex = re.compile('\n'.join(pattern))
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        init_config(build_options={'trace': False})
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        res = run("echo hello")
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(res.output, 'hello\n')
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(stderr, '')
+        self.assertEqual(stdout, '')
+
+        init_config(build_options={'trace': True})
+
+        # trace output can be disabled on a per-command basis via 'hidden' option
+        for trace in (True, False):
+            init_config(build_options={'trace': trace})
+
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            res = run("echo hello", hidden=True)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(res.output, 'hello\n')
+            self.assertEqual(res.exit_code, 0)
+            self.assertEqual(stdout, '')
+            self.assertEqual(stderr, '')
 
     def test_run_trace_stdin(self):
         """Test run under --trace + passing stdin input."""
@@ -403,6 +524,7 @@ class RunTest(EnhancedTestCase):
             r"^  >> running command:",
             r"\t\[started at: [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]\]",
             r"\t\[working dir: .*\]",
+            r"\t\[output logged in .*\]",
             r"\techo hello",
             r"  >> command completed: exit 0, ran in .*",
         ]
@@ -615,6 +737,42 @@ class RunTest(EnhancedTestCase):
 
         run_cmd.clear_cache()
 
+    def test_run_cache(self):
+        """Test caching for run"""
+        with self.mocked_stdout_stderr():
+            res = run("ulimit -u")
+            first_out = res.output
+        self.assertEqual(res.exit_code, 0)
+        with self.mocked_stdout_stderr():
+            res = run("ulimit -u")
+            cached_out = res.output
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(first_out, cached_out)
+
+        # inject value into cache to check whether executing command again really returns cached value
+        with self.mocked_stdout_stderr():
+            cached_res = RunResult(output="123456", exit_code=123, stderr=None)
+            run.update_cache({("ulimit -u", None): cached_res})
+            res = run("ulimit -u")
+        self.assertEqual(res.exit_code, 123)
+        self.assertEqual(res.output, "123456")
+
+        # also test with command that uses stdin
+        with self.mocked_stdout_stderr():
+            res = run("cat", stdin='foo')
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'foo')
+
+        # inject different output for cat with 'foo' as stdin to check whether cached value is used
+        with self.mocked_stdout_stderr():
+            cached_res = RunResult(output="bar", exit_code=123, stderr=None)
+            run.update_cache({('cat', 'foo'): cached_res})
+            res = run("cat", stdin='foo')
+        self.assertEqual(res.exit_code, 123)
+        self.assertEqual(res.output, 'bar')
+
+        run.clear_cache()
+
     def test_parse_log_error(self):
         """Test basic parse_log_for_error functionality."""
         errors = parse_log_for_error("error failed", True)
@@ -641,11 +799,21 @@ class RunTest(EnhancedTestCase):
         run_cmd("somecommand foo 123 bar", verbose=False)
         self.mock_stdout(False)
 
-        # check forced run
+        # check forced run_cmd
         outfile = os.path.join(self.test_prefix, 'cmd.out')
         self.assertNotExists(outfile)
         self.mock_stdout(True)
         run_cmd("echo 'This is always echoed' > %s" % outfile, force_in_dry_run=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertExists(outfile)
+        self.assertEqual(read_file(outfile), "This is always echoed\n")
+
+        write_file(outfile, '', forced=True)
+
+        # check forced run
+        self.mock_stdout(True)
+        run("echo 'This is always echoed' > %s" % outfile, in_dry_run=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
         self.assertExists(outfile)
