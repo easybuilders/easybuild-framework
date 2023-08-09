@@ -2831,7 +2831,7 @@ class FileToolsTest(EnhancedTestCase):
             r'  running command "git clone --no-checkout %(git_repo)s"',
             r"  \(in /.*\)",
             r'  running command "git checkout 8456f86 && git submodule update --init --recursive"',
-            r"  \(in testrepository\)",
+            r"  \(in /.*/testrepository\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in /.*\)",
         ]) % git_repo
@@ -2842,7 +2842,7 @@ class FileToolsTest(EnhancedTestCase):
             r'  running command "git clone --no-checkout %(git_repo)s"',
             r"  \(in /.*\)",
             r'  running command "git checkout 8456f86"',
-            r"  \(in testrepository\)",
+            r"  \(in /.*/testrepository\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in /.*\)",
         ]) % git_repo
