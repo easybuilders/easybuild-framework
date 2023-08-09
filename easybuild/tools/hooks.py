@@ -85,10 +85,12 @@ HOOK_NAMES = [
     # pre-extensions hook is triggered before starting installation of extensions,
     # pre/post extension (singular) hook is triggered when installing individual extensions,
     # post-extensions hook is triggered after installation of extensions
+    # postiter hook is triggered to restore options that were iterated over
     PRE_PREF + EXTENSIONS_STEP,
     PRE_PREF + SINGLE_EXTENSION,
     POST_PREF + SINGLE_EXTENSION,
     POST_PREF + EXTENSIONS_STEP,
+    POSTITER_STEP,
 ] + [p + x for x in STEP_NAMES[STEP_NAMES.index(EXTENSIONS_STEP)+1:STEP_NAMES.index(MODULE_STEP)]
      for p in [PRE_PREF, POST_PREF]] + [
     # pre-module hook hook is triggered before starting module step which creates module file,
