@@ -1130,13 +1130,10 @@ class Toolchain(object):
 
     def get_flag(self, name):
         """Get compiler flag(s) for a certain option."""
-        if isinstance(self.options.option(name), str):
-            return "-%s" % self.options.option(name)
-        elif isinstance(self.options.option(name), list):
+        if isinstance(self.options.option(name), list):
             return " ".join("-%s" % x for x in self.options.option(name))
         else:
-            msg = "Do not know how to convert toolchain flag %s, of type %s, for use"
-            raise EasyBuildError(msg % (name, type(self.options.option(name))))
+            return "-%s" % self.options.option(name)
 
     def toolchain_family(self):
         """Return toolchain family for this toolchain."""
