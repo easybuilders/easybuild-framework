@@ -110,7 +110,7 @@ class IntelCompilers(IntelIccIfort):
             # fp-model fast=2 gives "warning: overriding '-ffp-model=fast=2' option with '-ffp-model=fast'"
             self.options.options_map['veryloose'] = ['fp-model fast']
             # recommended in porting guide
-            self.options.options_map['openmp'] = ['fiopenmp']
+            self.options.options_map['openmp'] = 'fiopenmp'
 
             # -xSSE2 is not supported by Intel oneAPI compilers,
             # so use -march=x86-64 -mtune=generic when using optarch=GENERIC
