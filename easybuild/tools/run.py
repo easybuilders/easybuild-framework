@@ -135,7 +135,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
     """
 
     # temporarily raise a NotImplementedError until all options are implemented
-    if any((work_dir, stream_output, asynchronous)):
+    if any((stream_output, asynchronous)):
         raise NotImplementedError
 
     if qa_patterns or qa_wait_patterns:
@@ -187,7 +187,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
 
     _log.info(f"Running command '{cmd_str}' in {work_dir}")
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=stderr, check=fail_on_error,
-                          env=env, input=stdin, shell=shell, executable=executable)
+                          cwd=work_dir, env=env, input=stdin, shell=shell, executable=executable)
 
     # return output as a regular string rather than a byte sequence (and non-UTF-8 characters get stripped out)
     output = proc.stdout.decode('utf-8', 'ignore')
