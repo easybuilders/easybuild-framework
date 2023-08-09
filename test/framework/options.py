@@ -702,6 +702,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "	pre_single_extension_hook",
             "	post_single_extension_hook",
             "	post_extensions_hook",
+            "	postiter_hook",
             "	pre_postproc_hook",
             "	post_postproc_hook",
             "	pre_sanitycheck_hook",
