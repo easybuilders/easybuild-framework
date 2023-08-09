@@ -2965,6 +2965,7 @@ class ToolchainTest(EnhancedTestCase):
             tc.options.options_map['openmp'] = flags
             self.assertEqual(tc.get_flag('openmp'), flagstring)
 
+
 def suite():
     """ return all the tests"""
     return TestLoaderFiltered().loadTestsFromTestCase(ToolchainTest, sys.argv[1:])
