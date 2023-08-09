@@ -2253,21 +2253,6 @@ def decode_class_name(name):
         return decode_string(name)
 
 
-def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
-    """NO LONGER SUPPORTED: use run_cmd from easybuild.tools.run instead"""
-    _log.nosupport("run_cmd was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
-
-
-def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
-    """NO LONGER SUPPORTED: use run_cmd_qa from easybuild.tools.run instead"""
-    _log.nosupport("run_cmd_qa was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
-
-
-def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
-    """NO LONGER SUPPORTED: use parse_log_for_error from easybuild.tools.run instead"""
-    _log.nosupport("parse_log_for_error was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
-
-
 def det_size(path):
     """
     Determine total size of given filepath (in bytes).
