@@ -107,7 +107,7 @@ run_cache = run_cmd_cache
 
 
 @run_cache
-def run(cmd, fail_on_error=True, split_stderr=False, stdin=None,
+def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
         hidden=False, in_dry_run=False, work_dir=None, shell=True,
         output_file=False, stream_output=False, asynchronous=False,
         qa_patterns=None, qa_wait_patterns=None):
@@ -117,6 +117,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None,
     :param fail_on_error: fail on non-zero exit code (enabled by default)
     :param split_stderr: split of stderr from stdout output
     :param stdin: input to be sent to stdin (nothing if set to None)
+    :param env: environment to use to run command (if None, inherit current process environment)
     :param hidden: do not show command in terminal output (when using --trace, or with --extended-dry-run / -x)
     :param in_dry_run: also run command in dry run mode
     :param work_dir: working directory to run command in (current working directory if None)
@@ -134,7 +135,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None,
     """
 
     # temporarily raise a NotImplementedError until all options are implemented
-    if any((split_stderr, work_dir, stream_output, asynchronous)):
+    if any((work_dir, stream_output, asynchronous)):
         raise NotImplementedError
 
     if qa_patterns or qa_wait_patterns:
@@ -179,21 +180,27 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None,
 
     # use bash as shell instead of the default /bin/sh used by subprocess.run
     # (which could be dash instead of bash, like on Ubuntu, see https://wiki.ubuntu.com/DashAsBinSh)
-    if shell:
-        executable = '/bin/bash'
-    else:
-        # stick to None (default value) when not running command via a shell
-        executable = None
+    # stick to None (default value) when not running command via a shell
+    executable = '/bin/bash' if shell else None
+
+    stderr = subprocess.PIPE if split_stderr else subprocess.STDOUT
 
     _log.info(f"Running command '{cmd_msg}' in {work_dir}")
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=fail_on_error,
-                          input=stdin, shell=shell, executable=executable)
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=stderr, check=fail_on_error,
+                          env=env, input=stdin, shell=shell, executable=executable)
 
     # return output as a regular string rather than a byte sequence (and non-UTF-8 characters get stripped out)
     output = proc.stdout.decode('utf-8', 'ignore')
+    stderr_output = proc.stderr.decode('utf-8', 'ignore') if split_stderr else None
 
-    res = RunResult(output=output, exit_code=proc.returncode, stderr=None)
-    _log.info(f"Command '{cmd_msg}' exited with exit code {res.exit_code} and output:\n{res.output}")
+    res = RunResult(output=output, exit_code=proc.returncode, stderr=stderr_output)
+
+    if split_stderr:
+        log_msg = f"Command '{cmd_msg}' exited with exit code {res.exit_code}, "
+        log_msg += f"with stdout:\n{res.output}\nstderr:\n{res.stderr}"
+    else:
+        log_msg = f"Command '{cmd_msg}' exited with exit code {res.exit_code} and output:\n{res.output}"
+    _log.info(log_msg)
 
     if not hidden:
         time_since_start = time_str_since(start_time)

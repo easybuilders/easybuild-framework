@@ -369,6 +369,28 @@ class RunTest(EnhancedTestCase):
             self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
             self.assertEqual(type(out), str)
 
+    def test_run_split_stderr(self):
+        """Test getting split stdout/stderr output from run function."""
+        cmd = ';'.join([
+            "echo ok",
+            "echo warning >&2",
+        ])
+
+        # by default, output contains both stdout + stderr
+        with self.mocked_stdout_stderr():
+            res = run(cmd)
+        self.assertEqual(res.exit_code, 0)
+        output_lines = res.output.split('\n')
+        self.assertTrue("ok" in output_lines)
+        self.assertTrue("warning" in output_lines)
+        self.assertEqual(res.stderr, None)
+
+        with self.mocked_stdout_stderr():
+            res = run(cmd, split_stderr=True)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.stderr, "warning\n")
+        self.assertEqual(res.output, "ok\n")
+
     def test_run_cmd_trace(self):
         """Test run_cmd in trace mode, and with tracing disabled."""
 
