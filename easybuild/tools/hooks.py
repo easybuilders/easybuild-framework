@@ -72,7 +72,7 @@ HOOK_SUFF = '_hook'
 
 # list of names for steps in installation procedure (in order of execution)
 STEP_NAMES = [FETCH_STEP, READY_STEP, SOURCE_STEP, PATCH_STEP, PREPARE_STEP, CONFIGURE_STEP, BUILD_STEP, TEST_STEP,
-              INSTALL_STEP, EXTENSIONS_STEP, POSTPROC_STEP, SANITYCHECK_STEP, CLEANUP_STEP, MODULE_STEP,
+              INSTALL_STEP, EXTENSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, SANITYCHECK_STEP, CLEANUP_STEP, MODULE_STEP,
               PERMISSIONS_STEP, PACKAGE_STEP, TESTCASES_STEP]
 
 # hook names (in order of being triggered)
@@ -85,12 +85,10 @@ HOOK_NAMES = [
     # pre-extensions hook is triggered before starting installation of extensions,
     # pre/post extension (singular) hook is triggered when installing individual extensions,
     # post-extensions hook is triggered after installation of extensions
-    # postiter hook is triggered to restore options that were iterated over
     PRE_PREF + EXTENSIONS_STEP,
     PRE_PREF + SINGLE_EXTENSION,
     POST_PREF + SINGLE_EXTENSION,
     POST_PREF + EXTENSIONS_STEP,
-    POSTITER_STEP,
 ] + [p + x for x in STEP_NAMES[STEP_NAMES.index(EXTENSIONS_STEP)+1:STEP_NAMES.index(MODULE_STEP)]
      for p in [PRE_PREF, POST_PREF]] + [
     # pre-module hook hook is triggered before starting module step which creates module file,
