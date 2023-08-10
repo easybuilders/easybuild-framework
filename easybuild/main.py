@@ -580,7 +580,8 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     return overall_success
 
 
-def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, eb_go=None, cfg_settings=None):
+def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, eb_go=None, cfg_settings=None,
+         init_session_state=None, hooks=None):
     """
     Main function: parse command line options, and act accordingly.
     :param: eb_go: easybuild general options object
@@ -591,23 +592,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, eb
     :param testing: enable testing mode
     """
 
-    register_lock_cleanup_signal_handlers()
+    if not all([eb_go, cfg_settings, init_session_state, hooks]):
+        eb_go, cfg_settings, init_session_state, hooks = prepare_main(args=args, logfile=logfile, testing=testing)
 
-    if not all([eb_go, cfg_settings]):
-        eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
-
-    # if $CDPATH is set, unset it, it'll only cause trouble...
-    # see https://github.com/easybuilders/easybuild-framework/issues/2944
-    if 'CDPATH' in os.environ:
-        del os.environ['CDPATH']
-
-    # When EB is run via `exec` the special bash variable $_ is not set
-    # So emulate this here to allow (module) scripts depending on that to work
-    if '_' not in os.environ:
-        os.environ['_'] = sys.executable
-
-    # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
-    init_session_state = session_state()
     options, orig_paths = eb_go.options, eb_go.args
 
     if 'python2' not in build_option('silence_deprecation_warnings'):
@@ -742,17 +729,31 @@ def prepare_main(args=None, logfile=None, testing=None):
     :param args: command line arguments to take into account when parsing the EasyBuild configuration settings
     :param logfile: log file to use
     :param testing: enable testing mode
-    :return: easybuild options and configuration settings
+    :return: easybuild options, configuration settings and session state
     """
+    register_lock_cleanup_signal_handlers()
+
+    # if $CDPATH is set, unset it, it'll only cause trouble...
+    # see https://github.com/easybuilders/easybuild-framework/issues/2944
+    if 'CDPATH' in os.environ:
+        del os.environ['CDPATH']
+
+    # When EB is run via `exec` the special bash variable $_ is not set
+    # So emulate this here to allow (module) scripts depending on that to work
+    if '_' not in os.environ:
+        os.environ['_'] = sys.executable
+
+    # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
+    init_session_state = session_state()
     eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
-    return eb_go, cfg_settings
+    hooks = load_hooks(eb_go.options.hooks)
+    return eb_go, cfg_settings, init_session_state, hooks
 
 
 if __name__ == "__main__":
-    eb_go, cfg_settings = prepare_main()
-    hooks = load_hooks(eb_go.options.hooks)
+    eb_go, cfg_settings, init_session_state, hooks = prepare_main()
     try:
-        main(eb_go=eb_go, cfg_settings=cfg_settings)
+        main(eb_go=eb_go, cfg_settings=cfg_settings, init_session_state=init_session_state, hooks=hooks)
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])
         print_error(err.msg)
