@@ -580,7 +580,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     return overall_success
 
 
-def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
+def main(eb_go=None, cfg_settings=None, args=None, logfile=None, do_build=None, testing=False, modtool=None):
     """
     Main function: parse command line options, and act accordingly.
     :param args: command line arguments to use
@@ -600,6 +600,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # So emulate this here to allow (module) scripts depending on that to work
     if '_' not in os.environ:
         os.environ['_'] = sys.executable
+    
+    if any([args, logfile, testing]):
+        eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
 
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
@@ -732,11 +735,16 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         cleanup(logfile, eb_tmpdir, testing, silent=False)
 
 
+def prepare_main(args=None, logfile=None, testing=None):
+    eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
+    return eb_go, cfg_settings
+
+
 if __name__ == "__main__":
-    eb_go = parse_options()
+    eb_go, cfg_settings = prepare_main()
     hooks = load_hooks(eb_go.options.hooks)
     try:
-        main()
+        main(eb_go, cfg_settings)
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])
         print_error(err.msg)
