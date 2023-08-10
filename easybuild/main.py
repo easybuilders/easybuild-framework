@@ -593,6 +593,9 @@ def main(eb_go=None, cfg_settings=None, args=None, logfile=None, do_build=None, 
 
     register_lock_cleanup_signal_handlers()
 
+    if not all([eb_go, cfg_settings]):
+        eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
+
     # if $CDPATH is set, unset it, it'll only cause trouble...
     # see https://github.com/easybuilders/easybuild-framework/issues/2944
     if 'CDPATH' in os.environ:
@@ -602,9 +605,6 @@ def main(eb_go=None, cfg_settings=None, args=None, logfile=None, do_build=None, 
     # So emulate this here to allow (module) scripts depending on that to work
     if '_' not in os.environ:
         os.environ['_'] = sys.executable
-
-    if not all([eb_go, cfg_settings]):
-        eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
 
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
