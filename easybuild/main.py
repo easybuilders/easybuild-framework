@@ -580,7 +580,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     return overall_success
 
 
-def main(eb_go=None, cfg_settings=None, args=None, logfile=None, do_build=None, testing=False, modtool=None):
+def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, eb_go=None, cfg_settings=None):
     """
     Main function: parse command line options, and act accordingly.
     :param: eb_go: easybuild general options object
@@ -742,7 +742,7 @@ def prepare_main(args=None, logfile=None, testing=None):
     :param args: command line arguments to take into account when parsing the EasyBuild configuration settings
     :param logfile: log file to use
     :param testing: enable testing mode
-    return: easybuild options and configuration settings
+    :return: easybuild options and configuration settings
     """
     eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
     return eb_go, cfg_settings
@@ -752,7 +752,7 @@ if __name__ == "__main__":
     eb_go, cfg_settings = prepare_main()
     hooks = load_hooks(eb_go.options.hooks)
     try:
-        main(eb_go, cfg_settings)
+        main(eb_go=eb_go, cfg_settings=cfg_settings)
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])
         print_error(err.msg)
