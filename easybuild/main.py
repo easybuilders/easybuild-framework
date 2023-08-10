@@ -738,8 +738,7 @@ def main(eb_go=None, cfg_settings=None, args=None, logfile=None, do_build=None, 
 
 def prepare_main(args=None, logfile=None, testing=None):
     """
-    Prepare Main: Set up eb_go and consequently, cfg_settings in order to obtain the hooks,
-    and prevent the configuration being set up twice.
+    Prepare for calling main function by setting up the EasyBuild configuration.
     :param args: command line arguments to take into account when parsing the EasyBuild configuration settings
     :param logfile: log file to use
     :param testing: enable testing mode
