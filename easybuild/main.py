@@ -606,7 +606,7 @@ def main(eb_go=None, cfg_settings=None, args=None, logfile=None, do_build=None, 
 
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
-    eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
+    # eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
     options, orig_paths = eb_go.options, eb_go.args
 
     if 'python2' not in build_option('silence_deprecation_warnings'):
