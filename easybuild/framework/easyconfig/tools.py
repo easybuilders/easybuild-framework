@@ -60,7 +60,7 @@ from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
 from easybuild.tools.filetools import read_file, resolve_path, which, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
-from easybuild.tools.github import det_pr_labels, download_repo, fetch_easyconfigs_from_pr, fetch_pr_data
+from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, fetch_easyconfigs_from_pr, fetch_pr_data
 from easybuild.tools.github import fetch_files_from_pr
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import OrderedDict
@@ -560,6 +560,11 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False
         elif '.x' in pr_data['milestone']['title']:
             lines.extend(['', "This PR is associated with a generic '.x' milestone, "
                               "it should be associated to the next release milestone once merged"])
+
+        default_new_title = det_pr_title([ec['ec'] for ec in ecs])
+        if default_new_title != pr_data['title']:
+            lines.extend(['', "If this PR contains only new easyconfigs and has not been edited from the default, "
+                              "then the title should be: %s" % default_new_title])
 
     return '\n'.join(lines)
 
