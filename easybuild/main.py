@@ -603,7 +603,7 @@ def main(eb_go=None, cfg_settings=None, args=None, logfile=None, do_build=None, 
     if '_' not in os.environ:
         os.environ['_'] = sys.executable
 
-    if any([args, logfile, testing]):
+    if not all([eb_go, cfg_settings]):
         eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
 
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
