@@ -72,7 +72,7 @@ from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develo
 from easybuild.tools.hooks import BUILD_AND_INSTALL_LOOP, PRE_PREF, POST_PREF, CRASH, START, END, CANCEL, FAIL
 from easybuild.tools.hooks import load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import opts_dict_to_eb_opts, parse_options, set_up_configuration, use_color
+from easybuild.tools.options import opts_dict_to_eb_opts, set_up_configuration, use_color
 from easybuild.tools.output import COLOR_GREEN, COLOR_RED, STATUS_BAR, colorize, print_checks, rich_live_cm
 from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
@@ -600,7 +600,7 @@ def main(eb_go=None, cfg_settings=None, args=None, logfile=None, do_build=None, 
     # So emulate this here to allow (module) scripts depending on that to work
     if '_' not in os.environ:
         os.environ['_'] = sys.executable
-    
+
     if any([args, logfile, testing]):
         eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
 
