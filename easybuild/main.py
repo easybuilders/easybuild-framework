@@ -584,12 +584,14 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, eb
          init_session_state=None, hooks=None):
     """
     Main function: parse command line options, and act accordingly.
-    :param: eb_go: easybuild general options object
-    :param: cfg_settings: configuration settings of easybuild
     :param args: command line arguments to use
     :param logfile: log file to use
     :param do_build: whether or not to actually perform the build
     :param testing: enable testing mode
+    :param eb_go: easybuild general options object
+    :param cfg_settings: configuration settings of easybuild
+    :param init_session_state: session state
+    :param hooks: available hooks
     """
 
     if not all([eb_go, cfg_settings, init_session_state, hooks]):
@@ -729,7 +731,7 @@ def prepare_main(args=None, logfile=None, testing=None):
     :param args: command line arguments to take into account when parsing the EasyBuild configuration settings
     :param logfile: log file to use
     :param testing: enable testing mode
-    :return: easybuild options, configuration settings and session state
+    :return: easybuild options, configuration settings, session state and hooks
     """
     register_lock_cleanup_signal_handlers()
 
