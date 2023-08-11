@@ -73,6 +73,8 @@ class HooksTest(EnhancedTestCase):
             '        print("this is run before running interactive command \'%s\'" % cmd)',
             '    else:',
             '        print("this is run before running command \'%s\'" % cmd)',
+            '        if cmd == "make install":',
+            '            return "sudo " + cmd',
             '',
             'def fail_hook(err):',
             '    print("EasyBuild FAIL: %s" % err)',
@@ -188,7 +190,8 @@ class HooksTest(EnhancedTestCase):
         run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make -j 3"])
         run_hook('build', hooks, post_step_hook=True, args=[None])
         run_hook('install', hooks, pre_step_hook=True, args=[None])
-        run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make install"], kwargs={})
+        res = run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make install"], kwargs={})
+        self.assertEqual(res, "sudo make install")
         run_hook('install', hooks, post_step_hook=True, args=[None])
         run_hook('extensions', hooks, pre_step_hook=True, args=[None])
         for _ in range(3):

@@ -238,7 +238,10 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     if with_hooks:
         hooks = load_hooks(build_option('hooks'))
-        run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd])
+        hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd])
+        if isinstance(hook_res, string_type):
+            cmd, old_cmd = hook_res, cmd
+            self.log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
 
     _log.info('running cmd: %s ' % cmd)
     try:
@@ -495,6 +498,13 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     # Part 2: Run the command and answer questions
     # - this needs asynchronous stdout
 
+    hooks = load_hooks(build_option('hooks'))
+    hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs={'interactive': True})
+    if isinstance(hook_res, string_type):
+        cmd, old_cmd = hook_res, cmd
+        self.log.info("Interactive command to run was changed by pre-%s hook: '%s' (was: '%s')",
+                      RUN_SHELL_CMD, cmd, old_cmd)
+
     # # Log command output
     if cmd_log:
         cmd_log.write("# output for interactive command: %s\n\n" % cmd)
@@ -518,9 +528,6 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 proc.stdin.close()
             if cmd_log:
                 cmd_log.close()
-
-    hooks = load_hooks(build_option('hooks'))
-    run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs={'interactive': True})
 
     with get_proc() as proc:
         ec = proc.poll()
