@@ -580,22 +580,22 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     return overall_success
 
 
-def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, eb_go=None, cfg_settings=None,
-         init_session_state=None, hooks=None):
+def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, prepared_cfg_data=None):
     """
     Main function: parse command line options, and act accordingly.
     :param args: command line arguments to use
     :param logfile: log file to use
     :param do_build: whether or not to actually perform the build
     :param testing: enable testing mode
+    :param prepared_cfg_data: prepared configuration data for main function, as returned by prepare_main (or None)
     :param eb_go: easybuild general options object
     :param cfg_settings: configuration settings of easybuild
     :param init_session_state: session state
-    :param hooks: available hooks
     """
-
-    if any(i is None for i in [eb_go, cfg_settings, init_session_state, hooks]) or any([args, logfile, testing]):
-        eb_go, cfg_settings, init_session_state, hooks = prepare_main(args=args, logfile=logfile, testing=testing)
+    if prepared_cfg_data is None or any([args, logfile, testing]):
+        init_session_state, eb_go, cfg_settings = prepare_main(args=args, logfile=logfile, testing=testing)
+    else:
+        init_session_state, eb_go, cfg_settings = prepared_cfg_data
 
     options, orig_paths = eb_go.options, eb_go.args
 
@@ -731,7 +731,7 @@ def prepare_main(args=None, logfile=None, testing=None):
     :param args: command line arguments to take into account when parsing the EasyBuild configuration settings
     :param logfile: log file to use
     :param testing: enable testing mode
-    :return: easybuild options, configuration settings, session state and hooks
+    :return: 3-tuple with initial session state data, EasyBuildOptions instance, and tuple with configuration settings
     """
     register_lock_cleanup_signal_handlers()
 
@@ -748,14 +748,15 @@ def prepare_main(args=None, logfile=None, testing=None):
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
     eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
-    hooks = load_hooks(eb_go.options.hooks)
-    return eb_go, cfg_settings, init_session_state, hooks
+
+    return init_session_state, eb_go, cfg_settings
 
 
 if __name__ == "__main__":
-    eb_go, cfg_settings, init_session_state, hooks = prepare_main()
+    init_session_state, eb_go, cfg_settings = prepare_main()
+    hooks = load_hooks(eb_go.options.hooks)
     try:
-        main(eb_go=eb_go, cfg_settings=cfg_settings, init_session_state=init_session_state, hooks=hooks)
+        main(prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])
         print_error(err.msg)
