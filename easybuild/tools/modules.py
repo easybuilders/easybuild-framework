@@ -823,7 +823,9 @@ class ModulesTool(object):
 
         cmd_list = self.compose_cmd_list(args)
         cmd = ' '.join(cmd_list)
-        res = run(cmd_list, env=environ, fail_on_error=False, shell=False, split_stderr=True, hidden=True)
+        # note: module commands are always run in dry mode, and are kept hidden in trace and dry run output
+        res = run(cmd_list, env=environ, fail_on_error=False, shell=False, split_stderr=True,
+                  hidden=True, in_dry_run=True)
 
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
