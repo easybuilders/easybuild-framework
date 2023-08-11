@@ -1427,7 +1427,7 @@ class Lmod(ModulesTool):
             self.log.debug("Running command '%s'...", cmd)
 
             res = run(cmd_list, env=os.environ, fail_on_error=False, shell=False, split_stderr=True, hidden=True)
-            (stdout, stderr) = (res.output, res.stderr)
+            stdout, stderr = res.output, res.stderr
 
             if stderr:
                 raise EasyBuildError("An error occurred when running '%s': %s", cmd, stderr)
