@@ -594,7 +594,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, eb
     :param hooks: available hooks
     """
 
-    if not all([eb_go, cfg_settings, init_session_state, hooks]) or any([args, logfile, testing]):
+    if not all([eb_go, cfg_settings, init_session_state, hooks]) or hooks is None or any([args, logfile, testing]):
         eb_go, cfg_settings, init_session_state, hooks = prepare_main(args=args, logfile=logfile, testing=testing)
 
     options, orig_paths = eb_go.options, eb_go.args
