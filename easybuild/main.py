@@ -588,9 +588,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
     :param do_build: whether or not to actually perform the build
     :param testing: enable testing mode
     :param prepared_cfg_data: prepared configuration data for main function, as returned by prepare_main (or None)
-    :param eb_go: easybuild general options object
-    :param cfg_settings: configuration settings of easybuild
-    :param init_session_state: session state
     """
     if prepared_cfg_data is None or any([args, logfile, testing]):
         init_session_state, eb_go, cfg_settings = prepare_main(args=args, logfile=logfile, testing=testing)
