@@ -369,6 +369,28 @@ class RunTest(EnhancedTestCase):
             self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
             self.assertEqual(type(out), str)
 
+    def test_run_split_stderr(self):
+        """Test getting split stdout/stderr output from run function."""
+        cmd = ';'.join([
+            "echo ok",
+            "echo warning >&2",
+        ])
+
+        # by default, output contains both stdout + stderr
+        with self.mocked_stdout_stderr():
+            res = run(cmd)
+        self.assertEqual(res.exit_code, 0)
+        output_lines = res.output.split('\n')
+        self.assertTrue("ok" in output_lines)
+        self.assertTrue("warning" in output_lines)
+        self.assertEqual(res.stderr, None)
+
+        with self.mocked_stdout_stderr():
+            res = run(cmd, split_stderr=True)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.stderr, "warning\n")
+        self.assertEqual(res.output, "ok\n")
+
     def test_run_cmd_trace(self):
         """Test run_cmd in trace mode, and with tracing disabled."""
 
@@ -778,43 +800,36 @@ class RunTest(EnhancedTestCase):
         errors = parse_log_for_error("error failed", True)
         self.assertEqual(len(errors), 1)
 
-    def test_dry_run(self):
-        """Test use of functions under (extended) dry run."""
+    def test_run_cmd_dry_run(self):
+        """Test use of run_cmd function under (extended) dry run."""
         build_options = {
             'extended_dry_run': True,
             'silent': False,
         }
         init_config(build_options=build_options)
 
+        cmd = "somecommand foo 123 bar"
+
         self.mock_stdout(True)
-        run_cmd("somecommand foo 123 bar")
-        txt = self.get_stdout()
+        run_cmd(cmd)
+        stdout = self.get_stdout()
         self.mock_stdout(False)
 
         expected = """  running command "somecommand foo 123 bar"\n"""
-        self.assertIn(expected, txt)
+        self.assertIn(expected, stdout)
 
         # check disabling 'verbose'
         self.mock_stdout(True)
         run_cmd("somecommand foo 123 bar", verbose=False)
+        stdout = self.get_stdout()
         self.mock_stdout(False)
+        self.assertNotIn(expected, stdout)
 
         # check forced run_cmd
         outfile = os.path.join(self.test_prefix, 'cmd.out')
         self.assertNotExists(outfile)
         self.mock_stdout(True)
         run_cmd("echo 'This is always echoed' > %s" % outfile, force_in_dry_run=True)
-        txt = self.get_stdout()
-        self.mock_stdout(False)
-        self.assertExists(outfile)
-        self.assertEqual(read_file(outfile), "This is always echoed\n")
-
-        write_file(outfile, '', forced=True)
-
-        # check forced run
-        self.mock_stdout(True)
-        run("echo 'This is always echoed' > %s" % outfile, in_dry_run=True)
-        txt = self.get_stdout()
         self.mock_stdout(False)
         self.assertExists(outfile)
         self.assertEqual(read_file(outfile), "This is always echoed\n")
@@ -822,11 +837,59 @@ class RunTest(EnhancedTestCase):
         # Q&A commands
         self.mock_stdout(True)
         run_cmd_qa("some_qa_cmd", {'question1': 'answer1'})
-        txt = self.get_stdout()
+        stdout = self.get_stdout()
         self.mock_stdout(False)
 
         expected = """  running interactive command "some_qa_cmd"\n"""
-        self.assertIn(expected, txt)
+        self.assertIn(expected, stdout)
+
+    def test_run_dry_run(self):
+        """Test use of run function under (extended) dry run."""
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        cmd = "somecommand foo 123 bar"
+
+        self.mock_stdout(True)
+        res = run(cmd)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        # fake output/exit code is returned for commands not actually run in dry run mode
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, '')
+        self.assertEqual(res.stderr, None)
+        # check dry run output
+        expected = """  running command "somecommand foo 123 bar"\n"""
+        self.assertIn(expected, stdout)
+
+        # check enabling 'hidden'
+        self.mock_stdout(True)
+        res = run(cmd, hidden=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        # fake output/exit code is returned for commands not actually run in dry run mode
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, '')
+        self.assertEqual(res.stderr, None)
+        # dry run output should be missing
+        self.assertNotIn(expected, stdout)
+
+        # check forced run_cmd
+        outfile = os.path.join(self.test_prefix, 'cmd.out')
+        self.assertNotExists(outfile)
+        self.mock_stdout(True)
+        res = run("echo 'This is always echoed' > %s; echo done; false" % outfile, fail_on_error=False, in_dry_run=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertNotIn('running command "', stdout)
+        self.assertNotEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'done\n')
+        self.assertEqual(res.stderr, None)
+        self.assertExists(outfile)
+        self.assertEqual(read_file(outfile), "This is always echoed\n")
 
     def test_run_cmd_list(self):
         """Test run_cmd with command specified as a list rather than a string"""

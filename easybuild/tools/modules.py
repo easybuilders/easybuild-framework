@@ -50,7 +50,7 @@ from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
 from easybuild.tools.filetools import convert_name, mkdir, normalize_path, path_matches, read_file, which, write_file
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
-from easybuild.tools.run import run_cmd, subprocess_popen_text
+from easybuild.tools.run import run
 from easybuild.tools.utilities import get_subclasses, nub
 
 # software root/version environment variable name prefixes
@@ -307,31 +307,32 @@ class ModulesTool(object):
         if self.testing:
             # grab 'module' function definition from environment if it's there; only during testing
             if 'module' in os.environ:
-                out, ec = os.environ['module'], 0
+                output, exit_code = os.environ['module'], 0
             else:
-                out, ec = None, 1
+                output, exit_code = None, 1
         else:
             cmd = "type module"
-            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False, force_in_dry_run=True, trace=False)
+            res = run(cmd, fail_on_error=False, in_dry_run=False, hidden=True)
+            output, exit_code = res.output, res.exit_code
 
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)
         mod_cmd_re = re.compile(regex, re.M)
         mod_details = "pattern '%s' (%s)" % (mod_cmd_re.pattern, self.NAME)
 
-        if ec == 0:
-            if mod_cmd_re.search(out):
+        if exit_code == 0:
+            if mod_cmd_re.search(output):
                 self.log.debug("Found pattern '%s' in defined 'module' function." % mod_cmd_re.pattern)
             else:
                 msg = "%s not found in defined 'module' function.\n" % mod_details
                 msg += "Specify the correct modules tool to avoid weird problems due to this mismatch, "
                 msg += "see the --modules-tool and --avail-modules-tools command line options.\n"
                 if allow_mismatch:
-                    msg += "Obtained definition of 'module' function: %s" % out
+                    msg += "Obtained definition of 'module' function: %s" % output
                     self.log.warning(msg)
                 else:
                     msg += "Or alternatively, use --allow-modules-tool-mismatch to stop treating this as an error. "
-                    msg += "Obtained definition of 'module' function: %s" % out
+                    msg += "Obtained definition of 'module' function: %s" % output
                     raise EasyBuildError(msg)
         else:
             # module function may not be defined (weird, but fine)
@@ -821,24 +822,23 @@ class ModulesTool(object):
                                key, old_value, new_value)
 
         cmd_list = self.compose_cmd_list(args)
-        full_cmd = ' '.join(cmd_list)
-        self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
-
-        proc = subprocess_popen_text(cmd_list, env=environ)
+        cmd = ' '.join(cmd_list)
+        # note: module commands are always run in dry mode, and are kept hidden in trace and dry run output
+        res = run(cmd_list, env=environ, fail_on_error=False, shell=False, split_stderr=True,
+                  hidden=True, in_dry_run=True)
 
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
-        (stdout, stderr) = proc.communicate()
-        self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
+        stdout, stderr = res.output, res.stderr
+        self.log.debug("Output of module command '%s': stdout: %s; stderr: %s", cmd, stdout, stderr)
 
         # also catch and check exit code
-        exit_code = proc.returncode
-        if kwargs.get('check_exit_code', True) and exit_code != 0:
+        if kwargs.get('check_exit_code', True) and res.exit_code != 0:
             raise EasyBuildError("Module command '%s' failed with exit code %s; stderr: %s; stdout: %s",
-                                 ' '.join(cmd_list), exit_code, stderr, stdout)
+                                 cmd, res.exit_code, stderr, stdout)
 
         if kwargs.get('check_output', True):
-            self.check_module_output(full_cmd, stdout, stderr)
+            self.check_module_output(cmd, stdout, stderr)
 
         if kwargs.get('return_stderr', False):
             return stderr
@@ -1422,21 +1422,22 @@ class Lmod(ModulesTool):
 
         if build_option('update_modules_tool_cache'):
             spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
-            cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
-            self.log.debug("Running command '%s'..." % ' '.join(cmd))
+            cmd_list = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
+            cmd = ' '.join(cmd_list)
+            self.log.debug("Running command '%s'...", cmd)
 
-            proc = subprocess_popen_text(cmd, env=os.environ)
-            (stdout, stderr) = proc.communicate()
+            res = run(cmd_list, env=os.environ, fail_on_error=False, shell=False, split_stderr=True, hidden=True)
+            stdout, stderr = res.output, res.stderr
 
             if stderr:
-                raise EasyBuildError("An error occurred when running '%s': %s", ' '.join(cmd), stderr)
+                raise EasyBuildError("An error occurred when running '%s': %s", cmd, stderr)
 
             if self.testing:
                 # don't actually update local cache when testing, just return the cache contents
                 return stdout
             else:
                 cache_fp = os.path.join(self.USER_CACHE_DIR, 'moduleT.lua')
-                self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_fp, ' '.join(cmd)))
+                self.log.debug("Updating Lmod spider cache %s with output from '%s'", cache_fp, cmd)
                 cache_dir = os.path.dirname(cache_fp)
                 if not os.path.exists(cache_dir):
                     mkdir(cache_dir, parents=True)

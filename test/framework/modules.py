@@ -50,7 +50,7 @@ from easybuild.tools.filetools import read_file, remove_dir, remove_file, symlin
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run
 
 
 # number of modules included for testing purposes
@@ -190,6 +190,21 @@ class ModulesTest(EnhancedTestCase):
         # show method only returns user-facing output (obtained via stderr), not changes to the environment
         regex = re.compile(r'^os\.environ\[', re.M)
         self.assertFalse(regex.search(out), "Pattern '%s' should not be found in: %s" % (regex.pattern, out))
+
+    def test_list(self):
+        """
+        Test running 'module list' via ModulesTool instance.
+        """
+        # make very sure no modules are currently loaded
+        self.modtool.run_module('purge', '--force')
+
+        out = self.modtool.list()
+        self.assertEqual(out, [])
+
+        mods = ['GCC/7.3.0-2.30']
+        self.modtool.load(mods)
+        out = self.modtool.list()
+        self.assertEqual([x['mod_name'] for x in out], mods)
 
     def test_avail(self):
         """Test if getting a (restricted) list of available modules works."""
@@ -1317,9 +1332,9 @@ class ModulesTest(EnhancedTestCase):
         self.assertIn(modules_dir, modulepath)
 
         with self.mocked_stdout_stderr():
-            out, _ = run_cmd("bash -c 'echo MODULEPATH: $MODULEPATH'", simple=False)
-        self.assertEqual(out.strip(), "MODULEPATH: %s" % modulepath)
-        self.assertIn(modules_dir, out)
+            res = run("bash -c 'echo MODULEPATH: $MODULEPATH'")
+        self.assertEqual(res.output.strip(), f"MODULEPATH: {modulepath}")
+        self.assertIn(modules_dir, res.output)
 
     def test_load_in_hierarchy(self):
         """Test whether loading a module in a module hierarchy results in loading the correct module."""
