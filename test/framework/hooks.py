@@ -68,8 +68,11 @@ class HooksTest(EnhancedTestCase):
             'def pre_single_extension_hook(ext):',
             '    print("this is run before installing an extension")',
             '',
-            'def pre_run_shell_cmd_hook(cmd):',
-            '    print("this is run before running command \'%s\'" % cmd)',
+            'def pre_run_shell_cmd_hook(cmd, interactive=False):',
+            '    if interactive:',
+            '        print("this is run before running interactive command \'%s\'" % cmd)',
+            '    else:',
+            '        print("this is run before running command \'%s\'" % cmd)',
             '',
             'def fail_hook(err):',
             '    print("EasyBuild FAIL: %s" % err)',
@@ -179,12 +182,13 @@ class HooksTest(EnhancedTestCase):
         run_hook('parse', hooks, args=['<EasyConfig instance>'], msg="Running parse hook for example.eb...")
         run_hook('build_and_install_loop', hooks, args=[['ec1', 'ec2']], pre_step_hook=True)
         run_hook('configure', hooks, pre_step_hook=True, args=[None])
+        run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["configure.sh"], kwargs={'interactive': True})
         run_hook('configure', hooks, post_step_hook=True, args=[None])
         run_hook('build', hooks, pre_step_hook=True, args=[None])
         run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make -j 3"])
         run_hook('build', hooks, post_step_hook=True, args=[None])
         run_hook('install', hooks, pre_step_hook=True, args=[None])
-        run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make install"])
+        run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make install"], kwargs={})
         run_hook('install', hooks, post_step_hook=True, args=[None])
         run_hook('extensions', hooks, pre_step_hook=True, args=[None])
         for _ in range(3):
@@ -204,6 +208,8 @@ class HooksTest(EnhancedTestCase):
             "Parse hook with argument <EasyConfig instance>",
             "== Running pre-build_and_install_loop hook...",
             "About to start looping for 2 easyconfigs!",
+            "== Running pre-run_shell_cmd hook...",
+            "this is run before running interactive command 'configure.sh'",
             "== Running post-configure hook...",
             "this is run after configure step",
             "running foo helper method",

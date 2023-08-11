@@ -519,6 +519,9 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             if cmd_log:
                 cmd_log.close()
 
+    hooks = load_hooks(build_option('hooks'))
+    run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs={'interactive': True})
+
     with get_proc() as proc:
         ec = proc.poll()
         stdout_err = ''
@@ -608,6 +611,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                     cmd_log.write(out)
         except IOError as err:
             _log.debug("runqanda cmd %s: remaining data read failed: %s", cmd, err)
+
+    run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs={'interactive': True})
 
     if trace:
         trace_msg("interactive command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))

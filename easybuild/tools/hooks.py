@@ -209,7 +209,7 @@ def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
     return res
 
 
-def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None, msg=None):
+def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None, kwargs=None, msg=None):
     """
     Run hook with specified label and return result of calling the hook or None.
 
@@ -225,6 +225,8 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
     if hook:
         if args is None:
             args = []
+        if kwargs is None:
+            kwargs = {}
 
         if pre_step_hook:
             label = 'pre-' + label
@@ -236,6 +238,6 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
         if build_option('debug'):
             print_msg(msg)
 
-        _log.info("Running '%s' hook function (arguments: %s)...", hook.__name__, args)
-        res = hook(*args)
+        _log.info("Running '%s' hook function (args: %s, keyword args: %s)...", hook.__name__, args, kwargs)
+        res = hook(*args, **kwargs)
     return res
