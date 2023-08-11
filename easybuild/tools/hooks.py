@@ -70,6 +70,8 @@ CANCEL = 'cancel'
 CRASH = 'crash'
 FAIL = 'fail'
 
+RUN_SHELL_CMD = 'run_shell_cmd'
+
 PRE_PREF = 'pre_'
 POST_PREF = 'post_'
 HOOK_SUFF = '_hook'
@@ -108,6 +110,8 @@ HOOK_NAMES = [
     CANCEL,
     CRASH,
     FAIL,
+    PRE_PREF + RUN_SHELL_CMD,
+    POST_PREF + RUN_SHELL_CMD,
 ]
 KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
 

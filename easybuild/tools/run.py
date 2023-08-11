@@ -50,6 +50,7 @@ import easybuild.tools.asyncprocess as asyncprocess
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
+from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import trace_msg
 
@@ -131,7 +132,8 @@ def get_output_from_process(proc, read_size=None, asynchronous=False):
 
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            force_in_dry_run=False, verbose=True, shell=None, trace=True, stream_output=None, asynchronous=False):
+            force_in_dry_run=False, verbose=True, shell=None, trace=True, stream_output=None, asynchronous=False,
+            with_hooks=True):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -148,6 +150,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param trace: print command being executed as part of trace output
     :param stream_output: enable streaming command output to stdout
     :param asynchronous: run command asynchronously (returns subprocess.Popen instance if set to True)
+    :param with_hooks: trigger pre/post run_shell_cmd hooks (if defined)
     """
     cwd = os.getcwd()
 
@@ -233,12 +236,19 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         else:
             raise EasyBuildError("Don't know how to prefix with /usr/bin/env for commands of type %s", type(cmd))
 
+    if with_hooks:
+        hooks = load_hooks(build_option('hooks'))
+        run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd])
+
     _log.info('running cmd: %s ' % cmd)
     try:
         proc = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                 stdin=subprocess.PIPE, close_fds=True, executable=exec_cmd)
     except OSError as err:
         raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
+
+    if with_hooks:
+        run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd])
 
     if inp:
         proc.stdin.write(inp.encode())
