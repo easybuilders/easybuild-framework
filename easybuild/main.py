@@ -69,7 +69,8 @@ from easybuild.tools.github import check_github, close_pr, find_easybuild_easyco
 from easybuild.tools.github import add_pr_labels, install_github_token, list_prs, merge_pr, new_branch_github, new_pr
 from easybuild.tools.github import new_pr_from_branch
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
-from easybuild.tools.hooks import BUILD_AND_INSTALL_LOOP, PRE_PREF, POST_PREF, START, END, load_hooks, run_hook
+from easybuild.tools.hooks import BUILD_AND_INSTALL_LOOP, PRE_PREF, POST_PREF, CRASH, START, END, CANCEL, FAIL
+from easybuild.tools.hooks import load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import opts_dict_to_eb_opts, set_up_configuration, use_color
 from easybuild.tools.output import COLOR_GREEN, COLOR_RED, STATUS_BAR, colorize, print_checks, rich_live_cm
@@ -579,30 +580,20 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     return overall_success
 
 
-def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
+def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, prepared_cfg_data=None):
     """
     Main function: parse command line options, and act accordingly.
     :param args: command line arguments to use
     :param logfile: log file to use
     :param do_build: whether or not to actually perform the build
     :param testing: enable testing mode
+    :param prepared_cfg_data: prepared configuration data for main function, as returned by prepare_main (or None)
     """
+    if prepared_cfg_data is None or any([args, logfile, testing]):
+        init_session_state, eb_go, cfg_settings = prepare_main(args=args, logfile=logfile, testing=testing)
+    else:
+        init_session_state, eb_go, cfg_settings = prepared_cfg_data
 
-    register_lock_cleanup_signal_handlers()
-
-    # if $CDPATH is set, unset it, it'll only cause trouble...
-    # see https://github.com/easybuilders/easybuild-framework/issues/2944
-    if 'CDPATH' in os.environ:
-        del os.environ['CDPATH']
-
-    # When EB is run via `exec` the special bash variable $_ is not set
-    # So emulate this here to allow (module) scripts depending on that to work
-    if '_' not in os.environ:
-        os.environ['_'] = sys.executable
-
-    # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
-    init_session_state = session_state()
-    eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
     options, orig_paths = eb_go.options, eb_go.args
 
     if 'python2' not in build_option('silence_deprecation_warnings'):
@@ -731,10 +722,44 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         cleanup(logfile, eb_tmpdir, testing, silent=False)
 
 
+def prepare_main(args=None, logfile=None, testing=None):
+    """
+    Prepare for calling main function by setting up the EasyBuild configuration
+    :param args: command line arguments to take into account when parsing the EasyBuild configuration settings
+    :param logfile: log file to use
+    :param testing: enable testing mode
+    :return: 3-tuple with initial session state data, EasyBuildOptions instance, and tuple with configuration settings
+    """
+    register_lock_cleanup_signal_handlers()
+
+    # if $CDPATH is set, unset it, it'll only cause trouble...
+    # see https://github.com/easybuilders/easybuild-framework/issues/2944
+    if 'CDPATH' in os.environ:
+        del os.environ['CDPATH']
+
+    # When EB is run via `exec` the special bash variable $_ is not set
+    # So emulate this here to allow (module) scripts depending on that to work
+    if '_' not in os.environ:
+        os.environ['_'] = sys.executable
+
+    # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
+    init_session_state = session_state()
+    eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
+
+    return init_session_state, eb_go, cfg_settings
+
+
 if __name__ == "__main__":
+    init_session_state, eb_go, cfg_settings = prepare_main()
+    hooks = load_hooks(eb_go.options.hooks)
     try:
-        main()
+        main(prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
     except EasyBuildError as err:
+        run_hook(FAIL, hooks, args=[err])
         print_error(err.msg)
     except KeyboardInterrupt as err:
+        run_hook(CANCEL, hooks, args=[err])
         print_error("Cancelled by user: %s" % err)
+    except Exception as err:
+        run_hook(CRASH, hooks, args=[err])
+        print_error("Encountered an unrecoverable error: %s" % err)

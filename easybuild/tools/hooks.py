@@ -66,6 +66,10 @@ SINGLE_EXTENSION = 'single_extension'
 MODULE_WRITE = 'module_write'
 END = 'end'
 
+CANCEL = 'cancel'
+CRASH = 'crash'
+FAIL = 'fail'
+
 PRE_PREF = 'pre_'
 POST_PREF = 'post_'
 HOOK_SUFF = '_hook'
@@ -101,6 +105,9 @@ HOOK_NAMES = [
      for p in [PRE_PREF, POST_PREF]] + [
     POST_PREF + BUILD_AND_INSTALL_LOOP,
     END,
+    CANCEL,
+    CRASH,
+    FAIL,
 ]
 KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
 
