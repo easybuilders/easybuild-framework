@@ -191,6 +191,21 @@ class ModulesTest(EnhancedTestCase):
         regex = re.compile(r'^os\.environ\[', re.M)
         self.assertFalse(regex.search(out), "Pattern '%s' should not be found in: %s" % (regex.pattern, out))
 
+    def test_list(self):
+        """
+        Test running 'module list' via ModulesTool instance.
+        """
+        # make very sure no modules are currently loaded
+        self.modtool.run_module('purge', '--force')
+
+        out = self.modtool.list()
+        self.assertEqual(out, [])
+
+        mods = ['GCC/7.3.0-2.30']
+        self.modtool.load(mods)
+        out = self.modtool.list()
+        self.assertEqual([x['mod_name'] for x in out], mods)
+
     def test_avail(self):
         """Test if getting a (restricted) list of available modules works."""
         self.init_testmods()
