@@ -514,7 +514,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     if isinstance(hook_res, string_type):
         cmd, old_cmd = hook_res, cmd
         _log.info("Interactive command to run was changed by pre-%s hook: '%s' (was: '%s')",
-                      RUN_SHELL_CMD, cmd, old_cmd)
+                  RUN_SHELL_CMD, cmd, old_cmd)
 
     # # Log command output
     if cmd_log:
