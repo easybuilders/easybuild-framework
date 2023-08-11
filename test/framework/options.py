@@ -5077,19 +5077,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
         lock_path = os.path.join(self.test_installpath, 'software', '.locks', lock_fn)
         mkdir(lock_path, parents=True)
 
-        args = ['toy-0.0.eb', '--fetch']
-        stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
+        # Run for a "regular" EC and one with an external module dependency
+        # which might trip up the dependency resolution (see #4298)
+        for ec in ('toy-0.0.eb', 'toy-0.0-deps.eb'):
+            args = [ec, '--fetch']
+            stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
 
-        patterns = [
-            r"^== fetching files\.\.\.$",
-            r"^== COMPLETED: Installation STOPPED successfully \(took .* secs?\)$",
-        ]
-        for pattern in patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' not found in: %s" % (regex.pattern, stdout))
+            patterns = [
+                r"^== fetching files\.\.\.$",
+                r"^== COMPLETED: Installation STOPPED successfully \(took .* secs?\)$",
+            ]
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(stdout), "Pattern '%s' not found in: %s" % (regex.pattern, stdout))
 
-        regex = re.compile(r"^== creating build dir, resetting environment\.\.\.$")
-        self.assertFalse(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+            regex = re.compile(r"^== creating build dir, resetting environment\.\.\.$")
+            self.assertFalse(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
     def test_parse_external_modules_metadata(self):
         """Test parse_external_modules_metadata function."""
