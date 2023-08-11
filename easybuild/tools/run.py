@@ -238,10 +238,10 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     if with_hooks:
         hooks = load_hooks(build_option('hooks'))
-        hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd])
+        hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs={'work_dir': os.getcwd()})
         if isinstance(hook_res, string_type):
             cmd, old_cmd = hook_res, cmd
-            self.log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
+            _log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
 
     _log.info('running cmd: %s ' % cmd)
     try:
@@ -249,9 +249,6 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
                                 stdin=subprocess.PIPE, close_fds=True, executable=exec_cmd)
     except OSError as err:
         raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
-
-    if with_hooks:
-        run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd])
 
     if inp:
         proc.stdin.write(inp.encode())
@@ -261,7 +258,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         return (proc, cmd, cwd, start_time, cmd_log)
     else:
         return complete_cmd(proc, cmd, cwd, start_time, cmd_log, log_ok=log_ok, log_all=log_all, simple=simple,
-                            regexp=regexp, stream_output=stream_output, trace=trace)
+                            regexp=regexp, stream_output=stream_output, trace=trace, with_hook=with_hooks)
 
 
 def check_async_cmd(proc, cmd, owd, start_time, cmd_log, fail_on_error=True, output_read_size=1024, output=''):
@@ -306,7 +303,7 @@ def check_async_cmd(proc, cmd, owd, start_time, cmd_log, fail_on_error=True, out
 
 
 def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False, simple=False,
-                 regexp=True, stream_output=None, trace=True, output=''):
+                 regexp=True, stream_output=None, trace=True, output='', with_hook=True):
     """
     Complete running of command represented by passed subprocess.Popen instance.
 
@@ -321,6 +318,7 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
     :param regexp: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
     :param stream_output: enable streaming command output to stdout
     :param trace: print command being executed as part of trace output
+    :param with_hook: trigger post run_shell_cmd hooks (if defined)
     """
     # use small read size when streaming output, to make it stream more fluently
     # read size should not be too small though, to avoid too much overhead
@@ -355,6 +353,15 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
     if stream_output:
         sys.stdout.write(output)
     stdouterr += output
+
+    if with_hook:
+        hooks = load_hooks(build_option('hooks'))
+        run_hook_kwargs = {
+            'exit_code': ec,
+            'output': stdouterr,
+            'work_dir': os.getcwd(),
+        }
+        run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
 
     if trace:
         trace_msg("command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))
@@ -499,10 +506,14 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     # - this needs asynchronous stdout
 
     hooks = load_hooks(build_option('hooks'))
-    hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs={'interactive': True})
+    run_hook_kwargs = {
+        'interactive': True,
+        'work_dir': os.getcwd(),
+    }
+    hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
     if isinstance(hook_res, string_type):
         cmd, old_cmd = hook_res, cmd
-        self.log.info("Interactive command to run was changed by pre-%s hook: '%s' (was: '%s')",
+        _log.info("Interactive command to run was changed by pre-%s hook: '%s' (was: '%s')",
                       RUN_SHELL_CMD, cmd, old_cmd)
 
     # # Log command output
@@ -619,7 +630,12 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         except IOError as err:
             _log.debug("runqanda cmd %s: remaining data read failed: %s", cmd, err)
 
-    run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs={'interactive': True})
+    run_hook_kwargs.update({
+        'interactive': True,
+        'exit_code': ec,
+        'output': stdout_err,
+    })
+    run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
 
     if trace:
         trace_msg("interactive command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))
