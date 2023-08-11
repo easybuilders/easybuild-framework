@@ -164,7 +164,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
     if not in_dry_run and build_option('extended_dry_run'):
         if not hidden:
             silent = build_option('silent')
-            msg = f"  running command \"{cmd_msg}s\"\n"
+            msg = f"  running command \"{cmd_msg}\"\n"
             msg += f"  (in {work_dir})"
             dry_run_msg(msg, silent=silent)
 
