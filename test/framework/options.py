@@ -722,7 +722,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "	post_build_and_install_loop_hook",
             "	end_hook",
             "	cancel_hook",
-            "	crash_hook",
             "	fail_hook",
             '',
         ])

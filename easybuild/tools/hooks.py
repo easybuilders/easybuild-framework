@@ -67,7 +67,6 @@ MODULE_WRITE = 'module_write'
 END = 'end'
 
 CANCEL = 'cancel'
-CRASH = 'crash'
 FAIL = 'fail'
 
 PRE_PREF = 'pre_'
@@ -106,7 +105,6 @@ HOOK_NAMES = [
     POST_PREF + BUILD_AND_INSTALL_LOOP,
     END,
     CANCEL,
-    CRASH,
     FAIL,
 ]
 KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
