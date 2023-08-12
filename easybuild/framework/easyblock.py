@@ -4174,6 +4174,10 @@ def build_and_install_one(ecdict, init_env):
         dry_run_msg('', silent=silent)
     print_msg("processing EasyBuild easyconfig %s" % spec, log=_log, silent=silent)
 
+    if ecdict['ec']['build_info_msg']:
+        msg = "This easyconfig provides the following build information:\n\n%s\n"
+        print_msg(msg % ecdict['ec']['build_info_msg'], log=_log, silent=silent)
+
     if dry_run:
         # print note on interpreting dry run output (argument is reference to location of dry run messages)
         print_dry_run_note('below', silent=silent)
