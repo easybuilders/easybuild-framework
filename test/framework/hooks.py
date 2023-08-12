@@ -32,7 +32,7 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
-import easybuild.tools.hooks
+import easybuild.tools.hooks  # so we can reset cached hooks
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import remove_file, write_file
 from easybuild.tools.hooks import find_hook, load_hooks, run_hook, verify_hooks
@@ -80,6 +80,14 @@ class HooksTest(EnhancedTestCase):
             '    print("EasyBuild FAIL: %s" % err)',
         ])
         write_file(self.test_hooks_pymod, test_hooks_pymod_txt)
+
+    def tearDown(self):
+        """Cleanup."""
+
+        # reset cached hooks
+        easybuild.tools.hooks._cached_hooks.clear()
+
+        super(HooksTest, self).tearDown()
 
     def test_load_hooks(self):
         """Test for load_hooks function."""

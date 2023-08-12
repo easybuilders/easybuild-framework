@@ -101,6 +101,9 @@ class ToyBuildTest(EnhancedTestCase):
         del sys.modules['easybuild.easyblocks.toytoy']
         del sys.modules['easybuild.easyblocks.generic.toy_extension']
 
+        # reset cached hooks
+        easybuild.tools.hooks._cached_hooks.clear()
+
         super(ToyBuildTest, self).tearDown()
 
         # remove logs
