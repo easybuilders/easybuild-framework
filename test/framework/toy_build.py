@@ -3900,6 +3900,30 @@ class ToyBuildTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
+    def test_toy_build_info_msg(self):
+        """
+        Test use of build info message
+        """
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nbuild_info_msg = "Are you sure you want to install this toy software?"'
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        with self.mocked_stdout_stderr():
+            self.test_toy_build(ec_file=test_ec, testing=False, verify=False, raise_error=True)
+            stdout = self.get_stdout()
+
+        pattern = '\n'.join([
+            r"== This easyconfig provides the following build information:",
+            r'',
+            r"Are you sure you want to install this toy software\?",
+        ])
+        regex = re.compile(pattern, re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
 
 def suite():
     """ return all the tests in this file """
