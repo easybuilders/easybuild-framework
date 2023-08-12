@@ -69,7 +69,7 @@ from easybuild.tools.github import check_github, close_pr, find_easybuild_easyco
 from easybuild.tools.github import add_pr_labels, install_github_token, list_prs, merge_pr, new_branch_github, new_pr
 from easybuild.tools.github import new_pr_from_branch
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
-from easybuild.tools.hooks import BUILD_AND_INSTALL_LOOP, PRE_PREF, POST_PREF, CRASH, START, END, CANCEL, FAIL
+from easybuild.tools.hooks import BUILD_AND_INSTALL_LOOP, PRE_PREF, POST_PREF, START, END, CANCEL, FAIL
 from easybuild.tools.hooks import load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import opts_dict_to_eb_opts, set_up_configuration, use_color
@@ -760,6 +760,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt as err:
         run_hook(CANCEL, hooks, args=[err])
         print_error("Cancelled by user: %s" % err)
-    except Exception as err:
-        run_hook(CRASH, hooks, args=[err])
-        print_error("Encountered an unrecoverable error: %s" % err)
