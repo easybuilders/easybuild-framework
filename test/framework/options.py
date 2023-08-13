@@ -2580,7 +2580,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--force',
             '--try-amend=prebuildopts=nosuchcommand &&',
         ]
-        self.eb_main(args, do_build=True)
+        with self.mocked_stdout_stderr():
+            self.eb_main(args, do_build=True)
         self.assertExists(toy_buildpath, "Build dir %s is retained after failed build" % toy_buildpath)
 
     def test_filter_deps(self):
