@@ -2638,7 +2638,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
 
     tmpdir = tempfile.mkdtemp()
 
-    run(' '.join(clone_cmd), hidden=True, work_dir=tmpdir)
+    run(' '.join(clone_cmd), hidden=True, verbose_dry_run=True, work_dir=tmpdir)
 
     # If the clone is done into a specified name, change repo_name
     if clone_into:
@@ -2651,14 +2651,14 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
             checkout_cmd.extend(['&&', 'git', 'submodule', 'update', '--init', '--recursive'])
 
         work_dir = os.path.join(tmpdir, repo_name) if repo_name else tmpdir
-        run(' '.join(checkout_cmd), work_dir=work_dir, hidden=True)
+        run(' '.join(checkout_cmd), work_dir=work_dir, hidden=True, verbose_dry_run=True)
 
     elif not build_option('extended_dry_run'):
         # If we wanted to get a tag make sure we actually got a tag and not a branch with the same name
         # This doesn't make sense in dry-run mode as we don't have anything to check
         cmd = "git describe --exact-match --tags HEAD"
         work_dir = os.path.join(tmpdir, repo_name) if repo_name else tmpdir
-        res = run(cmd, fail_on_error=False, work_dir=work_dir, hidden=True)
+        res = run(cmd, fail_on_error=False, work_dir=work_dir, hidden=True, verbose_dry_run=True)
 
         if res.exit_code != 0 or tag not in res.output.splitlines():
             msg = f"Tag {tag} was not downloaded in the first try due to {url}/{repo_name} containing a branch"
@@ -2679,14 +2679,14 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
             if recursive:
                 cmds.append("git submodule update --init --recursive")
             for cmd in cmds:
-                run(cmd, work_dir=work_dir, hidden=True)
+                run(cmd, work_dir=work_dir, hidden=True, verbose_dry_run=True)
 
     # create an archive and delete the git repo directory
     if keep_git_dir:
         tar_cmd = ['tar', 'cfvz', targetpath, repo_name]
     else:
         tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
-    run(' '.join(tar_cmd), work_dir=tmpdir, hidden=True)
+    run(' '.join(tar_cmd), work_dir=tmpdir, hidden=True, verbose_dry_run=True)
 
     # cleanup (repo_name dir does not exist in dry run mode)
     remove(tmpdir)
