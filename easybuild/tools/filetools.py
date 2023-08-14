@@ -470,7 +470,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     if extra_options:
         cmd = f"{cmd} {extra_options}"
 
-    run(cmd, in_dry_run=True, hidden=not trace)
+    run(cmd, in_dry_run=forced, hidden=not trace)
 
     # note: find_base_dir also changes into the base dir!
     base_dir = find_base_dir()
