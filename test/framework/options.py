@@ -723,6 +723,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "	end_hook",
             "	cancel_hook",
             "	fail_hook",
+            "	pre_run_shell_cmd_hook",
+            "	post_run_shell_cmd_hook",
             '',
         ])
         self.assertEqual(stdout, expected)
@@ -2577,7 +2579,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--force',
             '--try-amend=prebuildopts=nosuchcommand &&',
         ]
-        self.eb_main(args, do_build=True)
+        with self.mocked_stdout_stderr():
+            self.eb_main(args, do_build=True)
         self.assertExists(toy_buildpath, "Build dir %s is retained after failed build" % toy_buildpath)
 
     def test_filter_deps(self):
