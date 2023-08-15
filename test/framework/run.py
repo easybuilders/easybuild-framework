@@ -1203,6 +1203,9 @@ class RunTest(EnhancedTestCase):
         write_file(hooks_file, hooks_file_txt)
         update_build_option('hooks', hooks_file)
 
+        # disable trace output to make checking of generated output produced by hooks easier
+        update_build_option('trace', False)
+
         with self.mocked_stdout_stderr():
             run_cmd("make")
             stdout = self.get_stdout()
