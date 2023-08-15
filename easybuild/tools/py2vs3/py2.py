@@ -33,7 +33,6 @@ Authors:
 """
 # these are not used here, but imported from here in other places
 import ConfigParser as configparser  # noqa
-import errno
 import imp
 import json
 import os
@@ -122,6 +121,6 @@ def sort_looseversions(looseversions):
 def makedirs(name, mode=0o777, exist_ok=False):
     try:
         os.makedirs(name, mode)
-    except OSError as e:
-        if not exist_ok or e.errno != errno.EEXIST:
+    except OSError:
+        if not exist_ok or not os.path.isdir(name):
             raise
