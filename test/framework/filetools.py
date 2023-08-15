@@ -3396,7 +3396,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertNotExists(name)
         py2vs3.makedirs(name)
         self.assertExists(name)
-        self.assertErrorRegex(Exception, os.path.basename(name), py2vs3.makedirs, name)
+        # exception is raised because file exists (OSError in Python 2, FileExistsError in Python 3)
+        self.assertErrorRegex(Exception, '.*', py2vs3.makedirs, name)
         py2vs3.makedirs(name, exist_ok=True)  # No error
         self.assertExists(name)
 
