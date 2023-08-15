@@ -110,7 +110,7 @@ run_cache = run_cmd_cache
 @run_cache
 def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
         hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, shell=True,
-        output_file=False, stream_output=False, asynchronous=False,
+        output_file=False, stream_output=False, asynchronous=False, with_hooks=True,
         qa_patterns=None, qa_wait_patterns=None):
     """
     Run specified (interactive) shell command, and capture output + exit code.
@@ -127,6 +127,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
     :param output_file: collect command output in temporary output file
     :param stream_output: stream command output to stdout
     :param asynchronous: run command asynchronously
+    :param with_hooks: trigger pre/post run_shell_cmd hooks (if defined)
     :param qa_patterns: list of 2-tuples with patterns for questions + corresponding answers
     :param qa_wait_patterns: list of 2-tuples with patterns for non-questions
                              and number of iterations to allow these patterns to match with end out command output
@@ -187,6 +188,13 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
 
     stderr = subprocess.PIPE if split_stderr else subprocess.STDOUT
 
+    if with_hooks:
+        hooks = load_hooks(build_option('hooks'))
+        hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd_str], kwargs={'work_dir': work_dir})
+        if isinstance(hook_res, str):
+            cmd, old_cmd = hook_res, cmd
+            _log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
+
     _log.info(f"Running command '{cmd_str}' in {work_dir}")
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=stderr, check=fail_on_error,
                           cwd=work_dir, env=env, input=stdin, shell=shell, executable=executable)
@@ -196,6 +204,15 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
     stderr_output = proc.stderr.decode('utf-8', 'ignore') if split_stderr else None
 
     res = RunResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr_output, work_dir=work_dir)
+
+    if with_hooks:
+        run_hook_kwargs = {
+            'exit_code': res.exit_code,
+            'output': res.output,
+            'stderr': res.stderr,
+            'work_dir': res.work_dir,
+        }
+        run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd_str], kwargs=run_hook_kwargs)
 
     if split_stderr:
         log_msg = f"Command '{cmd_str}' exited with exit code {res.exit_code}, "
