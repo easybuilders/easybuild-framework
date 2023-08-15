@@ -340,7 +340,7 @@ def mocked_run(cmd, **kwargs):
         "ulimit -u": '40',
     }
     if cmd in known_cmds:
-        return RunResult(output=known_cmds[cmd], exit_code=0, stderr=None)
+        return RunResult(cmd=cmd, exit_code=0, output=known_cmds[cmd], stderr=None, work_dir=os.getcwd())
     else:
         return run(cmd, **kwargs)
 
@@ -774,7 +774,8 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting gcc version (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         out = "Apple LLVM version 7.0.0 (clang-700.1.76)"
-        st.run = lambda *args, **kwargs: RunResult(output=out, exit_code=0, stderr=None)
+        mocked_run_res = RunResult(cmd="gcc --version", exit_code=0, output=out, stderr=None, work_dir=os.getcwd())
+        st.run = lambda *args, **kwargs: mocked_run_res
         self.assertEqual(get_gcc_version(), None)
 
     def test_glibc_version_native(self):
