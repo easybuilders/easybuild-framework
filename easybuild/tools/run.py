@@ -119,8 +119,8 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
     :param stdin: input to be sent to stdin (nothing if set to None)
     :param env: environment to use to run command (if None, inherit current process environment)
     :param hidden: do not show command in terminal output (when using --trace, or with --extended-dry-run / -x)
-    :param in_dry_run: also run command in dry run mode (overrules 'hidden')
-    :param verbose_dry_run: show that command is run in dry run mode
+    :param in_dry_run: also run command in dry run mode
+    :param verbose_dry_run: show that command is run in dry run mode (overrules 'hidden')
     :param work_dir: working directory to run command in (current working directory if None)
     :param shell: execute command through bash shell (enabled by default)
     :param output_file: collect command output in temporary output file
