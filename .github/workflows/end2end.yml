@@ -30,7 +30,7 @@ jobs:
               rm -f develop.tar.gz
           done
 
-      - name: End-to-end test of EasyBuild
+      - name: Set up environment
         shell: bash
         run: |
           export PATH=$PWD:$PATH
@@ -49,15 +49,28 @@ jobs:
           # tests are run with root privileges, so we need to tell EasyBuild that's OK...
           export EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1
 
+          # save full environment to use in subsequent steps,
+          # see https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
+          while read line; do echo "$line" >> $GITHUB_ENV ; done < <(env)
+
+      - name: Run commands to check test environment
+        shell: bash
+        run: |
           cmds=(
+            "whoami"
+            "pwd"
             "env | sort"
             "eb --version"
             "eb --show-system-info"
             "eb --check-eb-deps"
             "eb --show-config"
-            "eb bzip2-1.0.8.eb --trace --robot"
           )
           for cmd in "${cmds[@]}"; do
               echo ">>> $cmd"
               eval "$cmd"
           done
+
+      - name: End-to-end test of installing bzip2 with EasyBuild
+        shell: bash
+        run: |
+          eb bzip2-1.0.8.eb --trace --robot
