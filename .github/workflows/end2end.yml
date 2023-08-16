@@ -8,11 +8,12 @@ jobs:
       matrix:
         container:
           - centos-7.9
-          - centos-8.4
-          - fedora-35
-          - opensuse-15.3
-          - rockylinux-8.5
+          - centos-8.5
+          - fedora-36
+          - opensuse-15.4
+          - rockylinux-8.7
           - ubuntu-20.04
+          - ubuntu-22.04
       fail-fast: false
     container:
       image: ghcr.io/easybuilders/${{ matrix.container }}-amd64
