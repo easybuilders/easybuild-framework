@@ -35,6 +35,7 @@ Authors:
 import ConfigParser as configparser  # noqa
 import imp
 import json
+import os
 import subprocess
 import time
 import urllib2 as std_urllib  # noqa
@@ -115,3 +116,11 @@ def sort_looseversions(looseversions):
     # with Python 2, we can safely use 'sorted' on LooseVersion instances
     # (but we can't in Python 3, see https://bugs.python.org/issue14894)
     return sorted(looseversions)
+
+
+def makedirs(name, mode=0o777, exist_ok=False):
+    try:
+        os.makedirs(name, mode)
+    except OSError:
+        if not exist_ok or not os.path.isdir(name):
+            raise
