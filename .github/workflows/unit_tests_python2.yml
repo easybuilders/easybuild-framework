@@ -26,6 +26,8 @@ jobs:
         python2 -m pip --version
         python2 -m pip install --upgrade pip
         python2 -m pip --version
+        # strip out GC3Pie since installation with ancient setuptools (0.9.8) fails
+        sed -i '/GC3Pie/d' requirements.txt
         python2 -m pip install -r requirements.txt
         # git config is required to make actual git commits (cfr. tests for GitRepository)
         git config --global user.name "Travis CI"
