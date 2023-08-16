@@ -2243,15 +2243,16 @@ def install_github_token(github_user, silent=False):
 def validate_github_token(token, github_user):
     """
     Check GitHub token:
-    * see if it conforms expectations (only [a-f]+[0-9] characters, length of 40)
-    * see if it can be used for authenticated access
+    * see if it conforms expectations (character classes depending on type, length of 40-93),
+    * see if it can be used for authenticated access.
     """
     # cfr. https://github.blog/2021-04-05-behind-githubs-new-authentication-token-formats/
     token_regex = re.compile('^ghp_[a-zA-Z0-9]{36}$')
     token_regex_old_format = re.compile('^[0-9a-f]{40}$')
+    # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-authentication-to-github#githubs-token-formats
+    token_regex_fine_grained = re.compile('github_pat_[a-zA-Z0-9_]{82}')
 
-    # token should be 40 characters long, and only contain characters in [0-9a-f]
-    sanity_check = bool(token_regex.match(token))
+    sanity_check = bool(token_regex.match(token)) or bool(token_regex_fine_grained.match(token))
     if sanity_check:
         _log.info("Sanity check on token passed")
     else:
