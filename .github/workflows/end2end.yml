@@ -33,25 +33,13 @@ jobs:
       - name: Set up environment
         shell: bash
         run: |
-          export PATH=$PWD:$PATH
-          export PYTHONPATH=$PWD:$HOME/easybuild-easyblocks-develop:$HOME/easybuild-easyconfigs-develop
-
-          # initialize environment (for Lmod)
-          if [ -f /etc/profile.d/modules.sh ]; then
-              # for Rocky, CentOS 8, Fedora
-              echo ">>> sourcing /etc/profile.d/modules.sh"
-              . /etc/profile.d/modules.sh
-          else
-              echo ">>> sourcing /etc/profile.d/*lmod*.sh"
-              . /etc/profile.d/*lmod*.sh
-          fi
+          # set environment variables to be used in subsequent steps,
+          # see https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
+          echo "PATH=$PWD:$PATH" >> $GITHUB_ENV
+          echo "PYTHONPATH=$PWD:$HOME/easybuild-easyblocks-develop:$HOME/easybuild-easyconfigs-develop" >> $GITHUB_ENV
 
           # tests are run with root privileges, so we need to tell EasyBuild that's OK...
-          export EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1
-
-          # save full environment to use in subsequent steps,
-          # see https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
-          while read line; do echo "$line" >> $GITHUB_ENV ; done < <(env)
+          echo "EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1" >> $GITHUB_ENV
 
       - name: Run commands to check test environment
         shell: bash
@@ -67,10 +55,10 @@ jobs:
           )
           for cmd in "${cmds[@]}"; do
               echo ">>> $cmd"
-              eval "$cmd"
+              bash -l -c "$cmd"
           done
 
       - name: End-to-end test of installing bzip2 with EasyBuild
         shell: bash
         run: |
-          eb bzip2-1.0.8.eb --trace --robot
+          bash -l -c "eb bzip2-1.0.8.eb --trace --robot"
