@@ -44,6 +44,7 @@ from importlib.util import spec_from_file_location, module_from_spec
 from html.parser import HTMLParser  # noqa
 from itertools import zip_longest
 from io import StringIO  # noqa
+from os import makedirs  # noqa
 from string import ascii_letters, ascii_lowercase  # noqa
 from urllib.request import HTTPError, HTTPSHandler, Request, URLError, build_opener, urlopen  # noqa
 from urllib.parse import urlencode  # noqa
