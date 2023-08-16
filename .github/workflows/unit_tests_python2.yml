@@ -30,9 +30,9 @@ jobs:
         sed -i '/GC3Pie/d' requirements.txt
         python2 -m pip install -r requirements.txt
         # git config is required to make actual git commits (cfr. tests for GitRepository)
-        git config --global user.name "Travis CI"
-        git config --global user.email "travis@travis-ci.org"
-        git config --get-regexp 'user.*'
+        sudo -u easybuild git config --global user.name "GitHub Actions"
+        sudo -u easybuild git config --global user.email "actions@github.com"
+        sudo -u easybuild git config --get-regexp 'user.*'
 
     - name: install GitHub token (if available)
       env:
