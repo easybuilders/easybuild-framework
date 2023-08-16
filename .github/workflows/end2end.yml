@@ -19,7 +19,7 @@ jobs:
       image: ghcr.io/easybuilders/${{ matrix.container }}-amd64
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: download and unpack easyblocks and easyconfigs repositories
         run: |
