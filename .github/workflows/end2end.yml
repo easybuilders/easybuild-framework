@@ -35,11 +35,8 @@ jobs:
         run: |
           # set environment variables to be used in subsequent steps,
           # see https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable;
-          # not: we can't extend $PATH this way, because it will not always be picked up in login shell used in later steps
-          echo "PYTHONPATH=$PWD:$HOME/easybuild-easyblocks-develop:$HOME/easybuild-easyconfigs-develop" >> $GITHUB_ENV
-
-          # tests are run with root privileges, so we need to tell EasyBuild that's OK...
-          echo "EASYBUILD_ALLOW_USE_AS_ROOT_AND_ACCEPT_CONSEQUENCES=1" >> $GITHUB_ENV
+          ENV_CMDS="export PATH=$PWD:$PATH; export PYTHONPATH=$PWD:$HOME/easybuild-easyblocks-develop:$HOME/easybuild-easyconfigs-develop"
+          echo "ENV_CMDS='${ENV_CMDS}'" >> $GITHUB_ENV
 
       - name: Run commands to check test environment
         shell: bash
@@ -55,10 +52,10 @@ jobs:
           )
           for cmd in "${cmds[@]}"; do
               echo ">>> $cmd"
-              bash -l -c "export PATH=$PWD:$PATH; $cmd"
+              sudo -u easybuild bash -l -c "${ENV_CMDS}; $cmd"
           done
 
       - name: End-to-end test of installing bzip2 with EasyBuild
         shell: bash
         run: |
-          bash -l -c "export PATH=$PWD:$PATH; eb bzip2-1.0.8.eb --trace --robot"
+          sudo -u easybuild bash -l -c "${ENV_CMDS}; eb bzip2-1.0.8.eb --trace --robot"
