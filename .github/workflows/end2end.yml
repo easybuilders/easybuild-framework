@@ -15,7 +15,7 @@ jobs:
           - ubuntu-20.04
       fail-fast: false
     container:
-      image: ghcr.io/easybuilders/${{ matrix.container }}
+      image: ghcr.io/easybuilders/${{ matrix.container }}-amd64
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
