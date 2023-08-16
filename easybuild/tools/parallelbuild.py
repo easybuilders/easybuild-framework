@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,9 +28,11 @@ dependencies)
 
 Support for PBS is provided via the PbsJob class. If you want you could create other job classes and use them here.
 
-:author: Toon Willems (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Stijn De Weirdt (Ghent University)
+Authors:
+
+* Toon Willems (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Stijn De Weirdt (Ghent University)
 """
 import math
 import os
@@ -141,8 +143,14 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     # compose string with command line options, properly quoted and with '%' characters escaped
     opts_str = ' '.join(opts).replace('%', '%%')
 
-    command = "unset TMPDIR && cd %s && eb %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s" % (curdir, opts_str)
-    _log.info("Command template for jobs: %s" % command)
+    eb_cmd = build_option('job_eb_cmd')
+
+    command = ' && '.join([
+        "unset TMPDIR",
+        "cd %s" % curdir,
+        "%s %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s" % (eb_cmd, opts_str),
+    ])
+    _log.info("Command template for jobs: %s", command)
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
         return command

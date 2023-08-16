@@ -1,5 +1,5 @@
 # #
-# Copyright 2018-2021 Ghent University
+# Copyright 2018-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -72,9 +72,9 @@ class EasyBuildLibTest(TestCase):
         if BuildOptions in BuildOptions._instances:
             del BuildOptions._instances[BuildOptions]
 
-        self.assertFalse(BuildOptions in BuildOptions._instances)
+        self.assertNotIn(BuildOptions, BuildOptions._instances)
         set_up_configuration(silent=True)
-        self.assertTrue(BuildOptions in BuildOptions._instances)
+        self.assertIn(BuildOptions, BuildOptions._instances)
 
     def test_run_cmd(self):
         """Test use of run_cmd function in the context of using EasyBuild framework as a library."""
@@ -102,9 +102,9 @@ class EasyBuildLibTest(TestCase):
         self.configure()
 
         # mkdir works fine if set_up_configuration was called first
-        self.assertFalse(os.path.exists(test_dir))
+        self.assertNotExists(test_dir)
         mkdir(test_dir)
-        self.assertTrue(os.path.exists(test_dir))
+        self.assertExists(test_dir)
 
     def test_modules_tool(self):
         """Test use of modules_tool function in the context of using EasyBuild framework as a library."""
@@ -119,7 +119,7 @@ class EasyBuildLibTest(TestCase):
 
         modtool = modules_tool()
         modtool.use(test_mods_path)
-        self.assertTrue('GCC/6.4.0-2.28' in modtool.available())
+        self.assertIn('GCC/6.4.0-2.28', modtool.available())
         modtool.load(['GCC/6.4.0-2.28'])
         self.assertEqual(modtool.list(), [{'default': None, 'mod_name': 'GCC/6.4.0-2.28'}])
 

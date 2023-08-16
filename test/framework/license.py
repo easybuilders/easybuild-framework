@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -44,7 +44,7 @@ class LicenseTest(EnhancedTestCase):
         lics = what_licenses()
         commonlicenses = ['LicenseVeryRestrictive', 'LicenseGPLv2', 'LicenseGPLv3']
         for lic in commonlicenses:
-            self.assertTrue(lic in lics, "%s found in %s" % (lic, lics.keys()))
+            self.assertIn(lic, lics)
 
     def test_default_license(self):
         """Verify that the default License class is very restrictive"""
@@ -62,7 +62,7 @@ class LicenseTest(EnhancedTestCase):
         """Test format of available licenses."""
         lics = what_licenses()
         for lic in lics:
-            self.assertTrue(isinstance(lic, string_type))
+            self.assertIsInstance(lic, string_type)
             self.assertTrue(lic.startswith('License'))
             self.assertTrue(issubclass(lics[lic], License))
 

@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,17 +26,19 @@
 YAML easyconfig format (.yeb)
 Useful: http://www.yaml.org/spec/1.2/spec.html
 
-:author: Caroline De Brouwer (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Caroline De Brouwer (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import copy
 import os
 import platform
-from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import EasyConfigFormat
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
+from easybuild.tools import LooseVersion
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import INDENT_4SPACES, only_if_module_is_available, quote_str
 

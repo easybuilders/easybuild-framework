@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,7 +25,9 @@
 """
 EasyBuild support for a intel+CUDA compiler toolchain.
 
-:author: Ake Sandgren (HPC2N)
+Authors:
+
+* Ake Sandgren (HPC2N)
 """
 
 from easybuild.toolchains.iimpic import Iimpic

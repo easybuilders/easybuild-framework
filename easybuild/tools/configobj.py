@@ -2023,7 +2023,7 @@ class ConfigObj(Section):
             # might need to encode
             # NOTE: This will *screw* UTF16, each line will start with the BOM
             if self.encoding:
-                out = [line.encode(self.encoding) for line in out]
+                out = [lne.encode(self.encoding) for lne in out]
             if (self.BOM and ((self.encoding is None) or
                               (BOM_LIST.get(self.encoding.lower()) == 'utf_8'))):
                 # Add the UTF8 BOM
@@ -2034,8 +2034,8 @@ class ConfigObj(Section):
 
         # Turn the list to a string, joined with correct newlines
         newline = self.newlines or os.linesep
-        if (getattr(outfile, 'mode', None) is not None and outfile.mode == 'w'
-                and sys.platform == 'win32' and newline == '\r\n'):
+        if (getattr(outfile, 'mode', None) is not None and outfile.mode == 'w' and
+                sys.platform == 'win32' and newline == '\r\n'):
             # Windows specific hack to avoid writing '\r\r\n'
             newline = '\n'
         output = self._a_to_u(newline).join(out)

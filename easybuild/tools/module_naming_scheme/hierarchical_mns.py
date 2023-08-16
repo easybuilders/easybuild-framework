@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +25,10 @@
 """
 Implementation of an example hierarchical module naming scheme.
 
-:author: Kenneth Hoste (Ghent University)
-:author: Markus Geimer (Forschungszentrum Juelich GmbH)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Markus Geimer (Forschungszentrum Juelich GmbH)
 """
 
 import os

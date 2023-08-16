@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2021 Ghent University
+# Copyright 2014-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,7 +26,9 @@
 """
 This module implements easyconfig specific formats and their conversions.
 
-:author: Stijn De Weirdt (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
 """
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 from easybuild.tools.convert import Convert

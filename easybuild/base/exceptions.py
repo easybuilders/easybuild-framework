@@ -1,5 +1,5 @@
 #
-# Copyright 2015-2021 Ghent University
+# Copyright 2015-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +25,10 @@
 """
 Module providing custom exceptions.
 
-:author: Kenneth Hoste (Ghent University)
-:author: Riccardo Murri (University of Zurich)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Riccardo Murri (University of Zurich)
 """
 import inspect
 import logging

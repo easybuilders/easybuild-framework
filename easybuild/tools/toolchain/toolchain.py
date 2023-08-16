@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -47,8 +47,10 @@ TooclchainVariables: list of environment variables that are set when the toolcha
            and the toolchain options have been parsed.
     -> eg tc.variables['X'] will be available as os.environ['X']
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import copy
 import os
@@ -988,6 +990,9 @@ class Toolchain(object):
 
         # create wrappers
         for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold', 'ld.bfd']):
+            # Not all toolchains have fortran compilers (e.g. Clang), in which case they are 'None'
+            if cmd is None:
+                continue
             orig_cmd = which(cmd)
 
             if orig_cmd:
@@ -1124,8 +1129,11 @@ class Toolchain(object):
             setvar("EBVAR%s" % key, val, verbose=False)
 
     def get_flag(self, name):
-        """Get compiler flag for a certain option."""
-        return "-%s" % self.options.option(name)
+        """Get compiler flag(s) for a certain option."""
+        if isinstance(self.options.option(name), list):
+            return " ".join("-%s" % x for x in list(self.options.option(name)))
+        else:
+            return "-%s" % self.options.option(name)
 
     def toolchain_family(self):
         """Return toolchain family for this toolchain."""

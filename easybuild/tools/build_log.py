@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,11 +25,13 @@
 """
 EasyBuild logger and log utilities, including our own EasybuildError class.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
 """
 import logging
 import os
@@ -132,7 +134,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
         """
         Print deprecation warning or raise an exception, depending on specified version(s)
 
-        :param: msg: deprecation message
+        :param msg: deprecation message
         :param ver: if max_ver is None: threshold for EasyBuild version to determine warning vs exception
                     else: version to check against max_ver to determine warning vs exception
         :param max_ver: version threshold for warning vs exception (compared to 'ver')

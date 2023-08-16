@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,16 +25,18 @@
 """
 Support for Intel MPI as toolchain MPI library.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 
 import os
 
 import easybuild.tools.toolchain as toolchain
 
-from distutils.version import LooseVersion
 from easybuild.toolchains.mpi.mpich2 import Mpich2
+from easybuild.tools import LooseVersion
 from easybuild.tools.toolchain.constants import COMPILER_FLAGS, COMPILER_VARIABLES
 from easybuild.tools.toolchain.variables import CommandFlagList
 

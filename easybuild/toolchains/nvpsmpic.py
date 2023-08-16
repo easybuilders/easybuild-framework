@@ -1,6 +1,6 @@
 ##
-# Copyright 2016-2021 Ghent University
-# Copyright 2016-2021 Forschungszentrum Juelich
+# Copyright 2016-2023 Ghent University
+# Copyright 2016-2023 Forschungszentrum Juelich
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,8 +26,10 @@
 """
 EasyBuild support for npsmpi compiler toolchain (includes NVHPC and ParaStationMPI, and CUDA as dependency).
 
-:author: Damian Alvarez (Forschungszentrum Juelich)
-:author: Sebastian Achilles (Forschungszentrum Juelich)
+Authors:
+
+* Damian Alvarez (Forschungszentrum Juelich)
+* Sebastian Achilles (Forschungszentrum Juelich)
 """
 
 from easybuild.toolchains.nvhpc import NVHPCToolchain

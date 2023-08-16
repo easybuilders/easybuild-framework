@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2021 Ghent University
+# Copyright 2014-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +25,10 @@
 """
 Module which allows the diffing of multiple files
 
-:author: Toon Willems (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Toon Willems (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 
 import difflib
@@ -73,7 +75,8 @@ class MultiDiff(object):
     def __init__(self, base_fn, base_lines, files, colored=True):
         """
         MultiDiff constructor
-        :param base: base to compare with
+        :param base_fn: base function to compare with
+        :param base_lines: base lines to compare to
         :param files: list of files to compare with base
         :param colored: boolean indicating whether a colored multi-diff should be generated
         """

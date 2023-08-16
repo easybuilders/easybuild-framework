@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -151,7 +151,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(install_path(typ='mod'), os.path.join(install, 'modules'))
 
         self.assertEqual(options.installpath, install)
-        self.assertTrue(config_file in options.configfiles)
+        self.assertIn(config_file, options.configfiles)
 
         # check mixed command line/env var configuration
         prefix = os.path.join(self.tmpdir, 'test3')
@@ -341,8 +341,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
         cv1 = ConfigurationVariables()
         cv2 = ConfigurationVariables()
         cv3 = ConfigurationVariables({'foo': 'bar'})  # note: argument is ignored, an instance is already available
-        self.assertTrue(cv1 is cv2)
-        self.assertTrue(cv1 is cv3)
+        self.assertIs(cv1, cv2)
+        self.assertIs(cv1, cv3)
 
     def test_build_options(self):
         """Test usage of BuildOptions."""
@@ -353,8 +353,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
         bo1 = BuildOptions()
         bo2 = BuildOptions()
         bo3 = BuildOptions({'foo': 'bar'})  # note: argument is ignored, an instance is already available
-        self.assertTrue(bo1 is bo2)
-        self.assertTrue(bo1 is bo3)
+        self.assertIs(bo1, bo2)
+        self.assertIs(bo1, bo3)
 
         # test basic functionality
         BuildOptions.__class__._instances.clear()
@@ -362,7 +362,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
             'debug': False,
             'force': True
         })
-        self.assertTrue(not bo['debug'])
+        self.assertFalse(bo['debug'])
         self.assertTrue(bo['force'])
 
         # updating is impossible (methods are not even available)
@@ -385,12 +385,16 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(bo['robot_path'], '/some/robot/path')
         self.assertEqual(bo['stop'], 'configure')
 
+        # also check some default values that should be an empty list
+        for opt in ('accept_eula_for', 'from_pr', 'include_easyblocks_from_pr', 'robot'):
+            self.assertEqual(bo[opt], [], "Default value of build option '%s' should be []" % opt)
+
         # all possible build options should be set (defaults are used where needed)
         self.assertEqual(sorted(bo.keys()), sorted(BuildOptions.KNOWN_KEYS))
 
         # there should be only one BuildOptions instance
         bo2 = BuildOptions()
-        self.assertTrue(bo is bo2)
+        self.assertIs(bo, bo2)
 
     def test_XDG_CONFIG_env_vars(self):
         """Test effect of XDG_CONFIG* environment variables on default configuration."""
@@ -495,7 +499,9 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
         orig_sys_path = sys.path[:]
-        sys.path = [tmpdir] + [p for p in sys.path if not os.path.exists(os.path.join(p, 'easybuild', 'easyconfigs'))]
+        sys.path[:] = [tmpdir] + [
+            p for p in sys.path if not os.path.exists(os.path.join(p, 'easybuild', 'easyconfigs'))
+        ]
 
         # default: only pick up installed easyconfigs via sys.path
         eb_go = eboptions.parse_options(args=[])
@@ -614,7 +620,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
             res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651', add_salt=True)
             regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.[a-zA-Z]{5}\.log$'))
             self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
-            self.assertTrue(res not in prev_log_filenames)
+            self.assertNotIn(res, prev_log_filenames)
             prev_log_filenames.append(res)
 
     def test_log_file_format(self):

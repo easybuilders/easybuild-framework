@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2021 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -92,7 +92,7 @@ class IncludeTest(EnhancedTestCase):
                           'easyblocks/generic/__init__.py', 'easyblocks/generic/mybar.py']
         for filepath in expected_paths:
             fullpath = os.path.join(included_easyblocks_path, 'easybuild', filepath)
-            self.assertTrue(os.path.exists(fullpath), "%s exists" % fullpath)
+            self.assertExists(fullpath)
 
         # path to included easyblocks should be prepended to Python search path
         self.assertEqual(sys.path[0], included_easyblocks_path)
@@ -185,7 +185,7 @@ class IncludeTest(EnhancedTestCase):
                           'tools/module_naming_scheme/my_mns.py']
         for filepath in expected_paths:
             fullpath = os.path.join(included_mns_path, 'easybuild', filepath)
-            self.assertTrue(os.path.exists(fullpath), "%s exists" % fullpath)
+            self.assertExists(fullpath)
 
         # path to included MNSs should be prepended to Python search path
         self.assertEqual(sys.path[0], included_mns_path)
@@ -232,7 +232,7 @@ class IncludeTest(EnhancedTestCase):
                           'toolchains/my_tc.py', 'toolchains/compiler/my_compiler.py']
         for filepath in expected_paths:
             fullpath = os.path.join(included_tcs_path, 'easybuild', filepath)
-            self.assertTrue(os.path.exists(fullpath), "%s exists" % fullpath)
+            self.assertExists(fullpath)
 
         # path to included MNSs should be prepended to Python search path
         self.assertEqual(sys.path[0], included_tcs_path)

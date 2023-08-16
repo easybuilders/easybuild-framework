@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2021 Ghent University
+# Copyright 2015-2023 Ghent University
 # Copyright 2015 S3IT, University of Zurich
 #
 # This file is part of EasyBuild,
@@ -26,15 +26,18 @@
 """
 Interface for submitting jobs via GC3Pie.
 
-:author: Riccardo Murri (University of Zurich)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Riccardo Murri (University of Zurich)
+* Kenneth Hoste (Ghent University)
 """
-from distutils.version import LooseVersion
 import os
 from time import gmtime, strftime
 import time
+import warnings
 
 from easybuild.base import fancylogger
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, build_option
 from easybuild.tools.job.backend import JobBackend
@@ -45,7 +48,10 @@ _log = fancylogger.getLogger('gc3pie', fname=False)
 
 
 try:
-    import gc3libs
+    with warnings.catch_warnings():
+        # Workaround https://github.com/gc3pie/gc3pie/issues/670
+        warnings.simplefilter("ignore", category=DeprecationWarning)
+        import gc3libs
     import gc3libs.exceptions
     from gc3libs import Application, Run, create_engine
     from gc3libs.quantity import hours as hr
@@ -223,7 +229,10 @@ class GC3Pie(JobBackend):
         """
         # create an instance of `Engine` using the list of configuration files
         try:
-            self._engine = create_engine(*self.config_files, resource_errors_are_fatal=True)
+            with warnings.catch_warnings():
+                # Workaround https://github.com/gc3pie/gc3pie/issues/670
+                warnings.simplefilter("ignore", category=DeprecationWarning)
+                self._engine = create_engine(*self.config_files, resource_errors_are_fatal=True)
 
         except gc3libs.exceptions.Error as err:
             raise EasyBuildError("Failed to create GC3Pie engine: %s", err)

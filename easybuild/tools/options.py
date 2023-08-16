@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,14 +25,17 @@
 """
 Command line options for eb
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
-:author: Ward Poelmans (Ghent University)
-:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
+* Ward Poelmans (Ghent University)
+* Damian Alvarez (Forschungszentrum Juelich GmbH)
+* Maxime Boissonneault (Compute Canada)
 """
 import copy
 import glob
@@ -42,7 +45,6 @@ import shutil
 import sys
 import tempfile
 import pwd
-from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
 from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
@@ -56,24 +58,28 @@ from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyco
 from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, get_paths_for
 from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
-from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
+from easybuild.tools import LooseVersion, build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError
 from easybuild.tools.build_log import init_logging, log_start, print_msg, print_warning, raise_easybuilderror
+from easybuild.tools.config import CHECKSUM_PRIORITY_CHOICES, DEFAULT_CHECKSUM_PRIORITY
 from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE, DEFAULT_ALLOW_LOADED_MODULES
-from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_ENV_FOR_SHEBANG, DEFAULT_ENVVAR_USERS_MODULES
-from easybuild.tools.config import DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE
-from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
+from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_DOWNLOAD_TIMEOUT
+from easybuild.tools.config import DEFAULT_ENV_FOR_SHEBANG, DEFAULT_ENVVAR_USERS_MODULES
+from easybuild.tools.config import DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE, DEFAULT_JOB_BACKEND
+from easybuild.tools.config import DEFAULT_JOB_EB_CMD, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
 from easybuild.tools.config import DEFAULT_MINIMAL_BUILD_ENV, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL
 from easybuild.tools.config import DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_PR_TARGET_ACCOUNT
 from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_WAIT_ON_LOCK_INTERVAL, DEFAULT_WAIT_ON_LOCK_LIMIT
+from easybuild.tools.config import DEFAULT_FILTER_RPATH_SANITY_LIBS
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, ERROR, FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS
 from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
+from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
-from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
+from easybuild.tools.docs import FORMAT_MD, FORMAT_RST, FORMAT_TXT
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
@@ -334,12 +340,14 @@ class EasyBuildOptions(GeneralOption):
         # override options
         descr = ("Override options", "Override default EasyBuild behavior.")
 
+        all_deprecations = ('python2', 'Lmod6', 'easyconfig', 'toolchain')
+
         opts = OrderedDict({
             'accept-eula': ("Accept EULA for specified software [DEPRECATED, use --accept-eula-for instead!]",
                             'strlist', 'store', []),
             'accept-eula-for': ("Accept EULA for specified software", 'strlist', 'store', []),
             'add-dummy-to-minimal-toolchains': ("Include dummy toolchain in minimal toolchain searches "
-                                                "[DEPRECATED, use --add-system-to-minimal-toolchains instead!)",
+                                                "[DEPRECATED, use --add-system-to-minimal-toolchains instead!]",
                                                 None, 'store_true', False),
             'add-system-to-minimal-toolchains': ("Include system toolchain in minimal toolchain searches",
                                                  None, 'store_true', False),
@@ -351,12 +359,17 @@ class EasyBuildOptions(GeneralOption):
                                                           None, 'store_true', False),
             'backup-modules': ("Back up an existing module file, if any. Only works when using --module-only",
                                None, 'store_true', None),  # default None to allow auto-enabling if not disabled
+            'backup-patched-files': ("Create a backup (*.orig) file when applying a patch",
+                                     None, 'store_true', False),
             'banned-linked-shared-libs': ("Comma-separated list of shared libraries (names, file names, or paths) "
                                           "which are not allowed to be linked in any installed binary/library",
                                           'strlist', 'extend', None),
             'check-ebroot-env-vars': ("Action to take when defined $EBROOT* environment variables are found "
                                       "for which there is no matching loaded module; "
                                       "supported values: %s" % ', '.join(EBROOT_ENV_VAR_ACTIONS), None, 'store', WARN),
+            'checksum-priority': ("When checksums are found in both the EasyConfig and the checksums.json file"
+                                  "Define which one to use. ",
+                                  'choice', 'store_or_None', DEFAULT_CHECKSUM_PRIORITY, CHECKSUM_PRIORITY_CHOICES),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
@@ -380,7 +393,8 @@ class EasyBuildOptions(GeneralOption):
             'detect-loaded-modules': ("Detect loaded EasyBuild-generated modules, act accordingly; "
                                       "supported values: %s" % ', '.join(LOADED_MODULES_ACTIONS), None, 'store', WARN),
             'devel': ("Enable including of development log messages", None, 'store_true', False),
-            'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', None),
+            'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store',
+                                 DEFAULT_DOWNLOAD_TIMEOUT),
             'dump-autopep8': ("Reformat easyconfigs using autopep8 when dumping them", None, 'store_true', False),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
@@ -402,6 +416,11 @@ class EasyBuildOptions(GeneralOption):
                            'strlist', 'extend', None),
             'filter-env-vars': ("List of names of environment variables that should *not* be defined/updated by "
                                 "module files generated by EasyBuild", 'strlist', 'extend', None),
+            'filter-rpath-sanity-libs': ("List of libraries that should be ignored by the RPATH sanity check. "
+                                         "I.e. if these libraries are not RPATH-ed, that will be accepted "
+                                         "by the RPATH sanity check. Note that you'll need to provide the exact "
+                                         "library name, as it is returned by 'ldd', including any version ",
+                                         'strlist', 'store', DEFAULT_FILTER_RPATH_SANITY_LIBS),
             'fixed-installdir-naming-scheme': ("Use fixed naming scheme for installation directories", None,
                                                'store_true', True),
             'force-download': ("Force re-downloading of sources and/or patches, "
@@ -450,7 +469,7 @@ class EasyBuildOptions(GeneralOption):
             'mpi-tests': ("Run MPI tests (when relevant)", None, 'store_true', True),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
-            'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_TXT, FORMAT_RST]),
+            'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_MD, FORMAT_RST, FORMAT_TXT]),
             'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
                              "with fallback to basic colored output",
                              'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),
@@ -479,7 +498,9 @@ class EasyBuildOptions(GeneralOption):
             'set-default-module': ("Set the generated module as default", None, 'store_true', False),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
             'show-progress-bar': ("Show progress bar in terminal output", None, 'store_true', True),
-            'silence-deprecation-warnings': ("Silence specified deprecation warnings", 'strlist', 'extend', None),
+            'silence-deprecation-warnings': (
+                "Silence specified deprecation warnings out of (%s)" % ', '.join(all_deprecations),
+                'strlist', 'extend', []),
             'skip-extensions': ("Skip installation of extensions", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'skip-test-step': ("Skip running the test step (e.g. unit tests)", None, 'store_true', False),
@@ -781,6 +802,8 @@ class EasyBuildOptions(GeneralOption):
                               int, 'store', DEFAULT_INDEX_MAX_AGE),
             'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
                                  'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
+            'inject-checksums-to-json': ("Inject checksums of specified type for sources/patches into checksums.json",
+                                         'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
             'local-var-naming-check': ("Mode to use when checking whether local variables follow the recommended "
                                        "naming scheme ('log': only log warnings (no printed messages); 'warn': print "
                                        "warnings; 'error': fail with an error)", 'choice', 'store',
@@ -798,6 +821,7 @@ class EasyBuildOptions(GeneralOption):
             'cores': ("Number of cores to request per job", 'int', 'store', None),
             'deps-type': ("Type of dependency to set between jobs (default depends on job backend)",
                           'choice', 'store', None, [JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN]),
+            'eb-cmd': ("EasyBuild command to use in jobs", 'str', 'store', DEFAULT_JOB_EB_CMD),
             'max-jobs': ("Maximum number of concurrent jobs (queued and running, 0 = unlimited)", 'int', 'store', 0),
             'max-walltime': ("Maximum walltime for jobs (in hours)", 'int', 'store', 24),
             'output-dir': ("Output directory for jobs (default: current directory)", None, 'store', os.getcwd()),
@@ -1165,8 +1189,8 @@ class EasyBuildOptions(GeneralOption):
             self.options.ignore_osdeps = True
             self.options.modules_tool = None
 
-        # imply --disable-pre-create-installdir with --inject-checksums
-        if self.options.inject_checksums:
+        # imply --disable-pre-create-installdir with --inject-checksums or --inject-checksums-to-json
+        if self.options.inject_checksums or self.options.inject_checksums_to_json:
             self.options.pre_create_installdir = False
 
     def _postprocess_list_avail(self):
@@ -1493,7 +1517,7 @@ def check_root_usage(allow_use_as_root=False):
                                  "so let's end this here.")
 
 
-def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
+def set_up_configuration(args=None, logfile=None, testing=False, silent=False, reconfigure=False):
     """
     Set up EasyBuild configuration, by parsing configuration settings & initialising build options.
 
@@ -1501,6 +1525,8 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     :param logfile: log file to use
     :param testing: enable testing mode
     :param silent: stay silent (no printing)
+    :param reconfigure: reconfigure singletons that hold configuration dictionaries. Use with care: normally,
+    configuration shouldn't be changed during a run. Exceptions are when looping over items in EasyStack files
     """
 
     # set up fake 'vsc' Python package, to catch easyblocks/scripts that still import from vsc.* namespace
@@ -1547,10 +1573,16 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
     except ValueError:
         raise EasyBuildError("Argument to --from-pr must be a comma separated list of PR #s.")
 
+    try:
+        review_pr = (lambda x: int(x) if x else None)(eb_go.options.review_pr)
+    except ValueError:
+        raise EasyBuildError("Argument to --review-pr must be an integer PR #.")
+
     # determine robot path
     # --try-X, --dep-graph, --search use robot path for searching, so enable it with path of installed easyconfigs
     tweaked_ecs = try_to_generate and build_specs
-    tweaked_ecs_paths, pr_paths = alt_easyconfig_paths(tmpdir, tweaked_ecs=tweaked_ecs, from_prs=from_prs)
+    tweaked_ecs_paths, pr_paths = alt_easyconfig_paths(tmpdir, tweaked_ecs=tweaked_ecs, from_prs=from_prs,
+                                                       review_pr=review_pr)
     auto_robot = try_to_generate or options.check_conflicts or options.dep_graph or search_query
     robot_path = det_robot_path(options.robot_paths, tweaked_ecs_paths, pr_paths, auto_robot=auto_robot)
     log.debug("Full robot path: %s", robot_path)
@@ -1572,6 +1604,21 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False):
         'try_to_generate': try_to_generate,
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
     }
+
+    # Remove existing singletons if reconfigure==True (allows reconfiguration when looping over EasyStack items)
+    if reconfigure:
+        BuildOptions.__class__._instances.clear()
+        ConfigurationVariables.__class__._instances.clear()
+    elif len(BuildOptions.__class__._instances) + len(ConfigurationVariables.__class__._instances) > 0:
+        msg = '\n'.join([
+            "set_up_configuration is about to call init() and init_build_options().",
+            "However, the singletons that these functions normally initialize already exist.",
+            "If configuration should be changed, this may lead to unexpected behavior,"
+            "as the existing singletons will be returned. If you intended to reconfigure",
+            "you should probably pass reconfigure=True to set_up_configuration()."
+        ])
+        print_warning(msg, log=log)
+
     # initialise the EasyBuild configuration & build options
     init(options, config_options_dict)
     init_build_options(build_options=build_options, cmdline_options=options)
@@ -1847,7 +1894,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             os.close(fd)
             os.chmod(tmptest_file, 0o700)
             if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False, force_in_dry_run=True, trace=False,
-                           stream_output=False):
+                           stream_output=False, with_hooks=False):
                 msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
                 msg += "This can cause problems in the build process, consider using --tmpdir."
                 if raise_error:
@@ -1869,3 +1916,35 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             raise EasyBuildError("Failed to test whether temporary directory allows to execute files: %s", err)
 
     return current_tmpdir
+
+
+def opts_dict_to_eb_opts(args_dict):
+    """
+    Convert a dictionary with configuration option values to command-line options for the 'eb' command.
+    Can by used to convert e.g. easyconfig-specific options from an easystack file to a list of strings
+    that can be fed into the EasyBuild option parser
+    :param args_dict: dictionary with configuration option values
+    :return: a list of strings representing command-line options for the 'eb' command
+    """
+
+    _log.debug("Converting dictionary %s to argument list" % args_dict)
+    args = []
+    for arg in sorted(args_dict):
+        if len(arg) == 1:
+            prefix = '-'
+        else:
+            prefix = '--'
+        option = prefix + str(arg)
+        value = args_dict[arg]
+        if isinstance(value, (list, tuple)):
+            value = ','.join(str(x) for x in value)
+
+        if value in [True, None]:
+            args.append(option)
+        elif value is False:
+            args.append('--disable-' + option[2:])
+        elif value is not None:
+            args.append(option + '=' + str(value))
+
+    _log.debug("Converted dictionary %s to argument list %s" % (args_dict, args))
+    return args

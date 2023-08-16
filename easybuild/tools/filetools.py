@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,24 +25,25 @@
 """
 Set of file tools.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
-:author: Ward Poelmans (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
-:author: Sotiris Fragkiskos (NTUA, CERN)
-:author: Davide Vanzo (ACCRE, Vanderbilt University)
-:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
-:author: Maxime Boissonneault (Compute Canada)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
+* Ward Poelmans (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
+* Sotiris Fragkiskos (NTUA, CERN)
+* Davide Vanzo (ACCRE, Vanderbilt University)
+* Damian Alvarez (Forschungszentrum Juelich GmbH)
+* Maxime Boissonneault (Compute Canada)
 """
 import datetime
 import difflib
 import glob
 import hashlib
-import imp
 import inspect
 import itertools
 import os
@@ -64,8 +65,8 @@ from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, pr
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
-from easybuild.tools.py2vs3 import HTMLParser, std_urllib, string_type
-from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars
+from easybuild.tools.py2vs3 import HTMLParser, load_source, std_urllib, string_type
+from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars, trace_msg
 
 try:
     import requests
@@ -751,10 +752,6 @@ def download_file(filename, url, path, forced=False):
     _log.debug("Trying to download %s from %s to %s", filename, url, path)
 
     timeout = build_option('download_timeout')
-    if timeout is None:
-        # default to 10sec timeout if none was specified
-        # default system timeout (used is nothing is specified) may be infinite (?)
-        timeout = 10
     _log.debug("Using timeout of %s seconds for initiating download" % timeout)
 
     # parse option HTTP header fields for URLs containing a pattern
@@ -856,9 +853,11 @@ def download_file(filename, url, path, forced=False):
 
     if downloaded:
         _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
+        trace_msg("download succeeded: %s" % url)
         return path
     else:
         _log.warning("Download of %s to %s failed, done trying" % (url, path))
+        trace_msg("download failed: %s" % url)
         return None
 
 
@@ -1246,8 +1245,8 @@ def verify_checksum(path, checksums):
     """
     Verify checksum of specified file.
 
-    :param file: path of file to verify checksum of
-    :param checksum: checksum value (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
+    :param path: path of file to verify checksum of
+    :param checksums: checksum values (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
     """
 
     filename = os.path.basename(path)
@@ -1298,6 +1297,9 @@ def verify_checksum(path, checksums):
                         return True
                     else:
                         _log.info("Ignoring non-matching checksum for %s (%s)...", path, cand_checksum)
+
+                # no matching checksums
+                return False
         else:
             raise EasyBuildError("Invalid checksum spec '%s', should be a string (MD5) or 2-tuple (type, value).",
                                  checksum)
@@ -1469,6 +1471,9 @@ def create_patch_info(patch_spec):
     """
     Create info dictionary from specified patch spec.
     """
+    # Valid keys that can be used in a patch spec dict
+    valid_keys = ['name', 'copy', 'level', 'sourcepath', 'alt_location']
+
     if isinstance(patch_spec, (list, tuple)):
         if not len(patch_spec) == 2:
             error_msg = "Unknown patch specification '%s', only 2-element lists/tuples are supported!"
@@ -1495,17 +1500,42 @@ def create_patch_info(patch_spec):
                                  str(patch_spec))
 
     elif isinstance(patch_spec, string_type):
-        allowed_patch_exts = ['.patch' + x for x in ('',) + ZIPPED_PATCH_EXTS]
-        if not any(patch_spec.endswith(x) for x in allowed_patch_exts):
-            msg = "Use of patch file with filename that doesn't end with correct extension: %s " % patch_spec
-            msg += "(should be any of: %s)" % (', '.join(allowed_patch_exts))
-            _log.deprecated(msg, '5.0')
+        validate_patch_spec(patch_spec)
         patch_info = {'name': patch_spec}
+    elif isinstance(patch_spec, dict):
+        patch_info = {}
+        for key in patch_spec.keys():
+            if key in valid_keys:
+                patch_info[key] = patch_spec[key]
+            else:
+                raise EasyBuildError("Wrong patch spec '%s', use of unknown key %s in dict (valid keys are %s)",
+                                     str(patch_spec), key, valid_keys)
+
+        # Dict must contain at least the patchfile name
+        if 'name' not in patch_info.keys():
+            raise EasyBuildError("Wrong patch spec '%s', when using a dict 'name' entry must be supplied",
+                                 str(patch_spec))
+        if 'copy' not in patch_info.keys():
+            validate_patch_spec(patch_info['name'])
+        else:
+            if 'sourcepath' in patch_info.keys() or 'level' in patch_info.keys():
+                raise EasyBuildError("Wrong patch spec '%s', you can't use 'sourcepath' or 'level' with 'copy' (since "
+                                     "this implies you want to copy a file to the 'copy' location)",
+                                     str(patch_spec))
     else:
-        error_msg = "Wrong patch spec, should be string of 2-tuple with patch name + argument: %s"
-        raise EasyBuildError(error_msg, patch_spec)
+        error_msg = "Wrong patch spec, should be string, 2-tuple with patch name + argument, or a dict " \
+                    "(with possible keys %s): %s" % (valid_keys, patch_spec)
+        raise EasyBuildError(error_msg)
 
     return patch_info
+
+
+def validate_patch_spec(patch_spec):
+    allowed_patch_exts = ['.patch' + x for x in ('',) + ZIPPED_PATCH_EXTS]
+    if not any(patch_spec.endswith(x) for x in allowed_patch_exts):
+        msg = "Use of patch file with filename that doesn't end with correct extension: %s " % patch_spec
+        msg += "(should be any of: %s)" % (', '.join(allowed_patch_exts))
+        _log.deprecated(msg, '5.0')
 
 
 def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=False, use_git=False):
@@ -1592,7 +1622,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
         else:
             _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
-        patch_cmd = "patch -b -p%s -i %s" % (level, abs_patch_file)
+        backup_option = '-b ' if build_option('backup_patched_files') else ''
+        patch_cmd = "patch " + backup_option + "-p%s -i %s" % (level, abs_patch_file)
 
     out, ec = run.run_cmd(patch_cmd, simple=False, path=abs_dest, log_ok=False, trace=False)
 
@@ -1890,6 +1921,12 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                 os.makedirs(path)
             else:
                 os.mkdir(path)
+        except FileExistsError as err:
+            if os.path.exists(path):
+                # This may happen if a parallel build creates the directory after we checked for its existence
+                _log.debug("Directory creation aborted as it seems it was already created: %s", err)
+            else:
+                raise EasyBuildError("Failed to create directory %s: %s", path, err)
         except OSError as err:
             raise EasyBuildError("Failed to create directory %s: %s", path, err)
 
@@ -2586,6 +2623,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     repo_name = git_config.pop('repo_name', None)
     commit = git_config.pop('commit', None)
     recursive = git_config.pop('recursive', False)
+    clone_into = git_config.pop('clone_into', False)
     keep_git_dir = git_config.pop('keep_git_dir', False)
 
     # input validation of git_config dict
@@ -2629,9 +2667,16 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
 
     clone_cmd.append('%s/%s.git' % (url, repo_name))
 
+    if clone_into:
+        clone_cmd.append('%s' % clone_into)
+
     tmpdir = tempfile.mkdtemp()
     cwd = change_dir(tmpdir)
     run.run_cmd(' '.join(clone_cmd), log_all=True, simple=True, regexp=False)
+
+    # If the clone is done into a specified name, change repo_name
+    if clone_into:
+        repo_name = clone_into
 
     # if a specific commit is asked for, check it out
     if commit:
@@ -2761,7 +2806,7 @@ def install_fake_vsc():
 def get_easyblock_class_name(path):
     """Make sure file is an easyblock and get easyblock class name"""
     fn = os.path.basename(path).split('.')[0]
-    mod = imp.load_source(fn, path)
+    mod = load_source(fn, path)
     clsmembers = inspect.getmembers(mod, inspect.isclass)
     for cn, co in clsmembers:
         if co.__module__ == mod.__name__:
@@ -2831,7 +2876,7 @@ def copy_framework_files(paths, target_dir):
         if framework_topdir in dirnames:
             # construct subdirectory by grabbing last entry in dirnames until we hit 'easybuild-framework' dir
             subdirs = []
-            while(dirnames[-1] != framework_topdir):
+            while dirnames[-1] != framework_topdir:
                 subdirs.insert(0, dirnames.pop())
 
             parent_dir = os.path.join(*subdirs) if subdirs else ''

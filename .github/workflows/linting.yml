@@ -1,15 +1,27 @@
 name: Static Analysis
 on: [push, pull_request]
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+concurrency:
+  group: ${{format('{0}:{1}:{2}', github.repository, github.ref, github.workflow)}}
+  cancel-in-progress: true
+
 jobs:
   python-linting:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        python-version: [3.5, 3.6, 3.7, 3.8, 3.9, '3.10', '3.11']
+        
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: ${{ matrix.python-version }}
 
     - name: install Python packages
       run: |
@@ -18,4 +30,10 @@ jobs:
 
     - name: Run flake8 to verify PEP8-compliance of Python code
       run: |
-        flake8
+        # don't check py2vs3/py3.py when testing with Python 2, and vice versa
+        if [[ "${{ matrix.python-version }}" =~ "2." ]]; then
+            py_excl=py3
+        else
+            py_excl=py2
+        fi
+        flake8 --exclude ./easybuild/tools/py2vs3/${py_excl}.py

@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2021 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,7 +34,7 @@ import shutil
 
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.modules import get_software_root, get_software_version
@@ -91,27 +91,42 @@ class EB_toy(ExtensionEasyBlock):
 
         return super(EB_toy, self).run_all_steps(*args, **kwargs)
 
-    def configure_step(self, name=None):
+    def configure_step(self, name=None, cfg=None):
         """Configure build of toy."""
         if name is None:
             name = self.name
+        # Allow overwrite from Toy-Extension
+        if cfg is None:
+            cfg = self.cfg
         # make sure Python system dep is handled correctly when specified
-        if self.cfg['allow_system_deps']:
+        if cfg['allow_system_deps']:
             if get_software_root('Python') != 'Python' or get_software_version('Python') != platform.python_version():
                 raise EasyBuildError("Sanity check on allowed Python system dep failed.")
+
+        cmd = ' '.join([
+            cfg['preconfigopts'],
+            'echo "Configured"',
+            cfg['configopts']
+        ])
+        run_cmd(cmd)
 
         if os.path.exists("%s.source" % name):
             os.rename('%s.source' % name, '%s.c' % name)
 
-    def build_step(self, name=None, buildopts=None):
+    def build_step(self, name=None, cfg=None):
         """Build toy."""
-        if buildopts is None:
-            buildopts = self.cfg['buildopts']
+        # Allow overwrite from Toy-Extension
+        if cfg is None:
+            cfg = self.cfg
         if name is None:
             name = self.name
 
-        cmd = compose_toy_build_cmd(self.cfg, name, self.cfg['prebuildopts'], buildopts)
-        run_cmd(cmd)
+        cmd = compose_toy_build_cmd(self.cfg, name, cfg['prebuildopts'], cfg['buildopts'])
+        # purposely run build command without checking exit code;
+        # we rely on this in test_toy_build_hooks
+        (out, ec) = run_cmd(cmd, log_ok=False, log_all=False)
+        if ec:
+            print_warning("Command '%s' failed, but we'll ignore it..." % cmd)
 
     def install_step(self, name=None):
         """Install toy."""

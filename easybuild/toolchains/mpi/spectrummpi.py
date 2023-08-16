@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2021 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,7 +25,9 @@
 """
 Support for Spectrum MPI as toolchain MPI library.
 
-:author: Alan O'Cais (Juelich Supercomputing Centre)
+Authors:
+
+* Alan O'Cais (Juelich Supercomputing Centre)
 """
 
 from easybuild.toolchains.mpi.openmpi import OpenMPI

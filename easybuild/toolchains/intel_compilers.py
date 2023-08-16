@@ -1,5 +1,5 @@
 ##
-# Copyright 2021-2021 Ghent University
+# Copyright 2021-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,7 +25,9 @@
 """
 EasyBuild support for Intel compilers toolchain (icc, ifort), v2021.x or newer (oneAPI).
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 from easybuild.toolchains.compiler.intel_compilers import IntelCompilers
 from easybuild.toolchains.gcccore import GCCcore

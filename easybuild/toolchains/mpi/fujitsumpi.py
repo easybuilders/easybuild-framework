@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2021 Ghent University
+# Copyright 2014-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,7 +25,9 @@
 """
 MPI support for Fujitsu MPI.
 
-:author: Miguel Dias Costa (National University of Singapore)
+Authors:
+
+* Miguel Dias Costa (National University of Singapore)
 """
 from easybuild.toolchains.compiler.fujitsu import FujitsuCompiler
 from easybuild.toolchains.mpi.openmpi import TC_CONSTANT_OPENMPI, TC_CONSTANT_MPI_TYPE_OPENMPI

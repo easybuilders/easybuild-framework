@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2021 Ghent University
+# Copyright 2015-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +25,10 @@
 """
 Abstract interface for submitting jobs and related utilities.
 
-:author: Riccardo Murri (University of Zurich)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Riccardo Murri (University of Zurich)
+* Kenneth Hoste (Ghent University)
 """
 
 from abc import ABCMeta, abstractmethod

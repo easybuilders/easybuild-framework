@@ -1,5 +1,5 @@
 # #
-# Copyright 2017-2021 Ghent University
+# Copyright 2017-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,7 +32,7 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
-import easybuild.tools.hooks
+import easybuild.tools.hooks  # so we can reset cached hooks
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import remove_file, write_file
 from easybuild.tools.hooks import find_hook, load_hooks, run_hook, verify_hooks
@@ -52,6 +52,9 @@ class HooksTest(EnhancedTestCase):
             'def parse_hook(ec):',
             '   print("Parse hook with argument %s" % ec)',
             '',
+            'def pre_build_and_install_loop_hook(ecs):',
+            '    print("About to start looping for %d easyconfigs!" % len(ecs))',
+            '',
             'def foo():',
             '    print("running foo helper method")',
             '',
@@ -61,8 +64,30 @@ class HooksTest(EnhancedTestCase):
             '',
             'def pre_install_hook(self):',
             '    print("this is run before install step")',
+            '',
+            'def pre_single_extension_hook(ext):',
+            '    print("this is run before installing an extension")',
+            '',
+            'def pre_run_shell_cmd_hook(cmd, interactive=False):',
+            '    if interactive:',
+            '        print("this is run before running interactive command \'%s\'" % cmd)',
+            '    else:',
+            '        print("this is run before running command \'%s\'" % cmd)',
+            '        if cmd == "make install":',
+            '            return "sudo " + cmd',
+            '',
+            'def fail_hook(err):',
+            '    print("EasyBuild FAIL: %s" % err)',
         ])
         write_file(self.test_hooks_pymod, test_hooks_pymod_txt)
+
+    def tearDown(self):
+        """Cleanup."""
+
+        # reset cached hooks
+        easybuild.tools.hooks._cached_hooks.clear()
+
+        super(HooksTest, self).tearDown()
 
     def test_load_hooks(self):
         """Test for load_hooks function."""
@@ -71,14 +96,24 @@ class HooksTest(EnhancedTestCase):
 
         hooks = load_hooks(self.test_hooks_pymod)
 
-        self.assertEqual(len(hooks), 4)
-        self.assertEqual(sorted(hooks.keys()), ['parse_hook', 'post_configure_hook', 'pre_install_hook', 'start_hook'])
+        self.assertEqual(len(hooks), 8)
+        expected = [
+            'fail_hook',
+            'parse_hook',
+            'post_configure_hook',
+            'pre_build_and_install_loop_hook',
+            'pre_install_hook',
+            'pre_run_shell_cmd_hook',
+            'pre_single_extension_hook',
+            'start_hook',
+        ]
+        self.assertEqual(sorted(hooks.keys()), expected)
         self.assertTrue(all(callable(h) for h in hooks.values()))
 
         # test caching of hooks
         remove_file(self.test_hooks_pymod)
         cached_hooks = load_hooks(self.test_hooks_pymod)
-        self.assertTrue(cached_hooks is hooks)
+        self.assertIs(cached_hooks, hooks)
 
         # hooks file can be empty
         empty_hooks_path = os.path.join(self.test_prefix, 'empty_hooks.py')
@@ -88,7 +123,7 @@ class HooksTest(EnhancedTestCase):
 
         # loading another hooks file doesn't affect cached hooks
         prev_hooks = load_hooks(self.test_hooks_pymod)
-        self.assertTrue(prev_hooks is hooks)
+        self.assertIs(prev_hooks, hooks)
 
         # clearing cached hooks results in error because hooks file is not found
         easybuild.tools.hooks._cached_hooks = {}
@@ -101,7 +136,11 @@ class HooksTest(EnhancedTestCase):
 
         post_configure_hook = [hooks[k] for k in hooks if k == 'post_configure_hook'][0]
         pre_install_hook = [hooks[k] for k in hooks if k == 'pre_install_hook'][0]
+        pre_single_extension_hook = [hooks[k] for k in hooks if k == 'pre_single_extension_hook'][0]
         start_hook = [hooks[k] for k in hooks if k == 'start_hook'][0]
+        pre_run_shell_cmd_hook = [hooks[k] for k in hooks if k == 'pre_run_shell_cmd_hook'][0]
+        fail_hook = [hooks[k] for k in hooks if k == 'fail_hook'][0]
+        pre_build_and_install_loop_hook = [hooks[k] for k in hooks if k == 'pre_build_and_install_loop_hook'][0]
 
         self.assertEqual(find_hook('configure', hooks), None)
         self.assertEqual(find_hook('configure', hooks, pre_step_hook=True), None)
@@ -111,6 +150,14 @@ class HooksTest(EnhancedTestCase):
         self.assertEqual(find_hook('install', hooks, pre_step_hook=True), pre_install_hook)
         self.assertEqual(find_hook('install', hooks, post_step_hook=True), None)
 
+        self.assertEqual(find_hook('single_extension', hooks), None)
+        self.assertEqual(find_hook('single_extension', hooks, pre_step_hook=True), pre_single_extension_hook)
+        self.assertEqual(find_hook('single_extension', hooks, post_step_hook=True), None)
+
+        self.assertEqual(find_hook('extensions', hooks), None)
+        self.assertEqual(find_hook('extensions', hooks, pre_step_hook=True), None)
+        self.assertEqual(find_hook('extensions', hooks, post_step_hook=True), None)
+
         self.assertEqual(find_hook('build', hooks), None)
         self.assertEqual(find_hook('build', hooks, pre_step_hook=True), None)
         self.assertEqual(find_hook('build', hooks, post_step_hook=True), None)
@@ -118,6 +165,19 @@ class HooksTest(EnhancedTestCase):
         self.assertEqual(find_hook('start', hooks), start_hook)
         self.assertEqual(find_hook('start', hooks, pre_step_hook=True), None)
         self.assertEqual(find_hook('start', hooks, post_step_hook=True), None)
+
+        self.assertEqual(find_hook('run_shell_cmd', hooks), None)
+        self.assertEqual(find_hook('run_shell_cmd', hooks, pre_step_hook=True), pre_run_shell_cmd_hook)
+        self.assertEqual(find_hook('run_shell_cmd', hooks, post_step_hook=True), None)
+
+        self.assertEqual(find_hook('fail', hooks), fail_hook)
+        self.assertEqual(find_hook('fail', hooks, pre_step_hook=True), None)
+        self.assertEqual(find_hook('fail', hooks, post_step_hook=True), None)
+
+        hook_name = 'build_and_install_loop'
+        self.assertEqual(find_hook(hook_name, hooks), None)
+        self.assertEqual(find_hook(hook_name, hooks, pre_step_hook=True), pre_build_and_install_loop_hook)
+        self.assertEqual(find_hook(hook_name, hooks, post_step_hook=True), None)
 
     def test_run_hook(self):
         """Test for run_hook function."""
@@ -130,12 +190,23 @@ class HooksTest(EnhancedTestCase):
         self.mock_stderr(True)
         run_hook('start', hooks)
         run_hook('parse', hooks, args=['<EasyConfig instance>'], msg="Running parse hook for example.eb...")
+        run_hook('build_and_install_loop', hooks, args=[['ec1', 'ec2']], pre_step_hook=True)
         run_hook('configure', hooks, pre_step_hook=True, args=[None])
+        run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["configure.sh"], kwargs={'interactive': True})
         run_hook('configure', hooks, post_step_hook=True, args=[None])
         run_hook('build', hooks, pre_step_hook=True, args=[None])
+        run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make -j 3"])
         run_hook('build', hooks, post_step_hook=True, args=[None])
         run_hook('install', hooks, pre_step_hook=True, args=[None])
+        res = run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make install"], kwargs={})
+        self.assertEqual(res, "sudo make install")
         run_hook('install', hooks, post_step_hook=True, args=[None])
+        run_hook('extensions', hooks, pre_step_hook=True, args=[None])
+        for _ in range(3):
+            run_hook('single_extension', hooks, pre_step_hook=True, args=[None])
+            run_hook('single_extension', hooks, post_step_hook=True, args=[None])
+        run_hook('extensions', hooks, post_step_hook=True, args=[None])
+        run_hook('fail', hooks, args=[EasyBuildError('oops')])
         stdout = self.get_stdout()
         stderr = self.get_stderr()
         self.mock_stdout(False)
@@ -146,11 +217,27 @@ class HooksTest(EnhancedTestCase):
             "this is triggered at the very beginning",
             "== Running parse hook for example.eb...",
             "Parse hook with argument <EasyConfig instance>",
+            "== Running pre-build_and_install_loop hook...",
+            "About to start looping for 2 easyconfigs!",
+            "== Running pre-run_shell_cmd hook...",
+            "this is run before running interactive command 'configure.sh'",
             "== Running post-configure hook...",
             "this is run after configure step",
             "running foo helper method",
+            "== Running pre-run_shell_cmd hook...",
+            "this is run before running command 'make -j 3'",
             "== Running pre-install hook...",
             "this is run before install step",
+            "== Running pre-run_shell_cmd hook...",
+            "this is run before running command 'make install'",
+            "== Running pre-single_extension hook...",
+            "this is run before installing an extension",
+            "== Running pre-single_extension hook...",
+            "this is run before installing an extension",
+            "== Running pre-single_extension hook...",
+            "this is run before installing an extension",
+            "== Running fail hook...",
+            "EasyBuild FAIL: 'oops'",
         ])
 
         self.assertEqual(stdout.strip(), expected_stdout)
