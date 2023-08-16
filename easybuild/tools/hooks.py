@@ -233,7 +233,7 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
 
         if msg is None:
             msg = "Running %s hook..." % label
-        if build_option('debug'):
+        if build_option('debug') and not build_option('silence_hook_trigger'):
             print_msg(msg)
 
         _log.info("Running '%s' hook function (args: %s, keyword args: %s)...", hook.__name__, args, kwargs)
