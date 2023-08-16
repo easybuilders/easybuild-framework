@@ -58,9 +58,6 @@ jobs:
           python2 -m pip install --prefix $PREFIX dist/easybuild-framework*tar.gz
 
     - name: run test suite
-      env:
-        EB_VERBOSE: 1
-        EB_PYTHON: python2
       run: |
           # run tests *outside* of checked out easybuild-framework directory,
           # to ensure we're testing installed version (see previous step)
@@ -68,6 +65,7 @@ jobs:
           # make sure 'eb' is available via $PATH, and that $PYTHONPATH is set (some tests expect that)
           export PREFIX=/tmp/$USER/$GITHUB_SHA
           ENV_CMDS="export PATH=$PREFIX/bin:$PATH; export PYTHONPATH=$PREFIX/lib/python2.7/site-packages:$PYTHONPATH"
+          ENV_CMDS="${ENV_CMDS}; export EB_VERBOSE=1; export EB_PYTHON=python2; export TEST_EASYBUILD_SILENCE_DEPRECATION_WARNINGS=python2"
           # run EasyBuild command via (non-root) easybuild user + login shell
           sudo -u easybuild bash -l -c "${ENV_CMDS}; module --version; eb --version"
           # show active EasyBuild configuration
