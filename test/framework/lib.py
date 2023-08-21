@@ -86,7 +86,7 @@ class EasyBuildLibTest(TestCase):
         self.assertEqual(out, 'hello\n')
 
     def test_run(self):
-        """Test use of runfunction in the context of using EasyBuild framework as a library."""
+        """Test use of run function in the context of using EasyBuild framework as a library."""
 
         error_pattern = r"Undefined build option: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
