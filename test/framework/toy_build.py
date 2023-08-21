@@ -1429,10 +1429,12 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ec_txt)
 
-        error_pattern = "unzip .*/bar-0.0.tar.gz.* exited with exit code [1-9]"
+        error_pattern = "unzip .*/bar-0.0.tar.gz.* returned non-zero exit status"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
-                                  raise_error=True, verbose=False)
+            # for now, we expect subprocess.CalledProcessError, but eventually 'run' function will
+            # do proper error reporting
+            self.assertErrorRegex(EasyBuildError, error_pattern,
+                                  self._test_toy_build, ec_file=test_ec, raise_error=True, verbose=False)
 
     def test_toy_extension_sources_git_config(self):
         """Test install toy that includes extensions with 'sources' spec including 'git_config'."""

@@ -108,7 +108,7 @@ run_cache = run_cmd_cache
 
 @run_cache
 def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
-        hidden=False, in_dry_run=False, work_dir=None, shell=True,
+        hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, shell=True,
         output_file=False, stream_output=False, asynchronous=False,
         qa_patterns=None, qa_wait_patterns=None):
     """
@@ -120,6 +120,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
     :param env: environment to use to run command (if None, inherit current process environment)
     :param hidden: do not show command in terminal output (when using --trace, or with --extended-dry-run / -x)
     :param in_dry_run: also run command in dry run mode
+    :param verbose_dry_run: show that command is run in dry run mode (overrules 'hidden')
     :param work_dir: working directory to run command in (current working directory if None)
     :param shell: execute command through bash shell (enabled by default)
     :param output_file: collect command output in temporary output file
@@ -135,7 +136,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
     """
 
     # temporarily raise a NotImplementedError until all options are implemented
-    if any((work_dir, stream_output, asynchronous)):
+    if any((stream_output, asynchronous)):
         raise NotImplementedError
 
     if qa_patterns or qa_wait_patterns:
@@ -162,7 +163,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless 'hidden' is enabled)
     if not in_dry_run and build_option('extended_dry_run'):
-        if not hidden:
+        if not hidden or verbose_dry_run:
             silent = build_option('silent')
             msg = f"  running command \"{cmd_str}\"\n"
             msg += f"  (in {work_dir})"
@@ -187,7 +188,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
 
     _log.info(f"Running command '{cmd_str}' in {work_dir}")
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=stderr, check=fail_on_error,
-                          env=env, input=stdin, shell=shell, executable=executable)
+                          cwd=work_dir, env=env, input=stdin, shell=shell, executable=executable)
 
     # return output as a regular string rather than a byte sequence (and non-UTF-8 characters get stripped out)
     output = proc.stdout.decode('utf-8', 'ignore')
