@@ -136,6 +136,18 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
     - exit_code: exit code of command (integer)
     - stderr: stderr output if split_stderr is enabled, None otherwise
     """
+    def to_cmd_str(cmd):
+        """
+        Helper function to create string representation of specified command.
+        """
+        if isinstance(cmd, str):
+            cmd_str = cmd.strip()
+        elif isinstance(cmd, list):
+            cmd_str = ' '.join(cmd)
+        else:
+            raise EasyBuildError(f"Unknown command type ('{type(cmd)}'): {cmd}")
+
+        return cmd_str
 
     # temporarily raise a NotImplementedError until all options are implemented
     if any((stream_output, asynchronous)):
@@ -143,13 +155,6 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
 
     if qa_patterns or qa_wait_patterns:
         raise NotImplementedError
-
-    if isinstance(cmd, str):
-        cmd_str = cmd.strip()
-    elif isinstance(cmd, list):
-        cmd_str = ' '.join(cmd)
-    else:
-        raise EasyBuildError(f"Unknown command type ('{type(cmd)}'): {cmd}")
 
     if work_dir is None:
         work_dir = os.getcwd()
@@ -162,6 +167,8 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
         _log.info(f'run_cmd: Output of "{cmd}" will be logged to {cmd_out_fp}')
     else:
         cmd_out_fp = None
+
+    cmd_str = to_cmd_str(cmd)
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless 'hidden' is enabled)
     if not in_dry_run and build_option('extended_dry_run'):
@@ -190,9 +197,10 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
 
     if with_hooks:
         hooks = load_hooks(build_option('hooks'))
-        hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd_str], kwargs={'work_dir': work_dir})
-        if isinstance(hook_res, str):
+        hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs={'work_dir': work_dir})
+        if hook_res:
             cmd, old_cmd = hook_res, cmd
+            cmd_str = to_cmd_str(cmd)
             _log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
 
     _log.info(f"Running command '{cmd_str}' in {work_dir}")
@@ -212,7 +220,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
             'stderr': res.stderr,
             'work_dir': res.work_dir,
         }
-        run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd_str], kwargs=run_hook_kwargs)
+        run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
 
     if split_stderr:
         log_msg = f"Command '{cmd_str}' exited with exit code {res.exit_code}, "
