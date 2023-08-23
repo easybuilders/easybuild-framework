@@ -74,7 +74,7 @@ from easybuild.tools.hooks import PARSE, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
-from easybuild.tools.modules import modules_tool
+from easybuild.tools.modules import modules_tool, NoModulesTool
 from easybuild.tools.systemtools import check_os_dependency, pick_dep_version
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
@@ -1298,6 +1298,9 @@ class EasyConfig(object):
         :param existing_metadata: already available metadata for this external module (if any)
         """
         res = {}
+        if isinstance(self.modules_tool, NoModulesTool):
+            self.log.debug('Ignoring request for external module data for %s as no modules tool is active', mod_name)
+            return res
 
         if existing_metadata is None:
             existing_metadata = {}

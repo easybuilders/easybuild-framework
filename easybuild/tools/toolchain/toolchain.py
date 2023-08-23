@@ -1117,8 +1117,11 @@ class Toolchain(object):
             setvar("EBVAR%s" % key, val, verbose=False)
 
     def get_flag(self, name):
-        """Get compiler flag for a certain option."""
-        return "-%s" % self.options.option(name)
+        """Get compiler flag(s) for a certain option."""
+        if isinstance(self.options.option(name), list):
+            return " ".join("-%s" % x for x in list(self.options.option(name)))
+        else:
+            return "-%s" % self.options.option(name)
 
     def toolchain_family(self):
         """Return toolchain family for this toolchain."""

@@ -49,6 +49,7 @@ from unittest import TextTestRunner
 from urllib import request
 from easybuild.tools import run
 import easybuild.tools.filetools as ft
+import easybuild.tools.py2vs3 as py2vs3
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import IGNORE, ERROR, build_option, update_build_option
 from easybuild.tools.multidiff import multidiff
@@ -3409,6 +3410,17 @@ class FileToolsTest(EnhancedTestCase):
         dir_perms = os.lstat(test_subdir)[stat.ST_MODE]
         self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
         self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+
+    def test_compat_makedirs(self):
+        """Test compatibility layer for Python3 os.makedirs"""
+        name = os.path.join(self.test_prefix, 'folder')
+        self.assertNotExists(name)
+        py2vs3.makedirs(name)
+        self.assertExists(name)
+        # exception is raised because file exists (OSError in Python 2, FileExistsError in Python 3)
+        self.assertErrorRegex(Exception, '.*', py2vs3.makedirs, name)
+        py2vs3.makedirs(name, exist_ok=True)  # No error
+        self.assertExists(name)
 
     def test_create_unused_dir(self):
         """Test create_unused_dir function."""

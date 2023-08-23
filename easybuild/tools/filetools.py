@@ -1915,7 +1915,7 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                 # climb up until we hit an existing path or the empty string (for relative paths)
                 while existing_parent_path and not os.path.exists(existing_parent_path):
                     existing_parent_path = os.path.dirname(existing_parent_path)
-                os.makedirs(path)
+                os.makedirs(path, exist_ok=True)
             else:
                 os.mkdir(path)
         except FileExistsError as err:
