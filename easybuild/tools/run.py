@@ -108,10 +108,10 @@ run_cache = run_cmd_cache
 
 
 @run_cache
-def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
-        hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, shell=True,
-        output_file=False, stream_output=False, asynchronous=False, with_hooks=True,
-        qa_patterns=None, qa_wait_patterns=None):
+def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
+                  hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, shell=True,
+                  output_file=False, stream_output=False, asynchronous=False, with_hooks=True,
+                  qa_patterns=None, qa_wait_patterns=None):
     """
     Run specified (interactive) shell command, and capture output + exit code.
 

@@ -45,7 +45,6 @@ import warnings
 from collections import OrderedDict
 from ctypes.util import find_library
 from socket import gethostname
-from easybuild.tools.run import subprocess_popen_text
 
 # pkg_resources is provided by the setuptools Python package,
 # which we really want to keep as an *optional* dependency
@@ -65,7 +64,7 @@ from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import IGNORE
 from easybuild.tools.filetools import is_readable, read_file, which
-from easybuild.tools.run import run
+from easybuild.tools.run import run_shell_cmd, subprocess_popen_text
 
 
 _log = fancylogger.getLogger('systemtools', fname=False)
@@ -274,7 +273,7 @@ def get_avail_core_count():
         core_cnt = int(sum(sched_getaffinity()))
     else:
         # BSD-type systems
-        res = run('sysctl -n hw.ncpu', in_dry_run=True, hidden=True, with_hooks=False)
+        res = run_shell_cmd('sysctl -n hw.ncpu', in_dry_run=True, hidden=True, with_hooks=False)
         try:
             if int(res.output) > 0:
                 core_cnt = int(res.output)
@@ -311,7 +310,7 @@ def get_total_memory():
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.memsize"
         _log.debug("Trying to determine total memory size on Darwin via cmd '%s'", cmd)
-        res = run(cmd, in_dry_run=True, hidden=True, with_hooks=False)
+        res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, with_hooks=False)
         if res.exit_code == 0:
             memtotal = int(res.output.strip()) // (1024**2)
 
@@ -393,14 +392,14 @@ def get_cpu_vendor():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.vendor"
-        res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
+        res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
         out = res.output.strip()
         if res.exit_code == 0 and out in VENDOR_IDS:
             vendor = VENDOR_IDS[out]
             _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
         else:
             cmd = "sysctl -n machdep.cpu.brand_string"
-            res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
             out = res.output.strip().split(' ')[0]
             if res.exit_code == 0 and out in CPU_VENDORS:
                 vendor = out
@@ -503,7 +502,7 @@ def get_cpu_model():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.brand_string"
-        res = run(cmd, in_dry_run=True, hidden=True, with_hooks=False)
+        res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, with_hooks=False)
         if res.exit_code == 0:
             model = res.output.strip()
             _log.debug("Determined CPU model on Darwin using cmd '%s': %s" % (cmd, model))
@@ -548,7 +547,7 @@ def get_cpu_speed():
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.cpufrequency_max"
         _log.debug("Trying to determine CPU frequency on Darwin via cmd '%s'" % cmd)
-        res = run(cmd, in_dry_run=True, hidden=True, with_hooks=False)
+        res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, with_hooks=False)
         out = res.output.strip()
         cpu_freq = None
         if res.exit_code == 0 and out:
@@ -596,7 +595,7 @@ def get_cpu_features():
         for feature_set in ['extfeatures', 'features', 'leaf7_features']:
             cmd = "sysctl -n machdep.cpu.%s" % feature_set
             _log.debug("Trying to determine CPU features on Darwin via cmd '%s'", cmd)
-            res = run(cmd, in_dry_run=True, hidden=True, fail_on_error=False, with_hooks=False)
+            res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, fail_on_error=False, with_hooks=False)
             if res.exit_code == 0:
                 cpu_feat.extend(res.output.strip().lower().split())
 
@@ -623,7 +622,7 @@ def get_gpu_info():
         try:
             cmd = "nvidia-smi --query-gpu=gpu_name,driver_version --format=csv,noheader"
             _log.debug("Trying to determine NVIDIA GPU info on Linux via cmd '%s'", cmd)
-            res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
             if res.exit_code == 0:
                 for line in res.output.strip().split('\n'):
                     nvidia_gpu_info = gpu_info.setdefault('NVIDIA', {})
@@ -641,13 +640,13 @@ def get_gpu_info():
         try:
             cmd = "rocm-smi --showdriverversion --csv"
             _log.debug("Trying to determine AMD GPU driver on Linux via cmd '%s'", cmd)
-            res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
             if res.exit_code == 0:
                 amd_driver = res.output.strip().split('\n')[1].split(',')[1]
 
             cmd = "rocm-smi --showproductname --csv"
             _log.debug("Trying to determine AMD GPU info on Linux via cmd '%s'", cmd)
-            res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
             if res.exit_code == 0:
                 for line in res.output.strip().split('\n')[1:]:
                     amd_card_series = line.split(',')[1]
@@ -866,7 +865,7 @@ def check_os_dependency(dep):
                 pkg_cmd_flag.get(pkg_cmd),
                 dep,
             ])
-            res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True)
             found = res.exit_code == 0
             if found:
                 break
@@ -878,7 +877,7 @@ def check_os_dependency(dep):
         # try locate if it's available
         if not found and which('locate'):
             cmd = 'locate -c --regexp "/%s$"' % dep
-            res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True)
             try:
                 found = (res.exit_code == 0 and int(res.output.strip()) > 0)
             except ValueError:
@@ -893,7 +892,8 @@ def get_tool_version(tool, version_option='--version', ignore_ec=False):
     Get output of running version option for specific command line tool.
     Output is returned as a single-line string (newlines are replaced by '; ').
     """
-    res = run(' '.join([tool, version_option]), fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
+    res = run_shell_cmd(' '.join([tool, version_option]), fail_on_error=False, in_dry_run=True,
+                        hidden=True, with_hooks=False)
     if not ignore_ec and res.exit_code:
         _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, res.output))
         return UNKNOWN
@@ -905,7 +905,7 @@ def get_gcc_version():
     """
     Process `gcc --version` and return the GCC version.
     """
-    res = run('gcc --version', fail_on_error=False, in_dry_run=True, hidden=True)
+    res = run_shell_cmd('gcc --version', fail_on_error=False, in_dry_run=True, hidden=True)
     gcc_ver = None
     if res.exit_code:
         _log.warning("Failed to determine the version of GCC: %s", res.output)
@@ -961,7 +961,7 @@ def get_linked_libs_raw(path):
     or None for other types of files.
     """
 
-    res = run("file %s" % path, fail_on_error=False, hidden=True)
+    res = run_shell_cmd("file %s" % path, fail_on_error=False, hidden=True)
     if res.exit_code:
         fail_msg = "Failed to run 'file %s': %s" % (path, res.output)
         _log.warning(fail_msg)
@@ -996,7 +996,7 @@ def get_linked_libs_raw(path):
     # take into account that 'ldd' may fail for strange reasons,
     # like printing 'not a dynamic executable' when not enough memory is available
     # (see also https://bugzilla.redhat.com/show_bug.cgi?id=1817111)
-    res = run(linked_libs_cmd, fail_on_error=False, hidden=True)
+    res = run_shell_cmd(linked_libs_cmd, fail_on_error=False, hidden=True)
     if res.exit_code == 0:
         linked_libs_out = res.output
     else:
@@ -1178,7 +1178,7 @@ def det_parallelism(par=None, maxpar=None):
             # No cache -> Calculate value from current system values
             par = get_avail_core_count()
             # determine max user processes via ulimit -u
-            res = run("ulimit -u", in_dry_run=True, hidden=True)
+            res = run_shell_cmd("ulimit -u", in_dry_run=True, hidden=True)
             try:
                 if res.output.startswith("unlimited"):
                     maxuserproc = 2 ** 32 - 1
