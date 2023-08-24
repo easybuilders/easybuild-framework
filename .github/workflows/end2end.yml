@@ -11,7 +11,8 @@ jobs:
           - centos-8.5
           - fedora-36
           - opensuse-15.4
-          - rockylinux-8.7
+          - rockylinux-8.8
+          - rockylinux-9.2
           - ubuntu-20.04
           - ubuntu-22.04
       fail-fast: false
