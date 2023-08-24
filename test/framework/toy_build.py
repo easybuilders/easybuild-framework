@@ -3037,7 +3037,7 @@ class ToyBuildTest(EnhancedTestCase):
                     # 'copy_toy_file' command doesn't exist, but don't worry,
                     # this problem will be fixed in post_run_shell_cmd_hook
                     cmd += " && copy_toy_file toy copy_of_toy"
-                    return cmd
+                return cmd
 
             def post_run_shell_cmd_hook(cmd, *args, **kwargs):
                 exit_code = kwargs['exit_code']
