@@ -274,7 +274,7 @@ def get_avail_core_count():
         core_cnt = int(sum(sched_getaffinity()))
     else:
         # BSD-type systems
-        res = run('sysctl -n hw.ncpu', in_dry_run=True, hidden=True)
+        res = run('sysctl -n hw.ncpu', in_dry_run=True, hidden=True, with_hooks=False)
         try:
             if int(res.output) > 0:
                 core_cnt = int(res.output)
@@ -311,7 +311,7 @@ def get_total_memory():
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.memsize"
         _log.debug("Trying to determine total memory size on Darwin via cmd '%s'", cmd)
-        res = run(cmd, in_dry_run=True, hidden=True)
+        res = run(cmd, in_dry_run=True, hidden=True, with_hooks=False)
         if res.exit_code == 0:
             memtotal = int(res.output.strip()) // (1024**2)
 
@@ -393,14 +393,14 @@ def get_cpu_vendor():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.vendor"
-        res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True)
+        res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
         out = res.output.strip()
         if res.exit_code == 0 and out in VENDOR_IDS:
             vendor = VENDOR_IDS[out]
             _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
         else:
             cmd = "sysctl -n machdep.cpu.brand_string"
-            res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True)
+            res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
             out = res.output.strip().split(' ')[0]
             if res.exit_code == 0 and out in CPU_VENDORS:
                 vendor = out
@@ -503,7 +503,7 @@ def get_cpu_model():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.brand_string"
-        res = run(cmd, in_dry_run=True, hidden=True)
+        res = run(cmd, in_dry_run=True, hidden=True, with_hooks=False)
         if res.exit_code == 0:
             model = res.output.strip()
             _log.debug("Determined CPU model on Darwin using cmd '%s': %s" % (cmd, model))
@@ -548,7 +548,7 @@ def get_cpu_speed():
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.cpufrequency_max"
         _log.debug("Trying to determine CPU frequency on Darwin via cmd '%s'" % cmd)
-        res = run(cmd, in_dry_run=True, hidden=True)
+        res = run(cmd, in_dry_run=True, hidden=True, with_hooks=False)
         out = res.output.strip()
         cpu_freq = None
         if res.exit_code == 0 and out:
@@ -596,7 +596,7 @@ def get_cpu_features():
         for feature_set in ['extfeatures', 'features', 'leaf7_features']:
             cmd = "sysctl -n machdep.cpu.%s" % feature_set
             _log.debug("Trying to determine CPU features on Darwin via cmd '%s'", cmd)
-            res = run(cmd, in_dry_run=True, hidden=True, fail_on_error=False)
+            res = run(cmd, in_dry_run=True, hidden=True, fail_on_error=False, with_hooks=False)
             if res.exit_code == 0:
                 cpu_feat.extend(res.output.strip().lower().split())
 
@@ -623,7 +623,7 @@ def get_gpu_info():
         try:
             cmd = "nvidia-smi --query-gpu=gpu_name,driver_version --format=csv,noheader"
             _log.debug("Trying to determine NVIDIA GPU info on Linux via cmd '%s'", cmd)
-            res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True)
+            res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
             if res.exit_code == 0:
                 for line in res.output.strip().split('\n'):
                     nvidia_gpu_info = gpu_info.setdefault('NVIDIA', {})
@@ -641,13 +641,13 @@ def get_gpu_info():
         try:
             cmd = "rocm-smi --showdriverversion --csv"
             _log.debug("Trying to determine AMD GPU driver on Linux via cmd '%s'", cmd)
-            res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True)
+            res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
             if res.exit_code == 0:
                 amd_driver = res.output.strip().split('\n')[1].split(',')[1]
 
             cmd = "rocm-smi --showproductname --csv"
             _log.debug("Trying to determine AMD GPU info on Linux via cmd '%s'", cmd)
-            res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True)
+            res = run(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
             if res.exit_code == 0:
                 for line in res.output.strip().split('\n')[1:]:
                     amd_card_series = line.split(',')[1]
@@ -893,7 +893,7 @@ def get_tool_version(tool, version_option='--version', ignore_ec=False):
     Get output of running version option for specific command line tool.
     Output is returned as a single-line string (newlines are replaced by '; ').
     """
-    res = run(' '.join([tool, version_option]), fail_on_error=False, in_dry_run=True, hidden=True)
+    res = run(' '.join([tool, version_option]), fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False)
     if not ignore_ec and res.exit_code:
         _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, res.output))
         return UNKNOWN

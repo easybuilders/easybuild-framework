@@ -110,7 +110,7 @@ run_cache = run_cmd_cache
 @run_cache
 def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
         hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, shell=True,
-        output_file=False, stream_output=False, asynchronous=False,
+        output_file=False, stream_output=False, asynchronous=False, with_hooks=True,
         qa_patterns=None, qa_wait_patterns=None):
     """
     Run specified (interactive) shell command, and capture output + exit code.
@@ -127,6 +127,7 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
     :param output_file: collect command output in temporary output file
     :param stream_output: stream command output to stdout
     :param asynchronous: run command asynchronously
+    :param with_hooks: trigger pre/post run_shell_cmd hooks (if defined)
     :param qa_patterns: list of 2-tuples with patterns for questions + corresponding answers
     :param qa_wait_patterns: list of 2-tuples with patterns for non-questions
                              and number of iterations to allow these patterns to match with end out command output
@@ -135,6 +136,18 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
     - exit_code: exit code of command (integer)
     - stderr: stderr output if split_stderr is enabled, None otherwise
     """
+    def to_cmd_str(cmd):
+        """
+        Helper function to create string representation of specified command.
+        """
+        if isinstance(cmd, str):
+            cmd_str = cmd.strip()
+        elif isinstance(cmd, list):
+            cmd_str = ' '.join(cmd)
+        else:
+            raise EasyBuildError(f"Unknown command type ('{type(cmd)}'): {cmd}")
+
+        return cmd_str
 
     # temporarily raise a NotImplementedError until all options are implemented
     if any((stream_output, asynchronous)):
@@ -142,13 +155,6 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
 
     if qa_patterns or qa_wait_patterns:
         raise NotImplementedError
-
-    if isinstance(cmd, str):
-        cmd_str = cmd.strip()
-    elif isinstance(cmd, list):
-        cmd_str = ' '.join(cmd)
-    else:
-        raise EasyBuildError(f"Unknown command type ('{type(cmd)}'): {cmd}")
 
     if work_dir is None:
         work_dir = os.getcwd()
@@ -161,6 +167,8 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
         _log.info(f'run_cmd: Output of "{cmd}" will be logged to {cmd_out_fp}')
     else:
         cmd_out_fp = None
+
+    cmd_str = to_cmd_str(cmd)
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless 'hidden' is enabled)
     if not in_dry_run and build_option('extended_dry_run'):
@@ -187,6 +195,14 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
 
     stderr = subprocess.PIPE if split_stderr else subprocess.STDOUT
 
+    if with_hooks:
+        hooks = load_hooks(build_option('hooks'))
+        hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs={'work_dir': work_dir})
+        if hook_res:
+            cmd, old_cmd = hook_res, cmd
+            cmd_str = to_cmd_str(cmd)
+            _log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
+
     _log.info(f"Running command '{cmd_str}' in {work_dir}")
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=stderr, check=fail_on_error,
                           cwd=work_dir, env=env, input=stdin, shell=shell, executable=executable)
@@ -196,6 +212,15 @@ def run(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
     stderr_output = proc.stderr.decode('utf-8', 'ignore') if split_stderr else None
 
     res = RunResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr_output, work_dir=work_dir)
+
+    if with_hooks:
+        run_hook_kwargs = {
+            'exit_code': res.exit_code,
+            'output': res.output,
+            'stderr': res.stderr,
+            'work_dir': res.work_dir,
+        }
+        run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
 
     if split_stderr:
         log_msg = f"Command '{cmd_str}' exited with exit code {res.exit_code}, "

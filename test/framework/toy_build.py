@@ -3032,7 +3032,7 @@ class ToyBuildTest(EnhancedTestCase):
                print('end hook triggered, all done!')
 
             def pre_run_shell_cmd_hook(cmd, *args, **kwargs):
-                if cmd.strip() == TOY_COMP_CMD:
+                if isinstance(cmd, str) and cmd.strip() == TOY_COMP_CMD:
                     print("pre_run_shell_cmd_hook triggered for '%s'" % cmd)
                     # 'copy_toy_file' command doesn't exist, but don't worry,
                     # this problem will be fixed in post_run_shell_cmd_hook
@@ -3043,7 +3043,7 @@ class ToyBuildTest(EnhancedTestCase):
                 exit_code = kwargs['exit_code']
                 output = kwargs['output']
                 work_dir = kwargs['work_dir']
-                if cmd.strip().startswith(TOY_COMP_CMD) and exit_code:
+                if isinstance(cmd, str) and cmd.strip().startswith(TOY_COMP_CMD) and exit_code:
                     cwd = change_dir(work_dir)
                     copy_file('toy', 'copy_of_toy')
                     change_dir(cwd)
@@ -3051,9 +3051,15 @@ class ToyBuildTest(EnhancedTestCase):
         """)
         write_file(hooks_file, hooks_file_txt)
 
+        extra_args = [
+            '--hooks=%s' % hooks_file,
+            # disable trace output to make checking of generated output produced by hooks easier
+            '--disable-trace',
+        ]
+
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self._test_toy_build(ec_file=test_ec, extra_args=['--hooks=%s' % hooks_file], raise_error=True, debug=False)
+        self._test_toy_build(ec_file=test_ec, extra_args=extra_args, raise_error=True, debug=False)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
@@ -3074,7 +3080,7 @@ class ToyBuildTest(EnhancedTestCase):
         # - for fake module file being created during sanity check (triggered twice, for main + toy install)
         # - for final module file
         # - for devel module file
-        expected_output = textwrap.dedent("""
+        expected_output = textwrap.dedent(f"""
             start hook triggered
             toy 0.0
             ['%(name)s-%(version)s.tar.gz']
@@ -4051,7 +4057,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, testing=False, verify=False, raise_error=True)
+            self._test_toy_build(ec_file=test_ec, testing=False, verify=False, raise_error=True)
             stdout = self.get_stdout()
 
         pattern = '\n'.join([

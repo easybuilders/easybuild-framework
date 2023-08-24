@@ -1203,6 +1203,9 @@ class RunTest(EnhancedTestCase):
         write_file(hooks_file, hooks_file_txt)
         update_build_option('hooks', hooks_file)
 
+        # disable trace output to make checking of generated output produced by hooks easier
+        update_build_option('trace', False)
+
         with self.mocked_stdout_stderr():
             run_cmd("make")
             stdout = self.get_stdout()
@@ -1221,6 +1224,54 @@ class RunTest(EnhancedTestCase):
         expected_stdout = '\n'.join([
             "pre-run hook interactive 'sleep 2; make' in %s" % cwd,
             "post-run hook interactive 'sleep 2; echo make' (exit code: 0, output: 'make\n')",
+            '',
+        ])
+        self.assertEqual(stdout, expected_stdout)
+
+    def test_run_with_hooks(self):
+        """
+        Test running command with run with pre/post run_shell_cmd hooks in place.
+        """
+        cwd = os.getcwd()
+
+        hooks_file = os.path.join(self.test_prefix, 'my_hooks.py')
+        hooks_file_txt = textwrap.dedent("""
+            def pre_run_shell_cmd_hook(cmd, *args, **kwargs):
+                work_dir = kwargs['work_dir']
+                if kwargs.get('interactive'):
+                    print("pre-run hook interactive '||%s||' in %s" % (cmd, work_dir))
+                else:
+                    print("pre-run hook '%s' in %s" % (cmd, work_dir))
+                    import sys
+                    sys.stderr.write('pre-run hook done\\n')
+                if not cmd.startswith('echo'):
+                    cmds = cmd.split(';')
+                    return '; '.join(cmds[:-1] + ["echo " + cmds[-1].lstrip()])
+
+            def post_run_shell_cmd_hook(cmd, *args, **kwargs):
+                exit_code = kwargs.get('exit_code')
+                output = kwargs.get('output')
+                work_dir = kwargs['work_dir']
+                if kwargs.get('interactive'):
+                    msg = "post-run hook interactive '%s'" % cmd
+                else:
+                    msg = "post-run hook '%s'" % cmd
+                msg += " (exit code: %s, output: '%s')" % (exit_code, output)
+                print(msg)
+        """)
+        write_file(hooks_file, hooks_file_txt)
+        update_build_option('hooks', hooks_file)
+
+        # disable trace output to make checking of generated output produced by hooks easier
+        update_build_option('trace', False)
+
+        with self.mocked_stdout_stderr():
+            run("make")
+            stdout = self.get_stdout()
+
+        expected_stdout = '\n'.join([
+            "pre-run hook 'make' in %s" % cwd,
+            "post-run hook 'echo make' (exit code: 0, output: 'make\n')",
             '',
         ])
         self.assertEqual(stdout, expected_stdout)
