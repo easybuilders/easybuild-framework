@@ -50,7 +50,7 @@ from easybuild.tools.filetools import read_file, remove_dir, remove_file, symlin
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
-from easybuild.tools.run import run
+from easybuild.tools.run import run_shell_cmd
 
 
 # number of modules included for testing purposes
@@ -1332,7 +1332,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertIn(modules_dir, modulepath)
 
         with self.mocked_stdout_stderr():
-            res = run("bash -c 'echo MODULEPATH: $MODULEPATH'")
+            res = run_shell_cmd("bash -c 'echo MODULEPATH: $MODULEPATH'")
         self.assertEqual(res.output.strip(), f"MODULEPATH: {modulepath}")
         self.assertIn(modules_dir, res.output)
 

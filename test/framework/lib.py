@@ -43,7 +43,7 @@ from easybuild.tools.config import BuildOptions
 from easybuild.tools.options import set_up_configuration
 from easybuild.tools.filetools import mkdir
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.run import run, run_cmd
+from easybuild.tools.run import run_shell_cmd, run_cmd
 
 
 class EasyBuildLibTest(TestCase):
@@ -85,18 +85,18 @@ class EasyBuildLibTest(TestCase):
         self.assertEqual(ec, 0)
         self.assertEqual(out, 'hello\n')
 
-    def test_run(self):
-        """Test use of run function in the context of using EasyBuild framework as a library."""
+    def test_run_shell_cmd(self):
+        """Test use of run_shell_cmd function in the context of using EasyBuild framework as a library."""
 
         error_pattern = r"Undefined build option: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, run, "echo hello")
+        self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, "echo hello")
 
         self.configure()
 
         # runworks fine if set_up_configuration was called first
         self.mock_stdout(True)
-        res = run("echo hello")
+        res = run_shell_cmd("echo hello")
         self.mock_stdout(False)
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, 'hello\n')

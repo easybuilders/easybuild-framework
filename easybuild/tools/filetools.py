@@ -66,7 +66,7 @@ from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, pr
 from easybuild.tools.config import ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN, build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.hooks import load_source
-from easybuild.tools.run import run
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars, trace_msg
 
 try:
@@ -470,7 +470,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     if extra_options:
         cmd = f"{cmd} {extra_options}"
 
-    run(cmd, in_dry_run=forced, hidden=not trace)
+    run_shell_cmd(cmd, in_dry_run=forced, hidden=not trace)
 
     # note: find_base_dir also changes into the base dir!
     base_dir = find_base_dir()
@@ -1619,7 +1619,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git=False
         backup_option = '-b ' if build_option('backup_patched_files') else ''
         patch_cmd = f"patch {backup_option} -p{level} -i {abs_patch_file}"
 
-    res = run(patch_cmd, fail_on_error=False, hidden=True, work_dir=abs_dest)
+    res = run_shell_cmd(patch_cmd, fail_on_error=False, hidden=True, work_dir=abs_dest)
 
     if res.exit_code:
         msg = f"Couldn't apply patch file {patch_file}. "
@@ -2165,7 +2165,7 @@ def move_logs(src_logfile, target_logfile):
             _log.info(f"Moved log file {src_logfile} to {new_log_path}")
 
             if zip_log_cmd:
-                run(f"{zip_log_cmd} {new_log_path}")
+                run_shell_cmd(f"{zip_log_cmd} {new_log_path}")
                 _log.info(f"Zipped log {new_log_path} using '{zip_log_cmd}'")
 
     except (IOError, OSError) as err:
@@ -2638,7 +2638,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
 
     tmpdir = tempfile.mkdtemp()
 
-    run(' '.join(clone_cmd), hidden=True, verbose_dry_run=True, work_dir=tmpdir)
+    run_shell_cmd(' '.join(clone_cmd), hidden=True, verbose_dry_run=True, work_dir=tmpdir)
 
     # If the clone is done into a specified name, change repo_name
     if clone_into:
@@ -2651,14 +2651,14 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
             checkout_cmd.extend(['&&', 'git', 'submodule', 'update', '--init', '--recursive'])
 
         work_dir = os.path.join(tmpdir, repo_name) if repo_name else tmpdir
-        run(' '.join(checkout_cmd), work_dir=work_dir, hidden=True, verbose_dry_run=True)
+        run_shell_cmd(' '.join(checkout_cmd), work_dir=work_dir, hidden=True, verbose_dry_run=True)
 
     elif not build_option('extended_dry_run'):
         # If we wanted to get a tag make sure we actually got a tag and not a branch with the same name
         # This doesn't make sense in dry-run mode as we don't have anything to check
         cmd = "git describe --exact-match --tags HEAD"
         work_dir = os.path.join(tmpdir, repo_name) if repo_name else tmpdir
-        res = run(cmd, fail_on_error=False, work_dir=work_dir, hidden=True, verbose_dry_run=True)
+        res = run_shell_cmd(cmd, fail_on_error=False, work_dir=work_dir, hidden=True, verbose_dry_run=True)
 
         if res.exit_code != 0 or tag not in res.output.splitlines():
             msg = f"Tag {tag} was not downloaded in the first try due to {url}/{repo_name} containing a branch"
@@ -2679,14 +2679,14 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
             if recursive:
                 cmds.append("git submodule update --init --recursive")
             for cmd in cmds:
-                run(cmd, work_dir=work_dir, hidden=True, verbose_dry_run=True)
+                run_shell_cmd(cmd, work_dir=work_dir, hidden=True, verbose_dry_run=True)
 
     # create an archive and delete the git repo directory
     if keep_git_dir:
         tar_cmd = ['tar', 'cfvz', targetpath, repo_name]
     else:
         tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
-    run(' '.join(tar_cmd), work_dir=tmpdir, hidden=True, verbose_dry_run=True)
+    run_shell_cmd(' '.join(tar_cmd), work_dir=tmpdir, hidden=True, verbose_dry_run=True)
 
     # cleanup (repo_name dir does not exist in dry run mode)
     remove(tmpdir)

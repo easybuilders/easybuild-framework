@@ -50,7 +50,7 @@ from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
 from easybuild.tools.filetools import convert_name, mkdir, normalize_path, path_matches, read_file, which, write_file
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
-from easybuild.tools.run import run
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import get_subclasses, nub
 
 # software root/version environment variable name prefixes
@@ -312,7 +312,7 @@ class ModulesTool(object):
                 output, exit_code = None, 1
         else:
             cmd = "type module"
-            res = run(cmd, fail_on_error=False, in_dry_run=False, hidden=True)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=False, hidden=True)
             output, exit_code = res.output, res.exit_code
 
         if regex is None:
@@ -824,8 +824,8 @@ class ModulesTool(object):
         cmd_list = self.compose_cmd_list(args)
         cmd = ' '.join(cmd_list)
         # note: module commands are always run in dry mode, and are kept hidden in trace and dry run output
-        res = run(cmd_list, env=environ, fail_on_error=False, shell=False, split_stderr=True,
-                  hidden=True, in_dry_run=True)
+        res = run_shell_cmd(cmd_list, env=environ, fail_on_error=False, shell=False, split_stderr=True,
+                            hidden=True, in_dry_run=True)
 
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
@@ -1426,7 +1426,8 @@ class Lmod(ModulesTool):
             cmd = ' '.join(cmd_list)
             self.log.debug("Running command '%s'...", cmd)
 
-            res = run(cmd_list, env=os.environ, fail_on_error=False, shell=False, split_stderr=True, hidden=True)
+            res = run_shell_cmd(cmd_list, env=os.environ, fail_on_error=False, shell=False, split_stderr=True,
+                                hidden=True)
             stdout, stderr = res.output, res.stderr
 
             if stderr:
