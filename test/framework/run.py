@@ -304,7 +304,7 @@ class RunTest(EnhancedTestCase):
             signal.signal(signal.SIGALRM, orig_sigalrm_handler)
             signal.alarm(0)
 
-    def test_run_shell_cmd_fail_cmd(self):
+    def test_run_shell_cmd_fail(self):
         """Test run_shell_cmd function with command that has negative exit code."""
         # define signal handler to call in case run takes too long
         def handler(signum, _):
