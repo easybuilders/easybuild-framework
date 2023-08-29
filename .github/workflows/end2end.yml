@@ -7,7 +7,6 @@ jobs:
     strategy:
       matrix:
         container:
-          - centos-7.9
           - centos-8.5
           - fedora-36
           - opensuse-15.4
