@@ -104,10 +104,10 @@ def run_cmd_cache(func):
     return cache_aware_func
 
 
-run_cache = run_cmd_cache
+run_shell_cmd_cache = run_cmd_cache
 
 
-@run_cache
+@run_shell_cmd_cache
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
                   hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, shell=True,
                   output_file=False, stream_output=False, asynchronous=False, with_hooks=True,
