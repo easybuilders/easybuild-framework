@@ -2683,11 +2683,13 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     # if a specific commit is asked for, check it out
     if commit:
         checkout_cmd = [git_cmd, 'checkout', commit]
-        if recursive:
-            checkout_cmd.extend(['&&', git_cmd, 'submodule', 'update', '--init', '--recursive'])
-        elif recurse_submodules:
+
+        if recursive or recurse_submodules:
             checkout_cmd.extend(['&&', git_cmd, 'submodule', 'update', '--init'])
-            checkout_cmd.extend(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
+            if recursive:
+                checkout_cmd.append('--recursive')
+            if recurse_submodules:
+                checkout_cmd.extend(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
 
         run.run_cmd(' '.join(checkout_cmd), log_all=True, simple=True, regexp=False, path=repo_name)
 
