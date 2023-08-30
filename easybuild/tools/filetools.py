@@ -2685,7 +2685,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         checkout_cmd = [git_cmd, 'checkout', commit]
         if recursive:
             checkout_cmd.extend(['&&', git_cmd, 'submodule', 'update', '--init', '--recursive'])
-        elif recurse_submodules:
+        if recurse_submodules:
             checkout_cmd.extend(['&&', git_cmd, 'submodule', 'update', '--init'])
             checkout_cmd.extend(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
 
