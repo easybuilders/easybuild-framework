@@ -2857,7 +2857,20 @@ class FileToolsTest(EnhancedTestCase):
         ]) % git_repo
         run_check()
 
+        git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
+        expected = '\n'.join([
+            r'  running command "git clone --no-checkout %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            '  running command "git checkout 8456f86 && git submodule update --init --recursive'
+            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\'"',
+            r"  \(in testrepository\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+
         del git_config['recursive']
+        del git_config['recurse_submodules']
         expected = '\n'.join([
             r'  running command "git clone --no-checkout %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
