@@ -2243,8 +2243,9 @@ def install_github_token(github_user, silent=False):
 def validate_github_token(token, github_user):
     """
     Check GitHub token:
-    * see if it conforms expectations (classic GitHub token with only [0-9a-f] characters and length of 40 starting with 'ghp_'),
-      or fine-grained GitHub token with only alphanumeric ([a-zA-Z0-9]) + '_' and length of 93 starting with 'github_pat_'),
+   * see if it conforms expectations (classic GitHub token with only [0-9a-f] characters
+     and length of 40 starting with 'ghp_', or fine-grained GitHub token with only
+     alphanumeric ([a-zA-Z0-9]) characters + '_' and length of 93 starting with 'github_pat_'),
     * see if it can be used for authenticated access.
     """
     # cfr. https://github.blog/2021-04-05-behind-githubs-new-authentication-token-formats/
