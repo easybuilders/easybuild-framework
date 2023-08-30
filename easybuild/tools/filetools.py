@@ -2647,7 +2647,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
 
     # compose 'git clone' command, and run it
     if extra_config_params:
-        git_cmd = 'git ' + ' '.join([f'-c {param}' for param in extra_config_params])
+        git_cmd = 'git ' + ' '.join(['-c %s' % param for param in extra_config_params])
     else:
         git_cmd = 'git'
     clone_cmd = [git_cmd, 'clone']
@@ -2662,7 +2662,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         if recursive:
             clone_cmd.append('--recursive')
         if recurse_submodules:
-            clone_cmd.extend([f"--recurse-submodules='{pat}'" for pat in recurse_submodules])
+            clone_cmd.extend(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
     else:
         # checkout is done separately below for specific commits
         clone_cmd.append('--no-checkout')
@@ -2687,14 +2687,14 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
             checkout_cmd.extend(['&&', git_cmd, 'submodule', 'update', '--init', '--recursive'])
         elif recurse_submodules:
             checkout_cmd.extend(['&&', git_cmd, 'submodule', 'update', '--init'])
-            checkout_cmd.extend([f"--recurse-submodules='{pat}'" for pat in recurse_submodules])
+            checkout_cmd.extend(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
 
         run.run_cmd(' '.join(checkout_cmd), log_all=True, simple=True, regexp=False, path=repo_name)
 
     elif not build_option('extended_dry_run'):
         # If we wanted to get a tag make sure we actually got a tag and not a branch with the same name
         # This doesn't make sense in dry-run mode as we don't have anything to check
-        cmd = f'{git_cmd} describe --exact-match --tags HEAD'
+        cmd = '%s describe --exact-match --tags HEAD' % git_cmd
         # Note: Disable logging to also disable the error handling in run_cmd
         (out, ec) = run.run_cmd(cmd, log_ok=False, log_all=False, regexp=False, path=repo_name)
         if ec != 0 or tag not in out.splitlines():
@@ -2707,16 +2707,16 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
                 # make the repo unshallow first;
                 # this is equivalent with 'git fetch -unshallow' in Git 1.8.3+
                 # (first fetch seems to do nothing, unclear why)
-                cmds.append(f'{git_cmd} fetch --depth=2147483647 && git fetch --depth=2147483647')
+                cmds.append('%s fetch --depth=2147483647 && git fetch --depth=2147483647' % git_cmd)
 
-            cmds.append(f'{git_cmd} checkout refs/tags/' + tag)
+            cmds.append('%s checkout refs/tags/' % git_cmd + tag)
             # Clean all untracked files, e.g. from left-over submodules
-            cmds.append(f'{git_cmd} clean --force -d -x')
+            cmds.append('%s clean --force -d -x' % git_cmd)
             if recursive:
-                cmds.append(f'{git_cmd} submodule update --init --recursive')
+                cmds.append('%s submodule update --init --recursive' % git_cmd)
             elif recurse_submodules:
-                cmds.append(f'{git_cmd} submodule update --init ')
-                cmds[-1] += ' '.join([f"--recurse-submodules='{pat}'" for pat in recurse_submodules])
+                cmds.append('%s submodule update --init ' % git_cmd)
+                cmds[-1] += ' '.join(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
             for cmd in cmds:
                 run.run_cmd(cmd, log_all=True, simple=True, regexp=False, path=repo_name)
 
