@@ -65,7 +65,7 @@ from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, pr
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
-from easybuild.tools.py2vs3 import HTMLParser, load_source, std_urllib, string_type
+from easybuild.tools.py2vs3 import HTMLParser, load_source, makedirs, std_urllib, string_type
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars, trace_msg
 
 try:
@@ -1918,15 +1918,9 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                 # climb up until we hit an existing path or the empty string (for relative paths)
                 while existing_parent_path and not os.path.exists(existing_parent_path):
                     existing_parent_path = os.path.dirname(existing_parent_path)
-                os.makedirs(path)
+                makedirs(path, exist_ok=True)
             else:
                 os.mkdir(path)
-        except FileExistsError as err:
-            if os.path.exists(path):
-                # This may happen if a parallel build creates the directory after we checked for its existence
-                _log.debug("Directory creation aborted as it seems it was already created: %s", err)
-            else:
-                raise EasyBuildError("Failed to create directory %s: %s", path, err)
         except OSError as err:
             raise EasyBuildError("Failed to create directory %s: %s", path, err)
 
