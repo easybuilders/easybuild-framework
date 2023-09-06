@@ -621,7 +621,8 @@ class ModuleGenerator(object):
         """
         Generate a list of all extensions in name/version format
         """
-        return self.app.make_extension_string(name_version_sep='/', ext_sep=',').split(',')
+        exts_str = self.app.make_extension_string(name_version_sep='/', ext_sep=',')
+        return exts_str.split(',') if exts_str else []
 
     def _generate_help_text(self):
         """

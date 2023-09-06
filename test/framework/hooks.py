@@ -34,6 +34,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.hooks  # so we can reset cached hooks
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import update_build_option
 from easybuild.tools.filetools import remove_file, write_file
 from easybuild.tools.hooks import find_hook, load_hooks, run_hook, verify_hooks
 
@@ -186,33 +187,38 @@ class HooksTest(EnhancedTestCase):
 
         init_config(build_options={'debug': True})
 
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        run_hook('start', hooks)
-        run_hook('parse', hooks, args=['<EasyConfig instance>'], msg="Running parse hook for example.eb...")
-        run_hook('build_and_install_loop', hooks, args=[['ec1', 'ec2']], pre_step_hook=True)
-        run_hook('configure', hooks, pre_step_hook=True, args=[None])
-        run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["configure.sh"], kwargs={'interactive': True})
-        run_hook('configure', hooks, post_step_hook=True, args=[None])
-        run_hook('build', hooks, pre_step_hook=True, args=[None])
-        run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make -j 3"])
-        run_hook('build', hooks, post_step_hook=True, args=[None])
-        run_hook('install', hooks, pre_step_hook=True, args=[None])
-        res = run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make install"], kwargs={})
-        self.assertEqual(res, "sudo make install")
-        run_hook('install', hooks, post_step_hook=True, args=[None])
-        run_hook('extensions', hooks, pre_step_hook=True, args=[None])
-        for _ in range(3):
-            run_hook('single_extension', hooks, pre_step_hook=True, args=[None])
-            run_hook('single_extension', hooks, post_step_hook=True, args=[None])
-        run_hook('extensions', hooks, post_step_hook=True, args=[None])
-        run_hook('fail', hooks, args=[EasyBuildError('oops')])
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        def run_hooks():
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            run_hook('start', hooks)
+            run_hook('parse', hooks, args=['<EasyConfig instance>'], msg="Running parse hook for example.eb...")
+            run_hook('build_and_install_loop', hooks, args=[['ec1', 'ec2']], pre_step_hook=True)
+            run_hook('configure', hooks, pre_step_hook=True, args=[None])
+            run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["configure.sh"], kwargs={'interactive': True})
+            run_hook('configure', hooks, post_step_hook=True, args=[None])
+            run_hook('build', hooks, pre_step_hook=True, args=[None])
+            run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make -j 3"])
+            run_hook('build', hooks, post_step_hook=True, args=[None])
+            run_hook('install', hooks, pre_step_hook=True, args=[None])
+            res = run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make install"], kwargs={})
+            self.assertEqual(res, "sudo make install")
+            run_hook('install', hooks, post_step_hook=True, args=[None])
+            run_hook('extensions', hooks, pre_step_hook=True, args=[None])
+            for _ in range(3):
+                run_hook('single_extension', hooks, pre_step_hook=True, args=[None])
+                run_hook('single_extension', hooks, post_step_hook=True, args=[None])
+            run_hook('extensions', hooks, post_step_hook=True, args=[None])
+            run_hook('fail', hooks, args=[EasyBuildError('oops')])
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
 
-        expected_stdout = '\n'.join([
+            return stdout, stderr
+
+        stdout, stderr = run_hooks()
+
+        expected_stdout_lines = [
             "== Running start hook...",
             "this is triggered at the very beginning",
             "== Running parse hook for example.eb...",
@@ -238,7 +244,17 @@ class HooksTest(EnhancedTestCase):
             "this is run before installing an extension",
             "== Running fail hook...",
             "EasyBuild FAIL: 'oops'",
-        ])
+        ]
+        expected_stdout = '\n'.join(expected_stdout_lines)
+
+        self.assertEqual(stdout.strip(), expected_stdout)
+        self.assertEqual(stderr, '')
+
+        # test silencing of hook trigger
+        update_build_option('silence_hook_trigger', True)
+        stdout, stderr = run_hooks()
+
+        expected_stdout = '\n'.join(x for x in expected_stdout_lines if not x.startswith('== Running'))
 
         self.assertEqual(stdout.strip(), expected_stdout)
         self.assertEqual(stderr, '')

@@ -2591,6 +2591,8 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     recursive = git_config.pop('recursive', False)
     clone_into = git_config.pop('clone_into', False)
     keep_git_dir = git_config.pop('keep_git_dir', False)
+    extra_config_params = git_config.pop('extra_config_params', None)
+    recurse_submodules = git_config.pop('recurse_submodules', None)
 
     # input validation of git_config dict
     if git_config:
@@ -2616,7 +2618,11 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     targetpath = os.path.join(targetdir, filename)
 
     # compose 'git clone' command, and run it
-    clone_cmd = ['git', 'clone']
+    if extra_config_params:
+        git_cmd = 'git ' + ' '.join(['-c %s' % param for param in extra_config_params])
+    else:
+        git_cmd = 'git'
+    clone_cmd = [git_cmd, 'clone']
 
     if not keep_git_dir and not commit:
         # Speed up cloning by only fetching the most recent commit, not the whole history
@@ -2627,6 +2633,8 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         clone_cmd.extend(['--branch', tag])
         if recursive:
             clone_cmd.append('--recursive')
+        if recurse_submodules:
+            clone_cmd.extend(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
     else:
         # checkout is done separately below for specific commits
         clone_cmd.append('--no-checkout')
@@ -2646,9 +2654,14 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
 
     # if a specific commit is asked for, check it out
     if commit:
-        checkout_cmd = ['git', 'checkout', commit]
-        if recursive:
-            checkout_cmd.extend(['&&', 'git', 'submodule', 'update', '--init', '--recursive'])
+        checkout_cmd = [git_cmd, 'checkout', commit]
+
+        if recursive or recurse_submodules:
+            checkout_cmd.extend(['&&', git_cmd, 'submodule', 'update', '--init'])
+            if recursive:
+                checkout_cmd.append('--recursive')
+            if recurse_submodules:
+                checkout_cmd.extend(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
 
         work_dir = os.path.join(tmpdir, repo_name) if repo_name else tmpdir
         run_shell_cmd(' '.join(checkout_cmd), work_dir=work_dir, hidden=True, verbose_dry_run=True)
@@ -2656,7 +2669,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     elif not build_option('extended_dry_run'):
         # If we wanted to get a tag make sure we actually got a tag and not a branch with the same name
         # This doesn't make sense in dry-run mode as we don't have anything to check
-        cmd = "git describe --exact-match --tags HEAD"
+        cmd = f"{git_cmd} describe --exact-match --tags HEAD"
         work_dir = os.path.join(tmpdir, repo_name) if repo_name else tmpdir
         res = run_shell_cmd(cmd, fail_on_error=False, work_dir=work_dir, hidden=True, verbose_dry_run=True)
 
@@ -2671,13 +2684,17 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
                 # make the repo unshallow first;
                 # this is equivalent with 'git fetch -unshallow' in Git 1.8.3+
                 # (first fetch seems to do nothing, unclear why)
-                cmds.append("git fetch --depth=2147483647 && git fetch --depth=2147483647")
+                cmds.append(f"{git_cmd} fetch --depth=2147483647 && git fetch --depth=2147483647")
 
-            cmds.append(f"git checkout refs/tags/{tag}")
+            cmds.append(f"{git_cmd} checkout refs/tags/{tag}")
             # Clean all untracked files, e.g. from left-over submodules
-            cmds.append("git clean --force -d -x")
+            cmds.append(f"{git_cmd} clean --force -d -x")
             if recursive:
-                cmds.append("git submodule update --init --recursive")
+                cmds.append(f"{git_cmd} submodule update --init --recursive")
+            elif recurse_submodules:
+                cmds.append(f"{git_cmd} submodule update --init ")
+                cmds[-1] += ' '.join(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
+
             for cmd in cmds:
                 run_shell_cmd(cmd, work_dir=work_dir, hidden=True, verbose_dry_run=True)
 

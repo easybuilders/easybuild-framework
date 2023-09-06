@@ -655,6 +655,11 @@ class GithubTest(EnhancedTestCase):
         if token_old_format:
             self.assertTrue(gh.validate_github_token(token_old_format, GITHUB_TEST_ACCOUNT))
 
+        # if a fine-grained token is available, test with that too
+        finegrained_token = os.getenv('TEST_GITHUB_TOKEN_FINEGRAINED')
+        if finegrained_token:
+            self.assertTrue(gh.validate_github_token(finegrained_token, GITHUB_TEST_ACCOUNT))
+
     def test_github_find_easybuild_easyconfig(self):
         """Test for find_easybuild_easyconfig function"""
         if self.skip_github_tests:

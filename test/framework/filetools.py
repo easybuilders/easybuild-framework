@@ -2815,6 +2815,32 @@ class FileToolsTest(EnhancedTestCase):
         ]) % git_repo
         run_check()
 
+        git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
+        expected = '\n'.join([
+            '  running command "git clone --depth 1 --branch tag_for_tests --recursive'
+            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+
+        git_config['extra_config_params'] = [
+            'submodule."fastahack".active=false',
+            'submodule."sha1".active=false',
+        ]
+        expected = '\n'.join([
+            '  running command "git -c submodule."fastahack".active=false -c submodule."sha1".active=false'
+            + ' clone --depth 1 --branch tag_for_tests --recursive'
+            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+        del git_config['recurse_submodules']
+        del git_config['extra_config_params']
+
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
             r'  running command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
@@ -2837,7 +2863,20 @@ class FileToolsTest(EnhancedTestCase):
         ]) % git_repo
         run_check()
 
+        git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
+        expected = '\n'.join([
+            r'  running command "git clone --no-checkout %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            '  running command "git checkout 8456f86 && git submodule update --init --recursive'
+            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\'"',
+            r"  \(in /.*/testrepository\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+
         del git_config['recursive']
+        del git_config['recurse_submodules']
         expected = '\n'.join([
             r'  running command "git clone --no-checkout %(git_repo)s"',
             r"  \(in /.*\)",
