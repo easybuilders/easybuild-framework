@@ -181,13 +181,10 @@ for pyver in ('py2.py3', 'py2', 'py3'):
 # versionmajor, versionminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
 
 
-def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None):
+def template_constant_dict(config, ignore=None, toolchain=None):
     """Create a dict for templating the values in the easyconfigs.
         - config is a dict with the structure of EasyConfig._config
     """
-    if skip_lower is not None:
-        _log.deprecated("Use of 'skip_lower' named argument for template_constant_dict has no effect anymore", '4.0')
-
     # TODO find better name
     # ignore
     if ignore is None:

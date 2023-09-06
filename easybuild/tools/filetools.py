@@ -486,7 +486,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     return base_dir
 
 
-def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=None, on_error=None):
+def which(cmd, retain_all=False, check_perms=True, log_ok=True, on_error=WARN):
     """
     Return (first) path in $PATH for specified command, or None if command is not found
 
@@ -495,17 +495,6 @@ def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=None, 
     :param log_ok: Log an info message where the command has been found (if any)
     :param on_error: What to do if the command was not found, default: WARN. Possible values: IGNORE, WARN, ERROR
     """
-    if log_error is not None:
-        _log.deprecated("'log_error' named argument in which function has been replaced by 'on_error'", '5.0')
-        # If set, make sure on_error is at least WARN
-        if log_error and on_error == IGNORE:
-            on_error = WARN
-        elif not log_error and on_error is None:  # If set to False, use IGNORE unless on_error is also set
-            on_error = IGNORE
-    # Set default
-    # TODO: After removal of log_error from the parameters, on_error=WARN can be used instead of this
-    if on_error is None:
-        on_error = WARN
     if on_error not in (IGNORE, WARN, ERROR):
         raise EasyBuildError("Invalid value for 'on_error': %s", on_error)
 
@@ -1734,7 +1723,7 @@ def convert_name(name, upper=False):
 
 
 def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
-                       group_id=None, relative=True, ignore_errors=False, skip_symlinks=None):
+                       group_id=None, relative=True, ignore_errors=False):
     """
     Change permissions for specified path, using specified permission bits
 
@@ -1750,11 +1739,6 @@ def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False
     Add or remove (if add is False) permission_bits from all files (if onlydirs is False)
     and directories (if onlyfiles is False) in path
     """
-
-    if skip_symlinks is not None:
-        depr_msg = "Use of 'skip_symlinks' argument for 'adjust_permissions' is deprecated "
-        depr_msg += "(symlinks are never followed anymore)"
-        _log.deprecated(depr_msg, '4.0')
 
     provided_path = os.path.abspath(provided_path)
 
@@ -2091,13 +2075,6 @@ def path_matches(path, paths):
     return False
 
 
-def rmtree2(path, n=3):
-    """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
-
-    _log.deprecated("Use 'remove_dir' rather than 'rmtree2'", '5.0')
-    remove_dir(path)
-
-
 def find_backup_name_candidate(src_file):
     """Returns a non-existing file to be used as destination for backup files"""
 
@@ -2202,11 +2179,6 @@ def cleanup(logfile, tempdir, testing, silent=False):
     else:
         msg = "Keeping temporary log file(s) %s* and directory %s." % (logfile, tempdir)
         print_msg(msg, log=None, silent=testing or silent)
-
-
-def copytree(src, dst, symlinks=False, ignore=None):
-    """DEPRECATED and removed. Use copy_dir"""
-    _log.deprecated("Use 'copy_dir' rather than 'copytree'", '4.0')
 
 
 def encode_string(name):
