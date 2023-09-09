@@ -4,6 +4,36 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.8.1 (11 September 2023)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add end-to-end test for running EasyBuild in different Linux distros using containers (#3968)
+  - suggest default title in `--review-pr` (#4287)
+  - add `build_and_install_loop` hooks to run before and after the install loop for individual easyconfigs (#4304)
+  - Implement hooks for failure scenarios: `crash_hook`, `cancel_hook`, `fail_hook` (#4315)
+  - add postiter hook to the list of steps so the corresponding hook can be used (#4316)
+  - add `run_shell_cmd` hook (#4323)
+  - add `build_info_msg` easyconfig parameter to print message during installation of an easyconfig (#4324)
+  - add `--silence-hook-trigger` configuration option to supress printing of debug message every time a hook is triggered (#4329)
+  - add support for using fine grained Github tokens (#4332)
+  - add definitions for ifbf and iofbf toolchain (#4337)
+  - add support for submodule filtering and specifying extra Git configuration in `git_config` (#4338)
+- various bug fixes, including:
+  - Improve error when checksum dict has no entry for a file (#4150)
+  - don't fail in `mkdir` if path gets created while processing it (#4300)
+  - Ignore request for external module (meta)data when no modules tool is active (#4308)
+  - use sys.executable to obtain path to `python` command, rather than assuming that `python` command is available in `$PATH` (#4309)
+  - fix `test_add_and_remove_module_path` by replacing string comparison of paths by checking whether they point to the same path (since symlinks may cause trouble) (#4312)
+  - enhance `Toolchain.get_flag` to handle lists (#4319)
+  - remove crash hook (since it doesn't work) (#4325)
+  - don't use `FileExistsError` in `mkdir` function (doesn't exist in Python 2.7) (#4328)
+  - only add extensions in module file if there are extensions (#4331)
+  - Fix submodule filtering bug in `git_config` (#4339)
+
+
 v4.8.0 (7 July 2023)
 --------------------
 
