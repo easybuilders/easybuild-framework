@@ -1298,7 +1298,8 @@ def verify_checksum(path, checksums):
                 # no matching checksums
                 return False
         else:
-            raise EasyBuildError("Invalid checksum spec '%s', should be a string (MD5) or 2-tuple (type, value).",
+            raise EasyBuildError("Invalid checksum spec '%s', should be a string (MD5 or SHA256) "
+                                 "2-tuple (type, value) or tuple of alternative checksum specs.",
                                  checksum)
 
         actual_checksum = compute_checksum(path, typ)
