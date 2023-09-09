@@ -45,6 +45,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 from easybuild.tools import run
 import easybuild.tools.filetools as ft
+import easybuild.tools.py2vs3 as py2vs3
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import IGNORE, ERROR, build_option, update_build_option
 from easybuild.tools.multidiff import multidiff
@@ -2818,6 +2819,32 @@ class FileToolsTest(EnhancedTestCase):
         ]) % git_repo
         run_check()
 
+        git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
+        expected = '\n'.join([
+            '  running command "git clone --depth 1 --branch tag_for_tests --recursive'
+            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+
+        git_config['extra_config_params'] = [
+            'submodule."fastahack".active=false',
+            'submodule."sha1".active=false',
+        ]
+        expected = '\n'.join([
+            '  running command "git -c submodule."fastahack".active=false -c submodule."sha1".active=false'
+            + ' clone --depth 1 --branch tag_for_tests --recursive'
+            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+        del git_config['recurse_submodules']
+        del git_config['extra_config_params']
+
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
             r'  running command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
@@ -2840,7 +2867,20 @@ class FileToolsTest(EnhancedTestCase):
         ]) % git_repo
         run_check()
 
+        git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
+        expected = '\n'.join([
+            r'  running command "git clone --no-checkout %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            '  running command "git checkout 8456f86 && git submodule update --init --recursive'
+            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\'"',
+            r"  \(in testrepository\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+
         del git_config['recursive']
+        del git_config['recurse_submodules']
         expected = '\n'.join([
             r'  running command "git clone --no-checkout %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
@@ -3398,6 +3438,17 @@ class FileToolsTest(EnhancedTestCase):
         dir_perms = os.lstat(test_subdir)[stat.ST_MODE]
         self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
         self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+
+    def test_compat_makedirs(self):
+        """Test compatibility layer for Python3 os.makedirs"""
+        name = os.path.join(self.test_prefix, 'folder')
+        self.assertNotExists(name)
+        py2vs3.makedirs(name)
+        self.assertExists(name)
+        # exception is raised because file exists (OSError in Python 2, FileExistsError in Python 3)
+        self.assertErrorRegex(Exception, '.*', py2vs3.makedirs, name)
+        py2vs3.makedirs(name, exist_ok=True)  # No error
+        self.assertExists(name)
 
     def test_create_unused_dir(self):
         """Test create_unused_dir function."""

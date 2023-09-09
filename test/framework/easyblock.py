@@ -39,6 +39,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
+from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
@@ -2423,6 +2424,30 @@ class EasyBlockTest(EnhancedTestCase):
         eb = get_easyblock_instance(ec)
         eb.fetch_sources()
         eb.checksum_step()
+
+        with self.mocked_stdout_stderr() as (stdout, stderr):
+
+            # using checksum-less test easyconfig in location that does not provide checksums.json
+            test_ec = os.path.join(self.test_prefix, 'test-no-checksums.eb')
+            copy_file(toy_ec, test_ec)
+            write_file(test_ec, 'checksums = []', append=True)
+            ec = process_easyconfig(test_ec)[0]
+
+            # enable logging to screen, so we can check whether error is logged when checksums.json is not found
+            fancylogger.logToScreen(enable=True, stdout=True)
+
+            eb = get_easyblock_instance(ec)
+            eb.fetch_sources()
+            eb.checksum_step()
+
+            fancylogger.logToScreen(enable=False, stdout=True)
+            stdout = self.get_stdout()
+
+            # make sure there's no error logged for not finding checksums.json,
+            # see also https://github.com/easybuilders/easybuild-framework/issues/4301
+            regex = re.compile("ERROR .*Couldn't find file checksums.json anywhere", re.M)
+            regex.search(stdout)
+            self.assertFalse(regex.search(stdout), "Pattern '%s' should not be found in log" % regex.pattern)
 
         # fiddle with checksum to check whether faulty checksum is catched
         copy_file(toy_ec, self.test_prefix)

@@ -228,6 +228,8 @@ DEFAULT_CONFIG = {
     'buildstats': [None, "A list of dicts with build statistics", OTHER],
     'deprecated': [False, "String specifying reason why this easyconfig file is deprecated "
                           "and will be archived in the next major release of EasyBuild", OTHER],
+    'build_info_msg': [None, "String with information to be printed to stdout and logged during the building "
+                             "of the easyconfig", OTHER],
 }
 
 
