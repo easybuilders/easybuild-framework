@@ -349,6 +349,14 @@ class FileToolsTest(EnhancedTestCase):
         alt_checksums = ('7167b64b1ca062b9674ffef46f9325db7167b64b1ca062b9674ffef46f9325db', broken_checksums['sha256'])
         self.assertFalse(ft.verify_checksum(fp, alt_checksums))
 
+        # Check dictionary
+        alt_checksums = (known_checksums['sha256'],)
+        self.assertTrue(ft.verify_checksum(fp, {os.path.basename(fp): known_checksums['sha256']}))
+        faulty_dict = {'wrong-name': known_checksums['sha256']}
+        self.assertErrorRegex(EasyBuildError,
+                              "Missing checksum for " + os.path.basename(fp) + " in .*wrong-name.*",
+                              ft.verify_checksum, fp, faulty_dict)
+
         # check whether missing checksums are enforced
         build_options = {
             'enforce_checksums': True,
@@ -363,6 +371,8 @@ class FileToolsTest(EnhancedTestCase):
         for checksum in [known_checksums[x] for x in ('md5', 'sha256')]:
             dict_checksum = {os.path.basename(fp): checksum, 'foo': 'baa'}
             self.assertTrue(ft.verify_checksum(fp, dict_checksum))
+            del dict_checksum[os.path.basename(fp)]
+            self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum, fp, dict_checksum)
 
     def test_common_path_prefix(self):
         """Test get common path prefix for a list of paths."""
