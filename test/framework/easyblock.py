@@ -2446,7 +2446,6 @@ class EasyBlockTest(EnhancedTestCase):
             # make sure there's no error logged for not finding checksums.json,
             # see also https://github.com/easybuilders/easybuild-framework/issues/4301
             regex = re.compile("ERROR .*Couldn't find file checksums.json anywhere", re.M)
-            regex.search(stdout)
             self.assertFalse(regex.search(stdout), "Pattern '%s' should not be found in log" % regex.pattern)
 
         # fiddle with checksum to check whether faulty checksum is catched
