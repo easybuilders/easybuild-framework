@@ -679,6 +679,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "List of supported hooks (in order of execution):",
             "	start_hook",
             "	parse_hook",
+            "	pre_build_and_install_loop_hook",
             "	pre_fetch_hook",
             "	post_fetch_hook",
             "	pre_ready_hook",
@@ -701,6 +702,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "	pre_single_extension_hook",
             "	post_single_extension_hook",
             "	post_extensions_hook",
+            "	pre_postiter_hook",
+            "	post_postiter_hook",
             "	pre_postproc_hook",
             "	post_postproc_hook",
             "	pre_sanitycheck_hook",
@@ -716,7 +719,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "	post_package_hook",
             "	pre_testcases_hook",
             "	post_testcases_hook",
+            "	post_build_and_install_loop_hook",
             "	end_hook",
+            "	cancel_hook",
+            "	fail_hook",
+            "	pre_run_shell_cmd_hook",
+            "	post_run_shell_cmd_hook",
             '',
         ])
         self.assertEqual(stdout, expected)
@@ -2571,7 +2579,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--force',
             '--try-amend=prebuildopts=nosuchcommand &&',
         ]
-        self.eb_main(args, do_build=True)
+        with self.mocked_stdout_stderr():
+            self.eb_main(args, do_build=True)
         self.assertExists(toy_buildpath, "Build dir %s is retained after failed build" % toy_buildpath)
 
     def test_filter_deps(self):
@@ -5073,19 +5082,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
         lock_path = os.path.join(self.test_installpath, 'software', '.locks', lock_fn)
         mkdir(lock_path, parents=True)
 
-        args = ['toy-0.0.eb', '--fetch']
-        stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
+        # Run for a "regular" EC and one with an external module dependency
+        # which might trip up the dependency resolution (see #4298)
+        for ec in ('toy-0.0.eb', 'toy-0.0-deps.eb'):
+            args = [ec, '--fetch']
+            stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
 
-        patterns = [
-            r"^== fetching files\.\.\.$",
-            r"^== COMPLETED: Installation STOPPED successfully \(took .* secs?\)$",
-        ]
-        for pattern in patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' not found in: %s" % (regex.pattern, stdout))
+            patterns = [
+                r"^== fetching files\.\.\.$",
+                r"^== COMPLETED: Installation STOPPED successfully \(took .* secs?\)$",
+            ]
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(stdout), "Pattern '%s' not found in: %s" % (regex.pattern, stdout))
 
-        regex = re.compile(r"^== creating build dir, resetting environment\.\.\.$")
-        self.assertFalse(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+            regex = re.compile(r"^== creating build dir, resetting environment\.\.\.$")
+            self.assertFalse(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
     def test_parse_external_modules_metadata(self):
         """Test parse_external_modules_metadata function."""
