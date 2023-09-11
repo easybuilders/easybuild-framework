@@ -501,7 +501,7 @@ class EasyBuildOptions(GeneralOption):
             'silence-deprecation-warnings': (
                 "Silence specified deprecation warnings out of (%s)" % ', '.join(all_deprecations),
                 'strlist', 'extend', []),
-            'silence-hook-trigger': ("Supress printing of debug message every time a hook is triggered",
+            'silence-hook-trigger': ("Suppress printing of debug message every time a hook is triggered",
                                      None, 'store_true', False),
             'skip-extensions': ("Skip installation of extensions", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
