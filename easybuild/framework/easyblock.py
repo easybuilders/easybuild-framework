@@ -394,13 +394,13 @@ class EasyBlock(object):
         :param always_read: always read the checksums.json file, even if it has been read before
         """
         if always_read or self.json_checksums is None:
-            try:
-                path = self.obtain_file("checksums.json", no_download=True)
+            path = self.obtain_file("checksums.json", no_download=True, warning_only=True)
+            if path is not None:
                 self.log.info("Loading checksums from file %s", path)
                 json_txt = read_file(path)
                 self.json_checksums = json.loads(json_txt)
-            # if the file can't be found, return an empty dict
-            except EasyBuildError:
+            else:
+                # if the file can't be found, return an empty dict
                 self.json_checksums = {}
 
         return self.json_checksums
@@ -727,7 +727,8 @@ class EasyBlock(object):
         return exts_sources
 
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
-                    git_config=None, no_download=False, download_instructions=None, alt_location=None):
+                    git_config=None, no_download=False, download_instructions=None, alt_location=None,
+                    warning_only=False):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -780,7 +781,13 @@ class EasyBlock(object):
                     return fullpath
 
             except IOError as err:
-                raise EasyBuildError("Downloading file %s from url %s to %s failed: %s", filename, url, fullpath, err)
+                if not warning_only:
+                    raise EasyBuildError("Downloading file %s "
+                                         "from url %s to %s failed: %s", filename, url, fullpath, err)
+                else:
+                    self.log.warning("Downloading file %s "
+                                     "from url %s to %s failed: %s", filename, url, fullpath, err)
+                    return None
 
         else:
             # try and find file in various locations
@@ -857,8 +864,13 @@ class EasyBlock(object):
                     self.dry_run_msg("  * %s (MISSING)", filename)
                     return filename
                 else:
-                    raise EasyBuildError("Couldn't find file %s anywhere, and downloading it is disabled... "
+                    if not warning_only:
+                        raise EasyBuildError("Couldn't find file %s anywhere, and downloading it is disabled... "
+                                             "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
+                    else:
+                        self.log.warning("Couldn't find file %s anywhere, and downloading it is disabled... "
                                          "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
+                        return None
             elif git_config:
                 return get_source_tarball_from_git(filename, targetdir, git_config)
             else:
@@ -950,7 +962,11 @@ class EasyBlock(object):
                         error_msg += "and downloading it didn't work either... "
                         error_msg += "Paths attempted (in order): %s " % failedpaths_msg
 
-                    raise EasyBuildError(error_msg, filename)
+                    if not warning_only:
+                        raise EasyBuildError(error_msg, filename)
+                    else:
+                        self.log.warning(error_msg, filename)
+                        return None
 
     #
     # GETTER/SETTER UTILITY FUNCTIONS
