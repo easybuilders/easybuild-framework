@@ -74,13 +74,15 @@ class IntelIccIfort(Compiler):
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        (systemtools.X86_64, systemtools.AMD): 'xHost',
-        (systemtools.X86_64, systemtools.INTEL): 'xHost',
+        systemtools.X86_64: 'xHost',
+        # Intel compilers don't auto-detect AMD features and default to SSE2
+        (systemtools.X86_64, systemtools.AMD, systemtools.SSSE3): 'mssse3',
+        (systemtools.X86_64, systemtools.AMD, systemtools.SSE4_2): 'msse4.2',
+        (systemtools.X86_64, systemtools.AMD, systemtools.AVX2): 'march=core-avx2',
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        (systemtools.X86_64, systemtools.AMD): 'xSSE2',
-        (systemtools.X86_64, systemtools.INTEL): 'xSSE2',
+        systemtools.X86_64: 'xSSE2',
     }
 
     COMPILER_CC = 'icc'
