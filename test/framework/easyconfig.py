@@ -2145,12 +2145,15 @@ class EasyConfigTest(EnhancedTestCase):
             Helper function to sanity check we can use the quoted string in Python contexts.
             Returns the evaluated (i.e. unquoted) string
             """
-            globals = dict()
+            scope = dict()
             try:
-                exec('res = %s' % quoted_val, globals)
-            except Exception as e:  # pylint: disable=broad-except
-                self.fail('Failed to evaluate %s (from %s): %s' % (quoted_val, val, e))
-            return globals['res']
+                # this is needlessly complicated because we can't use 'exec' here without potentially running
+                # into a SyntaxError bug in old Python 2.7 versions (for example when running the tests in CentOS 7.9)
+                # cfr. https://stackoverflow.com/questions/4484872/why-doesnt-exec-work-in-a-function-with-a-subfunction
+                eval(compile('res = %s' % quoted_val, '<string>', 'exec'), dict(), scope)
+            except Exception as err:  # pylint: disable=broad-except
+                self.fail('Failed to evaluate %s (from %s): %s' % (quoted_val, val, err))
+            return scope['res']
 
         def assertEqual_unquoted(quoted_val, val):
             """Assert that evaluating the quoted_val yields the val"""
