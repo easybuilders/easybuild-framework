@@ -77,9 +77,9 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
     ('installdir', "Installation directory"),
     ('start_dir', "Directory in which the build process begins"),
 ]
-# software names for which to define <pref>ver and <pref>shortver templates
+# software names for which to define <pref>ver, <pref>majver and <pref>shortver templates
 TEMPLATE_SOFTWARE_VERSIONS = [
-    # software name, prefix for *ver and *shortver
+    # software name, prefix for *ver, *majver and *shortver
     ('CUDA', 'cuda'),
     ('CUDAcore', 'cuda'),
     ('Java', 'java'),
@@ -427,6 +427,7 @@ def template_documentation():
     # step 2: add *ver/*shortver templates for software listed in TEMPLATE_SOFTWARE_VERSIONS
     doc.append("Template names/values for (short) software versions")
     for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
+        doc.append("%s%%(%smajver)s: major version for %s" % (indent_l1, pref, name))
         doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (indent_l1, pref, name))
         doc.append("%s%%(%sver)s: full version for %s" % (indent_l1, pref, name))
 
