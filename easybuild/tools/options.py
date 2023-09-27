@@ -501,6 +501,8 @@ class EasyBuildOptions(GeneralOption):
             'silence-deprecation-warnings': (
                 "Silence specified deprecation warnings out of (%s)" % ', '.join(all_deprecations),
                 'strlist', 'extend', []),
+            'silence-hook-trigger': ("Suppress printing of debug message every time a hook is triggered",
+                                     None, 'store_true', False),
             'skip-extensions': ("Skip installation of extensions", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'skip-test-step': ("Skip running the test step (e.g. unit tests)", None, 'store_true', False),
@@ -1894,7 +1896,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             os.close(fd)
             os.chmod(tmptest_file, 0o700)
             if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False, force_in_dry_run=True, trace=False,
-                           stream_output=False):
+                           stream_output=False, with_hooks=False):
                 msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
                 msg += "This can cause problems in the build process, consider using --tmpdir."
                 if raise_error:
