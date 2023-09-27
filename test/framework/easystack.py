@@ -165,7 +165,7 @@ class EasyStackTest(EnhancedTestCase):
         #   (because $TMPDIR set by configuration done in main function is retained)
         tmpdir_tempfile = tempfile.gettempdir()
         tmpdir_env = os.getenv('TMPDIR')
-        tmpdir_tempfile_len = len(tmpdir_env.split(os.path.sep))
+        tmpdir_tempfile_len = len(tmpdir_tempfile.split(os.path.sep))
         tmpdir_env_len = len(tmpdir_env.split(os.path.sep))
 
         self.assertEqual(tmpdir_tempfile_len, orig_tmpdir_tempfile_len + 2)
