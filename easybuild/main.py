@@ -42,6 +42,7 @@ import copy
 import os
 import stat
 import sys
+import tempfile
 import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
@@ -254,8 +255,9 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
         easyconfig._easyconfigs_cache.clear()
         easyconfig._easyconfig_files_cache.clear()
 
-        # restore environment
+        # restore environment and reset tempdir (to avoid tmpdir path getting progressively longer)
         restore_env(init_env)
+        tempfile.tempdir = None
 
         # If EasyConfig specific arguments were supplied in EasyStack file
         # merge arguments with original command line args
