@@ -31,6 +31,7 @@ Unit tests for easystack files
 import os
 import re
 import sys
+import tempfile
 from unittest import TextTestRunner
 
 import easybuild.tools.build_log
@@ -129,11 +130,22 @@ class EasyStackTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
 
     def test_easystack_restore_env_after_each_build(self):
-        """Test that the build environment is reset for each easystack item"""
+        """Test that the build environment and tmpdir is reset for each easystack item"""
+
+        orig_tmpdir_tempfile = tempfile.gettempdir()
+        orig_tmpdir_env = os.getenv('TMPDIR')
+        orig_tmpdir_tempfile_len = len(orig_tmpdir_env.split(os.path.sep))
+        orig_tmpdir_env_len = len(orig_tmpdir_env.split(os.path.sep))
+
         test_es_txt = '\n'.join([
             "easyconfigs:",
             "  - toy-0.0-gompi-2018a.eb:",
             "  - libtoy-0.0.eb:",
+            # also include a couple of easyconfigs for which a module is already available in test environment,
+            # see test/framework/modules
+            "  - GCC-7.3.0-2.30",
+            "  - FFTW-3.3.7-gompi-2018a",
+            "  - foss-2018a",
         ])
         test_es_path = os.path.join(self.test_prefix, 'test.yml')
         write_file(test_es_path, test_es_txt)
@@ -145,9 +157,24 @@ class EasyStackTest(EnhancedTestCase):
         ]
         self.mock_stdout(True)
         stdout = self.eb_main(args, do_build=True, raise_error=True)
+        stdout = self.eb_main(args, do_build=True, raise_error=True, reset_env=False, redo_init_config=False)
         self.mock_stdout(False)
         regex = re.compile(r"WARNING Loaded modules detected: \[.*gompi/2018.*\]\n")
         self.assertFalse(regex.search(stdout), "Pattern '%s' should not be found in: %s" % (regex.pattern, stdout))
+
+        # temporary directory after run should be exactly 2 levels deeper than original one:
+        # - 1 level added by setting up configuration in EasyBuild main function
+        # - 1 extra level added by first re-configuration for easystack item
+        #   (because $TMPDIR set by configuration done in main function is retained)
+        tmpdir_tempfile = tempfile.gettempdir()
+        tmpdir_env = os.getenv('TMPDIR')
+        tmpdir_tempfile_len = len(tmpdir_tempfile.split(os.path.sep))
+        tmpdir_env_len = len(tmpdir_env.split(os.path.sep))
+
+        self.assertEqual(tmpdir_tempfile_len, orig_tmpdir_tempfile_len + 2)
+        self.assertEqual(tmpdir_env_len, orig_tmpdir_env_len + 2)
+        self.assertTrue(tmpdir_tempfile.startswith(orig_tmpdir_tempfile))
+        self.assertTrue(tmpdir_env.startswith(orig_tmpdir_env))
 
     def test_missing_easyconfigs_key(self):
         """Test that EasyStack file that doesn't contain an EasyConfigs key will fail with sane error message"""

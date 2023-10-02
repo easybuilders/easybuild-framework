@@ -34,44 +34,23 @@ jobs:
           - ${{needs.setup.outputs.modulesTcl}}
           - ${{needs.setup.outputs.modules3}}
           - ${{needs.setup.outputs.modules4}}
-        module_syntax: [Lua, Tcl]
         lc_all: [""]
-        # don't test with Lua module syntax (only supported in Lmod)
-        exclude:
-          - modules_tool: ${{needs.setup.outputs.modulesTcl}}
-            module_syntax: Lua
-          - modules_tool: ${{needs.setup.outputs.modules3}}
-            module_syntax: Lua
-          - modules_tool: ${{needs.setup.outputs.modules4}}
-            module_syntax: Lua
         include:
           # Test different Python 3 versions with Lmod 8.x (with both Lua and Tcl module syntax)
           - python: 3.7
             modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Lua
           - python: 3.8
             modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Lua
-          - python: 3.8
-            modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Tcl
           - python: 3.9
             modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Lua
           - python: '3.10'
             modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Lua
           - python: '3.11'
             modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Lua
-          - python: '3.11'
-            modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Tcl
           # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
           # Hence run the tests (again) with LC_ALL=C and Python 3.6 (or any < 3.7)
           - python: 3.6
             modules_tool: ${{needs.setup.outputs.lmod8}}
-            module_syntax: Lua
             lc_all: C
       fail-fast: false
     steps:
@@ -122,16 +101,11 @@ jobs:
         # and are only run after the PR gets merged
         GITHUB_TOKEN: ${{secrets.CI_UNIT_TESTS_GITHUB_TOKEN}}
       run: |
-        # don't install GitHub token when testing with Lmod 7.x or non-Lmod module tools,
-        # and only when testing with Lua as module syntax,
-        # to avoid hitting GitHub rate limit;
+        # don't install GitHub token when testing with Lmod 7.x or non-Lmod module tools, to avoid hitting GitHub rate limit;
         # tests that require a GitHub token are skipped automatically when no GitHub token is available
-        if [[ ! "${{matrix.modules_tool}}" =~ 'Lmod-7' ]] && [[ ! "${{matrix.modules_tool}}" =~ 'modules-' ]] && [[ "${{matrix.module_syntax}}" == 'Lua' ]]; then
+        if [[ ! "${{matrix.modules_tool}}" =~ 'Lmod-7' ]] && [[ ! "${{matrix.modules_tool}}" =~ 'modules-' ]]; then
           if [ ! -z $GITHUB_TOKEN ]; then
-            if [ "x${{matrix.python}}" == 'x2.6' ];
-              then SET_KEYRING="keyring.set_keyring(keyring.backends.file.PlaintextKeyring())";
-              else SET_KEYRING="import keyrings.alt.file; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
-            fi;
+            SET_KEYRING="import keyrings.alt.file; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
             python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
           fi
           echo "GitHub token installed!"
@@ -169,8 +143,6 @@ jobs:
     - name: run test suite
       env:
         EB_VERBOSE: 1
-        EASYBUILD_MODULE_SYNTAX: ${{matrix.module_syntax}}
-        TEST_EASYBUILD_MODULE_SYNTAX: ${{matrix.module_syntax}}
         LC_ALL: ${{matrix.lc_all}}
       run: |
           # run tests *outside* of checked out easybuild-framework directory,
@@ -195,19 +167,32 @@ jobs:
           else
             export EASYBUILD_MODULES_TOOL=Lmod
           fi
-          export TEST_EASYBUILD_MODULES_TOOL=$EASYBUILD_MODULES_TOOL
-          eb --show-config
-          # gather some useful info on test system
-          eb --show-system-info
-          # check GitHub configuration
-          eb --check-github --github-user=easybuild_test
-          # create file owned by root but writable by anyone (used by test_copy_file)
-          sudo touch /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
-          sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
-          # run test suite
-          python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
-          # try and make sure output of running tests is clean (no printed messages/warnings)
-          IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|requires Lmod as modules tool|stty: 'standard input': Inappropriate ioctl for device|CryptographyDeprecationWarning: Python 3.[56]|from cryptography.* import |CryptographyDeprecationWarning: Python 2|Blowfish|GC3Pie not available, skipping test"
-          # '|| true' is needed to avoid that Travis stops the job on non-zero exit of grep (i.e. when there are no matches)
-          PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
-          test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite" && echo "${PRINTED_MSG}" && exit 1)
+          export TEST_EASYBUILD_MODULES_TOOL=${EASYBUILD_MODULES_TOOL}
+
+          # Run tests with LUA and Tcl module syntax (where supported)
+          for module_syntax in Lua Tcl; do
+            # Only Lmod supports Lua
+            if [[ "${module_syntax}" == "Lua" ]] && [[ "${EASYBUILD_MODULES_TOOL}" != "Lmod" ]]; then
+              echo "Not testing with '${module_syntax}' as module syntax with '${EASYBUILD_MODULES_TOOL}' as modules tool"
+              continue
+            fi
+            printf '\n\n=====================> Using $module_syntax module syntax <=====================\n\n'
+            export EASYBUILD_MODULE_SYNTAX="${module_syntax}"
+            export TEST_EASYBUILD_MODULE_SYNTAX="${EASYBUILD_MODULE_SYNTAX}"
+
+            eb --show-config
+            # gather some useful info on test system
+            eb --show-system-info
+            # check GitHub configuration
+            eb --check-github --github-user=easybuild_test
+            # create file owned by root but writable by anyone (used by test_copy_file)
+            sudo touch /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
+            sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
+            # run test suite
+            python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
+            # try and make sure output of running tests is clean (no printed messages/warnings)
+            IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|requires Lmod as modules tool|stty: 'standard input': Inappropriate ioctl for device|CryptographyDeprecationWarning: Python 3.[56]|from cryptography.* import |CryptographyDeprecationWarning: Python 2|Blowfish|GC3Pie not available, skipping test"
+            # '|| true' is needed to avoid that GitHub Actions stops the job on non-zero exit of grep (i.e. when there are no matches)
+            PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
+            test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite" && echo "${PRINTED_MSG}" && exit 1)
+          done

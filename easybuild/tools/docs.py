@@ -441,6 +441,7 @@ def avail_easyconfig_templates_txt():
     # step 2: add SOFTWARE_VERSIONS
     doc.append('Template names/values for (short) software versions')
     for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
+        doc.append("%s%%(%smajver)s: major version for %s" % (INDENT_4SPACES, pref, name))
         doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (INDENT_4SPACES, pref, name))
         doc.append("%s%%(%sver)s: full version for %s" % (INDENT_4SPACES, pref, name))
     doc.append('')
@@ -495,8 +496,10 @@ def avail_easyconfig_templates_rst():
     ver = []
     ver_desc = []
     for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
+        ver.append('``%%(%smajver)s``' % pref)
         ver.append('``%%(%sshortver)s``' % pref)
         ver.append('``%%(%sver)s``' % pref)
+        ver_desc.append('major version for %s' % name)
         ver_desc.append('short version for %s (<major>.<minor>)' % name)
         ver_desc.append('full version for %s' % name)
     table_values = [ver, ver_desc]
@@ -558,8 +561,10 @@ def avail_easyconfig_templates_md():
     ver = []
     ver_desc = []
     for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
+        ver.append('``%%(%smajver)s``' % pref)
         ver.append('``%%(%sshortver)s``' % pref)
         ver.append('``%%(%sver)s``' % pref)
+        ver_desc.append('major version for %s' % name)
         ver_desc.append('short version for %s (``<major>.<minor>``)' % name)
         ver_desc.append('full version for %s' % name)
     table_values = [ver, ver_desc]
