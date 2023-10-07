@@ -77,7 +77,7 @@ CACHED_COMMANDS = [
 ]
 
 
-RunResult = namedtuple('RunResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir'))
+RunShellCmdResult = namedtuple('RunShellCmdResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir'))
 
 
 def report_run_shell_cmd_error(cmd, exit_code, work_dir, output, stderr):
@@ -230,7 +230,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             msg += f"  (in {work_dir})"
             dry_run_msg(msg, silent=silent)
 
-        return RunResult(cmd=cmd_str, exit_code=0, output='', stderr=None, work_dir=work_dir)
+        return RunShellCmdResult(cmd=cmd_str, exit_code=0, output='', stderr=None, work_dir=work_dir)
 
     start_time = datetime.now()
     if not hidden:
@@ -261,9 +261,9 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     # return output as a regular string rather than a byte sequence (and non-UTF-8 characters get stripped out)
     output = proc.stdout.decode('utf-8', 'ignore')
-    stderr_output = proc.stderr.decode('utf-8', 'ignore') if split_stderr else None
+    stderr= proc.stderr.decode('utf-8', 'ignore') if split_stderr else None
 
-    res = RunResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr_output, work_dir=work_dir)
+    res = RunShellCmdResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr, work_dir=work_dir)
 
     if res.exit_code != 0 and fail_on_error:
         report_run_shell_cmd_error(res.cmd, res.exit_code, res.work_dir, output=res.output, stderr=res.stderr)

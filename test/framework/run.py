@@ -50,8 +50,9 @@ import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.config import update_build_option
 from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, write_file
-from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
-from easybuild.tools.run import RunResult, parse_log_for_error, run_shell_cmd, run_cmd, run_cmd_qa, subprocess_terminate
+from easybuild.tools.run import RunShellCmdResult, check_async_cmd, check_log_for_errors, complete_cmd
+from easybuild.tools.run import get_output_from_process, parse_log_for_error, run_shell_cmd, run_cmd, run_cmd_qa
+from easybuild.tools.run import subprocess_terminate
 from easybuild.tools.config import ERROR, IGNORE, WARN
 
 
@@ -863,7 +864,8 @@ class RunTest(EnhancedTestCase):
 
         # inject value into cache to check whether executing command again really returns cached value
         with self.mocked_stdout_stderr():
-            cached_res = RunResult(cmd=cmd, output="123456", exit_code=123, stderr=None, work_dir='/test_ulimit')
+            cached_res = RunShellCmdResult(cmd=cmd, output="123456", exit_code=123, stderr=None,
+                                           work_dir='/test_ulimit')
             run_shell_cmd.update_cache({(cmd, None): cached_res})
             res = run_shell_cmd(cmd)
         self.assertEqual(res.cmd, cmd)
@@ -881,7 +883,7 @@ class RunTest(EnhancedTestCase):
 
         # inject different output for cat with 'foo' as stdin to check whether cached value is used
         with self.mocked_stdout_stderr():
-            cached_res = RunResult(cmd=cmd, output="bar", exit_code=123, stderr=None, work_dir='/test_cat')
+            cached_res = RunShellCmdResult(cmd=cmd, output="bar", exit_code=123, stderr=None, work_dir='/test_cat')
             run_shell_cmd.update_cache({(cmd, 'foo'): cached_res})
             res = run_shell_cmd(cmd, stdin='foo')
         self.assertEqual(res.cmd, cmd)
