@@ -37,6 +37,7 @@ Authors:
 """
 import contextlib
 import functools
+import inspect
 import os
 import re
 import signal
@@ -49,7 +50,8 @@ from datetime import datetime
 
 import easybuild.tools.asyncprocess as asyncprocess
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
+from easybuild.base.exceptions import LoggedException
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_error, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.utilities import trace_msg
@@ -76,6 +78,56 @@ CACHED_COMMANDS = [
 
 
 RunResult = namedtuple('RunResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir'))
+
+
+def report_run_shell_cmd_error(cmd, exit_code, work_dir, output, stderr):
+    """
+    Report error that occurred when running a shell command.
+    """
+    cmd_name = cmd.split(' ')[0]
+
+    tmpdir = tempfile.mkdtemp(prefix='shell-cmd-error-')
+    output_fp = os.path.join(tmpdir, f"{cmd_name}.out")
+    with open(output_fp, 'w') as fp:
+        fp.write(output or '')
+    stderr_fp = os.path.join(tmpdir, f"{cmd_name}.err")
+    with open(stderr_fp, 'w') as fp:
+        fp.write(stderr or '')
+
+    # figure out where failing command was run
+    # need to go 3 levels down:
+    # 1) this function
+    # 2) run_shell_cmd function
+    # 3) run_cmd_cache decorator
+    # 4) actual caller site
+    frameinfo = inspect.getouterframes(inspect.currentframe())[3]
+    caller_file_name = frameinfo.filename
+    caller_line_nr = frameinfo.lineno
+    caller_function_name = frameinfo.function
+
+    error_info = [
+        f"| full shell command       | {cmd}",
+        f"| exit code                | {exit_code}",
+        f"| working directory        | {work_dir}",
+    ]
+    if stderr is None:
+        error_info.append(f"| output (stdout + stderr) | {output_fp}")
+    else:
+        error_info.extend([
+            f"| output (stdout)          | {output_fp}",
+            f"| error/warnings (stderr)  | {stderr_fp}",
+        ])
+
+    called_from_info = f"{caller_function_name} function in {caller_file_name} (line {caller_line_nr})"
+    error_info.append(f"| called from              | {called_from_info}")
+
+    error_msg = '\n'.join([''] + error_info + [
+        '',
+        f"ERROR: shell command '{cmd_name}' failed!",
+        '',
+    ])
+    sys.stderr.write(error_msg)
+    sys.exit(exit_code)
 
 
 def run_cmd_cache(func):
@@ -204,7 +256,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             _log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
 
     _log.info(f"Running command '{cmd_str}' in {work_dir}")
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=stderr, check=fail_on_error,
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=stderr, check=False,
                           cwd=work_dir, env=env, input=stdin, shell=shell, executable=executable)
 
     # return output as a regular string rather than a byte sequence (and non-UTF-8 characters get stripped out)
@@ -212,6 +264,9 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     stderr_output = proc.stderr.decode('utf-8', 'ignore') if split_stderr else None
 
     res = RunResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr_output, work_dir=work_dir)
+
+    if res.exit_code != 0 and fail_on_error:
+        report_run_shell_cmd_error(res.cmd, res.exit_code, res.work_dir, output=res.output, stderr=res.stderr)
 
     if with_hooks:
         run_hook_kwargs = {

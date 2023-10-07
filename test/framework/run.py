@@ -49,7 +49,7 @@ import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.config import update_build_option
-from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, write_file
 from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
 from easybuild.tools.run import RunResult, parse_log_for_error, run_shell_cmd, run_cmd, run_cmd_qa, subprocess_terminate
 from easybuild.tools.config import ERROR, IGNORE, WARN
@@ -317,9 +317,47 @@ class RunTest(EnhancedTestCase):
             signal.signal(signal.SIGALRM, handler)
             signal.alarm(3)
 
-            with self.mocked_stdout_stderr():
-                res = run_shell_cmd("kill -9 $$", fail_on_error=False)
+            # command to kill parent shell
+            cmd = "kill -9 $$"
+
+            workdir = os.path.realpath(self.test_prefix)
+            change_dir(workdir)
+
+            with self.mocked_stdout_stderr() as (_, stderr):
+                self.assertErrorRegex(SystemExit, '.*', run_shell_cmd, cmd)
+
+            # check error reporting output
+            stderr = stderr.getvalue()
+            patterns = [
+                r"^\| full shell command[ ]*\| kill -9 \$\$",
+                r"^\| exit code[ ]*\| -9",
+                r"^\| working directory[ ]*\| " + workdir,
+                r"^\| called from[ ]*\| assertErrorRegex function in .*/easybuild/base/testing.py \(line [0-9]+\)",
+                r"^ERROR: shell command 'kill' failed!",
+                r"^\| output \(stdout \+ stderr\)[ ]*\| .*/shell-cmd-error-.*/kill.out",
+            ]
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(stderr), "Pattern '%s' should be found in: %s" % (regex.pattern, stderr))
+
+            # check error reporting output when stdout/stderr are collected separately
+            with self.mocked_stdout_stderr() as (_, stderr):
+                self.assertErrorRegex(SystemExit, '.*', run_shell_cmd, cmd, split_stderr=True)
+            stderr = stderr.getvalue()
+            patterns.pop(-1)
+            patterns.extend([
+                r"^\| output \(stdout\)[ ]*\| .*/shell-cmd-error-.*/kill.out",
+                r"^\| error/warnings \(stderr\)[ ]*\| .*/shell-cmd-error-.*/kill.err",
+            ])
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(stderr), "Pattern '%s' should be found in: %s" % (regex.pattern, stderr))
+
+            # no error reporting when fail_on_error is disabled
+            with self.mocked_stdout_stderr() as (_, stderr):
+                res = run_shell_cmd(cmd, fail_on_error=False)
             self.assertEqual(res.exit_code, -9)
+            self.assertEqual(stderr.getvalue(), '')
 
         finally:
             # cleanup: disable the alarm + reset signal handler for SIGALRM
