@@ -106,7 +106,7 @@ def print_run_shell_cmd_error(err):
     cmd_name = err.cmd.split(' ')[0]
     error_info = [
         '',
-        f"ERROR: Shell command failed!",
+        "ERROR: Shell command failed!",
         pad_4_spaces(f"full command              ->  {err.cmd}"),
         pad_4_spaces(f"exit code                 ->  {err.exit_code}"),
         pad_4_spaces(f"working directory         ->  {err.work_dir}"),

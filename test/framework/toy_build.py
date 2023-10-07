@@ -4087,7 +4087,7 @@ class ToyBuildTest(EnhancedTestCase):
         args = [
             toy_ec,
             f'--hooks={hooks_file}',
-            f'--force',
+            '--force',
             f'--installpath={self.test_prefix}',
             f'--include-easyblocks={toy_eb}',
         ]
