@@ -50,9 +50,9 @@ import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.config import update_build_option
 from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, write_file
-from easybuild.tools.run import RunShellCmdResult, check_async_cmd, check_log_for_errors, complete_cmd
-from easybuild.tools.run import get_output_from_process, parse_log_for_error, run_shell_cmd, run_cmd, run_cmd_qa
-from easybuild.tools.run import subprocess_terminate
+from easybuild.tools.run import RunShellCmdResult, RunShellCmdError, check_async_cmd, check_log_for_errors
+from easybuild.tools.run import complete_cmd, get_output_from_process, parse_log_for_error
+from easybuild.tools.run import print_run_shell_cmd_error, run_cmd, run_cmd_qa, run_shell_cmd, subprocess_terminate
 from easybuild.tools.config import ERROR, IGNORE, WARN
 
 
@@ -311,6 +311,9 @@ class RunTest(EnhancedTestCase):
         def handler(signum, _):
             raise RuntimeError("Signal handler called with signal %s" % signum)
 
+        # disable trace output for this test (so stdout remains empty)
+        update_build_option('trace', False)
+
         orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
         try:
@@ -321,38 +324,78 @@ class RunTest(EnhancedTestCase):
             # command to kill parent shell
             cmd = "kill -9 $$"
 
-            workdir = os.path.realpath(self.test_prefix)
-            change_dir(workdir)
+            work_dir = os.path.realpath(self.test_prefix)
+            change_dir(work_dir)
 
-            with self.mocked_stdout_stderr() as (_, stderr):
-                self.assertErrorRegex(SystemExit, '.*', run_shell_cmd, cmd)
+            try:
+                run_shell_cmd(cmd)
+                self.assertFalse("This should never be reached, RunShellCmdError should occur!")
+            except RunShellCmdError as err:
+                self.assertEqual(str(err), "Shell command 'kill' failed!")
+                self.assertEqual(err.cmd, "kill -9 $$")
+                self.assertEqual(err.cmd_name, 'kill')
+                self.assertEqual(err.exit_code, -9)
+                self.assertEqual(err.work_dir, work_dir)
+                self.assertEqual(err.output, '')
+                self.assertEqual(err.stderr, None)
+                self.assertTrue(isinstance(err.caller_info, tuple))
+                self.assertEqual(len(err.caller_info), 3)
+                self.assertEqual(err.caller_info[0], __file__)
+                self.assertTrue(isinstance(err.caller_info[1], int))  # line number of calling site
+                self.assertEqual(err.caller_info[2], 'test_run_shell_cmd_fail')
 
-            # check error reporting output
-            stderr = stderr.getvalue()
-            patterns = [
-                r"^\| full shell command[ ]*\| kill -9 \$\$",
-                r"^\| exit code[ ]*\| -9",
-                r"^\| working directory[ ]*\| " + workdir,
-                r"^\| called from[ ]*\| assertErrorRegex function in .*/easybuild/base/testing.py \(line [0-9]+\)",
-                r"^ERROR: shell command 'kill' failed!",
-                r"^\| output \(stdout \+ stderr\)[ ]*\| .*/shell-cmd-error-.*/kill.out",
-            ]
-            for pattern in patterns:
-                regex = re.compile(pattern, re.M)
-                self.assertTrue(regex.search(stderr), "Pattern '%s' should be found in: %s" % (regex.pattern, stderr))
+                with self.mocked_stdout_stderr() as (_, stderr):
+                    print_run_shell_cmd_error(err)
+
+                # check error reporting output
+                stderr = stderr.getvalue()
+                patterns = [
+                    r"^ERROR: Shell command failed!",
+                    r"^\s+full command\s* ->  kill -9 \$\$",
+                    r"^\s+exit code\s* ->  -9",
+                    r"^\s+working directory\s* ->  " + work_dir,
+                    r"^\s+called from\s* ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
+                    r"^\s+output \(stdout \+ stderr\)\s* ->  .*/shell-cmd-error-.*/kill.out",
+                ]
+                for pattern in patterns:
+                    regex = re.compile(pattern, re.M)
+                    self.assertTrue(regex.search(stderr), "Pattern '%s' should be found in: %s" % (pattern, stderr))
 
             # check error reporting output when stdout/stderr are collected separately
-            with self.mocked_stdout_stderr() as (_, stderr):
-                self.assertErrorRegex(SystemExit, '.*', run_shell_cmd, cmd, split_stderr=True)
-            stderr = stderr.getvalue()
-            patterns.pop(-1)
-            patterns.extend([
-                r"^\| output \(stdout\)[ ]*\| .*/shell-cmd-error-.*/kill.out",
-                r"^\| error/warnings \(stderr\)[ ]*\| .*/shell-cmd-error-.*/kill.err",
-            ])
-            for pattern in patterns:
-                regex = re.compile(pattern, re.M)
-                self.assertTrue(regex.search(stderr), "Pattern '%s' should be found in: %s" % (regex.pattern, stderr))
+            try:
+                run_shell_cmd(cmd, split_stderr=True)
+                self.assertFalse("This should never be reached, RunShellCmdError should occur!")
+            except RunShellCmdError as err:
+                self.assertEqual(str(err), "Shell command 'kill' failed!")
+                self.assertEqual(err.cmd, "kill -9 $$")
+                self.assertEqual(err.cmd_name, 'kill')
+                self.assertEqual(err.exit_code, -9)
+                self.assertEqual(err.work_dir, work_dir)
+                self.assertEqual(err.output, '')
+                self.assertEqual(err.stderr, '')
+                self.assertTrue(isinstance(err.caller_info, tuple))
+                self.assertEqual(len(err.caller_info), 3)
+                self.assertEqual(err.caller_info[0], __file__)
+                self.assertTrue(isinstance(err.caller_info[1], int))  # line number of calling site
+                self.assertEqual(err.caller_info[2], 'test_run_shell_cmd_fail')
+
+                with self.mocked_stdout_stderr() as (_, stderr):
+                    print_run_shell_cmd_error(err)
+
+                # check error reporting output
+                stderr = stderr.getvalue()
+                patterns = [
+                    r"^ERROR: Shell command failed!",
+                    r"^\s+full command\s+ ->  kill -9 \$\$",
+                    r"^\s+exit code\s+ ->  -9",
+                    r"^\s+working directory\s+ ->  " + work_dir,
+                    r"^\s+called from\s+ ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
+                    r"^\s+output \(stdout\)\s+ -> .*/shell-cmd-error-.*/kill.out",
+                    r"^\s+error/warnings \(stderr\)\s+ -> .*/shell-cmd-error-.*/kill.err",
+                ]
+                for pattern in patterns:
+                    regex = re.compile(pattern, re.M)
+                    self.assertTrue(regex.search(stderr), "Pattern '%s' should be found in: %s" % (pattern, stderr))
 
             # no error reporting when fail_on_error is disabled
             with self.mocked_stdout_stderr() as (_, stderr):
