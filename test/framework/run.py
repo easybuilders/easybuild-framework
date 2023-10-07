@@ -249,7 +249,7 @@ class RunTest(EnhancedTestCase):
         os.close(fd)
 
         regex_start_cmd = re.compile("Running command 'echo hello' in /")
-        regex_cmd_exit = re.compile("Command 'echo hello' exited with exit code [0-9]* and output:")
+        regex_cmd_exit = re.compile("Shell command completed successfully \(see output above\): echo hello")
 
         # command output is always logged
         init_logging(logfile, silent=True)
@@ -258,8 +258,9 @@ class RunTest(EnhancedTestCase):
         stop_logging(logfile)
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, 'hello\n')
-        self.assertEqual(len(regex_start_cmd.findall(read_file(logfile))), 1)
-        self.assertEqual(len(regex_cmd_exit.findall(read_file(logfile))), 1)
+        logtxt = read_file(logfile)
+        self.assertEqual(len(regex_start_cmd.findall(logtxt)), 1)
+        self.assertEqual(len(regex_cmd_exit.findall(logtxt)), 1)
         write_file(logfile, '')
 
         # with debugging enabled, exit code and output of command should only get logged once

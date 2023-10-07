@@ -374,8 +374,8 @@ class ToyBuildTest(EnhancedTestCase):
             'verify': False,
             'verbose': False,
         }
-        err_regex = r"Traceback[\S\s]*toy_buggy.py.*build_step[\S\s]*name 'run_cmd' is not defined"
-        self.assertErrorRegex(EasyBuildError, err_regex, self.run_test_toy_build_with_output, **kwargs)
+        err_regex = r"name 'run_cmd' is not defined"
+        self.assertErrorRegex(NameError, err_regex, self.run_test_toy_build_with_output, **kwargs)
 
     def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
@@ -1435,7 +1435,7 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ec_txt)
 
-        error_pattern = "unzip .*/bar-0.0.tar.gz.* returned non-zero exit status"
+        error_pattern = r"shell command 'unzip \.\.\.' failed in extensions step for test.eb"
         with self.mocked_stdout_stderr():
             # for now, we expect subprocess.CalledProcessError, but eventually 'run' function will
             # do proper error reporting
@@ -2642,7 +2642,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt = test_ec_txt + '\nenhance_sanity_check = False'
         write_file(test_ec, test_ec_txt)
 
-        error_pattern = r" Missing mandatory key 'dirs' in sanity_check_paths."
+        error_pattern = r"Missing mandatory key 'dirs' in sanity_check_paths."
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
                                   extra_args=eb_args, raise_error=True, verbose=False)
