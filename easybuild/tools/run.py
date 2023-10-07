@@ -50,8 +50,7 @@ from datetime import datetime
 
 import easybuild.tools.asyncprocess as asyncprocess
 from easybuild.base import fancylogger
-from easybuild.base.exceptions import LoggedException
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_error, print_msg, time_str_since
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.utilities import trace_msg
@@ -151,9 +150,6 @@ def raise_run_shell_cmd_error(cmd, exit_code, work_dir, output, stderr):
     # 3) run_cmd_cache decorator
     # 4) actual caller site
     frameinfo = inspect.getouterframes(inspect.currentframe())[3]
-    caller_file_name = frameinfo.filename
-    caller_line_nr = frameinfo.lineno
-    caller_function_name = frameinfo.function
     caller_info = (frameinfo.filename, frameinfo.lineno, frameinfo.function)
 
     raise RunShellCmdError(cmd, exit_code, work_dir, output, stderr, caller_info)
@@ -290,7 +286,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     # return output as a regular string rather than a byte sequence (and non-UTF-8 characters get stripped out)
     output = proc.stdout.decode('utf-8', 'ignore')
-    stderr= proc.stderr.decode('utf-8', 'ignore') if split_stderr else None
+    stderr = proc.stderr.decode('utf-8', 'ignore') if split_stderr else None
 
     res = RunShellCmdResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr, work_dir=work_dir)
 

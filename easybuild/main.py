@@ -77,7 +77,6 @@ from easybuild.tools.options import opts_dict_to_eb_opts, set_up_configuration, 
 from easybuild.tools.output import COLOR_GREEN, COLOR_RED, STATUS_BAR, colorize, print_checks, rich_live_cm
 from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
-from easybuild.tools.run import RunShellCmdError
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
