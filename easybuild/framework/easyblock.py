@@ -87,7 +87,7 @@ from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTE
 from easybuild.tools.hooks import MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP
 from easybuild.tools.hooks import POSTPROC_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP
 from easybuild.tools.hooks import SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook
-from easybuild.tools.run import check_async_cmd, run_cmd
+from easybuild.tools.run import RunShellCmdError, check_async_cmd, print_run_shell_cmd_error, run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -4124,6 +4124,11 @@ class EasyBlock(object):
                     start_time = datetime.now()
                     try:
                         self.run_step(step_name, step_methods)
+                    except RunShellCmdError as err:
+                        print_run_shell_cmd_error(err)
+                        ec_path = os.path.basename(self.cfg.path)
+                        error_msg = f"shell command '{err.cmd_name} ...' failed in {step_name} step for {ec_path}"
+                        raise EasyBuildError(error_msg)
                     finally:
                         if not self.dry_run:
                             step_duration = datetime.now() - start_time
@@ -4225,7 +4230,7 @@ def build_and_install_one(ecdict, init_env):
         app.cfg['skip'] = skip
 
     # build easyconfig
-    errormsg = '(no error)'
+    error_msg = '(no error)'
     # timing info
     start_time = time.time()
     try:
@@ -4263,9 +4268,7 @@ def build_and_install_one(ecdict, init_env):
                 adjust_permissions(app.installdir, stat.S_IWUSR, add=False, recursive=True)
 
     except EasyBuildError as err:
-        first_n = 300
-        errormsg = "build failed (first %d chars): %s" % (first_n, err.msg[:first_n])
-        _log.warning(errormsg)
+        error_msg = err.msg
         result = False
 
     ended = 'ended'
@@ -4387,11 +4390,7 @@ def build_and_install_one(ecdict, init_env):
         # build failed
         success = False
         summary = 'FAILED'
-
-        build_dir = ''
-        if app.builddir:
-            build_dir = " (build directory: %s)" % (app.builddir)
-        succ = "unsuccessfully%s: %s" % (build_dir, errormsg)
+        succ = "unsuccessfully: " + error_msg
 
         # cleanup logs
         app.close_log()
@@ -4424,7 +4423,7 @@ def build_and_install_one(ecdict, init_env):
 
     del app
 
-    return (success, application_log, errormsg)
+    return (success, application_log, error_msg)
 
 
 def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
