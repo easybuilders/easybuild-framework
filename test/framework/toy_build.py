@@ -58,7 +58,7 @@ from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file,
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
-from easybuild.tools.run import RunShellCmdError, run_cmd, run_shell_cmd
+from easybuild.tools.run import run_cmd
 from easybuild.tools.utilities import nub
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION

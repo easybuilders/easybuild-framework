@@ -249,7 +249,7 @@ class RunTest(EnhancedTestCase):
         os.close(fd)
 
         regex_start_cmd = re.compile("Running command 'echo hello' in /")
-        regex_cmd_exit = re.compile("Shell command completed successfully \(see output above\): echo hello")
+        regex_cmd_exit = re.compile(r"Shell command completed successfully \(see output above\): echo hello")
 
         # command output is always logged
         init_logging(logfile, silent=True)
