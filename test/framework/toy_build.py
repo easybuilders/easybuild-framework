@@ -42,7 +42,7 @@ import tempfile
 import textwrap
 from easybuild.tools import LooseVersion
 from importlib import reload
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner
 
@@ -50,6 +50,7 @@ import easybuild.tools.hooks  # so we can reset cached hooks
 import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.main import main_with_hooks
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
 from easybuild.tools.environment import modify_env
@@ -57,7 +58,7 @@ from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file,
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import RunShellCmdError, run_cmd, run_shell_cmd
 from easybuild.tools.utilities import nub
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
@@ -4067,6 +4068,41 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         regex = re.compile(pattern, re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+    def test_eb_crash(self):
+        """
+        Test behaviour when EasyBuild crashes, for example due to a buggy hook
+        """
+        hooks_file = os.path.join(self.test_prefix, 'my_hooks.py')
+        hooks_file_txt = textwrap.dedent("""
+            def pre_configure_hook(self, *args, **kwargs):
+                no_such_thing
+        """)
+        write_file(hooks_file, hooks_file_txt)
+
+        topdir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        toy_eb = os.path.join(topdir, 'test', 'framework', 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
+        toy_ec = os.path.join(topdir, 'test', 'framework', 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        args = [
+            toy_ec,
+            f'--hooks={hooks_file}',
+            f'--force',
+            f'--installpath={self.test_prefix}',
+            f'--include-easyblocks={toy_eb}',
+        ]
+
+        with self.mocked_stdout_stderr() as (_, stderr):
+            cleanup()
+            try:
+                main_with_hooks(args=args)
+                self.assertFalse("This should never be reached, main function should have crashed!")
+            except NameError as err:
+                self.assertEqual(str(err), "name 'no_such_thing' is not defined")
+
+            regex = re.compile(r"EasyBuild crashed! Please consider reporting a bug, this should not happen")
+            stderr = stderr.getvalue()
+            self.assertTrue(regex.search(stderr), f"Pattern '{regex.pattern}' should be found in {stderr}")
 
 
 def suite():

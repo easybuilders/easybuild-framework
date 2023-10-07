@@ -748,11 +748,11 @@ def prepare_main(args=None, logfile=None, testing=None):
     return init_session_state, eb_go, cfg_settings
 
 
-if __name__ == "__main__":
-    init_session_state, eb_go, cfg_settings = prepare_main()
+def main_with_hooks(args=None):
+    init_session_state, eb_go, cfg_settings = prepare_main(args=args)
     hooks = load_hooks(eb_go.options.hooks)
     try:
-        main(prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
+        main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])
         sys.exit(1)
@@ -763,3 +763,7 @@ if __name__ == "__main__":
         run_hook(CRASH, hooks, args=[err])
         sys.stderr.write("EasyBuild crashed! Please consider reporting a bug, this should not happen...\n\n")
         raise
+
+
+if __name__ == "__main__":
+    main_with_hooks()
