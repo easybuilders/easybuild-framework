@@ -473,7 +473,7 @@ class EasyBuildOptions(GeneralOption):
             'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
                              "with fallback to basic colored output",
                              'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),
-            'parallel': ("Specify (maximum) level of parallellism used during build procedure",
+            'parallel': ("Specify (maximum) level of parallelism used during build procedure",
                          'int', 'store', None),
             'parallel-extensions-install': ("Install list of extensions in parallel (if supported)",
                                             None, 'store_true', False),
