@@ -52,7 +52,7 @@ from easybuild.tools.config import update_build_option
 from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, write_file
 from easybuild.tools.run import RunShellCmdResult, RunShellCmdError, check_async_cmd, check_log_for_errors
 from easybuild.tools.run import complete_cmd, get_output_from_process, parse_log_for_error
-from easybuild.tools.run import print_run_shell_cmd_error, run_cmd, run_cmd_qa, run_shell_cmd, subprocess_terminate
+from easybuild.tools.run import run_cmd, run_cmd_qa, run_shell_cmd, subprocess_terminate
 from easybuild.tools.config import ERROR, IGNORE, WARN
 
 
@@ -346,7 +346,7 @@ class RunTest(EnhancedTestCase):
                 self.assertEqual(err.caller_info[2], 'test_run_shell_cmd_fail')
 
                 with self.mocked_stdout_stderr() as (_, stderr):
-                    print_run_shell_cmd_error(err)
+                    err.print()
 
                 # check error reporting output
                 stderr = stderr.getvalue()
@@ -381,7 +381,7 @@ class RunTest(EnhancedTestCase):
                 self.assertEqual(err.caller_info[2], 'test_run_shell_cmd_fail')
 
                 with self.mocked_stdout_stderr() as (_, stderr):
-                    print_run_shell_cmd_error(err)
+                    err.print()
 
                 # check error reporting output
                 stderr = stderr.getvalue()

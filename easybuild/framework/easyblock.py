@@ -87,7 +87,7 @@ from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTE
 from easybuild.tools.hooks import MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP
 from easybuild.tools.hooks import POSTPROC_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP
 from easybuild.tools.hooks import SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook
-from easybuild.tools.run import RunShellCmdError, check_async_cmd, print_run_shell_cmd_error, run_cmd
+from easybuild.tools.run import RunShellCmdError, check_async_cmd, run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -4125,7 +4125,7 @@ class EasyBlock(object):
                     try:
                         self.run_step(step_name, step_methods)
                     except RunShellCmdError as err:
-                        print_run_shell_cmd_error(err)
+                        err.print()
                         ec_path = os.path.basename(self.cfg.path)
                         error_msg = f"shell command '{err.cmd_name} ...' failed in {step_name} step for {ec_path}"
                         raise EasyBuildError(error_msg)

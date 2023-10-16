@@ -94,48 +94,46 @@ class RunShellCmdError(BaseException):
         msg = f"Shell command '{self.cmd_name}' failed!"
         super(RunShellCmdError, self).__init__(msg, *args, **kwargs)
 
+    def print(self):
+        """
+        Report failed shell command for this RunShellCmdError instance
+        """
 
-def print_run_shell_cmd_error(err):
-    """
-    Report failed shell command using provided RunShellCmdError instance
-    """
+        def pad_4_spaces(msg):
+            return ' ' * 4 + msg
 
-    def pad_4_spaces(msg):
-        return ' ' * 4 + msg
+        error_info = [
+            '',
+            "ERROR: Shell command failed!",
+            pad_4_spaces(f"full command              ->  {self.cmd}"),
+            pad_4_spaces(f"exit code                 ->  {self.exit_code}"),
+            pad_4_spaces(f"working directory         ->  {self.work_dir}"),
+        ]
 
-    cmd_name = err.cmd.split(' ')[0]
-    error_info = [
-        '',
-        "ERROR: Shell command failed!",
-        pad_4_spaces(f"full command              ->  {err.cmd}"),
-        pad_4_spaces(f"exit code                 ->  {err.exit_code}"),
-        pad_4_spaces(f"working directory         ->  {err.work_dir}"),
-    ]
+        tmpdir = tempfile.mkdtemp(prefix='shell-cmd-error-')
+        output_fp = os.path.join(tmpdir, f"{self.cmd_name}.out")
+        with open(output_fp, 'w') as fp:
+            fp.write(self.output or '')
 
-    tmpdir = tempfile.mkdtemp(prefix='shell-cmd-error-')
-    output_fp = os.path.join(tmpdir, f"{cmd_name}.out")
-    with open(output_fp, 'w') as fp:
-        fp.write(err.output or '')
+        if self.stderr is None:
+            error_info.append(pad_4_spaces(f"output (stdout + stderr)  ->  {output_fp}"))
+        else:
+            stderr_fp = os.path.join(tmpdir, f"{self.cmd_name}.err")
+            with open(stderr_fp, 'w') as fp:
+                fp.write(self.stderr)
+            error_info.extend([
+                pad_4_spaces(f"output (stdout)           ->  {output_fp}"),
+                pad_4_spaces(f"error/warnings (stderr)   ->  {stderr_fp}"),
+            ])
 
-    if err.stderr is None:
-        error_info.append(pad_4_spaces(f"output (stdout + stderr)  ->  {output_fp}"))
-    else:
-        stderr_fp = os.path.join(tmpdir, f"{cmd_name}.err")
-        with open(stderr_fp, 'w') as fp:
-            fp.write(err.stderr)
+        caller_file_name, caller_line_nr, caller_function_name = self.caller_info
+        called_from_info = f"'{caller_function_name}' function in {caller_file_name} (line {caller_line_nr})"
         error_info.extend([
-            pad_4_spaces(f"output (stdout)           ->  {output_fp}"),
-            pad_4_spaces(f"error/warnings (stderr)   ->  {stderr_fp}"),
+            pad_4_spaces(f"called from               ->  {called_from_info}"),
+            '',
         ])
 
-    caller_file_name, caller_line_nr, caller_function_name = err.caller_info
-    called_from_info = f"'{caller_function_name}' function in {caller_file_name} (line {caller_line_nr})"
-    error_info.extend([
-        pad_4_spaces(f"called from               ->  {called_from_info}"),
-        '',
-    ])
-
-    sys.stderr.write('\n'.join(error_info) + '\n')
+        sys.stderr.write('\n'.join(error_info) + '\n')
 
 
 def raise_run_shell_cmd_error(cmd, exit_code, work_dir, output, stderr):
