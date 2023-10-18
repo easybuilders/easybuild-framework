@@ -2080,7 +2080,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.run_all_steps(True)
 
     def test_parallel(self):
-        """Test defining of parallellism."""
+        """Test defining of parallelism."""
         topdir = os.path.abspath(os.path.dirname(__file__))
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         toytxt = read_file(toy_ec)
@@ -2097,7 +2097,7 @@ class EasyBlockTest(EnhancedTestCase):
         os.close(handle)
         write_file(toy_ec3, toytxt + "\nparallel = False")
 
-        # default: parallellism is derived from # available cores + ulimit
+        # default: parallelism is derived from # available cores + ulimit
         test_eb = EasyBlock(EasyConfig(toy_ec))
         test_eb.check_readiness_step()
         self.assertTrue(isinstance(test_eb.cfg['parallel'], int) and test_eb.cfg['parallel'] > 0)
