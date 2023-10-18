@@ -76,19 +76,16 @@ CACHED_COMMANDS = [
 ]
 
 
-RunShellCmdResult = namedtuple('RunShellCmdResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir'))
+RunShellCmdResult = namedtuple('RunShellCmdResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir',
+                                                     'out_file', 'err_file'))
 
 
 class RunShellCmdError(BaseException):
 
-    def __init__(self, cmd, exit_code, work_dir, output, stderr, caller_info, *args, **kwargs):
+    def __init__(self, cmd_result, caller_info, *args, **kwargs):
         """Constructor for RunShellCmdError."""
-        self.cmd = cmd
-        self.cmd_name = cmd.split(' ')[0]
-        self.exit_code = exit_code
-        self.work_dir = work_dir
-        self.output = output
-        self.stderr = stderr
+        self.cmd_result = cmd_result
+        self.cmd_name = cmd_result.cmd.split(' ')[0]
         self.caller_info = caller_info
 
         msg = f"Shell command '{self.cmd_name}' failed!"
@@ -105,25 +102,17 @@ class RunShellCmdError(BaseException):
         error_info = [
             '',
             "ERROR: Shell command failed!",
-            pad_4_spaces(f"full command              ->  {self.cmd}"),
-            pad_4_spaces(f"exit code                 ->  {self.exit_code}"),
-            pad_4_spaces(f"working directory         ->  {self.work_dir}"),
+            pad_4_spaces(f"full command              ->  {self.cmd_result.cmd}"),
+            pad_4_spaces(f"exit code                 ->  {self.cmd_result.exit_code}"),
+            pad_4_spaces(f"working directory         ->  {self.cmd_result.work_dir}"),
         ]
 
-        tmpdir = tempfile.mkdtemp(prefix='shell-cmd-error-')
-        output_fp = os.path.join(tmpdir, f"{self.cmd_name}.out")
-        with open(output_fp, 'w') as fp:
-            fp.write(self.output or '')
-
-        if self.stderr is None:
-            error_info.append(pad_4_spaces(f"output (stdout + stderr)  ->  {output_fp}"))
+        if self.cmd_result.stderr is None:
+            error_info.append(pad_4_spaces(f"output (stdout + stderr)  ->  {self.cmd_result.out_file}"))
         else:
-            stderr_fp = os.path.join(tmpdir, f"{self.cmd_name}.err")
-            with open(stderr_fp, 'w') as fp:
-                fp.write(self.stderr)
             error_info.extend([
-                pad_4_spaces(f"output (stdout)           ->  {output_fp}"),
-                pad_4_spaces(f"error/warnings (stderr)   ->  {stderr_fp}"),
+                pad_4_spaces(f"output (stdout)           ->  {self.cmd_result.out_file}"),
+                pad_4_spaces(f"error/warnings (stderr)   ->  {self.cmd_result.err_file}"),
             ])
 
         caller_file_name, caller_line_nr, caller_function_name = self.caller_info
@@ -136,9 +125,9 @@ class RunShellCmdError(BaseException):
         sys.stderr.write('\n'.join(error_info) + '\n')
 
 
-def raise_run_shell_cmd_error(cmd, exit_code, work_dir, output, stderr):
+def raise_run_shell_cmd_error(cmd_res):
     """
-    Raise RunShellCmdError for failing shell command, after collecting additional caller info
+    Raise RunShellCmdError for failed shell command, after collecting additional caller info
     """
 
     # figure out where failing command was run
@@ -150,7 +139,7 @@ def raise_run_shell_cmd_error(cmd, exit_code, work_dir, output, stderr):
     frameinfo = inspect.getouterframes(inspect.currentframe())[3]
     caller_info = (frameinfo.filename, frameinfo.lineno, frameinfo.function)
 
-    raise RunShellCmdError(cmd, exit_code, work_dir, output, stderr, caller_info)
+    raise RunShellCmdError(cmd_res, caller_info)
 
 
 def run_cmd_cache(func):
@@ -234,16 +223,18 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     if work_dir is None:
         work_dir = os.getcwd()
 
-    # temporary output file for command output, if requested
-    if output_file or not hidden:
-        # collect output of running command in temporary log file, if desired
-        fd, cmd_out_fp = tempfile.mkstemp(suffix='.log', prefix='easybuild-run-')
-        os.close(fd)
-        _log.info(f'run_cmd: Output of "{cmd}" will be logged to {cmd_out_fp}')
-    else:
-        cmd_out_fp = None
-
     cmd_str = to_cmd_str(cmd)
+    cmd_name = cmd_str.split(' ')[0]
+
+    # temporary output file(s) for command output
+    tmpdir = tempfile.mkdtemp(prefix='run-shell-cmd-')
+    cmd_out_fp = os.path.join(tmpdir, f'{cmd_name}.out')
+    _log.info(f'run_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
+    if split_stderr:
+        cmd_err_fp = os.path.join(tmpdir, f'{cmd_name}.err')
+        _log.info(f'run_cmd: Errors and warnings of "{cmd_str}" will be logged to {cmd_err_fp}')
+    else:
+        cmd_err_fp = None
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless 'hidden' is enabled)
     if not in_dry_run and build_option('extended_dry_run'):
@@ -253,11 +244,12 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             msg += f"  (in {work_dir})"
             dry_run_msg(msg, silent=silent)
 
-        return RunShellCmdResult(cmd=cmd_str, exit_code=0, output='', stderr=None, work_dir=work_dir)
+        return RunShellCmdResult(cmd=cmd_str, exit_code=0, output='', stderr=None, work_dir=work_dir,
+                                 out_file=cmd_out_fp, err_file=cmd_err_fp)
 
     start_time = datetime.now()
     if not hidden:
-        cmd_trace_msg(cmd_str, start_time, work_dir, stdin, cmd_out_fp)
+        cmd_trace_msg(cmd_str, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp)
 
     if stdin:
         # 'input' value fed to subprocess.run must be a byte sequence
@@ -286,7 +278,18 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     output = proc.stdout.decode('utf-8', 'ignore')
     stderr = proc.stderr.decode('utf-8', 'ignore') if split_stderr else None
 
-    res = RunShellCmdResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr, work_dir=work_dir)
+    # store command output to temporary file(s)
+    try:
+        with open(cmd_out_fp, 'w') as fp:
+            fp.write(output)
+        if split_stderr:
+            with open(cmd_err_fp, 'w') as fp:
+                fp.write(stderr)
+    except IOError as err:
+        raise EasyBuildError(f"Failed to dump command output to temporary file: {err}")
+
+    res = RunShellCmdResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr, work_dir=work_dir,
+                            out_file=cmd_out_fp, err_file=cmd_err_fp)
 
     # always log command output
     cmd_name = cmd_str.split(' ')[0]
@@ -301,7 +304,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     else:
         _log.warning(f"Shell command FAILED (exit code {res.exit_code}, see output above): {cmd_str}")
         if fail_on_error:
-            raise_run_shell_cmd_error(res.cmd, res.exit_code, res.work_dir, output=res.output, stderr=res.stderr)
+            raise_run_shell_cmd_error(res)
 
     if with_hooks:
         run_hook_kwargs = {
@@ -319,7 +322,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     return res
 
 
-def cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp):
+def cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp):
     """
     Helper function to construct and print trace message for command being run
 
@@ -327,7 +330,8 @@ def cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp):
     :param start_time: datetime object indicating when command was started
     :param work_dir: path of working directory in which command is run
     :param stdin: stdin input value for command
-    :param cmd_out_fp: path to output log file for command
+    :param cmd_out_fp: path to output file for command
+    :param cmd_err_fp: path to errors/warnings output file for command
     """
     start_time = start_time.strftime('%Y-%m-%d %H:%M:%S')
 
@@ -338,8 +342,9 @@ def cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp):
     ]
     if stdin:
         lines.append(f"\t[input: {stdin}]")
-    if cmd_out_fp:
-        lines.append(f"\t[output logged in {cmd_out_fp}]")
+    lines.append(f"\t[output saved to {cmd_out_fp}]")
+    if cmd_err_fp:
+        lines.append(f"\t[errors/warnings saved to {cmd_err_fp}]")
 
     lines.append('\t' + cmd)
 

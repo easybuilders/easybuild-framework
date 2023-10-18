@@ -333,12 +333,12 @@ class RunTest(EnhancedTestCase):
                 self.assertFalse("This should never be reached, RunShellCmdError should occur!")
             except RunShellCmdError as err:
                 self.assertEqual(str(err), "Shell command 'kill' failed!")
-                self.assertEqual(err.cmd, "kill -9 $$")
+                self.assertEqual(err.cmd_result.cmd, "kill -9 $$")
                 self.assertEqual(err.cmd_name, 'kill')
-                self.assertEqual(err.exit_code, -9)
-                self.assertEqual(err.work_dir, work_dir)
-                self.assertEqual(err.output, '')
-                self.assertEqual(err.stderr, None)
+                self.assertEqual(err.cmd_result.exit_code, -9)
+                self.assertEqual(err.cmd_result.work_dir, work_dir)
+                self.assertEqual(err.cmd_result.output, '')
+                self.assertEqual(err.cmd_result.stderr, None)
                 self.assertTrue(isinstance(err.caller_info, tuple))
                 self.assertEqual(len(err.caller_info), 3)
                 self.assertEqual(err.caller_info[0], __file__)
@@ -356,7 +356,7 @@ class RunTest(EnhancedTestCase):
                     r"^\s+exit code\s* ->  -9",
                     r"^\s+working directory\s* ->  " + work_dir,
                     r"^\s+called from\s* ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
-                    r"^\s+output \(stdout \+ stderr\)\s* ->  .*/shell-cmd-error-.*/kill.out",
+                    r"^\s+output \(stdout \+ stderr\)\s* ->  .*/run-shell-cmd-.*/kill.out",
                 ]
                 for pattern in patterns:
                     regex = re.compile(pattern, re.M)
@@ -368,12 +368,12 @@ class RunTest(EnhancedTestCase):
                 self.assertFalse("This should never be reached, RunShellCmdError should occur!")
             except RunShellCmdError as err:
                 self.assertEqual(str(err), "Shell command 'kill' failed!")
-                self.assertEqual(err.cmd, "kill -9 $$")
+                self.assertEqual(err.cmd_result.cmd, "kill -9 $$")
                 self.assertEqual(err.cmd_name, 'kill')
-                self.assertEqual(err.exit_code, -9)
-                self.assertEqual(err.work_dir, work_dir)
-                self.assertEqual(err.output, '')
-                self.assertEqual(err.stderr, '')
+                self.assertEqual(err.cmd_result.exit_code, -9)
+                self.assertEqual(err.cmd_result.work_dir, work_dir)
+                self.assertEqual(err.cmd_result.output, '')
+                self.assertEqual(err.cmd_result.stderr, '')
                 self.assertTrue(isinstance(err.caller_info, tuple))
                 self.assertEqual(len(err.caller_info), 3)
                 self.assertEqual(err.caller_info[0], __file__)
@@ -391,8 +391,8 @@ class RunTest(EnhancedTestCase):
                     r"^\s+exit code\s+ ->  -9",
                     r"^\s+working directory\s+ ->  " + work_dir,
                     r"^\s+called from\s+ ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
-                    r"^\s+output \(stdout\)\s+ -> .*/shell-cmd-error-.*/kill.out",
-                    r"^\s+error/warnings \(stderr\)\s+ -> .*/shell-cmd-error-.*/kill.err",
+                    r"^\s+output \(stdout\)\s+ -> .*/run-shell-cmd-.*/kill.out",
+                    r"^\s+error/warnings \(stderr\)\s+ -> .*/run-shell-cmd-.*/kill.err",
                 ]
                 for pattern in patterns:
                     regex = re.compile(pattern, re.M)
@@ -618,7 +618,7 @@ class RunTest(EnhancedTestCase):
             r"^  >> running command:",
             r"\t\[started at: .*\]",
             r"\t\[working dir: .*\]",
-            r"\t\[output logged in .*\]",
+            r"\t\[output saved to .*\]",
             r"\techo hello",
             r"  >> command completed: exit 0, ran in .*",
         ]
@@ -678,7 +678,7 @@ class RunTest(EnhancedTestCase):
             r"^  >> running command:",
             r"\t\[started at: [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]\]",
             r"\t\[working dir: .*\]",
-            r"\t\[output logged in .*\]",
+            r"\t\[output saved to .*\]",
             r"\techo hello",
             r"  >> command completed: exit 0, ran in .*",
         ]
@@ -909,7 +909,7 @@ class RunTest(EnhancedTestCase):
         # inject value into cache to check whether executing command again really returns cached value
         with self.mocked_stdout_stderr():
             cached_res = RunShellCmdResult(cmd=cmd, output="123456", exit_code=123, stderr=None,
-                                           work_dir='/test_ulimit')
+                                           work_dir='/test_ulimit', out_file='/tmp/foo.out', err_file=None)
             run_shell_cmd.update_cache({(cmd, None): cached_res})
             res = run_shell_cmd(cmd)
         self.assertEqual(res.cmd, cmd)
@@ -927,7 +927,8 @@ class RunTest(EnhancedTestCase):
 
         # inject different output for cat with 'foo' as stdin to check whether cached value is used
         with self.mocked_stdout_stderr():
-            cached_res = RunShellCmdResult(cmd=cmd, output="bar", exit_code=123, stderr=None, work_dir='/test_cat')
+            cached_res = RunShellCmdResult(cmd=cmd, output="bar", exit_code=123, stderr=None,
+                                           work_dir='/test_cat', out_file='/tmp/cat.out', err_file=None)
             run_shell_cmd.update_cache({(cmd, 'foo'): cached_res})
             res = run_shell_cmd(cmd, stdin='foo')
         self.assertEqual(res.cmd, cmd)
