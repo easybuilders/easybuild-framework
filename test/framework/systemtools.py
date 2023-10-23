@@ -40,7 +40,7 @@ from unittest import TextTestRunner
 import easybuild.tools.systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, read_file, symlink, which, write_file
-from easybuild.tools.run import RunResult, run_shell_cmd
+from easybuild.tools.run import RunShellCmdResult, run_shell_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
@@ -340,7 +340,7 @@ def mocked_run_shell_cmd(cmd, **kwargs):
         "ulimit -u": '40',
     }
     if cmd in known_cmds:
-        return RunResult(cmd=cmd, exit_code=0, output=known_cmds[cmd], stderr=None, work_dir=os.getcwd())
+        return RunShellCmdResult(cmd=cmd, exit_code=0, output=known_cmds[cmd], stderr=None, work_dir=os.getcwd())
     else:
         return run_shell_cmd(cmd, **kwargs)
 
@@ -774,7 +774,8 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting gcc version (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         out = "Apple LLVM version 7.0.0 (clang-700.1.76)"
-        mocked_run_res = RunResult(cmd="gcc --version", exit_code=0, output=out, stderr=None, work_dir=os.getcwd())
+        cwd = os.getcwd()
+        mocked_run_res = RunShellCmdResult(cmd="gcc --version", exit_code=0, output=out, stderr=None, work_dir=cwd)
         st.run_shell_cmd = lambda *args, **kwargs: mocked_run_res
         self.assertEqual(get_gcc_version(), None)
 

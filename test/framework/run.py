@@ -49,9 +49,10 @@ import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.config import update_build_option
-from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, write_file
-from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
-from easybuild.tools.run import RunResult, parse_log_for_error, run_shell_cmd, run_cmd, run_cmd_qa, subprocess_terminate
+from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, write_file
+from easybuild.tools.run import RunShellCmdResult, RunShellCmdError, check_async_cmd, check_log_for_errors
+from easybuild.tools.run import complete_cmd, get_output_from_process, parse_log_for_error
+from easybuild.tools.run import run_cmd, run_cmd_qa, run_shell_cmd, subprocess_terminate
 from easybuild.tools.config import ERROR, IGNORE, WARN
 
 
@@ -248,7 +249,7 @@ class RunTest(EnhancedTestCase):
         os.close(fd)
 
         regex_start_cmd = re.compile("Running command 'echo hello' in /")
-        regex_cmd_exit = re.compile("Command 'echo hello' exited with exit code [0-9]* and output:")
+        regex_cmd_exit = re.compile(r"Shell command completed successfully \(see output above\): echo hello")
 
         # command output is always logged
         init_logging(logfile, silent=True)
@@ -257,8 +258,9 @@ class RunTest(EnhancedTestCase):
         stop_logging(logfile)
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, 'hello\n')
-        self.assertEqual(len(regex_start_cmd.findall(read_file(logfile))), 1)
-        self.assertEqual(len(regex_cmd_exit.findall(read_file(logfile))), 1)
+        logtxt = read_file(logfile)
+        self.assertEqual(len(regex_start_cmd.findall(logtxt)), 1)
+        self.assertEqual(len(regex_cmd_exit.findall(logtxt)), 1)
         write_file(logfile, '')
 
         # with debugging enabled, exit code and output of command should only get logged once
@@ -310,6 +312,9 @@ class RunTest(EnhancedTestCase):
         def handler(signum, _):
             raise RuntimeError("Signal handler called with signal %s" % signum)
 
+        # disable trace output for this test (so stdout remains empty)
+        update_build_option('trace', False)
+
         orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
         try:
@@ -317,9 +322,87 @@ class RunTest(EnhancedTestCase):
             signal.signal(signal.SIGALRM, handler)
             signal.alarm(3)
 
-            with self.mocked_stdout_stderr():
-                res = run_shell_cmd("kill -9 $$", fail_on_error=False)
+            # command to kill parent shell
+            cmd = "kill -9 $$"
+
+            work_dir = os.path.realpath(self.test_prefix)
+            change_dir(work_dir)
+
+            try:
+                run_shell_cmd(cmd)
+                self.assertFalse("This should never be reached, RunShellCmdError should occur!")
+            except RunShellCmdError as err:
+                self.assertEqual(str(err), "Shell command 'kill' failed!")
+                self.assertEqual(err.cmd, "kill -9 $$")
+                self.assertEqual(err.cmd_name, 'kill')
+                self.assertEqual(err.exit_code, -9)
+                self.assertEqual(err.work_dir, work_dir)
+                self.assertEqual(err.output, '')
+                self.assertEqual(err.stderr, None)
+                self.assertTrue(isinstance(err.caller_info, tuple))
+                self.assertEqual(len(err.caller_info), 3)
+                self.assertEqual(err.caller_info[0], __file__)
+                self.assertTrue(isinstance(err.caller_info[1], int))  # line number of calling site
+                self.assertEqual(err.caller_info[2], 'test_run_shell_cmd_fail')
+
+                with self.mocked_stdout_stderr() as (_, stderr):
+                    err.print()
+
+                # check error reporting output
+                stderr = stderr.getvalue()
+                patterns = [
+                    r"^ERROR: Shell command failed!",
+                    r"^\s+full command\s* ->  kill -9 \$\$",
+                    r"^\s+exit code\s* ->  -9",
+                    r"^\s+working directory\s* ->  " + work_dir,
+                    r"^\s+called from\s* ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
+                    r"^\s+output \(stdout \+ stderr\)\s* ->  .*/shell-cmd-error-.*/kill.out",
+                ]
+                for pattern in patterns:
+                    regex = re.compile(pattern, re.M)
+                    self.assertTrue(regex.search(stderr), "Pattern '%s' should be found in: %s" % (pattern, stderr))
+
+            # check error reporting output when stdout/stderr are collected separately
+            try:
+                run_shell_cmd(cmd, split_stderr=True)
+                self.assertFalse("This should never be reached, RunShellCmdError should occur!")
+            except RunShellCmdError as err:
+                self.assertEqual(str(err), "Shell command 'kill' failed!")
+                self.assertEqual(err.cmd, "kill -9 $$")
+                self.assertEqual(err.cmd_name, 'kill')
+                self.assertEqual(err.exit_code, -9)
+                self.assertEqual(err.work_dir, work_dir)
+                self.assertEqual(err.output, '')
+                self.assertEqual(err.stderr, '')
+                self.assertTrue(isinstance(err.caller_info, tuple))
+                self.assertEqual(len(err.caller_info), 3)
+                self.assertEqual(err.caller_info[0], __file__)
+                self.assertTrue(isinstance(err.caller_info[1], int))  # line number of calling site
+                self.assertEqual(err.caller_info[2], 'test_run_shell_cmd_fail')
+
+                with self.mocked_stdout_stderr() as (_, stderr):
+                    err.print()
+
+                # check error reporting output
+                stderr = stderr.getvalue()
+                patterns = [
+                    r"^ERROR: Shell command failed!",
+                    r"^\s+full command\s+ ->  kill -9 \$\$",
+                    r"^\s+exit code\s+ ->  -9",
+                    r"^\s+working directory\s+ ->  " + work_dir,
+                    r"^\s+called from\s+ ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
+                    r"^\s+output \(stdout\)\s+ -> .*/shell-cmd-error-.*/kill.out",
+                    r"^\s+error/warnings \(stderr\)\s+ -> .*/shell-cmd-error-.*/kill.err",
+                ]
+                for pattern in patterns:
+                    regex = re.compile(pattern, re.M)
+                    self.assertTrue(regex.search(stderr), "Pattern '%s' should be found in: %s" % (pattern, stderr))
+
+            # no error reporting when fail_on_error is disabled
+            with self.mocked_stdout_stderr() as (_, stderr):
+                res = run_shell_cmd(cmd, fail_on_error=False)
             self.assertEqual(res.exit_code, -9)
+            self.assertEqual(stderr.getvalue(), '')
 
         finally:
             # cleanup: disable the alarm + reset signal handler for SIGALRM
@@ -825,7 +908,8 @@ class RunTest(EnhancedTestCase):
 
         # inject value into cache to check whether executing command again really returns cached value
         with self.mocked_stdout_stderr():
-            cached_res = RunResult(cmd=cmd, output="123456", exit_code=123, stderr=None, work_dir='/test_ulimit')
+            cached_res = RunShellCmdResult(cmd=cmd, output="123456", exit_code=123, stderr=None,
+                                           work_dir='/test_ulimit')
             run_shell_cmd.update_cache({(cmd, None): cached_res})
             res = run_shell_cmd(cmd)
         self.assertEqual(res.cmd, cmd)
@@ -843,7 +927,7 @@ class RunTest(EnhancedTestCase):
 
         # inject different output for cat with 'foo' as stdin to check whether cached value is used
         with self.mocked_stdout_stderr():
-            cached_res = RunResult(cmd=cmd, output="bar", exit_code=123, stderr=None, work_dir='/test_cat')
+            cached_res = RunShellCmdResult(cmd=cmd, output="bar", exit_code=123, stderr=None, work_dir='/test_cat')
             run_shell_cmd.update_cache({(cmd, 'foo'): cached_res})
             res = run_shell_cmd(cmd, stdin='foo')
         self.assertEqual(res.cmd, cmd)
