@@ -205,7 +205,7 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
 
     # set 'sysroot' based on sysroot build option
     sysroot = build_option('sysroot')
-    if sysroot == None:
+    if sysroot is None:
         template_values['sysroot'] = ""
     else:
         template_values['sysroot'] = sysroot
