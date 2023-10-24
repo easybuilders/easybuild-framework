@@ -1346,6 +1346,76 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertIn('start_dir in extension configure is %s &&' % ext_start_dir, logtxt)
         self.assertIn('start_dir in extension build is %s &&' % ext_start_dir, logtxt)
 
+    def test_sysroot_template_empty(self):
+        """Test the %(sysroot)s template whenever --sysroot is unset (i.e. None)"""
+
+        self.contents = textwrap.dedent("""
+            name = 'toy'
+            version = '0.0'
+
+            homepage = 'https://easybuilders.github.io/easybuild'
+            description = 'Toy C program, 100% toy.'
+
+            toolchain = SYSTEM
+
+            sources = [SOURCE_TAR_GZ]
+
+            preconfigopts = 'echo sysroot in configure is %(sysroot)s && '
+            prebuildopts = 'echo sysroot in build is %(sysroot)s && '
+            preinstallopts = 'echo sysroot in install is %(sysroot)s && '
+
+            moduleclass = 'tools'
+        """)
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+        from easybuild.easyblocks.toy import EB_toy
+        eb = EB_toy(ec)
+        # Check behaviour when sysroot is not set (i.e. None)
+        eb.cfg['sysroot'] = None  # Should we define this explicitely? Or rely on this to be the default?
+        eb.cfg['stop'] = 'extensions'
+        with self.mocked_stdout_stderr():
+            eb.run_all_steps(False)
+        logtxt = read_file(eb.logfile)
+        sysroot = ""
+        self.assertIn('sysroot in configure is %s/ &&' % sysroot, logtxt)
+        self.assertIn('sysroot in build is %s/ &&' % sysroot, logtxt)
+        self.assertIn('sysroot in install is %s/ &&' % sysroot, logtxt)
+
+    def test_sysroot_template_non_empty(self):
+        """Test the %(sysroot)s template whenever --sysroot is unset (i.e. None)"""
+
+        self.contents = textwrap.dedent("""
+            name = 'toy'
+            version = '0.0'
+
+            homepage = 'https://easybuilders.github.io/easybuild'
+            description = 'Toy C program, 100% toy.'
+
+            toolchain = SYSTEM
+
+            sources = [SOURCE_TAR_GZ]
+
+            preconfigopts = 'echo sysroot in configure is %(sysroot)s && '
+            prebuildopts = 'echo sysroot in build is %(sysroot)s && '
+            preinstallopts = 'echo sysroot in install is %(sysroot)s && '
+
+            moduleclass = 'tools'
+        """)
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+        from easybuild.easyblocks.toy import EB_toy
+        eb = EB_toy(ec)
+        # Check behaviour when sysroot is not set (i.e. None)
+        eb.cfg['sysroot'] = '/tmp'  # This should be a path that exists, otherwise EasyBuild complains
+        eb.cfg['stop'] = 'extensions'
+        with self.mocked_stdout_stderr():
+            eb.run_all_steps(False)
+        logtxt = read_file(eb.logfile)
+        sysroot = ""
+        self.assertIn('sysroot in configure is %s/ &&' % sysroot, logtxt)
+        self.assertIn('sysroot in build is %s/ &&' % sysroot, logtxt)
+        self.assertIn('sysroot in install is %s/ &&' % sysroot, logtxt)
+
     def test_constant_doc(self):
         """test constant documentation"""
         doc = avail_easyconfig_constants()
