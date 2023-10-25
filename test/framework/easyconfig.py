@@ -1367,16 +1367,12 @@ class EasyConfigTest(EnhancedTestCase):
 
         # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
         # As a test, we'll set the sysroot to self.test_prefix, as it has to be a directory that is guaranteed to exist
-        old_sysroot = build_option('sysroot')
         update_build_option('sysroot', self.test_prefix)
 
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['configopts'], "--some-opt=%s/" % self.test_prefix)
         self.assertEqual(ec['buildopts'], "--some-opt=%s/" % self.test_prefix)
         self.assertEqual(ec['installopts'], "--some-opt=%s/" % self.test_prefix)
-
-        # Restore original value for sysroot build option
-        update_build_option('sysroot', old_sysroot)
 
     def test_constant_doc(self):
         """test constant documentation"""
@@ -3266,6 +3262,7 @@ class EasyConfigTest(EnhancedTestCase):
             'nameletter': 'g',
             'nameletterlower': 'g',
             'parallel': None,
+            'sysroot': '',
             'toolchain_name': 'foss',
             'toolchain_version': '2018a',
             'version': '1.5',
