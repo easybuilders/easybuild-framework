@@ -204,7 +204,6 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
     template_values['arch'] = platform.uname()[4]
 
     # set 'sysroot' template based on 'sysroot' configuration option, using empty string as fallback
- value
     template_values['sysroot'] = build_option('sysroot') or ''
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
