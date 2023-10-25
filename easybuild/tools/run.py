@@ -37,6 +37,7 @@ Authors:
 """
 import contextlib
 import functools
+import inspect
 import os
 import re
 import signal
@@ -75,7 +76,81 @@ CACHED_COMMANDS = [
 ]
 
 
-RunResult = namedtuple('RunResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir'))
+RunShellCmdResult = namedtuple('RunShellCmdResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir'))
+
+
+class RunShellCmdError(BaseException):
+
+    def __init__(self, cmd, exit_code, work_dir, output, stderr, caller_info, *args, **kwargs):
+        """Constructor for RunShellCmdError."""
+        self.cmd = cmd
+        self.cmd_name = cmd.split(' ')[0]
+        self.exit_code = exit_code
+        self.work_dir = work_dir
+        self.output = output
+        self.stderr = stderr
+        self.caller_info = caller_info
+
+        msg = f"Shell command '{self.cmd_name}' failed!"
+        super(RunShellCmdError, self).__init__(msg, *args, **kwargs)
+
+    def print(self):
+        """
+        Report failed shell command for this RunShellCmdError instance
+        """
+
+        def pad_4_spaces(msg):
+            return ' ' * 4 + msg
+
+        error_info = [
+            '',
+            "ERROR: Shell command failed!",
+            pad_4_spaces(f"full command              ->  {self.cmd}"),
+            pad_4_spaces(f"exit code                 ->  {self.exit_code}"),
+            pad_4_spaces(f"working directory         ->  {self.work_dir}"),
+        ]
+
+        tmpdir = tempfile.mkdtemp(prefix='shell-cmd-error-')
+        output_fp = os.path.join(tmpdir, f"{self.cmd_name}.out")
+        with open(output_fp, 'w') as fp:
+            fp.write(self.output or '')
+
+        if self.stderr is None:
+            error_info.append(pad_4_spaces(f"output (stdout + stderr)  ->  {output_fp}"))
+        else:
+            stderr_fp = os.path.join(tmpdir, f"{self.cmd_name}.err")
+            with open(stderr_fp, 'w') as fp:
+                fp.write(self.stderr)
+            error_info.extend([
+                pad_4_spaces(f"output (stdout)           ->  {output_fp}"),
+                pad_4_spaces(f"error/warnings (stderr)   ->  {stderr_fp}"),
+            ])
+
+        caller_file_name, caller_line_nr, caller_function_name = self.caller_info
+        called_from_info = f"'{caller_function_name}' function in {caller_file_name} (line {caller_line_nr})"
+        error_info.extend([
+            pad_4_spaces(f"called from               ->  {called_from_info}"),
+            '',
+        ])
+
+        sys.stderr.write('\n'.join(error_info) + '\n')
+
+
+def raise_run_shell_cmd_error(cmd, exit_code, work_dir, output, stderr):
+    """
+    Raise RunShellCmdError for failing shell command, after collecting additional caller info
+    """
+
+    # figure out where failing command was run
+    # need to go 3 levels down:
+    # 1) this function
+    # 2) run_shell_cmd function
+    # 3) run_cmd_cache decorator
+    # 4) actual caller site
+    frameinfo = inspect.getouterframes(inspect.currentframe())[3]
+    caller_info = (frameinfo.filename, frameinfo.lineno, frameinfo.function)
+
+    raise RunShellCmdError(cmd, exit_code, work_dir, output, stderr, caller_info)
 
 
 def run_cmd_cache(func):
@@ -178,7 +253,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             msg += f"  (in {work_dir})"
             dry_run_msg(msg, silent=silent)
 
-        return RunResult(cmd=cmd_str, exit_code=0, output='', stderr=None, work_dir=work_dir)
+        return RunShellCmdResult(cmd=cmd_str, exit_code=0, output='', stderr=None, work_dir=work_dir)
 
     start_time = datetime.now()
     if not hidden:
@@ -204,14 +279,29 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             _log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
 
     _log.info(f"Running command '{cmd_str}' in {work_dir}")
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=stderr, check=fail_on_error,
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=stderr, check=False,
                           cwd=work_dir, env=env, input=stdin, shell=shell, executable=executable)
 
     # return output as a regular string rather than a byte sequence (and non-UTF-8 characters get stripped out)
     output = proc.stdout.decode('utf-8', 'ignore')
-    stderr_output = proc.stderr.decode('utf-8', 'ignore') if split_stderr else None
+    stderr = proc.stderr.decode('utf-8', 'ignore') if split_stderr else None
 
-    res = RunResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr_output, work_dir=work_dir)
+    res = RunShellCmdResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr, work_dir=work_dir)
+
+    # always log command output
+    cmd_name = cmd_str.split(' ')[0]
+    if split_stderr:
+        _log.info(f"Output of '{cmd_name} ...' shell command (stdout only):\n{res.output}")
+        _log.info(f"Warnings and errors of '{cmd_name} ...' shell command (stderr only):\n{res.stderr}")
+    else:
+        _log.info(f"Output of '{cmd_name} ...' shell command (stdout + stderr):\n{res.output}")
+
+    if res.exit_code == 0:
+        _log.info(f"Shell command completed successfully (see output above): {cmd_str}")
+    else:
+        _log.warning(f"Shell command FAILED (exit code {res.exit_code}, see output above): {cmd_str}")
+        if fail_on_error:
+            raise_run_shell_cmd_error(res.cmd, res.exit_code, res.work_dir, output=res.output, stderr=res.stderr)
 
     if with_hooks:
         run_hook_kwargs = {
@@ -221,13 +311,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             'work_dir': res.work_dir,
         }
         run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
-
-    if split_stderr:
-        log_msg = f"Command '{cmd_str}' exited with exit code {res.exit_code}, "
-        log_msg += f"with stdout:\n{res.output}\nstderr:\n{res.stderr}"
-    else:
-        log_msg = f"Command '{cmd_str}' exited with exit code {res.exit_code} and output:\n{res.output}"
-    _log.info(log_msg)
 
     if not hidden:
         time_since_start = time_str_since(start_time)

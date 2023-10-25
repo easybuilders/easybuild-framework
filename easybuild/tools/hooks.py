@@ -67,6 +67,7 @@ MODULE_WRITE = 'module_write'
 END = 'end'
 
 CANCEL = 'cancel'
+CRASH = 'crash'
 FAIL = 'fail'
 
 RUN_SHELL_CMD = 'run_shell_cmd'
@@ -107,6 +108,7 @@ HOOK_NAMES = [
     POST_PREF + BUILD_AND_INSTALL_LOOP,
     END,
     CANCEL,
+    CRASH,
     FAIL,
     PRE_PREF + RUN_SHELL_CMD,
     POST_PREF + RUN_SHELL_CMD,
