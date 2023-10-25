@@ -1346,75 +1346,33 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertIn('start_dir in extension configure is %s &&' % ext_start_dir, logtxt)
         self.assertIn('start_dir in extension build is %s &&' % ext_start_dir, logtxt)
 
-    def test_sysroot_template_empty(self):
-        """Test the %(sysroot)s template whenever --sysroot is unset (i.e. None)"""
+    def test_sysroot_template(self):
+        """Test the %(sysroot)s template"""
 
-        self.contents = textwrap.dedent("""
-            name = 'toy'
-            version = '0.0'
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+ 
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nconfigopts = "--some-opt=%(sysroot)s/"'
+        test_ec_txt += '\nbuildopts = "--some-opt=%(sysroot)s/"'
+        test_ec_txt += '\ninstallopts = "--some-opt=%(sysroot)s/"'
+        write_file(test_ec, test_ec_txt)
 
-            homepage = 'https://easybuilders.github.io/easybuild'
-            description = 'Toy C program, 100% toy.'
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=/")
+        self.assertEqual(ec['buildopts'], "--some-opt=/")
+        self.assertEqual(ec['installopts'], "--some-opt=/")
 
-            toolchain = SYSTEM
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        # As a test, we'll set the sysroot to self.test_prefix, as it has to be a directory that is guaranteed to exist
+        update_build_option('sysroot', self.test_prefix)
 
-            sources = [SOURCE_TAR_GZ]
-
-            preconfigopts = 'echo sysroot in configure is %(sysroot)s && '
-            prebuildopts = 'echo sysroot in build is %(sysroot)s && '
-            preinstallopts = 'echo sysroot in install is %(sysroot)s && '
-
-            moduleclass = 'tools'
-        """)
-        self.prep()
-        ec = EasyConfig(self.eb_file)
-        from easybuild.easyblocks.toy import EB_toy
-        eb = EB_toy(ec)
-        # Check behaviour when sysroot is not set (i.e. None)
-        eb.cfg['sysroot'] = None  # Should we define this explicitely? Or rely on this to be the default?
-        eb.cfg['stop'] = 'extensions'
-        with self.mocked_stdout_stderr():
-            eb.run_all_steps(False)
-        logtxt = read_file(eb.logfile)
-        sysroot = ""
-        self.assertIn('sysroot in configure is %s/ &&' % sysroot, logtxt)
-        self.assertIn('sysroot in build is %s/ &&' % sysroot, logtxt)
-        self.assertIn('sysroot in install is %s/ &&' % sysroot, logtxt)
-
-    def test_sysroot_template_non_empty(self):
-        """Test the %(sysroot)s template whenever --sysroot is unset (i.e. None)"""
-
-        self.contents = textwrap.dedent("""
-            name = 'toy'
-            version = '0.0'
-
-            homepage = 'https://easybuilders.github.io/easybuild'
-            description = 'Toy C program, 100% toy.'
-
-            toolchain = SYSTEM
-
-            sources = [SOURCE_TAR_GZ]
-
-            preconfigopts = 'echo sysroot in configure is %(sysroot)s && '
-            prebuildopts = 'echo sysroot in build is %(sysroot)s && '
-            preinstallopts = 'echo sysroot in install is %(sysroot)s && '
-
-            moduleclass = 'tools'
-        """)
-        self.prep()
-        ec = EasyConfig(self.eb_file)
-        from easybuild.easyblocks.toy import EB_toy
-        eb = EB_toy(ec)
-        # Check behaviour when sysroot is not set (i.e. None)
-        eb.cfg['sysroot'] = '/tmp'  # This should be a path that exists, otherwise EasyBuild complains
-        eb.cfg['stop'] = 'extensions'
-        with self.mocked_stdout_stderr():
-            eb.run_all_steps(False)
-        logtxt = read_file(eb.logfile)
-        sysroot = ""
-        self.assertIn('sysroot in configure is %s/ &&' % sysroot, logtxt)
-        self.assertIn('sysroot in build is %s/ &&' % sysroot, logtxt)
-        self.assertIn('sysroot in install is %s/ &&' % sysroot, logtxt)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=%s/" % self.test_prefix)
+        self.assertEqual(ec['buildopts'], "--some-opt=%s/" % self.test_prefix)
+        self.assertEqual(ec['installopts'], "--some-opt=%s/" % self.test_prefix)
 
     def test_constant_doc(self):
         """test constant documentation"""
