@@ -1351,7 +1351,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
- 
+
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = read_file(toy_ec)
         test_ec_txt += '\nconfigopts = "--some-opt=%(sysroot)s/"'
