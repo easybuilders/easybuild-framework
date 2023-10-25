@@ -3409,6 +3409,7 @@ class EasyConfigTest(EnhancedTestCase):
             'namelower': 'foo',
             'nameletter': 'f',
             'nameletterlower': 'f',
+            'sysroot': '',
             'version': '1.2.3',
             'version_major': '1',
             'version_major_minor': '1.2',
