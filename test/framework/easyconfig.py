@@ -387,7 +387,7 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyConfig(self.eb_file)
         deps = eb.dependencies()
         self.assertEqual(deps, [])
-        self.assertEqual(eb.dependency_names(), {})
+        self.assertEqual(eb.dependency_names(), set())
 
     def test_extra_options(self):
         """ extra_options should allow other variables to be stored """
@@ -1655,7 +1655,7 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options=build_options)
         ec = EasyConfig(ec_file, validate=False)
         self.assertEqual(ec.dependencies(), [])
-        self.assertEqual(ec.dependency_names(), {})
+        self.assertEqual(ec.dependency_names(), set())
 
     def test_replaced_easyconfig_parameters(self):
         """Test handling of replaced easyconfig parameters."""
