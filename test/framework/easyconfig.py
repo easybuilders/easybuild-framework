@@ -3344,6 +3344,7 @@ class EasyConfigTest(EnhancedTestCase):
             'pyminver': '7',
             'pyshortver': '3.7',
             'pyver': '3.7.2',
+            'sysroot': '',
             'version': '0.01',
             'version_major': '0',
             'version_major_minor': '0.01',
