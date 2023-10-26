@@ -171,8 +171,9 @@ if args.ec:
                               capture_stderr=False,
                               action_desc='Get missing dependencies'
                               )
+    excluded_dep = '(%s)' % os.path.basename(args.ec)
     missing_deps = [dep for dep in missing_dep_out.split('\n')
-                    if dep.startswith('*') and '(%s)' % args.ec not in dep
+                    if dep.startswith('*') and excluded_dep not in dep
                     ]
     if missing_deps:
         print('You need to install all modules on which %s depends first!' % args.ec)
