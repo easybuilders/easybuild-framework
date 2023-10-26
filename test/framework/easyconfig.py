@@ -1346,6 +1346,34 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertIn('start_dir in extension configure is %s &&' % ext_start_dir, logtxt)
         self.assertIn('start_dir in extension build is %s &&' % ext_start_dir, logtxt)
 
+    def test_sysroot_template(self):
+        """Test the %(sysroot)s template"""
+
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nconfigopts = "--some-opt=%(sysroot)s/"'
+        test_ec_txt += '\nbuildopts = "--some-opt=%(sysroot)s/"'
+        test_ec_txt += '\ninstallopts = "--some-opt=%(sysroot)s/"'
+        write_file(test_ec, test_ec_txt)
+
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=/")
+        self.assertEqual(ec['buildopts'], "--some-opt=/")
+        self.assertEqual(ec['installopts'], "--some-opt=/")
+
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        # As a test, we'll set the sysroot to self.test_prefix, as it has to be a directory that is guaranteed to exist
+        update_build_option('sysroot', self.test_prefix)
+
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=%s/" % self.test_prefix)
+        self.assertEqual(ec['buildopts'], "--some-opt=%s/" % self.test_prefix)
+        self.assertEqual(ec['installopts'], "--some-opt=%s/" % self.test_prefix)
+
     def test_constant_doc(self):
         """test constant documentation"""
         doc = avail_easyconfig_constants()
@@ -3234,6 +3262,7 @@ class EasyConfigTest(EnhancedTestCase):
             'nameletter': 'g',
             'nameletterlower': 'g',
             'parallel': None,
+            'sysroot': '',
             'toolchain_name': 'foss',
             'toolchain_version': '2018a',
             'version': '1.5',
@@ -3315,6 +3344,7 @@ class EasyConfigTest(EnhancedTestCase):
             'pyminver': '7',
             'pyshortver': '3.7',
             'pyver': '3.7.2',
+            'sysroot': '',
             'version': '0.01',
             'version_major': '0',
             'version_major_minor': '0.01',
@@ -3379,6 +3409,7 @@ class EasyConfigTest(EnhancedTestCase):
             'namelower': 'foo',
             'nameletter': 'f',
             'nameletterlower': 'f',
+            'sysroot': '',
             'version': '1.2.3',
             'version_major': '1',
             'version_major_minor': '1.2',

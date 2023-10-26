@@ -90,6 +90,8 @@ TEMPLATE_SOFTWARE_VERSIONS = [
 # template values which are only generated dynamically
 TEMPLATE_NAMES_DYNAMIC = [
     ('arch', "System architecture (e.g. x86_64, aarch64, ppc64le, ...)"),
+    ('sysroot', "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
+     "as specify by the --sysroot configuration option"),
     ('mpi_cmd_prefix', "Prefix command for running MPI programs (with default number of ranks)"),
     ('cuda_compute_capabilities', "Comma-separated list of CUDA compute capabilities, as specified via "
      "--cuda-compute-capabilities configuration option or via cuda_compute_capabilities easyconfig parameter"),
@@ -200,6 +202,9 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
 
     # set 'arch' for system architecture based on 'machine' (4th) element of platform.uname() return value
     template_values['arch'] = platform.uname()[4]
+
+    # set 'sysroot' template based on 'sysroot' configuration option, using empty string as fallback
+    template_values['sysroot'] = build_option('sysroot') or ''
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     for name in TEMPLATE_NAMES_EASYCONFIG:
