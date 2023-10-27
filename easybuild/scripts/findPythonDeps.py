@@ -55,9 +55,11 @@ def run_cmd(arguments, action_desc, capture_stderr=True, **kwargs):
         extra_args['universal_newlines'] = True
     stderr = subprocess.STDOUT if capture_stderr else subprocess.PIPE
     p = subprocess.Popen(arguments, stdout=subprocess.PIPE, stderr=stderr, **extra_args)
-    out, _ = p.communicate()
+    out, err = p.communicate()
     if p.returncode != 0:
-        raise RuntimeError('Failed to %s: %s' % (action_desc, out))
+        if err:
+            err = "\nSTDERR:\n" + err
+        raise RuntimeError('Failed to %s: %s%s' % (action_desc, out, err))
     return out
 
 
