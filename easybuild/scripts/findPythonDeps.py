@@ -182,12 +182,14 @@ if args.ec:
         print('\n\t'.join(['Missing:'] + missing_deps))
         sys.exit(1)
 
+    # If the --ec argument is a (relative) existing path make it absolute so we can find it after the chdir
+    ec_arg = os.path.abspath(args.ec) if os.path.exists(args.ec) else args.ec
     with temporary_directory() as tmp_dir:
         old_dir = os.getcwd()
         os.chdir(tmp_dir)
         if args.verbose:
             print('Running EasyBuild to get build environment')
-        run_cmd(['eb', args.ec, '--dump-env', '--force'], action_desc='Dump build environment')
+        run_cmd(['eb', ec_arg, '--dump-env', '--force'], action_desc='Dump build environment')
         os.chdir(old_dir)
 
         cmd = "source %s/*.env && python %s '%s'" % (tmp_dir, sys.argv[0], args.package)
