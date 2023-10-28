@@ -1328,6 +1328,31 @@ class EnvironmentModules(EnvironmentModulesTcl):
     MAX_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d\S*)\s'
 
+    def check_module_function(self, allow_mismatch=False, regex=None):
+        """Check whether selected module tool matches 'module' function definition."""
+        # Modules 5.1.0+: module command is called from _module_raw shell function
+        # Modules 4.2.0..5.0.1: module command is called from _module_raw shell function if it has
+        #   been initialized in an interactive shell session (i.e., a session attached to a tty)
+        if self.testing:
+            if '_module_raw' in os.environ:
+                out, ec = os.environ['_module_raw'], 0
+            else:
+                out, ec = None, 1
+        else:
+            cmd = "type _module_raw"
+            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False, force_in_dry_run=True, trace=False)
+
+        if regex is None:
+            regex = r".*%s" % os.path.basename(self.cmd)
+        mod_cmd_re = re.compile(regex, re.M)
+
+        if ec == 0 and mod_cmd_re.search(out):
+            self.log.debug("Found pattern '%s' in defined '_module_raw' function." % mod_cmd_re.pattern)
+        else:
+            self.log.debug("Pattern '%s' not found in '_module_raw' function, falling back to 'module' function",
+                           mod_cmd_re.pattern)
+            super(EnvironmentModules, self).check_module_function(allow_mismatch, regex)
+
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
         if "_mlstatus = False" in stdout:

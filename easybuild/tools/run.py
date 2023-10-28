@@ -71,6 +71,7 @@ CACHED_COMMANDS = [
     "sysctl -n machdep.cpu.brand_string",  # used in get_cpu_model (OS X)
     "sysctl -n machdep.cpu.vendor",  # used in get_cpu_vendor (OS X)
     "type module",  # used in ModulesTool.check_module_function
+    "type _module_raw",  # used in EnvironmentModules.check_module_function
     "ulimit -u",  # used in det_parallelism
 ]
 
