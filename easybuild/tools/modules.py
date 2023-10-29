@@ -1283,14 +1283,14 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
         return super(EnvironmentModulesTcl, self).run_module(*args, **kwargs)
 
-    def available(self, mod_name=None):
+    def available(self, mod_name=None, extra_args=None):
         """
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
         :param mod_name: a (partial) module name for filtering (default: None)
         """
-        mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name)
+        mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name, extra_args=extra_args)
         # strip off slash at beginning, if it's there
         # under certain circumstances, 'modulecmd.tcl avail' (DEISA variant) spits out available modules like this
         clean_mods = [mod.lstrip(os.path.sep) for mod in mods]
@@ -1327,6 +1327,8 @@ class EnvironmentModules(EnvironmentModulesTcl):
     REQ_VERSION = '4.0.0'
     MAX_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d\S*)\s'
+
+    SHOW_HIDDEN_OPTION = '--all'
 
     def __init__(self, *args, **kwargs):
         """Constructor, set Environment Modules-specific class variable values."""
@@ -1382,6 +1384,21 @@ class EnvironmentModules(EnvironmentModulesTcl):
             raise EasyBuildError("Failed module command detected: %s (stdout: %s, stderr: %s)", cmd, stdout, stderr)
         else:
             self.log.debug("No errors detected when running module command '%s'", cmd)
+
+    def available(self, mod_name=None, extra_args=None):
+        """
+        Return a list of available modules for the given (partial) module name;
+        use None to obtain a list of all available modules.
+
+        :param mod_name: a (partial) module name for filtering (default: None)
+        """
+        if extra_args is None:
+            extra_args = []
+        # make hidden modules visible (requires Environment Modules 4.6.0)
+        if StrictVersion(self.version) >= StrictVersion('4.6.0'):
+            extra_args.append(self.SHOW_HIDDEN_OPTION)
+
+        return super(EnvironmentModules, self).available(mod_name=mod_name, extra_args=extra_args)
 
     def get_setenv_value_from_modulefile(self, mod_name, var_name):
         """
