@@ -835,9 +835,9 @@ class SystemToolsTest(EnhancedTestCase):
     def test_det_parallelism_native(self):
         """Test det_parallelism function (native calls)."""
         self.assertTrue(det_parallelism() > 0)
-        # specified parallellism
+        # specified parallelism
         self.assertEqual(det_parallelism(par=5), 5)
-        # max parallellism caps
+        # max parallelism caps
         self.assertEqual(det_parallelism(maxpar=1), 1)
         self.assertEqual(det_parallelism(16, 1), 1)
         self.assertEqual(det_parallelism(par=5, maxpar=2), 2)

@@ -565,6 +565,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 pattern_lines = [
                     r'^``%\(version_major\)s``\s+Major version\s*$',
                     r'^``%\(cudaver\)s``\s+full version for CUDA\s*$',
+                    r'^``%\(cudamajver\)s``\s+major version for CUDA\s*$',
                     r'^``%\(pyshortver\)s``\s+short version for Python \(<major>.<minor>\)\s*$',
                     r'^\* ``%\(name\)s``$',
                     r'^``%\(namelower\)s``\s+lower case of value of name\s*$',
@@ -576,6 +577,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 pattern_lines = [
                     r'^\s+%\(version_major\)s: Major version$',
                     r'^\s+%\(cudaver\)s: full version for CUDA$',
+                    r'^\s+%\(cudamajver\)s: major version for CUDA$',
                     r'^\s+%\(pyshortver\)s: short version for Python \(<major>.<minor>\)$',
                     r'^\s+%\(name\)s$',
                     r'^\s+%\(namelower\)s: lower case of value of name$',
@@ -5232,7 +5234,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             init_config(build_options={'debug_lmod': True})
             out = self.modtool.run_module('avail', return_output=True)
 
-            for pattern in [r"^Lmod version", r"^lmod\(--terse -D avail\)\{", "Master:avail"]:
+            for pattern in [r"^Lmod version", r"^lmod\(--terse -D avail\)\{", ":avail"]:
                 regex = re.compile(pattern, re.M)
                 self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
         else:

@@ -276,8 +276,8 @@ class EasyBuildOptions(GeneralOption):
             'only-blocks': ("Only build listed blocks", 'strlist', 'extend', None, 'b', {'metavar': 'BLOCKS'}),
             'rebuild': ("Rebuild software, even if module already exists (don't skip OS dependencies checks)",
                         None, 'store_true', False),
-            'robot': ("Enable dependency resolution, using easyconfigs in specified paths",
-                      'pathlist', 'store_or_None', [], 'r', {'metavar': 'PATH[%sPATH]' % os.pathsep}),
+            'robot': ("Enable dependency resolution, optionally consider additional paths to search for easyconfigs",
+                      'pathlist', 'store_or_None', [], 'r', {'metavar': '[PATH[%sPATH]]' % os.pathsep}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
                             'pathlist', 'add_flex', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'search-paths': ("Additional locations to consider in --search (next to --robot and --robot-paths paths)",
@@ -473,7 +473,7 @@ class EasyBuildOptions(GeneralOption):
             'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
                              "with fallback to basic colored output",
                              'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),
-            'parallel': ("Specify (maximum) level of parallellism used during build procedure",
+            'parallel': ("Specify (maximum) level of parallelism used during build procedure",
                          'int', 'store', None),
             'parallel-extensions-install': ("Install list of extensions in parallel (if supported)",
                                             None, 'store_true', False),
@@ -501,7 +501,7 @@ class EasyBuildOptions(GeneralOption):
             'silence-deprecation-warnings': (
                 "Silence specified deprecation warnings out of (%s)" % ', '.join(all_deprecations),
                 'strlist', 'extend', []),
-            'silence-hook-trigger': ("Supress printing of debug message every time a hook is triggered",
+            'silence-hook-trigger': ("Suppress printing of debug message every time a hook is triggered",
                                      None, 'store_true', False),
             'skip-extensions': ("Skip installation of extensions", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
