@@ -1358,6 +1358,27 @@ class EnvironmentModules(EnvironmentModulesTcl):
         else:
             self.log.debug("No errors detected when running module command '%s'", cmd)
 
+    def get_setenv_value_from_modulefile(self, mod_name, var_name):
+        """
+        Get value for specific 'setenv' statement from module file for the specified module.
+
+        :param mod_name: module name
+        :param var_name: name of the variable being set for which value should be returned
+        """
+        # Tcl-based module tools produce "module show" output with setenv statements like:
+        # "setenv		 GCC_PATH /opt/gcc/8.3.0"
+        # "setenv		 VAR {some text}
+        # - line starts with 'setenv'
+        # - whitespace (spaces & tabs) around variable name
+        # - curly braces around value if it contain spaces
+        value = super(EnvironmentModules, self).get_setenv_value_from_modulefile(mod_name=mod_name,
+                                                                                 var_name=var_name)
+
+        if value:
+            value = value.strip('{}')
+
+        return value
+
 
 class Lmod(ModulesTool):
     """Interface to Lmod."""
