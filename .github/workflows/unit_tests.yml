@@ -17,7 +17,7 @@ jobs:
         lmod8: Lmod-8.7.6
         modulesTcl: modules-tcl-1.147
         modules3: modules-3.2.10
-        modules4: modules-4.1.4
+        modules4: modules-4.5.3
     steps:
       - run: "true"
   build:
