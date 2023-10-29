@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-20.04
     outputs:
         lmod8: Lmod-8.7.6
-        modules4: modules-4.1.4
+        modules4: modules-4.5.3
     steps:
       - run: "true"
   build:
