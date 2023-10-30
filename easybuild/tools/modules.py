@@ -1326,7 +1326,7 @@ class EnvironmentModules(EnvironmentModulesTcl):
     COMMAND_ENVIRONMENT = 'MODULES_CMD'
     REQ_VERSION = '4.0.0'
     MAX_VERSION = None
-    VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d\S*)\s'
+    VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d[^+\s]*)(\+\S*)?\s'
 
     def __init__(self, *args, **kwargs):
         """Constructor, set Environment Modules-specific class variable values."""
