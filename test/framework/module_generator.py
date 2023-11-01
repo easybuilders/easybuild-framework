@@ -266,24 +266,32 @@ class ModuleGeneratorTest(EnhancedTestCase):
         """Test load part in generated module file."""
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            # default: guarded module load (which implies no recursive unloading)
-            expected = '\n'.join([
-                '',
-                "if { ![ is-loaded mod_name ] } {",
-                "    module load mod_name",
-                "}",
-                '',
-            ])
+            if not self.modtool.supports_safe_auto_load:
+                # default: guarded module load (which implies no recursive unloading)
+                expected = '\n'.join([
+                    '',
+                    "if { ![ is-loaded mod_name ] } {",
+                    "    module load mod_name",
+                    "}",
+                    '',
+                ])
+            else:
+                expected = '\n'.join([
+                    '',
+                    "module load mod_name",
+                    '',
+                ])
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
-            # with recursive unloading: no if is-loaded guard
-            expected = '\n'.join([
-                '',
-                "if { [ module-info mode remove ] || ![ is-loaded mod_name ] } {",
-                "    module load mod_name",
-                "}",
-                '',
-            ])
+            if not self.modtool.supports_safe_auto_load:
+                # with recursive unloading: no if is-loaded guard
+                expected = '\n'.join([
+                    '',
+                    "if { [ module-info mode remove ] || ![ is-loaded mod_name ] } {",
+                    "    module load mod_name",
+                    "}",
+                    '',
+                ])
             self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload=True))
 
             init_config(build_options={'recursive_mod_unload': True})
@@ -353,13 +361,24 @@ class ModuleGeneratorTest(EnhancedTestCase):
         res = self.modgen.load_module('Python/3.7.4', multi_dep_mods=multi_dep_mods)
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            expected = '\n'.join([
-                '',
-                "if { ![ is-loaded Python/3.7.4 ] && ![ is-loaded Python/2.7.16 ] } {",
-                "    module load Python/3.7.4",
-                '}',
-                '',
-            ])
+            if not self.modtool.supports_safe_auto_load:
+                expected = '\n'.join([
+                    '',
+                    "if { ![ is-loaded Python/3.7.4 ] && ![ is-loaded Python/2.7.16 ] } {",
+                    "    module load Python/3.7.4",
+                    '}',
+                    '',
+                ])
+            else:
+                expected = '\n'.join([
+                    '',
+                    "if { [ module-info mode remove ] || [ is-loaded Python/2.7.16 ] } {",
+                    "    module load Python",
+                    '} else {',
+                    "    module load Python/3.7.4",
+                    '}',
+                    '',
+                ])
         else:  # Lua syntax
             expected = '\n'.join([
                 '',
@@ -401,14 +420,26 @@ class ModuleGeneratorTest(EnhancedTestCase):
         res = self.modgen.load_module('foo/1.2.3', multi_dep_mods=multi_dep_mods)
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            expected = '\n'.join([
-                '',
-                "if { ![ is-loaded foo/1.2.3 ] && ![ is-loaded foo/2.3.4 ] && " +
-                "![ is-loaded foo/3.4.5 ] && ![ is-loaded foo/4.5.6 ] } {",
-                "    module load foo/1.2.3",
-                '}',
-                '',
-            ])
+            if not self.modtool.supports_safe_auto_load:
+                expected = '\n'.join([
+                    '',
+                    "if { ![ is-loaded foo/1.2.3 ] && ![ is-loaded foo/2.3.4 ] && " +
+                    "![ is-loaded foo/3.4.5 ] && ![ is-loaded foo/4.5.6 ] } {",
+                    "    module load foo/1.2.3",
+                    '}',
+                    '',
+                ])
+            else:
+                expected = '\n'.join([
+                    '',
+                    "if { [ module-info mode remove ] || [ is-loaded foo/2.3.4 ] || [ is-loaded foo/3.4.5 ] " +
+                    "|| [ is-loaded foo/4.5.6 ] } {",
+                    "    module load foo",
+                    "} else {",
+                    "    module load foo/1.2.3",
+                    '}',
+                    '',
+                ])
         else:  # Lua syntax
             expected = '\n'.join([
                 '',
@@ -453,13 +484,16 @@ class ModuleGeneratorTest(EnhancedTestCase):
         res = self.modgen.load_module('one/1.0', multi_dep_mods=['one/1.0'])
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            expected = '\n'.join([
-                '',
-                "if { ![ is-loaded one/1.0 ] } {",
-                "    module load one/1.0",
-                '}',
-                '',
-            ])
+            if not self.modtool.supports_safe_auto_load:
+                expected = '\n'.join([
+                    '',
+                    "if { ![ is-loaded one/1.0 ] } {",
+                    "    module load one/1.0",
+                    '}',
+                    '',
+                ])
+            else:
+                expected = '\nmodule load one/1.0\n'
         else:  # Lua syntax
             expected = '\n'.join([
                 '',

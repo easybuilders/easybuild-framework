@@ -207,6 +207,7 @@ class ModulesTool(object):
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
         self.supports_depends_on = False
+        self.supports_safe_auto_load = False
 
     def __str__(self):
         """String representation of this ModulesTool instance."""
@@ -1320,6 +1321,7 @@ class EnvironmentModules(EnvironmentModulesTcl):
     REQ_VERSION = '4.0.0'
     DEPR_VERSION = '4.0.0'  # needs to be set as EnvironmentModules inherits from EnvironmentModulesTcl
     MAX_VERSION = None
+    REQ_VERSION_SAFE_AUTO_LOAD = '4.2.4'
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d[^+\s]*)(\+\S*)?\s'
 
     SHOW_HIDDEN_OPTION = '--all'
@@ -1346,6 +1348,8 @@ class EnvironmentModules(EnvironmentModulesTcl):
         setvar('MODULES_LIST_TERSE_OUTPUT', '', verbose=False)
 
         super(EnvironmentModules, self).__init__(*args, **kwargs)
+        version = StrictVersion(self.version)
+        self.supports_safe_auto_load = version >= StrictVersion(self.REQ_VERSION_SAFE_AUTO_LOAD)
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
