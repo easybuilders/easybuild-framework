@@ -779,30 +779,23 @@ class ToyBuildTest(EnhancedTestCase):
                 self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
 
             elif get_module_syntax() == 'Lua':
-                lmod_version = os.getenv('LMOD_VERSION', 'NOT_FOUND')
-                if LooseVersion(lmod_version) >= LooseVersion('6.0.8'):
-                    toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0.lua')
-                    toy_mod_txt = read_file(toy_mod)
+                toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0.lua')
+                toy_mod_txt = read_file(toy_mod)
 
-                    if isinstance(group, tuple):
-                        group_name = group[0]
-                        error_msg_pattern = "Hey, you're not in the '%s' group!" % group_name
-                    else:
-                        group_name = group
-                        error_msg_pattern = "You are not part of '%s' group of users" % group_name
-
-                    pattern = '\n'.join([
-                        r'^if not \( userInGroup\("%s"\) \) then' % group_name,
-                        r'    LmodError\("%s[^"]*"\)' % error_msg_pattern,
-                        r'end$',
-                    ])
-                    regex = re.compile(pattern, re.M)
-                    self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_mod_txt))
+                if isinstance(group, tuple):
+                    group_name = group[0]
+                    error_msg_pattern = "Hey, you're not in the '%s' group!" % group_name
                 else:
-                    pattern = r"Can't generate robust check in Lua modules for users belonging to group %s. "
-                    pattern += r"Lmod version not recent enough \(%s\), should be >= 6.0.8" % lmod_version
-                    regex = re.compile(pattern % group_name, re.M)
-                    self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
+                    group_name = group
+                    error_msg_pattern = "You are not part of '%s' group of users" % group_name
+
+                pattern = '\n'.join([
+                    r'^if not \( userInGroup\("%s"\) \) then' % group_name,
+                    r'    LmodError\("%s[^"]*"\)' % error_msg_pattern,
+                    r'end$',
+                ])
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_mod_txt))
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
 
