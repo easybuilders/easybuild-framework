@@ -1181,10 +1181,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param group: string with the group name
         :param error_msg: error message to print for users outside that group
         """
-        lmod_version = self.modules_tool.version
-        min_lmod_version = '6.0.8'
-
-        if LooseVersion(lmod_version) >= LooseVersion(min_lmod_version):
+        if self.modules_tool.supports_lua_check_group:
             if error_msg is None:
                 error_msg = "You are not part of '%s' group of users that have access to this software; " % group
                 error_msg += "Please consult with user support how to become a member of this group"
@@ -1194,7 +1191,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         else:
             warn_msg = "Can't generate robust check in Lua modules for users belonging to group %s. "
             warn_msg += "Lmod version not recent enough (%s), should be >= %s"
-            self.log.warning(warn_msg, group, lmod_version, min_lmod_version)
+            self.log.warning(warn_msg, group, self.modules_tool.version, self.modules_tool.REQ_VERSION_LUA_CHECK_GROUP)
             res = ''
 
         return res

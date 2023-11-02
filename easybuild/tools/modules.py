@@ -147,6 +147,8 @@ class ModulesTool(object):
     VERSION_OPTION = '--version'
     # minimal required version (StrictVersion; suffix rc replaced with b (and treated as beta by StrictVersion))
     REQ_VERSION = None
+    # minimal required version to check user's group in modulefile
+    REQ_VERSION_LUA_CHECK_GROUP = None
     # deprecated version limit (support for versions below this version is deprecated)
     DEPR_VERSION = None
     # maximum version allowed (StrictVersion; suffix rc replaced with b (and treated as beta by StrictVersion))
@@ -208,6 +210,7 @@ class ModulesTool(object):
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
         self.supports_depends_on = False
+        self.supports_lua_check_group = False
 
     def __str__(self):
         """String representation of this ModulesTool instance."""
@@ -1430,6 +1433,7 @@ class Lmod(ModulesTool):
     REQ_VERSION = '6.5.1'
     DEPR_VERSION = '7.0.0'
     REQ_VERSION_DEPENDS_ON = '7.6.1'
+    REQ_VERSION_LUA_CHECK_GROUP = '6.0.8'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
 
     SHOW_HIDDEN_OPTION = '--show-hidden'
@@ -1454,6 +1458,7 @@ class Lmod(ModulesTool):
             self.USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.cache', 'lmod')
         else:
             self.USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
+        self.supports_lua_check_group = version >= StrictVersion(self.REQ_VERSION_LUA_CHECK_GROUP)
 
     def check_module_function(self, *args, **kwargs):
         """Check whether selected module tool matches 'module' function definition."""
