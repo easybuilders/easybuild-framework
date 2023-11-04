@@ -103,9 +103,9 @@ jobs:
         # and are only run after the PR gets merged
         GITHUB_TOKEN: ${{secrets.CI_UNIT_TESTS_GITHUB_TOKEN}}
       run: |
-        # don't install GitHub token when testing with Lmod 7.x or non-Lmod module tools, to avoid hitting GitHub rate limit;
+        # only install GitHub token when testing with Lmod 8.x + Python 3.6 or 3.9, to avoid hitting GitHub rate limit;
         # tests that require a GitHub token are skipped automatically when no GitHub token is available
-        if [[ ! "${{matrix.modules_tool}}" =~ 'Lmod-7' ]] && [[ ! "${{matrix.modules_tool}}" =~ 'modules-' ]]; then
+        if [[ "${{matrix.modules_tool}}" =~ 'Lmod-8' ]] && [[ "${{matrix.python}}" =~ 3.[69] ]]; then
           if [ ! -z $GITHUB_TOKEN ]; then
             SET_KEYRING="import keyrings.alt.file; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
             python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
