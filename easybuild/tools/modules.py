@@ -1419,6 +1419,16 @@ class EnvironmentModules(EnvironmentModulesTcl):
 
         return value
 
+    def update(self):
+        """Update after new modules were added."""
+
+        version = LooseVersion(self.version)
+        if build_option('update_modules_tool_cache') and version >= LooseVersion('5.3.0'):
+            out = self.run_module('cachebuild', return_stderr=True, check_output=False)
+
+            if self.testing:
+                return out
+
 
 class Lmod(ModulesTool):
     """Interface to Lmod."""
