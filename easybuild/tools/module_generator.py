@@ -863,13 +863,19 @@ class ModuleGeneratorTcl(ModuleGenerator):
         Return module-syntax specific code to get value of specific environment variable.
         """
         if default is None:
-            cmd = '$::env(%s)' % envvar
+            if self.modules_tool.supports_tcl_getenv:
+                cmd = '[getenv %s]' % envvar
+            else:
+                cmd = '$::env(%s)' % envvar
         else:
-            values = {
-                'default': default,
-                'envvar': '::env(%s)' % envvar,
-            }
-            cmd = '[if { [info exists %(envvar)s] } { concat $%(envvar)s } else { concat "%(default)s" } ]' % values
+            if self.modules_tool.supports_tcl_getenv:
+                cmd = '[getenv %s "%s"]' % (envvar, default)
+            else:
+                values = {
+                    'default': default,
+                    'envvar': '::env(%s)' % envvar,
+                }
+                cmd = '[if { [info exists %(envvar)s] } { concat $%(envvar)s } else { concat "%(default)s" } ]' % values
         return cmd
 
     def load_module(self, mod_name, recursive_unload=None, depends_on=False, unload_modules=None, multi_dep_mods=None):

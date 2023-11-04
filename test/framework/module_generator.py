@@ -844,7 +844,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options={'suffix_modules_path': ''})
         user_modpath = 'my/{RUNTIME_ENV::TEST123}/modules'
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my" $::env(TEST123) "modules"')
+            if self.modtool.supports_tcl_getenv:
+                self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my" [getenv TEST123] "modules"')
+            else:
+                self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my" $::env(TEST123) "modules"')
         else:
             self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my", os.getenv("TEST123"), "modules"')
 
@@ -902,12 +905,20 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # otherwise we won't get the output produced by the test module file...
             os.environ.pop('LMOD_QUIET', None)
 
-            self.assertEqual('$::env(HOSTNAME)', self.modgen.getenv_cmd('HOSTNAME'))
-            self.assertEqual('$::env(HOME)', self.modgen.getenv_cmd('HOME'))
+            if self.modtool.supports_tcl_getenv:
+                self.assertEqual('[getenv HOSTNAME]', self.modgen.getenv_cmd('HOSTNAME'))
+                self.assertEqual('[getenv HOME]', self.modgen.getenv_cmd('HOME'))
 
-            expected = '[if { [info exists ::env(TEST)] } { concat $::env(TEST) } else { concat "foobar" } ]'
-            getenv_txt = self.modgen.getenv_cmd('TEST', default='foobar')
-            self.assertEqual(getenv_txt, expected)
+                expected = '[getenv TEST "foobar"]'
+                getenv_txt = self.modgen.getenv_cmd('TEST', default='foobar')
+                self.assertEqual(getenv_txt, expected)
+            else:
+                self.assertEqual('$::env(HOSTNAME)', self.modgen.getenv_cmd('HOSTNAME'))
+                self.assertEqual('$::env(HOME)', self.modgen.getenv_cmd('HOME'))
+
+                expected = '[if { [info exists ::env(TEST)] } { concat $::env(TEST) } else { concat "foobar" } ]'
+                getenv_txt = self.modgen.getenv_cmd('TEST', default='foobar')
+                self.assertEqual(getenv_txt, expected)
 
             write_file(test_mod_file, '#%%Module\nputs stderr %s' % getenv_txt)
         else:
