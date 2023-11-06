@@ -302,7 +302,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(det_full_ec_version(first), '1.1-GCC-4.6.3')
         self.assertEqual(det_full_ec_version(second), '2.2-GCC-4.6.3')
 
+        self.assertEqual(eb.dependency_names(), {'first', 'second', 'foo', 'bar'})
         # same tests for builddependencies
+        self.assertEqual(eb.dependency_names(build_only=True), {'first', 'second'})
         first = eb.builddependencies()[0]
         second = eb.builddependencies()[1]
 
@@ -355,6 +357,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(len(deps), 2)
         self.assertEqual(deps[0]['name'], 'second_build')
         self.assertEqual(deps[1]['name'], 'first')
+        self.assertEqual(eb.dependency_names(), {'first', 'second_build'})
 
         # more realistic example: only filter dep for POWER
         self.contents = '\n'.join([
@@ -378,12 +381,14 @@ class EasyConfigTest(EnhancedTestCase):
             deps = eb.dependencies()
             self.assertEqual(len(deps), 1)
             self.assertEqual(deps[0]['name'], 'not_on_power')
+            self.assertEqual(eb.dependency_names(), {'not_on_power'})
 
         # only power, dependency gets filtered
         st.get_cpu_architecture = lambda: POWER
         eb = EasyConfig(self.eb_file)
         deps = eb.dependencies()
         self.assertEqual(deps, [])
+        self.assertEqual(eb.dependency_names(), set())
 
     def test_extra_options(self):
         """ extra_options should allow other variables to be stored """
@@ -1350,6 +1355,34 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertIn('start_dir in extension configure is %s &&' % ext_start_dir, logtxt)
         self.assertIn('start_dir in extension build is %s &&' % ext_start_dir, logtxt)
 
+    def test_sysroot_template(self):
+        """Test the %(sysroot)s template"""
+
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nconfigopts = "--some-opt=%(sysroot)s/"'
+        test_ec_txt += '\nbuildopts = "--some-opt=%(sysroot)s/"'
+        test_ec_txt += '\ninstallopts = "--some-opt=%(sysroot)s/"'
+        write_file(test_ec, test_ec_txt)
+
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=/")
+        self.assertEqual(ec['buildopts'], "--some-opt=/")
+        self.assertEqual(ec['installopts'], "--some-opt=/")
+
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        # As a test, we'll set the sysroot to self.test_prefix, as it has to be a directory that is guaranteed to exist
+        update_build_option('sysroot', self.test_prefix)
+
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=%s/" % self.test_prefix)
+        self.assertEqual(ec['buildopts'], "--some-opt=%s/" % self.test_prefix)
+        self.assertEqual(ec['installopts'], "--some-opt=%s/" % self.test_prefix)
+
     def test_constant_doc(self):
         """test constant documentation"""
         doc = avail_easyconfig_constants()
@@ -1602,18 +1635,15 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         ec_file = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
         ec = EasyConfig(ec_file)
-        deps = sorted([dep['name'] for dep in ec.dependencies()])
-        self.assertEqual(deps, ['FFTW', 'GCC', 'OpenBLAS', 'OpenMPI', 'ScaLAPACK'])
+        self.assertEqual(ec.dependency_names(), {'FFTW', 'GCC', 'OpenBLAS', 'OpenMPI', 'ScaLAPACK'})
 
         # test filtering multiple deps
         init_config(build_options={'filter_deps': ['FFTW', 'ScaLAPACK']})
-        deps = sorted([dep['name'] for dep in ec.dependencies()])
-        self.assertEqual(deps, ['GCC', 'OpenBLAS', 'OpenMPI'])
+        self.assertEqual(ec.dependency_names(), {'GCC', 'OpenBLAS', 'OpenMPI'})
 
         # test filtering of non-existing dep
         init_config(build_options={'filter_deps': ['zlib']})
-        deps = sorted([dep['name'] for dep in ec.dependencies()])
-        self.assertEqual(deps, ['FFTW', 'GCC', 'OpenBLAS', 'OpenMPI', 'ScaLAPACK'])
+        self.assertEqual(ec.dependency_names(), {'FFTW', 'GCC', 'OpenBLAS', 'OpenMPI', 'ScaLAPACK'})
 
         # test parsing of value passed to --filter-deps
         opts = init_config(args=[])
@@ -1647,6 +1677,7 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options=build_options)
         ec = EasyConfig(ec_file, validate=False)
         self.assertEqual(ec.dependencies(), [])
+        self.assertEqual(ec.dependency_names(), set())
 
     def test_replaced_easyconfig_parameters(self):
         """Test handling of replaced easyconfig parameters."""
@@ -1835,6 +1866,9 @@ class EasyConfigTest(EnhancedTestCase):
         }
         self.assertEqual(deps[7]['external_module_metadata'], cray_netcdf_metadata)
 
+        # External module names are omitted
+        self.assertEqual(ec.dependency_names(), {'intel'})
+
         # provide file with partial metadata for some external modules;
         # metadata obtained from probing modules should be added to it...
         metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
@@ -1863,6 +1897,7 @@ class EasyConfigTest(EnhancedTestCase):
         deps = ec.dependencies()
 
         self.assertEqual(len(deps), 8)
+        self.assertEqual(ec.dependency_names(), {'intel'})
 
         for idx in [0, 1, 2, 6]:
             self.assertEqual(deps[idx]['external_module_metadata'], {})
@@ -3229,6 +3264,7 @@ class EasyConfigTest(EnhancedTestCase):
             'nameletter': 'g',
             'nameletterlower': 'g',
             'parallel': None,
+            'sysroot': '',
             'toolchain_name': 'foss',
             'toolchain_version': '2018a',
             'version': '1.5',
@@ -3311,6 +3347,7 @@ class EasyConfigTest(EnhancedTestCase):
             'pyminver': '7',
             'pyshortver': '3.7',
             'pyver': '3.7.2',
+            'sysroot': '',
             'version': '0.01',
             'version_major': '0',
             'version_major_minor': '0.01',
@@ -3375,6 +3412,7 @@ class EasyConfigTest(EnhancedTestCase):
             'namelower': 'foo',
             'nameletter': 'f',
             'nameletterlower': 'f',
+            'sysroot': '',
             'version': '1.2.3',
             'version_major': '1',
             'version_major_minor': '1.2',

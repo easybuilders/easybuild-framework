@@ -4,6 +4,25 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.8.2 (29 October 2023)
+------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add support for `%(sysroot)s` template value (#4359)
+  - add `dependency_names` method to `EasyConfig` class to get set of names of (direct) dependencies (#4360)
+- various bug fixes, including:
+  - add CI workflow to run unit tests with Python 2 (again) (#4333)
+  - fix typo in help message for `--silence-hook-trigger` (#4343)
+  - include major version (`*majver`) templates in auto-generated documentation (#4347)
+  - reset `tempfile.tempdir` to `None` to avoid that tmpdir path gets progressively deeper with each easystack item (#4350)
+  - fix `findPythonDeps.py` script when called with an (absolute or relative) path to an easyconfig instead of a filename (#4365)
+  - fix broken test for `reasons_for_closing`, which fails because commit status of easyconfigs PR is no longer available (#4366)
+- other changes:
+  - reduce number of CI jobs by testing for Lua and Tcl module syntax in a single CI job (#4192)
+
+
 v4.8.1 (11 September 2023)
 --------------------------
 
