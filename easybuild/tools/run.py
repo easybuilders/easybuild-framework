@@ -348,7 +348,8 @@ def cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp):
     ]
     if stdin:
         lines.append(f"\t[input: {stdin}]")
-    lines.append(f"\t[output saved to {cmd_out_fp}]")
+    if cmd_out_fp:
+        lines.append(f"\t[output saved to {cmd_out_fp}]")
     if cmd_err_fp:
         lines.append(f"\t[errors/warnings saved to {cmd_err_fp}]")
 
