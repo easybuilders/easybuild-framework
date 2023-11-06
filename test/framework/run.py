@@ -356,7 +356,7 @@ class RunTest(EnhancedTestCase):
                     r"^\s+exit code\s* ->  -9",
                     r"^\s+working directory\s* ->  " + work_dir,
                     r"^\s+called from\s* ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
-                    r"^\s+output \(stdout \+ stderr\)\s* ->  .*/run-shell-cmd-.*/kill.out",
+                    r"^\s+output \(stdout \+ stderr\)\s* ->  .*/run-shell-cmd-output/kill-.*/out.txt",
                 ]
                 for pattern in patterns:
                     regex = re.compile(pattern, re.M)
@@ -391,8 +391,8 @@ class RunTest(EnhancedTestCase):
                     r"^\s+exit code\s+ ->  -9",
                     r"^\s+working directory\s+ ->  " + work_dir,
                     r"^\s+called from\s+ ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
-                    r"^\s+output \(stdout\)\s+ -> .*/run-shell-cmd-.*/kill.out",
-                    r"^\s+error/warnings \(stderr\)\s+ -> .*/run-shell-cmd-.*/kill.err",
+                    r"^\s+output \(stdout\)\s+ -> .*/run-shell-cmd-output/kill-.*/out.txt",
+                    r"^\s+error/warnings \(stderr\)\s+ -> .*/run-shell-cmd-output/kill-.*/err.txt",
                 ]
                 for pattern in patterns:
                     regex = re.compile(pattern, re.M)

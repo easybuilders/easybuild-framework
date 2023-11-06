@@ -107,13 +107,13 @@ class RunShellCmdError(BaseException):
             pad_4_spaces(f"working directory         ->  {self.cmd_result.work_dir}"),
         ]
 
-        if self.cmd_result.stderr is None:
+        if self.cmd_result.stderr is None and self.cmd_result.out_file is not None:
             error_info.append(pad_4_spaces(f"output (stdout + stderr)  ->  {self.cmd_result.out_file}"))
         else:
-            error_info.extend([
-                pad_4_spaces(f"output (stdout)           ->  {self.cmd_result.out_file}"),
-                pad_4_spaces(f"error/warnings (stderr)   ->  {self.cmd_result.err_file}"),
-            ])
+            if self.cmd_result.out_file is not None:
+                error_info.append(pad_4_spaces(f"output (stdout)           ->  {self.cmd_result.out_file}"))
+            if self.cmd_result.err_file is not None:
+                error_info.append(pad_4_spaces(f"error/warnings (stderr)   ->  {self.cmd_result.err_file}"))
 
         caller_file_name, caller_line_nr, caller_function_name = self.caller_info
         called_from_info = f"'{caller_function_name}' function in {caller_file_name} (line {caller_line_nr})"
@@ -174,7 +174,7 @@ run_shell_cmd_cache = run_cmd_cache
 @run_shell_cmd_cache
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
                   hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, shell=True,
-                  output_file=False, stream_output=False, asynchronous=False, with_hooks=True,
+                  output_file=True, stream_output=False, asynchronous=False, with_hooks=True,
                   qa_patterns=None, qa_wait_patterns=None):
     """
     Run specified (interactive) shell command, and capture output + exit code.
@@ -224,17 +224,22 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         work_dir = os.getcwd()
 
     cmd_str = to_cmd_str(cmd)
-    cmd_name = cmd_str.split(' ')[0]
+    cmd_name = os.path.basename(cmd_str.split(' ')[0])
 
     # temporary output file(s) for command output
-    tmpdir = tempfile.mkdtemp(prefix='run-shell-cmd-')
-    cmd_out_fp = os.path.join(tmpdir, f'{cmd_name}.out')
-    _log.info(f'run_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
-    if split_stderr:
-        cmd_err_fp = os.path.join(tmpdir, f'{cmd_name}.err')
-        _log.info(f'run_cmd: Errors and warnings of "{cmd_str}" will be logged to {cmd_err_fp}')
+    if output_file:
+        toptmpdir = os.path.join(tempfile.gettempdir(), 'run-shell-cmd-output')
+        os.makedirs(toptmpdir, exist_ok=True)
+        tmpdir = tempfile.mkdtemp(dir=toptmpdir, prefix=f'{cmd_name}-')
+        cmd_out_fp = os.path.join(tmpdir, f'out.txt')
+        _log.info(f'run_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
+        if split_stderr:
+            cmd_err_fp = os.path.join(tmpdir, f'err.txt')
+            _log.info(f'run_cmd: Errors and warnings of "{cmd_str}" will be logged to {cmd_err_fp}')
+        else:
+            cmd_err_fp = None
     else:
-        cmd_err_fp = None
+        cmd_out_fp, cmd_err_fp = None, None
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless 'hidden' is enabled)
     if not in_dry_run and build_option('extended_dry_run'):
@@ -279,14 +284,15 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     stderr = proc.stderr.decode('utf-8', 'ignore') if split_stderr else None
 
     # store command output to temporary file(s)
-    try:
-        with open(cmd_out_fp, 'w') as fp:
-            fp.write(output)
-        if split_stderr:
-            with open(cmd_err_fp, 'w') as fp:
-                fp.write(stderr)
-    except IOError as err:
-        raise EasyBuildError(f"Failed to dump command output to temporary file: {err}")
+    if output_file:
+        try:
+            with open(cmd_out_fp, 'w') as fp:
+                fp.write(output)
+            if split_stderr:
+                with open(cmd_err_fp, 'w') as fp:
+                    fp.write(stderr)
+        except IOError as err:
+            raise EasyBuildError(f"Failed to dump command output to temporary file: {err}")
 
     res = RunShellCmdResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr, work_dir=work_dir,
                             out_file=cmd_out_fp, err_file=cmd_err_fp)
