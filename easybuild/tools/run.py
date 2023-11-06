@@ -231,10 +231,10 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         toptmpdir = os.path.join(tempfile.gettempdir(), 'run-shell-cmd-output')
         os.makedirs(toptmpdir, exist_ok=True)
         tmpdir = tempfile.mkdtemp(dir=toptmpdir, prefix=f'{cmd_name}-')
-        cmd_out_fp = os.path.join(tmpdir, f'out.txt')
+        cmd_out_fp = os.path.join(tmpdir, 'out.txt')
         _log.info(f'run_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
         if split_stderr:
-            cmd_err_fp = os.path.join(tmpdir, f'err.txt')
+            cmd_err_fp = os.path.join(tmpdir, 'err.txt')
             _log.info(f'run_cmd: Errors and warnings of "{cmd_str}" will be logged to {cmd_err_fp}')
         else:
             cmd_err_fp = None
