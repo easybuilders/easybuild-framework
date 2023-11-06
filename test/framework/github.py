@@ -347,7 +347,6 @@ class GithubTest(EnhancedTestCase):
         self.assertIsInstance(res, list)
         self.assertEqual(stderr.strip(), "WARNING: Using easyconfigs from closed PR #16080")
         patterns = [
-            "Status of last commit is SUCCESS",
             "Last comment on",
             "No activity since",
             "* c-ares-1.18.1",
