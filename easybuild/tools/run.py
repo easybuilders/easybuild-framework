@@ -84,8 +84,15 @@ class RunShellCmdError(BaseException):
 
     def __init__(self, cmd_result, caller_info, *args, **kwargs):
         """Constructor for RunShellCmdError."""
-        self.cmd_result = cmd_result
-        self.cmd_name = cmd_result.cmd.split(' ')[0]
+        self.cmd = cmd_result.cmd
+        self.cmd_name = os.path.basename(self.cmd.split(' ')[0])
+        self.exit_code = cmd_result.exit_code
+        self.work_dir = cmd_result.work_dir
+        self.output = cmd_result.output
+        self.out_file = cmd_result.out_file
+        self.stderr = cmd_result.stderr
+        self.err_file = cmd_result.err_file
+
         self.caller_info = caller_info
 
         msg = f"Shell command '{self.cmd_name}' failed!"
@@ -102,18 +109,18 @@ class RunShellCmdError(BaseException):
         error_info = [
             '',
             "ERROR: Shell command failed!",
-            pad_4_spaces(f"full command              ->  {self.cmd_result.cmd}"),
-            pad_4_spaces(f"exit code                 ->  {self.cmd_result.exit_code}"),
-            pad_4_spaces(f"working directory         ->  {self.cmd_result.work_dir}"),
+            pad_4_spaces(f"full command              ->  {self.cmd}"),
+            pad_4_spaces(f"exit code                 ->  {self.exit_code}"),
+            pad_4_spaces(f"working directory         ->  {self.work_dir}"),
         ]
 
-        if self.cmd_result.stderr is None and self.cmd_result.out_file is not None:
-            error_info.append(pad_4_spaces(f"output (stdout + stderr)  ->  {self.cmd_result.out_file}"))
+        if self.stderr is None and self.out_file is not None:
+            error_info.append(pad_4_spaces(f"output (stdout + stderr)  ->  {self.out_file}"))
         else:
-            if self.cmd_result.out_file is not None:
-                error_info.append(pad_4_spaces(f"output (stdout)           ->  {self.cmd_result.out_file}"))
-            if self.cmd_result.err_file is not None:
-                error_info.append(pad_4_spaces(f"error/warnings (stderr)   ->  {self.cmd_result.err_file}"))
+            if self.out_file is not None:
+                error_info.append(pad_4_spaces(f"output (stdout)           ->  {self.out_file}"))
+            if self.err_file is not None:
+                error_info.append(pad_4_spaces(f"error/warnings (stderr)   ->  {self.err_file}"))
 
         caller_file_name, caller_line_nr, caller_function_name = self.caller_info
         called_from_info = f"'{caller_function_name}' function in {caller_file_name} (line {caller_line_nr})"
