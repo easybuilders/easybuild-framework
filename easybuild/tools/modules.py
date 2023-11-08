@@ -312,7 +312,7 @@ class ModulesTool(object):
                 output, exit_code = None, 1
         else:
             cmd = "type module"
-            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=False, hidden=True)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=False, hidden=True, output_file=False)
             output, exit_code = res.output, res.exit_code
 
         if regex is None:
@@ -821,7 +821,7 @@ class ModulesTool(object):
         cmd = ' '.join(cmd_list)
         # note: module commands are always run in dry mode, and are kept hidden in trace and dry run output
         res = run_shell_cmd(cmd_list, env=environ, fail_on_error=False, shell=False, split_stderr=True,
-                            hidden=True, in_dry_run=True)
+                            hidden=True, in_dry_run=True, output_file=False)
 
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)

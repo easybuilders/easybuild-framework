@@ -340,7 +340,8 @@ def mocked_run_shell_cmd(cmd, **kwargs):
         "ulimit -u": '40',
     }
     if cmd in known_cmds:
-        return RunShellCmdResult(cmd=cmd, exit_code=0, output=known_cmds[cmd], stderr=None, work_dir=os.getcwd())
+        return RunShellCmdResult(cmd=cmd, exit_code=0, output=known_cmds[cmd], stderr=None, work_dir=os.getcwd(),
+                                 out_file=None, err_file=None)
     else:
         return run_shell_cmd(cmd, **kwargs)
 
@@ -775,7 +776,8 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_type = lambda: st.DARWIN
         out = "Apple LLVM version 7.0.0 (clang-700.1.76)"
         cwd = os.getcwd()
-        mocked_run_res = RunShellCmdResult(cmd="gcc --version", exit_code=0, output=out, stderr=None, work_dir=cwd)
+        mocked_run_res = RunShellCmdResult(cmd="gcc --version", exit_code=0, output=out, stderr=None, work_dir=cwd,
+                                           out_file=None, err_file=None)
         st.run_shell_cmd = lambda *args, **kwargs: mocked_run_res
         self.assertEqual(get_gcc_version(), None)
 
