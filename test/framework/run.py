@@ -1066,6 +1066,25 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         self.assertEqual(out, "hello\n")
 
+    def test_run_shell_cmd_no_bash(self):
+        """Testing use of run_shell_cmd with use_bash=False to call external scripts"""
+        py_test_script = os.path.join(self.test_prefix, 'test.py')
+        write_file(py_test_script, '\n'.join([
+            '#!%s' % sys.executable,
+            'print("hello")',
+        ]))
+        adjust_permissions(py_test_script, stat.S_IXUSR)
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(py_test_script)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "hello\n")
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd([py_test_script], use_bash=False)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "hello\n")
+
     def test_run_cmd_stream(self):
         """Test use of run_cmd with streaming output."""
         self.mock_stdout(True)

@@ -180,7 +180,7 @@ run_shell_cmd_cache = run_cmd_cache
 
 @run_shell_cmd_cache
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
-                  hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, shell=True,
+                  hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, use_bash=True,
                   output_file=True, stream_output=False, asynchronous=False, with_hooks=True,
                   qa_patterns=None, qa_wait_patterns=None):
     """
@@ -194,7 +194,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     :param in_dry_run: also run command in dry run mode
     :param verbose_dry_run: show that command is run in dry run mode (overrules 'hidden')
     :param work_dir: working directory to run command in (current working directory if None)
-    :param shell: execute command through bash shell (enabled by default)
+    :param use_bash: execute command through bash shell (enabled by default)
     :param output_file: collect command output in temporary output file
     :param stream_output: stream command output to stdout
     :param asynchronous: run command asynchronously
@@ -270,7 +270,10 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     # use bash as shell instead of the default /bin/sh used by subprocess.run
     # (which could be dash instead of bash, like on Ubuntu, see https://wiki.ubuntu.com/DashAsBinSh)
     # stick to None (default value) when not running command via a shell
-    executable = '/bin/bash' if shell else None
+    if use_bash:
+        executable, shell = '/bin/bash', True
+    else:
+        executable, shell = None, False
 
     stderr = subprocess.PIPE if split_stderr else subprocess.STDOUT
 
