@@ -114,13 +114,13 @@ class RunShellCmdError(BaseException):
             pad_4_spaces(f"working directory         ->  {self.work_dir}"),
         ]
 
-        if self.stderr is None and self.out_file is not None:
-            error_info.append(pad_4_spaces(f"output (stdout + stderr)  ->  {self.out_file}"))
-        else:
-            if self.out_file is not None:
-                error_info.append(pad_4_spaces(f"output (stdout)           ->  {self.out_file}"))
-            if self.err_file is not None:
-                error_info.append(pad_4_spaces(f"error/warnings (stderr)   ->  {self.err_file}"))
+        if self.out_file is not None:
+            # if there's no separate file for error/warnings, then out_file includes both stdout + stderr
+            out_info_msg = "output (stdout + stderr)" if self.err_file is None else "output (stdout)         "
+            error_info.append(pad_4_spaces(f"{out_info_msg}  ->  {self.out_file}"))
+
+        if self.err_file is not None:
+            error_info.append(pad_4_spaces(f"error/warnings (stderr)   ->  {self.err_file}"))
 
         caller_file_name, caller_line_nr, caller_function_name = self.caller_info
         called_from_info = f"'{caller_function_name}' function in {caller_file_name} (line {caller_line_nr})"
