@@ -335,8 +335,18 @@ def print_error(msg, *args, **kwargs):
     if args:
         msg = msg % args
 
+    # grab exit code, if specified;
+    # also consider deprecated 'exitCode' option
+    exitCode = kwargs.pop('exitCode', None)
+    exit_code = kwargs.pop('exit_code', exitCode)
+    if exitCode is not None:
+        _init_easybuildlog.deprecated("'exitCode' option in print_error function is replaced with 'exit_code'", '6.0')
+
+    # use 1 as defaut exit code
+    if exit_code is None:
+        exit_code = 1
+
     log = kwargs.pop('log', None)
-    exitCode = kwargs.pop('exitCode', 1)
     opt_parser = kwargs.pop('opt_parser', None)
     exit_on_error = kwargs.pop('exit_on_error', True)
     silent = kwargs.pop('silent', False)
@@ -348,7 +358,7 @@ def print_error(msg, *args, **kwargs):
             if opt_parser:
                 opt_parser.print_shorthelp()
             sys.stderr.write("ERROR: %s\n" % msg)
-        sys.exit(exitCode)
+        sys.exit(exit_code)
     elif log is not None:
         raise EasyBuildError(msg)
 

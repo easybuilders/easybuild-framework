@@ -754,7 +754,7 @@ def main_with_hooks(args=None):
         main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])
-        sys.exit(1)
+        print_error(err.msg, exit_on_error=True, exit_code=1)
     except KeyboardInterrupt as err:
         run_hook(CANCEL, hooks, args=[err])
         print_error("Cancelled by user: %s" % err)
