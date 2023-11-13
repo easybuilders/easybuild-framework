@@ -4104,6 +4104,29 @@ class ToyBuildTest(EnhancedTestCase):
             stderr = stderr.getvalue()
             self.assertTrue(regex.search(stderr), f"Pattern '{regex.pattern}' should be found in {stderr}")
 
+    def test_eb_error(self):
+        """
+        Test whether main function as run by 'eb' command print error messages to stderr.
+        """
+        topdir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        toy_ec = os.path.join(topdir, 'test', 'framework', 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "\ndependencies = [('nosuchdep', '1.0')]"
+        write_file(test_ec, test_ec_txt)
+
+        with self.mocked_stdout_stderr() as (_, stderr):
+            cleanup()
+            try:
+                main_with_hooks(args=[test_ec, '--robot', '--force'])
+            except SystemExit:
+                pass
+
+            regex = re.compile("^ERROR: Missing dependencies", re.M)
+            stderr = stderr.getvalue()
+            self.assertTrue(regex.search(stderr), f"Pattern '{regex.pattern}' should be found in {stderr}")
+
 
 def suite():
     """ return all the tests in this file """
