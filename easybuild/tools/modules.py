@@ -820,7 +820,7 @@ class ModulesTool(object):
         cmd_list = self.compose_cmd_list(args)
         cmd = ' '.join(cmd_list)
         # note: module commands are always run in dry mode, and are kept hidden in trace and dry run output
-        res = run_shell_cmd(cmd_list, env=environ, fail_on_error=False, shell=False, split_stderr=True,
+        res = run_shell_cmd(cmd_list, env=environ, fail_on_error=False, use_bash=False, split_stderr=True,
                             hidden=True, in_dry_run=True, output_file=False)
 
         # stdout will contain python code (to change environment etc)
@@ -1422,7 +1422,7 @@ class Lmod(ModulesTool):
             cmd = ' '.join(cmd_list)
             self.log.debug("Running command '%s'...", cmd)
 
-            res = run_shell_cmd(cmd_list, env=os.environ, fail_on_error=False, shell=False, split_stderr=True,
+            res = run_shell_cmd(cmd_list, env=os.environ, fail_on_error=False, use_bash=False, split_stderr=True,
                                 hidden=True)
             stdout, stderr = res.output, res.stderr
 
