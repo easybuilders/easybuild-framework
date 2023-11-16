@@ -87,7 +87,7 @@ from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTE
 from easybuild.tools.hooks import MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP
 from easybuild.tools.hooks import POSTPROC_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP
 from easybuild.tools.hooks import SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook
-from easybuild.tools.run import RunShellCmdError, check_async_cmd, run_cmd
+from easybuild.tools.run import RunShellCmdError, check_async_cmd, run_cmd, run_shell_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -1780,21 +1780,20 @@ class EasyBlock(object):
 
         exts_cnt = len(self.ext_instances)
 
-        res = []
+        exts = []
         for idx, ext_inst in enumerate(self.ext_instances):
             cmd, stdin = resolve_exts_filter_template(exts_filter, ext_inst)
-            (out, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin,
-                                regexp=False, trace=False)
-            self.log.info("exts_filter result for %s: exit code %s; output: %s", ext_inst.name, ec, out)
-            if ec == 0:
-                print_msg("skipping extension %s" % ext_inst.name, silent=self.silent, log=self.log)
+            res = run_shell_cmd(cmd, stdin=stdin, fail_on_error=False, hidden=True)
+            self.log.info(f"exts_filter result for {ext_inst.name}: exit code {res.exit_code}; output: {res.output}")
+            if res.exit_code == 0:
+                print_msg(f"skipping extension {ext_inst.name}", silent=self.silent, log=self.log)
             else:
-                self.log.info("Not skipping %s", ext_inst.name)
-                res.append(ext_inst)
+                self.log.info(f"Not skipping {ext_inst.name}")
+                exts.append(ext_inst)
 
-            self.update_exts_progress_bar("skipping installed extensions (%d/%d checked)" % (idx + 1, exts_cnt))
+            self.update_exts_progress_bar(f"skipping installed extensions ({idx + 1}/{exts_cnt} checked)")
 
-        self.ext_instances = res
+        self.ext_instances = exts
         self.update_exts_progress_bar("already installed extensions filtered out", total=len(self.ext_instances))
 
     def skip_extensions_parallel(self, exts_filter):
@@ -2714,17 +2713,15 @@ class EasyBlock(object):
         """Run unit tests provided by software (if any)."""
         unit_test_cmd = self.cfg['runtest']
         if unit_test_cmd:
-
-            self.log.debug("Trying to execute %s as a command for running unit tests...", unit_test_cmd)
-            (out, _) = run_cmd(unit_test_cmd, log_all=True, simple=False)
-
-            return out
+            self.log.debug(f"Trying to execute {unit_test_cmd} as a command for running unit tests...")
+            res = run_shell_cmd(unit_test_cmd)
+            return res.output
 
     def _test_step(self):
         """Run the test_step and handles failures"""
         try:
             self.test_step()
-        except EasyBuildError as err:
+        except RunShellCmdError as err:
             self.report_test_failure(err)
 
     def stage_install_step(self):
@@ -2977,17 +2974,17 @@ class EasyBlock(object):
             commands = self.cfg['postinstallcmds']
 
         if commands:
-            self.log.debug("Specified post install commands: %s", commands)
+            self.log.debug(f"Specified post install commands: {commands}")
 
             # make sure we have a list of commands
             if not isinstance(commands, (list, tuple)):
-                error_msg = "Invalid value for 'postinstallcmds', should be list or tuple of strings: %s"
-                raise EasyBuildError(error_msg, commands)
+                error_msg = f"Invalid value for 'postinstallcmds', should be list or tuple of strings: {commands}"
+                raise EasyBuildError(error_msg)
 
             for cmd in commands:
                 if not isinstance(cmd, str):
-                    raise EasyBuildError("Invalid element in 'postinstallcmds', not a string: %s", cmd)
-                run_cmd(cmd, simple=True, log_ok=True, log_all=True)
+                    raise EasyBuildError(f"Invalid element in 'postinstallcmds', not a string: {cmd}")
+                run_shell_cmd(cmd)
 
     def apply_post_install_patches(self, patches=None):
         """
@@ -3104,8 +3101,10 @@ class EasyBlock(object):
         # hard reset $LD_LIBRARY_PATH before running RPATH sanity check
         orig_env = env.unset_env_vars(['LD_LIBRARY_PATH'])
 
-        self.log.debug("$LD_LIBRARY_PATH during RPATH sanity check: %s", os.getenv('LD_LIBRARY_PATH', '(empty)'))
-        self.log.debug("List of loaded modules: %s", self.modules_tool.list())
+        ld_library_path = os.getenv('LD_LIBRARY_PATH', '(empty)')
+        self.log.debug(f"$LD_LIBRARY_PATH during RPATH sanity check: {ld_library_path}")
+        modules_list = self.modules_tool.list()
+        self.log.debug(f"List of loaded modules: {modules_list}")
 
         not_found_regex = re.compile(r'(\S+)\s*\=\>\s*not found')
         readelf_rpath_regex = re.compile('(RPATH)', re.M)
@@ -3114,33 +3113,31 @@ class EasyBlock(object):
         # For example, libcuda.so.1 should never be RPATH-ed by design,
         # see https://github.com/easybuilders/easybuild-framework/issues/4095
         filter_rpath_sanity_libs = build_option('filter_rpath_sanity_libs')
-        msg = "Ignoring the following libraries if they are not found by RPATH sanity check: %s"
-        self.log.info(msg, filter_rpath_sanity_libs)
+        msg = "Ignoring the following libraries if they are not found by RPATH sanity check: {filter_rpath_sanity_libs}"
+        self.log.info(msg)
 
         if rpath_dirs is None:
             rpath_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
 
         if not rpath_dirs:
             rpath_dirs = DEFAULT_BIN_LIB_SUBDIRS
-            self.log.info("Using default subdirectories for binaries/libraries to verify RPATH linking: %s",
-                          rpath_dirs)
+            self.log.info(f"Using default subdirs for binaries/libraries to verify RPATH linking: {rpath_dirs}")
         else:
-            self.log.info("Using specified subdirectories for binaries/libraries to verify RPATH linking: %s",
-                          rpath_dirs)
+            self.log.info(f"Using specified subdirs for binaries/libraries to verify RPATH linking: {rpath_dirs}")
 
         for dirpath in [os.path.join(self.installdir, d) for d in rpath_dirs]:
             if os.path.exists(dirpath):
-                self.log.debug("Sanity checking RPATH for files in %s", dirpath)
+                self.log.debug(f"Sanity checking RPATH for files in {dirpath}")
 
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
-                    self.log.debug("Sanity checking RPATH for %s", path)
+                    self.log.debug(f"Sanity checking RPATH for {path}")
 
                     out = get_linked_libs_raw(path)
 
                     if out is None:
-                        msg = "Failed to determine dynamically linked libraries for %s, "
+                        msg = "Failed to determine dynamically linked libraries for {path}, "
                         msg += "so skipping it in RPATH sanity check"
-                        self.log.debug(msg, path)
+                        self.log.debug(msg)
                     else:
                         # check whether all required libraries are found via 'ldd'
                         matches = re.findall(not_found_regex, out)
@@ -3148,34 +3145,34 @@ class EasyBlock(object):
                             # For each match, check if the library is in the exception list
                             for match in matches:
                                 if match in filter_rpath_sanity_libs:
-                                    msg = "Library %s not found for %s, but ignored "
-                                    msg += "since it is on the rpath exception list: %s"
-                                    self.log.info(msg, match, path, filter_rpath_sanity_libs)
+                                    msg = f"Library {match} not found for {path}, but ignored "
+                                    msg += f"since it is on the rpath exception list: {filter_rpath_sanity_libs}"
+                                    self.log.info(msg)
                                 else:
-                                    fail_msg = "Library %s not found for %s" % (match, path)
+                                    fail_msg = f"Library {match} not found for {path}"
                                     self.log.warning(fail_msg)
                                     fails.append(fail_msg)
                         else:
-                            self.log.debug("Output of 'ldd %s' checked, looks OK", path)
+                            self.log.debug(f"Output of 'ldd {path}' checked, looks OK")
 
                         # check whether RPATH section in 'readelf -d' output is there
                         if check_readelf_rpath:
                             fail_msg = None
-                            out, ec = run_cmd("readelf -d %s" % path, simple=False, trace=False)
-                            if ec:
-                                fail_msg = "Failed to run 'readelf %s': %s" % (path, out)
-                            elif not readelf_rpath_regex.search(out):
-                                fail_msg = "No '(RPATH)' found in 'readelf -d' output for %s: %s" % (path, out)
+                            res = run_shell_cmd(f"readelf -d {path}", fail_on_error=False)
+                            if res.exit_code:
+                                fail_msg = f"Failed to run 'readelf -d {path}': {res.output}"
+                            elif not readelf_rpath_regex.search(res.output):
+                                fail_msg = f"No '(RPATH)' found in 'readelf -d' output for {path}: {out}"
 
                             if fail_msg:
                                 self.log.warning(fail_msg)
                                 fails.append(fail_msg)
                             else:
-                                self.log.debug("Output of 'readelf -d %s' checked, looks OK", path)
+                                self.log.debug(f"Output of 'readelf -d {path}' checked, looks OK")
                         else:
                             self.log.debug("Skipping the RPATH section check with 'readelf -d', as requested")
             else:
-                self.log.debug("Not sanity checking files in non-existing directory %s", dirpath)
+                self.log.debug(f"Not sanity checking files in non-existing directory {dirpath}")
 
         env.restore_env_vars(orig_env)
 
@@ -3604,19 +3601,20 @@ class EasyBlock(object):
             change_dir(self.installdir)
 
         # run sanity check commands
-        for command in commands:
+        for cmd in commands:
 
-            trace_msg("running command '%s' ..." % command)
+            trace_msg(f"running command '{cmd}' ...")
 
-            out, ec = run_cmd(command, simple=False, log_ok=False, log_all=False, trace=False)
-            if ec != 0:
-                fail_msg = "sanity check command %s exited with code %s (output: %s)" % (command, ec, out)
+            res = run_shell_cmd(cmd, fail_on_error=False, hidden=True)
+            if res.exit_code != 0:
+                fail_msg = f"sanity check command {cmd} exited with code {res.exit_code} (output: {res.output})"
                 self.sanity_check_fail_msgs.append(fail_msg)
-                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
+                self.log.warning(f"Sanity check: {fail_msg}")
             else:
-                self.log.info("sanity check command %s ran successfully! (output: %s)" % (command, out))
+                self.log.info(f"sanity check command {cmd} ran successfully! (output: {res.output})")
 
-            trace_msg("result for command '%s': %s" % (command, ('FAILED', 'OK')[ec == 0]))
+            cmd_result_str = ('FAILED', 'OK')[res.exit_code == 0]
+            trace_msg(f"result for command '{cmd}': {cmd_result_str}")
 
         # also run sanity check for extensions (unless we are an extension ourselves)
         if not extension:
@@ -3643,7 +3641,7 @@ class EasyBlock(object):
 
         # pass or fail
         if self.sanity_check_fail_msgs:
-            raise EasyBuildError("Sanity check failed: %s", '\n'.join(self.sanity_check_fail_msgs))
+            raise EasyBuildError("Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs))
         else:
             self.log.debug("Sanity check passed!")
 
@@ -3854,20 +3852,20 @@ class EasyBlock(object):
         for test in self.cfg['tests']:
             change_dir(self.orig_workdir)
             if os.path.isabs(test):
-                path = test
+                test_cmd = test
             else:
                 for source_path in source_paths():
-                    path = os.path.join(source_path, self.name, test)
-                    if os.path.exists(path):
+                    test_cmd = os.path.join(source_path, self.name, test)
+                    if os.path.exists(test_cmd):
                         break
-                if not os.path.exists(path):
-                    raise EasyBuildError("Test specifies invalid path: %s", path)
+                if not os.path.exists(test_cmd):
+                    raise EasyBuildError(f"Test specifies invalid path: {test_cmd}")
 
             try:
-                self.log.debug("Running test %s" % path)
-                run_cmd(path, log_all=True, simple=True)
+                self.log.debug(f"Running test {test_cmd}")
+                run_shell_cmd(test_cmd)
             except EasyBuildError as err:
-                raise EasyBuildError("Running test %s failed: %s", path, err)
+                raise EasyBuildError(f"Running test {test_cmd} failed: {err}")
 
     def update_config_template_run_step(self):
         """Update the the easyconfig template dictionary with easyconfig.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP names"""
