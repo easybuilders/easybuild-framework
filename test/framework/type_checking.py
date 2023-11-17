@@ -237,7 +237,9 @@ class TypeCheckingTest(EnhancedTestCase):
             ],
         ]
         for inp in inputs:
-            self.assertTrue(check_type_of_param_value('checksums', inp), 'Failed for ' + str(inp))
+            type_ok, newval = check_type_of_param_value('checksums', inp)
+            self.assertIs(type_ok, True, 'Failed for ' + str(inp))
+            self.assertEqual(newval, inp)
 
     def test_check_type_of_param_value_patches(self):
         """Test check_type_of_param_value function for patches."""
