@@ -622,18 +622,20 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
 
 # Type & value, value may be an int for type "size"
 # This is a bit too permissive as it allows the first element to be an int and doesn't restrict the number of elements
-CHECKSUM_TUPLE = (tuple, as_hashable({'elem_types': [str, int]}))
+CHECKSUM_AND_TYPE = (tuple, as_hashable({'elem_types': [str, int]}))
+CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, CHECKSUM_AND_TYPE]}))
+CHECKSUM_TUPLE = (tuple, as_hashable({'elem_types': [str, CHECKSUM_AND_TYPE]}))
 CHECKSUM_DICT = (dict, as_hashable(
     {
-        'elem_types': [type(None), str, CHECKSUM_TUPLE],
+        'elem_types': [type(None), str, CHECKSUM_AND_TYPE, CHECKSUM_TUPLE, CHECKSUM_LIST],
         'key_types': [str],
     }
 ))
-CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, CHECKSUM_TUPLE, CHECKSUM_DICT]}))
 
-CHECKSUMS = (list, as_hashable({'elem_types': [type(None), str, CHECKSUM_LIST, CHECKSUM_TUPLE, CHECKSUM_DICT]}))
+CHECKSUMS = (list, as_hashable({'elem_types': [type(None), str, CHECKSUM_AND_TYPE,
+                                               CHECKSUM_LIST, CHECKSUM_TUPLE, CHECKSUM_DICT]}))
 
-CHECKABLE_TYPES = [CHECKSUM_DICT, CHECKSUM_LIST, CHECKSUM_TUPLE, CHECKSUMS,
+CHECKABLE_TYPES = [CHECKSUM_AND_TYPE, CHECKSUM_LIST, CHECKSUM_TUPLE, CHECKSUM_DICT, CHECKSUMS,
                    DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
                    SANITY_CHECK_PATHS_DICT, SANITY_CHECK_PATHS_ENTRY, STRING_DICT, STRING_OR_TUPLE_LIST,
                    STRING_OR_TUPLE_DICT, STRING_OR_TUPLE_OR_DICT_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]

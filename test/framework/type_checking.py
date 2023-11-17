@@ -174,10 +174,12 @@ class TypeCheckingTest(EnhancedTestCase):
     def test_check_type_of_param_value_checksums(self):
         """Test check_type_of_param_value function for checksums."""
 
-        md5_checksum = 'fa618be8435447a017fd1bf2c7ae9224'
-        sha256_checksum1 = 'fa618be8435447a017fd1bf2c7ae922d0428056cfc7449f7a8641edf76b48265'
-        sha256_checksum2 = 'b5f9cb06105c1d2d30719db5ffb3ea67da60919fb68deaefa583deccd8813551'
-        sha256_checksum3 = '033be54514a03e255df75c5aee8f9e672f663f93abb723444caec8fe43437bde'
+        # Using (actually invalid) prefix to better detect those in case of errors
+        md5_checksum = 'md518be8435447a017fd1bf2c7ae9224'
+        sha256_checksum1 = 'sha18be8435447a017fd1bf2c7ae922d0428056cfc7449f7a8641edf76b48265'
+        sha256_checksum2 = 'sha2cb06105c1d2d30719db5ffb3ea67da60919fb68deaefa583deccd8813551'
+        sha256_checksum3 = 'sha3e54514a03e255df75c5aee8f9e672f663f93abb723444caec8fe43437bde'
+        filesize = 45617379
 
         # valid values for 'checksums' easyconfig parameters
         inputs = [
@@ -190,6 +192,7 @@ class TypeCheckingTest(EnhancedTestCase):
             # one checksum of specific type (as 2-tuple)
             [('md5', md5_checksum)],
             [('sha256', sha256_checksum1)],
+            [('size', filesize)],
             # alternative checksums for a single file (n-tuple)
             [(sha256_checksum1, sha256_checksum2)],
             [(sha256_checksum1, sha256_checksum2, sha256_checksum3)],
@@ -213,17 +216,17 @@ class TypeCheckingTest(EnhancedTestCase):
                 # two checksums for a single file, *both* should match
                 [sha256_checksum1, md5_checksum],
                 # three checksums for a single file, *all* should match
-                [sha256_checksum1, ('md5', md5_checksum), {'foo.txt': sha256_checksum1}],
+                [sha256_checksum1, ('md5', md5_checksum), ('size', filesize)],
                 # single checksum for a single file
                 sha256_checksum1,
                 # filename-to-checksum mapping
-                {'foo.txt': sha256_checksum1, 'bar.txt': sha256_checksum2},
+                {'foo.txt': sha256_checksum1, 'bar.txt': sha256_checksum2, 'baz.txt': ('size', filesize)},
                 # 3 alternative checksums for a single file, one match is sufficient
                 (sha256_checksum1, sha256_checksum2, sha256_checksum3),
                 # two alternative checksums for a single file (not to be confused by checksum-type & -value tuple)
                 (sha256_checksum1, md5_checksum),
                 # three alternative checksums for a single file of different types
-                (sha256_checksum1, ('md5', md5_checksum), {'foo.txt': sha256_checksum1}),
+                (sha256_checksum1, ('md5', md5_checksum), ('size', filesize)),
                 # alternative checksums in dicts are also allowed
                 {'foo.txt': (sha256_checksum2, sha256_checksum3), 'bar.txt': (sha256_checksum1, md5_checksum)},
                 # Same but with lists -> all must match for each file
