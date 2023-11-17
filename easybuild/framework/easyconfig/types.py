@@ -631,11 +631,15 @@ CHECKSUM_DICT = (dict, as_hashable(
         'key_types': [str],
     }
 ))
+# At the top-level we allow tuples/lists containing a dict
+CHECKSUM_LIST_W_DICT = (list, as_hashable({'elem_types': [str, CHECKSUM_AND_TYPE, CHECKSUM_DICT]}))
+CHECKSUM_TUPLE_W_DICT = (tuple, as_hashable({'elem_types': [str, CHECKSUM_AND_TYPE, CHECKSUM_DICT]}))
 
 CHECKSUMS = (list, as_hashable({'elem_types': [type(None), str, CHECKSUM_AND_TYPE,
-                                               CHECKSUM_LIST, CHECKSUM_TUPLE, CHECKSUM_DICT]}))
+                                               CHECKSUM_LIST_W_DICT, CHECKSUM_TUPLE_W_DICT, CHECKSUM_DICT]}))
 
-CHECKABLE_TYPES = [CHECKSUM_AND_TYPE, CHECKSUM_LIST, CHECKSUM_TUPLE, CHECKSUM_DICT, CHECKSUMS,
+CHECKABLE_TYPES = [CHECKSUM_AND_TYPE, CHECKSUM_LIST, CHECKSUM_TUPLE,
+                   CHECKSUM_LIST_W_DICT, CHECKSUM_TUPLE_W_DICT, CHECKSUM_DICT, CHECKSUMS,
                    DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
                    SANITY_CHECK_PATHS_DICT, SANITY_CHECK_PATHS_ENTRY, STRING_DICT, STRING_OR_TUPLE_LIST,
                    STRING_OR_TUPLE_DICT, STRING_OR_TUPLE_OR_DICT_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
