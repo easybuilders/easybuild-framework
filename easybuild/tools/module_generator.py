@@ -666,7 +666,7 @@ class ModuleGenerator(object):
         if multi_deps:
             compatible_modules_txt = '\n'.join([
                 "This module is compatible with the following modules, one of each line is required:",
-            ] + ['* %s' % d for d in multi_deps])
+            ] + ['* %s' % d for d in set(multi_deps)])
             lines.extend(self._generate_section("Compatible modules", compatible_modules_txt))
 
         # Extensions (if any)
