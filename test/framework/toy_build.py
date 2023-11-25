@@ -3955,6 +3955,44 @@ class ToyBuildTest(EnhancedTestCase):
             self._test_toy_build(ec_file=test_ec, extra_args=args, force=False,
                                  raise_error=True, verbose=False, verify=False)
 
+    def test_toy_mod_files(self):
+        """Check detection of .mod files"""
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        with self.mocked_stdout_stderr():
+            self._test_toy_build(ec_file=test_ec)
+
+        test_ec_txt += "\npostinstallcmds += ['touch %(installdir)s/lib/file.mod']"
+        write_file(test_ec, test_ec_txt)
+
+        with self.mocked_stdout_stderr():
+            self._test_toy_build(ec_file=test_ec)
+
+        args = ['--try-toolchain=GCCcore,6.2.0', '--disable-map-toolchains']
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self._test_toy_build(ec_file=test_ec, extra_args=args)
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        pattern = r"WARNING: .mod files (.*) found in the installation."
+        self.assertRegex(stderr.strip(), pattern)
+
+        args += ['--fail-on-mod-files']
+        pattern = r"Sanity check failed: .mod files (.*) found in the installation."
+        self.assertErrorRegex(EasyBuildError, pattern, self.run_test_toy_build_with_output, ec_file=test_ec,
+                              extra_args=args, verify=False, fails=True, verbose=False, raise_error=True)
+
+        test_ec_txt += "\nskip_mod_files_check = True"
+        write_file(test_ec, test_ec_txt)
+
+        with self.mocked_stdout_stderr():
+            self._test_toy_build(ec_file=test_ec, extra_args=args)
+
     def test_toy_ignore_test_failure(self):
         """Check whether use of --ignore-test-failure is mentioned in build output."""
         args = ['--ignore-test-failure']
