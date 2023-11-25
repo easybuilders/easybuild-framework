@@ -277,7 +277,7 @@ BUILD_OPTIONS_CMDLINE = {
         'enforce_checksums',
         'experimental',
         'extended_dry_run',
-        'fail_on_mod_files',
+        'fail_on_mod_files_gcccore',
         'force',
         'generate_devel_module',
         'group_writable_installdir',

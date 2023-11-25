@@ -3982,12 +3982,12 @@ class ToyBuildTest(EnhancedTestCase):
         pattern = r"WARNING: .mod files (.*) found in the installation."
         self.assertRegex(stderr.strip(), pattern)
 
-        args += ['--fail-on-mod-files']
+        args += ['--fail-on-mod-files-gcccore']
         pattern = r"Sanity check failed: .mod files (.*) found in the installation."
         self.assertErrorRegex(EasyBuildError, pattern, self.run_test_toy_build_with_output, ec_file=test_ec,
                               extra_args=args, verify=False, fails=True, verbose=False, raise_error=True)
 
-        test_ec_txt += "\nskip_mod_files_check = True"
+        test_ec_txt += "\nskip_mod_files_sanity_check = True"
         write_file(test_ec, test_ec_txt)
 
         with self.mocked_stdout_stderr():
