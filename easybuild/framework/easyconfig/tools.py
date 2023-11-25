@@ -434,7 +434,7 @@ def stats_to_str(stats, isyeb=False):
     return txt
 
 
-def find_related_easyconfigs(path, ec):
+def find_related_easyconfigs(path, ec, filter_related_ecs=None):
     """
     Find related easyconfigs for provided parsed easyconfig in specified path.
 
@@ -467,25 +467,30 @@ def find_related_easyconfigs(path, ec):
     potential_paths = sorted(sum(potential_paths, []), reverse=True)  # flatten
     _log.debug("found these potential paths: %s" % potential_paths)
 
-    parsed_version = LooseVersion(version).version
-    version_patterns = [version]  # exact version match
-    if len(parsed_version) >= 2:
-        version_patterns.append(r'%s\.%s\.\w+' % tuple(parsed_version[:2]))  # major/minor version match
-    if parsed_version != parsed_version[0]:
-        version_patterns.append(r'%s\.[\d-]+(\.\w+)*' % parsed_version[0])  # major version match
-    version_patterns.append(r'[\w.]+')  # any version
+    if filter_related_ecs is not None and filter_related_ecs.pattern.startswith('full:'):
+        _log.debug("'full:' was specified in --review-pr-filter, ignoring predefined criteria and "
+                   "using only the supplied pattern to find related easyconfigs")
+        regexes = [r'^\S+/%s-\S*%s\S*\.eb$' % (re.escape(name), str(filter_related_ecs.pattern)[5:])]
+    else:
+        parsed_version = LooseVersion(version).version
+        version_patterns = [version]  # exact version match
+        if len(parsed_version) >= 2:
+            version_patterns.append(r'%s\.%s\.\w+' % tuple(parsed_version[:2]))  # major/minor version match
+        if parsed_version != parsed_version[0]:
+            version_patterns.append(r'%s\.[\d-]+(\.\w+)*' % parsed_version[0])  # major version match
+        version_patterns.append(r'[\w.]+')  # any version
 
-    regexes = []
-    for version_pattern in version_patterns:
-        common_pattern = r'^\S+/%s-%s%%s\.eb$' % (re.escape(name), version_pattern)
-        regexes.extend([
-            common_pattern % (toolchain_pattern + versionsuffix),
-            common_pattern % (toolchain_name_pattern + versionsuffix),
-            common_pattern % (r'\S*%s' % versionsuffix),
-            common_pattern % toolchain_pattern,
-            common_pattern % toolchain_name_pattern,
-            common_pattern % r'\S*',
-        ])
+        regexes = []
+        for version_pattern in version_patterns:
+            common_pattern = r'^\S+/%s-%s%%s\.eb$' % (re.escape(name), version_pattern)
+            regexes.extend([
+                common_pattern % (toolchain_pattern + versionsuffix),
+                common_pattern % (toolchain_name_pattern + versionsuffix),
+                common_pattern % (r'\S*%s' % versionsuffix),
+                common_pattern % toolchain_pattern,
+                common_pattern % toolchain_name_pattern,
+                common_pattern % r'\S*',
+            ])
 
     for regex in regexes:
         res = [p for p in potential_paths if re.match(regex, p)]
@@ -498,7 +503,8 @@ def find_related_easyconfigs(path, ec):
     return res
 
 
-def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False, max_ecs=None, filter_ecs=None):
+def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False,
+              max_related_ecs=None, filter_related_ecs=None):
     """
     Print multi-diff overview between specified easyconfigs or PR and specified branch.
     :param pr: pull request number in easybuild-easyconfigs repo to review
@@ -526,17 +532,17 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False
     lines = []
     ecs, _ = parse_easyconfigs([(fp, False) for fp in pr_files], validate=False)
     for ec in ecs:
-        files = find_related_easyconfigs(repo_path, ec['ec'])
+        files = find_related_easyconfigs(repo_path, ec['ec'], filter_related_ecs)
         if pr:
             pr_msg = "PR#%s" % pr
         else:
             pr_msg = "new PR"
         _log.debug("File in %s %s has these related easyconfigs: %s" % (pr_msg, ec['spec'], files))
         if files:
-            if filter_ecs is not None:
-                files = [x for x in files if filter_ecs.search(x)]
-            if max_ecs is not None:
-                files = files[:max_ecs]
+            if filter_related_ecs is not None and not filter_related_ecs.pattern.startswith('full:'):
+                files = [x for x in files if filter_related_ecs.search(os.path.basename(x))]
+            if max_related_ecs is not None:
+                files = files[:max_related_ecs]
             lines.append(multidiff(ec['spec'], files, colored=colored))
         else:
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
