@@ -400,6 +400,7 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
                               'strlist', 'extend', None),
+            'fail-on-mod-files': ("Fail if .mod files are detected in a GCCcore install", None, 'store_true', False),
             'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
                       "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
             'filter-deps': ("List of dependencies that you do *not* want to install with EasyBuild, "

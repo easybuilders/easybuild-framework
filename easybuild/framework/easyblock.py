@@ -3303,6 +3303,19 @@ class EasyBlock(object):
 
         return fail_msg
 
+    def sanity_check_mod_files(self):
+        """
+        Check installation for Fortran .mod files
+        """
+        self.log.debug("Check for .mod files in install directory")
+        mod_files = glob.glob(os.path.join(self.installdir, '**', '*.mod'), recursive=True)
+
+        fail_msg = None
+        if mod_files:
+            fail_msg = ".mod files (%s) found in the installation." % ', '.join(mod_files)
+
+        return fail_msg
+
     def _sanity_check_step_common(self, custom_paths, custom_commands):
         """
         Determine sanity check paths and commands to use.
@@ -3624,6 +3637,14 @@ class EasyBlock(object):
         if linked_shared_lib_fails:
             self.log.warning("Check for required/banned linked shared libraries failed!")
             self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
+
+        if self.toolchain.name in ['GCCcore']:
+            mod_files_found = self.sanity_check_mod_files()
+            if mod_files_found:
+                if build_option('fail_on_mod_files'):
+                    self.sanity_check_fail_msgs.append(mod_files_found)
+                else:
+                    print_warning(mod_files_found)
 
         # cleanup
         if self.fake_mod_data:
