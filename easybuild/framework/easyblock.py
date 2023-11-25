@@ -3638,7 +3638,7 @@ class EasyBlock(object):
             self.log.warning("Check for required/banned linked shared libraries failed!")
             self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
 
-        if self.toolchain.name in ['GCCcore']:
+        if self.toolchain.name in ['GCCcore'] and not self.cfg._config['skip_mod_files_check']:
             mod_files_found = self.sanity_check_mod_files()
             if mod_files_found:
                 if build_option('fail_on_mod_files'):
