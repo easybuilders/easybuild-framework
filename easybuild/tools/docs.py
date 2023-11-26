@@ -39,6 +39,7 @@ Authors:
 import copy
 import inspect
 import os
+import json
 from easybuild.tools import LooseVersion
 
 from easybuild.base import fancylogger
@@ -75,6 +76,7 @@ SIMPLE = 'simple'
 FORMAT_MD = 'md'
 FORMAT_RST = 'rst'
 FORMAT_TXT = 'txt'
+FORMAT_JSON = 'json'
 
 
 def generate_doc(name, params):
@@ -1022,6 +1024,34 @@ def list_software_txt(software, detailed=False):
             lines.append('')
 
     return '\n'.join(lines)
+
+
+def list_software_json(software, detailed=False):
+    """
+    Return overview of supported software in json
+
+    :param software: software information (strucuted like list_software does)
+    :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :return: multi-line string presenting requested info
+    """
+    lines = ['[']
+    for key in sorted(software, key=lambda x: x.lower()):
+        for tmp in software[key]:
+            if detailed:
+                # deep copy here to avoid modifying the original dict
+                x = copy.deepcopy(tmp)
+                x['description'] = x['description'].split('\n')[0].strip()
+            else:
+                x = {}
+            x['name'] = key
+
+            lines.append(json.dumps(x, indent=4) + ",")
+            if detailed:
+                break
+    # remove last comma
+    if len(lines) > 1:
+        lines[-1] = lines[-1][:-1]
+    return '\n'.join(lines) + '\n]'
 
 
 def list_toolchains(output_format=FORMAT_TXT):
