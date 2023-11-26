@@ -1040,7 +1040,7 @@ def list_software_json(software, detailed=False):
             if detailed:
                 # deep copy here to avoid modifying the original dict
                 x = copy.deepcopy(tmp)
-                x['description'] = x['description'].split('\n')[0].strip()
+                x['description'] = ' '.join(x['description'].split('\n')).strip()
             else:
                 x = {}
             x['name'] = key

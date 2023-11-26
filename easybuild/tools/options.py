@@ -469,7 +469,8 @@ class EasyBuildOptions(GeneralOption):
             'mpi-tests': ("Run MPI tests (when relevant)", None, 'store_true', True),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
-            'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_MD, FORMAT_RST, FORMAT_TXT, FORMAT_JSON]),
+            'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, 
+                              [FORMAT_MD, FORMAT_RST, FORMAT_TXT, FORMAT_JSON]),
             'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
                              "with fallback to basic colored output",
                              'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),

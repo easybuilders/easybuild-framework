@@ -405,6 +405,91 @@ version|toolchain
 ``1.4``|``GCC/4.6.3``, ``system``
 ``1.5``|``foss/2018a``, ``intel/2018a``""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
 
+LIST_SOFTWARE_SIMPLE_MD = """# List of supported software
+
+EasyBuild supports 2 different software packages (incl. toolchains, bundles):
+
+[g](#g)
+
+
+## G
+
+* GCC
+* gzip"""
+
+
+
+LIST_SOFTWARE_DETAILED_MD = """# List of supported software
+
+EasyBuild supports 2 different software packages (incl. toolchains, bundles):
+
+[g](#g)
+
+
+## G
+
+
+[GCC](#gcc) - [gzip](#gzip)
+
+
+### GCC
+
+%(gcc_descr)s
+
+*homepage*: <http://gcc.gnu.org/>
+
+version  |toolchain
+---------|----------
+``4.6.3``|``system``
+
+### gzip
+
+%(gzip_descr)s
+
+*homepage*: <http://www.gzip.org/>
+
+version|toolchain
+-------|-------------------------------
+``1.4``|``GCC/4.6.3``, ``system``
+``1.5``|``foss/2018a``, ``intel/2018a``""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+
+LIST_SOFTWARE_SIMPLE_JSON = """[
+{
+    "name": "GCC"
+},
+{
+    "name": "gzip"
+},
+{
+    "name": "gzip"
+},
+{
+    "name": "gzip"
+},
+{
+    "name": "gzip"
+}
+]"""
+
+LIST_SOFTWARE_DETAILED_JSON = """[
+{
+    "toolchain": "system",
+    "description": "%(gcc_descr)s",
+    "homepage": "http://gcc.gnu.org/",
+    "version": "4.6.3",
+    "versionsuffix": "",
+    "name": "GCC"
+},
+{
+    "toolchain": "GCC/4.6.3",
+    "description": "%(gzip_descr)s",
+    "homepage": "http://www.gzip.org/",
+    "version": "1.4",
+    "versionsuffix": "",
+    "name": "gzip"
+}
+]""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+
 
 class DocsTest(EnhancedTestCase):
 
@@ -586,6 +671,9 @@ class DocsTest(EnhancedTestCase):
 
         self.assertEqual(list_software(output_format='md'), LIST_SOFTWARE_SIMPLE_MD)
         self.assertEqual(list_software(output_format='md', detailed=True), LIST_SOFTWARE_DETAILED_MD)
+
+        self.assertEqual(list_software(output_format='json'), LIST_SOFTWARE_SIMPLE_JSON)
+        self.assertEqual(list_software(output_format='json', detailed=True), LIST_SOFTWARE_DETAILED_JSON)
 
         # GCC/4.6.3 is installed, no gzip module installed
         txt = list_software(output_format='txt', detailed=True, only_installed=True)
