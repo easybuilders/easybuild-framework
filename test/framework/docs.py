@@ -417,8 +417,6 @@ EasyBuild supports 2 different software packages (incl. toolchains, bundles):
 * GCC
 * gzip"""
 
-
-
 LIST_SOFTWARE_DETAILED_MD = """# List of supported software
 
 EasyBuild supports 2 different software packages (incl. toolchains, bundles):
