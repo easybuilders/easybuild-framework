@@ -505,6 +505,12 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         if fail_on_error:
             raise_run_shell_cmd_error(res)
 
+    # return to original work dir after command execution
+    try:
+        os.chdir(res.work_dir)
+    except OSError as err:
+        raise EasyBuildError(f"Failed to return to {res.work_dir} after executing command `{cmd_str}`: {err}")
+
     if with_hooks:
         run_hook_kwargs = {
             'exit_code': res.exit_code,
