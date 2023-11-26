@@ -1231,6 +1231,7 @@ def list_toolchains_txt(tcs):
 
     return '\n'.join(doc)
 
+
 def list_toolchains_json(tcs):
     """ Returns overview of all toolchains in json format """
     raise NotImplementedError("JSON output not implemented yet for --list-toolchains")
@@ -1319,11 +1320,13 @@ def get_easyblock_classes(package_name):
 
     return easyblocks
 
+
 def gen_easyblocks_overview_json(package_name, path_to_examples, common_params=None, doc_functions=None):
     """
     Compose overview of all easyblocks in the given package in json format
     """
     raise NotImplementedError("JSON output not implemented yet for gen_easyblocks_overview")
+
 
 def gen_easyblocks_overview_md(package_name, path_to_examples, common_params=None, doc_functions=None):
     """
