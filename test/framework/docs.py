@@ -639,6 +639,9 @@ class DocsTest(EnhancedTestCase):
         regex = re.compile(r"^``GPLv3``\s*|The GNU General Public License", re.M)
         self.assertTrue(regex.search(lic_docs), "%s found in: %s" % (regex.pattern, lic_docs))
 
+        # expect NotImplementedError for JSON output
+        self.assertRaises(NotImplementedError, avail_easyconfig_licenses, output_format='json')
+
     def test_list_easyblocks(self):
         """
         Tests for list_easyblocks function
@@ -666,6 +669,9 @@ class DocsTest(EnhancedTestCase):
 
         txt = list_easyblocks(list_easyblocks='detailed', output_format='md')
         self.assertEqual(txt, LIST_EASYBLOCKS_DETAILED_MD % {'topdir': topdir_easyblocks})
+
+        # expect NotImplementedError for JSON output
+        self.assertRaises(NotImplementedError, list_easyblocks, output_format='json')
 
     def test_list_software(self):
         """Test list_software* functions."""
@@ -791,6 +797,10 @@ class DocsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
 
+        # expect NotImplementedError for json output format
+        with self.assertRaises(NotImplementedError):
+            list_toolchains(output_format='json')
+
     def test_avail_cfgfile_constants(self):
         """
         Test avail_cfgfile_constants to generate overview of constants that can be used in a configuration file.
@@ -835,6 +845,10 @@ class DocsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
 
+        # expect NotImplementedError for json output format
+        with self.assertRaises(NotImplementedError):
+            avail_cfgfile_constants(option_parser.go_cfg_constants, output_format='json')
+
     def test_avail_easyconfig_constants(self):
         """
         Test avail_easyconfig_constants to generate overview of constants that can be used in easyconfig files.
@@ -877,6 +891,10 @@ class DocsTest(EnhancedTestCase):
         for pattern in rst_patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+
+        # expect NotImplementedError for json output format
+        with self.assertRaises(NotImplementedError):
+            avail_easyconfig_constants(output_format='json')
 
     def test_avail_easyconfig_templates(self):
         """
@@ -927,6 +945,10 @@ class DocsTest(EnhancedTestCase):
         for pattern in rst_patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+
+        # expect NotImplementedError for json output format
+        with self.assertRaises(NotImplementedError):
+            avail_easyconfig_templates(output_format='json')
 
     def test_avail_toolchain_opts(self):
         """
@@ -1011,6 +1033,12 @@ class DocsTest(EnhancedTestCase):
         for pattern in rst_patterns_intel:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+
+        # expect NotImplementedError for json output format
+        with self.assertRaises(NotImplementedError):
+            avail_toolchain_opts('foss', output_format='json')
+        with self.assertRaises(NotImplementedError):
+            avail_toolchain_opts('intel', output_format='json')
 
     def test_mk_table(self):
         """
