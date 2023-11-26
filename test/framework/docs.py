@@ -457,15 +457,6 @@ LIST_SOFTWARE_SIMPLE_JSON = """[
 },
 {
     "name": "gzip"
-},
-{
-    "name": "gzip"
-},
-{
-    "name": "gzip"
-},
-{
-    "name": "gzip"
 }
 ]"""
 
@@ -483,6 +474,30 @@ LIST_SOFTWARE_DETAILED_JSON = """[
     "description": "%(gzip_descr)s",
     "homepage": "http://www.gzip.org/",
     "version": "1.4",
+    "versionsuffix": "",
+    "name": "gzip"
+},
+{
+    "toolchain": "system",
+    "description": "%(gzip_descr)s",
+    "homepage": "http://www.gzip.org/",
+    "version": "1.4",
+    "versionsuffix": "",
+    "name": "gzip"
+},
+{
+    "toolchain": "foss/2018a",
+    "description": "%(gzip_descr)s",
+    "homepage": "http://www.gzip.org/",
+    "version": "1.5",
+    "versionsuffix": "",
+    "name": "gzip"
+},
+{
+    "toolchain": "intel/2018a",
+    "description": "%(gzip_descr)s",
+    "homepage": "http://www.gzip.org/",
+    "version": "1.5",
     "versionsuffix": "",
     "name": "gzip"
 }

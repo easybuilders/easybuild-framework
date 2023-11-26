@@ -1046,9 +1046,9 @@ def list_software_json(software, detailed=False):
             x['name'] = key
 
             lines.append(json.dumps(x, indent=4) + ",")
-            if detailed:
+            if not detailed:
                 break
-    # remove last comma
+    # remove last line last comma
     if len(lines) > 1:
         lines[-1] = lines[-1][:-1]
     return '\n'.join(lines) + '\n]'
