@@ -1840,8 +1840,8 @@ class ToolchainTest(EnhancedTestCase):
         scalapack_mt_static_libs_fosscuda = "libscalapack.a,libopenblas.a,libgfortran.a,libpthread.a"
         scalapack_mt_shared_libs_fosscuda = scalapack_mt_static_libs_fosscuda.replace('.a', '.' + shlib_ext)
 
-        for tc in [('fosscuda', '2018a'), ('foss', '2023a')]:
-            tc = self.get_toolchain(tc[0], version=tc[1])
+        for toolc in [('fosscuda', '2018a'), ('foss', '2023a')]:
+            tc = self.get_toolchain(toolc[0], version=toolc[1])
             tc.prepare()
             self.assertEqual(os.environ['BLAS_SHARED_LIBS'], blas_shared_libs_fosscuda)
             self.assertEqual(os.environ['BLAS_STATIC_LIBS'], blas_static_libs_fosscuda)
