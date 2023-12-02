@@ -1,0 +1,42 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+FFTW is a C subroutine library for computing the discrete Fourier transform (DFT)
+in one or more dimensions, of arbitrary input size, and of both real and complex data.
+
+
+More information
+================
+ - Homepage: https://www.fftw.org
+    }
+}
+
+module-whatis {Description: FFTW is a C subroutine library for computing the discrete Fourier transform (DFT)
+in one or more dimensions, of arbitrary input size, and of both real and complex data.}
+module-whatis {Homepage: https://www.fftw.org}
+module-whatis {URL: https://www.fftw.org}
+
+set root /prefix/software/FFTW.MPI/3.3.10-gompi-2023a
+
+conflict FFTW.MPI
+
+if { ![ is-loaded gompi/2023a ] } {
+    module load gompi/2023a
+}
+
+if { ![ is-loaded FFTW/3.3.10-GCC-12.3.0 ] } {
+    module load FFTW/3.3.10-GCC-12.3.0
+}
+
+prepend-path	CMAKE_PREFIX_PATH		$root
+prepend-path	CPATH		$root/include
+prepend-path	LD_LIBRARY_PATH		$root/lib
+prepend-path	LIBRARY_PATH		$root/lib
+setenv	EBROOTFFTWMPI		"$root"
+setenv	EBVERSIONFFTWMPI		"3.3.10"
+setenv	EBDEVELFFTWMPI		"$root/easybuild/FFTW.MPI-3.3.10-gompi-2023a-easybuild-devel"
+
+# Built with EasyBuild version 4.9.0.dev0-rea8433dcf5e6edea3e72ad9bd9e23023ecc6b228
