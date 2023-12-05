@@ -2420,6 +2420,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         allargs = args + ['--software-version=1.2.3', '--toolchain=gompi,2018a']
         self.assertErrorRegex(EasyBuildError, "version .* not available", self.eb_main, allargs, raise_error=True)
 
+        # Try changing only name or version of toolchain
+        args.pop(0)  # Remove EC filename
+        test_cases = [
+            (['toy-0.0-gompi-2018a.eb', '--try-toolchain-name=intel'], 'toy/0.0-iimpi-2018a'),
+            (['toy-0.0-foss-2018a.eb', '--try-toolchain-name=intel'], 'toy/0.0-intel-2018a'),
+            (['toy-0.0-gompi-2018a.eb', '--try-toolchain-version=2018b'], 'toy/0.0-gompi-2018b'),
+        ]
+        for extra_args, mod in test_cases:
+            outtxt = self.eb_main(args + extra_args, verbose=True, raise_error=True)
+            mod_regex = re.compile(r"\(module: %s\)$" % mod, re.M)
+            self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
+
     def test_try_with_copy(self):
         """Test whether --try options are taken into account."""
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
