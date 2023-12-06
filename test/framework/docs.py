@@ -462,43 +462,43 @@ LIST_SOFTWARE_SIMPLE_JSON = """[
 
 LIST_SOFTWARE_DETAILED_JSON = """[
 {
-    "toolchain": "system", 
-    "description": "%(gcc_descr)s", 
-    "homepage": "http://gcc.gnu.org/", 
-    "version": "4.6.3", 
-    "versionsuffix": "", 
+    "toolchain": "system",
+    "description": "%(gcc_descr)s",
+    "homepage": "http://gcc.gnu.org/",
+    "version": "4.6.3",
+    "versionsuffix": "",
     "name": "GCC"
 },
 {
-    "toolchain": "GCC/4.6.3", 
-    "description": "%(gzip_descr)s", 
-    "homepage": "http://www.gzip.org/", 
-    "version": "1.4", 
-    "versionsuffix": "", 
+    "toolchain": "GCC/4.6.3",
+    "description": "%(gzip_descr)s",
+    "homepage": "http://www.gzip.org/",
+    "version": "1.4",
+    "versionsuffix": "",
     "name": "gzip"
 },
 {
-    "toolchain": "system", 
-    "description": "%(gzip_descr)s", 
-    "homepage": "http://www.gzip.org/", 
-    "version": "1.4", 
-    "versionsuffix": "", 
+    "toolchain": "system",
+    "description": "%(gzip_descr)s",
+    "homepage": "http://www.gzip.org/",
+    "version": "1.4",
+    "versionsuffix": "",
     "name": "gzip"
 },
 {
-    "toolchain": "foss/2018a", 
-    "description": "%(gzip_descr)s", 
-    "homepage": "http://www.gzip.org/", 
-    "version": "1.5", 
-    "versionsuffix": "", 
+    "toolchain": "foss/2018a",
+    "description": "%(gzip_descr)s",
+    "homepage": "http://www.gzip.org/",
+    "version": "1.5",
+    "versionsuffix": "",
     "name": "gzip"
 },
 {
-    "toolchain": "intel/2018a", 
-    "description": "%(gzip_descr)s", 
-    "homepage": "http://www.gzip.org/", 
-    "version": "1.5", 
-    "versionsuffix": "", 
+    "toolchain": "intel/2018a",
+    "description": "%(gzip_descr)s",
+    "homepage": "http://www.gzip.org/",
+    "version": "1.5",
+    "versionsuffix": "",
     "name": "gzip"
 }
 ]""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
