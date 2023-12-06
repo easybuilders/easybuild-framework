@@ -24,7 +24,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 """
-Unit tests for filetools.py
+Unit tests for run.py
 
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
@@ -49,7 +49,7 @@ import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.config import update_build_option
-from easybuild.tools.filetools import adjust_permissions, read_file, write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, write_file
 from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
 from easybuild.tools.run import parse_log_for_error, run_cmd, run_cmd_qa
 from easybuild.tools.config import ERROR, IGNORE, WARN
@@ -197,7 +197,7 @@ class RunTest(EnhancedTestCase):
 
         # Test that we can set the directory for the logfile
         log_path = os.path.join(self.test_prefix, 'chicken')
-        os.mkdir(log_path)
+        mkdir(log_path)
         logfile = None
         init_logging(logfile, silent=True, tmp_logdir=log_path)
         logfiles = os.listdir(log_path)
@@ -795,6 +795,22 @@ class RunTest(EnhancedTestCase):
             '',
         ])
         self.assertEqual(stdout, expected_stdout)
+
+        # also check with a command that destroys the directory it's running in
+        workdir = os.path.join(self.test_prefix, 'workdir')
+        mkdir(workdir)
+
+        with self.mocked_stdout_stderr():
+            run_cmd("pwd; rm -rf %(workdir)s; echo '%(workdir)s removed'" % {'workdir': workdir}, path=workdir)
+            stdout = self.get_stdout()
+
+        patterns = [
+            r"pre-run hook 'pwd; rm .*/workdir removed'",
+            r"post-run hook 'pwd;\s*rm.*/workdir removed'' \(exit code: 0, output: '.*\n.*/workdir removed\n'\)",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
 def suite():
