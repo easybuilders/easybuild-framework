@@ -24,7 +24,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 """
-Unit tests for filetools.py
+Unit tests for run.py
 
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
@@ -1853,6 +1853,22 @@ class RunTest(EnhancedTestCase):
             '',
         ])
         self.assertEqual(stdout, expected_stdout)
+
+        # also check with a command that destroys the directory it's running in
+        workdir = os.path.join(self.test_prefix, 'workdir')
+        mkdir(workdir)
+
+        with self.mocked_stdout_stderr():
+            run_shell_cmd("pwd; rm -rf %(workdir)s; echo '%(workdir)s removed'" % {'workdir': workdir}, path=workdir)
+            stdout = self.get_stdout()
+
+        patterns = [
+            r"pre-run hook 'pwd; rm .*/workdir removed'",
+            r"post-run hook 'pwd;\s*rm.*/workdir removed'' \(exit code: 0, output: '.*\n.*/workdir removed\n'\)",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
 def suite():
