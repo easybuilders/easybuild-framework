@@ -1735,11 +1735,13 @@ def process_software_build_specs(options):
             })
 
     # provide both toolchain and toolchain_name/toolchain_version keys
-    if 'toolchain_name' in build_specs:
+    try:
         build_specs['toolchain'] = {
             'name': build_specs['toolchain_name'],
-            'version': build_specs.get('toolchain_version', None),
+            'version': build_specs['toolchain_version'],
         }
+    except KeyError:
+        pass  # Don't set toolchain key if we don't have both keys
 
     # process --amend and --try-amend
     if options.amend or options.try_amend:
