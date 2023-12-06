@@ -53,14 +53,14 @@ if { ![ is-loaded UCC/1.2.0-GCCcore-12.3.0 ] } {
     module load UCC/1.2.0-GCCcore-12.3.0
 }
 
-prepend_path("CMAKE_PREFIX_PATH", root)
-prepend_path("CPATH", pathJoin(root, "include"))
-prepend_path("LD_LIBRARY_PATH", pathJoin(root, "lib"))
-prepend_path("LIBRARY_PATH", pathJoin(root, "lib"))
-prepend_path("MANPATH", pathJoin(root, "share/man"))
-prepend_path("PATH", pathJoin(root, "bin"))
-prepend_path("PKG_CONFIG_PATH", pathJoin(root, "lib/pkgconfig"))
-prepend_path("XDG_DATA_DIRS", pathJoin(root, "share"))
+prepend-path	CMAKE_PREFIX_PATH		$root
+prepend-path	CPATH		$root/include
+prepend-path	LD_LIBRARY_PATH		$root/lib
+prepend-path	LIBRARY_PATH		$root/lib
+prepend-path	MANPATH		$root/share/man
+prepend-path	PATH		$root/bin
+prepend-path	PKG_CONFIG_PATH		$root/lib/pkgconfig
+prepend-path	XDG_DATA_DIRS		$root/share
 
 setenv	EBROOTOPENMPI		"$root"
 setenv	EBVERSIONOPENMPI		"4.1.5"
