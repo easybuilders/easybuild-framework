@@ -276,8 +276,8 @@ class EasyBuildOptions(GeneralOption):
             'only-blocks': ("Only build listed blocks", 'strlist', 'extend', None, 'b', {'metavar': 'BLOCKS'}),
             'rebuild': ("Rebuild software, even if module already exists (don't skip OS dependencies checks)",
                         None, 'store_true', False),
-            'robot': ("Enable dependency resolution, using easyconfigs in specified paths",
-                      'pathlist', 'store_or_None', [], 'r', {'metavar': 'PATH[%sPATH]' % os.pathsep}),
+            'robot': ("Enable dependency resolution, optionally consider additional paths to search for easyconfigs",
+                      'pathlist', 'store_or_None', [], 'r', {'metavar': '[PATH[%sPATH]]' % os.pathsep}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
                             'pathlist', 'add_flex', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'search-paths': ("Additional locations to consider in --search (next to --robot and --robot-paths paths)",
@@ -473,7 +473,7 @@ class EasyBuildOptions(GeneralOption):
             'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
                              "with fallback to basic colored output",
                              'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),
-            'parallel': ("Specify (maximum) level of parallellism used during build procedure",
+            'parallel': ("Specify (maximum) level of parallelism used during build procedure",
                          'int', 'store', None),
             'parallel-extensions-install': ("Install list of extensions in parallel (if supported)",
                                             None, 'store_true', False),
@@ -501,6 +501,8 @@ class EasyBuildOptions(GeneralOption):
             'silence-deprecation-warnings': (
                 "Silence specified deprecation warnings out of (%s)" % ', '.join(all_deprecations),
                 'strlist', 'extend', []),
+            'silence-hook-trigger': ("Suppress printing of debug message every time a hook is triggered",
+                                     None, 'store_true', False),
             'skip-extensions': ("Skip installation of extensions", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'skip-test-step': ("Skip running the test step (e.g. unit tests)", None, 'store_true', False),
@@ -1733,11 +1735,13 @@ def process_software_build_specs(options):
             })
 
     # provide both toolchain and toolchain_name/toolchain_version keys
-    if 'toolchain_name' in build_specs:
+    try:
         build_specs['toolchain'] = {
             'name': build_specs['toolchain_name'],
-            'version': build_specs.get('toolchain_version', None),
+            'version': build_specs['toolchain_version'],
         }
+    except KeyError:
+        pass  # Don't set toolchain key if we don't have both keys
 
     # process --amend and --try-amend
     if options.amend or options.try_amend:
@@ -1894,7 +1898,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             os.close(fd)
             os.chmod(tmptest_file, 0o700)
             if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False, force_in_dry_run=True, trace=False,
-                           stream_output=False):
+                           stream_output=False, with_hooks=False):
                 msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
                 msg += "This can cause problems in the build process, consider using --tmpdir."
                 if raise_error:

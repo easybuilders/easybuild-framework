@@ -301,6 +301,7 @@ BUILD_OPTIONS_CMDLINE = {
         'sequential',
         'set_default_module',
         'set_gid_bit',
+        'silence_hook_trigger',
         'skip_extensions',
         'skip_test_cases',
         'skip_test_step',

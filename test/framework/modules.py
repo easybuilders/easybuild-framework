@@ -1273,24 +1273,33 @@ class ModulesTest(EnhancedTestCase):
         test_dir1_relative = os.path.join(test_dir1, '..', os.path.basename(test_dir1))
         test_dir2_dot = os.path.join(os.path.dirname(test_dir2), '.', os.path.basename(test_dir2))
         self.modtool.add_module_path(test_dir1_relative)
-        self.assertEqual(get_resolved_module_path(), test_dir1)
+        self.assertTrue(os.path.samefile(get_resolved_module_path(), test_dir1))
         # Adding the same path, but in a different form may be possible, but may also be ignored, e.g. in EnvModules
         self.modtool.add_module_path(test_dir1)
         if get_resolved_module_path() != test_dir1:
-            self.assertEqual(get_resolved_module_path(), os.pathsep.join([test_dir1, test_dir1]))
+            modpath = get_resolved_module_path().split(os.pathsep)
+            self.assertEqual(len(modpath), 2)
+            self.assertTrue(os.path.samefile(modpath[0], test_dir1))
+            self.assertTrue(os.path.samefile(modpath[1], test_dir1))
             self.modtool.remove_module_path(test_dir1)
-            self.assertEqual(get_resolved_module_path(), test_dir1)
+            self.assertTrue(os.path.samefile(get_resolved_module_path(), test_dir1))
+
         self.modtool.add_module_path(test_dir2_dot)
-        self.assertEqual(get_resolved_module_path(), test_dir_2_and_1)
+        modpath = get_resolved_module_path().split(os.pathsep)
+        self.assertEqual(len(modpath), 2)
+        self.assertTrue(os.path.samefile(modpath[0], test_dir2))
+        self.assertTrue(os.path.samefile(modpath[1], test_dir1))
+
         self.modtool.remove_module_path(test_dir2_dot)
-        self.assertEqual(get_resolved_module_path(), test_dir1)
+        self.assertTrue(os.path.samefile(get_resolved_module_path(), test_dir1))
+
         # Force adding such a dot path which can be removed with either variant
         os.environ['MODULEPATH'] = os.pathsep.join([test_dir2_dot, test_dir1_relative])
         self.modtool.remove_module_path(test_dir2_dot)
-        self.assertEqual(get_resolved_module_path(), test_dir1)
+        self.assertTrue(os.path.samefile(get_resolved_module_path(), test_dir1))
         os.environ['MODULEPATH'] = os.pathsep.join([test_dir2_dot, test_dir1_relative])
         self.modtool.remove_module_path(test_dir2)
-        self.assertEqual(get_resolved_module_path(), test_dir1)
+        self.assertTrue(os.path.samefile(get_resolved_module_path(), test_dir1))
 
         os.environ['MODULEPATH'] = old_module_path  # Restore
 

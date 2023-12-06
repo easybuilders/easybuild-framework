@@ -39,6 +39,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import textwrap
 import time
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -47,6 +48,7 @@ from easybuild.base.fancylogger import setLogLevelDebug
 import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
+from easybuild.tools.config import update_build_option
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
 from easybuild.tools.run import parse_log_for_error, run_cmd, run_cmd_qa
@@ -543,7 +545,7 @@ class RunTest(EnhancedTestCase):
         """Testing use of run_cmd with shell=False to call external scripts"""
         py_test_script = os.path.join(self.test_prefix, 'test.py')
         write_file(py_test_script, '\n'.join([
-            '#!/usr/bin/env python',
+            '#!%s' % sys.executable,
             'print("hello")',
         ]))
         adjust_permissions(py_test_script, stat.S_IXUSR)
@@ -703,8 +705,9 @@ class RunTest(EnhancedTestCase):
             "enabling -Werror",
             "the process crashed with 0"
         ])
-        expected_msg = r"Found 2 error\(s\) in command output "\
-                       r"\(output: error found\n\tthe process crashed with 0\)"
+        expected_msg = r"Found 2 error\(s\) in command output:\n"\
+                       r"\terror found\n"\
+                       r"\tthe process crashed with 0"
 
         # String promoted to list
         self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
@@ -716,14 +719,17 @@ class RunTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
                               [(r"\b(error|crashed)\b", ERROR)])
 
-        expected_msg = "Found 2 potential error(s) in command output " \
-                       "(output: error found\n\tthe process crashed with 0)"
+        expected_msg = "Found 2 potential error(s) in command output:\n"\
+                       "\terror found\n"\
+                       "\tthe process crashed with 0"
         init_logging(logfile, silent=True)
         check_log_for_errors(input_text, [(r"\b(error|crashed)\b", WARN)])
         stop_logging(logfile)
         self.assertIn(expected_msg, read_file(logfile))
 
-        expected_msg = r"Found 2 error\(s\) in command output \(output: error found\n\ttest failed\)"
+        expected_msg = r"Found 2 error\(s\) in command output:\n"\
+                       r"\terror found\n"\
+                       r"\ttest failed"
         write_file(logfile, '')
         init_logging(logfile, silent=True)
         self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text, [
@@ -733,8 +739,62 @@ class RunTest(EnhancedTestCase):
             "fail"
         ])
         stop_logging(logfile)
-        expected_msg = "Found 1 potential error(s) in command output (output: the process crashed with 0)"
+        expected_msg = "Found 1 potential error(s) in command output:\n\tthe process crashed with 0"
         self.assertIn(expected_msg, read_file(logfile))
+
+    def test_run_cmd_with_hooks(self):
+        """
+        Test running command with run_cmd with pre/post run_shell_cmd hooks in place.
+        """
+        cwd = os.getcwd()
+
+        hooks_file = os.path.join(self.test_prefix, 'my_hooks.py')
+        hooks_file_txt = textwrap.dedent("""
+            def pre_run_shell_cmd_hook(cmd, *args, **kwargs):
+                work_dir = kwargs['work_dir']
+                if kwargs.get('interactive'):
+                    print("pre-run hook interactive '%s' in %s" % (cmd, work_dir))
+                else:
+                    print("pre-run hook '%s' in %s" % (cmd, work_dir))
+                if not cmd.startswith('echo'):
+                    cmds = cmd.split(';')
+                    return '; '.join(cmds[:-1] + ["echo " + cmds[-1].lstrip()])
+
+            def post_run_shell_cmd_hook(cmd, *args, **kwargs):
+                exit_code = kwargs.get('exit_code')
+                output = kwargs.get('output')
+                work_dir = kwargs['work_dir']
+                if kwargs.get('interactive'):
+                    msg = "post-run hook interactive '%s'" % cmd
+                else:
+                    msg = "post-run hook '%s'" % cmd
+                msg += " (exit code: %s, output: '%s')" % (exit_code, output)
+                print(msg)
+        """)
+        write_file(hooks_file, hooks_file_txt)
+        update_build_option('hooks', hooks_file)
+
+        with self.mocked_stdout_stderr():
+            run_cmd("make")
+            stdout = self.get_stdout()
+
+        expected_stdout = '\n'.join([
+            "pre-run hook 'make' in %s" % cwd,
+            "post-run hook 'echo make' (exit code: 0, output: 'make\n')",
+            '',
+        ])
+        self.assertEqual(stdout, expected_stdout)
+
+        with self.mocked_stdout_stderr():
+            run_cmd_qa("sleep 2; make", qa={})
+            stdout = self.get_stdout()
+
+        expected_stdout = '\n'.join([
+            "pre-run hook interactive 'sleep 2; make' in %s" % cwd,
+            "post-run hook interactive 'sleep 2; echo make' (exit code: 0, output: 'make\n')",
+            '',
+        ])
+        self.assertEqual(stdout, expected_stdout)
 
 
 def suite():

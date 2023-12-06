@@ -55,9 +55,11 @@ def run_cmd(arguments, action_desc, capture_stderr=True, **kwargs):
         extra_args['universal_newlines'] = True
     stderr = subprocess.STDOUT if capture_stderr else subprocess.PIPE
     p = subprocess.Popen(arguments, stdout=subprocess.PIPE, stderr=stderr, **extra_args)
-    out, _ = p.communicate()
+    out, err = p.communicate()
     if p.returncode != 0:
-        raise RuntimeError('Failed to %s: %s' % (action_desc, out))
+        if err:
+            err = "\nSTDERR:\n" + err
+        raise RuntimeError('Failed to %s: %s%s' % (action_desc, out, err))
     return out
 
 
@@ -171,20 +173,23 @@ if args.ec:
                               capture_stderr=False,
                               action_desc='Get missing dependencies'
                               )
+    excluded_dep = '(%s)' % os.path.basename(args.ec)
     missing_deps = [dep for dep in missing_dep_out.split('\n')
-                    if dep.startswith('*') and '(%s)' % args.ec not in dep
+                    if dep.startswith('*') and excluded_dep not in dep
                     ]
     if missing_deps:
         print('You need to install all modules on which %s depends first!' % args.ec)
         print('\n\t'.join(['Missing:'] + missing_deps))
         sys.exit(1)
 
+    # If the --ec argument is a (relative) existing path make it absolute so we can find it after the chdir
+    ec_arg = os.path.abspath(args.ec) if os.path.exists(args.ec) else args.ec
     with temporary_directory() as tmp_dir:
         old_dir = os.getcwd()
         os.chdir(tmp_dir)
         if args.verbose:
             print('Running EasyBuild to get build environment')
-        run_cmd(['eb', args.ec, '--dump-env', '--force'], action_desc='Dump build environment')
+        run_cmd(['eb', ec_arg, '--dump-env', '--force'], action_desc='Dump build environment')
         os.chdir(old_dir)
 
         cmd = "source %s/*.env && python %s '%s'" % (tmp_dir, sys.argv[0], args.package)

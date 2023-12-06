@@ -4,6 +4,90 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.8.2 (29 October 2023)
+------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add support for `%(sysroot)s` template value (#4359)
+  - add `dependency_names` method to `EasyConfig` class to get set of names of (direct) dependencies (#4360)
+- various bug fixes, including:
+  - add CI workflow to run unit tests with Python 2 (again) (#4333)
+  - fix typo in help message for `--silence-hook-trigger` (#4343)
+  - include major version (`*majver`) templates in auto-generated documentation (#4347)
+  - reset `tempfile.tempdir` to `None` to avoid that tmpdir path gets progressively deeper with each easystack item (#4350)
+  - fix `findPythonDeps.py` script when called with an (absolute or relative) path to an easyconfig instead of a filename (#4365)
+  - fix broken test for `reasons_for_closing`, which fails because commit status of easyconfigs PR is no longer available (#4366)
+- other changes:
+  - reduce number of CI jobs by testing for Lua and Tcl module syntax in a single CI job (#4192)
+
+
+v4.8.1 (11 September 2023)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add end-to-end test for running EasyBuild in different Linux distros using containers (#3968)
+  - suggest default title in `--review-pr` (#4287)
+  - add `build_and_install_loop` hooks to run before and after the install loop for individual easyconfigs (#4304)
+  - implement support for `cancel_hook` and `fail_hook` (#4315, #4325)
+  - add postiter hook to the list of steps so the corresponding hook can be used (#4316)
+  - add `run_shell_cmd` hook (#4323)
+  - add `build_info_msg` easyconfig parameter to print message during installation of an easyconfig (#4324)
+  - add `--silence-hook-trigger` configuration option to supress printing of debug message every time a hook is triggered (#4329)
+  - add support for using fine grained Github tokens (#4332)
+  - add definitions for ifbf and iofbf toolchain (#4337)
+  - add support for submodule filtering and specifying extra Git configuration in `git_config` (#4338, #4339)
+- various bug fixes, including:
+  - improve error when checksum dict has no entry for a file (#4150)
+  - avoid error being logged when `checksums.json` is not found (#4261)
+  - don't fail in `mkdir` if path gets created while processing it (#4300, #4328)
+  - ignore request for external module (meta)data when no modules tool is active (#4308)
+  - use sys.executable to obtain path to `python` command in tests, rather than assuming that `python` command is available in `$PATH` (#4309)
+  - fix `test_add_and_remove_module_path` by replacing string comparison of paths by checking whether they point to the same path (since symlinks may cause trouble) (#4312)
+  - enhance `Toolchain.get_flag` to handle lists (#4319)
+  - only add extensions in module file if there are extensions (#4331)
+
+
+v4.8.0 (7 July 2023)
+--------------------
+
+feature release
+
+- various enhancements, including:
+  - use version suffixes in PR title instead of Python versions when using --new-pr (#4253 + #4286)
+  - add script to find updated ECs for installed module (#4271)
+- various bug fixes, including:
+  - fix regex for extracting glibc version from output of '`ldd --version`' in Gentoo Linux (#4290)
+  - allow versionsuffix to be set to None in `det_full_ec_version` (#4292)
+- other changes:
+  - stop running tests with Python 2.7 since it is no longer supported in GitHub Action (#4267)
+  - replace imp.load_source by leveraging importlib.util.module_from_spec when using Python 3 (#4280)
+
+
+v4.7.2 (27 May 2023)
+--------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - extend (experimental) support for generating container images with Apptainer (#3975)
+  - add default download timeout (#4226)
+  - make the RPATH section check with `readelf -d` in sanity check optional  (#4249)
+- various bug fixes, including:
+  - add `make_extension_string` and `_make_extension_list` methods to `EasyBlock` class, so easyblocks can customize them (#3697)
+  - fix typo in condition guarding installation of GitHub token in CI workflow to run unit tests + fix broken tests related to GitHub integration features (#4216)
+  - fix --check-github as gist url now includes username (#4231)
+  - switch to Ubuntu 22.04 in GitHub Actions workflow to run container tests (#4238)
+  - use "/usr/bin/env python" in test_run_cmd_script (#4241)
+- other changes:
+  - print potential errors after running a command only once (#4065)
+  - change github_* template descriptions to be somewhat clearer (#4251)
+  - remove workflow to test bootstrap script (#4255)
+
+
 v4.7.1 (March 20th 2023)
 ------------------------
 

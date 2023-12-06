@@ -77,9 +77,9 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
     ('installdir', "Installation directory"),
     ('start_dir', "Directory in which the build process begins"),
 ]
-# software names for which to define <pref>ver and <pref>shortver templates
+# software names for which to define <pref>ver, <pref>majver and <pref>shortver templates
 TEMPLATE_SOFTWARE_VERSIONS = [
-    # software name, prefix for *ver and *shortver
+    # software name, prefix for *ver, *majver and *shortver
     ('CUDA', 'cuda'),
     ('CUDAcore', 'cuda'),
     ('Java', 'java'),
@@ -90,6 +90,8 @@ TEMPLATE_SOFTWARE_VERSIONS = [
 # template values which are only generated dynamically
 TEMPLATE_NAMES_DYNAMIC = [
     ('arch', "System architecture (e.g. x86_64, aarch64, ppc64le, ...)"),
+    ('sysroot', "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
+     "as specify by the --sysroot configuration option"),
     ('mpi_cmd_prefix', "Prefix command for running MPI programs (with default number of ranks)"),
     ('cuda_compute_capabilities', "Comma-separated list of CUDA compute capabilities, as specified via "
      "--cuda-compute-capabilities configuration option or via cuda_compute_capabilities easyconfig parameter"),
@@ -114,13 +116,15 @@ TEMPLATE_CONSTANTS = [
     ('FTPGNOME_SOURCE', 'https://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
      'http download for gnome ftp server'),
     ('GITHUB_SOURCE', 'https://github.com/%(github_account)s/%(name)s/archive',
-     'GitHub source URL (namelower is used if github_account easyconfig parameter is not specified)'),
+     'GitHub source URL (if github_account easyconfig parameter is not specified, namelower is used in its place)'),
     ('GITHUB_LOWER_SOURCE', 'https://github.com/%(github_account)s/%(namelower)s/archive',
-     'GitHub source URL (lowercase name, namelower is used if github_account easyconfig parameter is not specified)'),
+     'GitHub source URL with lowercase name (if github_account easyconfig '
+     'parameter is not specified, namelower is used in its place)'),
     ('GITHUB_RELEASE', 'https://github.com/%(github_account)s/%(name)s/releases/download/v%(version)s',
-     'GitHub release URL (namelower is used if github_account easyconfig parameter is not specified)'),
+     'GitHub release URL (if github_account easyconfig parameter is not specified, namelower is used in its place)'),
     ('GITHUB_LOWER_RELEASE', 'https://github.com/%(github_account)s/%(namelower)s/releases/download/v%(version)s',
-     'GitHub release URL (namelower is used if github_account easyconfig parameter is not specified)'),
+     'GitHub release URL with lowercase name (if github_account easyconfig '
+     'parameter is not specified, namelower is used in its place)'),
     ('GNU_SAVANNAH_SOURCE', 'https://download-mirror.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
     ('GNU_SOURCE', 'https://ftpmirror.gnu.org/gnu/%(namelower)s',
@@ -198,6 +202,9 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
 
     # set 'arch' for system architecture based on 'machine' (4th) element of platform.uname() return value
     template_values['arch'] = platform.uname()[4]
+
+    # set 'sysroot' template based on 'sysroot' configuration option, using empty string as fallback
+    template_values['sysroot'] = build_option('sysroot') or ''
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     for name in TEMPLATE_NAMES_EASYCONFIG:
@@ -425,6 +432,7 @@ def template_documentation():
     # step 2: add *ver/*shortver templates for software listed in TEMPLATE_SOFTWARE_VERSIONS
     doc.append("Template names/values for (short) software versions")
     for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
+        doc.append("%s%%(%smajver)s: major version for %s" % (indent_l1, pref, name))
         doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (indent_l1, pref, name))
         doc.append("%s%%(%sver)s: full version for %s" % (indent_l1, pref, name))
 

@@ -2036,7 +2036,7 @@ class ToolchainTest(EnhancedTestCase):
             'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
             'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -fopenmp",
             'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
-            'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -fiopenmp",
+            'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -qopenmp",
         }
 
         toolchains = [
@@ -2949,6 +2949,21 @@ class ToolchainTest(EnhancedTestCase):
         res = env_vars_external_module('test', None, {})
         expected = {}
         self.assertEqual(res, expected)
+
+    def test_get_flag(self):
+        """Test get_flag function"""
+        tc = self.get_toolchain('gompi', version='2018a')
+
+        checks = {
+            '-a': 'a',
+            '-openmp': 'openmp',
+            '-foo': ['foo'],
+            '-foo -bar': ['foo', 'bar'],
+        }
+
+        for flagstring, flags in checks.items():
+            tc.options.options_map['openmp'] = flags
+            self.assertEqual(tc.get_flag('openmp'), flagstring)
 
 
 def suite():

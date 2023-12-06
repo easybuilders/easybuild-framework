@@ -14,14 +14,14 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python: [2.7, 3.7]
+        python: [3.7]
         apptainer: [1.0.0, 1.1.7]
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: ${{matrix.python}}
         architecture: x64

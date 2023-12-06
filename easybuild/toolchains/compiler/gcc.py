@@ -50,7 +50,7 @@ class Gcc(Compiler):
 
     COMPILER_FAMILY = TC_CONSTANT_GCC
     COMPILER_UNIQUE_OPTS = {
-        'loop': (False, "Automatic loop parallellisation"),
+        'loop': (False, "Automatic loop parallelisation"),
         'f2c': (False, "Generate code compatible with f2c and f77"),
         'lto': (False, "Enable Link Time Optimization"),
     }
