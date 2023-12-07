@@ -2046,7 +2046,10 @@ def resolve_template(value, tmpl_dict, expect_resolved=True):
                 if expect_resolved:
                     depr_msg = ('Ignoring failure to resolve template value %s with dict %s.' % (value, tmpl_dict) +
                                 '\n\tThis is deprecated and will lead to build failure. Check for correct escaping.')
-                    _log.deprecated(depr_msg, '5.0')
+                    if 'resolve-templates' in build_option('silence_deprecation_warnings'):
+                        _log.warning(depr_msg, '5.0')
+                    else:
+                        _log.deprecated(depr_msg, '5.0')
                 value = orig_value  # Undo "%"-escaping
     else:
         # this block deals with references to objects and returns other references
