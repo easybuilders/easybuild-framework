@@ -2102,118 +2102,71 @@ class EasyBlockTest(EnhancedTestCase):
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         toytxt = read_file(toy_ec)
 
+        handle, toy_ec_error = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
+        os.close(handle)
+        write_file(toy_ec_error, toytxt + "\nparallel = 123")
+
         handle, toy_ec1 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
-        write_file(toy_ec1, toytxt + "\nparallel = 123")
+        write_file(toy_ec1, toytxt + "\nmaxparallel = None")
 
         handle, toy_ec2 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
-        write_file(toy_ec2, toytxt + "\nparallel = 123\nmaxparallel = 67")
+        write_file(toy_ec2, toytxt + "\nmaxparallel = 67")
 
         handle, toy_ec3 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
-        write_file(toy_ec3, toytxt + "\nparallel = False")
-
-        handle, toy_ec4 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
-        os.close(handle)
-        write_file(toy_ec4, toytxt + "\nmaxparallel = 67")
-
-        handle, toy_ec5 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
-        os.close(handle)
-        write_file(toy_ec5, toytxt + "\nmaxparallel = False")
+        write_file(toy_ec3, toytxt + "\nmaxparallel = False")
 
         import easybuild.tools.systemtools as st
         auto_parallel = 1337
         st.det_parallelism._default_parallelism = auto_parallel
+
+        # 'parallel' easyconfig parameter specified is an error
+        self.assertRaises(EasyBuildError, EasyConfig, toy_ec_error)
+        self.assertErrorRegex(EasyBuildError, "Easyconfig parameter 'parallel' is replaced by 'maxparallel'",
+                              EasyConfig, toy_ec_error)
 
         # default: parallelism is derived from # available cores + ulimit
         test_eb = EasyBlock(EasyConfig(toy_ec))
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg.parallel, auto_parallel)
 
-        # only 'parallel' easyconfig parameter specified (no 'parallel' build option)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            test_eb = EasyBlock(EasyConfig(toy_ec1))
+        # 'maxparallel = None' is the same as unset
+        test_eb = EasyBlock(EasyConfig(toy_ec1))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg.parallel, 123)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            self.assertEqual(test_eb.cfg['parallel'], 123)
-
-        # both 'parallel' and 'maxparallel' easyconfig parameters specified (no 'parallel' build option)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            test_eb = EasyBlock(EasyConfig(toy_ec2))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg.parallel, 67)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            self.assertEqual(test_eb.cfg['parallel'], 67)
-
-        # make sure 'parallel = False' is not overriden (no 'parallel' build option)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            test_eb = EasyBlock(EasyConfig(toy_ec3))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg.parallel, False)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            self.assertEqual(test_eb.cfg['parallel'], False)
+        self.assertEqual(test_eb.cfg.parallel, auto_parallel)
 
         # only 'maxparallel' easyconfig parameter specified (no 'parallel' build option)
-        test_eb = EasyBlock(EasyConfig(toy_ec4))
+        test_eb = EasyBlock(EasyConfig(toy_ec2))
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg.parallel, 67)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            self.assertEqual(test_eb.cfg['parallel'], 67)
 
         # make sure 'maxparallel = False' is treated as 1 (no 'parallel' build option)
-        test_eb = EasyBlock(EasyConfig(toy_ec5))
+        test_eb = EasyBlock(EasyConfig(toy_ec3))
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg.parallel, 1)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            self.assertEqual(test_eb.cfg['parallel'], 1)
 
         # only 'parallel' build option specified
         init_config(build_options={'parallel': '97', 'validate': False})
         test_eb = EasyBlock(EasyConfig(toy_ec))
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg.parallel, 97)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            self.assertEqual(test_eb.cfg['parallel'], 97)
 
-        # both 'parallel' build option and easyconfig parameter specified (no 'maxparallel')
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            test_eb = EasyBlock(EasyConfig(toy_ec1))
+        # 'maxparallel = None' is the same as unset
+        test_eb = EasyBlock(EasyConfig(toy_ec1))
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg.parallel, 97)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            self.assertEqual(test_eb.cfg['parallel'], 97)
 
-        # both 'parallel' and 'maxparallel' easyconfig parameters specified + 'parallel' build option
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            test_eb = EasyBlock(EasyConfig(toy_ec2))
+        # 'maxparallel' easyconfig parameter with 'parallel' build option
+        test_eb = EasyBlock(EasyConfig(toy_ec2))
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg.parallel, 67)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            self.assertEqual(test_eb.cfg['parallel'], 67)
-
-        # make sure 'parallel = False' is not overriden (with 'parallel' build option)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            test_eb = EasyBlock(EasyConfig(toy_ec3))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg.parallel, 0)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            self.assertEqual(test_eb.cfg['parallel'], 0)
-
-        # only 'maxparallel' easyconfig parameter specified (with 'parallel' build option)
-        test_eb = EasyBlock(EasyConfig(toy_ec4))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg.parallel, 67)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            self.assertEqual(test_eb.cfg['parallel'], 67)
 
         # make sure 'maxparallel = False' is treated as 1 (with 'parallel' build option)
-        test_eb = EasyBlock(EasyConfig(toy_ec5))
+        test_eb = EasyBlock(EasyConfig(toy_ec3))
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg.parallel, 1)
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            self.assertEqual(test_eb.cfg['parallel'], 1)
 
         # Template updated correctly
         test_eb.cfg['buildopts'] = '-j %(parallel)s'
