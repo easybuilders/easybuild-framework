@@ -54,7 +54,7 @@ from easybuild.tools.run import run_cmd
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 92
+TEST_MODULES_COUNT = 110
 
 
 class ModulesTest(EnhancedTestCase):
@@ -197,12 +197,12 @@ class ModulesTest(EnhancedTestCase):
 
         # test modules include 3 GCC modules and one GCCcore module
         ms = self.modtool.available('GCC')
-        expected = ['GCC/4.6.3', 'GCC/4.6.4', 'GCC/6.4.0-2.28', 'GCC/7.3.0-2.30']
+        expected = ['GCC/12.3.0', 'GCC/4.6.3', 'GCC/4.6.4', 'GCC/6.4.0-2.28', 'GCC/7.3.0-2.30']
         # Tcl-only modules tool does an exact match on module name, Lmod & Tcl/C do prefix matching
         # EnvironmentModules is a subclass of EnvironmentModulesTcl, but Modules 4+ behaves similarly to Tcl/C impl.,
         # so also append GCCcore/6.2.0 if we are an instance of EnvironmentModules
         if not isinstance(self.modtool, EnvironmentModulesTcl) or isinstance(self.modtool, EnvironmentModules):
-            expected.append('GCCcore/6.2.0')
+            expected.extend(['GCCcore/12.3.0', 'GCCcore/6.2.0'])
         self.assertEqual(ms, expected)
 
         # test modules include one GCC/4.6.3 module
