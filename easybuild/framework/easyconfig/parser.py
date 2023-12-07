@@ -107,9 +107,11 @@ DEPRECATED_EASYCONFIG_PARAMETERS = {
 
 # replaced easyconfig parameters, and their replacements
 REPLACED_PARAMETERS = {
-    'license': 'license_file',
-    'makeopts': 'buildopts',
-    'premakeopts': 'prebuildopts',
+    # <old_param>: (<new_param>, <removed_in_version>),
+    'license': ('license_file', '2.0'),
+    'makeopts': ('buildopts', '2.0'),
+    'parallel': ('maxparallel', '5.0'),
+    'premakeopts': ('prebuildopts', '2.0'),
 }
 
 _log = fancylogger.getLogger('easyconfig.parser', fname=False)
