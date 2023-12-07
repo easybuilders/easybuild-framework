@@ -2244,9 +2244,9 @@ class EasyBlock(object):
             self.log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
 
         # Transitional only in case some easyblocks still set/change cfg['parallel']
-        # Use parallelLegacy to avoid deprecation warnings
+        # Use _parallelLegacy to avoid deprecation warnings
         # Remove for EasyBuild 5.0
-        cfg_par = self.cfg['parallelLegacy']
+        cfg_par = self.cfg['_parallelLegacy']
         if cfg_par is not None:
             if par is None:
                 par = cfg_par
