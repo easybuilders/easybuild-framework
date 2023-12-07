@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,14 +25,16 @@
 """
 Support for GCC (GNU Compiler Collection) as toolchain compiler.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 
 import re
-from distutils.version import LooseVersion
 
 import easybuild.tools.systemtools as systemtools
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import get_software_root, get_software_version
 from easybuild.tools.toolchain.compiler import Compiler, DEFAULT_OPT_LEVEL
@@ -48,13 +50,13 @@ class Gcc(Compiler):
 
     COMPILER_FAMILY = TC_CONSTANT_GCC
     COMPILER_UNIQUE_OPTS = {
-        'loop': (False, "Automatic loop parallellisation"),
+        'loop': (False, "Automatic loop parallelisation"),
         'f2c': (False, "Generate code compatible with f2c and f77"),
         'lto': (False, "Enable Link Time Optimization"),
     }
     COMPILER_UNIQUE_OPTION_MAP = {
         'i8': 'fdefault-integer-8',
-        'r8': 'fdefault-real-8',
+        'r8': ['fdefault-real-8', 'fdefault-double-8'],
         'unroll': 'funroll-loops',
         'f2c': 'ff2c',
         'loop': ['ftree-switch-conversion', 'floop-interchange', 'floop-strip-mine', 'floop-block'],

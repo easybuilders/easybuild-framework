@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2022 Ghent University
+# Copyright 2014-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -24,7 +24,9 @@
 ##
 """
 CrayPGI toolchain: Cray compilers (PGI) and MPI via Cray compiler drivers (PrgEnv-pgi) minus LibSci minus Cray FFTW
-:author: Jg Piccinali (CSCS)
+Authors:
+
+* Jg Piccinali (CSCS)
 """
 from easybuild.toolchains.compiler.craype import CrayPEPGI
 from easybuild.toolchains.mpi.craympich import CrayMPICH

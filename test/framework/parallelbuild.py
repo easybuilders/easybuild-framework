@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2022 Ghent University
+# Copyright 2014-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -167,18 +167,18 @@ class ParallelBuildTest(EnhancedTestCase):
         self.assertEqual(len(jobs[1].deps), 0)
 
         # only dependency for toy/0.0-deps is intel/2018a (dep marked as external module is filtered out)
-        self.assertTrue('toy-0.0-deps.eb' in jobs[2].script)
+        self.assertIn('toy-0.0-deps.eb', jobs[2].script)
         self.assertEqual(len(jobs[2].deps), 1)
-        self.assertTrue('intel-2018a.eb' in jobs[2].deps[0].script)
+        self.assertIn('intel-2018a.eb', jobs[2].deps[0].script)
 
         # dependencies for gzip/1.4-GCC-4.6.3: GCC/4.6.3 (toolchain) + toy/.0.0-deps
-        self.assertTrue('gzip-1.4-GCC-4.6.3.eb' in jobs[3].script)
+        self.assertIn('gzip-1.4-GCC-4.6.3.eb', jobs[3].script)
         self.assertEqual(len(jobs[3].deps), 2)
         regex = re.compile(r'toy-0.0-deps\.eb.* --hidden')
         script_txt = jobs[3].deps[0].script
         fail_msg = "Pattern '%s' should be found in: %s" % (regex.pattern, script_txt)
         self.assertTrue(regex.search(script_txt), fail_msg)
-        self.assertTrue('GCC-4.6.3.eb' in jobs[3].deps[1].script)
+        self.assertIn('GCC-4.6.3.eb', jobs[3].deps[1].script)
 
         # also test use of --pre-create-installdir
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
@@ -186,16 +186,16 @@ class ParallelBuildTest(EnhancedTestCase):
 
         # installation directory doesn't exist yet before submission
         toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
-        self.assertFalse(os.path.exists(toy_installdir))
+        self.assertNotExists(toy_installdir)
 
         jobs = submit_jobs(ordered_ecs, '', testing=False)
         self.assertEqual(len(jobs), 1)
 
         # software install dir is created (by default) as part of job submission process (fetch_step is run)
-        self.assertTrue(os.path.exists(toy_installdir))
+        self.assertExists(toy_installdir)
         remove_dir(toy_installdir)
         remove_dir(os.path.dirname(toy_installdir))
-        self.assertFalse(os.path.exists(toy_installdir))
+        self.assertNotExists(toy_installdir)
 
         # installation directory does *not* get created when --pre-create-installdir is used
         build_options['pre_create_installdir'] = False
@@ -203,7 +203,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         jobs = submit_jobs(ordered_ecs, '', testing=False)
         self.assertEqual(len(jobs), 1)
-        self.assertFalse(os.path.exists(toy_installdir))
+        self.assertNotExists(toy_installdir)
 
         # restore mocked stuff
         PbsPython.__init__ = PbsPython__init__
@@ -265,8 +265,8 @@ class ParallelBuildTest(EnhancedTestCase):
         toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_modfile += '.lua'
-        self.assertTrue(os.path.exists(toy_modfile))
-        self.assertTrue(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy')))
+        self.assertExists(toy_modfile)
+        self.assertExists(os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy'))
 
         # also check what happens when a job fails (an error should be raised)
         test_ecfile = os.path.join(self.test_prefix, 'test.eb')

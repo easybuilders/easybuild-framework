@@ -1,5 +1,5 @@
 ##
-# Copyright 2021-2022 Ghent University
+# Copyright 2021-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,7 +25,9 @@
 """
 Support for FlexiBLAS as toolchain linear algebra library.
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 import os
 import re

@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2022 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,15 +25,17 @@
 """
 Easyconfig module that provides functionality for tweaking existing eaysconfig (.eb) files.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
-:author: Alan O'Cais (Juelich Supercomputing Centre)
-:author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
+* Alan O'Cais (Juelich Supercomputing Centre)
+* Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
 """
 import copy
 import functools
@@ -41,7 +43,6 @@ import glob
 import os
 import re
 import tempfile
-from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
@@ -54,6 +55,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths
 from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.toolchains.gcccore import GCCcore
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file, write_file

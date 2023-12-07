@@ -25,7 +25,9 @@
 """
 EasyBuild support for nvompi compiler toolchain (NVHPC + Open MPI).
 
-:author: Robert Mijakovic <robert.mijakovic@lxp.lu> (LuxProvide)
+Authors:
+
+* Robert Mijakovic <robert.mijakovic@lxp.lu> (LuxProvide)
 """
 
 from easybuild.toolchains.nvhpc import NVHPCToolchain

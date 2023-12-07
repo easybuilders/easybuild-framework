@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2022 Ghent University
+# Copyright 2015-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -121,9 +121,9 @@ class EnvironmentTest(EnhancedTestCase):
 
         res = env.unset_env_vars(['HOME', 'NO_SUCH_ENV_VAR', 'TEST_ENV_VAR'])
 
-        self.assertFalse('HOME' in os.environ)
-        self.assertFalse('NO_SUCH_ENV_VAR' in os.environ)
-        self.assertFalse('TEST_ENV_VAR' in os.environ)
+        self.assertNotIn('HOME', os.environ)
+        self.assertNotIn('NO_SUCH_ENV_VAR', os.environ)
+        self.assertNotIn('TEST_ENV_VAR', os.environ)
 
         expected = {
             'HOME': home,

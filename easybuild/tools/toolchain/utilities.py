@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,8 +30,10 @@ Easy access to actual Toolchain classes
 
 Based on VSC-tools vsc.mympirun.mpi.mpi and vsc.mympirun.rm.sched
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Kenneth Hoste (Ghent University)
 """
 import copy
 import re

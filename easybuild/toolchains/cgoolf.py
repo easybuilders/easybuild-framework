@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2022 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -29,7 +29,9 @@
 EasyBuild support for cgoolf compiler toolchain (includes Clang, GFortran, OpenMPI, OpenBLAS,
 LAPACK, ScaLAPACK and FFTW).
 
-:author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+Authors:
+
+* Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
 from easybuild.toolchains.cgompi import Cgompi

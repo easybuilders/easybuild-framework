@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2022 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +25,10 @@
 """
 EasyBuild support for giolfc compiler toolchain (includes GCC+CUDA, IntelMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
-:author: Kenneth Hoste (Ghent University)
-:author: Ake Sandgren (HPC2N, Umea University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Ake Sandgren (HPC2N, Umea University)
 """
 
 from easybuild.toolchains.gimpic import Gimpic

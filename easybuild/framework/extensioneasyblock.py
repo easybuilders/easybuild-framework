@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2022 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -22,7 +22,9 @@
 EasyBuild support for building and installing extensions as actual extensions or as stand-alone modules,
 implemented as an easyblock
 
-:author: Kenneth Hoste (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
 """
 import copy
 import os
@@ -31,7 +33,8 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import change_dir, extract_file
 from easybuild.tools.utilities import remove_unwanted_chars, trace_msg
 
@@ -81,9 +84,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # name and version properties of EasyBlock are used, so make sure name and version are correct
             self.cfg['name'] = self.ext.get('name', None)
             self.cfg['version'] = self.ext.get('version', None)
-            # We can't inherit the 'start_dir' value from the parent (which will be set, and will most likely be wrong).
-            # It should be specified for the extension specifically, or be empty (so it is auto-derived).
-            self.cfg['start_dir'] = self.ext.get('options', {}).get('start_dir', None)
+
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
@@ -98,18 +99,39 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         self.ext_dir = None  # dir where extension source was unpacked
 
     def _set_start_dir(self):
-        """Set value for self.start_dir
+        """Set absolute path of self.start_dir similarly to EasyBlock.guess_start_dir
 
-        Uses existing value of self.start_dir if it is already set and exists
-        otherwise self.ext_dir (path to extracted source) if that is set and exists, similar to guess_start_dir
+        Uses existing value of self.start_dir defaulting to self.ext_dir.
+        If self.ext_dir (path to extracted source) is set, it is used as the base dir for relative paths.
+        Otherwise otherwise self.builddir is used as the base.
+        When neither start_dir nor ext_dir are set or when the computed start_dir does not exist
+        the start dir is not changed.
+        The computed start dir will not end in path separators
         """
-        possible_dirs = (self.start_dir, self.ext_dir)
-        for possible_dir in possible_dirs:
-            if possible_dir and os.path.isdir(possible_dir):
-                self.cfg['start_dir'] = possible_dir
-                self.log.debug("Using start_dir: %s", self.start_dir)
-                return
-        self.log.debug("Unable to determine start_dir as none of these paths is set and exists: %s", possible_dirs)
+        ext_start_dir = self.start_dir
+        if self.ext_dir:
+            if not os.path.isabs(self.ext_dir):
+                raise EasyBuildError("ext_dir must be an absolute path. Is: '%s'", self.ext_dir)
+            ext_start_dir = os.path.join(self.ext_dir, ext_start_dir or '')
+        elif ext_start_dir is not None:
+            if not os.path.isabs(self.builddir):
+                raise EasyBuildError("builddir must be an absolute path. Is: '%s'", self.builddir)
+            ext_start_dir = os.path.join(self.builddir, ext_start_dir)
+
+        if ext_start_dir and os.path.isdir(ext_start_dir):
+            ext_start_dir = ext_start_dir.rstrip(os.sep) or os.sep
+            self.log.debug("Using extension start dir: %s", ext_start_dir)
+            self.cfg['start_dir'] = ext_start_dir
+            self.cfg.template_values['start_dir'] = ext_start_dir
+        elif ext_start_dir is None:
+            # This may be on purpose, e.g. for Python WHL files which do not get extracted
+            self.log.debug("Start dir is not set.")
+        else:
+            # non-existing start dir means wrong input from user
+            warn_msg = "Provided start dir (%s) for extension %s does not exist: %s" % (self.start_dir, self.name,
+                                                                                        ext_start_dir)
+            self.log.warning(warn_msg)
+            print_warning(warn_msg, silent=build_option('silent'))
 
     def run(self, unpack_src=False):
         """Common operations for extensions: unpacking sources, patching, ..."""
@@ -154,8 +176,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             fake_mod_data = None
 
             # only load fake module + extra modules for stand-alone installations (not for extensions),
-            # since for extension the necessary modules should already be loaded at this point
-            if not (self.is_extension or self.dry_run):
+            # since for extension the necessary modules should already be loaded at this point;
+            # take into account that module may already be loaded earlier in sanity check
+            if not (self.sanity_check_module_loaded or self.is_extension or self.dry_run):
                 # load fake module
                 fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
 

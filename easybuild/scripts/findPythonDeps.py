@@ -16,6 +16,14 @@ except ImportError as e:
     print('pkg_resources could not be imported: %s\nYou might need to install setuptools!' % e)
     sys.exit(1)
 
+try:
+    from packaging.utils import canonicalize_name
+except ImportError:
+    _canonicalize_regex = re.compile(r"[-_.]+")
+
+    def canonicalize_name(name):
+        return _canonicalize_regex.sub("-", name).lower()
+
 
 @contextmanager
 def temporary_directory(*args, **kwargs):
@@ -47,9 +55,11 @@ def run_cmd(arguments, action_desc, capture_stderr=True, **kwargs):
         extra_args['universal_newlines'] = True
     stderr = subprocess.STDOUT if capture_stderr else subprocess.PIPE
     p = subprocess.Popen(arguments, stdout=subprocess.PIPE, stderr=stderr, **extra_args)
-    out, _ = p.communicate()
+    out, err = p.communicate()
     if p.returncode != 0:
-        raise RuntimeError('Failed to %s: %s' % (action_desc, out))
+        if err:
+            err = "\nSTDERR:\n" + err
+        raise RuntimeError('Failed to %s: %s%s' % (action_desc, out, err))
     return out
 
 
@@ -87,6 +97,7 @@ def find_deps(pkgs, dep_tree):
     """Recursively resolve dependencies of the given package(s) and return them"""
     res = []
     for pkg in pkgs:
+        pkg = canonicalize_name(pkg)
         matching_entries = [entry for entry in dep_tree
                             if pkg in (entry['package']['package_name'], entry['package']['key'])]
         if not matching_entries:
@@ -110,7 +121,7 @@ def print_deps(package, verbose):
 
     installed_modules = {mod.project_name for mod in pkg_resources.working_set}
     if verbose:
-        print("Installed modules: %s" % installed_modules)
+        print("Installed modules: " + ', '.join(sorted(installed_modules)))
 
     # iterate over deps in reverse order, get rid of duplicates along the way
     # also filter out Python packages that are already installed in current environment
@@ -162,23 +173,26 @@ if args.ec:
                               capture_stderr=False,
                               action_desc='Get missing dependencies'
                               )
+    excluded_dep = '(%s)' % os.path.basename(args.ec)
     missing_deps = [dep for dep in missing_dep_out.split('\n')
-                    if dep.startswith('*') and '(%s)' % args.ec not in dep
+                    if dep.startswith('*') and excluded_dep not in dep
                     ]
     if missing_deps:
         print('You need to install all modules on which %s depends first!' % args.ec)
         print('\n\t'.join(['Missing:'] + missing_deps))
         sys.exit(1)
 
+    # If the --ec argument is a (relative) existing path make it absolute so we can find it after the chdir
+    ec_arg = os.path.abspath(args.ec) if os.path.exists(args.ec) else args.ec
     with temporary_directory() as tmp_dir:
         old_dir = os.getcwd()
         os.chdir(tmp_dir)
         if args.verbose:
             print('Running EasyBuild to get build environment')
-        run_cmd(['eb', args.ec, '--dump-env', '--force'], action_desc='Dump build environment')
+        run_cmd(['eb', ec_arg, '--dump-env', '--force'], action_desc='Dump build environment')
         os.chdir(old_dir)
 
-        cmd = 'source %s/*.env && %s %s "%s"' % (tmp_dir, sys.executable, sys.argv[0], args.package)
+        cmd = "source %s/*.env && python %s '%s'" % (tmp_dir, sys.argv[0], args.package)
         if args.verbose:
             cmd += ' --verbose'
             print('Restarting script in new build environment')

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,11 +29,13 @@ Unit tests for talking to GitHub.
 @author: Kenneth Hoste (Ghent University)
 """
 import base64
+import functools
 import os
 import random
 import re
 import sys
 import textwrap
+import unittest
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from time import gmtime
 from unittest import TextTestRunner
@@ -48,7 +50,7 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_MERGEABLE_STATE_CLEAN
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
-from easybuild.tools.github import is_patch_for, pick_default_branch
+from easybuild.tools.github import det_pr_title, is_patch_for, pick_default_branch
 from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
@@ -67,6 +69,23 @@ GITHUB_USER = "easybuilders"
 GITHUB_REPO = "testrepository"
 # branch to test
 GITHUB_BRANCH = 'main'
+
+
+def requires_github_access():
+    """Silently skip for pull requests unless $FORCE_EB_GITHUB_TESTS is set
+
+    Useful when the test uses e.g. `git` commands to download from Github and would run into rate limits
+    """
+    if 'FORCE_EB_GITHUB_TESTS' in os.environ or os.getenv('GITHUB_EVENT_NAME') != 'pull_request':
+        return unittest.skipIf(False, None)
+    else:
+        # For pull requests silently skip to avoid rate limits
+        def decorator(test_item):
+            @functools.wraps(test_item)
+            def skip_wrapper(*args, **kwargs):
+                return
+            return skip_wrapper
+        return decorator
 
 
 class GithubTest(EnhancedTestCase):
@@ -96,6 +115,71 @@ class GithubTest(EnhancedTestCase):
         easybuild.tools.testing.create_gist = self.orig_testing_create_gist
 
         super(GithubTest, self).tearDown()
+
+    def test_det_pr_title(self):
+        """Test det_pr_title function"""
+        # check if patches for extensions are found
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = '%s'
+            version = '%s'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = {'name': '%s', 'version': '%s'}
+            moduleclass = '%s'
+            %s
+        """)
+
+        # 1 easyconfig, with no versionsuffix
+        ecs = []
+        ecs.append(EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools', '')))
+        self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0] prog v1')
+
+        # 2 easyconfigs, with no versionsuffixes
+        ecs.append(EasyConfig(None, rawtxt=rawtxt % ('otherprog', '2', 'GCCcore', '11.2.0', 'lib', '')))
+        self.assertEqual(det_pr_title(ecs), '{lib,tools}[GCC/11.2.0,GCCcore/11.2.0] prog v1, otherprog v2')
+
+        # 3 easyconfigs, with no versionsuffixes
+        ecs.append(EasyConfig(None, rawtxt=rawtxt % ('extraprog', '3', 'foss', '2022a', 'astro', '')))
+        self.assertEqual(det_pr_title(ecs),
+                         '{astro,lib,tools}[GCC/11.2.0,GCCcore/11.2.0,foss/2022a] prog v1, otherprog v2, extraprog v3')
+
+        # 2 easyconfigs for the same prog, with no versionsuffixes
+        ecs[1] = EasyConfig(None, rawtxt=rawtxt % ('prog', '2', 'GCC', '11.3.0', 'tools', ''))
+        ecs.pop(2)
+        self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0,GCC/11.3.0] prog v1, prog v2')
+
+        # 1 easyconfig, with versionsuffix
+        ecs = []
+        ecs.append(EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
+                                                     'versionsuffix = "-Python-3.10.4"')))
+        self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0] prog v1 w/ Python 3.10.4')
+
+        # 1 easyconfig, with versionsuffix
+        ecs[0] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
+                                                   'versionsuffix = "-Python-3.10.4-CUDA-11.3.1"'))
+        self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0] prog v1 w/ Python 3.10.4 CUDA 11.3.1')
+
+        # 2 easyconfigs, with same versionsuffix
+        ecs[0] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
+                                                   'versionsuffix = "-Python-3.10.4"'))
+        ecs.append(EasyConfig(None, rawtxt=rawtxt % ('prog', '2', 'GCC', '11.3.0', 'tools',
+                                                     'versionsuffix = "-Python-3.10.4"')))
+        self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0,GCC/11.3.0] prog v1, prog v2 w/ Python 3.10.4')
+
+        # 2 easyconfigs, with different versionsuffix
+        ecs[0] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
+                                                   'versionsuffix = "-CUDA-11.3.1"'))
+        self.assertEqual(det_pr_title(ecs),
+                         '{tools}[GCC/11.2.0,GCC/11.3.0] prog v1, prog v2 w/ CUDA 11.3.1, Python 3.10.4')
+
+        # 2 easyconfigs, with unusual versionsuffixes
+        ecs[0] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
+                                                   'versionsuffix = "-contrib"'))
+        ecs[1] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
+                                                   'versionsuffix = "-Python-3.10.4-CUDA-11.3.1-contrib"'))
+        self.assertEqual(det_pr_title(ecs),
+                         '{tools}[GCC/11.2.0] prog v1 w/ Python 3.10.4 CUDA 11.3.1 contrib, contrib')
 
     def test_github_pick_default_branch(self):
         """Test pick_default_branch function."""
@@ -175,7 +259,7 @@ class GithubTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertTrue("Could not determine any missing labels for PR #11262" in stdout)
+        self.assertIn("Could not determine any missing labels for PR #11262", stdout)
 
         self.mock_stdout(True)
         self.mock_stderr(True)
@@ -183,7 +267,7 @@ class GithubTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertTrue("PR #8006 should be labelled 'update'" in stdout)
+        self.assertIn("PR #8006 should be labelled 'update'", stdout)
 
     def test_github_fetch_pr_data(self):
         """Test fetch_pr_data function."""
@@ -247,7 +331,7 @@ class GithubTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        pr_data, _ = gh.fetch_pr_data(1844, repo_owner, repo_name, GITHUB_TEST_ACCOUNT, full=True)
+        pr_data, _ = gh.fetch_pr_data(16080, repo_owner, repo_name, GITHUB_TEST_ACCOUNT, full=True)
 
         self.mock_stdout(True)
         self.mock_stderr(True)
@@ -258,16 +342,15 @@ class GithubTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.mock_stderr(False)
 
-        self.assertTrue(isinstance(res, list))
-        self.assertEqual(stderr.strip(), "WARNING: Using easyconfigs from closed PR #1844")
+        self.assertIsInstance(res, list)
+        self.assertEqual(stderr.strip(), "WARNING: Using easyconfigs from closed PR #16080")
         patterns = [
-            "Status of last commit is SUCCESS",
             "Last comment on",
             "No activity since",
-            "* QEMU-2.4.0",
+            "* c-ares-1.18.1",
         ]
         for pattern in patterns:
-            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+            self.assertIn(pattern, stdout)
 
     def test_github_close_pr(self):
         """Test close_pr function."""
@@ -295,7 +378,7 @@ class GithubTest(EnhancedTestCase):
             "[DRY RUN] Closed easybuilders/testrepository PR #2",
         ]
         for pattern in patterns:
-            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+            self.assertIn(pattern, stdout)
 
         retest_msg = VALID_CLOSE_PR_REASONS['retest']
 
@@ -312,7 +395,7 @@ class GithubTest(EnhancedTestCase):
             "[DRY RUN] Reopened easybuilders/testrepository PR #2",
         ]
         for pattern in patterns:
-            self.assertTrue(pattern in stdout, "Pattern '%s' found in: %s" % (pattern, stdout))
+            self.assertIn(pattern, stdout)
 
     def test_github_fetch_easyblocks_from_pr(self):
         """Test fetch_easyblocks_from_pr function."""
@@ -427,7 +510,7 @@ class GithubTest(EnhancedTestCase):
 
         # github_account value is None (results in using default 'easybuilders')
         cache_key = (7159, None, 'easybuild-easyconfigs', self.test_prefix)
-        self.assertTrue(cache_key in gh.fetch_files_from_pr._cache.keys())
+        self.assertIn(cache_key, gh.fetch_files_from_pr._cache.keys())
 
         cache_entry = gh.fetch_files_from_pr._cache[cache_key]
         self.assertEqual(sorted([os.path.basename(f) for f in cache_entry]), sorted(pr7159_filenames))
@@ -477,10 +560,10 @@ class GithubTest(EnhancedTestCase):
         path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
         repodir = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-main')
         self.assertTrue(os.path.samefile(path, repodir))
-        self.assertTrue(os.path.exists(repodir))
+        self.assertExists(repodir)
         shafile = os.path.join(repodir, 'latest-sha')
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
-        self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2019b.eb')))
+        self.assertExists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2019b.eb'))
 
         # current directory should not have changed after calling download_repo
         self.assertTrue(os.path.samefile(cwd, os.getcwd()))
@@ -503,9 +586,9 @@ class GithubTest(EnhancedTestCase):
         path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix,
                                 github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(os.path.samefile(path, repodir))
-        self.assertTrue('easybuild' in os.listdir(repodir))
+        self.assertIn('easybuild', os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
-        self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py')))
+        self.assertExists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py'))
 
     def test_install_github_token(self):
         """Test for install_github_token function."""
@@ -564,6 +647,11 @@ class GithubTest(EnhancedTestCase):
         if token_old_format:
             self.assertTrue(gh.validate_github_token(token_old_format, GITHUB_TEST_ACCOUNT))
 
+        # if a fine-grained token is available, test with that too
+        finegrained_token = os.getenv('TEST_GITHUB_TOKEN_FINEGRAINED')
+        if finegrained_token:
+            self.assertTrue(gh.validate_github_token(finegrained_token, GITHUB_TEST_ACCOUNT))
+
     def test_github_find_easybuild_easyconfig(self):
         """Test for find_easybuild_easyconfig function"""
         if self.skip_github_tests:
@@ -573,7 +661,7 @@ class GithubTest(EnhancedTestCase):
         expected = os.path.join('e', 'EasyBuild', r'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
-        self.assertTrue(os.path.exists(path), "Path %s exists" % path)
+        self.assertExists(path)
 
     def test_github_find_patches(self):
         """ Test for find_software_name_for_patch """
@@ -593,7 +681,7 @@ class GithubTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
 
-        self.assertTrue(ec == 'toy')
+        self.assertEqual(ec, 'toy')
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
         self.assertTrue(re.search(reg, txt))
 
@@ -614,45 +702,46 @@ class GithubTest(EnhancedTestCase):
             print("Skipping test_det_commit_status, no GitHub token available?")
             return
 
-        # ancient commit, from Jenkins era
+        # ancient commit, from Jenkins era, no commit status available anymore
         commit_sha = 'ec5d6f7191676a86a18404616691796a352c5f1d'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'success')
+        self.assertEqual(res, None)
 
-        # commit with failing tests from Travis CI era (no GitHub Actions yet)
-        commit_sha = 'd0c62556caaa78944722dc84bbb1072bf9688f74'
-        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'failure')
-
-        # commit with passing tests from Travis CI era (no GitHub Actions yet)
+        # ancient commit with passing tests from Travis CI era (no GitHub Actions yet),
+        # no commit status available anymore
         commit_sha = '21354990e4e6b4ca169b93d563091db4c6b2693e'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'success')
+        self.assertEqual(res, None)
 
-        # commit with failing tests, tested by both Travis CI and GitHub Actions
-        commit_sha = '3a596de93dd95b651b0d1503562d888409364a96'
-        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'failure')
-
-        # commit with passing tests, tested by both Travis CI and GitHub Actions
+        # ancient commit tested by both Travis CI and GitHub Actions, no commit status available anymore
         commit_sha = '1fba8ac835d62e78cdc7988b08f4409a1570cef1'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'success')
+        self.assertEqual(res, None)
 
-        # commit with failing tests, only tested by GitHub Actions
+        # old commit only tested by GitHub Actions, no commit status available anymore
         commit_sha = 'd7130683f02fe8284df3557f0b2fd3947c2ea153'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'failure')
+        self.assertEqual(res, None)
 
-        # commit with passing tests, only tested by GitHub Actions
-        commit_sha = 'e6df09700a1b90c63b4f760eda4b590ee1a9c2fd'
-        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, 'success')
-
-        # commit in test repo where no CI is running at all
+        # commit in test repo where no CI is running at all, no None as result
         commit_sha = '8456f867b03aa001fd5a6fe5a0c4300145c065dc'
         res = gh.det_commit_status('easybuilders', GITHUB_REPO, commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, None)
+
+        # recent commit (2023-04-11) with cancelled checks (GitHub Actions only)
+        commit_sha = 'c074f0bb3110c27d9969c3d0b19dde3eca868bd4'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'cancelled')
+
+        # recent commit (2023-04-10) with failing checks (GitHub Actions only)
+        commit_sha = '1b4a45c62d7deaf19125756c46dc8f011fef66e1'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'failure')
+
+        # recent commit (2023-04-10) with successful checks (GitHub Actions only)
+        commit_sha = '56812a347acbaaa87f229fe319425020fe399647'
+        res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, 'success')
 
     def test_github_check_pr_eligible_to_merge(self):
         """Test check_pr_eligible_to_merge function"""
@@ -667,7 +756,7 @@ class GithubTest(EnhancedTestCase):
             self.mock_stderr(False)
             self.assertEqual(res, expected_result)
             self.assertEqual(stdout, expected_stdout)
-            self.assertTrue(expected_warning in stderr, "Found '%s' in: %s" % (expected_warning, stderr))
+            self.assertIn(expected_warning, stderr)
             return stderr
 
         pr_data = {
@@ -920,12 +1009,12 @@ class GithubTest(EnhancedTestCase):
         status, headers = client.head()
         self.assertEqual(status, 200)
         self.assertTrue(headers)
-        self.assertTrue('X-GitHub-Media-Type' in headers)
+        self.assertIn('X-GitHub-Media-Type', headers)
 
         httperror_hit = False
         try:
             status, body = client.user.emails.post(body='test@example.com')
-            self.assertTrue(False, 'posting to unauthorized endpoint did not throw a http error')
+            self.fail('posting to unauthorized endpoint did not throw a http error')
         except HTTPError:
             httperror_hit = True
         self.assertTrue(httperror_hit, "expected HTTPError not encountered")
@@ -933,7 +1022,7 @@ class GithubTest(EnhancedTestCase):
         httperror_hit = False
         try:
             status, body = client.user.emails.delete(body='test@example.com')
-            self.assertTrue(False, 'deleting to unauthorized endpoint did not throw a http error')
+            self.fail('deleting to unauthorized endpoint did not throw a http error')
         except HTTPError:
             httperror_hit = True
         self.assertTrue(httperror_hit, "expected HTTPError not encountered")
@@ -1011,9 +1100,9 @@ class GithubTest(EnhancedTestCase):
         github_py = os.path.join(test_dir, 'github.py')
 
         configuremake = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
-        self.assertTrue(os.path.exists(configuremake))
+        self.assertExists(configuremake)
         toy_eb = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
-        self.assertTrue(os.path.exists(toy_eb))
+        self.assertExists(toy_eb)
 
         self.assertEqual(build_option('pr_target_repo'), None)
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([github_py])), 'easybuild-framework')
@@ -1038,6 +1127,7 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([configuremake])), 'thisisjustatest')
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([toy_eb])), 'thisisjustatest')
 
+    @requires_github_access()
     def test_push_branch_to_github(self):
         """Test push_branch_to_github."""
 
@@ -1093,7 +1183,7 @@ class GithubTest(EnhancedTestCase):
 
         patterns = [
             r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -1110,7 +1200,7 @@ class GithubTest(EnhancedTestCase):
 
         patterns = [
             r"^\[DRY RUN\] Adding comment to easybuild-easyblocks issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -1130,7 +1220,7 @@ class GithubTest(EnhancedTestCase):
 
         patterns = [
             r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/DRY_RUN for a full test report.'",
+            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
             r"Using easyblocks from PR\(s\) https://github.com/easybuilders/easybuild-easyblocks/pull/6789",
         ]
         for pattern in patterns:
@@ -1165,30 +1255,30 @@ class GithubTest(EnhancedTestCase):
             "EASYBUILD_DEBUG=1",
         ]
         for pattern in patterns:
-            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['full']))
+            self.assertIn(pattern, res['full'])
 
         for pattern in patterns[:2]:
-            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['overview']))
+            self.assertIn(pattern, res['full'])
 
         # mock create_gist function, we don't want to actually create a gist every time we run this test...
         def fake_create_gist(*args, **kwargs):
-            return 'https://gist.github.com/test'
+            return 'https://gist.github.com/%s/test' % GITHUB_TEST_ACCOUNT
 
         easybuild.tools.testing.create_gist = fake_create_gist
 
         res = create_test_report("just a test", ecs_with_res, init_session_state, pr_nrs=[123], gist_log=True)
 
-        patterns.insert(2, "https://gist.github.com/test")
+        patterns.insert(2, "https://gist.github.com/%s/test" % GITHUB_TEST_ACCOUNT)
         patterns.extend([
             "https://github.com/easybuilders/easybuild-easyconfigs/pull/123",
         ])
         for pattern in patterns:
-            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['full']))
+            self.assertIn(pattern, res['full'])
 
         for pattern in patterns[:3]:
-            self.assertTrue(pattern in res['full'], "Pattern '%s' found in: %s" % (pattern, res['overview']))
+            self.assertIn(pattern, res['full'])
 
-        self.assertTrue("**SUCCESS** _test.eb_" in res['overview'])
+        self.assertIn("**SUCCESS** _test.eb_", res['overview'])
 
     def test_is_patch_for(self):
         """Test for is_patch_for function."""

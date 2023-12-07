@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2022 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,15 +23,17 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 """
-:author: Shahzeb Siddiqui (Pfizer)
-:author: Kenneth Hoste (HPC-UGent)
-:author: Mohamed Abidi (Bright Computing)
+Authors:
+
+* Shahzeb Siddiqui (Pfizer)
+* Kenneth Hoste (HPC-UGent)
+* Mohamed Abidi (Bright Computing)
 """
 import operator
 import re
 from functools import reduce
 
-from distutils.version import LooseVersion
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import which
 from easybuild.tools.py2vs3 import string_type

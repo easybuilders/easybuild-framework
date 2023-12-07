@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2022 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,22 +26,26 @@
 Generic EasyBuild support for building and installing software.
 The EasyBlock class should serve as a base class for all easyblocks.
 
-:author: Stijn De Weirdt (Ghent University)
-:author: Dries Verdegem (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Pieter De Baets (Ghent University)
-:author: Jens Timmerman (Ghent University)
-:author: Toon Willems (Ghent University)
-:author: Ward Poelmans (Ghent University)
-:author: Fotis Georgatos (Uni.Lu, NTUA)
-:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
-:author: Maxime Boissonneault (Compute Canada)
-:author: Davide Vanzo (Vanderbilt University)
+Authors:
+
+* Stijn De Weirdt (Ghent University)
+* Dries Verdegem (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Pieter De Baets (Ghent University)
+* Jens Timmerman (Ghent University)
+* Toon Willems (Ghent University)
+* Ward Poelmans (Ghent University)
+* Fotis Georgatos (Uni.Lu, NTUA)
+* Damian Alvarez (Forschungszentrum Juelich GmbH)
+* Maxime Boissonneault (Compute Canada)
+* Davide Vanzo (Vanderbilt University)
+* Caspar van Leeuwen (SURF)
 """
 
 import copy
 import glob
 import inspect
+import json
 import os
 import re
 import stat
@@ -49,7 +53,6 @@ import tempfile
 import time
 import traceback
 from datetime import datetime
-from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
@@ -63,11 +66,11 @@ from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import dump_env_easyblock, get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.framework.extension import Extension, resolve_exts_filter_template
-from easybuild.tools import config, run
+from easybuild.tools import LooseVersion, config, run
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
-from easybuild.tools.config import DEFAULT_ENVVAR_USERS_MODULES
+from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
@@ -81,9 +84,9 @@ from easybuild.tools.filetools import find_backup_name_candidate, get_source_tar
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file, symlink
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
-from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP
-from easybuild.tools.hooks import PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP
-from easybuild.tools.hooks import MODULE_WRITE, load_hooks, run_hook
+from easybuild.tools.hooks import MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP
+from easybuild.tools.hooks import POSTPROC_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP
+from easybuild.tools.hooks import SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook
 from easybuild.tools.run import check_async_cmd, run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
@@ -96,7 +99,8 @@ from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_shared_lib_ext, use_group
+from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_linked_libs_raw
+from easybuild.tools.systemtools import get_shared_lib_ext, pick_system_specific_value, use_group
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -155,6 +159,7 @@ class EasyBlock(object):
         self.patches = []
         self.src = []
         self.checksums = []
+        self.json_checksums = None
 
         # build/install directories
         self.builddir = None
@@ -229,6 +234,11 @@ class EasyBlock(object):
 
         # sanity check fail error messages to report (if any)
         self.sanity_check_fail_msgs = []
+
+        # keep track of whether module is loaded during sanity check step (to avoid re-loading)
+        self.sanity_check_module_loaded = False
+        # info required to roll back loading of fake module during sanity check (see _sanity_check_step method)
+        self.fake_mod_data = None
 
         # robot path
         self.robot_path = build_option('robot_path')
@@ -346,23 +356,55 @@ class EasyBlock(object):
         Obtain checksum for given filename.
 
         :param checksums: a list or tuple of checksums (or None)
-        :param filename: name of the file to obtain checksum for (Deprecated)
+        :param filename: name of the file to obtain checksum for
         :param index: index of file in list
         """
-        # Filename has never been used; flag it as deprecated
-        if filename:
-            self.log.deprecated("Filename argument to get_checksum_for() is deprecated", '5.0')
+        checksum = None
+
+        # sometimes, filename are specified as a dict
+        if isinstance(filename, dict):
+            filename = filename['filename']
 
         # if checksums are provided as a dict, lookup by source filename as key
-        if isinstance(checksums, (list, tuple)):
-            if index is not None and index < len(checksums) and (index >= 0 or abs(index) <= len(checksums)):
-                return checksums[index]
+        if isinstance(checksums, dict):
+            if filename is not None and filename in checksums:
+                checksum = checksums[filename]
             else:
-                return None
+                checksum = None
+        elif isinstance(checksums, (list, tuple)):
+            if index is not None and index < len(checksums) and (index >= 0 or abs(index) <= len(checksums)):
+                checksum = checksums[index]
+            else:
+                checksum = None
         elif checksums is None:
-            return None
+            checksum = None
         else:
-            raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple or None.", type(checksums))
+            raise EasyBuildError("Invalid type for checksums (%s), should be dict, list, tuple or None.",
+                                 type(checksums))
+
+        if checksum is None or build_option("checksum_priority") == CHECKSUM_PRIORITY_JSON:
+            json_checksums = self.get_checksums_from_json()
+            return json_checksums.get(filename, None)
+        else:
+            return checksum
+
+    def get_checksums_from_json(self, always_read=False):
+        """
+        Get checksums for this software that are provided in a checksums.json file
+
+        :param always_read: always read the checksums.json file, even if it has been read before
+        """
+        if always_read or self.json_checksums is None:
+            path = self.obtain_file("checksums.json", no_download=True, warning_only=True)
+            if path is not None:
+                self.log.info("Loading checksums from file %s", path)
+                json_txt = read_file(path)
+                self.json_checksums = json.loads(json_txt)
+            else:
+                # if the file can't be found, return an empty dict
+                self.json_checksums = {}
+
+        return self.json_checksums
 
     def fetch_source(self, source, checksum=None, extension=False, download_instructions=None):
         """
@@ -444,7 +486,8 @@ class EasyBlock(object):
             if source is None:
                 raise EasyBuildError("Empty source in sources list at index %d", index)
 
-            src_spec = self.fetch_source(source, self.get_checksum_for(checksums=checksums, index=index))
+            checksum = self.get_checksum_for(checksums=checksums, filename=source, index=index)
+            src_spec = self.fetch_source(source, checksum=checksum)
             if src_spec:
                 self.src.append(src_spec)
             else:
@@ -476,7 +519,7 @@ class EasyBlock(object):
             if path:
                 self.log.debug('File %s found for patch %s', path, patch_spec)
                 patch_info['path'] = path
-                patch_info['checksum'] = self.get_checksum_for(checksums, index=index)
+                patch_info['checksum'] = self.get_checksum_for(checksums, filename=patch_info['name'], index=index)
 
                 if extension:
                     patches.append(patch_info)
@@ -637,7 +680,7 @@ class EasyBlock(object):
 
                         # verify checksum (if provided)
                         self.log.debug('Verifying checksums for extension source...')
-                        fn_checksum = self.get_checksum_for(checksums, index=0)
+                        fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
                         if verify_checksum(src_path, fn_checksum):
                             self.log.info('Checksum for extension source %s verified', src_fn)
                         elif build_option('ignore_checksums'):
@@ -671,7 +714,7 @@ class EasyBlock(object):
                                 patch = patch['path']
                                 patch_fn = os.path.basename(patch)
 
-                                checksum = self.get_checksum_for(checksums[1:], index=idx)
+                                checksum = self.get_checksum_for(checksums, filename=patch_fn, index=idx+1)
                                 if verify_checksum(patch, checksum):
                                     self.log.info('Checksum for extension patch %s verified', patch_fn)
                                 elif build_option('ignore_checksums'):
@@ -693,7 +736,8 @@ class EasyBlock(object):
         return exts_sources
 
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
-                    git_config=None, download_instructions=None, alt_location=None):
+                    git_config=None, no_download=False, download_instructions=None, alt_location=None,
+                    warning_only=False):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -704,6 +748,7 @@ class EasyBlock(object):
         :param download_filename: filename with which the file should be downloaded, and then renamed to <filename>
         :param force_download: always try to download file, even if it's already available in source path
         :param git_config: dictionary to define how to download a git repository
+        :param no_download: do not try to download the file
         :param download_instructions: instructions to manually add source (used for complex cases)
         :param alt_location: alternative location to use instead of self.name
         """
@@ -745,15 +790,28 @@ class EasyBlock(object):
                     return fullpath
 
             except IOError as err:
-                raise EasyBuildError("Downloading file %s from url %s to %s failed: %s", filename, url, fullpath, err)
+                if not warning_only:
+                    raise EasyBuildError("Downloading file %s "
+                                         "from url %s to %s failed: %s", filename, url, fullpath, err)
+                else:
+                    self.log.warning("Downloading file %s "
+                                     "from url %s to %s failed: %s", filename, url, fullpath, err)
+                    return None
 
         else:
             # try and find file in various locations
             foundfile = None
             failedpaths = []
 
-            # always look first in the dir of the current eb file
-            ebpath = [os.path.dirname(self.cfg.path)]
+            # always look first in the dir of the current eb file unless alt_location is set
+            if alt_location is None:
+                ebpath = [os.path.dirname(self.cfg.path)]
+                self.log.info("Considering directory in which easyconfig file is located when searching for %s: %s",
+                              filename, ebpath[0])
+            else:
+                ebpath = []
+                self.log.info("Not considering directory in which easyconfig file is located when searching for %s "
+                              "because alt_location is set to %s", filename, alt_location)
 
             # always consider robot + easyconfigs install paths as a fall back (e.g. for patch files, test cases, ...)
             common_filepaths = []
@@ -810,6 +868,18 @@ class EasyBlock(object):
                 if self.dry_run:
                     self.dry_run_msg("  * %s found at %s", filename, foundfile)
                 return foundfile
+            elif no_download:
+                if self.dry_run:
+                    self.dry_run_msg("  * %s (MISSING)", filename)
+                    return filename
+                else:
+                    if not warning_only:
+                        raise EasyBuildError("Couldn't find file %s anywhere, and downloading it is disabled... "
+                                             "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
+                    else:
+                        self.log.warning("Couldn't find file %s anywhere, and downloading it is disabled... "
+                                         "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
+                        return None
             elif git_config:
                 return get_source_tarball_from_git(filename, targetdir, git_config)
             else:
@@ -901,7 +971,11 @@ class EasyBlock(object):
                         error_msg += "and downloading it didn't work either... "
                         error_msg += "Paths attempted (in order): %s " % failedpaths_msg
 
-                    raise EasyBuildError(error_msg, filename)
+                    if not warning_only:
+                        raise EasyBuildError(error_msg, filename)
+                    else:
+                        self.log.warning(error_msg, filename)
+                        return None
 
     #
     # GETTER/SETTER UTILITY FUNCTIONS
@@ -1354,6 +1428,13 @@ class EasyBlock(object):
                 modloadmsg += '\n'
             lines.append(self.module_generator.msg_on_load(modloadmsg))
 
+        modunloadmsg = self.cfg['modunloadmsg']
+        if modunloadmsg:
+            # add trailing newline to prevent that shell prompt is 'glued' to module unload/purge message
+            if not modunloadmsg.endswith('\n'):
+                modunloadmsg += '\n'
+            lines.append(self.module_generator.msg_on_unload(modunloadmsg))
+
         for (key, value) in self.cfg['modaliases'].items():
             lines.append(self.module_generator.set_alias(key, value))
 
@@ -1371,7 +1452,7 @@ class EasyBlock(object):
 
         # set environment variable that specifies list of extensions
         # We need only name and version, so don't resolve templates
-        exts_list = ','.join(['-'.join(ext[:2]) for ext in self.cfg.get_ref('exts_list')])
+        exts_list = self.make_extension_string(ext_sep=',', sort=False)
         env_var_name = convert_name(self.name, upper=True)
         lines.append(self.module_generator.set_environment('EBEXTSLIST%s' % env_var_name, exts_list))
 
@@ -1501,8 +1582,8 @@ class EasyBlock(object):
                 paths = sum((glob.glob(path) if path else [path] for path in reqs), [])  # sum flattens to list
 
                 # If lib64 is just a symlink to lib we fixup the paths to avoid duplicates
-                lib64_is_symlink = (all(os.path.isdir(path) for path in ['lib', 'lib64'])
-                                    and os.path.samefile('lib', 'lib64'))
+                lib64_is_symlink = (all(os.path.isdir(path) for path in ['lib', 'lib64']) and
+                                    os.path.samefile('lib', 'lib64'))
                 if lib64_is_symlink:
                     fixed_paths = []
                     for path in paths:
@@ -1610,6 +1691,8 @@ class EasyBlock(object):
         :param purge: boolean indicating whether or not to purge currently loaded modules first
         :param extra_modules: list of extra modules to load (these are loaded *before* loading the 'self' module)
         """
+        self.log.info("Loading fake module (%s)", self.short_mod_name)
+
         # take a copy of the current environment before loading the fake module, so we can restore it
         env = copy.deepcopy(os.environ)
 
@@ -1649,6 +1732,27 @@ class EasyBlock(object):
     #
     # EXTENSIONS UTILITY FUNCTIONS
     #
+
+    def _make_extension_list(self):
+        """
+        Return a list of extension names and their versions included in this installation
+
+        Each entry should be a (name, version) tuple or just (name, ) if no version exists
+        """
+        # We need only name and version, so don't resolve templates
+        # Each extension in exts_list is either a string or a list/tuple with name, version as first entries
+        return [(ext, ) if isinstance(ext, string_type) else ext[:2] for ext in self.cfg.get_ref('exts_list')]
+
+    def make_extension_string(self, name_version_sep='-', ext_sep=', ', sort=True):
+        """
+        Generate a string with a list of extensions.
+
+        The name and version are separated by name_version_sep and each extension is separated by ext_sep
+        """
+        exts_list = (name_version_sep.join(ext) for ext in self._make_extension_list())
+        if sort:
+            exts_list = sorted(exts_list, key=str.lower)
+        return ext_sep.join(exts_list)
 
     def prepare_for_extensions(self):
         """
@@ -1791,6 +1895,8 @@ class EasyBlock(object):
 
             self.log.info("Starting extension %s", ext.name)
 
+            run_hook(SINGLE_EXTENSION, self.hooks, pre_step_hook=True, args=[ext])
+
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
 
@@ -1836,6 +1942,8 @@ class EasyBlock(object):
                             print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
 
             self.update_exts_progress_bar(progress_info, progress_size=1)
+
+            run_hook(SINGLE_EXTENSION, self.hooks, post_step_hook=True, args=[ext])
 
     def install_extensions_parallel(self, install=True):
         """
@@ -2272,7 +2380,7 @@ class EasyBlock(object):
 
         # fetch patches
         if self.cfg['patches'] + self.cfg['postinstallpatches']:
-            if isinstance(self.cfg['checksums'], (list, tuple)):
+            if self.cfg['checksums'] and isinstance(self.cfg['checksums'], (list, tuple)):
                 # if checksums are provided as a list, first entries are assumed to be for sources
                 patches_checksums = self.cfg['checksums'][len(self.cfg['sources']):]
             else:
@@ -2358,6 +2466,25 @@ class EasyBlock(object):
         sources = ent.get('sources', [])
         patches = ent.get('patches', [])
         checksums = ent.get('checksums', [])
+        # Single source should be re-wrapped as a list, and checksums with it
+        if isinstance(sources, dict):
+            sources = [sources]
+        if isinstance(checksums, string_type):
+            checksums = [checksums]
+
+        if not checksums:
+            checksums_from_json = self.get_checksums_from_json()
+            # recreate a list of checksums. If each filename is found, the generated list of checksums should match
+            # what is expected in list format
+            for fn in sources + patches:
+                # if the filename is a tuple, the actual source file name is the first element
+                if isinstance(fn, tuple):
+                    fn = fn[0]
+                # if the filename is a dict, the actual source file name is the "filename" element
+                if isinstance(fn, dict):
+                    fn = fn["filename"]
+                if fn in checksums_from_json.keys():
+                    checksums += [checksums_from_json[fn]]
 
         if source_cnt is None:
             source_cnt = len(sources)
@@ -2374,33 +2501,34 @@ class EasyBlock(object):
             checksum_issues.append(msg)
 
         for fn, checksum in zip(sources + patches, checksums):
+
+            # a checksum may be specified as a dictionary which maps filename to actual checksum
+            # for example when different source files are used for different CPU architectures
             if isinstance(checksum, dict):
-                # sources entry may be a dictionary rather than just a string value with filename
-                if isinstance(fn, dict):
-                    filename = fn['filename']
-                else:
-                    filename = fn
-                checksum = checksum.get(filename)
-
-            # take into account that we may encounter a tuple of valid SHA256 checksums
-            # (see https://github.com/easybuilders/easybuild-framework/pull/2958)
-            if isinstance(checksum, tuple):
-                # 1st tuple item may indicate checksum type, must be SHA256 or else it's blatently ignored here
-                if len(checksum) == 2 and checksum[0] == CHECKSUM_TYPE_SHA256:
-                    valid_checksums = (checksum[1],)
-                else:
-                    valid_checksums = checksum
+                checksums_to_check = checksum.values()
             else:
-                valid_checksums = (checksum,)
+                checksums_to_check = [checksum]
 
-            non_sha256_checksums = [c for c in valid_checksums if not is_sha256_checksum(c)]
-            if non_sha256_checksums:
-                if all(c is None for c in non_sha256_checksums):
-                    print_warning("Found %d None checksum value(s), please make sure this is intended!" %
-                                  len(non_sha256_checksums))
+            for checksum in checksums_to_check:
+                # take into account that we may encounter a tuple of valid SHA256 checksums
+                # (see https://github.com/easybuilders/easybuild-framework/pull/2958)
+                if isinstance(checksum, tuple):
+                    # 1st tuple item may indicate checksum type, must be SHA256 or else it's blatently ignored here
+                    if len(checksum) == 2 and checksum[0] == CHECKSUM_TYPE_SHA256:
+                        valid_checksums = (checksum[1],)
+                    else:
+                        valid_checksums = checksum
                 else:
-                    msg = "Non-SHA256 checksum(s) found for %s: %s" % (fn, valid_checksums)
-                    checksum_issues.append(msg)
+                    valid_checksums = (checksum,)
+
+                non_sha256_checksums = [c for c in valid_checksums if not is_sha256_checksum(c)]
+                if non_sha256_checksums:
+                    if all(c is None for c in non_sha256_checksums):
+                        print_warning("Found %d None checksum value(s), please make sure this is intended!" %
+                                      len(non_sha256_checksums))
+                    else:
+                        msg = "Non-SHA256 checksum(s) found for %s: %s" % (fn, valid_checksums)
+                        checksum_issues.append(msg)
 
         return checksum_issues
 
@@ -2827,6 +2955,10 @@ class EasyBlock(object):
                     for path in paths:
                         # check whether file should be patched by checking whether it has a shebang we want to tweak;
                         # this also helps to skip binary files we may be hitting (but only with Python 3)
+                        if os.path.isdir(path):
+                            self.log.debug("Skipping shebang fix for directory '%s'", path)
+                            continue
+
                         try:
                             contents = read_file(path, mode='r')
                             should_patch = shebang_regex.match(contents)
@@ -2875,7 +3007,17 @@ class EasyBlock(object):
 
         self.log.debug("Post-install patches to apply: %s", patches)
         if patches:
-            self.patch_step(beginpath=self.installdir, patches=patches)
+            # self may be inherited from the Bundle easyblock and that patch_step is a no-op
+            # To allow postinstallpatches for Bundle, and derived, easyblocks we directly call EasyBlock.patch_step
+            EasyBlock.patch_step(self, beginpath=self.installdir, patches=patches)
+
+    def print_post_install_messages(self):
+        """
+        Print post-install messages that are specified via the 'postinstallmsgs' easyconfig parameter.
+        """
+        msgs = self.cfg['postinstallmsgs'] or []
+        for msg in msgs:
+            print_msg(msg, log=self.log)
 
     def post_install_step(self):
         """
@@ -2885,6 +3027,7 @@ class EasyBlock(object):
 
         self.run_post_install_commands()
         self.apply_post_install_patches()
+        self.print_post_install_messages()
 
         self.fix_shebang()
 
@@ -2960,7 +3103,7 @@ class EasyBlock(object):
         self.cfg['builddependencies'] = builddeps
         self.cfg.iterating = False
 
-    def sanity_check_rpath(self, rpath_dirs=None):
+    def sanity_check_rpath(self, rpath_dirs=None, check_readelf_rpath=True):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
 
         self.log.info("Checking RPATH linkage for binaries/libraries...")
@@ -2973,8 +3116,15 @@ class EasyBlock(object):
         self.log.debug("$LD_LIBRARY_PATH during RPATH sanity check: %s", os.getenv('LD_LIBRARY_PATH', '(empty)'))
         self.log.debug("List of loaded modules: %s", self.modules_tool.list())
 
-        not_found_regex = re.compile('not found', re.M)
+        not_found_regex = re.compile(r'(\S+)\s*\=\>\s*not found')
         readelf_rpath_regex = re.compile('(RPATH)', re.M)
+
+        # List of libraries that should be exempt from the RPATH sanity check;
+        # For example, libcuda.so.1 should never be RPATH-ed by design,
+        # see https://github.com/easybuilders/easybuild-framework/issues/4095
+        filter_rpath_sanity_libs = build_option('filter_rpath_sanity_libs')
+        msg = "Ignoring the following libraries if they are not found by RPATH sanity check: %s"
+        self.log.info(msg, filter_rpath_sanity_libs)
 
         if rpath_dirs is None:
             rpath_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
@@ -2994,45 +3144,45 @@ class EasyBlock(object):
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
                     self.log.debug("Sanity checking RPATH for %s", path)
 
-                    out, ec = run_cmd("file %s" % path, simple=False, trace=False)
-                    if ec:
-                        fail_msg = "Failed to run 'file %s': %s" % (path, out)
-                        self.log.warning(fail_msg)
-                        fails.append(fail_msg)
+                    out = get_linked_libs_raw(path)
 
-                    # only run ldd/readelf on dynamically linked executables/libraries
-                    # example output:
-                    # ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked (uses shared libs), ...
-                    # ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, not stripped
-                    if "dynamically linked" in out:
+                    if out is None:
+                        msg = "Failed to determine dynamically linked libraries for %s, "
+                        msg += "so skipping it in RPATH sanity check"
+                        self.log.debug(msg, path)
+                    else:
                         # check whether all required libraries are found via 'ldd'
-                        out, ec = run_cmd("ldd %s" % path, simple=False, trace=False)
-                        if ec:
-                            fail_msg = "Failed to run 'ldd %s': %s" % (path, out)
-                            self.log.warning(fail_msg)
-                            fails.append(fail_msg)
-                        elif not_found_regex.search(out):
-                            fail_msg = "One or more required libraries not found for %s: %s" % (path, out)
-                            self.log.warning(fail_msg)
-                            fails.append(fail_msg)
+                        matches = re.findall(not_found_regex, out)
+                        if len(matches) > 0:  # Some libraries are not found via 'ldd'
+                            # For each match, check if the library is in the exception list
+                            for match in matches:
+                                if match in filter_rpath_sanity_libs:
+                                    msg = "Library %s not found for %s, but ignored "
+                                    msg += "since it is on the rpath exception list: %s"
+                                    self.log.info(msg, match, path, filter_rpath_sanity_libs)
+                                else:
+                                    fail_msg = "Library %s not found for %s" % (match, path)
+                                    self.log.warning(fail_msg)
+                                    fails.append(fail_msg)
                         else:
                             self.log.debug("Output of 'ldd %s' checked, looks OK", path)
 
                         # check whether RPATH section in 'readelf -d' output is there
-                        out, ec = run_cmd("readelf -d %s" % path, simple=False, trace=False)
-                        if ec:
-                            fail_msg = "Failed to run 'readelf %s': %s" % (path, out)
-                            self.log.warning(fail_msg)
-                            fails.append(fail_msg)
-                        elif not readelf_rpath_regex.search(out):
-                            fail_msg = "No '(RPATH)' found in 'readelf -d' output for %s: %s" % (path, out)
-                            self.log.warning(fail_msg)
-                            fails.append(fail_msg)
-                        else:
-                            self.log.debug("Output of 'readelf -d %s' checked, looks OK", path)
+                        if check_readelf_rpath:
+                            fail_msg = None
+                            out, ec = run_cmd("readelf -d %s" % path, simple=False, trace=False)
+                            if ec:
+                                fail_msg = "Failed to run 'readelf %s': %s" % (path, out)
+                            elif not readelf_rpath_regex.search(out):
+                                fail_msg = "No '(RPATH)' found in 'readelf -d' output for %s: %s" % (path, out)
 
-                    else:
-                        self.log.debug("%s is not dynamically linked, so skipping it in RPATH sanity check", path)
+                            if fail_msg:
+                                self.log.warning(fail_msg)
+                                fails.append(fail_msg)
+                            else:
+                                self.log.debug("Output of 'readelf -d %s' checked, looks OK", path)
+                        else:
+                            self.log.debug("Skipping the RPATH section check with 'readelf -d', as requested")
             else:
                 self.log.debug("Not sanity checking files in non-existing directory %s", dirpath)
 
@@ -3070,13 +3220,15 @@ class EasyBlock(object):
         self.log.info("Checking for banned/required linked shared libraries...")
 
         # list of libraries that can *not* be linked in any installed binary/library
-        banned_libs = build_option('banned_linked_shared_libs') or []
+        banned_libs = []
+        banned_libs.extend(build_option('banned_linked_shared_libs') or [])
         banned_libs.extend(self.toolchain.banned_linked_shared_libs())
         banned_libs.extend(self.banned_linked_shared_libs())
         banned_libs.extend(self.cfg['banned_linked_shared_libs'])
 
         # list of libraries that *must* be linked in every installed binary/library
-        required_libs = build_option('required_linked_shared_libs') or []
+        required_libs = []
+        required_libs.extend(build_option('required_linked_shared_libs') or [])
         required_libs.extend(self.toolchain.required_linked_shared_libs())
         required_libs.extend(self.required_linked_shared_libs())
         required_libs.extend(self.cfg['required_linked_shared_libs'])
@@ -3227,6 +3379,15 @@ class EasyBlock(object):
             error_msg += "values should be lists (at least one non-empty)."
             raise EasyBuildError(error_msg % ', '.join("'%s'" % k for k in known_keys))
 
+        # Resolve arch specific entries
+        for values in paths.values():
+            new_values = []
+            for value in values:
+                value = pick_system_specific_value('sanity_check_paths', value, allow_none=True)
+                if value is not None:
+                    new_values.append(value)
+            values[:] = new_values
+
         # if enhance_sanity_check is not enabled, only sanity_check_commands specified in the easyconfig file are used,
         # the ones provided by the easyblock (via custom_commands) are ignored
         if ec_commands and not enhance_sanity_check:
@@ -3347,6 +3508,34 @@ class EasyBlock(object):
             self.sanity_check_fail_msgs.append(overall_fail_msg + ', '.join(x[0] for x in failed_exts))
             self.sanity_check_fail_msgs.extend(x[1] for x in failed_exts)
 
+    def sanity_check_load_module(self, extension=False, extra_modules=None):
+        """
+        Load module to prepare environment for sanity check
+        """
+
+        # skip loading of fake module when using --sanity-check-only, load real module instead
+        if build_option('sanity_check_only') and not extension:
+            self.log.info("Loading real module for %s %s: %s", self.name, self.version, self.short_mod_name)
+            self.load_module(extra_modules=extra_modules)
+            self.sanity_check_module_loaded = True
+
+        # only load fake module for non-extensions, and not during dry run
+        elif not (extension or self.dry_run):
+
+            if extra_modules:
+                self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
+
+            try:
+                # unload all loaded modules before loading fake module
+                # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
+                self.fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules, verbose=True)
+                self.sanity_check_module_loaded = True
+            except EasyBuildError as err:
+                self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
+                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
+
+        return self.fake_mod_data
+
     def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False, extra_modules=None):
         """
         Real version of sanity_check_step method.
@@ -3411,24 +3600,8 @@ class EasyBlock(object):
 
                 trace_msg("%s %s found: %s" % (typ, xs2str(xs), ('FAILED', 'OK')[found]))
 
-        fake_mod_data = None
-
-        # skip loading of fake module when using --sanity-check-only, load real module instead
-        if build_option('sanity_check_only') and not extension:
-            self.load_module(extra_modules=extra_modules)
-
-        # only load fake module for non-extensions, and not during dry run
-        elif not (extension or self.dry_run):
-            try:
-                # unload all loaded modules before loading fake module
-                # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
-                fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules, verbose=True)
-            except EasyBuildError as err:
-                self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
-                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
-
-            if extra_modules:
-                self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
+        if not self.sanity_check_module_loaded:
+            self.fake_mod_data = self.sanity_check_load_module(extension=extension, extra_modules=extra_modules)
 
         # allow oversubscription of P processes on C cores (P>C) for software installed on top of Open MPI;
         # this is useful to avoid failing of sanity check commands that involve MPI
@@ -3464,8 +3637,10 @@ class EasyBlock(object):
             self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
 
         # cleanup
-        if fake_mod_data:
-            self.clean_up_fake_module(fake_mod_data)
+        if self.fake_mod_data:
+            self.clean_up_fake_module(self.fake_mod_data)
+            self.sanity_check_module_loaded = False
+            self.fake_mod_data = None
 
         if self.toolchain.use_rpath:
             rpath_fails = self.sanity_check_rpath()
@@ -4015,6 +4190,10 @@ def build_and_install_one(ecdict, init_env):
         dry_run_msg('', silent=silent)
     print_msg("processing EasyBuild easyconfig %s" % spec, log=_log, silent=silent)
 
+    if ecdict['ec']['build_info_msg']:
+        msg = "This easyconfig provides the following build information:\n\n%s\n"
+        print_msg(msg % ecdict['ec']['build_info_msg'], log=_log, silent=silent)
+
     if dry_run:
         # print note on interpreting dry run output (argument is reference to location of dry run messages)
         print_dry_run_note('below', silent=silent)
@@ -4282,7 +4461,7 @@ def reproduce_build(app, reprod_dir_root):
     :param app: easyblock class instance
     :param reprod_dir_root: root directory in which to create the 'reprod' directory
 
-    :return reprod_dir: directory containing reproducibility files
+    :return: reprod_dir directory containing reproducibility files
     """
 
     ec_filename = app.cfg.filename()
@@ -4312,7 +4491,7 @@ def reproduce_build(app, reprod_dir_root):
 def get_easyblock_instance(ecdict):
     """
     Get an instance for this easyconfig
-    :param easyconfig: parsed easyconfig (EasyConfig instance)
+    :param ecdict: parsed easyconfig (EasyConfig instance)
 
     returns an instance of EasyBlock (or subclass thereof)
     """
@@ -4407,6 +4586,67 @@ class StopException(Exception):
     pass
 
 
+def inject_checksums_to_json(ecs, checksum_type):
+    """
+    Inject checksums of given type in corresponding json files
+
+    :param ecs: list of EasyConfig instances to calculate checksums and inject them into checksums.json
+    :param checksum_type: type of checksum to use
+    """
+    for ec in ecs:
+        ec_fn = os.path.basename(ec['spec'])
+        ec_dir = os.path.dirname(ec['spec'])
+        print_msg("injecting %s checksums for %s in checksums.json" % (checksum_type, ec['spec']), log=_log)
+
+        # get easyblock instance and make sure all sources/patches are available by running fetch_step
+        print_msg("fetching sources & patches for %s..." % ec_fn, log=_log)
+        app = get_easyblock_instance(ec)
+        app.update_config_template_run_step()
+        app.fetch_step(skip_checksums=True)
+
+        # compute & inject checksums for sources/patches
+        print_msg("computing %s checksums for sources & patches for %s..." % (checksum_type, ec_fn), log=_log)
+        checksums = {}
+        for entry in app.src + app.patches:
+            checksum = compute_checksum(entry['path'], checksum_type)
+            print_msg("* %s: %s" % (os.path.basename(entry['path']), checksum), log=_log)
+            checksums[os.path.basename(entry['path'])] = checksum
+
+        # compute & inject checksums for extension sources/patches
+        if app.exts:
+            print_msg("computing %s checksums for extensions for %s..." % (checksum_type, ec_fn), log=_log)
+
+            for ext in app.exts:
+                # compute checksums for extension sources & patches
+                if 'src' in ext:
+                    src_fn = os.path.basename(ext['src'])
+                    checksum = compute_checksum(ext['src'], checksum_type)
+                    print_msg(" * %s: %s" % (src_fn, checksum), log=_log)
+                    checksums[src_fn] = checksum
+                for ext_patch in ext.get('patches', []):
+                    patch_fn = os.path.basename(ext_patch['path'])
+                    checksum = compute_checksum(ext_patch['path'], checksum_type)
+                    print_msg(" * %s: %s" % (patch_fn, checksum), log=_log)
+                    checksums[patch_fn] = checksum
+
+        # actually inject new checksums or overwrite existing ones (if --force)
+        existing_checksums = app.get_checksums_from_json(always_read=True)
+        for filename in checksums:
+            if filename not in existing_checksums:
+                existing_checksums[filename] = checksums[filename]
+            # don't do anything if the checksum already exist and is the same
+            elif checksums[filename] != existing_checksums[filename]:
+                if build_option('force'):
+                    print_warning("Found existing checksums for %s, overwriting them (due to --force)..." % ec_fn)
+                    existing_checksums[filename] = checksums[filename]
+                else:
+                    raise EasyBuildError("Found existing checksum for %s, use --force to overwrite them" % filename)
+
+        # actually write the checksums
+        with open(os.path.join(ec_dir, 'checksums.json'), 'w') as outfile:
+            json.dump(existing_checksums, outfile, indent=2, sort_keys=True)
+
+
 def inject_checksums(ecs, checksum_type):
     """
     Inject checksums of given type in specified easyconfig files
@@ -4424,11 +4664,11 @@ def inject_checksums(ecs, checksum_type):
         line_indent = INDENT_4SPACES * indent_level
         checksum_lines = []
         for fn, checksum in checksums:
-            checksum_line = "%s'%s',  # %s" % (line_indent, checksum, fn)
+            checksum_line = "%s{'%s': '%s'}," % (line_indent, fn, checksum)
             if len(checksum_line) > MAX_LINE_LENGTH:
                 checksum_lines.extend([
-                    "%s# %s" % (line_indent, fn),
-                    "%s'%s'," % (line_indent, checksum),
+                    "%s{'%s':" % (line_indent, fn),
+                    "%s '%s'}," % (line_indent, checksum),
                 ])
             else:
                 checksum_lines.append(checksum_line)

@@ -1,4 +1,4 @@
-# Copyright 2014-2022 Ghent University
+# Copyright 2014-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +25,10 @@
 All required to provide details of build environment
 and allow for reproducable builds
 
-:author: Kenneth Hoste (Ghent University)
-:author: Stijn De Weirdt (Ghent University)
+Authors:
+
+* Kenneth Hoste (Ghent University)
+* Stijn De Weirdt (Ghent University)
 """
 import time
 from easybuild.tools.filetools import det_size

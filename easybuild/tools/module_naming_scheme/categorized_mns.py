@@ -1,5 +1,5 @@
 ##
-# Copyright 2016-2022 Ghent University
+# Copyright 2016-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +25,10 @@
 """
 Implementation of a categorized module naming scheme using module classes.
 
-:author: Maxime Schmitt (University of Luxembourg)
-:author: Xavier Besseron (University of Luxembourg)
+Authors:
+
+* Maxime Schmitt (University of Luxembourg)
+* Xavier Besseron (University of Luxembourg)
 """
 
 import os

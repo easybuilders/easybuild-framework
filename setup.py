@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -94,6 +94,7 @@ implement support for installing particular (groups of) software packages.""",
         'optcomplete.bash',
         'minimal_bash_completion.bash',
         'eb_bash_completion.bash',
+        'eb_bash_completion_local.bash',
         # utility scripts
         'easybuild/scripts/bootstrap_eb.py',
         'easybuild/scripts/install_eb_dep.sh',
@@ -117,6 +118,7 @@ implement support for installing particular (groups of) software packages.""",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Topic :: Software Development :: Build Tools",
     ],
     platforms="Linux",

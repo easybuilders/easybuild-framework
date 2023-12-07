@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2022 Ghent University
+# Copyright 2014-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,10 +34,9 @@ import sys
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
-from distutils.version import StrictVersion
 
 from easybuild.base import fancylogger
-from easybuild.tools import modules
+from easybuild.tools import modules, StrictVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, which, write_file
 from easybuild.tools.modules import Lmod
@@ -91,10 +90,10 @@ class ModulesToolTest(EnhancedTestCase):
         try:
             bmmt = BrokenMockModulesTool(mod_paths=[], testing=True)
             # should never get here
-            self.assertTrue(False, 'BrokenMockModulesTool should fail')
+            self.fail('BrokenMockModulesTool should fail')
         except EasyBuildError as err:
             err_msg = "command is not available"
-            self.assertTrue(err_msg in str(err), "'%s' found in: %s" % (err_msg, err))
+            self.assertIn(err_msg, str(err))
 
         os.environ[BrokenMockModulesTool.COMMAND_ENVIRONMENT] = MockModulesTool.COMMAND
         os.environ['module'] = "() { /bin/echo $*\n}"
@@ -130,7 +129,7 @@ class ModulesToolTest(EnhancedTestCase):
         # redefine 'module' function with correct module command
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
         mt = MockModulesTool(testing=True)
-        self.assertTrue(isinstance(mt.loaded_modules(), list))  # dummy usage
+        self.assertIsInstance(mt.loaded_modules(), list)  # dummy usage
 
         # a warning should be logged if the 'module' function is undefined
         del os.environ['module']

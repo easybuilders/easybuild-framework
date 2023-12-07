@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2022 Ghent University
+# Copyright 2013-2023 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -28,7 +28,9 @@
 """
 Support for Clang as toolchain compiler.
 
-:author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+Authors:
+
+* Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
 import easybuild.tools.systemtools as systemtools

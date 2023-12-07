@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2022 Ghent University
+# Copyright 2012-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,9 +25,11 @@
 """
 Utility module for working with github
 
-:author: Jens Timmerman (Ghent University)
-:author: Kenneth Hoste (Ghent University)
-:author: Toon Willems (Ghent University)
+Authors:
+
+* Jens Timmerman (Ghent University)
+* Kenneth Hoste (Ghent University)
+* Toon Willems (Ghent University)
 """
 import base64
 import copy
@@ -43,13 +45,13 @@ import sys
 import tempfile
 import time
 from datetime import datetime, timedelta
-from distutils.version import LooseVersion
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, copy_easyblocks, copy_framework_files
@@ -587,7 +589,9 @@ def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
     }
 
     if dry_run:
-        status, data = HTTP_STATUS_CREATED, {'html_url': 'https://gist.github.com/DRY_RUN'}
+        if github_user is None:
+            github_user = 'username'
+        status, data = HTTP_STATUS_CREATED, {'html_url': 'https://gist.github.com/%s/DRY_RUN' % github_user}
     else:
         g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
         status, data = g.gists.post(body=body)
@@ -1074,7 +1078,7 @@ def find_software_name_for_patch(patch_name, ec_dirs):
     Scan all easyconfigs in the robot path(s) to determine which software a patch file belongs to
 
     :param patch_name: name of the patch file
-    :param ecs_dirs: list of directories to consider when looking for easyconfigs
+    :param ec_dirs: list of directories to consider when looking for easyconfigs
     :return: name of the software that this patch file belongs to (if found)
     """
 
@@ -1577,6 +1581,45 @@ def new_branch_github(paths, ecs, commit_msg=None):
     return res
 
 
+def det_pr_title(ecs):
+    """
+    Create title for PR based on first easyconfigs
+    :param ecs: list of parsed easyconfigs
+    """
+
+    # only use most common toolchain(s) in toolchain label of PR title
+    toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in ecs]
+    toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
+    toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
+
+    # only use most common module class(es) in moduleclass label of PR title
+    classes = [ec['moduleclass'] for ec in ecs]
+    classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
+    class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
+
+    names_and_versions = nub(["%s v%s" % (ec.name, ec.version) for ec in ecs])
+    if len(names_and_versions) <= 3:
+        main_title = ', '.join(names_and_versions)
+    else:
+        main_title = ', '.join(names_and_versions[:3] + ['...'])
+
+    title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+
+    # Find all suffixes
+    suffixes = []
+    for ec in ecs:
+        if 'versionsuffix' in ec and ec['versionsuffix']:
+            suffixes.append(ec['versionsuffix'].strip('-').replace('-', ' '))
+    if suffixes:
+        suffixes = sorted(nub(suffixes))
+        if len(suffixes) <= 2:
+            title += ' w/ ' + ', '.join(suffixes)
+        else:
+            title += ' w/ ' + ', '.join(suffixes[:2] + ['...'])
+
+    return title
+
+
 @only_if_module_is_available('git', pkgname='GitPython')
 def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None, pr_metadata=None, commit_msg=None):
     """
@@ -1687,42 +1730,10 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
 
     labels = det_pr_labels(file_info, pr_target_repo)
 
-    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
-        # only use most common toolchain(s) in toolchain label of PR title
-        toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
-        toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
-        toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
-
-        # only use most common module class(es) in moduleclass label of PR title
-        classes = [ec['moduleclass'] for ec in file_info['ecs']]
-        classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
-        class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
-
     if title is None:
         if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
             if file_info['ecs'] and all(file_info['new']) and not deleted_paths:
-                # mention software name/version in PR title (only first 3)
-                names_and_versions = nub(["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']])
-                if len(names_and_versions) <= 3:
-                    main_title = ', '.join(names_and_versions)
-                else:
-                    main_title = ', '.join(names_and_versions[:3] + ['...'])
-
-                title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
-
-                # if Python is listed as a dependency, then mention Python version(s) in PR title
-                pyver = []
-                for ec in file_info['ecs']:
-                    # iterate over all dependencies (incl. build dependencies & multi-deps)
-                    for dep in ec.dependencies():
-                        if dep['name'] == 'Python':
-                            # check whether Python is listed as a multi-dep if it's marked as a build dependency
-                            if dep['build_only'] and 'Python' not in ec['multi_deps']:
-                                continue
-                            else:
-                                pyver.append(dep['version'])
-                if pyver:
-                    title += " w/ Python %s" % ' + '.join(sorted(nub(pyver)))
+                title = det_pr_title(file_info['ecs'])
         elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
             if file_info['eb_names'] and all(file_info['new']) and not deleted_paths:
                 plural = 's' if len(file_info['eb_names']) > 1 else ''
@@ -1800,6 +1811,15 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
             for patch in ec.asdict()['patches']:
                 if isinstance(patch, tuple):
                     patch = patch[0]
+                elif isinstance(patch, dict):
+                    patch_info = {}
+                    for key in patch.keys():
+                        patch_info[key] = patch[key]
+                    if 'name' not in patch_info.keys():
+                        raise EasyBuildError("Wrong patch spec '%s', when using a dict 'name' entry must be supplied",
+                                             str(patch))
+                    patch = patch_info['name']
+
                 if patch not in paths['patch_files'] and not os.path.isfile(os.path.join(os.path.dirname(ec_path),
                                                                             patch)):
                     print_warning("new patch file %s, referenced by %s, is not included in this PR" %
@@ -2077,7 +2097,8 @@ def check_github():
     elif github_user:
         if 'git' in sys.modules:
             ver, req_ver = git.__version__, '1.0'
-            if LooseVersion(ver) < LooseVersion(req_ver):
+            version_regex = re.compile('^[0-9.]+$')
+            if version_regex.match(ver) and LooseVersion(ver) < LooseVersion(req_ver):
                 check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (ver, req_ver)
             elif "Could not read from remote repository" in str(push_err):
                 check_res = "FAIL (GitHub SSH key missing? %s)" % push_err
@@ -2114,7 +2135,7 @@ def check_github():
     except Exception as err:
         _log.warning("Exception occurred when trying to create & delete gist: %s", err)
 
-    if gist_url and re.match('https://gist.github.com/[0-9a-f]+$', gist_url):
+    if gist_url and re.match('https://gist.github.com/%s/[0-9a-f]+$' % github_user, gist_url):
         check_res = "OK"
     else:
         check_res = "FAIL (gist_url: %s)" % gist_url
@@ -2229,15 +2250,18 @@ def install_github_token(github_user, silent=False):
 def validate_github_token(token, github_user):
     """
     Check GitHub token:
-    * see if it conforms expectations (only [a-f]+[0-9] characters, length of 40)
-    * see if it can be used for authenticated access
+   * see if it conforms expectations (classic GitHub token with only [0-9a-f] characters
+     and length of 40 starting with 'ghp_', or fine-grained GitHub token with only
+     alphanumeric ([a-zA-Z0-9]) characters + '_' and length of 93 starting with 'github_pat_'),
+    * see if it can be used for authenticated access.
     """
     # cfr. https://github.blog/2021-04-05-behind-githubs-new-authentication-token-formats/
     token_regex = re.compile('^ghp_[a-zA-Z0-9]{36}$')
     token_regex_old_format = re.compile('^[0-9a-f]{40}$')
+    # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-authentication-to-github#githubs-token-formats
+    token_regex_fine_grained = re.compile('github_pat_[a-zA-Z0-9_]{82}')
 
-    # token should be 40 characters long, and only contain characters in [0-9a-f]
-    sanity_check = bool(token_regex.match(token))
+    sanity_check = bool(token_regex.match(token)) or bool(token_regex_fine_grained.match(token))
     if sanity_check:
         _log.info("Sanity check on token passed")
     else:

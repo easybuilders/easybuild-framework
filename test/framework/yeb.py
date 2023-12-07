@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2022 Ghent University
+# Copyright 2015-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,13 +32,13 @@ import glob
 import os
 import platform
 import sys
-from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.format.yeb import is_yeb_format
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.filetools import read_file
@@ -122,8 +122,8 @@ class YebTest(EnhancedTestCase):
         ecdict['sources'].append(fn)
 
         ecdict_bis = ec.parser.get_config_dict()
-        self.assertTrue(fn in ecdict['sources'])
-        self.assertFalse(fn in ecdict_bis['sources'])
+        self.assertIn(fn, ecdict['sources'])
+        self.assertNotIn(fn, ecdict_bis['sources'])
 
     def test_is_yeb_format(self):
         """ Test is_yeb_format function """

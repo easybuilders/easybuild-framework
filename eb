@@ -1,6 +1,6 @@
 #!/bin/bash
 ##
-# Copyright 2009-2022 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -61,6 +61,9 @@ PYTHON=
 #   used during that installation (for example, you could override PYTHON using EB_PYTHON at installation
 #   time, this variable preserves that choice).
 for python_cmd in "${EB_PYTHON}" "${EB_INSTALLPYTHON}" 'python' 'python3' 'python2'; do
+
+    # Only consider non-empty values, i.e. continue if e.g. $EB_PYTHON is not set
+    [ -n "${python_cmd}" ] || continue
 
     verbose "Considering '${python_cmd}'..."
 
@@ -125,4 +128,4 @@ fi
 export EB_SCRIPT_PATH="${0}"
 
 verbose "${PYTHON} -m ${EASYBUILD_MAIN} ${*}"
-"${PYTHON}" -m "${EASYBUILD_MAIN}" "${@}"
+exec "${PYTHON}" -m "${EASYBUILD_MAIN}" "${@}"
