@@ -3860,10 +3860,6 @@ class EasyBlock(object):
         """
         Run provided test cases.
         """
-        # ensure parallel is set in case check_readiness_step is skipped (e.g. with --sanity-check-only)
-        if not self.cfg['parallel']:
-            self.set_parallel()
-
         for test in self.cfg['tests']:
             change_dir(self.orig_workdir)
             if os.path.isabs(test):
