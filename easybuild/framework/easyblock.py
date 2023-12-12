@@ -2055,7 +2055,7 @@ class EasyBlock(object):
                                           rpath_filter_dirs=self.rpath_filter_dirs)
                     if install:
                         ext.preinstall_extension()
-                        ext.run_async()
+                        ext.install_extension_async()
                         running_exts.append(ext)
                         self.log.info("Started installation of extension %s in the background...", ext.name)
                         update_exts_progress_bar_helper(running_exts, 0)

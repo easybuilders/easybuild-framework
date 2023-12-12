@@ -163,7 +163,7 @@ class EB_toy(ExtensionEasyBlock):
         """
         self.build_step()
 
-    def run_async(self):
+    def install_extension_async(self):
         """
         Asynchronous installation of toy as extension.
         """

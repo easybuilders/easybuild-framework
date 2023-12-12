@@ -81,7 +81,7 @@ class Toy_Extension(ExtensionEasyBlock):
 
             return self.module_generator.set_environment('TOY_EXT_%s' % self.name.upper().replace('-', '_'), self.name)
 
-    def run_async(self):
+    def install_extension_async(self):
         """
         Install toy extension asynchronously.
         """

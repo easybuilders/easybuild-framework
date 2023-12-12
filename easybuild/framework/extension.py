@@ -183,7 +183,7 @@ class Extension(object):
         """
         pass
 
-    def run_async(self, *args, **kwargs):
+    def install_extension_async(self, *args, **kwargs):
         """
         Asynchronous installation of an extension.
         """
