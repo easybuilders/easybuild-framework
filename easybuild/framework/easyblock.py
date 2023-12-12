@@ -1850,7 +1850,7 @@ class EasyBlock(object):
 
         self.ext_instances = retained_ext_instances
 
-    def install_extensions(self, install=True):
+    def install_all_extensions(self, install=True):
         """
         Install extensions.
 
@@ -2883,7 +2883,7 @@ class EasyBlock(object):
         if self.skip:
             self.skip_extensions()
 
-        self.install_extensions(install=install)
+        self.install_all_extensions(install=install)
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
