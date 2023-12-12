@@ -91,11 +91,11 @@ class Toy_Extension(ExtensionEasyBlock):
         else:
             self.async_cmd_info = False
 
-    def postrun(self):
+    def postinstall_extension(self):
         """
         Wrap up installation of toy extension.
         """
-        super(Toy_Extension, self).postrun()
+        super(Toy_Extension, self).postinstall_extension()
 
         EB_toy.install_step(self.master, name=self.name)
 

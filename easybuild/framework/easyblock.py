@@ -1922,7 +1922,7 @@ class EasyBlock(object):
                         txt = ext.install_extension()
                     if txt:
                         self.module_extra_extensions += txt
-                    ext.postrun()
+                    ext.postinstall_extension()
                 finally:
                     if not self.dry_run:
                         ext_duration = datetime.now() - start_time
@@ -1983,7 +1983,7 @@ class EasyBlock(object):
                 for ext in running_exts[:]:
                     if self.dry_run or ext.async_cmd_check():
                         self.log.info("Installation of %s completed!", ext.name)
-                        ext.postrun()
+                        ext.postinstall_extension()
                         running_exts.remove(ext)
                         installed_ext_names.append(ext.name)
                         update_exts_progress_bar_helper(running_exts, 1)

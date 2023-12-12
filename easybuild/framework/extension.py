@@ -189,7 +189,7 @@ class Extension(object):
         """
         raise NotImplementedError
 
-    def postrun(self):
+    def postinstall_extension(self):
         """
         Stuff to do after installing a extension.
         """

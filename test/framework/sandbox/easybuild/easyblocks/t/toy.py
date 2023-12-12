@@ -170,7 +170,7 @@ class EB_toy(ExtensionEasyBlock):
         cmd = compose_toy_build_cmd(self.cfg, self.name, self.cfg['prebuildopts'], self.cfg['buildopts'])
         self.async_cmd_start(cmd)
 
-    def postrun(self):
+    def postinstall_extension(self):
         """
         Wrap up installation of toy as extension.
         """
