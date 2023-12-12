@@ -59,6 +59,16 @@ class Toy_Extension(ExtensionEasyBlock):
         else:
             raise EasyBuildError("Dependencies for %s are unknown!", self.name)
 
+    def preinstall_extension(self):
+        """
+        Prepare installation of toy extension.
+        """
+        super(Toy_Extension, self).preinstall_extension()
+
+        if self.src:
+            super(Toy_Extension, self).install_extension(unpack_src=True)
+            EB_toy.configure_step(self.master, name=self.name, cfg=self.cfg)
+
     def install_extension(self, *args, **kwargs):
         """
         Install toy extension.
@@ -70,16 +80,6 @@ class Toy_Extension(ExtensionEasyBlock):
                 run_cmd(self.cfg['toy_ext_param'])
 
             return self.module_generator.set_environment('TOY_EXT_%s' % self.name.upper().replace('-', '_'), self.name)
-
-    def prerun(self):
-        """
-        Prepare installation of toy extension.
-        """
-        super(Toy_Extension, self).prerun()
-
-        if self.src:
-            super(Toy_Extension, self).install_extension(unpack_src=True)
-            EB_toy.configure_step(self.master, name=self.name, cfg=self.cfg)
 
     def run_async(self):
         """

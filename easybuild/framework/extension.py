@@ -171,7 +171,7 @@ class Extension(object):
         """
         return self.ext.get('version', None)
 
-    def prerun(self):
+    def preinstall_extension(self):
         """
         Stuff to do before installing a extension.
         """

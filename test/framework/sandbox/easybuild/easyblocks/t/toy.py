@@ -150,7 +150,7 @@ class EB_toy(ExtensionEasyBlock):
         else:
             raise EasyBuildError("Dependencies for %s are unknown!", self.name)
 
-    def prerun(self):
+    def preinstall_extension(self):
         """
         Prepare installation of toy as extension.
         """

@@ -1917,7 +1917,7 @@ class EasyBlock(object):
             # actual installation of the extension
             if install:
                 try:
-                    ext.prerun()
+                    ext.preinstall_extension()
                     with self.module_generator.start_module_creation():
                         txt = ext.install_extension()
                     if txt:
@@ -2054,7 +2054,7 @@ class EasyBlock(object):
                     ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
                                           rpath_filter_dirs=self.rpath_filter_dirs)
                     if install:
-                        ext.prerun()
+                        ext.preinstall_extension()
                         ext.run_async()
                         running_exts.append(ext)
                         self.log.info("Started installation of extension %s in the background...", ext.name)
