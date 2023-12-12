@@ -133,7 +133,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.log.warning(warn_msg)
             print_warning(warn_msg, silent=build_option('silent'))
 
-    def run(self, unpack_src=False):
+    def install_extension(self, unpack_src=False):
         """Common operations for extensions: unpacking sources, patching, ..."""
 
         # unpack file if desired

@@ -2207,7 +2207,7 @@ class EasyBlockTest(EnhancedTestCase):
             eb.extensions_step(fetch=True, install=False)
             # extract sources of the extension
             ext = eb.ext_instances[-1]
-            ext.run(unpack_src=unpack_src)
+            ext.install_extension(unpack_src=unpack_src)
 
             if expected_start_dir is None:
                 self.assertIsNone(ext.start_dir)
