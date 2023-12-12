@@ -154,10 +154,10 @@ class EB_toy(ExtensionEasyBlock):
         """
         Prepare installation of toy as extension.
         """
-        super(EB_toy, self).run(unpack_src=True)
+        super(EB_toy, self).install_extension(unpack_src=True)
         self.configure_step()
 
-    def run(self):
+    def install_extension(self):
         """
         Install toy as extension.
         """

@@ -177,7 +177,7 @@ class Extension(object):
         """
         pass
 
-    def run(self, *args, **kwargs):
+    def install_extension(self, *args, **kwargs):
         """
         Actual installation of an extension.
         """

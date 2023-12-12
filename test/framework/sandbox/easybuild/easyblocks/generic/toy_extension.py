@@ -59,7 +59,7 @@ class Toy_Extension(ExtensionEasyBlock):
         else:
             raise EasyBuildError("Dependencies for %s are unknown!", self.name)
 
-    def run(self, *args, **kwargs):
+    def install_extension(self, *args, **kwargs):
         """
         Install toy extension.
         """
@@ -78,7 +78,7 @@ class Toy_Extension(ExtensionEasyBlock):
         super(Toy_Extension, self).prerun()
 
         if self.src:
-            super(Toy_Extension, self).run(unpack_src=True)
+            super(Toy_Extension, self).install_extension(unpack_src=True)
             EB_toy.configure_step(self.master, name=self.name, cfg=self.cfg)
 
     def run_async(self):
