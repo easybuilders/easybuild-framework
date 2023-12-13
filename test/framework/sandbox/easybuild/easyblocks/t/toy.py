@@ -150,7 +150,7 @@ class EB_toy(ExtensionEasyBlock):
         else:
             raise EasyBuildError("Dependencies for %s are unknown!", self.name)
 
-    def preinstall_extension(self):
+    def pre_install_extension(self):
         """
         Prepare installation of toy as extension.
         """
@@ -170,7 +170,7 @@ class EB_toy(ExtensionEasyBlock):
         cmd = compose_toy_build_cmd(self.cfg, self.name, self.cfg['prebuildopts'], self.cfg['buildopts'])
         self.async_cmd_start(cmd)
 
-    def postinstall_extension(self):
+    def post_install_extension(self):
         """
         Wrap up installation of toy as extension.
         """

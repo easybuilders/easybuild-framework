@@ -171,7 +171,7 @@ class Extension(object):
         """
         return self.ext.get('version', None)
 
-    def preinstall_extension(self):
+    def pre_install_extension(self):
         """
         Stuff to do before installing a extension.
         """
@@ -189,7 +189,7 @@ class Extension(object):
         """
         raise NotImplementedError
 
-    def postinstall_extension(self):
+    def post_install_extension(self):
         """
         Stuff to do after installing a extension.
         """
