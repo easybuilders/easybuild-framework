@@ -171,11 +171,31 @@ class Extension(object):
         """
         return self.ext.get('version', None)
 
+    def prerun(self):
+        """
+        [DEPRECATED] Stuff to do before installing a extension.
+        """
+        self.log.deprecated(
+            "Extension.prerun() is deprecated, use Extension.pre_install_extension() instead.",
+            '5.0',
+        )
+        self.pre_install_extension()
+
     def pre_install_extension(self):
         """
         Stuff to do before installing a extension.
         """
         pass
+
+    def run(self, *args, **kwargs):
+        """
+        [DEPRECATED] Actual installation of an extension.
+        """
+        self.log.deprecated(
+            "Extension.run() is deprecated, use Extension.install_extension() instead.",
+            '5.0',
+        )
+        self.install_extension(*args, **kwargs)
 
     def install_extension(self, *args, **kwargs):
         """
@@ -183,11 +203,31 @@ class Extension(object):
         """
         pass
 
+    def run_async(self, *args, **kwargs):
+        """
+        [DEPRECATED] Asynchronous installation of an extension.
+        """
+        self.log.deprecated(
+            "Extension.run_async() is deprecated, use Extension.install_extension_async() instead.",
+            '5.0',
+        )
+        self.install_extension_async(*args, **kwargs)
+
     def install_extension_async(self, *args, **kwargs):
         """
         Asynchronous installation of an extension.
         """
         raise NotImplementedError
+
+    def postrun(self):
+        """
+        [DEPRECATED] Stuff to do after installing a extension.
+        """
+        self.log.deprecated(
+            "Extension.postrun() is deprecated, use Extension.post_install_extension() instead.",
+            '5.0',
+        )
+        self.post_install_extension()
 
     def post_install_extension(self):
         """

@@ -1850,6 +1850,14 @@ class EasyBlock(object):
 
         self.ext_instances = retained_ext_instances
 
+    def install_extensions(self, *args, **kwargs):
+        """[DEPRECATED] Install extensions."""
+        self.log.deprecated(
+            "Easyblock.install_extensions() is deprecated, use Easyblock.install_all_extensions() instead.",
+            '5.0',
+        )
+        self.install_all_extensions(*args, **kwargs)
+
     def install_all_extensions(self, install=True):
         """
         Install extensions.
