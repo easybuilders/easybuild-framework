@@ -239,6 +239,7 @@ BUILD_OPTIONS_CMDLINE = {
         'job_polling_interval',
         'job_target_resource',
         'locks_dir',
+        'module_cache_suffix',
         'modules_footer',
         'modules_header',
         'mpi_cmd_template',

@@ -1436,7 +1436,8 @@ class Lmod(ModulesTool):
                 # don't actually update local cache when testing, just return the cache contents
                 return stdout
             else:
-                cache_fp = os.path.join(self.USER_CACHE_DIR, 'moduleT.lua')
+                suffix = build_option('module_cache_suffix') or ''
+                cache_fp = os.path.join(self.USER_CACHE_DIR, 'moduleT%s.lua' % suffix)
                 self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_fp, ' '.join(cmd)))
                 cache_dir = os.path.dirname(cache_fp)
                 if not os.path.exists(cache_dir):
