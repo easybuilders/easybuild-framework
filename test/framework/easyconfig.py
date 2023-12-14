@@ -301,7 +301,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(det_full_ec_version(first), '1.1-GCC-4.6.3')
         self.assertEqual(det_full_ec_version(second), '2.2-GCC-4.6.3')
 
+        self.assertEqual(eb.dependency_names(), {'first', 'second', 'foo', 'bar'})
         # same tests for builddependencies
+        self.assertEqual(eb.dependency_names(build_only=True), {'first', 'second'})
         first = eb.builddependencies()[0]
         second = eb.builddependencies()[1]
 
@@ -354,6 +356,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(len(deps), 2)
         self.assertEqual(deps[0]['name'], 'second_build')
         self.assertEqual(deps[1]['name'], 'first')
+        self.assertEqual(eb.dependency_names(), {'first', 'second_build'})
 
         # more realistic example: only filter dep for POWER
         self.contents = '\n'.join([
@@ -377,12 +380,14 @@ class EasyConfigTest(EnhancedTestCase):
             deps = eb.dependencies()
             self.assertEqual(len(deps), 1)
             self.assertEqual(deps[0]['name'], 'not_on_power')
+            self.assertEqual(eb.dependency_names(), {'not_on_power'})
 
         # only power, dependency gets filtered
         st.get_cpu_architecture = lambda: POWER
         eb = EasyConfig(self.eb_file)
         deps = eb.dependencies()
         self.assertEqual(deps, [])
+        self.assertEqual(eb.dependency_names(), set())
 
     def test_extra_options(self):
         """ extra_options should allow other variables to be stored """
@@ -792,6 +797,12 @@ class EasyConfigTest(EnhancedTestCase):
 
         # only version key is strictly needed
         self.assertEqual(det_full_ec_version({'version': '1.2.3'}), '1.2.3')
+
+        # versionprefix/versionsuffix can also be set to None,
+        # see https://github.com/easybuilders/easybuild-framework/issues/4281
+        cfg['versionprefix'] = None
+        cfg['versionsuffix'] = None
+        self.assertEqual(det_full_ec_version(cfg), '3.14')
 
         # check how faulty dep spec is handled
         faulty_dep_spec = {
@@ -1316,7 +1327,7 @@ class EasyConfigTest(EnhancedTestCase):
         # expected length: 1 per constant and 2 extra per constantgroup (title + empty line in between)
         temps = [
             easyconfig.templates.TEMPLATE_NAMES_EASYCONFIG,
-            easyconfig.templates.TEMPLATE_SOFTWARE_VERSIONS * 2,
+            easyconfig.templates.TEMPLATE_SOFTWARE_VERSIONS * 3,
             easyconfig.templates.TEMPLATE_NAMES_CONFIG,
             easyconfig.templates.TEMPLATE_NAMES_LOWER,
             easyconfig.templates.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
@@ -1371,6 +1382,34 @@ class EasyConfigTest(EnhancedTestCase):
         ext_start_dir = os.path.join(eb.builddir, 'bar', 'bar-0.0')
         self.assertIn('start_dir in extension configure is %s &&' % ext_start_dir, logtxt)
         self.assertIn('start_dir in extension build is %s &&' % ext_start_dir, logtxt)
+
+    def test_sysroot_template(self):
+        """Test the %(sysroot)s template"""
+
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nconfigopts = "--some-opt=%(sysroot)s/"'
+        test_ec_txt += '\nbuildopts = "--some-opt=%(sysroot)s/"'
+        test_ec_txt += '\ninstallopts = "--some-opt=%(sysroot)s/"'
+        write_file(test_ec, test_ec_txt)
+
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=/")
+        self.assertEqual(ec['buildopts'], "--some-opt=/")
+        self.assertEqual(ec['installopts'], "--some-opt=/")
+
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        # As a test, we'll set the sysroot to self.test_prefix, as it has to be a directory that is guaranteed to exist
+        update_build_option('sysroot', self.test_prefix)
+
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=%s/" % self.test_prefix)
+        self.assertEqual(ec['buildopts'], "--some-opt=%s/" % self.test_prefix)
+        self.assertEqual(ec['installopts'], "--some-opt=%s/" % self.test_prefix)
 
     def test_constant_doc(self):
         """test constant documentation"""
@@ -1634,18 +1673,15 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         ec_file = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
         ec = EasyConfig(ec_file)
-        deps = sorted([dep['name'] for dep in ec.dependencies()])
-        self.assertEqual(deps, ['FFTW', 'GCC', 'OpenBLAS', 'OpenMPI', 'ScaLAPACK'])
+        self.assertEqual(ec.dependency_names(), {'FFTW', 'GCC', 'OpenBLAS', 'OpenMPI', 'ScaLAPACK'})
 
         # test filtering multiple deps
         init_config(build_options={'filter_deps': ['FFTW', 'ScaLAPACK']})
-        deps = sorted([dep['name'] for dep in ec.dependencies()])
-        self.assertEqual(deps, ['GCC', 'OpenBLAS', 'OpenMPI'])
+        self.assertEqual(ec.dependency_names(), {'GCC', 'OpenBLAS', 'OpenMPI'})
 
         # test filtering of non-existing dep
         init_config(build_options={'filter_deps': ['zlib']})
-        deps = sorted([dep['name'] for dep in ec.dependencies()])
-        self.assertEqual(deps, ['FFTW', 'GCC', 'OpenBLAS', 'OpenMPI', 'ScaLAPACK'])
+        self.assertEqual(ec.dependency_names(), {'FFTW', 'GCC', 'OpenBLAS', 'OpenMPI', 'ScaLAPACK'})
 
         # test parsing of value passed to --filter-deps
         opts = init_config(args=[])
@@ -1679,6 +1715,7 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options=build_options)
         ec = EasyConfig(ec_file, validate=False)
         self.assertEqual(ec.dependencies(), [])
+        self.assertEqual(ec.dependency_names(), set())
 
     def test_replaced_easyconfig_parameters(self):
         """Test handling of replaced easyconfig parameters."""
@@ -1867,6 +1904,9 @@ class EasyConfigTest(EnhancedTestCase):
         }
         self.assertEqual(deps[7]['external_module_metadata'], cray_netcdf_metadata)
 
+        # External module names are omitted
+        self.assertEqual(ec.dependency_names(), {'intel'})
+
         # provide file with partial metadata for some external modules;
         # metadata obtained from probing modules should be added to it...
         metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
@@ -1895,6 +1935,7 @@ class EasyConfigTest(EnhancedTestCase):
         deps = ec.dependencies()
 
         self.assertEqual(len(deps), 8)
+        self.assertEqual(ec.dependency_names(), {'intel'})
 
         for idx in [0, 1, 2, 6]:
             self.assertEqual(deps[idx]['external_module_metadata'], {})
@@ -2171,12 +2212,15 @@ class EasyConfigTest(EnhancedTestCase):
             Helper function to sanity check we can use the quoted string in Python contexts.
             Returns the evaluated (i.e. unquoted) string
             """
-            globals = dict()
+            scope = dict()
             try:
-                exec('res = %s' % quoted_val, globals)
-            except Exception as e:  # pylint: disable=broad-except
-                self.fail('Failed to evaluate %s (from %s): %s' % (quoted_val, val, e))
-            return globals['res']
+                # this is needlessly complicated because we can't use 'exec' here without potentially running
+                # into a SyntaxError bug in old Python 2.7 versions (for example when running the tests in CentOS 7.9)
+                # cfr. https://stackoverflow.com/questions/4484872/why-doesnt-exec-work-in-a-function-with-a-subfunction
+                eval(compile('res = %s' % quoted_val, '<string>', 'exec'), dict(), scope)
+            except Exception as err:  # pylint: disable=broad-except
+                self.fail('Failed to evaluate %s (from %s): %s' % (quoted_val, val, err))
+            return scope['res']
 
         def assertEqual_unquoted(quoted_val, val):
             """Assert that evaluating the quoted_val yields the val"""
@@ -3257,6 +3301,7 @@ class EasyConfigTest(EnhancedTestCase):
             'nameletter': 'g',
             'nameletterlower': 'g',
             'parallel': None,
+            'sysroot': '',
             'toolchain_name': 'foss',
             'toolchain_version': '2018a',
             'version': '1.5',
@@ -3338,6 +3383,7 @@ class EasyConfigTest(EnhancedTestCase):
             'pyminver': '7',
             'pyshortver': '3.7',
             'pyver': '3.7.2',
+            'sysroot': '',
             'version': '0.01',
             'version_major': '0',
             'version_major_minor': '0.01',
@@ -3402,6 +3448,7 @@ class EasyConfigTest(EnhancedTestCase):
             'namelower': 'foo',
             'nameletter': 'f',
             'nameletterlower': 'f',
+            'sysroot': '',
             'version': '1.2.3',
             'version_major': '1',
             'version_major_minor': '1.2',

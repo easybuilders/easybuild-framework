@@ -39,6 +39,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
+from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
@@ -1509,6 +1510,13 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_download_instructions(self):
         """Test use of download_instructions easyconfig parameter."""
+
+        # skip test when using Python 2, since it somehow fails then,
+        # cfr. https://github.com/easybuilders/easybuild-framework/pull/4333
+        if sys.version_info[0] == 2:
+            print("Skipping test_download_instructions because Python 2.x is being used")
+            return
+
         orig_test_ec = '\n'.join([
             "easyblock = 'ConfigureMake'",
             "name = 'software_with_missing_sources'",
@@ -2072,7 +2080,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.run_all_steps(True)
 
     def test_parallel(self):
-        """Test defining of parallellism."""
+        """Test defining of parallelism."""
         topdir = os.path.abspath(os.path.dirname(__file__))
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         toytxt = read_file(toy_ec)
@@ -2089,7 +2097,7 @@ class EasyBlockTest(EnhancedTestCase):
         os.close(handle)
         write_file(toy_ec3, toytxt + "\nparallel = False")
 
-        # default: parallellism is derived from # available cores + ulimit
+        # default: parallelism is derived from # available cores + ulimit
         test_eb = EasyBlock(EasyConfig(toy_ec))
         test_eb.check_readiness_step()
         self.assertTrue(isinstance(test_eb.cfg['parallel'], int) and test_eb.cfg['parallel'] > 0)
@@ -2423,6 +2431,29 @@ class EasyBlockTest(EnhancedTestCase):
         eb = get_easyblock_instance(ec)
         eb.fetch_sources()
         eb.checksum_step()
+
+        with self.mocked_stdout_stderr() as (stdout, stderr):
+
+            # using checksum-less test easyconfig in location that does not provide checksums.json
+            test_ec = os.path.join(self.test_prefix, 'test-no-checksums.eb')
+            copy_file(toy_ec, test_ec)
+            write_file(test_ec, 'checksums = []', append=True)
+            ec = process_easyconfig(test_ec)[0]
+
+            # enable logging to screen, so we can check whether error is logged when checksums.json is not found
+            fancylogger.logToScreen(enable=True, stdout=True)
+
+            eb = get_easyblock_instance(ec)
+            eb.fetch_sources()
+            eb.checksum_step()
+
+            fancylogger.logToScreen(enable=False, stdout=True)
+            stdout = self.get_stdout()
+
+            # make sure there's no error logged for not finding checksums.json,
+            # see also https://github.com/easybuilders/easybuild-framework/issues/4301
+            regex = re.compile("ERROR .*Couldn't find file checksums.json anywhere", re.M)
+            self.assertFalse(regex.search(stdout), "Pattern '%s' should not be found in log" % regex.pattern)
 
         # fiddle with checksum to check whether faulty checksum is catched
         copy_file(toy_ec, self.test_prefix)

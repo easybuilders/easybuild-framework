@@ -565,6 +565,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 pattern_lines = [
                     r'^``%\(version_major\)s``\s+Major version\s*$',
                     r'^``%\(cudaver\)s``\s+full version for CUDA\s*$',
+                    r'^``%\(cudamajver\)s``\s+major version for CUDA\s*$',
                     r'^``%\(pyshortver\)s``\s+short version for Python \(<major>.<minor>\)\s*$',
                     r'^\* ``%\(name\)s``$',
                     r'^``%\(namelower\)s``\s+lower case of value of name\s*$',
@@ -576,6 +577,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 pattern_lines = [
                     r'^\s+%\(version_major\)s: Major version$',
                     r'^\s+%\(cudaver\)s: full version for CUDA$',
+                    r'^\s+%\(cudamajver\)s: major version for CUDA$',
                     r'^\s+%\(pyshortver\)s: short version for Python \(<major>.<minor>\)$',
                     r'^\s+%\(name\)s$',
                     r'^\s+%\(namelower\)s: lower case of value of name$',
@@ -679,6 +681,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "List of supported hooks (in order of execution):",
             "	start_hook",
             "	parse_hook",
+            "	pre_build_and_install_loop_hook",
             "	pre_fetch_hook",
             "	post_fetch_hook",
             "	pre_ready_hook",
@@ -701,6 +704,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "	pre_single_extension_hook",
             "	post_single_extension_hook",
             "	post_extensions_hook",
+            "	pre_postiter_hook",
+            "	post_postiter_hook",
             "	pre_postproc_hook",
             "	post_postproc_hook",
             "	pre_sanitycheck_hook",
@@ -716,7 +721,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "	post_package_hook",
             "	pre_testcases_hook",
             "	post_testcases_hook",
+            "	post_build_and_install_loop_hook",
             "	end_hook",
+            "	cancel_hook",
+            "	fail_hook",
+            "	pre_run_shell_cmd_hook",
+            "	post_run_shell_cmd_hook",
             '',
         ])
         self.assertEqual(stdout, expected)
@@ -2410,6 +2420,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
         allargs = args + ['--software-version=1.2.3', '--toolchain=gompi,2018a']
         self.assertErrorRegex(EasyBuildError, "version .* not available", self.eb_main, allargs, raise_error=True)
 
+        # Try changing only name or version of toolchain
+        args.pop(0)  # Remove EC filename
+        foss_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-foss-2018a.eb')
+        copy_file(os.path.join(ecs_path, 't', 'toy', 'toy-0.0-gompi-2018a.eb'), foss_toy_ec)
+        write_file(foss_toy_ec, "toolchain['name'] = 'foss'", append=True)
+
+        test_cases = [
+            (['toy-0.0-gompi-2018a.eb', '--try-toolchain-name=intel'], 'toy/0.0-iimpi-2018a'),
+            ([foss_toy_ec, '--try-toolchain-name=intel'], 'toy/0.0-intel-2018a'),
+            (['toy-0.0-gompi-2018a.eb', '--try-toolchain-version=2018b'], 'toy/0.0-gompi-2018b'),
+        ]
+        for extra_args, mod in test_cases:
+            outtxt = self.eb_main(args + extra_args, verbose=True, raise_error=True)
+            mod_regex = re.compile(r"\(module: %s\)$" % mod, re.M)
+            self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
+
     def test_try_with_copy(self):
         """Test whether --try options are taken into account."""
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -2571,7 +2597,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--force',
             '--try-amend=prebuildopts=nosuchcommand &&',
         ]
-        self.eb_main(args, do_build=True)
+        with self.mocked_stdout_stderr():
+            self.eb_main(args, do_build=True)
         self.assertExists(toy_buildpath, "Build dir %s is retained after failed build" % toy_buildpath)
 
     def test_filter_deps(self):
@@ -4294,7 +4321,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^Opening pull request \[DRY RUN\]",
             r"^\* target: easybuilders/easybuild-easyconfigs:develop",
             r"^\* from: %s/easybuild-easyconfigs:.*_new_pr_toy00" % GITHUB_TEST_ACCOUNT,
-            r"^\* title: \"\{tools\}\[gompi/2018a\] toy v0.0\"",
+            r"^\* title: \"\{tools\}\[gompi/2018a\] toy v0.0 w/ test\"",
             r"\(created using `eb --new-pr`\)",  # description
             r"^\* overview of changes:",
             r".*/toy-0.0-gompi-2018a-test.eb\s*\|",
@@ -4331,7 +4358,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         regexs[-1] = r"^\s*2 files changed"
-        regexs.remove(r"^\* title: \"\{tools\}\[gompi/2018a\] toy v0.0\"")
+        regexs.remove(r"^\* title: \"\{tools\}\[gompi/2018a\] toy v0.0 w/ test\"")
         regexs.append(r"^\* title: \"just a test\"")
         regexs.append(r".*/bzip2-1.0.6.eb\s*\|")
         regexs.append(r".*[0-9]+ deletions\(-\)")
@@ -4584,7 +4611,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
-        regex = re.compile(r"^\* title: \"\{tools\}\[system/system\] toy v0.0 w/ Python 3.7.2\"$", re.M)
+        regex = re.compile(r"^\* title: \"\{tools\}\[system/system\] toy v0.0\"$", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         # if multiple easyconfigs depending on Python are included, Python version is only listed once
@@ -4595,14 +4622,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         txt, _ = self._run_mock_eb(args + [gzip_ec], do_build=True, raise_error=True, testing=False)
 
-        regex = re.compile(r"^\* title: \"\{tools\}\[system/system\] toy v0.0, gzip v1.4 w/ Python 3.7.2\"$", re.M)
+        regex = re.compile(r"^\* title: \"\{tools\}\[system/system\] toy v0.0, gzip v1.4\"$", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         # also check with Python listed via multi_deps
         write_file(toy_ec, toy_ec_txt + "\nmulti_deps = {'Python': ['3.7.2', '2.7.15']}")
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
-        regex = re.compile(r"^\* title: \"\{tools\}\[system/system\] toy v0.0 w/ Python 2.7.15 \+ 3.7.2\"$", re.M)
+        regex = re.compile(r"^\* title: \"\{tools\}\[system/system\] toy v0.0\"$", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
     def test_github_new_pr_delete(self):
@@ -5073,19 +5100,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
         lock_path = os.path.join(self.test_installpath, 'software', '.locks', lock_fn)
         mkdir(lock_path, parents=True)
 
-        args = ['toy-0.0.eb', '--fetch']
-        stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
+        # Run for a "regular" EC and one with an external module dependency
+        # which might trip up the dependency resolution (see #4298)
+        for ec in ('toy-0.0.eb', 'toy-0.0-deps.eb'):
+            args = [ec, '--fetch']
+            stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
 
-        patterns = [
-            r"^== fetching files\.\.\.$",
-            r"^== COMPLETED: Installation STOPPED successfully \(took .* secs?\)$",
-        ]
-        for pattern in patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' not found in: %s" % (regex.pattern, stdout))
+            patterns = [
+                r"^== fetching files\.\.\.$",
+                r"^== COMPLETED: Installation STOPPED successfully \(took .* secs?\)$",
+            ]
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(stdout), "Pattern '%s' not found in: %s" % (regex.pattern, stdout))
 
-        regex = re.compile(r"^== creating build dir, resetting environment\.\.\.$")
-        self.assertFalse(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+            regex = re.compile(r"^== creating build dir, resetting environment\.\.\.$")
+            self.assertFalse(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
     def test_parse_external_modules_metadata(self):
         """Test parse_external_modules_metadata function."""
@@ -5220,7 +5250,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             init_config(build_options={'debug_lmod': True})
             out = self.modtool.run_module('avail', return_output=True)
 
-            for pattern in [r"^Lmod version", r"^lmod\(--terse -D avail\)\{", "Master:avail"]:
+            for pattern in [r"^Lmod version", r"^lmod\(--terse -D avail\)\{", ":avail"]:
                 regex = re.compile(pattern, re.M)
                 self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
         else:

@@ -50,8 +50,9 @@ import easybuild.tools.asyncprocess as asyncprocess
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
+from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.py2vs3 import string_type
-from easybuild.tools.utilities import trace_msg
+from easybuild.tools.utilities import nub, trace_msg
 
 
 _log = fancylogger.getLogger('run', fname=False)
@@ -131,7 +132,8 @@ def get_output_from_process(proc, read_size=None, asynchronous=False):
 
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            force_in_dry_run=False, verbose=True, shell=None, trace=True, stream_output=None, asynchronous=False):
+            force_in_dry_run=False, verbose=True, shell=None, trace=True, stream_output=None, asynchronous=False,
+            with_hooks=True):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -148,6 +150,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param trace: print command being executed as part of trace output
     :param stream_output: enable streaming command output to stdout
     :param asynchronous: run command asynchronously (returns subprocess.Popen instance if set to True)
+    :param with_hooks: trigger pre/post run_shell_cmd hooks (if defined)
     """
     cwd = os.getcwd()
 
@@ -233,6 +236,13 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         else:
             raise EasyBuildError("Don't know how to prefix with /usr/bin/env for commands of type %s", type(cmd))
 
+    if with_hooks:
+        hooks = load_hooks(build_option('hooks'))
+        hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs={'work_dir': os.getcwd()})
+        if isinstance(hook_res, string_type):
+            cmd, old_cmd = hook_res, cmd
+            _log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
+
     _log.info('running cmd: %s ' % cmd)
     try:
         proc = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -248,7 +258,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         return (proc, cmd, cwd, start_time, cmd_log)
     else:
         return complete_cmd(proc, cmd, cwd, start_time, cmd_log, log_ok=log_ok, log_all=log_all, simple=simple,
-                            regexp=regexp, stream_output=stream_output, trace=trace)
+                            regexp=regexp, stream_output=stream_output, trace=trace, with_hook=with_hooks)
 
 
 def check_async_cmd(proc, cmd, owd, start_time, cmd_log, fail_on_error=True, output_read_size=1024, output=''):
@@ -293,7 +303,7 @@ def check_async_cmd(proc, cmd, owd, start_time, cmd_log, fail_on_error=True, out
 
 
 def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False, simple=False,
-                 regexp=True, stream_output=None, trace=True, output=''):
+                 regexp=True, stream_output=None, trace=True, output='', with_hook=True):
     """
     Complete running of command represented by passed subprocess.Popen instance.
 
@@ -308,6 +318,7 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
     :param regexp: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
     :param stream_output: enable streaming command output to stdout
     :param trace: print command being executed as part of trace output
+    :param with_hook: trigger post run_shell_cmd hooks (if defined)
     """
     # use small read size when streaming output, to make it stream more fluently
     # read size should not be too small though, to avoid too much overhead
@@ -342,6 +353,15 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
     if stream_output:
         sys.stdout.write(output)
     stdouterr += output
+
+    if with_hook:
+        hooks = load_hooks(build_option('hooks'))
+        run_hook_kwargs = {
+            'exit_code': ec,
+            'output': stdouterr,
+            'work_dir': os.getcwd(),
+        }
+        run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
 
     if trace:
         trace_msg("command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))
@@ -485,6 +505,17 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     # Part 2: Run the command and answer questions
     # - this needs asynchronous stdout
 
+    hooks = load_hooks(build_option('hooks'))
+    run_hook_kwargs = {
+        'interactive': True,
+        'work_dir': os.getcwd(),
+    }
+    hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
+    if isinstance(hook_res, string_type):
+        cmd, old_cmd = hook_res, cmd
+        _log.info("Interactive command to run was changed by pre-%s hook: '%s' (was: '%s')",
+                  RUN_SHELL_CMD, cmd, old_cmd)
+
     # # Log command output
     if cmd_log:
         cmd_log.write("# output for interactive command: %s\n\n" % cmd)
@@ -599,6 +630,13 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         except IOError as err:
             _log.debug("runqanda cmd %s: remaining data read failed: %s", cmd, err)
 
+    run_hook_kwargs.update({
+        'interactive': True,
+        'exit_code': ec,
+        'output': stdout_err,
+    })
+    run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
+
     if trace:
         trace_msg("interactive command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))
 
@@ -623,19 +661,19 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     """
     if strictness == IGNORE:
         check_ec = False
-        use_regexp = False
+        fail_on_error_match = False
     elif strictness == WARN:
         check_ec = True
-        use_regexp = False
+        fail_on_error_match = False
     elif strictness == ERROR:
         check_ec = True
-        use_regexp = True
+        fail_on_error_match = True
     else:
         raise EasyBuildError("invalid strictness setting: %s", strictness)
 
     # allow for overriding the regexp setting
     if not regexp:
-        use_regexp = False
+        fail_on_error_match = False
 
     if ec and (log_all or log_ok):
         # We don't want to error if the user doesn't care
@@ -650,14 +688,16 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
             _log.debug('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
 
     # parse the stdout/stderr for errors when strictness dictates this or when regexp is passed in
-    if use_regexp or regexp:
-        res = parse_log_for_error(stdouterr, regexp, msg="Command used: %s" % cmd)
-        if len(res) > 0:
-            message = "Found %s errors in command output (output: %s)" % (len(res), "\n\t".join([r[0] for r in res]))
-            if use_regexp:
-                raise EasyBuildError(message)
+    if fail_on_error_match or regexp:
+        res = parse_log_for_error(stdouterr, regexp, stdout=False)
+        if res:
+            errors = "\n\t" + "\n\t".join([r[0] for r in res])
+            error_str = "error" if len(res) == 1 else "errors"
+            if fail_on_error_match:
+                raise EasyBuildError("Found %s %s in output of %s:%s", len(res), error_str, cmd, errors)
             else:
-                _log.warning(message)
+                _log.warning("Found %s potential %s (some may be harmless) in output of %s:%s",
+                             len(res), error_str, cmd, errors)
 
     if simple:
         if ec:
@@ -750,7 +790,7 @@ def extract_errors_from_log(log_txt, reg_exps):
                 elif action == WARN:
                     warnings.append(line)
                 break
-    return warnings, errors
+    return nub(warnings), nub(errors)
 
 
 def check_log_for_errors(log_txt, reg_exps):
@@ -765,8 +805,8 @@ def check_log_for_errors(log_txt, reg_exps):
 
     errors_found_in_log += len(warnings) + len(errors)
     if warnings:
-        _log.warning("Found %s potential error(s) in command output (output: %s)",
+        _log.warning("Found %s potential error(s) in command output:\n\t%s",
                      len(warnings), "\n\t".join(warnings))
     if errors:
-        raise EasyBuildError("Found %s error(s) in command output (output: %s)",
+        raise EasyBuildError("Found %s error(s) in command output:\n\t%s",
                              len(errors), "\n\t".join(errors))

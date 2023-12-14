@@ -30,10 +30,10 @@ Authors:
 * Kenneth Hoste (Ghent University)
 """
 import difflib
-import imp
 import os
 
 from easybuild.base import fancylogger
+from easybuild.tools.py2vs3 import load_source
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 
@@ -61,9 +61,15 @@ TESTCASES_STEP = 'testcases'
 
 START = 'start'
 PARSE = 'parse'
+BUILD_AND_INSTALL_LOOP = 'build_and_install_loop'
 SINGLE_EXTENSION = 'single_extension'
 MODULE_WRITE = 'module_write'
 END = 'end'
+
+CANCEL = 'cancel'
+FAIL = 'fail'
+
+RUN_SHELL_CMD = 'run_shell_cmd'
 
 PRE_PREF = 'pre_'
 POST_PREF = 'post_'
@@ -71,13 +77,14 @@ HOOK_SUFF = '_hook'
 
 # list of names for steps in installation procedure (in order of execution)
 STEP_NAMES = [FETCH_STEP, READY_STEP, SOURCE_STEP, PATCH_STEP, PREPARE_STEP, CONFIGURE_STEP, BUILD_STEP, TEST_STEP,
-              INSTALL_STEP, EXTENSIONS_STEP, POSTPROC_STEP, SANITYCHECK_STEP, CLEANUP_STEP, MODULE_STEP,
+              INSTALL_STEP, EXTENSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, SANITYCHECK_STEP, CLEANUP_STEP, MODULE_STEP,
               PERMISSIONS_STEP, PACKAGE_STEP, TESTCASES_STEP]
 
 # hook names (in order of being triggered)
 HOOK_NAMES = [
     START,
     PARSE,
+    PRE_PREF + BUILD_AND_INSTALL_LOOP,
 ] + [p + x for x in STEP_NAMES[:STEP_NAMES.index(EXTENSIONS_STEP)]
      for p in [PRE_PREF, POST_PREF]] + [
     # pre-extensions hook is triggered before starting installation of extensions,
@@ -97,7 +104,12 @@ HOOK_NAMES = [
     POST_PREF + MODULE_STEP,
 ] + [p + x for x in STEP_NAMES[STEP_NAMES.index(MODULE_STEP)+1:]
      for p in [PRE_PREF, POST_PREF]] + [
+    POST_PREF + BUILD_AND_INSTALL_LOOP,
     END,
+    CANCEL,
+    FAIL,
+    PRE_PREF + RUN_SHELL_CMD,
+    POST_PREF + RUN_SHELL_CMD,
 ]
 KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
 
@@ -123,7 +135,7 @@ def load_hooks(hooks_path):
                 _log.info("Importing hooks implementation from %s...", hooks_path)
                 try:
                     # import module that defines hooks, and collect all functions of which name ends with '_hook'
-                    imported_hooks = imp.load_source(hooks_filename, hooks_path)
+                    imported_hooks = load_source(hooks_filename, hooks_path)
                     for attr in dir(imported_hooks):
                         if attr.endswith(HOOK_SUFF):
                             hook = getattr(imported_hooks, attr)
@@ -195,7 +207,7 @@ def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
     return res
 
 
-def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None, msg=None):
+def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None, kwargs=None, msg=None):
     """
     Run hook with specified label and return result of calling the hook or None.
 
@@ -211,6 +223,8 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
     if hook:
         if args is None:
             args = []
+        if kwargs is None:
+            kwargs = {}
 
         if pre_step_hook:
             label = 'pre-' + label
@@ -219,9 +233,9 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
 
         if msg is None:
             msg = "Running %s hook..." % label
-        if build_option('debug'):
+        if build_option('debug') and not build_option('silence_hook_trigger'):
             print_msg(msg)
 
-        _log.info("Running '%s' hook function (arguments: %s)...", hook.__name__, args)
-        res = hook(*args)
+        _log.info("Running '%s' hook function (args: %s, keyword args: %s)...", hook.__name__, args, kwargs)
+        res = hook(*args, **kwargs)
     return res

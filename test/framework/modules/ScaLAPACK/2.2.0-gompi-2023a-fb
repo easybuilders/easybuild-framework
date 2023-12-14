@@ -1,0 +1,43 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+The ScaLAPACK (or Scalable LAPACK) library includes a subset of LAPACK routines
+ redesigned for distributed memory MIMD parallel computers.
+
+
+More information
+================
+ - Homepage: https://www.netlib.org/scalapack/
+    }
+}
+
+module-whatis {Description: The ScaLAPACK (or Scalable LAPACK) library includes a subset of LAPACK routines
+ redesigned for distributed memory MIMD parallel computers.}
+module-whatis {Homepage: https://www.netlib.org/scalapack/}
+module-whatis {URL: https://www.netlib.org/scalapack/}
+
+set root /prefix/software/ScaLAPACK/2.2.0-gompi-2023a-fb
+
+conflict ScaLAPACK
+
+if { ![ is-loaded gompi/2023a ] } {
+    module load gompi/2023a
+}
+
+if { ![ is-loaded FlexiBLAS/3.3.1-GCC-12.3.0 ] } {
+    module load FlexiBLAS/3.3.1-GCC-12.3.0
+}
+
+prepend-path	CMAKE_PREFIX_PATH		$root
+prepend-path	LD_LIBRARY_PATH		$root/lib
+prepend-path	LIBRARY_PATH		$root/lib
+prepend-path	PKG_CONFIG_PATH		$root/lib/pkgconfig
+
+setenv	EBROOTSCALAPACK		"$root"
+setenv	EBVERSIONSCALAPACK		"2.2.0"
+setenv	EBDEVELSCALAPACK		"$root/easybuild/ScaLAPACK-2.2.0-gompi-2023a-fb-easybuild-devel"
+
+# Built with EasyBuild version 4.9.0.dev0-rea8433dcf5e6edea3e72ad9bd9e23023ecc6b228

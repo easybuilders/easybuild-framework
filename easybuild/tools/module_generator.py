@@ -49,7 +49,7 @@ from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
 from easybuild.tools.py2vs3 import string_type
-from easybuild.tools.utilities import get_subclasses, quote_str
+from easybuild.tools.utilities import get_subclasses, nub, quote_str
 
 
 _log = fancylogger.getLogger('module_generator', fname=False)
@@ -622,7 +622,8 @@ class ModuleGenerator(object):
         """
         Generate a list of all extensions in name/version format
         """
-        return self.app.make_extension_string(name_version_sep='/', ext_sep=',').split(',')
+        exts_str = self.app.make_extension_string(name_version_sep='/', ext_sep=',')
+        return exts_str.split(',') if exts_str else []
 
     def _generate_help_text(self):
         """
@@ -666,7 +667,7 @@ class ModuleGenerator(object):
         if multi_deps:
             compatible_modules_txt = '\n'.join([
                 "This module is compatible with the following modules, one of each line is required:",
-            ] + ['* %s' % d for d in multi_deps])
+            ] + ['* %s' % d for d in nub(multi_deps)])
             lines.extend(self._generate_section("Compatible modules", compatible_modules_txt))
 
         # Extensions (if any)

@@ -1581,6 +1581,45 @@ def new_branch_github(paths, ecs, commit_msg=None):
     return res
 
 
+def det_pr_title(ecs):
+    """
+    Create title for PR based on first easyconfigs
+    :param ecs: list of parsed easyconfigs
+    """
+
+    # only use most common toolchain(s) in toolchain label of PR title
+    toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in ecs]
+    toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
+    toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
+
+    # only use most common module class(es) in moduleclass label of PR title
+    classes = [ec['moduleclass'] for ec in ecs]
+    classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
+    class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
+
+    names_and_versions = nub(["%s v%s" % (ec.name, ec.version) for ec in ecs])
+    if len(names_and_versions) <= 3:
+        main_title = ', '.join(names_and_versions)
+    else:
+        main_title = ', '.join(names_and_versions[:3] + ['...'])
+
+    title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+
+    # Find all suffixes
+    suffixes = []
+    for ec in ecs:
+        if 'versionsuffix' in ec and ec['versionsuffix']:
+            suffixes.append(ec['versionsuffix'].strip('-').replace('-', ' '))
+    if suffixes:
+        suffixes = sorted(nub(suffixes))
+        if len(suffixes) <= 2:
+            title += ' w/ ' + ', '.join(suffixes)
+        else:
+            title += ' w/ ' + ', '.join(suffixes[:2] + ['...'])
+
+    return title
+
+
 @only_if_module_is_available('git', pkgname='GitPython')
 def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None, pr_metadata=None, commit_msg=None):
     """
@@ -1691,42 +1730,10 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
 
     labels = det_pr_labels(file_info, pr_target_repo)
 
-    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
-        # only use most common toolchain(s) in toolchain label of PR title
-        toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
-        toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
-        toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
-
-        # only use most common module class(es) in moduleclass label of PR title
-        classes = [ec['moduleclass'] for ec in file_info['ecs']]
-        classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
-        class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
-
     if title is None:
         if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
             if file_info['ecs'] and all(file_info['new']) and not deleted_paths:
-                # mention software name/version in PR title (only first 3)
-                names_and_versions = nub(["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']])
-                if len(names_and_versions) <= 3:
-                    main_title = ', '.join(names_and_versions)
-                else:
-                    main_title = ', '.join(names_and_versions[:3] + ['...'])
-
-                title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
-
-                # if Python is listed as a dependency, then mention Python version(s) in PR title
-                pyver = []
-                for ec in file_info['ecs']:
-                    # iterate over all dependencies (incl. build dependencies & multi-deps)
-                    for dep in ec.dependencies():
-                        if dep['name'] == 'Python':
-                            # check whether Python is listed as a multi-dep if it's marked as a build dependency
-                            if dep['build_only'] and 'Python' not in ec['multi_deps']:
-                                continue
-                            else:
-                                pyver.append(dep['version'])
-                if pyver:
-                    title += " w/ Python %s" % ' + '.join(sorted(nub(pyver)))
+                title = det_pr_title(file_info['ecs'])
         elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
             if file_info['eb_names'] and all(file_info['new']) and not deleted_paths:
                 plural = 's' if len(file_info['eb_names']) > 1 else ''
@@ -2243,15 +2250,18 @@ def install_github_token(github_user, silent=False):
 def validate_github_token(token, github_user):
     """
     Check GitHub token:
-    * see if it conforms expectations (only [a-f]+[0-9] characters, length of 40)
-    * see if it can be used for authenticated access
+   * see if it conforms expectations (classic GitHub token with only [0-9a-f] characters
+     and length of 40 starting with 'ghp_', or fine-grained GitHub token with only
+     alphanumeric ([a-zA-Z0-9]) characters + '_' and length of 93 starting with 'github_pat_'),
+    * see if it can be used for authenticated access.
     """
     # cfr. https://github.blog/2021-04-05-behind-githubs-new-authentication-token-formats/
     token_regex = re.compile('^ghp_[a-zA-Z0-9]{36}$')
     token_regex_old_format = re.compile('^[0-9a-f]{40}$')
+    # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-authentication-to-github#githubs-token-formats
+    token_regex_fine_grained = re.compile('github_pat_[a-zA-Z0-9_]{82}')
 
-    # token should be 40 characters long, and only contain characters in [0-9a-f]
-    sanity_check = bool(token_regex.match(token))
+    sanity_check = bool(token_regex.match(token)) or bool(token_regex_fine_grained.match(token))
     if sanity_check:
         _log.info("Sanity check on token passed")
     else:
