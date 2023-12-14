@@ -5948,6 +5948,42 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.assertEqual(ec['checksums'], expected_checksums)
 
+        # Also works for extensions (all 3 patch formats)
+        write_file(test_ec, textwrap.dedent("""
+            exts_list = [
+               ("bar", "0.0", {
+                   'sources': ['bar-0.0-local.tar.gz'],
+                   'patches': [
+                       'bar-0.0_fix-silly-typo-in-printf-statement.patch',  # normal patch
+                       ('bar-0.0_fix-very-silly-typo-in-printf-statement.patch', 0),  # patch with patch level
+                       ('toy-0.0_fix-silly-typo-in-printf-statement.patch', 'toy_subdir'),
+                   ],
+               }),
+            ]
+        """), append=True)
+        self._run_mock_eb(args, raise_error=True, strip=True)
+        ec = EasyConfigParser(test_ec).get_config_dict()
+        ext = ec['exts_list'][0]
+        self.assertEqual((ext[0], ext[1]), ("bar", "0.0"))
+        ext_opts = ext[2]
+        expected_patches = [
+            'bar-0.0_fix-silly-typo-in-printf-statement.patch',
+            ('bar-0.0_fix-very-silly-typo-in-printf-statement.patch', 0),
+            ('toy-0.0_fix-silly-typo-in-printf-statement.patch', 'toy_subdir')
+        ]
+        self.assertEqual(ext_opts['patches'], expected_patches)
+        expected_checksums = [
+            {'bar-0.0-local.tar.gz':
+             'f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7'},
+            {'bar-0.0_fix-silly-typo-in-printf-statement.patch':
+             '84db53592e882b5af077976257f9c7537ed971cb2059003fd4faa05d02cae0ab'},
+            {'bar-0.0_fix-very-silly-typo-in-printf-statement.patch':
+             'd0bf102f9c5878445178c5f49b7cd7546e704c33fe2060c7354b7e473cfeb52b'},
+            {'toy-0.0_fix-silly-typo-in-printf-statement.patch':
+             '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'}
+        ]
+        self.assertEqual(ext_opts['checksums'], expected_checksums)
+
         # passing easyconfig filename as argument to --inject-checksums results in error being reported,
         # because it's not a valid type of checksum
         args = ['--inject-checksums', test_ec]
