@@ -1345,7 +1345,6 @@ class Lmod(ModulesTool):
     DEPR_VERSION = '7.0.0'
     REQ_VERSION_DEPENDS_ON = '7.6.1'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
-    USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
     SHOW_HIDDEN_OPTION = '--show-hidden'
 
@@ -1361,7 +1360,14 @@ class Lmod(ModulesTool):
         setvar('LMOD_EXTENDED_DEFAULT', 'no', verbose=False)
 
         super(Lmod, self).__init__(*args, **kwargs)
-        self.supports_depends_on = StrictVersion(self.version) >= StrictVersion(self.REQ_VERSION_DEPENDS_ON)
+        version = StrictVersion(self.version)
+
+        self.supports_depends_on = version >= self.REQ_VERSION_DEPENDS_ON
+        # See https://lmod.readthedocs.io/en/latest/125_personal_spider_cache.html
+        if version >= '8.7.12':
+            self.USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.cache', 'lmod')
+        else:
+            self.USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
     def check_module_function(self, *args, **kwargs):
         """Check whether selected module tool matches 'module' function definition."""
