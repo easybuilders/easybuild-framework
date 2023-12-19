@@ -288,16 +288,18 @@ def dry_run(easyconfigs, modtool, short=False):
     return '\n'.join(lines)
 
 
-def missing_deps(easyconfigs, modtool):
+def missing_deps(easyconfigs, modtool, terse=False):
     """
     Determine subset of easyconfigs for which no module is installed yet.
     """
     ordered_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True, raise_error_missing_ecs=False)
     missing = skip_available(ordered_ecs, modtool)
 
-    if missing:
+    if terse:
+        lines = [os.path.basename(x['ec'].path) for x in missing]
+    elif missing:
         lines = ['', "%d out of %d required modules missing:" % (len(missing), len(ordered_ecs)), '']
-        for ec in [x['ec'] for x in missing]:
+        for ec in (x['ec'] for x in missing):
             if ec.short_mod_name != ec.full_mod_name:
                 modname = '%s | %s' % (ec.mod_subdir, ec.short_mod_name)
             else:
