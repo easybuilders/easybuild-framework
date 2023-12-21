@@ -484,7 +484,7 @@ class PbsJob(object):
         # only expect to have a list with one element
         j = jobs[0]
         # convert attribs into useable dict
-        job_details = dict([(attrib.name, attrib.value) for attrib in j.attribs])
+        job_details = {attrib.name: attrib.value for attrib in j.attribs}
         # manually set 'id' attribute
         job_details['id'] = j.name
         self.log.debug("Found jobinfo %s" % job_details)

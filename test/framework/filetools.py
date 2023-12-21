@@ -320,7 +320,7 @@ class FileToolsTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, error_pattern, ft.verify_checksum, fp, checksum)
 
         # make sure faulty checksums are reported
-        broken_checksums = dict([(typ, val[:-3] + 'foo') for (typ, val) in known_checksums.items()])
+        broken_checksums = {typ: (val[:-3] + 'foo') for (typ, val) in known_checksums.items()}
         for checksum_type, checksum in broken_checksums.items():
             self.assertFalse(ft.compute_checksum(fp, checksum_type=checksum_type) == checksum)
             self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))

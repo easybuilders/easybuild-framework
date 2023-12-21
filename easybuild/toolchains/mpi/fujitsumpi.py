@@ -45,7 +45,7 @@ class FujitsuMPI(Mpi):
     MPI_TYPE = TC_CONSTANT_MPI_TYPE_OPENMPI
 
     # OpenMPI reads from CC etc env variables
-    MPI_SHARED_OPTION_MAP = dict([('_opt_%s' % var, '') for var, _ in MPI_COMPILER_VARIABLES])
+    MPI_SHARED_OPTION_MAP = {'_opt_%s' % var: '' for var, _ in MPI_COMPILER_VARIABLES}
 
     MPI_LINK_INFO_OPTION = '-showme:link'
 

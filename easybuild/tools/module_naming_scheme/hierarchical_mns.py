@@ -120,7 +120,7 @@ class HierarchicalMNS(ModuleNamingScheme):
             res = None
         else:
             if len(tc_comps) > 0 and tc_comps[0]:
-                comp_versions = dict([(comp['name'], self.det_full_version(comp)) for comp in tc_comps])
+                comp_versions = {comp['name']: self.det_full_version(comp) for comp in tc_comps}
                 comp_names = comp_versions.keys()
                 key = ','.join(sorted(comp_names))
                 if key in COMP_NAME_VERSION_TEMPLATES:

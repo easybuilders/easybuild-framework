@@ -61,7 +61,7 @@ class OpenMPI(Mpi):
     MPI_COMPILER_MPIFC = None
 
     # OpenMPI reads from CC etc env variables
-    MPI_SHARED_OPTION_MAP = dict([('_opt_%s' % var, '') for var, _ in MPI_COMPILER_VARIABLES])
+    MPI_SHARED_OPTION_MAP = {'_opt_%s' % var: '' for var, _ in MPI_COMPILER_VARIABLES}
 
     MPI_LINK_INFO_OPTION = '-showme:link'
 

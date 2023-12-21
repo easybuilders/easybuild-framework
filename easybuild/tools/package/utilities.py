@@ -58,7 +58,7 @@ def avail_package_naming_schemes():
     They are loaded from the easybuild.package.package_naming_scheme namespace
     """
     import_available_modules('easybuild.tools.package.package_naming_scheme')
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(PackageNamingScheme)])
+    class_dict = {x.__name__: x for x in get_subclasses(PackageNamingScheme)}
     return class_dict
 
 

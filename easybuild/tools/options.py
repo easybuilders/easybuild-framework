@@ -244,7 +244,7 @@ class EasyBuildOptions(GeneralOption):
         # update or define go_configfiles_initenv in named arguments to pass to parent constructor
         go_cfg_initenv = kwargs.setdefault('go_configfiles_initenv', {})
         for section, constants in self.go_cfg_constants.items():
-            constants = dict([(name, value) for (name, (value, _)) in constants.items()])
+            constants = {name: value for (name, (value, _)) in constants.items()}
             go_cfg_initenv.setdefault(section, {}).update(constants)
 
         super(EasyBuildOptions, self).__init__(*args, **kwargs)
