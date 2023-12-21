@@ -851,7 +851,9 @@ class ModulesTool(object):
             # this needs to be taken into account when updating the environment via produced output, see below
 
             # keep track of current values of select env vars, so we can correct the adjusted values below
-            prev_ld_values = {key: os.environ.get(key, '').split(os.pathsep)[::-1] for key in LD_ENV_VAR_KEYS}
+            # Identical to `{key: os.environ.get(key, '').split(os.pathsep)[::-1] for key in LD_ENV_VAR_KEYS}`
+            # but Python 2 treats that as a local function and refused the `exec` below
+            prev_ld_values = dict([(key, os.environ.get(key, '').split(os.pathsep)[::-1]) for key in LD_ENV_VAR_KEYS])
 
             # Change the environment
             try:
