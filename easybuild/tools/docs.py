@@ -289,7 +289,7 @@ def avail_easyconfig_licenses_md():
     lics = sorted(EASYCONFIG_LICENSES_DICT.items())
     table_values = [
         ["``%s``" % lic().name for _, lic in lics],
-        [lic().description for _, lic in lics],
+        [lic().description or '' for _, lic in lics],
         ["``%s``" % lic().version for _, lic in lics],
     ]
 
