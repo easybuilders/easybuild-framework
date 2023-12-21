@@ -64,6 +64,6 @@ class TestModuleNamingScheme(ModuleNamingScheme):
 
     def is_short_modname_for(self, modname, name):
         """
-        Determine whether the specified (short) module name is a moduleq for software with the specified name.
+        Determine whether the specified (short) module name is a module for software with the specified name.
         """
         return modname.find(name) != -1
