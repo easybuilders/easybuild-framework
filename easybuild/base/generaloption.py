@@ -1031,7 +1031,7 @@ class GeneralOption(object):
         # make_init is deprecated
         if hasattr(self, 'make_init'):
             self.log.debug('main_options: make_init is deprecated. Rename function to main_options.')
-            getattr(self, 'make_init')()
+            self.make_init()
         else:
             # function names which end with _options and do not start with main or _
             reg_main_options = re.compile("^(?!_|main).*_options$")
