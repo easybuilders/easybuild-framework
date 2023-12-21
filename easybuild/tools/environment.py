@@ -83,9 +83,9 @@ def setvar(key, value, verbose=True):
 
     :param verbose: include message in dry run output for defining this environment variable
     """
-    if key in os.environ:
+    try:
         oldval_info = "previous value: '%s'" % os.environ[key]
-    else:
+    except KeyError:
         oldval_info = "previously undefined"
     # os.putenv() is not necessary. os.environ will call this.
     os.environ[key] = value

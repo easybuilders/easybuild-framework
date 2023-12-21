@@ -3154,8 +3154,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         home = os.environ['HOME']
         for envvar in ['XDG_CONFIG_DIRS', 'XDG_CONFIG_HOME']:
-            if envvar in os.environ:
-                del os.environ[envvar]
+            os.environ.pop(envvar, None)
         reload(easybuild.tools.options)
 
         args = [
@@ -4957,8 +4956,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test --show-config in relation to how configuring across multiple configuration levels interacts with it."""
 
         # make sure default module syntax is used
-        if 'EASYBUILD_MODULE_SYNTAX' in os.environ:
-            del os.environ['EASYBUILD_MODULE_SYNTAX']
+        os.environ.pop('EASYBUILD_MODULE_SYNTAX', None)
 
         # configuring --modules-tool and --module-syntax on different levels should NOT cause problems
         # cfr. bug report https://github.com/easybuilders/easybuild-framework/issues/2564
@@ -4984,8 +4982,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Verify that check for modules tool vs syntax works."""
 
         # make sure default module syntax is used
-        if 'EASYBUILD_MODULE_SYNTAX' in os.environ:
-            del os.environ['EASYBUILD_MODULE_SYNTAX']
+        os.environ.pop('EASYBUILD_MODULE_SYNTAX', None)
 
         # using EnvironmentModulesC modules tool with default module syntax (Lua) is a problem
         os.environ['EASYBUILD_MODULES_TOOL'] = 'EnvironmentModulesC'
@@ -6764,8 +6761,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         mod_ext = '.lua' if get_module_syntax() == 'Lua' else ''
 
         # make sure that $EBROOTLIBTOY is not defined
-        if 'EBROOTLIBTOY' in os.environ:
-            del os.environ['EBROOTLIBTOY']
+        os.environ.pop('EBROOTLIBTOY', None)
 
         # libtoy module should be installed, module file should at least set EBROOTLIBTOY
         mod_dir = os.path.join(self.test_installpath, 'modules', 'all')

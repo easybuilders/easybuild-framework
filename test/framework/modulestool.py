@@ -200,8 +200,7 @@ class ModulesToolTest(EnhancedTestCase):
         if self.orig_module is not None:
             os.environ['module'] = self.orig_module
         else:
-            if 'module' in os.environ:
-                del os.environ['module']
+            os.environ.pop('module', None)
 
 
 def suite():

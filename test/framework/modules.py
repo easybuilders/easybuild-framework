@@ -99,8 +99,7 @@ class ModulesTest(EnhancedTestCase):
         testdir = os.path.dirname(os.path.abspath(__file__))
 
         for key in ['EBROOTGCC', 'EBROOTOPENMPI', 'EBROOTOPENBLAS']:
-            if key in os.environ:
-                del os.environ[key]
+            os.environ.pop(key, None)
 
         # arguments can be passed in two ways: multiple arguments, or just 1 list argument
         self.modtool.run_module('load', 'GCC/6.4.0-2.28')
@@ -447,8 +446,7 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(self.modtool.loaded_modules()[-1], 'GCC/6.4.0-2.28')
 
         # set things up for checking that GCC does *not* get reloaded when requested
-        if 'EBROOTGCC' in os.environ:
-            del os.environ['EBROOTGCC']
+        os.environ.pop('EBROOTGCC', None)
         self.modtool.load(['OpenMPI/2.1.2-GCC-6.4.0-2.28'])
         if isinstance(self.modtool, Lmod):
             # order of loaded modules only changes with Lmod
@@ -1025,8 +1023,7 @@ class ModulesTest(EnhancedTestCase):
         init_config()
 
         # make sure $LMOD_DEFAULT_MODULEPATH, since Lmod picks it up and tweaks $MODULEPATH to match it
-        if 'LMOD_DEFAULT_MODULEPATH' in os.environ:
-            del os.environ['LMOD_DEFAULT_MODULEPATH']
+        os.environ.pop('LMOD_DEFAULT_MODULEPATH', None)
 
         self.reset_modulepath([os.path.join(self.test_prefix, 'Core')])
 
@@ -1048,8 +1045,7 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.load(['OpenMPI/2.1.2'])
         self.modtool.purge()
 
-        if 'LMOD_DEFAULT_MODULEPATH' in os.environ:
-            del os.environ['LMOD_DEFAULT_MODULEPATH']
+        os.environ.pop('LMOD_DEFAULT_MODULEPATH', None)
 
         # reset $MODULEPATH, obtain new ModulesTool instance,
         # which should not remember anything w.r.t. previous $MODULEPATH value

@@ -307,9 +307,9 @@ class ModulesTool(object):
         """Check whether selected module tool matches 'module' function definition."""
         if self.testing:
             # grab 'module' function definition from environment if it's there; only during testing
-            if 'module' in os.environ:
+            try:
                 out, ec = os.environ['module'], 0
-            else:
+            except KeyError:
                 out, ec = None, 1
         else:
             cmd = "type module"
@@ -1561,9 +1561,7 @@ def get_software_root(name, with_env_var=False):
     """
     env_var = get_software_root_env_var_name(name)
 
-    root = None
-    if env_var in os.environ:
-        root = os.getenv(env_var)
+    root = os.getenv(env_var)
 
     if with_env_var:
         res = (root, env_var)
@@ -1631,9 +1629,7 @@ def get_software_version(name):
     """
     env_var = get_software_version_env_var_name(name)
 
-    version = None
-    if env_var in os.environ:
-        version = os.getenv(env_var)
+    version = os.getenv(env_var)
 
     return version
 
