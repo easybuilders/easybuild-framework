@@ -2668,7 +2668,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     clone_cmd.append('%s/%s.git' % (url, repo_name))
 
     if clone_into:
-        clone_cmd.append('%s' % clone_into)
+        clone_cmd.append(clone_into)
 
     tmpdir = tempfile.mkdtemp()
     cwd = change_dir(tmpdir)

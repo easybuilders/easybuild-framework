@@ -289,7 +289,7 @@ def avail_easyconfig_licenses_md():
     lics = sorted(EASYCONFIG_LICENSES_DICT.items())
     table_values = [
         ["``%s``" % lic().name for _, lic in lics],
-        ["%s" % lic().description for _, lic in lics],
+        [lic().description for _, lic in lics],
         ["``%s``" % lic().version for _, lic in lics],
     ]
 
@@ -1199,7 +1199,7 @@ def avail_toolchain_opts_md(name, tc_dict):
     tc_items = sorted(tc_dict.items())
     table_values = [
         ['``%s``' % val[0] for val in tc_items],
-        ['%s' % val[1][1] for val in tc_items],
+        [val[1][1] for val in tc_items],
         ['``%s``' % val[1][0] for val in tc_items],
     ]
 
@@ -1217,7 +1217,7 @@ def avail_toolchain_opts_rst(name, tc_dict):
     tc_items = sorted(tc_dict.items())
     table_values = [
         ['``%s``' % val[0] for val in tc_items],
-        ['%s' % val[1][1] for val in tc_items],
+        [val[1][1] for val in tc_items],
         ['``%s``' % val[1][0] for val in tc_items],
     ]
 
