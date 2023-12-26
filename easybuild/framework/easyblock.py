@@ -1739,9 +1739,15 @@ class EasyBlock(object):
 
         Each entry should be a (name, version) tuple or just (name, ) if no version exists
         """
-        # We need only name and version, so don't resolve templates
         # Each extension in exts_list is either a string or a list/tuple with name, version as first entries
-        return [(ext, ) if isinstance(ext, string_type) else ext[:2] for ext in self.cfg.get_ref('exts_list')]
+        # As name can be a templated value we must resolve templates
+        exts_list = []
+        for ext in self.cfg.get_ref('exts_list'):
+            if isinstance(ext, string_type):
+                exts_list.append((resolve_template(ext, self.cfg.template_values), ))
+            else:
+                exts_list.append((resolve_template(ext[0], self.cfg.template_values), ext[1]))
+        return exts_list
 
     def make_extension_string(self, name_version_sep='-', ext_sep=', ', sort=True):
         """
