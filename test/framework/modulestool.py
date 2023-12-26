@@ -39,7 +39,7 @@ from easybuild.base import fancylogger
 from easybuild.tools import modules, StrictVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, which, write_file
-from easybuild.tools.modules import Lmod
+from easybuild.tools.modules import EnvironmentModules, Lmod
 from test.framework.utilities import init_config
 
 
@@ -191,6 +191,23 @@ class ModulesToolTest(EnhancedTestCase):
 
             # test updating local spider cache (but don't actually update the local cache file!)
             self.assertTrue(lmod.update(), "Updated local Lmod spider cache is non-empty")
+
+    def test_environment_modules_specific(self):
+        """Environment Modules-specific test (skipped unless installed)."""
+        modulecmd_abspath = which(EnvironmentModules.COMMAND)
+        # only run this test if 'modulecmd.tcl' is installed
+        if modulecmd_abspath is not None:
+            # redefine 'module' and '_module_raw' function (deliberate mismatch with used module
+            # command in EnvironmentModules)
+            os.environ['_module_raw'] = "() {  eval `/usr/share/Modules/libexec/foo.tcl' bash $*`;\n}"
+            os.environ['module'] = "() {  _module_raw \"$@\" 2>&1;\n}"
+            error_regex = ".*pattern .* not found in defined 'module' function"
+            self.assertErrorRegex(EasyBuildError, error_regex, EnvironmentModules, testing=True)
+
+            # redefine '_module_raw' function with correct module command
+            os.environ['_module_raw'] = "() {  eval `/usr/share/Modules/libexec/modulecmd.tcl' bash $*`;\n}"
+            mt = EnvironmentModules(testing=True)
+            self.assertIsInstance(mt.loaded_modules(), list)  # dummy usage
 
     def tearDown(self):
         """Testcase cleanup."""

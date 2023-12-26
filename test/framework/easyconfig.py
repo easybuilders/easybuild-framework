@@ -57,10 +57,10 @@ from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
 from easybuild.framework.easyconfig.style import check_easyconfigs_style
-from easybuild.framework.easyconfig.tools import categorize_files_by_type, check_sha256_checksums, dep_graph
-from easybuild.framework.easyconfig.tools import det_copy_ec_specs, find_related_easyconfigs, get_paths_for
+from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, categorize_files_by_type, check_sha256_checksums
+from easybuild.framework.easyconfig.tools import dep_graph, det_copy_ec_specs, find_related_easyconfigs, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs
-from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
+from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak, tweak_one
 from easybuild.framework.extension import resolve_exts_filter_template
 from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools.build_log import EasyBuildError
@@ -73,7 +73,7 @@ from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compile
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
 from easybuild.tools.py2vs3 import OrderedDict, reload
-from easybuild.tools.robot import resolve_dependencies
+from easybuild.tools.robot import det_robot_path, resolve_dependencies
 from easybuild.tools.systemtools import AARCH64, KNOWN_ARCH_CONSTANTS, POWER, X86_64
 from easybuild.tools.systemtools import get_cpu_architecture, get_shared_lib_ext, get_os_name, get_os_version
 
@@ -732,6 +732,38 @@ class EasyConfigTest(EnhancedTestCase):
 
         # cleanup
         os.remove(tweaked_fn)
+
+    def test_tweak_multiple_tcs(self):
+        """Test that tweaking variables of ECs from multiple toolchains works"""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        # Create directories to store the tweaked easyconfigs
+        tweaked_ecs_paths, pr_path = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
+        robot_path = det_robot_path([test_easyconfigs], tweaked_ecs_paths, pr_path, auto_robot=True)
+
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': robot_path,
+            'check_osdeps': False,
+        })
+
+        # Allow tweaking of non-toolchain values for multiple ECs of different toolchains
+        untweaked_openmpi_1 = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-4.6.4.eb')
+        untweaked_openmpi_2 = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-3.1.1-GCC-7.3.0-2.30.eb')
+        easyconfigs, _ = parse_easyconfigs([(untweaked_openmpi_1, False), (untweaked_openmpi_2, False)])
+        tweak_specs = {'moduleclass': 'debugger'}
+        easyconfigs = tweak(easyconfigs, tweak_specs, self.modtool, targetdirs=tweaked_ecs_paths)
+        # Check that all expected tweaked easyconfigs exists
+        tweaked_openmpi_1 = os.path.join(tweaked_ecs_paths[0], os.path.basename(untweaked_openmpi_1))
+        tweaked_openmpi_2 = os.path.join(tweaked_ecs_paths[0], os.path.basename(untweaked_openmpi_2))
+        self.assertTrue(os.path.isfile(tweaked_openmpi_1))
+        self.assertTrue(os.path.isfile(tweaked_openmpi_2))
+        tweaked_openmpi_content_1 = read_file(tweaked_openmpi_1)
+        tweaked_openmpi_content_2 = read_file(tweaked_openmpi_2)
+        self.assertTrue('moduleclass = "debugger"' in tweaked_openmpi_content_1,
+                        "Tweaked value not found in " + tweaked_openmpi_content_1)
+        self.assertTrue('moduleclass = "debugger"' in tweaked_openmpi_content_2,
+                        "Tweaked value not found in " + tweaked_openmpi_content_2)
 
     def test_installversion(self):
         """Test generation of install version."""

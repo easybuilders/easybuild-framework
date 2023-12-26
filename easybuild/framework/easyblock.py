@@ -1739,9 +1739,15 @@ class EasyBlock(object):
 
         Each entry should be a (name, version) tuple or just (name, ) if no version exists
         """
-        # We need only name and version, so don't resolve templates
         # Each extension in exts_list is either a string or a list/tuple with name, version as first entries
-        return [(ext, ) if isinstance(ext, string_type) else ext[:2] for ext in self.cfg.get_ref('exts_list')]
+        # As name can be a templated value we must resolve templates
+        exts_list = []
+        for ext in self.cfg.get_ref('exts_list'):
+            if isinstance(ext, string_type):
+                exts_list.append((resolve_template(ext, self.cfg.template_values), ))
+            else:
+                exts_list.append((resolve_template(ext[0], self.cfg.template_values), ext[1]))
+        return exts_list
 
     def make_extension_string(self, name_version_sep='-', ext_sep=', ', sort=True):
         """
@@ -4656,8 +4662,14 @@ def inject_checksums(ecs, checksum_type):
     """
     def make_list_lines(values, indent_level):
         """Make lines for list of values."""
+        def to_str(s):
+            if isinstance(s, string_type):
+                return "'%s'" % s
+            else:
+                return str(s)
+
         line_indent = INDENT_4SPACES * indent_level
-        return [line_indent + "'%s'," % x for x in values]
+        return [line_indent + to_str(x) + ',' for x in values]
 
     def make_checksum_lines(checksums, indent_level):
         """Make lines for list of checksums."""

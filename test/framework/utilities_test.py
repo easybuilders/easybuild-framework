@@ -123,6 +123,15 @@ class UtilitiesTest(EnhancedTestCase):
         self.assertLess(LooseVersion('1.02'), '2.01')
         self.assertLessEqual('1.02', LooseVersion('2.01'))
         self.assertLessEqual(LooseVersion('1.02'), '2.01')
+        # Negation of all ops, i.e. verify each op can return False
+        self.assertFalse(LooseVersion('2.02') != '2.02')
+        self.assertFalse(LooseVersion('2.02') <= '2.01')
+        self.assertFalse(LooseVersion('2.02') < '2.01')
+        self.assertFalse(LooseVersion('2.02') < '2.02')
+        self.assertFalse(LooseVersion('2.02') == '2.03')
+        self.assertFalse(LooseVersion('2.02') >= '2.03')
+        self.assertFalse(LooseVersion('2.02') > '2.03')
+        self.assertFalse(LooseVersion('2.02') > '2.02')
 
         # Some comparisons we might do: Full version on left hand side, shorter on right
         self.assertGreater(LooseVersion('2.1.5'), LooseVersion('2.1'))
@@ -135,7 +144,7 @@ class UtilitiesTest(EnhancedTestCase):
         self.assertGreater(LooseVersion('1.0'), LooseVersion('1'))
         self.assertLess(LooseVersion('1'), LooseVersion('1.0'))
 
-        # The following test is taken from Python disutils tests
+        # The following test is taken from Python distutils tests
         # licensed under the Python Software Foundation License Version 2
         versions = (('1.5.1', '1.5.2b2', -1),
                     ('161', '3.10a', 1),
