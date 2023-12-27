@@ -1,0 +1,38 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+OpenBLAS is an optimized BLAS library based on GotoBLAS2 1.13 BSD version.
+
+
+More information
+================
+ - Homepage: http://www.openblas.net/
+    }
+}
+
+module-whatis {Description: OpenBLAS is an optimized BLAS library based on GotoBLAS2 1.13 BSD version.}
+module-whatis {Homepage: http://www.openblas.net/}
+module-whatis {URL: http://www.openblas.net/}
+
+set root /prefix/software/OpenBLAS/0.3.23-GCC-12.3.0
+
+conflict OpenBLAS
+
+if { ![ is-loaded GCC/12.3.0 ] } {
+    module load GCC/12.3.0
+}
+
+prepend-path	CMAKE_PREFIX_PATH		$root
+prepend-path	CPATH		$root/include
+prepend-path	LD_LIBRARY_PATH		$root/lib
+prepend-path	LIBRARY_PATH		$root/lib
+prepend-path	PKG_CONFIG_PATH		$root/lib/pkgconfig
+
+setenv	EBROOTOPENBLAS		"$root"
+setenv	EBVERSIONOPENBLAS		"0.3.23"
+setenv	EBDEVELOPENBLAS		"$root/easybuild/OpenBLAS-0.3.23-GCC-12.3.0-easybuild-devel"
+
+# Built with EasyBuild version 4.9.0.dev0-rea8433dcf5e6edea3e72ad9bd9e23023ecc6b228

@@ -1942,6 +1942,58 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.environ['SCALAPACK_MT_STATIC_LIBS'], scalapack_mt_static_libs_fosscuda)
         self.modtool.purge()
 
+        tc = self.get_toolchain('foss', version='2023a')
+        tc.prepare()
+        self.assertEqual(os.environ['BLAS_SHARED_LIBS'], blas_shared_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['BLAS_STATIC_LIBS'], blas_static_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['BLAS_MT_SHARED_LIBS'],
+                         blas_mt_shared_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['BLAS_MT_STATIC_LIBS'],
+                         blas_mt_static_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['LIBBLAS'], libblas_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_fosscuda.replace('openblas', 'flexiblas'))
+
+        self.assertEqual(os.environ['LAPACK_SHARED_LIBS'], lapack_shared_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['LAPACK_STATIC_LIBS'], lapack_static_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['LAPACK_MT_SHARED_LIBS'],
+                         lapack_mt_shared_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['LAPACK_MT_STATIC_LIBS'],
+                         lapack_mt_static_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['LIBLAPACK'], liblapack_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['LIBLAPACK_MT'], liblapack_mt_fosscuda.replace('openblas', 'flexiblas'))
+
+        self.assertEqual(os.environ['BLAS_LAPACK_SHARED_LIBS'],
+                         blas_shared_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['BLAS_LAPACK_STATIC_LIBS'],
+                         blas_static_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['BLAS_LAPACK_MT_SHARED_LIBS'],
+                         blas_mt_shared_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['BLAS_LAPACK_MT_STATIC_LIBS'],
+                         blas_mt_static_libs_fosscuda.replace('openblas', 'flexiblas'))
+
+        self.assertEqual(os.environ['FFT_SHARED_LIBS'], fft_shared_libs_fosscuda)
+        self.assertEqual(os.environ['FFT_STATIC_LIBS'], fft_static_libs_fosscuda)
+        self.assertEqual(os.environ['FFT_SHARED_LIBS_MT'], fft_mt_shared_libs_fosscuda)
+        self.assertEqual(os.environ['FFT_STATIC_LIBS_MT'], fft_mt_static_libs_fosscuda)
+        self.assertEqual(os.environ['FFTW_SHARED_LIBS'], fft_shared_libs_fosscuda)
+        self.assertEqual(os.environ['FFTW_STATIC_LIBS'], fft_static_libs_fosscuda)
+        self.assertEqual(os.environ['FFTW_SHARED_LIBS_MT'], fft_mt_shared_libs_fosscuda)
+        self.assertEqual(os.environ['FFTW_STATIC_LIBS_MT'], fft_mt_static_libs_fosscuda)
+        self.assertEqual(os.environ['LIBFFT'], libfft_fosscuda)
+        self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_fosscuda)
+
+        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['LIBSCALAPACK_MT'], libscalack_mt_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['SCALAPACK_SHARED_LIBS'],
+                         scalapack_shared_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['SCALAPACK_STATIC_LIBS'],
+                         scalapack_static_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['SCALAPACK_MT_SHARED_LIBS'],
+                         scalapack_mt_shared_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.assertEqual(os.environ['SCALAPACK_MT_STATIC_LIBS'],
+                         scalapack_mt_static_libs_fosscuda.replace('openblas', 'flexiblas'))
+        self.modtool.purge()
+
         tc = self.get_toolchain('intel', version='2018a')
         with self.mocked_stdout_stderr():
             tc.prepare()
@@ -2110,7 +2162,7 @@ class ToolchainTest(EnhancedTestCase):
             'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
             'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -fopenmp",
             'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
-            'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -fiopenmp",
+            'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -qopenmp",
         }
 
         toolchains = [

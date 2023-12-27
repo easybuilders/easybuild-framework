@@ -1243,8 +1243,9 @@ class RunTest(EnhancedTestCase):
             "enabling -Werror",
             "the process crashed with 0"
         ])
-        expected_msg = r"Found 2 error\(s\) in command output "\
-                       r"\(output: error found\n\tthe process crashed with 0\)"
+        expected_msg = r"Found 2 error\(s\) in command output:\n"\
+                       r"\terror found\n"\
+                       r"\tthe process crashed with 0"
 
         # String promoted to list
         self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
@@ -1256,14 +1257,17 @@ class RunTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
                               [(r"\b(error|crashed)\b", ERROR)])
 
-        expected_msg = "Found 2 potential error(s) in command output " \
-                       "(output: error found\n\tthe process crashed with 0)"
+        expected_msg = "Found 2 potential error(s) in command output:\n"\
+                       "\terror found\n"\
+                       "\tthe process crashed with 0"
         init_logging(logfile, silent=True)
         check_log_for_errors(input_text, [(r"\b(error|crashed)\b", WARN)])
         stop_logging(logfile)
         self.assertIn(expected_msg, read_file(logfile))
 
-        expected_msg = r"Found 2 error\(s\) in command output \(output: error found\n\ttest failed\)"
+        expected_msg = r"Found 2 error\(s\) in command output:\n"\
+                       r"\terror found\n"\
+                       r"\ttest failed"
         write_file(logfile, '')
         init_logging(logfile, silent=True)
         self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text, [
@@ -1273,7 +1277,7 @@ class RunTest(EnhancedTestCase):
             "fail"
         ])
         stop_logging(logfile)
-        expected_msg = "Found 1 potential error(s) in command output (output: the process crashed with 0)"
+        expected_msg = "Found 1 potential error(s) in command output:\n\tthe process crashed with 0"
         self.assertIn(expected_msg, read_file(logfile))
 
     def test_run_cmd_with_hooks(self):

@@ -53,7 +53,7 @@ from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
-from easybuild.tools.utilities import trace_msg
+from easybuild.tools.utilities import nub, trace_msg
 
 
 _log = fancylogger.getLogger('run', fname=False)
@@ -72,6 +72,7 @@ CACHED_COMMANDS = [
     "sysctl -n machdep.cpu.brand_string",  # used in get_cpu_model (OS X)
     "sysctl -n machdep.cpu.vendor",  # used in get_cpu_vendor (OS X)
     "type module",  # used in ModulesTool.check_module_function
+    "type _module_raw",  # used in EnvironmentModules.check_module_function
     "ulimit -u",  # used in det_parallelism
 ]
 
@@ -1057,7 +1058,7 @@ def extract_errors_from_log(log_txt, reg_exps):
                 elif action == WARN:
                     warnings.append(line)
                 break
-    return warnings, errors
+    return nub(warnings), nub(errors)
 
 
 def check_log_for_errors(log_txt, reg_exps):
@@ -1072,10 +1073,10 @@ def check_log_for_errors(log_txt, reg_exps):
 
     errors_found_in_log += len(warnings) + len(errors)
     if warnings:
-        _log.warning("Found %s potential error(s) in command output (output: %s)",
+        _log.warning("Found %s potential error(s) in command output:\n\t%s",
                      len(warnings), "\n\t".join(warnings))
     if errors:
-        raise EasyBuildError("Found %s error(s) in command output (output: %s)",
+        raise EasyBuildError("Found %s error(s) in command output:\n\t%s",
                              len(errors), "\n\t".join(errors))
 
 
