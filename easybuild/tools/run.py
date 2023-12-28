@@ -355,6 +355,11 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
         sys.stdout.write(output)
     stdouterr += output
 
+    try:
+        os.chdir(owd)
+    except OSError as err:
+        raise EasyBuildError("Failed to return to %s after executing command: %s", owd, err)
+
     if with_hook:
         hooks = load_hooks(build_option('hooks'))
         run_hook_kwargs = {
@@ -366,11 +371,6 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
 
     if trace:
         trace_msg("command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))
-
-    try:
-        os.chdir(owd)
-    except OSError as err:
-        raise EasyBuildError("Failed to return to %s after executing command: %s", owd, err)
 
     return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
 
