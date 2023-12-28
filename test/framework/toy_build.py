@@ -2330,6 +2330,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_toy(self):
         """Test building two easyconfigs in a single go, with one depending on the other."""
+
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec_file)
@@ -2341,9 +2342,17 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(ec1, ec1_txt)
 
+        # adapt toy easyconfig for toy2 to produce a modulefile with a dedicated
+        # name ('toy2' instead of 'toy')
         ec2 = os.path.join(self.test_prefix, 'toy2.eb')
         ec2_txt = '\n'.join([
             toy_ec_txt,
+            "name = 'toy2'",
+            "easyblock = 'EB_toy'",
+            "sources = ['toy/toy-0.0.tar.gz']",
+            "patches = []",
+            "sanity_check_paths = { 'files': ['bin/toy2'], 'dirs': ['bin']}",
+            "prebuildopts = 'mv toy.source toy2.c &&'",
             "versionsuffix = '-two'",
             "dependencies = [('toy', '0.0', '-one')]",
         ])
@@ -2353,7 +2362,7 @@ class ToyBuildTest(EnhancedTestCase):
             self._test_toy_build(ec_file=self.test_prefix, verify=False)
 
         mod1 = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-one')
-        mod2 = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-two')
+        mod2 = os.path.join(self.test_installpath, 'modules', 'all', 'toy2', '0.0-two')
         if get_module_syntax() == 'Lua':
             mod1 += '.lua'
             mod2 += '.lua'
@@ -2366,15 +2375,15 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(load1_regex.search(mod2_txt), "Pattern '%s' found in: %s" % (load1_regex.pattern, mod2_txt))
 
         # Check the contents of the dumped env in the reprod dir to ensure it contains the dependency load
-        reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0-two', 'easybuild', 'reprod')
-        dumpenv_script = os.path.join(reprod_dir, 'toy-0.0-two.env')
+        reprod_dir = os.path.join(self.test_installpath, 'software', 'toy2', '0.0-two', 'easybuild', 'reprod')
+        dumpenv_script = os.path.join(reprod_dir, 'toy2-0.0-two.env')
         reprod_dumpenv = os.path.join(reprod_dir, dumpenv_script)
         self.assertExists(reprod_dumpenv)
 
         # Check contents of the dumpenv script
         patterns = [
             """#!/bin/bash""",
-            """# usage: source toy-0.0-two.env""",
+            """# usage: source toy2-0.0-two.env""",
             # defining build env
             """module load toy/0.0-one""",
             """# (no build environment defined)""",
