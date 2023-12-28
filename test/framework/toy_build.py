@@ -57,7 +57,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, move_file
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
-from easybuild.tools.modules import Lmod
+from easybuild.tools.modules import EnvironmentModules, Lmod
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import nub
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -774,9 +774,29 @@ class ToyBuildTest(EnhancedTestCase):
             self.mock_stdout(False)
 
             if get_module_syntax() == 'Tcl':
-                pattern = "Can't generate robust check in TCL modules for users belonging to group %s." % group_name
-                regex = re.compile(pattern, re.M)
-                self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
+                module_version = LooseVersion(self.modtool.version)
+                if isinstance(self.modtool, EnvironmentModules) and module_version >= LooseVersion('4.6.0'):
+                    toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+                    toy_mod_txt = read_file(toy_mod)
+
+                    if isinstance(group, tuple):
+                        group_name = group[0]
+                        error_msg_pattern = "Hey, you're not in the '%s' group!" % group_name
+                    else:
+                        group_name = group
+                        error_msg_pattern = "You are not part of '%s' group of users" % group_name
+
+                    pattern = '\n'.join([
+                        r'^if \{ \!\[ module-info usergroups %s \] \} \{' % group_name,
+                        r'    error "%s[^"]*"' % error_msg_pattern,
+                        r'\}$',
+                    ])
+                    regex = re.compile(pattern, re.M)
+                    self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_mod_txt))
+                else:
+                    pattern = "Can't generate robust check in Tcl modules for users belonging to group %s." % group_name
+                    regex = re.compile(pattern, re.M)
+                    self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
 
             elif get_module_syntax() == 'Lua':
                 toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0.lua')
