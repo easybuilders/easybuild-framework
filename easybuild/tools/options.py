@@ -406,6 +406,7 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
                               'strlist', 'extend', None),
+            'extra-toolchainopts': ("List of toolchain options to add", 'strlist', 'store', []),
             'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
                       "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
             'filter-deps': ("List of dependencies that you do *not* want to install with EasyBuild, "
@@ -1767,6 +1768,16 @@ def process_software_build_specs(options):
             if ',' in value:
                 value = value.split(',')
             build_specs.update({param: value})
+
+    # process --extra-toolchainopts
+    if options.extra_toolchainopts:
+        try_to_generate = True
+
+        toolchainopts = {}
+        for spec in options.extra_toolchainopts:
+            param, value = spec.split('=')
+            toolchainopts.update({param: value})
+        build_specs.update({'toolchainopts': toolchainopts})
 
     return (try_to_generate, build_specs)
 

@@ -292,6 +292,15 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
         tweaks.update({'toolchain': TcDict({'name': toolchain['name'], 'version': toolchain['version']})})
         _log.debug("New toolchain constructed: %s" % tweaks['toolchain'])
 
+    if 'toolchainopts' in keys:
+        extra_toolchainopts = tweaks['toolchainopts']
+        tco_regexp = re.compile(r"^\s*toolchainopts\s*=\s*(.*)$", re.M)
+        res = tco_regexp.search(ectxt)
+        toolchainopts = {} if not res else eval(res.group(1))
+        _log.debug("Appending %s toolchainopts to %s" % (extra_toolchainopts, toolchainopts))
+        toolchainopts.update(extra_toolchainopts)
+        tweaks.update({'toolchainopts': toolchainopts})
+
     additions = []
 
     # automagically clear out list of checksums if software version is being tweaked
