@@ -97,6 +97,7 @@ GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FRAMEWORK_REPO = 'easybuild-framework'
 GITHUB_DEVELOP_BRANCH = 'develop'
 GITHUB_FILE_TYPE = u'file'
+GITHUB_PR_GROUPS = ['author', 'labels']
 GITHUB_PR_STATE_OPEN = 'open'
 GITHUB_PR_STATES = [GITHUB_PR_STATE_OPEN, 'closed', 'all']
 GITHUB_PR_ORDER_CREATED = 'created'
@@ -1418,6 +1419,50 @@ def list_prs(params, per_page=GITHUB_MAX_PER_PAGE, github_user=None):
     lines = []
     for pr in pr_data:
         lines.append("PR #%s: %s" % (pr['number'], pr['title']))
+
+    return '\n'.join(lines)
+
+
+def summarize_prs(params, per_page=GITHUB_MAX_PER_PAGE, github_user=None):
+    """
+    Summarize pull requests according to specified selection/order parameters
+
+    :param params: 4-tuple with selection parameters for PRs (<group>, <state>, <sort>, <direction>),
+                   group is one of GITHUB_PR_GROUPS, for the rest see
+                   see https://developer.github.com/v3/pulls/#parameters
+    """
+    group_by = params[0]
+
+    parameters = {
+        'state': params[1],
+        'sort': params[2],
+        'direction': 'asc',  # params[3],
+        'per_page': per_page,
+    }
+    print_msg("Summarizing PRs with parameters: %s" % ', '.join(k + '=' + str(parameters[k])
+                                                                for k in sorted(parameters)))
+
+    pr_target_account = build_option('pr_target_account')
+    pr_target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
+
+    pr_data, _ = fetch_pr_data(None, pr_target_account, pr_target_repo, github_user, **parameters)
+
+    summary = {}
+    for pr in pr_data:
+        if group_by == 'author':
+            groups = [pr['user']['login']]
+        elif group_by == 'labels':
+            groups = [label['name'] for label in pr['labels']]
+        else:
+            groups = [pr[group_by]]
+
+        for group in groups:
+            if group not in summary:
+                summary[group] = 1
+            else:
+                summary[group] += 1
+
+    lines = ["%s: %s" % (key, count) for key, count in sorted(summary.items(), key=lambda kv: kv[1], reverse=True)]
 
     return '\n'.join(lines)
 
