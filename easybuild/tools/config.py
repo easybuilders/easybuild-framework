@@ -275,6 +275,7 @@ BUILD_OPTIONS_CMDLINE = {
         'container_build_image',
         'debug',
         'debug_lmod',
+        'disable_multi_deps_load_default',
         'dump_autopep8',
         'enforce_checksums',
         'experimental',
