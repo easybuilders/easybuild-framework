@@ -37,7 +37,7 @@ import platform
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import print_warning
-from easybuild.tools.systemtools import KNOWN_ARCH_CONSTANTS, get_os_name, get_os_type, get_os_version
+from easybuild.tools.systemtools import ARCH_DISTROS, KNOWN_ARCH_CONSTANTS, get_os_name, get_os_type, get_os_version
 
 
 _log = fancylogger.getLogger('easyconfig.constants', fname=False)
@@ -88,3 +88,20 @@ EASYCONFIG_CONSTANTS = {
 # Add EasyConfig constants to export list
 globals().update({name: value for name, (value, _) in EASYCONFIG_CONSTANTS.items()})
 __all__ = ['EXTERNAL_MODULE_MARKER', 'EASYCONFIG_CONSTANTS'] + list(EASYCONFIG_CONSTANTS.keys())
+
+# Add EasyConfig constants to export list
+globals().update({name: value for name, (value, _) in EASYCONFIG_CONSTANTS.items()})
+__all__ = ['EXTERNAL_MODULE_MARKER', 'EASYCONFIG_CONSTANTS'] + list(EASYCONFIG_CONSTANTS.keys())
+
+# package names for openssl-dev, pam-devel, and rdma-core-devel do not include the devel suffix on arch distros.
+# simply adding the arch names to the tuples below would falsely satisfy the dependencies on some non-arch distros,
+# so we need to explicitly define them separately.
+# to accomodate other arch_distros, simply add to the arch_distros list
+os_name = get_os_name()
+if os_name in ARCH_DISTROS:
+    EASYCONFIG_CONSTANTS['OS_PKG_IBVERBS_DEV'] = (('rdma-core'),
+                                                  "OS packages providing ibverbs/infiniband development support")
+    EASYCONFIG_CONSTANTS['OS_PKG_OPENSSL_LIB'] = (('openssl'),
+                                                  "OS packages providing openSSL libraries")
+    EASYCONFIG_CONSTANTS['OS_PKG_PAM_DEV'] = (('pam'),
+                                              "OS packages providing PAM developement support")
