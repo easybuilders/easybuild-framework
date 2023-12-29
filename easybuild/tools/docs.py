@@ -38,8 +38,8 @@ Authors:
 """
 import copy
 import inspect
-import os
 import json
+import os
 from easybuild.tools import LooseVersion
 
 from easybuild.base import fancylogger
@@ -73,10 +73,10 @@ _log = fancylogger.getLogger('tools.docs')
 DETAILED = 'detailed'
 SIMPLE = 'simple'
 
+FORMAT_JSON = 'json'
 FORMAT_MD = 'md'
 FORMAT_RST = 'rst'
 FORMAT_TXT = 'txt'
-FORMAT_JSON = 'json'
 
 
 def generate_doc(name, params):
@@ -1065,22 +1065,26 @@ def list_software_json(software, detailed=False):
     """
     lines = ['[']
     for key in sorted(software, key=lambda x: x.lower()):
-        for tmp in software[key]:
+        for entry in software[key]:
             if detailed:
                 # deep copy here to avoid modifying the original dict
-                x = copy.deepcopy(tmp)
-                x['description'] = ' '.join(x['description'].split('\n')).strip()
+                entry = copy.deepcopy(entry)
+                entry['description'] = ' '.join(entry['description'].split('\n')).strip()
             else:
-                x = {}
-            x['name'] = key
+                entry = {}
+            entry['name'] = key
 
-            lines.append(json.dumps(x, indent=4, sort_keys=True, separators=(',', ': ')) + ",")
+            lines.append(json.dumps(entry, indent=4, sort_keys=True, separators=(',', ': ')) + ",")
             if not detailed:
                 break
-    # remove last line last comma
+
+    # remove trailing comma on last line
     if len(lines) > 1:
-        lines[-1] = lines[-1][:-1]
-    return '\n'.join(lines) + '\n]'
+        lines[-1] = lines[-1].rstrip(',')
+
+    lines.append(']')
+
+    return '\n'.join(lines)
 
 
 def list_toolchains(output_format=FORMAT_TXT):
