@@ -2420,6 +2420,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
         allargs = args + ['--software-version=1.2.3', '--toolchain=gompi,2018a']
         self.assertErrorRegex(EasyBuildError, "version .* not available", self.eb_main, allargs, raise_error=True)
 
+        # Try changing only name or version of toolchain
+        args.pop(0)  # Remove EC filename
+        foss_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-foss-2018a.eb')
+        copy_file(os.path.join(ecs_path, 't', 'toy', 'toy-0.0-gompi-2018a.eb'), foss_toy_ec)
+        write_file(foss_toy_ec, "toolchain['name'] = 'foss'", append=True)
+
+        test_cases = [
+            (['toy-0.0-gompi-2018a.eb', '--try-toolchain-name=intel'], 'toy/0.0-iimpi-2018a'),
+            ([foss_toy_ec, '--try-toolchain-name=intel'], 'toy/0.0-intel-2018a'),
+            (['toy-0.0-gompi-2018a.eb', '--try-toolchain-version=2018b'], 'toy/0.0-gompi-2018b'),
+        ]
+        for extra_args, mod in test_cases:
+            outtxt = self.eb_main(args + extra_args, verbose=True, raise_error=True)
+            mod_regex = re.compile(r"\(module: %s\)$" % mod, re.M)
+            self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
+
     def test_try_with_copy(self):
         """Test whether --try options are taken into account."""
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -4806,7 +4822,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # --merge-pr also works on easyblocks (& framework) PRs
         args = [
             '--merge-pr',
-            '2805',
+            '2995',
             '--pr-target-repo=easybuild-easyblocks',
             '-D',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -4814,12 +4830,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
         self.assertEqual(stderr.strip(), '')
         expected_stdout = '\n'.join([
-            "Checking eligibility of easybuilders/easybuild-easyblocks PR #2805 for merging...",
+            "Checking eligibility of easybuilders/easybuild-easyblocks PR #2995 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* no pending change requests: OK",
-            "* approved review: OK (by ocaisa)",
-            "* milestone is set: OK (4.6.2)",
+            "* approved review: OK (by boegel)",
+            "* milestone is set: OK (4.8.1)",
             "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
@@ -5931,6 +5947,42 @@ class CommandLineOptionsTest(EnhancedTestCase):
             {'toy-extra.txt': '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'}
         ]
         self.assertEqual(ec['checksums'], expected_checksums)
+
+        # Also works for extensions (all 3 patch formats)
+        write_file(test_ec, textwrap.dedent("""
+            exts_list = [
+               ("bar", "0.0", {
+                   'sources': ['bar-0.0-local.tar.gz'],
+                   'patches': [
+                       'bar-0.0_fix-silly-typo-in-printf-statement.patch',  # normal patch
+                       ('bar-0.0_fix-very-silly-typo-in-printf-statement.patch', 0),  # patch with patch level
+                       ('toy-0.0_fix-silly-typo-in-printf-statement.patch', 'toy_subdir'),
+                   ],
+               }),
+            ]
+        """), append=True)
+        self._run_mock_eb(args, raise_error=True, strip=True)
+        ec = EasyConfigParser(test_ec).get_config_dict()
+        ext = ec['exts_list'][0]
+        self.assertEqual((ext[0], ext[1]), ("bar", "0.0"))
+        ext_opts = ext[2]
+        expected_patches = [
+            'bar-0.0_fix-silly-typo-in-printf-statement.patch',
+            ('bar-0.0_fix-very-silly-typo-in-printf-statement.patch', 0),
+            ('toy-0.0_fix-silly-typo-in-printf-statement.patch', 'toy_subdir')
+        ]
+        self.assertEqual(ext_opts['patches'], expected_patches)
+        expected_checksums = [
+            {'bar-0.0-local.tar.gz':
+             'f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7'},
+            {'bar-0.0_fix-silly-typo-in-printf-statement.patch':
+             '84db53592e882b5af077976257f9c7537ed971cb2059003fd4faa05d02cae0ab'},
+            {'bar-0.0_fix-very-silly-typo-in-printf-statement.patch':
+             'd0bf102f9c5878445178c5f49b7cd7546e704c33fe2060c7354b7e473cfeb52b'},
+            {'toy-0.0_fix-silly-typo-in-printf-statement.patch':
+             '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'}
+        ]
+        self.assertEqual(ext_opts['checksums'], expected_checksums)
 
         # passing easyconfig filename as argument to --inject-checksums results in error being reported,
         # because it's not a valid type of checksum

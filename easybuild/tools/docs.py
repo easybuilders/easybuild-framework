@@ -38,6 +38,7 @@ Authors:
 """
 import copy
 import inspect
+import json
 import os
 from easybuild.tools import LooseVersion
 
@@ -72,6 +73,7 @@ _log = fancylogger.getLogger('tools.docs')
 DETAILED = 'detailed'
 SIMPLE = 'simple'
 
+FORMAT_JSON = 'json'
 FORMAT_MD = 'md'
 FORMAT_RST = 'rst'
 FORMAT_TXT = 'txt'
@@ -113,6 +115,11 @@ def avail_cfgfile_constants(go_cfg_constants, output_format=FORMAT_TXT):
     Return overview of constants supported in configuration files.
     """
     return generate_doc('avail_cfgfile_constants_%s' % output_format, [go_cfg_constants])
+
+
+def avail_cfgfile_constants_json(go_cfg_constants):
+    """Generate documentation on constants for configuration files in json format"""
+    raise NotImplementedError("JSON output format not supported for avail_cfgfile_constants_json")
 
 
 def avail_cfgfile_constants_txt(go_cfg_constants):
@@ -184,6 +191,11 @@ def avail_easyconfig_constants(output_format=FORMAT_TXT):
     return generate_doc('avail_easyconfig_constants_%s' % output_format, [])
 
 
+def avail_easyconfig_constants_json():
+    """Generate easyconfig constant documentation in json format"""
+    raise NotImplementedError("JSON output format not supported for avail_easyconfig_constants_json")
+
+
 def avail_easyconfig_constants_txt():
     """Generate easyconfig constant documentation in txt format"""
     doc = ["Constants that can be used in easyconfigs"]
@@ -240,6 +252,11 @@ def avail_easyconfig_constants_md():
 def avail_easyconfig_licenses(output_format=FORMAT_TXT):
     """Generate the easyconfig licenses documentation"""
     return generate_doc('avail_easyconfig_licenses_%s' % output_format, [])
+
+
+def avail_easyconfig_licenses_json():
+    """Generate easyconfig license documentation in json format"""
+    raise NotImplementedError("JSON output format not supported for avail_easyconfig_licenses_json")
 
 
 def avail_easyconfig_licenses_txt():
@@ -354,6 +371,13 @@ def avail_easyconfig_params_rst(title, grouped_params):
     return '\n'.join(doc)
 
 
+def avail_easyconfig_params_json():
+    """
+    Compose overview of available easyconfig parameters, in json format.
+    """
+    raise NotImplementedError("JSON output format not supported for avail_easyconfig_params_json")
+
+
 def avail_easyconfig_params_txt(title, grouped_params):
     """
     Compose overview of available easyconfig parameters, in plain text format.
@@ -424,6 +448,11 @@ def avail_easyconfig_params(easyblock, output_format=FORMAT_TXT):
 def avail_easyconfig_templates(output_format=FORMAT_TXT):
     """Generate the templating documentation"""
     return generate_doc('avail_easyconfig_templates_%s' % output_format, [])
+
+
+def avail_easyconfig_templates_json():
+    """ Returns template documentation in json text format """
+    raise NotImplementedError("JSON output format not supported for avail_easyconfig_templates")
 
 
 def avail_easyconfig_templates_txt():
@@ -640,6 +669,8 @@ def avail_classes_tree(classes, class_names, locations, detailed, format_strings
 
 
 def list_easyblocks(list_easyblocks=SIMPLE, output_format=FORMAT_TXT):
+    if output_format == FORMAT_JSON:
+        raise NotImplementedError("JSON output format not supported for list_easyblocks")
     format_strings = {
         FORMAT_MD: {
             'det_root_templ': "- **%s** (%s%s)",
@@ -1024,6 +1055,38 @@ def list_software_txt(software, detailed=False):
     return '\n'.join(lines)
 
 
+def list_software_json(software, detailed=False):
+    """
+    Return overview of supported software in json
+
+    :param software: software information (strucuted like list_software does)
+    :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :return: multi-line string presenting requested info
+    """
+    lines = ['[']
+    for key in sorted(software, key=lambda x: x.lower()):
+        for entry in software[key]:
+            if detailed:
+                # deep copy here to avoid modifying the original dict
+                entry = copy.deepcopy(entry)
+                entry['description'] = ' '.join(entry['description'].split('\n')).strip()
+            else:
+                entry = {}
+            entry['name'] = key
+
+            lines.append(json.dumps(entry, indent=4, sort_keys=True, separators=(',', ': ')) + ",")
+            if not detailed:
+                break
+
+    # remove trailing comma on last line
+    if len(lines) > 1:
+        lines[-1] = lines[-1].rstrip(',')
+
+    lines.append(']')
+
+    return '\n'.join(lines)
+
+
 def list_toolchains(output_format=FORMAT_TXT):
     """Show list of known toolchains."""
     _, all_tcs = search_toolchain('')
@@ -1173,6 +1236,11 @@ def list_toolchains_txt(tcs):
     return '\n'.join(doc)
 
 
+def list_toolchains_json(tcs):
+    """ Returns overview of all toolchains in json format """
+    raise NotImplementedError("JSON output not implemented yet for --list-toolchains")
+
+
 def avail_toolchain_opts(name, output_format=FORMAT_TXT):
     """Show list of known options for given toolchain."""
     tc_class, _ = search_toolchain(name)
@@ -1226,6 +1294,11 @@ def avail_toolchain_opts_rst(name, tc_dict):
     return '\n'.join(doc)
 
 
+def avail_toolchain_opts_json(name, tc_dict):
+    """ Returns overview of toolchain options in jsonformat """
+    raise NotImplementedError("JSON output not implemented yet for --avail-toolchain-opts")
+
+
 def avail_toolchain_opts_txt(name, tc_dict):
     """ Returns overview of toolchain options in txt format """
     doc = ["Available options for %s toolchain:" % name]
@@ -1250,6 +1323,13 @@ def get_easyblock_classes(package_name):
                 easyblocks.append(eb_class)
 
     return easyblocks
+
+
+def gen_easyblocks_overview_json(package_name, path_to_examples, common_params=None, doc_functions=None):
+    """
+    Compose overview of all easyblocks in the given package in json format
+    """
+    raise NotImplementedError("JSON output not implemented yet for gen_easyblocks_overview")
 
 
 def gen_easyblocks_overview_md(package_name, path_to_examples, common_params=None, doc_functions=None):
