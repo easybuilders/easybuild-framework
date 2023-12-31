@@ -4651,7 +4651,7 @@ def inject_checksums(ecs, checksum_type):
     def make_list_lines(values, indent_level):
         """Make lines for list of values."""
         def to_str(s):
-            if isinstance(s, string_type):
+            if isinstance(s, str):
                 return "'%s'" % s
             else:
                 return str(s)
