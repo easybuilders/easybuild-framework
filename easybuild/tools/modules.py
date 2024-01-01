@@ -1358,7 +1358,8 @@ class EnvironmentModules(EnvironmentModulesTcl):
                 out, ec = None, 1
         else:
             cmd = "type _module_raw"
-            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False, force_in_dry_run=True, trace=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=False, hidden=True, output_file=False)
+            out, ec = res.output, res.exit_code
 
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)
