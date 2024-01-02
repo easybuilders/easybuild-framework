@@ -182,7 +182,7 @@ run_shell_cmd_cache = run_cmd_cache
 @run_shell_cmd_cache
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
                   hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, use_bash=True,
-                  output_file=True, stream_output=False, asynchronous=False, with_hooks=True,
+                  output_file=True, stream_output=None, asynchronous=False, with_hooks=True,
                   qa_patterns=None, qa_wait_patterns=None):
     """
     Run specified (interactive) shell command, and capture output + exit code.
@@ -197,7 +197,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     :param work_dir: working directory to run command in (current working directory if None)
     :param use_bash: execute command through bash shell (enabled by default)
     :param output_file: collect command output in temporary output file
-    :param stream_output: stream command output to stdout
+    :param stream_output: stream command output to stdout (auto-enabled with --logtostdout if None)
     :param asynchronous: run command asynchronously
     :param with_hooks: trigger pre/post run_shell_cmd hooks (if defined)
     :param qa_patterns: list of 2-tuples with patterns for questions + corresponding answers
@@ -222,7 +222,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         return cmd_str
 
     # temporarily raise a NotImplementedError until all options are implemented
-    if any((stream_output, asynchronous)):
+    if asynchronous:
         raise NotImplementedError
 
     if qa_patterns or qa_wait_patterns:
@@ -233,6 +233,11 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     cmd_str = to_cmd_str(cmd)
     cmd_name = os.path.basename(cmd_str.split(' ')[0])
+
+    # auto-enable streaming of command output under --logtostdout/-l, unless it was disabled explicitely
+    if stream_output is None and build_option('logtostdout'):
+        _log.info(f"Auto-enabling streaming output of '{cmd_str}' command because logging to stdout is enabled")
+        stream_output = True
 
     # temporary output file(s) for command output
     if output_file:
@@ -264,9 +269,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     if not hidden:
         cmd_trace_msg(cmd_str, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp)
 
-    if stdin:
-        # 'input' value fed to subprocess.run must be a byte sequence
-        stdin = stdin.encode()
+    if stream_output:
+        print_msg(f"(streaming) output for command '{cmd_str}':")
 
     # use bash as shell instead of the default /bin/sh used by subprocess.run
     # (which could be dash instead of bash, like on Ubuntu, see https://wiki.ubuntu.com/DashAsBinSh)
@@ -276,8 +280,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     else:
         executable, shell = None, False
 
-    stderr = subprocess.PIPE if split_stderr else subprocess.STDOUT
-
     if with_hooks:
         hooks = load_hooks(build_option('hooks'))
         hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs={'work_dir': work_dir})
@@ -286,13 +288,39 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             cmd_str = to_cmd_str(cmd)
             _log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
 
+    stderr = subprocess.PIPE if split_stderr else subprocess.STDOUT
+
     _log.info(f"Running command '{cmd_str}' in {work_dir}")
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=stderr, check=False,
-                          cwd=work_dir, env=env, input=stdin, shell=shell, executable=executable)
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr, stdin=subprocess.PIPE,
+                            cwd=work_dir, env=env, shell=shell, executable=executable)
+
+    # 'input' value fed to subprocess.run must be a byte sequence
+    if stdin:
+        stdin = stdin.encode()
+
+    if stream_output:
+        if stdin:
+            proc.stdin.write(stdin)
+
+        exit_code = None
+        stdout, stderr = b'', b''
+
+        while exit_code is None:
+            exit_code = proc.poll()
+
+            # use small read size (128 bytes) when streaming output, to make it stream more fluently
+            # -1 means reading until EOF
+            read_size = 128 if exit_code is None else -1
+
+            stdout += proc.stdout.read(read_size)
+            if split_stderr:
+                stderr += proc.stderr.read(read_size)
+    else:
+        (stdout, stderr) = proc.communicate(input=stdin)
 
     # return output as a regular string rather than a byte sequence (and non-UTF-8 characters get stripped out)
-    output = proc.stdout.decode('utf-8', 'ignore')
-    stderr = proc.stderr.decode('utf-8', 'ignore') if split_stderr else None
+    output = stdout.decode('utf-8', 'ignore')
+    stderr = stderr.decode('utf-8', 'ignore') if split_stderr else None
 
     # store command output to temporary file(s)
     if output_file:
