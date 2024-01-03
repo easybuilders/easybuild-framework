@@ -1319,7 +1319,7 @@ class EnvironmentModules(EnvironmentModulesTcl):
     NAME = "Environment Modules"
     COMMAND = os.path.join(os.getenv('MODULESHOME', 'MODULESHOME_NOT_DEFINED'), 'libexec', 'modulecmd.tcl')
     COMMAND_ENVIRONMENT = 'MODULES_CMD'
-    REQ_VERSION = '4.0.0'
+    REQ_VERSION = '4.3.0'
     MAX_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d\S*)\s'
 
