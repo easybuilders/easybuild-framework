@@ -102,8 +102,8 @@ class YebTest(EnhancedTestCase):
             ec_eb = EasyConfig(ec_file)
 
             for key in sorted(ec_yeb.asdict()):
-                eb_val = ec_eb[key]
-                yeb_val = ec_yeb[key]
+                eb_val = ec_eb.get_ref(key)
+                yeb_val = ec_yeb.get_ref(key)
                 if key == 'description':
                     # multi-line string is always terminated with '\n' in YAML, so strip it off
                     yeb_val = yeb_val.strip()
