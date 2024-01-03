@@ -370,7 +370,7 @@ class EBConfigObj(object):
         for key, value in self.supported.items():
             if key not in self.VERSION_OPERATOR_VALUE_TYPES:
                 raise EasyBuildError('Unsupported key %s in %s section', key, self.SECTION_MARKER_SUPPORTED)
-            self.sections['%s' % key] = value
+            self.sections[key] = value
 
         for key, supported_key, fn_name in [('version', 'versions', 'get_version_str'),
                                             ('toolchain', 'toolchains', 'as_dict')]:
