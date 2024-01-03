@@ -3312,7 +3312,7 @@ class EasyBlock(object):
 
         fail_msg = None
         if mod_files:
-            fail_msg = ".mod files (%s) found in the installation." % ', '.join(mod_files)
+            fail_msg = f"One or more .mod files found in {self.installdir}: " + ', '.join(mod_files)
 
         return fail_msg
 
@@ -3638,7 +3638,9 @@ class EasyBlock(object):
             self.log.warning("Check for required/banned linked shared libraries failed!")
             self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
 
-        if self.toolchain.name in ['GCCcore'] and not self.cfg['skip_mod_files_sanity_check']:
+        # software installed with GCCcore toolchain should not have Fortran module files (.mod),
+        # unless that's explicitly allowed
+        if self.toolchain.name in ('GCCcore',) and not self.cfg['skip_mod_files_sanity_check']:
             mod_files_found_msg = self.sanity_check_mod_files()
             if mod_files_found_msg:
                 if build_option('fail_on_mod_files_gcccore'):
