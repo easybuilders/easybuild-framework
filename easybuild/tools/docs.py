@@ -1250,10 +1250,9 @@ def avail_toolchain_opts(name, output_format=FORMAT_TXT):
 
     tc_dict = {}
     for cst in ['COMPILER_SHARED_OPTS', 'COMPILER_UNIQUE_OPTS', 'MPI_SHARED_OPTS', 'MPI_UNIQUE_OPTS']:
-        if hasattr(tc, cst):
-            opts = getattr(tc, cst)
-            if opts is not None:
-                tc_dict.update(opts)
+        opts = getattr(tc, cst, None)
+        if opts is not None:
+            tc_dict.update(opts)
 
     return generate_doc('avail_toolchain_opts_%s' % output_format, [name, tc_dict])
 

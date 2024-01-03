@@ -719,9 +719,9 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
         raise EasyBuildError("Fetching branch '%s' from remote %s failed: empty result", branch_name, origin)
 
     # git checkout -b <branch>; git pull
-    if hasattr(origin.refs, branch_name):
+    try:
         origin_branch = getattr(origin.refs, branch_name)
-    else:
+    except AttributeError:
         raise EasyBuildError("Branch '%s' not found at %s", branch_name, github_url)
 
     _log.debug("Checking out branch '%s' from remote %s", branch_name, github_url)
