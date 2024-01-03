@@ -1854,7 +1854,7 @@ class EasyBlock(object):
         """[DEPRECATED] Install extensions."""
         self.log.deprecated(
             "Easyblock.install_extensions() is deprecated, use Easyblock.install_all_extensions() instead.",
-            '5.0',
+            '6.0',
         )
         self.install_all_extensions(*args, **kwargs)
 

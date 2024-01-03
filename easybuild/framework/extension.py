@@ -177,7 +177,7 @@ class Extension(object):
         """
         self.log.deprecated(
             "Extension.prerun() is deprecated, use Extension.pre_install_extension() instead.",
-            '5.0',
+            '6.0',
         )
         self.pre_install_extension()
 
@@ -193,7 +193,7 @@ class Extension(object):
         """
         self.log.deprecated(
             "Extension.run() is deprecated, use Extension.install_extension() instead.",
-            '5.0',
+            '6.0',
         )
         self.install_extension(*args, **kwargs)
 
@@ -209,7 +209,7 @@ class Extension(object):
         """
         self.log.deprecated(
             "Extension.run_async() is deprecated, use Extension.install_extension_async() instead.",
-            '5.0',
+            '6.0',
         )
         self.install_extension_async(*args, **kwargs)
 
@@ -225,7 +225,7 @@ class Extension(object):
         """
         self.log.deprecated(
             "Extension.postrun() is deprecated, use Extension.post_install_extension() instead.",
-            '5.0',
+            '6.0',
         )
         self.post_install_extension()
 
