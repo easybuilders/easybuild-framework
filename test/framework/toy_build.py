@@ -58,7 +58,7 @@ from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file,
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import nub
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
@@ -374,7 +374,7 @@ class ToyBuildTest(EnhancedTestCase):
             'verify': False,
             'verbose': False,
         }
-        err_regex = r"name 'run_cmd' is not defined"
+        err_regex = r"name 'run_shell_cmd' is not defined"
         self.assertErrorRegex(NameError, err_regex, self.run_test_toy_build_with_output, **kwargs)
 
     def test_toy_build_formatv2(self):
@@ -742,9 +742,9 @@ class ToyBuildTest(EnhancedTestCase):
 
         # figure out a group that we're a member of to use in the test
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd('groups', simple=False)
-        self.assertEqual(ec, 0, "Failed to select group to use in test")
-        group_name = out.split(' ')[0].strip()
+            res = run_shell_cmd('groups')
+        self.assertEqual(res.exit_code, 0, "Failed to select group to use in test")
+        group_name = res.output.split(' ')[0].strip()
 
         toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
@@ -1284,8 +1284,8 @@ class ToyBuildTest(EnhancedTestCase):
         # make sure that patches were actually applied (without them the message producded by 'bar' is different)
         bar_bin = os.path.join(installdir, 'bin', 'bar')
         with self.mocked_stdout_stderr():
-            out, _ = run_cmd(bar_bin)
-        self.assertEqual(out, "I'm a bar, and very very proud of it.\n")
+            res = run_shell_cmd(bar_bin)
+        self.assertEqual(res.output, "I'm a bar, and very very proud of it.\n")
 
         # verify that post-install command for 'bar' extension was executed
         fn = 'created-via-postinstallcmds.txt'
@@ -2819,17 +2819,19 @@ class ToyBuildTest(EnhancedTestCase):
 
         libtoy_libdir = os.path.join(self.test_installpath, 'software', 'libtoy', '0.0', 'lib')
         toyapp_bin = os.path.join(self.test_installpath, 'software', 'toy-app', '0.0', 'bin', 'toy-app')
-        rpath_regex = re.compile(r"RPATH.*%s" % libtoy_libdir, re.M)
+        rpath_regex = re.compile(r"RPATH.*" + libtoy_libdir, re.M)
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("readelf -d %s" % toyapp_bin, simple=False)
-        self.assertTrue(rpath_regex.search(out), "Pattern '%s' should be found in: %s" % (rpath_regex.pattern, out))
+            res = run_shell_cmd(f"readelf -d {toyapp_bin}")
+        self.assertTrue(rpath_regex.search(res.output),
+                        f"Pattern '{rpath_regex.pattern}' should be found in: {res.output}")
 
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("ldd %s" % toyapp_bin, simple=False)
+            res = run_shell_cmd(f"ldd {toyapp_bin}")
+        out = res.output
         libtoy_regex = re.compile(r"libtoy.so => /.*/libtoy.so", re.M)
         notfound = re.compile(r"libtoy\.so\s*=>\s*not found", re.M)
-        self.assertTrue(libtoy_regex.search(out), "Pattern '%s' should be found in: %s" % (libtoy_regex.pattern, out))
-        self.assertFalse(notfound.search(out), "Pattern '%s' should not be found in: %s" % (notfound.pattern, out))
+        self.assertTrue(libtoy_regex.search(out), f"Pattern '{libtoy_regex.pattern}' should be found in: {out}")
+        self.assertFalse(notfound.search(out), f"Pattern '{notfound.pattern}' should not be found in: {out}")
 
         # test sanity error when --rpath-filter is used to filter a required library
         # In this test, libtoy.so will be linked, but not RPATH-ed due to the --rpath-filter
@@ -2848,16 +2850,16 @@ class ToyBuildTest(EnhancedTestCase):
             self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("readelf -d %s" % toyapp_bin, simple=False)
-        self.assertFalse(rpath_regex.search(out),
-                         "Pattern '%s' should not be found in: %s" % (rpath_regex.pattern, out))
+            res = run_shell_cmd(f"readelf -d {toyapp_bin}")
+        self.assertFalse(rpath_regex.search(res.output),
+                         f"Pattern '{rpath_regex.pattern}' should not be found in: {res.output}")
 
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("ldd %s" % toyapp_bin, simple=False)
-        self.assertFalse(libtoy_regex.search(out),
-                         "Pattern '%s' should not be found in: %s" % (libtoy_regex.pattern, out))
-        self.assertTrue(notfound.search(out),
-                        "Pattern '%s' should be found in: %s" % (notfound.pattern, out))
+            res = run_shell_cmd(f"ldd {toyapp_bin}")
+        self.assertFalse(libtoy_regex.search(res.output),
+                         f"Pattern '{libtoy_regex.pattern}' should not be found in: {res.output}")
+        self.assertTrue(notfound.search(res.output),
+                        f"Pattern '{notfound.pattern}' should be found in: {res.output}")
 
         # test again with list of library names passed to --filter-rpath-sanity-libs
         args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libfoo.so,libtoy.so,libbar.so']
@@ -2865,16 +2867,16 @@ class ToyBuildTest(EnhancedTestCase):
             self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("readelf -d %s" % toyapp_bin, simple=False)
+            res = run_shell_cmd(f"readelf -d {toyapp_bin}")
         self.assertFalse(rpath_regex.search(out),
-                         "Pattern '%s' should not be found in: %s" % (rpath_regex.pattern, out))
+                         f"Pattern '{rpath_regex.pattern}' should not be found in: {res.output}")
 
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("ldd %s" % toyapp_bin, simple=False)
-        self.assertFalse(libtoy_regex.search(out),
-                         "Pattern '%s' should not be found in: %s" % (libtoy_regex.pattern, out))
-        self.assertTrue(notfound.search(out),
-                        "Pattern '%s' should be found in: %s" % (notfound.pattern, out))
+            res = run_shell_cmd(f"ldd {toyapp_bin}")
+        self.assertFalse(libtoy_regex.search(res.output),
+                         f"Pattern '{libtoy_regex.pattern}' should not be found in: {res.output}")
+        self.assertTrue(notfound.search(res.output),
+                        f"Pattern '{notfound.pattern}' should be found in: {res.output}")
 
     def test_toy_modaltsoftname(self):
         """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
