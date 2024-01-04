@@ -2963,7 +2963,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r"^  >> running command:",
                 r"\t\[started at: .*\]",
                 r"\t\[working dir: .*\]",
-                r"\t\[output logged in .*\]",
+                r"\t\[output saved to .*\]",
                 r"\tgcc toy.c -o toy\n"
                 r'',
             ]),
