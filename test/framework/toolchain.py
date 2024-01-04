@@ -50,7 +50,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir
 from easybuild.tools.filetools import read_file, symlink, write_file, which
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.mpi import get_mpi_cmd_template
 from easybuild.tools.toolchain.toolchain import env_vars_external_module
@@ -2366,8 +2366,8 @@ class ToolchainTest(EnhancedTestCase):
 
         # simplest possible compiler command
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("%s gcc '' '%s' -c foo.c" % (script, rpath_inc), simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(f"{script} gcc '' '{rpath_inc}' -c foo.c")
+        self.assertEqual(res.exit_code, 0)
         cmd_args = [
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
@@ -2378,12 +2378,12 @@ class ToolchainTest(EnhancedTestCase):
             "'-c'",
             "'foo.c'",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # linker command, --enable-new-dtags should be replaced with --disable-new-dtags
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("%s ld '' '%s' --enable-new-dtags foo.o" % (script, rpath_inc), simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(f"{script} ld '' '{rpath_inc}' --enable-new-dtags foo.o")
+        self.assertEqual(res.exit_code, 0)
         cmd_args = [
             "'-rpath=%s/lib'" % self.test_prefix,
             "'-rpath=%s/lib64'" % self.test_prefix,
@@ -2394,12 +2394,12 @@ class ToolchainTest(EnhancedTestCase):
             "'--disable-new-dtags'",
             "'foo.o'",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # compiler command, -Wl,--enable-new-dtags should be replaced with -Wl,--disable-new-dtags
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("%s gcc '' '%s' -Wl,--enable-new-dtags foo.c" % (script, rpath_inc), simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(f"{script} gcc '' '{rpath_inc}' -Wl,--enable-new-dtags foo.c")
+        self.assertEqual(res.exit_code, 0)
         cmd_args = [
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
@@ -2410,12 +2410,12 @@ class ToolchainTest(EnhancedTestCase):
             "'-Wl,--disable-new-dtags'",
             "'foo.c'",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # test passing no arguments
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("%s gcc '' '%s'" % (script, rpath_inc), simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(f"{script} gcc '' '{rpath_inc}'")
+        self.assertEqual(res.exit_code, 0)
         cmd_args = [
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
@@ -2424,12 +2424,12 @@ class ToolchainTest(EnhancedTestCase):
             "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # test passing a single empty argument
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("%s ld.gold '' '%s' ''" % (script, rpath_inc), simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(f"{script} ld.gold '' '{rpath_inc}' ''")
+        self.assertEqual(res.exit_code, 0)
         cmd_args = [
             "'-rpath=%s/lib'" % self.test_prefix,
             "'-rpath=%s/lib64'" % self.test_prefix,
@@ -2439,13 +2439,13 @@ class ToolchainTest(EnhancedTestCase):
             "'--disable-new-dtags'",
             "''",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # single -L argument, but non-existing path => not used in RPATH, but -L option is retained
-        cmd = "%s gcc '' '%s' foo.c -L%s/foo -lfoo" % (script, rpath_inc, self.test_prefix)
+        cmd = f"{script} gcc '' '{rpath_inc}' foo.c -L{self.test_prefix}/foo -lfoo"
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
         cmd_args = [
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
@@ -2457,13 +2457,13 @@ class ToolchainTest(EnhancedTestCase):
             "'-L%s/foo'" % self.test_prefix,
             "'-lfoo'",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # single -L argument again, with existing path
         mkdir(os.path.join(self.test_prefix, 'foo'))
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
         cmd_args = [
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
@@ -2476,12 +2476,12 @@ class ToolchainTest(EnhancedTestCase):
             "'-L%s/foo'" % self.test_prefix,
             "'-lfoo'",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # relative paths passed to -L are *not* RPATH'ed in
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("%s gcc '' '%s' foo.c -L../lib -lfoo" % (script, rpath_inc), simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(f"{script} gcc '' '{rpath_inc}' foo.c -L../lib -lfoo")
+        self.assertEqual(res.exit_code, 0)
         cmd_args = [
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
@@ -2493,13 +2493,13 @@ class ToolchainTest(EnhancedTestCase):
             "'-L../lib'",
             "'-lfoo'",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # single -L argument, with value separated by a space
-        cmd = "%s gcc '' '%s' foo.c -L   %s/foo -lfoo" % (script, rpath_inc, self.test_prefix)
+        cmd = f"{script} gcc '' '{rpath_inc}' foo.c -L   {self.test_prefix}/foo -lfoo"
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
         cmd_args = [
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
@@ -2512,7 +2512,7 @@ class ToolchainTest(EnhancedTestCase):
             "'-L%s/foo'" % self.test_prefix,
             "'-lfoo'",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         mkdir(os.path.join(self.test_prefix, 'bar'))
         mkdir(os.path.join(self.test_prefix, 'lib64'))
@@ -2534,8 +2534,8 @@ class ToolchainTest(EnhancedTestCase):
             '-L%s/bar' % self.test_prefix,
         ])
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
         cmd_args = [
             "'-rpath=%s/lib'" % self.test_prefix,
             "'-rpath=%s/lib64'" % self.test_prefix,
@@ -2556,7 +2556,7 @@ class ToolchainTest(EnhancedTestCase):
             "'-L/usr/lib'",
             "'-L%s/bar'" % self.test_prefix,
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # test specifying of custom rpath filter
         cmd = ' '.join([
@@ -2572,8 +2572,8 @@ class ToolchainTest(EnhancedTestCase):
             '-lbar',
         ])
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
         cmd_args = [
             "'-rpath=%s/lib'" % self.test_prefix,
             "'-rpath=%s/lib64'" % self.test_prefix,
@@ -2589,7 +2589,7 @@ class ToolchainTest(EnhancedTestCase):
             "'-L/bar'",
             "'-lbar'",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # slightly trimmed down real-life example (compilation of XZ)
         for subdir in ['icc/lib/intel64', 'imkl/lib', 'imkl/mkl/lib/intel64', 'gettext/lib']:
@@ -2612,8 +2612,8 @@ class ToolchainTest(EnhancedTestCase):
             '-Wl,/example/software/XZ/5.2.2-intel-2016b/lib',
         ])
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("%s icc '' '%s' %s" % (script, rpath_inc, args), simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(f"{script} icc '' '{rpath_inc}' {args}")
+        self.assertEqual(res.exit_code, 0)
         cmd_args = [
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
@@ -2640,7 +2640,7 @@ class ToolchainTest(EnhancedTestCase):
             "'-Wl,-rpath'",
             "'-Wl,/example/software/XZ/5.2.2-intel-2016b/lib'",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # trimmed down real-life example involving quotes and escaped quotes (compilation of GCC)
         args = [
@@ -2657,8 +2657,8 @@ class ToolchainTest(EnhancedTestCase):
         ]
         cmd = "%s g++ '' '%s' %s" % (script, rpath_inc, ' '.join(args))
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
 
         cmd_args = [
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
@@ -2678,15 +2678,16 @@ class ToolchainTest(EnhancedTestCase):
             "'-o' 'build/version.o'",
             "'../../gcc/version.c'",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # verify that no -rpath arguments are injected when command is run in 'version check' mode
         for extra_args in ["-v", "-V", "--version", "-dumpversion", "-v -L/test/lib"]:
             cmd = "%s g++ '' '%s' %s" % (script, rpath_inc, extra_args)
             with self.mocked_stdout_stderr():
-                out, ec = run_cmd(cmd, simple=False)
-            self.assertEqual(ec, 0)
-            self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(["'%s'" % x for x in extra_args.split(' ')]))
+                res = run_shell_cmd(cmd)
+            self.assertEqual(res.exit_code, 0)
+            cmd_args = ' '.join(["'%s'" % x for x in extra_args.split(' ')])
+            self.assertEqual(res.output.strip(), f"CMD_ARGS=({cmd_args})")
 
         # if a compiler command includes "-x c++-header" or "-x c-header" (which imply no linking is done),
         # we should *not* inject -Wl,-rpath options, since those enable linking as a side-effect;
@@ -2699,10 +2700,10 @@ class ToolchainTest(EnhancedTestCase):
         for extra_args in test_cases:
             cmd = "%s g++ '' '%s' foo.c -O2 %s" % (script, rpath_inc, extra_args)
             with self.mocked_stdout_stderr():
-                out, ec = run_cmd(cmd, simple=False)
-            self.assertEqual(ec, 0)
+                res = run_shell_cmd(cmd)
+            self.assertEqual(res.exit_code, 0)
             cmd_args = ["'foo.c'", "'-O2'"] + ["'%s'" % x for x in extra_args.split(' ')]
-            self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+            self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # check whether $LIBRARY_PATH is taken into account
         test_cmd_gcc = "%s gcc '' '%s' -c foo.c" % (script, rpath_inc)
@@ -2768,16 +2769,16 @@ class ToolchainTest(EnhancedTestCase):
             os.environ['LIBRARY_PATH'] = ':'.join(library_path)
 
             with self.mocked_stdout_stderr():
-                out, ec = run_cmd(test_cmd_gcc, simple=False)
-            self.assertEqual(ec, 0)
+                res = run_shell_cmd(test_cmd_gcc)
+            self.assertEqual(res.exit_code, 0)
             cmd_args = pre_cmd_args_gcc + ["'-Wl,-rpath=%s'" % x for x in library_path if x] + post_cmd_args_gcc
-            self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+            self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
             with self.mocked_stdout_stderr():
-                out, ec = run_cmd(test_cmd_ld, simple=False)
-            self.assertEqual(ec, 0)
+                res = run_shell_cmd(test_cmd_ld)
+            self.assertEqual(res.exit_code, 0)
             cmd_args = pre_cmd_args_ld + ["'-rpath=%s'" % x for x in library_path if x] + post_cmd_args_ld
-            self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+            self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # paths already listed via -L don't get included again as RPATH option
         new_lib64 = os.path.join(self.test_prefix, 'new', 'lib64')
@@ -2796,19 +2797,19 @@ class ToolchainTest(EnhancedTestCase):
         os.environ['LIBRARY_PATH'] = ':'.join(library_path)
 
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd(test_cmd_gcc, simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(test_cmd_gcc)
+        self.assertEqual(res.exit_code, 0)
         # no -L options in GCC command, so all $LIBRARY_PATH entries are retained except for last one (lib symlink)
         cmd_args = pre_cmd_args_gcc + ["'-Wl,-rpath=%s'" % x for x in library_path[:-1] if x] + post_cmd_args_gcc
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd(test_cmd_ld, simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(test_cmd_ld)
+        self.assertEqual(res.exit_code, 0)
         # only new path from $LIBRARY_PATH is included as -rpath option,
         # since others are already included via corresponding -L flag
         cmd_args = pre_cmd_args_ld + ["'-rpath=%s'" % new_lib64] + post_cmd_args_ld
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
     def test_toolchain_prepare_rpath(self):
         """Test toolchain.prepare under --rpath"""
@@ -2926,8 +2927,8 @@ class ToolchainTest(EnhancedTestCase):
             '-DX="\\"\\""',
         ])
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd(cmd)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
         expected = ' '.join([
             '-Wl,--disable-new-dtags',
             '-Wl,-rpath=%s/foo' % self.test_prefix,
@@ -2937,7 +2938,7 @@ class ToolchainTest(EnhancedTestCase):
             '$FOO',
             '-DX=""',
         ])
-        self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
+        self.assertEqual(res.output.strip(), expected % {'user': os.getenv('USER')})
 
         # check whether 'stubs' library directory are correctly filtered out
         paths = [
@@ -2963,8 +2964,8 @@ class ToolchainTest(EnhancedTestCase):
 
         cmd = "g++ ${USER}.c %s" % ' '.join(args)
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
 
         expected = ' '.join([
             '-Wl,--disable-new-dtags',
@@ -2989,7 +2990,7 @@ class ToolchainTest(EnhancedTestCase):
             '-L%s/prefix/software/bleh/0/lib/stubs' % self.test_prefix,
             '-L%s/prefix/software/foobar/4.5/stubsbutnotreally' % self.test_prefix,
         ])
-        self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
+        self.assertEqual(res.output.strip(), expected % {'user': os.getenv('USER')})
 
         # calling prepare() again should *not* result in wrapping the existing RPATH wrappers
         # this can happen when building extensions
