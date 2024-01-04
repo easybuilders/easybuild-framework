@@ -64,7 +64,7 @@ from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, opts_dict_to_eb_opts, parse_external_modules_metadata
 from easybuild.tools.options import set_up_configuration, set_tmpdir, use_color
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import HAVE_ARCHSPEC
 from easybuild.tools.version import VERSION
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup, init_config
@@ -3760,8 +3760,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # try and make sure top-level directory is in $PYTHONPATH if it isn't yet
         pythonpath = self.env_pythonpath
         with self.mocked_stdout_stderr():
-            _, ec = run_cmd("cd %s; python -c 'import easybuild.framework'" % self.test_prefix, log_ok=False)
-        if ec > 0:
+            res = run_shell_cmd("cd {self.test_prefix}; python -c 'import easybuild.framework'", fail_on_error=False)
+        if res.exit_code != 0:
             pythonpath = '%s:%s' % (topdir, pythonpath)
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -3776,8 +3776,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--avail-module-naming-schemes']
         test_cmd = self.mk_eb_test_cmd(args)
         with self.mocked_stdout_stderr():
-            logtxt, _ = run_cmd(test_cmd, simple=False)
-        self.assertFalse(mns_regex.search(logtxt), "Unexpected pattern '%s' found in: %s" % (mns_regex.pattern, logtxt))
+            res = run_shell_cmd(test_cmd)
+        self.assertFalse(mns_regex.search(res.output),
+                         f"Unexpected pattern '{mns_regex.pattern}' found in: {res.output}")
 
         # include extra test MNS
         mns_txt = '\n'.join([
@@ -3793,8 +3794,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args.append('--include-module-naming-schemes=%s/*.py' % self.test_prefix)
         test_cmd = self.mk_eb_test_cmd(args)
         with self.mocked_stdout_stderr():
-            logtxt, _ = run_cmd(test_cmd, simple=False)
-        self.assertTrue(mns_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (mns_regex.pattern, logtxt))
+            res = run_shell_cmd(test_cmd)
+        self.assertTrue(mns_regex.search(res.output),
+                        f"Pattern '{mns_regex.pattern}' *not* found in: {res.output}")
 
     def test_use_included_module_naming_scheme(self):
         """Test using an included module naming scheme."""
@@ -3850,8 +3852,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # try and make sure top-level directory is in $PYTHONPATH if it isn't yet
         pythonpath = self.env_pythonpath
         with self.mocked_stdout_stderr():
-            _, ec = run_cmd("cd %s; python -c 'import easybuild.framework'" % self.test_prefix, log_ok=False)
-        if ec > 0:
+            res = run_shell_cmd(f"cd {self.test_prefix}; python -c 'import easybuild.framework'", fail_on_error=False)
+        if res.exit_code != 0:
             pythonpath = '%s:%s' % (topdir, pythonpath)
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -3869,8 +3871,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--list-toolchains']
         test_cmd = self.mk_eb_test_cmd(args)
         with self.mocked_stdout_stderr():
-            logtxt, _ = run_cmd(test_cmd, simple=False)
-        self.assertFalse(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
+            res = run_shell_cmd(test_cmd)
+        self.assertFalse(tc_regex.search(res.output),
+                         f"Pattern '{tc_regex.pattern}' *not* found in: {res.output}")
 
         # include extra test toolchain
         comp_txt = '\n'.join([
@@ -3891,8 +3894,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args.append('--include-toolchains=%s/*.py,%s/*/*.py' % (self.test_prefix, self.test_prefix))
         test_cmd = self.mk_eb_test_cmd(args)
         with self.mocked_stdout_stderr():
-            logtxt, _ = run_cmd(test_cmd, simple=False)
-        self.assertTrue(tc_regex.search(logtxt), "Pattern '%s' found in: %s" % (tc_regex.pattern, logtxt))
+            res = run_shell_cmd(test_cmd)
+        self.assertTrue(tc_regex.search(res.output),
+                        f"Pattern '{tc_regex.pattern}' found in: {res.output}")
 
     def test_cleanup_tmpdir(self):
         """Test --cleanup-tmpdir."""
@@ -5164,13 +5168,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("function module { echo $@; } && source %s && echo FC: $FC" % env_script, simple=False)
+            res = run_shell_cmd(f"function module {{ echo $@; }} && source {env_script} && echo FC: $FC")
         expected_out = '\n'.join([
             "load GCC/4.6.4",
             "load hwloc/1.11.8-GCC-4.6.4",
             "FC: gfortran",
         ])
-        self.assertEqual(out.strip(), expected_out)
+        self.assertEqual(res.output.strip(), expected_out)
 
     def test_stop(self):
         """Test use of --stop."""
