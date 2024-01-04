@@ -2421,12 +2421,13 @@ class FileToolsTest(EnhancedTestCase):
                 self.assertTrue(fp.endswith('.eb') or os.path.basename(fp) == 'checksums.json')
 
         # set up some files to create actual index file for
-        ft.copy_dir(os.path.join(test_ecs, 'g'), os.path.join(self.test_prefix, 'g'))
+        ecs_dir = os.path.join(self.test_prefix, 'easyconfigs')
+        ft.copy_dir(os.path.join(test_ecs, 'g'), ecs_dir)
 
         # test dump_index function
-        index_fp = ft.dump_index(self.test_prefix)
+        index_fp = ft.dump_index(ecs_dir)
         self.assertExists(index_fp)
-        self.assertTrue(os.path.samefile(self.test_prefix, os.path.dirname(index_fp)))
+        self.assertTrue(os.path.samefile(ecs_dir, os.path.dirname(index_fp)))
 
         datestamp_pattern = r"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]+"
         expected_header = [
@@ -2434,9 +2435,9 @@ class FileToolsTest(EnhancedTestCase):
             "# valid until: " + datestamp_pattern,
         ]
         expected = [
-            os.path.join('g', 'gzip', 'gzip-1.4.eb'),
-            os.path.join('g', 'GCC', 'GCC-7.3.0-2.30.eb'),
-            os.path.join('g', 'gompic', 'gompic-2018a.eb'),
+            os.path.join('gzip', 'gzip-1.4.eb'),
+            os.path.join('GCC', 'GCC-7.3.0-2.30.eb'),
+            os.path.join('gompic', 'gompic-2018a.eb'),
         ]
         index_txt = ft.read_file(index_fp)
         for fn in expected_header + expected:
@@ -2446,28 +2447,28 @@ class FileToolsTest(EnhancedTestCase):
         # test load_index function
         self.mock_stderr(True)
         self.mock_stdout(True)
-        index = ft.load_index(self.test_prefix)
+        index = ft.load_index(ecs_dir)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
 
         self.assertFalse(stderr)
-        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
+        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 26)
+        self.assertEqual(len(index), 25)
         for fn in expected:
             self.assertIn(fn, index)
 
         # dump_index will not overwrite existing index without force
         error_pattern = "File exists, not overwriting it without --force"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.dump_index, self.test_prefix)
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.dump_index, ecs_dir)
 
         ft.remove_file(index_fp)
 
         # test creating index file that's infinitely valid
-        index_fp = ft.dump_index(self.test_prefix, max_age_sec=0)
+        index_fp = ft.dump_index(ecs_dir, max_age_sec=0)
         index_txt = ft.read_file(index_fp)
         expected_header[1] = r"# valid until: 9999-12-31 23:59:59\.9+"
         for fn in expected_header + expected:
@@ -2476,40 +2477,40 @@ class FileToolsTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        index = ft.load_index(self.test_prefix)
+        index = ft.load_index(ecs_dir)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
 
         self.assertFalse(stderr)
-        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
+        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 26)
+        self.assertEqual(len(index), 25)
         for fn in expected:
             self.assertIn(fn, index)
 
         ft.remove_file(index_fp)
 
         # test creating index file that's only valid for a (very) short amount of time
-        index_fp = ft.dump_index(self.test_prefix, max_age_sec=1)
+        index_fp = ft.dump_index(ecs_dir, max_age_sec=1)
         time.sleep(3)
         self.mock_stderr(True)
         self.mock_stdout(True)
-        index = ft.load_index(self.test_prefix)
+        index = ft.load_index(ecs_dir)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertIsNone(index)
         self.assertFalse(stdout)
-        regex = re.compile(r"WARNING: Index for %s is no longer valid \(too old\), so ignoring it" % self.test_prefix)
+        regex = re.compile(r"WARNING: Index for %s is no longer valid \(too old\), so ignoring it" % ecs_dir)
         self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
         # check whether load_index takes into account --ignore-index
         init_config(build_options={'ignore_index': True})
-        self.assertEqual(ft.load_index(self.test_prefix), None)
+        self.assertEqual(ft.load_index(ecs_dir), None)
 
     def test_search_file(self):
         """Test search_file function."""
