@@ -349,6 +349,10 @@ class EasyBuildOptions(GeneralOption):
                                      'strlist', 'store', DEFAULT_ALLOW_LOADED_MODULES),
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
                                             None, 'store_true', False),
+            'allow-unrecognized-configure-options': ("Allow builds with unrecognized arguments passed to ./configure "
+                                                     "(NOT RECOMMENDED! It might hide actual errors e.g. "
+                                                     "misspelling of intended or changed options)",
+                                                     None, 'store_true', False),
             'allow-use-as-root-and-accept-consequences': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)",
                                                           None, 'store_true', False),
             'backup-modules': ("Back up an existing module file, if any. Only works when using --module-only",
