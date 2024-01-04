@@ -43,7 +43,7 @@ from easybuild.tools.repository.gitrepo import GitRepository
 from easybuild.tools.repository.hgrepo import HgRepository
 from easybuild.tools.repository.svnrepo import SvnRepository
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.version import VERSION
 
 
@@ -95,10 +95,10 @@ class RepositoryTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp()
         cmd = "cd %s && git clone --bare %s" % (tmpdir, test_repo_url)
         with self.mocked_stdout_stderr():
-            _, ec = run_cmd(cmd, simple=False, log_all=False, log_ok=False)
+            res = run_shell_cmd(cmd, fail_on_error=False)
 
         # skip remainder of test if creating bare git repo didn't work
-        if ec == 0:
+        if res.exit_code == 0:
             repo = GitRepository(os.path.join(tmpdir, 'testrepository.git'))
             repo.init()
             toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')

@@ -32,7 +32,7 @@ from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.easyblocks.toy import EB_toy, compose_toy_build_cmd
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 
 
 class Toy_Extension(ExtensionEasyBlock):
@@ -67,7 +67,7 @@ class Toy_Extension(ExtensionEasyBlock):
             EB_toy.build_step(self.master, name=self.name, cfg=self.cfg)
 
             if self.cfg['toy_ext_param']:
-                run_cmd(self.cfg['toy_ext_param'])
+                run_shell_cmd(self.cfg['toy_ext_param'])
 
             return self.module_generator.set_environment('TOY_EXT_%s' % self.name.upper().replace('-', '_'), self.name)
 
