@@ -189,10 +189,12 @@ DEFAULT_CONFIG = {
     'exts_list': [[], 'List with extensions added to the base installation', EXTENSIONS],
 
     # MODULES easyconfig parameters
+    'allow_append_abs_path': [False, "Allow specifying absolute paths to append in modextrapaths_append", MODULES],
     'allow_prepend_abs_path': [False, "Allow specifying absolute paths to prepend in modextrapaths", MODULES],
     'include_modpath_extensions': [True, "Include $MODULEPATH extensions specified by module naming scheme.", MODULES],
     'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
+    'modextrapaths_append': [{}, "Extra paths to be appended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
     'modloadmsg': [{}, "Message that should be printed when generated module is loaded", MODULES],
     'modunloadmsg': [{}, "Message that should be printed when generated module is unloaded", MODULES],
