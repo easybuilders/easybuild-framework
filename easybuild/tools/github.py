@@ -2008,17 +2008,18 @@ def check_github():
     github_user = build_option('github_user')
     github_account = build_option('github_org') or build_option('github_user')
 
-    if github_user is None:
-        check_res = "(none available) => FAIL"
-        status['--new-pr'] = status['--update-pr'] = status['--upload-test-report'] = False
-    else:
+    if github_user:
         check_res = "%s => OK" % github_user
+    else:
+        check_res = "%s => FAIL" % ('(none available)' if github_user is None else '(empty)')
+        status['--new-pr'] = status['--update-pr'] = status['--upload-test-report'] = False
 
     print_msg(check_res, log=_log, prefix=False)
 
     # check GitHub token
     print_msg("* GitHub token...", log=_log, prefix=False, newline=False)
     github_token = fetch_github_token(github_user)
+    github_token_valid = False
     if github_token is None:
         check_res = "(no token found) => FAIL"
     else:
@@ -2027,6 +2028,7 @@ def check_github():
         token_descr = partial_token + " (len: %d)" % len(github_token)
         if validate_github_token(github_token, github_user):
             check_res = "%s => OK (validated)" % token_descr
+            github_token_valid = True
         else:
             check_res = "%s => FAIL (validation failed)" % token_descr
 
@@ -2119,7 +2121,7 @@ def check_github():
         try:
             getattr(git_repo.remotes, remote_name).push(branch_name, delete=True)
         except GitCommandError as err:
-            sys.stderr.write("WARNING: failed to delete test branch from GitHub: %s\n" % err)
+            print_warning("failed to delete test branch from GitHub: %s" % err, log=_log)
 
     # test creating a gist
     print_msg("* creating gists...", log=_log, prefix=False, newline=False)
@@ -2137,17 +2139,33 @@ def check_github():
 
     if gist_url and re.match('https://gist.github.com/%s/[0-9a-f]+$' % github_user, gist_url):
         check_res = "OK"
-    else:
+    elif not github_user:
+        check_res = "FAIL (no GitHub user specified)"
+    elif not github_token:
+        check_res = "FAIL (missing github token)"
+    elif not github_token_valid:
+        check_res = "FAIL (invalid github token)"
+    elif gist_url:
         check_res = "FAIL (gist_url: %s)" % gist_url
-        status['--upload-test-report'] = False
+    else:
+        check_res = "FAIL"
 
+    if 'FAIL' in check_res:
+        status['--upload-test-report'] = False
     print_msg(check_res, log=_log, prefix=False)
 
     # check whether location to local working directories for Git repositories is available (not strictly needed)
     print_msg("* location to Git working dirs... ", log=_log, prefix=False, newline=False)
     git_working_dirs_path = build_option('git_working_dirs_path')
     if git_working_dirs_path:
-        check_res = "OK (%s)" % git_working_dirs_path
+        repos = [GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_FRAMEWORK_REPO]
+        missing_repos = [repo for repo in repos if not os.path.exists(os.path.join(git_working_dirs_path, repo))]
+        if not missing_repos:
+            check_res = "OK (%s)" % git_working_dirs_path
+        elif missing_repos != repos:
+            check_res = "OK (%s) but missing %s (suboptimal)" % (git_working_dirs_path, ', '.join(missing_repos))
+        else:
+            check_res = "set (%s) but not populated (suboptimal)" % git_working_dirs_path
     else:
         check_res = "not found (suboptimal)"
 
