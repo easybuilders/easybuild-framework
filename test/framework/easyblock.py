@@ -644,8 +644,8 @@ class EasyBlockTest(EnhancedTestCase):
         installver = '3.14-gompi-2018a'
 
         # also check how absolute paths specified in modexself.contents = '\n'.join([
-        self.contents += "\nmodextrapaths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
-        self.contents += "\nmodextrapaths_append = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
+        self.contents += "\nmodextrapaths = {'TEST_PATH_VAR_APPEND': ['foo', '/test/absolute/path', 'bar']}"
+        self.contents += "\nmodextrapaths_append = {'TEST_PATH_VAR_APPEND': ['foo', '/test/absolute/path', 'bar']}"
         self.writeEC()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
@@ -677,9 +677,9 @@ class EasyBlockTest(EnhancedTestCase):
             r"^prepend[-_]path.*TEST_PATH_VAR.*root.*foo",
             r"^prepend[-_]path.*TEST_PATH_VAR.*/test/absolute/path",
             r"^prepend[-_]path.*TEST_PATH_VAR.*root.*bar",
-            r"^append[-_]path.*TEST_PATH_VAR.*root.*foo",
-            r"^append[-_]path.*TEST_PATH_VAR.*/test/absolute/path",
-            r"^append[-_]path.*TEST_PATH_VAR.*root.*bar",
+            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*root.*foo",
+            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*/test/absolute/path",
+            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*root.*bar",
         ]
         for pattern in patterns:
             self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
@@ -1178,7 +1178,7 @@ class EasyBlockTest(EnhancedTestCase):
             'PATH': ('xbin', 'pibin'),
             'CPATH': 'pi/include',
         }
-        modextrapaths_append = modextrapaths.copy()
+        modextrapaths_append = {'APPEND_PATH': 'append_path'}
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
