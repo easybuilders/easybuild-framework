@@ -644,7 +644,7 @@ class EasyBlockTest(EnhancedTestCase):
         installver = '3.14-gompi-2018a'
 
         # also check how absolute paths specified in modexself.contents = '\n'.join([
-        self.contents += "\nmodextrapaths = {'TEST_PATH_VAR_APPEND': ['foo', '/test/absolute/path', 'bar']}"
+        self.contents += "\nmodextrapaths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
         self.contents += "\nmodextrapaths_append = {'TEST_PATH_VAR_APPEND': ['foo', '/test/absolute/path', 'bar']}"
         self.writeEC()
         ec = EasyConfig(self.eb_file)
