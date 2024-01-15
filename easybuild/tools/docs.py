@@ -307,7 +307,7 @@ def avail_easyconfig_licenses_md():
     lics = sorted(EASYCONFIG_LICENSES_DICT.items())
     table_values = [
         ["``%s``" % lic().name for _, lic in lics],
-        ["%s" % lic().description for _, lic in lics],
+        [lic().description or '' for _, lic in lics],
         ["``%s``" % lic().version for _, lic in lics],
     ]
 
@@ -1250,10 +1250,9 @@ def avail_toolchain_opts(name, output_format=FORMAT_TXT):
 
     tc_dict = {}
     for cst in ['COMPILER_SHARED_OPTS', 'COMPILER_UNIQUE_OPTS', 'MPI_SHARED_OPTS', 'MPI_UNIQUE_OPTS']:
-        if hasattr(tc, cst):
-            opts = getattr(tc, cst)
-            if opts is not None:
-                tc_dict.update(opts)
+        opts = getattr(tc, cst, None)
+        if opts is not None:
+            tc_dict.update(opts)
 
     return generate_doc('avail_toolchain_opts_%s' % output_format, [name, tc_dict])
 
@@ -1267,7 +1266,7 @@ def avail_toolchain_opts_md(name, tc_dict):
     tc_items = sorted(tc_dict.items())
     table_values = [
         ['``%s``' % val[0] for val in tc_items],
-        ['%s' % val[1][1] for val in tc_items],
+        [val[1][1] for val in tc_items],
         ['``%s``' % val[1][0] for val in tc_items],
     ]
 
@@ -1285,7 +1284,7 @@ def avail_toolchain_opts_rst(name, tc_dict):
     tc_items = sorted(tc_dict.items())
     table_values = [
         ['``%s``' % val[0] for val in tc_items],
-        ['%s' % val[1][1] for val in tc_items],
+        [val[1][1] for val in tc_items],
         ['``%s``' % val[1][0] for val in tc_items],
     ]
 

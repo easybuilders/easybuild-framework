@@ -370,10 +370,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.orig_HAVE_ARCHSPEC = st.HAVE_ARCHSPEC
         self.orig_HAVE_DISTRO = st.HAVE_DISTRO
         self.orig_ETC_OS_RELEASE = st.ETC_OS_RELEASE
-        if hasattr(st, 'archspec_cpu_host'):
-            self.orig_archspec_cpu_host = st.archspec_cpu_host
-        else:
-            self.orig_archspec_cpu_host = None
+        self.orig_archspec_cpu_host = getattr(st, 'archspec_cpu_host', None)
 
     def tearDown(self):
         """Cleanup after systemtools test."""

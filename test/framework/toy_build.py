@@ -1536,7 +1536,7 @@ class ToyBuildTest(EnhancedTestCase):
             mod_txt_regex_pattern = '\n'.join([
                 r'help\(\[==\[',
                 r'',
-                r'%s' % help_txt,
+                help_txt,
                 r'\]==\]\)',
                 r'',
                 r'whatis\(\[==\[Description: Toy C program, 100% toy.\]==\]\)',
@@ -1573,7 +1573,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'proc ModulesHelp { } {',
                 r'    puts stderr {',
                 r'',
-                r'%s' % help_txt,
+                help_txt,
                 r'    }',
                 r'}',
                 r'',
