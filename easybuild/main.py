@@ -333,7 +333,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     categorized_paths = categorize_files_by_type(eb_args)
 
-    pr_options = [
+    set_pr_options = [opt for opt in (
         'new_branch_github',
         'new_pr',
         'new_pr_from_branch',
@@ -342,8 +342,8 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         'sync_pr_with_develop',
         'update_branch_github',
         'update_pr',
+        ) if getattr(options, opt)
     ]
-    set_pr_options = [opt for opt in pr_options if getattr(options, opt)]
     any_pr_option_set = len(set_pr_options) > 0
     if len(set_pr_options) > 1:
         raise EasyBuildError("The following options are set but incompatible: %s.\nRemove at least one!",
