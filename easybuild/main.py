@@ -346,7 +346,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     ]
     any_pr_option_set = len(set_pr_options) > 0
     if len(set_pr_options) > 1:
-        raise EasyBuildError("The following options are set but incompatible: %s.\nRemove at least one!",
+        raise EasyBuildError("The following options are set but incompatible: %s.\nYou can only use one at a time!",
                              ', '.join(['--' + opt.replace('_', '-') for opt in set_pr_options]))
     # command line options that do not require any easyconfigs to be specified
     no_ec_opts = [options.aggregate_regtest, options.regtest, any_pr_option_set, search_query]
