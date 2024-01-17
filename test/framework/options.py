@@ -3920,6 +3920,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_cases = [
             ['--new-pr', 'dummy.eb', '--preview-pr'],
             ['--new-pr', 'dummy.eb', '--update-pr', '42'],
+            ['--new-pr', 'dummy.eb', '--sync-pr-with-develop', '42'],
+            ['--new-pr', 'dummy.eb', '--new-pr-from-branch', 'mybranch'],
         ]
         for args in test_cases:
             error_pattern = "The following options are set but incompatible.* " + args[0]
