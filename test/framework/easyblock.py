@@ -1179,7 +1179,7 @@ class EasyBlockTest(EnhancedTestCase):
             'CPATH': 'pi/include',
         }
         modextrapaths_append = {
-            'PATH': (':', 'xbin', 'pibin'),
+            'PATH2': (':', 'xbin', 'pibin'),
             'APPEND_PATH': 'append_path',
         }
         self.contents = '\n'.join([
