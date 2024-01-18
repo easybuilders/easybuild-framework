@@ -981,13 +981,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         abspaths = []
         for path in paths:
-            if os.path.isabs(path) or path.startswith(':'):
-                if allow_abs:
-                    abspaths.append(path)
-                else:
-                    raise EasyBuildError("Absolute path %s passed to update_paths which only expects relative paths.",
-                                         path)
-            else:
+            if path == ':':
+                abspaths.append(path)
+            elif os.path.isabs(path) and not allow_abs:
+                raise EasyBuildError("Absolute path %s passed to update_paths which only expects relative paths.",
+                                     path)
+            elif not os.path.isabs(path):
                 # prepend/append $root (= installdir) for (non-empty) relative paths
                 if path:
                     if expand_relpaths:
@@ -996,6 +995,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
                         abspaths.append(path)
                 else:
                     abspaths.append('$root')
+            else:
+                abspaths.append(path)
 
         statements = ['%s-path\t%s\t\t%s\n' % (update_type, key, p) for p in abspaths]
         return ''.join(statements)
@@ -1453,7 +1454,9 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         abspaths = []
         for path in paths:
-            if os.path.isabs(path) or path.startswith(':'):
+            if path == ':':
+                abspaths.append(path)
+            elif os.path.isabs(path):
                 if allow_abs:
                     abspaths.append(quote_str(path))
                 else:
