@@ -1421,6 +1421,14 @@ class EasyBlock(object):
                                      value, type(value))
             lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
 
+        for (key, value) in self.cfg['modextrapaths_append'].items():
+            if isinstance(value, string_type):
+                value = [value]
+            elif not isinstance(value, (tuple, list)):
+                raise EasyBuildError("modextrapaths_append dict value %s (type: %s) is not a list or tuple",
+                                     value, type(value))
+            lines.append(self.module_generator.append_paths(key, value, allow_abs=self.cfg['allow_append_abs_path']))
+
         modloadmsg = self.cfg['modloadmsg']
         if modloadmsg:
             # add trailing newline to prevent that shell prompt is 'glued' to module load message

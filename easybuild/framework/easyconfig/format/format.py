@@ -73,7 +73,7 @@ GROUPED_PARAMS = [
 ]
 LAST_PARAMS = ['exts_default_options', 'exts_list',
                'sanity_check_paths', 'sanity_check_commands',
-               'modextrapaths', 'modextravars',
+               'modextrapaths', 'modextrapaths_append', 'modextravars',
                'moduleclass']
 
 SANITY_CHECK_PATHS_DIRS = 'dirs'
