@@ -1455,7 +1455,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         abspaths = []
         for path in paths:
             if path == ':':
-                abspaths.append(path)
+                abspaths.append(quote_str(path))
             elif os.path.isabs(path):
                 if allow_abs:
                     abspaths.append(quote_str(path))
