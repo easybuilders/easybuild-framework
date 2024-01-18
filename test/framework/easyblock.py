@@ -1259,7 +1259,7 @@ class EasyBlockTest(EnhancedTestCase):
                     if get_module_syntax() == 'Tcl':
                         regex = re.compile(r'^prepend-path\s+%s\s+%s$' % (key, val), re.M)
                     elif get_module_syntax() == 'Lua':
-                        regex = re.compile(r'^prepend_path\("%s", "%s"\)\)$' % (key, val), re.M)
+                        regex = re.compile(r'^prepend_path\("%s", "%s"\)$' % (key, val), re.M)
                 elif get_module_syntax() == 'Tcl':
                     regex = re.compile(r'^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
                 elif get_module_syntax() == 'Lua':
@@ -1279,7 +1279,7 @@ class EasyBlockTest(EnhancedTestCase):
                     if get_module_syntax() == 'Tcl':
                         regex = re.compile(r'^append-path\s+%s\s+%s$' % (key, val), re.M)
                     elif get_module_syntax() == 'Lua':
-                        regex = re.compile(r'^append_path\("%s", "%s"\)\)$' % (key, val), re.M)
+                        regex = re.compile(r'^append_path\("%s", "%s"\)$' % (key, val), re.M)
                 if get_module_syntax() == 'Tcl':
                     regex = re.compile(r'^append-path\s+%s\s+\$root/%s$' % (key, val), re.M)
                 elif get_module_syntax() == 'Lua':
