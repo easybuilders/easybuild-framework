@@ -52,6 +52,7 @@ import stat
 import tempfile
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import easybuild.tools.environment as env
@@ -87,7 +88,7 @@ from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTE
 from easybuild.tools.hooks import MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP
 from easybuild.tools.hooks import POSTPROC_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP
 from easybuild.tools.hooks import SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook
-from easybuild.tools.run import RunShellCmdError, check_async_cmd, run_cmd, run_shell_cmd
+from easybuild.tools.run import RunShellCmdError, run_shell_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -1818,7 +1819,9 @@ class EasyBlock(object):
         self.log.experimental("Skipping installed extensions in parallel")
         print_msg("skipping installed extensions (in parallel)", log=self.log)
 
-        async_cmd_info_cache = {}
+        thread_pool = ThreadPoolExecutor(max_workers=self.cfg['parallel'])
+
+        async_shell_cmd_tasks = {}
         running_checks_ids = []
         installed_exts_ids = []
         exts_queue = list(enumerate(self.ext_instances[:]))
@@ -1831,14 +1834,14 @@ class EasyBlock(object):
             # first handle completed checks
             for idx in running_checks_ids[:]:
                 ext_name = self.ext_instances[idx].name
-                # don't read any output, just check whether command completed
-                async_cmd_info = check_async_cmd(*async_cmd_info_cache[idx], output_read_size=0, fail_on_error=False)
-                if async_cmd_info['done']:
-                    out, ec = async_cmd_info['output'], async_cmd_info['exit_code']
-                    self.log.info("exts_filter result for %s: exit code %s; output: %s", ext_name, ec, out)
+                # check whether command completed
+                task = async_shell_cmd_tasks[idx]
+                if task.done():
+                    res = task.result()
+                    self.log.info(f"exts_filter result for {ext_name}: exit code {res.exit_code}; output: {res.output}")
                     running_checks_ids.remove(idx)
-                    if ec == 0:
-                        print_msg("skipping extension %s" % ext_name, log=self.log)
+                    if res.exit_code == 0:
+                        print_msg(f"skipping extension {ext_name}", log=self.log)
                         installed_exts_ids.append(idx)
 
                     checked_exts_cnt += 1
@@ -1847,11 +1850,12 @@ class EasyBlock(object):
                     self.update_exts_progress_bar(exts_pbar_label)
 
             # start additional checks asynchronously
-            while exts_queue and len(running_checks_ids) < self.cfg['parallel']:
+            while exts_queue:
                 idx, ext = exts_queue.pop(0)
                 cmd, stdin = resolve_exts_filter_template(exts_filter, ext)
-                async_cmd_info_cache[idx] = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin,
-                                                    regexp=False, trace=False, asynchronous=True)
+                task = thread_pool.submit(run_shell_cmd, cmd, stdin=stdin, hidden=True,
+                                          fail_on_error=False, asynchronous=True)
+                async_shell_cmd_tasks[idx] = task
                 running_checks_ids.append(idx)
 
         # compose new list of extensions, skip over the ones that are already installed;
@@ -1863,6 +1867,8 @@ class EasyBlock(object):
                 self.log.info("Not skipping %s", ext.name)
 
         self.ext_instances = retained_ext_instances
+
+        thread_pool.shutdown()
 
     def install_extensions(self, install=True):
         """
