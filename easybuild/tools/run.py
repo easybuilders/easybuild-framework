@@ -45,10 +45,16 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import threading
 import time
 from collections import namedtuple
 from datetime import datetime
+
+try:
+    # get_native_id is only available in Python >= 3.8
+    from threading import get_native_id as get_thread_id
+except ImportError:
+    # get_ident is available in Python >= 3.3
+    from threading import get_ident as get_thread_id
 
 import easybuild.tools.asyncprocess as asyncprocess
 from easybuild.base import fancylogger
@@ -235,7 +241,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     thread_id = None
     if asynchronous:
-        thread_id = threading.get_native_id()
+        thread_id = get_thread_id()
         _log.info(f"Initiating running of shell command '{cmd_str}' via thread with ID {thread_id}")
 
     # auto-enable streaming of command output under --logtostdout/-l, unless it was disabled explicitely
