@@ -41,7 +41,6 @@ Authors:
 * Davide Vanzo (Vanderbilt University)
 * Caspar van Leeuwen (SURF)
 """
-
 import copy
 import glob
 import inspect
@@ -52,7 +51,7 @@ import stat
 import tempfile
 import time
 import traceback
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime
 
 import easybuild.tools.environment as env
@@ -1821,42 +1820,41 @@ class EasyBlock(object):
 
         thread_pool = ThreadPoolExecutor(max_workers=self.cfg['parallel'])
 
-        async_shell_cmd_tasks = {}
-        running_checks_ids = []
+        async_shell_cmd_tasks = []
         installed_exts_ids = []
         exts_queue = list(enumerate(self.ext_instances[:]))
         checked_exts_cnt = 0
         exts_cnt = len(self.ext_instances)
+        done_tasks = []
 
         # asynchronously run checks to see whether extensions are already installed
-        while exts_queue or running_checks_ids:
+        while exts_queue or async_shell_cmd_tasks:
 
             # first handle completed checks
-            for idx in running_checks_ids[:]:
+            for task in done_tasks:
+                async_shell_cmd_tasks.remove(task)
+                res = task.result()
+                idx = res.task_id
                 ext_name = self.ext_instances[idx].name
-                # check whether command completed
-                task = async_shell_cmd_tasks[idx]
-                if task.done():
-                    res = task.result()
-                    self.log.info(f"exts_filter result for {ext_name}: exit code {res.exit_code}; output: {res.output}")
-                    running_checks_ids.remove(idx)
-                    if res.exit_code == 0:
-                        print_msg(f"skipping extension {ext_name}", log=self.log)
-                        installed_exts_ids.append(idx)
+                self.log.info(f"exts_filter result for {ext_name}: exit code {res.exit_code}; output: {res.output}")
+                if res.exit_code == 0:
+                    print_msg(f"skipping extension {ext_name}", log=self.log)
+                    installed_exts_ids.append(idx)
 
-                    checked_exts_cnt += 1
-                    exts_pbar_label = "skipping installed extensions "
-                    exts_pbar_label += "(%d/%d checked)" % (checked_exts_cnt, exts_cnt)
-                    self.update_exts_progress_bar(exts_pbar_label)
+                checked_exts_cnt += 1
+                exts_pbar_label = "skipping installed extensions "
+                exts_pbar_label += "(%d/%d checked)" % (checked_exts_cnt, exts_cnt)
+                self.update_exts_progress_bar(exts_pbar_label)
 
             # start additional checks asynchronously
             while exts_queue:
                 idx, ext = exts_queue.pop(0)
                 cmd, stdin = resolve_exts_filter_template(exts_filter, ext)
                 task = thread_pool.submit(run_shell_cmd, cmd, stdin=stdin, hidden=True,
-                                          fail_on_error=False, asynchronous=True)
-                async_shell_cmd_tasks[idx] = task
-                running_checks_ids.append(idx)
+                                          fail_on_error=False, asynchronous=True, task_id=idx)
+                async_shell_cmd_tasks.append(task)
+
+            (done_tasks, _) = wait(async_shell_cmd_tasks, timeout=1, return_when=FIRST_COMPLETED)
 
         # compose new list of extensions, skip over the ones that are already installed;
         # note: original order in extensions list should be preserved!

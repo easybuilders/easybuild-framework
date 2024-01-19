@@ -80,7 +80,7 @@ CACHED_COMMANDS = [
 
 
 RunShellCmdResult = namedtuple('RunShellCmdResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir',
-                                                     'out_file', 'err_file', 'thread_id'))
+                                                     'out_file', 'err_file', 'thread_id', 'task_id'))
 
 
 class RunShellCmdError(BaseException):
@@ -184,7 +184,7 @@ run_shell_cmd_cache = run_cmd_cache
 @run_shell_cmd_cache
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
                   hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, use_bash=True,
-                  output_file=True, stream_output=None, asynchronous=False, with_hooks=True,
+                  output_file=True, stream_output=None, asynchronous=False, task_id=None, with_hooks=True,
                   qa_patterns=None, qa_wait_patterns=None):
     """
     Run specified (interactive) shell command, and capture output + exit code.
@@ -267,7 +267,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             dry_run_msg(msg, silent=silent)
 
         return RunShellCmdResult(cmd=cmd_str, exit_code=0, output='', stderr=None, work_dir=work_dir,
-                                 out_file=cmd_out_fp, err_file=cmd_err_fp, thread_id=thread_id)
+                                 out_file=cmd_out_fp, err_file=cmd_err_fp, thread_id=thread_id, task_id=task_id)
 
     start_time = datetime.now()
     if not hidden:
@@ -344,7 +344,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             raise EasyBuildError(f"Failed to dump command output to temporary file: {err}")
 
     res = RunShellCmdResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr, work_dir=work_dir,
-                            out_file=cmd_out_fp, err_file=cmd_err_fp, thread_id=thread_id)
+                            out_file=cmd_out_fp, err_file=cmd_err_fp, thread_id=thread_id, task_id=task_id)
 
     # always log command output
     cmd_name = cmd_str.split(' ')[0]
