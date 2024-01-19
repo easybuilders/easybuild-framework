@@ -298,6 +298,7 @@ class ToyBuildTest(EnhancedTestCase):
         ec_extra = '\n'.join([
             "versionsuffix = '-tweaked'",
             "modextrapaths = {'SOMEPATH': ['foo/bar', 'baz', '']}",
+            "modextrapaths_append = {'SOMEPATH_APPEND': ['qux/fred', 'thud', '']}",
             "modextravars = {'FOO': 'bar'}",
             "modloadmsg =  '%s'" % modloadmsg,
             "modtclfooter = 'puts stderr \"oh hai!\"'",  # ignored when module syntax is Lua
@@ -332,6 +333,9 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root/foo/bar$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root/baz$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^append-path\s*SOMEPATH_APPEND\s*\$root/qux/fred$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^append-path\s*SOMEPATH_APPEND\s*\$root/thud$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^append-path\s*SOMEPATH_APPEND\s*\$root$', toy_module_txt, re.M))
             mod_load_msg = r'module-info mode load.*\n\s*puts stderr\s*.*%s$' % modloadmsg_regex_tcl
             self.assertTrue(re.search(mod_load_msg, toy_module_txt, re.M))
             self.assertTrue(re.search(r'^puts stderr "oh hai!"$', toy_module_txt, re.M))
@@ -339,6 +343,11 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^setenv\("FOO", "bar"\)', toy_module_txt, re.M))
             pattern = r'^prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)$'
             self.assertTrue(re.search(pattern, toy_module_txt, re.M))
+            pattern = r'^append_path\("SOMEPATH_APPEND", pathJoin\(root, "qux/fred"\)\)$'
+            self.assertTrue(re.search(pattern, toy_module_txt, re.M))
+            pattern = r'^append_path\("SOMEPATH_APPEND", pathJoin\(root, "thud"\)\)$'
+            self.assertTrue(re.search(pattern, toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^append_path\("SOMEPATH_APPEND", root\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", root\)$', toy_module_txt, re.M))
             mod_load_msg = r'^if mode\(\) == "load" then\n\s*io.stderr:write\(%s\)$' % modloadmsg_regex_lua
@@ -1559,6 +1568,9 @@ class ToyBuildTest(EnhancedTestCase):
                 r'prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)',
                 r'prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)',
                 r'prepend_path\("SOMEPATH", root\)',
+                r'append_path\("SOMEPATH_APPEND", pathJoin\(root, "qux/fred"\)\)',
+                r'append_path\("SOMEPATH_APPEND", pathJoin\(root, "thud"\)\)',
+                r'append_path\("SOMEPATH_APPEND", root\)',
                 r'',
                 r'if mode\(\) == "load" then',
             ] + modloadmsg_lua + [
@@ -1597,6 +1609,9 @@ class ToyBuildTest(EnhancedTestCase):
                 r'prepend-path	SOMEPATH		\$root/foo/bar',
                 r'prepend-path	SOMEPATH		\$root/baz',
                 r'prepend-path	SOMEPATH		\$root',
+                r'append-path	SOMEPATH_APPEND		\$root/qux/fred',
+                r'append-path	SOMEPATH_APPEND		\$root/thud',
+                r'append-path	SOMEPATH_APPEND		\$root',
                 r'',
                 r'if { \[ module-info mode load \] } {',
             ] + modloadmsg_tcl + [
