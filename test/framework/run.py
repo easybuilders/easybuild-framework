@@ -1273,7 +1273,7 @@ class RunTest(EnhancedTestCase):
         os.environ['TEST'] = 'test123'
         env = os.environ.copy()
 
-        test_cmd = "echo 'sleeping...'; sleep 2; echo $TEST"
+        test_cmd = "echo 'sleeping...'; sleep 3; echo $TEST"
         task = thread_pool.submit(run_shell_cmd, test_cmd, hidden=True, asynchronous=True, env=env)
 
         # change value of $TEST to check that command is completed with correct environment

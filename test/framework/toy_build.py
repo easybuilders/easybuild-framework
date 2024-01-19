@@ -2975,11 +2975,11 @@ class ToyBuildTest(EnhancedTestCase):
             r"^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
             r"^  >> applying patch toy-0\.0_fix-silly-typo-in-printf-statement\.patch$",
             r'\n'.join([
-                r"^  >> running command:",
+                r"^  >> running shell command:",
+                r"\tgcc toy.c -o toy\n"
                 r"\t\[started at: .*\]",
                 r"\t\[working dir: .*\]",
                 r"\t\[output saved to .*\]",
-                r"\tgcc toy.c -o toy\n"
                 r'',
             ]),
             r"  >> command completed: exit 0, ran in .*",
