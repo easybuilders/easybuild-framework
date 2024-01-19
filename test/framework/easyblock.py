@@ -1273,7 +1273,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
 
         for (key, vals) in modextrapaths_append.items():
-            if isinstance(vals, string_type):
+            if isinstance(vals, str):
                 vals = [vals]
             for val in vals:
                 if get_module_syntax() == 'Tcl':

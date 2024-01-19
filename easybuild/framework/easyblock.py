@@ -1413,7 +1413,7 @@ class EasyBlock(object):
             lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
 
         for (key, value) in self.cfg['modextrapaths_append'].items():
-            if isinstance(value, string_type):
+            if isinstance(value, str):
                 value = [value]
             elif not isinstance(value, (tuple, list)):
                 raise EasyBuildError("modextrapaths_append dict value %s (type: %s) is not a list or tuple",
