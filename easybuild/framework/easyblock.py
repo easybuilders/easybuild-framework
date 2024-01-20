@@ -2736,7 +2736,10 @@ class EasyBlock(object):
         try:
             self.test_step()
         except RunShellCmdError as err:
-            self.report_test_failure(err)
+            err.print()
+            ec_path = os.path.basename(self.cfg.path)
+            error_msg = f"shell command '{err.cmd_name} ...' failed in test step for {ec_path}"
+            self.report_test_failure(error_msg)
 
     def stage_install_step(self):
         """

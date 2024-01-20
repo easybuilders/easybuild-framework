@@ -4124,6 +4124,22 @@ class ToyBuildTest(EnhancedTestCase):
         regex = re.compile(pattern, re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
+    def test_toy_failing_test_step(self):
+        """
+        Test behaviour when test step fails, using toy easyconfig.
+        """
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nruntest = "false"'
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        error_pattern = r"shell command 'false \.\.\.' failed in test step"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_test_toy_build_with_output,
+                              ec_file=test_ec, raise_error=True)
+
     def test_eb_crash(self):
         """
         Test behaviour when EasyBuild crashes, for example due to a buggy hook
