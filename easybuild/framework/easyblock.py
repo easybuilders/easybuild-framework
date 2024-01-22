@@ -1412,6 +1412,14 @@ class EasyBlock(object):
                                      value, type(value))
             lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
 
+        for (key, value) in self.cfg['modextrapaths_append'].items():
+            if isinstance(value, str):
+                value = [value]
+            elif not isinstance(value, (tuple, list)):
+                raise EasyBuildError("modextrapaths_append dict value %s (type: %s) is not a list or tuple",
+                                     value, type(value))
+            lines.append(self.module_generator.append_paths(key, value, allow_abs=self.cfg['allow_append_abs_path']))
+
         modloadmsg = self.cfg['modloadmsg']
         if modloadmsg:
             # add trailing newline to prevent that shell prompt is 'glued' to module load message
@@ -2728,7 +2736,10 @@ class EasyBlock(object):
         try:
             self.test_step()
         except RunShellCmdError as err:
-            self.report_test_failure(err)
+            err.print()
+            ec_path = os.path.basename(self.cfg.path)
+            error_msg = f"shell command '{err.cmd_name} ...' failed in test step for {ec_path}"
+            self.report_test_failure(error_msg)
 
     def stage_install_step(self):
         """

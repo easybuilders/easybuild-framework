@@ -1421,9 +1421,8 @@ class Lmod(ModulesTool):
     NAME = "Lmod"
     COMMAND = 'lmod'
     COMMAND_ENVIRONMENT = 'LMOD_CMD'
-    REQ_VERSION = '6.5.1'
-    DEPR_VERSION = '7.0.0'
-    REQ_VERSION_DEPENDS_ON = '7.6.1'
+    REQ_VERSION = '8.0.0'
+    DEPR_VERSION = '8.0.0'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
 
     SHOW_HIDDEN_OPTION = '--show-hidden'
@@ -1442,7 +1441,7 @@ class Lmod(ModulesTool):
         super(Lmod, self).__init__(*args, **kwargs)
         version = StrictVersion(self.version)
 
-        self.supports_depends_on = version >= self.REQ_VERSION_DEPENDS_ON
+        self.supports_depends_on = True
         # See https://lmod.readthedocs.io/en/latest/125_personal_spider_cache.html
         if version >= '8.7.12':
             self.USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.cache', 'lmod')
@@ -1601,13 +1600,9 @@ class Lmod(ModulesTool):
         Determine whether a module wrapper with specified name exists.
         First check for wrapper defined in .modulerc.lua, fall back to also checking .modulerc (Tcl syntax).
         """
-        res = None
-
-        # first consider .modulerc.lua with Lmod 7.8 (or newer)
-        if StrictVersion(self.version) >= StrictVersion('7.8'):
-            mod_wrapper_regex_template = r'^module_version\("(?P<wrapped_mod>.*)", "%s"\)$'
-            res = super(Lmod, self).module_wrapper_exists(mod_name, modulerc_fn='.modulerc.lua',
-                                                          mod_wrapper_regex_template=mod_wrapper_regex_template)
+        mod_wrapper_regex_template = r'^module_version\("(?P<wrapped_mod>.*)", "%s"\)$'
+        res = super(Lmod, self).module_wrapper_exists(mod_name, modulerc_fn='.modulerc.lua',
+                                                      mod_wrapper_regex_template=mod_wrapper_regex_template)
 
         # fall back to checking for .modulerc in Tcl syntax
         if res is None:

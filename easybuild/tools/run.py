@@ -41,6 +41,7 @@ import inspect
 import os
 import re
 import signal
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -276,7 +277,9 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     # (which could be dash instead of bash, like on Ubuntu, see https://wiki.ubuntu.com/DashAsBinSh)
     # stick to None (default value) when not running command via a shell
     if use_bash:
-        executable, shell = '/bin/bash', True
+        bash = shutil.which('bash')
+        _log.info(f"Path to bash that will be used to run shell commands: {bash}")
+        executable, shell = bash, True
     else:
         executable, shell = None, False
 

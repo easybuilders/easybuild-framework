@@ -13,7 +13,6 @@ jobs:
   setup:
     runs-on: ubuntu-20.04
     outputs:
-        lmod7: Lmod-7.8.22
         lmod8: Lmod-8.7.6
         modulesTcl: modules-tcl-1.147
         modules3: modules-3.2.10
@@ -29,7 +28,6 @@ jobs:
         modules_tool:
           # use variables defined by 'setup' job above, see also
           # https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#needs-context
-          - ${{needs.setup.outputs.lmod7}}
           - ${{needs.setup.outputs.lmod8}}
           - ${{needs.setup.outputs.modulesTcl}}
           - ${{needs.setup.outputs.modules3}}
