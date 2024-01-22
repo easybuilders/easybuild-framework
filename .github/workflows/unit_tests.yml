@@ -14,8 +14,6 @@ jobs:
     runs-on: ubuntu-20.04
     outputs:
         lmod8: Lmod-8.7.6
-        modulesTcl: modules-tcl-1.147
-        modules3: modules-3.2.10
         modules4: modules-4.1.4
     steps:
       - run: "true"
@@ -29,8 +27,6 @@ jobs:
           # use variables defined by 'setup' job above, see also
           # https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#needs-context
           - ${{needs.setup.outputs.lmod8}}
-          - ${{needs.setup.outputs.modulesTcl}}
-          - ${{needs.setup.outputs.modules3}}
           - ${{needs.setup.outputs.modules4}}
         lc_all: [""]
         include:
@@ -156,11 +152,7 @@ jobs:
           export PYTHONPATH=$PREFIX/lib/python${{matrix.python}}/site-packages:$PYTHONPATH
           eb --version
           # tell EasyBuild which modules tool is available
-          if [[ ${{matrix.modules_tool}} =~ ^modules-tcl- ]]; then
-            export EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
-          elif [[ ${{matrix.modules_tool}} =~ ^modules-3 ]]; then
-            export EASYBUILD_MODULES_TOOL=EnvironmentModulesC
-          elif [[ ${{matrix.modules_tool}} =~ ^modules-4 ]]; then
+          if [[ ${{matrix.modules_tool}} =~ ^modules-4 ]]; then
             export EASYBUILD_MODULES_TOOL=EnvironmentModules
           else
             export EASYBUILD_MODULES_TOOL=Lmod
