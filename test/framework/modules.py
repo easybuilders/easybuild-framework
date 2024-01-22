@@ -1531,10 +1531,10 @@ class ModulesTest(EnhancedTestCase):
             '#!/bin/bash',
             # if last argument (${!#})) is --version, print version
             'if [ x"${!#}" == "x--version" ]; then',
-            '  echo 3.2.10',
+            '  echo 4.2.10',
             # otherwise, echo Python commands: set $TEST123 and include a faulty 'source' command
             'else',
-            '  echo "source /opt/cray/pe/modules/3.2.10.6/init/bash"',
+            '  echo "source /opt/cray/pe/modules/4.2.10.6/init/bash"',
             "  echo \"os.environ['TEST123'] = 'test123'\"",
             'fi',
         ])
@@ -1543,7 +1543,7 @@ class ModulesTest(EnhancedTestCase):
 
         os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.getenv('PATH'))
 
-        modtool = EnvironmentModulesC()
+        modtool = EnvironmentModules()
         modtool.run_module('load', 'test123')
         self.assertEqual(os.getenv('TEST123'), 'test123')
 
