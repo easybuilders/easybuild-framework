@@ -96,10 +96,13 @@ def get_dep_tree(package_spec, verbose):
 def find_deps(pkgs, dep_tree):
     """Recursively resolve dependencies of the given package(s) and return them"""
     res = []
-    for pkg in pkgs:
-        pkg = canonicalize_name(pkg)
+    for orig_pkg in pkgs:
+        pkg = canonicalize_name(orig_pkg)
         matching_entries = [entry for entry in dep_tree
                             if pkg in (entry['package']['package_name'], entry['package']['key'])]
+        if not matching_entries:
+            matching_entries = [entry for entry in dep_tree
+                                if orig_pkg in (entry['package']['package_name'], entry['package']['key'])]
         if not matching_entries:
             raise RuntimeError("Found no installed package for '%s' in %s" % (pkg, dep_tree))
         if len(matching_entries) > 1:
