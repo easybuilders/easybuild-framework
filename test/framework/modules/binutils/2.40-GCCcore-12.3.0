@@ -1,0 +1,44 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+binutils: GNU binary utilities
+
+
+More information
+================
+ - Homepage: https://directory.fsf.org/project/binutils/
+    }
+}
+
+module-whatis {Description: binutils: GNU binary utilities}
+module-whatis {Homepage: https://directory.fsf.org/project/binutils/}
+module-whatis {URL: https://directory.fsf.org/project/binutils/}
+
+set root /prefix/software/binutils/2.40-GCCcore-12.3.0
+
+conflict binutils
+
+if { ![ is-loaded GCCcore/12.3.0 ] } {
+    module load GCCcore/12.3.0
+}
+
+if { ![ is-loaded zlib/1.2.13-GCCcore-12.3.0 ] } {
+    module load zlib/1.2.13-GCCcore-12.3.0
+}
+
+prepend-path	CMAKE_PREFIX_PATH		$root
+prepend-path	CPATH		$root/include
+prepend-path	LD_LIBRARY_PATH		$root/lib
+prepend-path	LIBRARY_PATH		$root/lib
+prepend-path	MANPATH		$root/share/man
+prepend-path	PATH		$root/bin
+prepend-path	XDG_DATA_DIRS		$root/share
+
+setenv	EBROOTBINUTILS		"$root"
+setenv	EBVERSIONBINUTILS		"2.40"
+setenv	EBDEVELBINUTILS		"$root/easybuild/binutils-2.40-GCCcore-12.3.0-easybuild-devel"
+
+# Built with EasyBuild version 4.9.0.dev0-rea8433dcf5e6edea3e72ad9bd9e23023ecc6b228

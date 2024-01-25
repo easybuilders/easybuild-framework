@@ -1412,6 +1412,14 @@ class EasyBlock(object):
                                      value, type(value))
             lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
 
+        for (key, value) in self.cfg['modextrapaths_append'].items():
+            if isinstance(value, str):
+                value = [value]
+            elif not isinstance(value, (tuple, list)):
+                raise EasyBuildError("modextrapaths_append dict value %s (type: %s) is not a list or tuple",
+                                     value, type(value))
+            lines.append(self.module_generator.append_paths(key, value, allow_abs=self.cfg['allow_append_abs_path']))
+
         modloadmsg = self.cfg['modloadmsg']
         if modloadmsg:
             # add trailing newline to prevent that shell prompt is 'glued' to module load message
@@ -1730,9 +1738,15 @@ class EasyBlock(object):
 
         Each entry should be a (name, version) tuple or just (name, ) if no version exists
         """
-        # We need only name and version, so don't resolve templates
         # Each extension in exts_list is either a string or a list/tuple with name, version as first entries
-        return [(ext, ) if isinstance(ext, str) else ext[:2] for ext in self.cfg.get_ref('exts_list')]
+        # As name can be a templated value we must resolve templates
+        exts_list = []
+        for ext in self.cfg.get_ref('exts_list'):
+            if isinstance(ext, str):
+                exts_list.append((resolve_template(ext, self.cfg.template_values), ))
+            else:
+                exts_list.append((resolve_template(ext[0], self.cfg.template_values), ext[1]))
+        return exts_list
 
     def make_extension_string(self, name_version_sep='-', ext_sep=', ', sort=True):
         """
@@ -2730,7 +2744,10 @@ class EasyBlock(object):
         try:
             self.test_step()
         except RunShellCmdError as err:
-            self.report_test_failure(err)
+            err.print()
+            ec_path = os.path.basename(self.cfg.path)
+            error_msg = f"shell command '{err.cmd_name} ...' failed in test step for {ec_path}"
+            self.report_test_failure(error_msg)
 
     def stage_install_step(self):
         """
@@ -3311,6 +3328,19 @@ class EasyBlock(object):
 
         return fail_msg
 
+    def sanity_check_mod_files(self):
+        """
+        Check installation for Fortran .mod files
+        """
+        self.log.debug(f"Checking for .mod files in install directory {self.installdir}...")
+        mod_files = glob.glob(os.path.join(self.installdir, '**', '*.mod'), recursive=True)
+
+        fail_msg = None
+        if mod_files:
+            fail_msg = f"One or more .mod files found in {self.installdir}: " + ', '.join(mod_files)
+
+        return fail_msg
+
     def _sanity_check_step_common(self, custom_paths, custom_commands):
         """
         Determine sanity check paths and commands to use.
@@ -3632,6 +3662,16 @@ class EasyBlock(object):
         if linked_shared_lib_fails:
             self.log.warning("Check for required/banned linked shared libraries failed!")
             self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
+
+        # software installed with GCCcore toolchain should not have Fortran module files (.mod),
+        # unless that's explicitly allowed
+        if self.toolchain.name in ('GCCcore',) and not self.cfg['skip_mod_files_sanity_check']:
+            mod_files_found_msg = self.sanity_check_mod_files()
+            if mod_files_found_msg:
+                if build_option('fail_on_mod_files_gcccore'):
+                    self.sanity_check_fail_msgs.append(mod_files_found_msg)
+                else:
+                    print_warning(mod_files_found_msg)
 
         # cleanup
         if self.fake_mod_data:
@@ -4652,8 +4692,14 @@ def inject_checksums(ecs, checksum_type):
     """
     def make_list_lines(values, indent_level):
         """Make lines for list of values."""
+        def to_str(s):
+            if isinstance(s, str):
+                return "'%s'" % s
+            else:
+                return str(s)
+
         line_indent = INDENT_4SPACES * indent_level
-        return [line_indent + "'%s'," % x for x in values]
+        return [line_indent + to_str(x) + ',' for x in values]
 
     def make_checksum_lines(checksums, indent_level):
         """Make lines for list of checksums."""

@@ -1,0 +1,20 @@
+# This is an easyconfig file for EasyBuild, see http://easybuilders.github.io/easybuild
+easyblock = 'Toolchain'
+
+name = 'iimpi'
+version = '2018a'
+
+homepage = 'https://software.intel.com/parallel-studio-xe'
+description = """Intel C/C++ and Fortran compilers, alongside Intel MPI."""
+
+toolchain = SYSTEM
+
+local_compver = '2016.1.150'
+local_suff = '-GCC-4.9.3-2.25'
+dependencies = [
+    ('icc', local_compver, local_suff),
+    ('ifort', local_compver, local_suff),
+    ('impi', '5.1.2.150', '', ('iccifort', '%s%s' % (local_compver, local_suff))),
+]
+
+moduleclass = 'toolchain'

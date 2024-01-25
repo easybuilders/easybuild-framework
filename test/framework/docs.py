@@ -405,6 +405,104 @@ version|toolchain
 ``1.4``|``GCC/4.6.3``, ``system``
 ``1.5``|``foss/2018a``, ``intel/2018a``""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
 
+LIST_SOFTWARE_SIMPLE_MD = """# List of supported software
+
+EasyBuild supports 2 different software packages (incl. toolchains, bundles):
+
+[g](#g)
+
+
+## G
+
+* GCC
+* gzip"""
+
+LIST_SOFTWARE_DETAILED_MD = """# List of supported software
+
+EasyBuild supports 2 different software packages (incl. toolchains, bundles):
+
+[g](#g)
+
+
+## G
+
+
+[GCC](#gcc) - [gzip](#gzip)
+
+
+### GCC
+
+%(gcc_descr)s
+
+*homepage*: <http://gcc.gnu.org/>
+
+version  |toolchain
+---------|----------
+``4.6.3``|``system``
+
+### gzip
+
+%(gzip_descr)s
+
+*homepage*: <http://www.gzip.org/>
+
+version|toolchain
+-------|-------------------------------
+``1.4``|``GCC/4.6.3``, ``system``
+``1.5``|``foss/2018a``, ``intel/2018a``""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+
+LIST_SOFTWARE_SIMPLE_JSON = """[
+{
+    "name": "GCC"
+},
+{
+    "name": "gzip"
+}
+]"""
+
+LIST_SOFTWARE_DETAILED_JSON = """[
+{
+    "description": "%(gcc_descr)s",
+    "homepage": "http://gcc.gnu.org/",
+    "name": "GCC",
+    "toolchain": "system",
+    "version": "4.6.3",
+    "versionsuffix": ""
+},
+{
+    "description": "%(gzip_descr)s",
+    "homepage": "http://www.gzip.org/",
+    "name": "gzip",
+    "toolchain": "GCC/4.6.3",
+    "version": "1.4",
+    "versionsuffix": ""
+},
+{
+    "description": "%(gzip_descr)s",
+    "homepage": "http://www.gzip.org/",
+    "name": "gzip",
+    "toolchain": "system",
+    "version": "1.4",
+    "versionsuffix": ""
+},
+{
+    "description": "%(gzip_descr)s",
+    "homepage": "http://www.gzip.org/",
+    "name": "gzip",
+    "toolchain": "foss/2018a",
+    "version": "1.5",
+    "versionsuffix": ""
+},
+{
+    "description": "%(gzip_descr)s",
+    "homepage": "http://www.gzip.org/",
+    "name": "gzip",
+    "toolchain": "intel/2018a",
+    "version": "1.5",
+    "versionsuffix": ""
+}
+]""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+
 
 class DocsTest(EnhancedTestCase):
 
@@ -541,6 +639,9 @@ class DocsTest(EnhancedTestCase):
         regex = re.compile(r"^``GPLv3``\s*|The GNU General Public License", re.M)
         self.assertTrue(regex.search(lic_docs), "%s found in: %s" % (regex.pattern, lic_docs))
 
+        # expect NotImplementedError for JSON output
+        self.assertRaises(NotImplementedError, avail_easyconfig_licenses, output_format='json')
+
     def test_list_easyblocks(self):
         """
         Tests for list_easyblocks function
@@ -569,6 +670,9 @@ class DocsTest(EnhancedTestCase):
         txt = list_easyblocks(list_easyblocks='detailed', output_format='md')
         self.assertEqual(txt, LIST_EASYBLOCKS_DETAILED_MD % {'topdir': topdir_easyblocks})
 
+        # expect NotImplementedError for JSON output
+        self.assertRaises(NotImplementedError, list_easyblocks, output_format='json')
+
     def test_list_software(self):
         """Test list_software* functions."""
         build_options = {
@@ -586,6 +690,9 @@ class DocsTest(EnhancedTestCase):
 
         self.assertEqual(list_software(output_format='md'), LIST_SOFTWARE_SIMPLE_MD)
         self.assertEqual(list_software(output_format='md', detailed=True), LIST_SOFTWARE_DETAILED_MD)
+
+        self.assertEqual(list_software(output_format='json'), LIST_SOFTWARE_SIMPLE_JSON)
+        self.assertEqual(list_software(output_format='json', detailed=True), LIST_SOFTWARE_DETAILED_JSON)
 
         # GCC/4.6.3 is installed, no gzip module installed
         txt = list_software(output_format='txt', detailed=True, only_installed=True)
@@ -690,6 +797,10 @@ class DocsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
 
+        # expect NotImplementedError for json output format
+        with self.assertRaises(NotImplementedError):
+            list_toolchains(output_format='json')
+
     def test_avail_cfgfile_constants(self):
         """
         Test avail_cfgfile_constants to generate overview of constants that can be used in a configuration file.
@@ -734,6 +845,10 @@ class DocsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
 
+        # expect NotImplementedError for json output format
+        with self.assertRaises(NotImplementedError):
+            avail_cfgfile_constants(option_parser.go_cfg_constants, output_format='json')
+
     def test_avail_easyconfig_constants(self):
         """
         Test avail_easyconfig_constants to generate overview of constants that can be used in easyconfig files.
@@ -776,6 +891,10 @@ class DocsTest(EnhancedTestCase):
         for pattern in rst_patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+
+        # expect NotImplementedError for json output format
+        with self.assertRaises(NotImplementedError):
+            avail_easyconfig_constants(output_format='json')
 
     def test_avail_easyconfig_templates(self):
         """
@@ -826,6 +945,10 @@ class DocsTest(EnhancedTestCase):
         for pattern in rst_patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+
+        # expect NotImplementedError for json output format
+        with self.assertRaises(NotImplementedError):
+            avail_easyconfig_templates(output_format='json')
 
     def test_avail_toolchain_opts(self):
         """
@@ -910,6 +1033,12 @@ class DocsTest(EnhancedTestCase):
         for pattern in rst_patterns_intel:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+
+        # expect NotImplementedError for json output format
+        with self.assertRaises(NotImplementedError):
+            avail_toolchain_opts('foss', output_format='json')
+        with self.assertRaises(NotImplementedError):
+            avail_toolchain_opts('intel', output_format='json')
 
     def test_mk_table(self):
         """

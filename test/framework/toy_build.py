@@ -58,7 +58,7 @@ from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file,
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.modules import Lmod
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import nub
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
@@ -298,6 +298,7 @@ class ToyBuildTest(EnhancedTestCase):
         ec_extra = '\n'.join([
             "versionsuffix = '-tweaked'",
             "modextrapaths = {'SOMEPATH': ['foo/bar', 'baz', '']}",
+            "modextrapaths_append = {'SOMEPATH_APPEND': ['qux/fred', 'thud', '']}",
             "modextravars = {'FOO': 'bar'}",
             "modloadmsg =  '%s'" % modloadmsg,
             "modtclfooter = 'puts stderr \"oh hai!\"'",  # ignored when module syntax is Lua
@@ -332,6 +333,9 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root/foo/bar$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root/baz$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^append-path\s*SOMEPATH_APPEND\s*\$root/qux/fred$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^append-path\s*SOMEPATH_APPEND\s*\$root/thud$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^append-path\s*SOMEPATH_APPEND\s*\$root$', toy_module_txt, re.M))
             mod_load_msg = r'module-info mode load.*\n\s*puts stderr\s*.*%s$' % modloadmsg_regex_tcl
             self.assertTrue(re.search(mod_load_msg, toy_module_txt, re.M))
             self.assertTrue(re.search(r'^puts stderr "oh hai!"$', toy_module_txt, re.M))
@@ -339,6 +343,11 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^setenv\("FOO", "bar"\)', toy_module_txt, re.M))
             pattern = r'^prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)$'
             self.assertTrue(re.search(pattern, toy_module_txt, re.M))
+            pattern = r'^append_path\("SOMEPATH_APPEND", pathJoin\(root, "qux/fred"\)\)$'
+            self.assertTrue(re.search(pattern, toy_module_txt, re.M))
+            pattern = r'^append_path\("SOMEPATH_APPEND", pathJoin\(root, "thud"\)\)$'
+            self.assertTrue(re.search(pattern, toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^append_path\("SOMEPATH_APPEND", root\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", root\)$', toy_module_txt, re.M))
             mod_load_msg = r'^if mode\(\) == "load" then\n\s*io.stderr:write\(%s\)$' % modloadmsg_regex_lua
@@ -374,7 +383,7 @@ class ToyBuildTest(EnhancedTestCase):
             'verify': False,
             'verbose': False,
         }
-        err_regex = r"name 'run_cmd' is not defined"
+        err_regex = r"name 'run_shell_cmd' is not defined"
         self.assertErrorRegex(NameError, err_regex, self.run_test_toy_build_with_output, **kwargs)
 
     def test_toy_build_formatv2(self):
@@ -742,9 +751,9 @@ class ToyBuildTest(EnhancedTestCase):
 
         # figure out a group that we're a member of to use in the test
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd('groups', simple=False)
-        self.assertEqual(ec, 0, "Failed to select group to use in test")
-        group_name = out.split(' ')[0].strip()
+            res = run_shell_cmd('groups')
+        self.assertEqual(res.exit_code, 0, "Failed to select group to use in test")
+        group_name = res.output.split(' ')[0].strip()
 
         toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
@@ -1284,8 +1293,8 @@ class ToyBuildTest(EnhancedTestCase):
         # make sure that patches were actually applied (without them the message producded by 'bar' is different)
         bar_bin = os.path.join(installdir, 'bin', 'bar')
         with self.mocked_stdout_stderr():
-            out, _ = run_cmd(bar_bin)
-        self.assertEqual(out, "I'm a bar, and very very proud of it.\n")
+            res = run_shell_cmd(bar_bin)
+        self.assertEqual(res.output, "I'm a bar, and very very proud of it.\n")
 
         # verify that post-install command for 'bar' extension was executed
         fn = 'created-via-postinstallcmds.txt'
@@ -1536,7 +1545,7 @@ class ToyBuildTest(EnhancedTestCase):
             mod_txt_regex_pattern = '\n'.join([
                 r'help\(\[==\[',
                 r'',
-                r'%s' % help_txt,
+                help_txt,
                 r'\]==\]\)',
                 r'',
                 r'whatis\(\[==\[Description: Toy C program, 100% toy.\]==\]\)',
@@ -1559,6 +1568,9 @@ class ToyBuildTest(EnhancedTestCase):
                 r'prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)',
                 r'prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)',
                 r'prepend_path\("SOMEPATH", root\)',
+                r'append_path\("SOMEPATH_APPEND", pathJoin\(root, "qux/fred"\)\)',
+                r'append_path\("SOMEPATH_APPEND", pathJoin\(root, "thud"\)\)',
+                r'append_path\("SOMEPATH_APPEND", root\)',
                 r'',
                 r'if mode\(\) == "load" then',
             ] + modloadmsg_lua + [
@@ -1573,7 +1585,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'proc ModulesHelp { } {',
                 r'    puts stderr {',
                 r'',
-                r'%s' % help_txt,
+                help_txt,
                 r'    }',
                 r'}',
                 r'',
@@ -1597,6 +1609,9 @@ class ToyBuildTest(EnhancedTestCase):
                 r'prepend-path	SOMEPATH		\$root/foo/bar',
                 r'prepend-path	SOMEPATH		\$root/baz',
                 r'prepend-path	SOMEPATH		\$root',
+                r'append-path	SOMEPATH_APPEND		\$root/qux/fred',
+                r'append-path	SOMEPATH_APPEND		\$root/thud',
+                r'append-path	SOMEPATH_APPEND		\$root',
                 r'',
                 r'if { \[ module-info mode load \] } {',
             ] + modloadmsg_tcl + [
@@ -2819,17 +2834,19 @@ class ToyBuildTest(EnhancedTestCase):
 
         libtoy_libdir = os.path.join(self.test_installpath, 'software', 'libtoy', '0.0', 'lib')
         toyapp_bin = os.path.join(self.test_installpath, 'software', 'toy-app', '0.0', 'bin', 'toy-app')
-        rpath_regex = re.compile(r"RPATH.*%s" % libtoy_libdir, re.M)
+        rpath_regex = re.compile(r"RPATH.*" + libtoy_libdir, re.M)
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("readelf -d %s" % toyapp_bin, simple=False)
-        self.assertTrue(rpath_regex.search(out), "Pattern '%s' should be found in: %s" % (rpath_regex.pattern, out))
+            res = run_shell_cmd(f"readelf -d {toyapp_bin}")
+        self.assertTrue(rpath_regex.search(res.output),
+                        f"Pattern '{rpath_regex.pattern}' should be found in: {res.output}")
 
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("ldd %s" % toyapp_bin, simple=False)
+            res = run_shell_cmd(f"ldd {toyapp_bin}")
+        out = res.output
         libtoy_regex = re.compile(r"libtoy.so => /.*/libtoy.so", re.M)
         notfound = re.compile(r"libtoy\.so\s*=>\s*not found", re.M)
-        self.assertTrue(libtoy_regex.search(out), "Pattern '%s' should be found in: %s" % (libtoy_regex.pattern, out))
-        self.assertFalse(notfound.search(out), "Pattern '%s' should not be found in: %s" % (notfound.pattern, out))
+        self.assertTrue(libtoy_regex.search(out), f"Pattern '{libtoy_regex.pattern}' should be found in: {out}")
+        self.assertFalse(notfound.search(out), f"Pattern '{notfound.pattern}' should not be found in: {out}")
 
         # test sanity error when --rpath-filter is used to filter a required library
         # In this test, libtoy.so will be linked, but not RPATH-ed due to the --rpath-filter
@@ -2848,16 +2865,16 @@ class ToyBuildTest(EnhancedTestCase):
             self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("readelf -d %s" % toyapp_bin, simple=False)
-        self.assertFalse(rpath_regex.search(out),
-                         "Pattern '%s' should not be found in: %s" % (rpath_regex.pattern, out))
+            res = run_shell_cmd(f"readelf -d {toyapp_bin}")
+        self.assertFalse(rpath_regex.search(res.output),
+                         f"Pattern '{rpath_regex.pattern}' should not be found in: {res.output}")
 
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("ldd %s" % toyapp_bin, simple=False)
-        self.assertFalse(libtoy_regex.search(out),
-                         "Pattern '%s' should not be found in: %s" % (libtoy_regex.pattern, out))
-        self.assertTrue(notfound.search(out),
-                        "Pattern '%s' should be found in: %s" % (notfound.pattern, out))
+            res = run_shell_cmd(f"ldd {toyapp_bin}")
+        self.assertFalse(libtoy_regex.search(res.output),
+                         f"Pattern '{libtoy_regex.pattern}' should not be found in: {res.output}")
+        self.assertTrue(notfound.search(res.output),
+                        f"Pattern '{notfound.pattern}' should be found in: {res.output}")
 
         # test again with list of library names passed to --filter-rpath-sanity-libs
         args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libfoo.so,libtoy.so,libbar.so']
@@ -2865,16 +2882,16 @@ class ToyBuildTest(EnhancedTestCase):
             self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("readelf -d %s" % toyapp_bin, simple=False)
+            res = run_shell_cmd(f"readelf -d {toyapp_bin}")
         self.assertFalse(rpath_regex.search(out),
-                         "Pattern '%s' should not be found in: %s" % (rpath_regex.pattern, out))
+                         f"Pattern '{rpath_regex.pattern}' should not be found in: {res.output}")
 
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("ldd %s" % toyapp_bin, simple=False)
-        self.assertFalse(libtoy_regex.search(out),
-                         "Pattern '%s' should not be found in: %s" % (libtoy_regex.pattern, out))
-        self.assertTrue(notfound.search(out),
-                        "Pattern '%s' should be found in: %s" % (notfound.pattern, out))
+            res = run_shell_cmd(f"ldd {toyapp_bin}")
+        self.assertFalse(libtoy_regex.search(res.output),
+                         f"Pattern '{libtoy_regex.pattern}' should not be found in: {res.output}")
+        self.assertTrue(notfound.search(res.output),
+                        f"Pattern '{notfound.pattern}' should be found in: {res.output}")
 
     def test_toy_modaltsoftname(self):
         """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
@@ -2961,7 +2978,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r"^  >> running command:",
                 r"\t\[started at: .*\]",
                 r"\t\[working dir: .*\]",
-                r"\t\[output logged in .*\]",
+                r"\t\[output saved to .*\]",
                 r"\tgcc toy.c -o toy\n"
                 r'',
             ]),
@@ -3955,6 +3972,44 @@ class ToyBuildTest(EnhancedTestCase):
             self._test_toy_build(ec_file=test_ec, extra_args=args, force=False,
                                  raise_error=True, verbose=False, verify=False)
 
+    def test_toy_mod_files(self):
+        """Check detection of .mod files"""
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        with self.mocked_stdout_stderr():
+            self._test_toy_build(ec_file=test_ec)
+
+        test_ec_txt += "\npostinstallcmds += ['touch %(installdir)s/lib/file.mod']"
+        write_file(test_ec, test_ec_txt)
+
+        with self.mocked_stdout_stderr():
+            self._test_toy_build(ec_file=test_ec)
+
+        args = ['--try-toolchain=GCCcore,6.2.0', '--disable-map-toolchains']
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self._test_toy_build(ec_file=test_ec, extra_args=args)
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        pattern = r"WARNING: One or more \.mod files found in .*/software/toy/0.0-GCCcore-6.2.0: .*/lib64/file.mod"
+        self.assertRegex(stderr.strip(), pattern)
+
+        args += ['--fail-on-mod-files-gcccore']
+        pattern = r"Sanity check failed: One or more \.mod files found in .*/toy/0.0-GCCcore-6.2.0: .*/lib/file.mod"
+        self.assertErrorRegex(EasyBuildError, pattern, self.run_test_toy_build_with_output, ec_file=test_ec,
+                              extra_args=args, verify=False, fails=True, verbose=False, raise_error=True)
+
+        test_ec_txt += "\nskip_mod_files_sanity_check = True"
+        write_file(test_ec, test_ec_txt)
+
+        with self.mocked_stdout_stderr():
+            self._test_toy_build(ec_file=test_ec, extra_args=args)
+
     def test_toy_ignore_test_failure(self):
         """Check whether use of --ignore-test-failure is mentioned in build output."""
         args = ['--ignore-test-failure']
@@ -4068,6 +4123,22 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         regex = re.compile(pattern, re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+    def test_toy_failing_test_step(self):
+        """
+        Test behaviour when test step fails, using toy easyconfig.
+        """
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nruntest = "false"'
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        error_pattern = r"shell command 'false \.\.\.' failed in test step"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_test_toy_build_with_output,
+                              ec_file=test_ec, raise_error=True)
 
     def test_eb_crash(self):
         """

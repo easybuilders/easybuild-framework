@@ -1278,14 +1278,14 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
         return super(EnvironmentModulesTcl, self).run_module(*args, **kwargs)
 
-    def available(self, mod_name=None):
+    def available(self, mod_name=None, extra_args=None):
         """
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
         :param mod_name: a (partial) module name for filtering (default: None)
         """
-        mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name)
+        mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name, extra_args=extra_args)
         # strip off slash at beginning, if it's there
         # under certain circumstances, 'modulecmd.tcl avail' (DEISA variant) spits out available modules like this
         clean_mods = [mod.lstrip(os.path.sep) for mod in mods]
@@ -1321,7 +1321,58 @@ class EnvironmentModules(EnvironmentModulesTcl):
     COMMAND_ENVIRONMENT = 'MODULES_CMD'
     REQ_VERSION = '4.0.0'
     MAX_VERSION = None
-    VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d\S*)\s'
+    VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d[^+\s]*)(\+\S*)?\s'
+
+    SHOW_HIDDEN_OPTION = '--all'
+
+    def __init__(self, *args, **kwargs):
+        """Constructor, set Environment Modules-specific class variable values."""
+        # ensure in-depth modulepath search (MODULES_AVAIL_INDEPTH has been introduced in v4.3)
+        setvar('MODULES_AVAIL_INDEPTH', '1', verbose=False)
+        # match against module name start (MODULES_SEARCH_MATCH has been introduced in v4.3)
+        setvar('MODULES_SEARCH_MATCH', 'starts_with', verbose=False)
+        # ensure no debug message (MODULES_VERBOSITY has been introduced in v4.3)
+        setvar('MODULES_VERBOSITY', 'normal', verbose=False)
+        # make module search case sensitive (search is case insensitive by default since v5.0)
+        setvar('MODULES_ICASE', 'never', verbose=False)
+        # disable extended default (introduced in v4.4 and enabled by default in v5.0)
+        setvar('MODULES_EXTENDED_DEFAULT', '0', verbose=False)
+        # hard disable output redirection, output messages are expected on stderr
+        setvar('MODULES_REDIRECT_OUTPUT', '0', verbose=False)
+        # make sure modulefile cache is ignored (cache mechanism supported since v5.3)
+        setvar('MODULES_IGNORE_CACHE', '1', verbose=False)
+        # ensure only module names are returned on avail (MODULES_AVAIL_TERSE_OUTPUT added in v4.7)
+        setvar('MODULES_AVAIL_TERSE_OUTPUT', '', verbose=False)
+        # ensure only module names are returned on list (MODULES_LIST_TERSE_OUTPUT added in v4.7)
+        setvar('MODULES_LIST_TERSE_OUTPUT', '', verbose=False)
+
+        super(EnvironmentModules, self).__init__(*args, **kwargs)
+
+    def check_module_function(self, allow_mismatch=False, regex=None):
+        """Check whether selected module tool matches 'module' function definition."""
+        # Modules 5.1.0+: module command is called from _module_raw shell function
+        # Modules 4.2.0..5.0.1: module command is called from _module_raw shell function if it has
+        #   been initialized in an interactive shell session (i.e., a session attached to a tty)
+        if self.testing:
+            if '_module_raw' in os.environ:
+                out, ec = os.environ['_module_raw'], 0
+            else:
+                out, ec = None, 1
+        else:
+            cmd = "type _module_raw"
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=False, hidden=True, output_file=False)
+            out, ec = res.output, res.exit_code
+
+        if regex is None:
+            regex = r".*%s" % os.path.basename(self.cmd)
+        mod_cmd_re = re.compile(regex, re.M)
+
+        if ec == 0 and mod_cmd_re.search(out):
+            self.log.debug("Found pattern '%s' in defined '_module_raw' function." % mod_cmd_re.pattern)
+        else:
+            self.log.debug("Pattern '%s' not found in '_module_raw' function, falling back to 'module' function",
+                           mod_cmd_re.pattern)
+            super(EnvironmentModules, self).check_module_function(allow_mismatch, regex)
 
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
@@ -1330,17 +1381,51 @@ class EnvironmentModules(EnvironmentModulesTcl):
         else:
             self.log.debug("No errors detected when running module command '%s'", cmd)
 
+    def available(self, mod_name=None, extra_args=None):
+        """
+        Return a list of available modules for the given (partial) module name;
+        use None to obtain a list of all available modules.
+
+        :param mod_name: a (partial) module name for filtering (default: None)
+        """
+        if extra_args is None:
+            extra_args = []
+        # make hidden modules visible (requires Environment Modules 4.6.0)
+        if StrictVersion(self.version) >= StrictVersion('4.6.0'):
+            extra_args.append(self.SHOW_HIDDEN_OPTION)
+
+        return super(EnvironmentModules, self).available(mod_name=mod_name, extra_args=extra_args)
+
+    def get_setenv_value_from_modulefile(self, mod_name, var_name):
+        """
+        Get value for specific 'setenv' statement from module file for the specified module.
+
+        :param mod_name: module name
+        :param var_name: name of the variable being set for which value should be returned
+        """
+        # Tcl-based module tools produce "module show" output with setenv statements like:
+        # "setenv		 GCC_PATH /opt/gcc/8.3.0"
+        # "setenv		 VAR {some text}
+        # - line starts with 'setenv'
+        # - whitespace (spaces & tabs) around variable name
+        # - curly braces around value if it contain spaces
+        value = super(EnvironmentModules, self).get_setenv_value_from_modulefile(mod_name=mod_name,
+                                                                                 var_name=var_name)
+
+        if value:
+            value = value.strip('{}')
+
+        return value
+
 
 class Lmod(ModulesTool):
     """Interface to Lmod."""
     NAME = "Lmod"
     COMMAND = 'lmod'
     COMMAND_ENVIRONMENT = 'LMOD_CMD'
-    REQ_VERSION = '6.5.1'
-    DEPR_VERSION = '7.0.0'
-    REQ_VERSION_DEPENDS_ON = '7.6.1'
+    REQ_VERSION = '8.0.0'
+    DEPR_VERSION = '8.0.0'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
-    USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
     SHOW_HIDDEN_OPTION = '--show-hidden'
 
@@ -1356,7 +1441,14 @@ class Lmod(ModulesTool):
         setvar('LMOD_EXTENDED_DEFAULT', 'no', verbose=False)
 
         super(Lmod, self).__init__(*args, **kwargs)
-        self.supports_depends_on = StrictVersion(self.version) >= StrictVersion(self.REQ_VERSION_DEPENDS_ON)
+        version = StrictVersion(self.version)
+
+        self.supports_depends_on = True
+        # See https://lmod.readthedocs.io/en/latest/125_personal_spider_cache.html
+        if version >= '8.7.12':
+            self.USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.cache', 'lmod')
+        else:
+            self.USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
     def check_module_function(self, *args, **kwargs):
         """Check whether selected module tool matches 'module' function definition."""
@@ -1433,7 +1525,8 @@ class Lmod(ModulesTool):
                 # don't actually update local cache when testing, just return the cache contents
                 return stdout
             else:
-                cache_fp = os.path.join(self.USER_CACHE_DIR, 'moduleT.lua')
+                suffix = build_option('module_cache_suffix') or ''
+                cache_fp = os.path.join(self.USER_CACHE_DIR, 'moduleT%s.lua' % suffix)
                 self.log.debug("Updating Lmod spider cache %s with output from '%s'", cache_fp, cmd)
                 cache_dir = os.path.dirname(cache_fp)
                 if not os.path.exists(cache_dir):
@@ -1509,13 +1602,9 @@ class Lmod(ModulesTool):
         Determine whether a module wrapper with specified name exists.
         First check for wrapper defined in .modulerc.lua, fall back to also checking .modulerc (Tcl syntax).
         """
-        res = None
-
-        # first consider .modulerc.lua with Lmod 7.8 (or newer)
-        if StrictVersion(self.version) >= StrictVersion('7.8'):
-            mod_wrapper_regex_template = r'^module_version\("(?P<wrapped_mod>.*)", "%s"\)$'
-            res = super(Lmod, self).module_wrapper_exists(mod_name, modulerc_fn='.modulerc.lua',
-                                                          mod_wrapper_regex_template=mod_wrapper_regex_template)
+        mod_wrapper_regex_template = r'^module_version\("(?P<wrapped_mod>.*)", "%s"\)$'
+        res = super(Lmod, self).module_wrapper_exists(mod_name, modulerc_fn='.modulerc.lua',
+                                                      mod_wrapper_regex_template=mod_wrapper_regex_template)
 
         # fall back to checking for .modulerc in Tcl syntax
         if res is None:

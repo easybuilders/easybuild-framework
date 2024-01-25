@@ -42,7 +42,7 @@ from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, raise_nosupport
 from easybuild.tools.filetools import change_dir
-from easybuild.tools.run import check_async_cmd, run_cmd
+from easybuild.tools.run import check_async_cmd, run_cmd, run_shell_cmd
 
 
 def resolve_exts_filter_template(exts_filter, ext):
@@ -314,14 +314,14 @@ class Extension(object):
         elif exts_filter:
             cmd, stdin = resolve_exts_filter_template(exts_filter, self)
             # set log_ok to False so we can catch the error instead of run_cmd
-            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False, inp=stdin)
+            cmd_res = run_shell_cmd(cmd, fail_on_error=False, stdin=stdin)
 
-            if ec:
+            if cmd_res.exit_code:
                 if stdin:
                     fail_msg = 'command "%s" (stdin: "%s") failed' % (cmd, stdin)
                 else:
                     fail_msg = 'command "%s" failed' % cmd
-                fail_msg += "; output:\n%s" % output.strip()
+                fail_msg += "; output:\n%s" % cmd_res.output.strip()
                 self.log.warning("Sanity check for '%s' extension failed: %s", self.name, fail_msg)
                 res = (False, fail_msg)
                 # keep track of all reasons of failure

@@ -64,7 +64,7 @@ from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, opts_dict_to_eb_opts, parse_external_modules_metadata
 from easybuild.tools.options import set_up_configuration, set_tmpdir, use_color
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import HAVE_ARCHSPEC
 from easybuild.tools.version import VERSION
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup, init_config
@@ -2230,7 +2230,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(regex.search(outtxt), "OS dependencies are checked, outtxt: %s" % outtxt)
         msg = "One or more OS dependencies were not found: "
         msg += r"\[\('nosuchosdependency',\), \('nosuchdep_option1', 'nosuchdep_option2'\)\]"
-        regex = re.compile(r'%s' % msg, re.M)
+        regex = re.compile(msg, re.M)
         self.assertTrue(regex.search(outtxt), "OS dependencies are honored, outtxt: %s" % outtxt)
 
         # check whether OS dependencies are effectively ignored
@@ -2467,6 +2467,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
         allargs = args + ['--software-version=1.2.3', '--toolchain=gompi,2018a']
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, "version .* not available", self.eb_main, allargs, raise_error=True)
+
+        # Try changing only name or version of toolchain
+        args.pop(0)  # Remove EC filename
+        foss_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-foss-2018a.eb')
+        copy_file(os.path.join(ecs_path, 't', 'toy', 'toy-0.0-gompi-2018a.eb'), foss_toy_ec)
+        write_file(foss_toy_ec, "toolchain['name'] = 'foss'", append=True)
+
+        test_cases = [
+            (['toy-0.0-gompi-2018a.eb', '--try-toolchain-name=intel'], 'toy/0.0-iimpi-2018a'),
+            ([foss_toy_ec, '--try-toolchain-name=intel'], 'toy/0.0-intel-2018a'),
+            (['toy-0.0-gompi-2018a.eb', '--try-toolchain-version=2018b'], 'toy/0.0-gompi-2018b'),
+        ]
+        for extra_args, mod in test_cases:
+            outtxt = self.eb_main(args + extra_args, verbose=True, raise_error=True)
+            mod_regex = re.compile(r"\(module: %s\)$" % mod, re.M)
+            self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
     def test_try_with_copy(self):
         """Test whether --try options are taken into account."""
@@ -3744,8 +3760,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # try and make sure top-level directory is in $PYTHONPATH if it isn't yet
         pythonpath = self.env_pythonpath
         with self.mocked_stdout_stderr():
-            _, ec = run_cmd("cd %s; python -c 'import easybuild.framework'" % self.test_prefix, log_ok=False)
-        if ec > 0:
+            res = run_shell_cmd("cd {self.test_prefix}; python -c 'import easybuild.framework'", fail_on_error=False)
+        if res.exit_code != 0:
             pythonpath = '%s:%s' % (topdir, pythonpath)
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -3760,8 +3776,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--avail-module-naming-schemes']
         test_cmd = self.mk_eb_test_cmd(args)
         with self.mocked_stdout_stderr():
-            logtxt, _ = run_cmd(test_cmd, simple=False)
-        self.assertFalse(mns_regex.search(logtxt), "Unexpected pattern '%s' found in: %s" % (mns_regex.pattern, logtxt))
+            res = run_shell_cmd(test_cmd)
+        self.assertFalse(mns_regex.search(res.output),
+                         f"Unexpected pattern '{mns_regex.pattern}' found in: {res.output}")
 
         # include extra test MNS
         mns_txt = '\n'.join([
@@ -3777,8 +3794,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args.append('--include-module-naming-schemes=%s/*.py' % self.test_prefix)
         test_cmd = self.mk_eb_test_cmd(args)
         with self.mocked_stdout_stderr():
-            logtxt, _ = run_cmd(test_cmd, simple=False)
-        self.assertTrue(mns_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (mns_regex.pattern, logtxt))
+            res = run_shell_cmd(test_cmd)
+        self.assertTrue(mns_regex.search(res.output),
+                        f"Pattern '{mns_regex.pattern}' *not* found in: {res.output}")
 
     def test_use_included_module_naming_scheme(self):
         """Test using an included module naming scheme."""
@@ -3834,8 +3852,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # try and make sure top-level directory is in $PYTHONPATH if it isn't yet
         pythonpath = self.env_pythonpath
         with self.mocked_stdout_stderr():
-            _, ec = run_cmd("cd %s; python -c 'import easybuild.framework'" % self.test_prefix, log_ok=False)
-        if ec > 0:
+            res = run_shell_cmd(f"cd {self.test_prefix}; python -c 'import easybuild.framework'", fail_on_error=False)
+        if res.exit_code != 0:
             pythonpath = '%s:%s' % (topdir, pythonpath)
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -3853,8 +3871,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--list-toolchains']
         test_cmd = self.mk_eb_test_cmd(args)
         with self.mocked_stdout_stderr():
-            logtxt, _ = run_cmd(test_cmd, simple=False)
-        self.assertFalse(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
+            res = run_shell_cmd(test_cmd)
+        self.assertFalse(tc_regex.search(res.output),
+                         f"Pattern '{tc_regex.pattern}' *not* found in: {res.output}")
 
         # include extra test toolchain
         comp_txt = '\n'.join([
@@ -3875,8 +3894,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args.append('--include-toolchains=%s/*.py,%s/*/*.py' % (self.test_prefix, self.test_prefix))
         test_cmd = self.mk_eb_test_cmd(args)
         with self.mocked_stdout_stderr():
-            logtxt, _ = run_cmd(test_cmd, simple=False)
-        self.assertTrue(tc_regex.search(logtxt), "Pattern '%s' found in: %s" % (tc_regex.pattern, logtxt))
+            res = run_shell_cmd(test_cmd)
+        self.assertTrue(tc_regex.search(res.output),
+                        f"Pattern '{tc_regex.pattern}' found in: {res.output}")
 
     def test_cleanup_tmpdir(self):
         """Test --cleanup-tmpdir."""
@@ -3997,6 +4017,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.mock_stderr(False)
         self.assertNotIn("2016.04", txt)
+
+    def test_set_multiple_pr_opts(self):
+        """Test that passing multiple PR options results in an error"""
+        test_cases = [
+            ['--new-pr', 'dummy.eb', '--preview-pr'],
+            ['--new-pr', 'dummy.eb', '--update-pr', '42'],
+            ['--new-pr', 'dummy.eb', '--sync-pr-with-develop', '42'],
+            ['--new-pr', 'dummy.eb', '--new-pr-from-branch', 'mybranch'],
+        ]
+        for args in test_cases:
+            error_pattern = "The following options are set but incompatible.* " + args[0]
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
 
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
@@ -4900,7 +4932,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # --merge-pr also works on easyblocks (& framework) PRs
         args = [
             '--merge-pr',
-            '2805',
+            '2995',
             '--pr-target-repo=easybuild-easyblocks',
             '-D',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -4908,12 +4940,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
         self.assertEqual(stderr.strip(), '')
         expected_stdout = '\n'.join([
-            "Checking eligibility of easybuilders/easybuild-easyblocks PR #2805 for merging...",
+            "Checking eligibility of easybuilders/easybuild-easyblocks PR #2995 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* no pending change requests: OK",
-            "* approved review: OK (by ocaisa)",
-            "* milestone is set: OK (4.6.2)",
+            "* approved review: OK (by boegel)",
+            "* milestone is set: OK (4.8.1)",
             "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
@@ -5148,13 +5180,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         with self.mocked_stdout_stderr():
-            out, ec = run_cmd("function module { echo $@; } && source %s && echo FC: $FC" % env_script, simple=False)
+            res = run_shell_cmd(f"function module {{ echo $@; }} && source {env_script} && echo FC: $FC")
         expected_out = '\n'.join([
             "load GCC/4.6.4",
             "load hwloc/1.11.8-GCC-4.6.4",
             "FC: gfortran",
         ])
-        self.assertEqual(out.strip(), expected_out)
+        self.assertEqual(res.output.strip(), expected_out)
 
     def test_stop(self):
         """Test use of --stop."""
@@ -6040,6 +6072,42 @@ class CommandLineOptionsTest(EnhancedTestCase):
             {'toy-extra.txt': '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'}
         ]
         self.assertEqual(ec['checksums'], expected_checksums)
+
+        # Also works for extensions (all 3 patch formats)
+        write_file(test_ec, textwrap.dedent("""
+            exts_list = [
+               ("bar", "0.0", {
+                   'sources': ['bar-0.0-local.tar.gz'],
+                   'patches': [
+                       'bar-0.0_fix-silly-typo-in-printf-statement.patch',  # normal patch
+                       ('bar-0.0_fix-very-silly-typo-in-printf-statement.patch', 0),  # patch with patch level
+                       ('toy-0.0_fix-silly-typo-in-printf-statement.patch', 'toy_subdir'),
+                   ],
+               }),
+            ]
+        """), append=True)
+        self._run_mock_eb(args, raise_error=True, strip=True)
+        ec = EasyConfigParser(test_ec).get_config_dict()
+        ext = ec['exts_list'][0]
+        self.assertEqual((ext[0], ext[1]), ("bar", "0.0"))
+        ext_opts = ext[2]
+        expected_patches = [
+            'bar-0.0_fix-silly-typo-in-printf-statement.patch',
+            ('bar-0.0_fix-very-silly-typo-in-printf-statement.patch', 0),
+            ('toy-0.0_fix-silly-typo-in-printf-statement.patch', 'toy_subdir')
+        ]
+        self.assertEqual(ext_opts['patches'], expected_patches)
+        expected_checksums = [
+            {'bar-0.0-local.tar.gz':
+             'f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7'},
+            {'bar-0.0_fix-silly-typo-in-printf-statement.patch':
+             '84db53592e882b5af077976257f9c7537ed971cb2059003fd4faa05d02cae0ab'},
+            {'bar-0.0_fix-very-silly-typo-in-printf-statement.patch':
+             'd0bf102f9c5878445178c5f49b7cd7546e704c33fe2060c7354b7e473cfeb52b'},
+            {'toy-0.0_fix-silly-typo-in-printf-statement.patch':
+             '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'}
+        ]
+        self.assertEqual(ext_opts['checksums'], expected_checksums)
 
         # passing easyconfig filename as argument to --inject-checksums results in error being reported,
         # because it's not a valid type of checksum
