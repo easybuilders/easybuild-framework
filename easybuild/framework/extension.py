@@ -260,7 +260,7 @@ class Extension(object):
                     "6.0",
                 )
 
-        ext_substep()
+        return ext_substep()
 
     def async_cmd_start(self, cmd, inp=None):
         """
