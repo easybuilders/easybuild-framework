@@ -199,12 +199,9 @@ class Extension(object):
 
     def run_async(self, *args, **kwargs):
         """
-        [DEPRECATED] Asynchronous installation of an extension.
+        [DEPRECATED][6.0] Asynchronous installation of an extension.
         """
-        self.log.deprecated(
-            "Extension.run_async() is deprecated, use Extension.install_extension_async() instead.",
-            '6.0',
-        )
+        # Deprecation warning triggered by Extension.install_extension_substep()
         self.install_extension_async(*args, **kwargs)
 
     def install_extension_async(self, *args, **kwargs):
