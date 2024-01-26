@@ -1941,7 +1941,16 @@ class EasyBlock(object):
                 try:
                     ext.pre_install_extension()
                     with self.module_generator.start_module_creation():
-                        txt = ext.install_extension()
+                        parent_ext_obj = super(ext.__class__, ext)
+                        if ext.run.__hash__() != parent_ext_obj.run.__hash__():
+                            # DEPRECATED: easyblock has custom run() method
+                            self.log.deprecated(
+                                "Extension.run() is deprecated, use Extension.install_extension() instead.",
+                                '6.0',
+                            )
+                            txt = ext.run()
+                        else:
+                            txt = ext.install_extension()
                     if txt:
                         self.module_extra_extensions += txt
                     ext.post_install_extension()

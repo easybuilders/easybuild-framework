@@ -189,12 +189,8 @@ class Extension(object):
 
     def run(self, *args, **kwargs):
         """
-        [DEPRECATED] Actual installation of an extension.
+        [DEPRECATED][6.0] Actual installation of an extension.
         """
-        self.log.deprecated(
-            "Extension.run() is deprecated, use Extension.install_extension() instead.",
-            '6.0',
-        )
         self.install_extension(*args, **kwargs)
 
     def install_extension(self, *args, **kwargs):
