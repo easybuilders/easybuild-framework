@@ -1939,21 +1939,12 @@ class EasyBlock(object):
             # actual installation of the extension
             if install:
                 try:
-                    ext.pre_install_extension()
+                    ext.install_extension_substep("pre_install_extension")
                     with self.module_generator.start_module_creation():
-                        parent_ext_obj = super(ext.__class__, ext)
-                        if ext.run.__hash__() != parent_ext_obj.run.__hash__():
-                            # DEPRECATED: easyblock has custom run() method
-                            self.log.deprecated(
-                                "Extension.run() is deprecated, use Extension.install_extension() instead.",
-                                '6.0',
-                            )
-                            txt = ext.run()
-                        else:
-                            txt = ext.install_extension()
+                        txt = ext.install_extension_substep("install_extension")
                     if txt:
                         self.module_extra_extensions += txt
-                    ext.post_install_extension()
+                    ext.install_extension_substep("post_install_extension")
                 finally:
                     if not self.dry_run:
                         ext_duration = datetime.now() - start_time
@@ -2014,7 +2005,7 @@ class EasyBlock(object):
                 for ext in running_exts[:]:
                     if self.dry_run or ext.async_cmd_check():
                         self.log.info("Installation of %s completed!", ext.name)
-                        ext.post_install_extension()
+                        ext.install_extension_substep("post_install_extension")
                         running_exts.remove(ext)
                         installed_ext_names.append(ext.name)
                         update_exts_progress_bar_helper(running_exts, 1)
@@ -2085,8 +2076,8 @@ class EasyBlock(object):
                     ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
                                           rpath_filter_dirs=self.rpath_filter_dirs)
                     if install:
-                        ext.pre_install_extension()
-                        ext.install_extension_async()
+                        ext.install_extension_substep("pre_install_extension")
+                        ext.install_extension_substep("install_extension_async")
                         running_exts.append(ext)
                         self.log.info("Started installation of extension %s in the background...", ext.name)
                         update_exts_progress_bar_helper(running_exts, 0)
