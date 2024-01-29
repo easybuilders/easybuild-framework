@@ -207,6 +207,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     :param output_file: collect command output in temporary output file
     :param stream_output: stream command output to stdout (auto-enabled with --logtostdout if None)
     :param asynchronous: indicate that command is being run asynchronously
+    :param task_id: task ID for specified shell command (included in return value)
     :param with_hooks: trigger pre/post run_shell_cmd hooks (if defined)
     :param qa_patterns: list of 2-tuples with patterns for questions + corresponding answers
     :param qa_wait_patterns: list of 2-tuples with patterns for non-questions
