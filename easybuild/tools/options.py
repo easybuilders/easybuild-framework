@@ -489,7 +489,7 @@ class EasyBuildOptions(GeneralOption):
             'required-linked-shared-libs': ("Comma-separated list of shared libraries (names, file names, or paths) "
                                             "which must be linked in all installed binaries/libraries",
                                             'strlist', 'extend', None),
-            'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', False),
+            'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', True),
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
             'rpath-override-dirs': ("Path(s) to be prepended when linking with RPATH (string, colon-separated)",
                                     None, 'store', None),
