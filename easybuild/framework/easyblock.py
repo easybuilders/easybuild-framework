@@ -1867,7 +1867,7 @@ class EasyBlock(object):
     def install_extensions(self, *args, **kwargs):
         """[DEPRECATED] Install extensions."""
         self.log.deprecated(
-            "Easyblock.install_extensions() is deprecated, use Easyblock.install_all_extensions() instead.",
+            "EasyBlock.install_extensions() is deprecated, use EasyBlock.install_all_extensions() instead.",
             '6.0',
         )
         self.install_all_extensions(*args, **kwargs)
@@ -4479,7 +4479,7 @@ def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
         for easyblock_class in inspect.getmro(type(easyblock_instance)):
             easyblock_path = inspect.getsourcefile(easyblock_class)
             # if we reach EasyBlock, Extension or ExtensionEasyBlock class, we are done
-            # (Extension and ExtensionEasyblock are hardcoded to avoid a cyclical import)
+            # (Extension and ExtensionEasyBlock are hardcoded to avoid a cyclical import)
             if easyblock_class.__name__ in [EasyBlock.__name__, 'Extension', 'ExtensionEasyBlock']:
                 break
             else:
