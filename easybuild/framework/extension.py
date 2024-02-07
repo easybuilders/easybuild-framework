@@ -256,7 +256,7 @@ class Extension(object):
                 # Custom deprecated method used by child Easyblock
                 self.log.debug(f"EasyBlock provides custom deprecated method for installation substep: {substep}")
                 self.log.deprecated(
-                    f"Extension.{deprecated[substep]}() is deprecated, use Extension.{substep}() instead.",
+                    f"Extension.{deprecated_method}() is deprecated, use Extension.{substep}() instead.",
                     "6.0",
                 )
 
