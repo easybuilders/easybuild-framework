@@ -207,9 +207,16 @@ class EnhancedTestCase(TestCase):
 
     def allow_deprecated_behaviour(self):
         """Restore EasyBuild version to what it was originally, to allow triggering deprecated behaviour."""
-        if 'EASYBUILD_DEPRECATED' in os.environ:
-            del os.environ['EASYBUILD_DEPRECATED']
+        os.environ.pop('EASYBUILD_DEPRECATED', None)
         eb_build_log.CURRENT_VERSION = self.orig_current_version
+
+    @contextmanager
+    def temporarily_allow_deprecated_behaviour(self):
+        self.allow_deprecated_behaviour()
+        try:
+            yield
+        finally:
+            self.disallow_deprecated_behaviour()
 
     @contextmanager
     def log_to_testlogfile(self):
