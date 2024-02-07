@@ -223,27 +223,30 @@ class Extension(object):
         """
         self.master.run_post_install_commands(commands=self.cfg.get('postinstallcmds', []))
 
-    def install_extension_substep(self, substep):
+    def install_extension_substep(self, substep, *args, **kwargs):
         """
         Carry out extension installation substep allowing use of deprecated
         methods on those extensions using an older EasyBlock
         """
-        deprecated = {
+        substeps_mapping = {
             'pre_install_extension': 'prerun',
             'install_extension': 'run',
             'install_extension_async': 'run_async',
             'post_install_extension': 'postrun',
         }
 
-        if substep not in deprecated:
+        deprecated_method = substeps_mapping.get(substep)
+        if deprecated_method is None:
             raise EasyBuildError("Unknown extension installation substep: %s", substep)
 
         try:
-            ext_substep = getattr(self, deprecated[substep])
+            ext_substep = getattr(self, deprecated_method)
             parent_obj = super(self.__class__, self)
-            parent_substep = getattr(parent_obj, deprecated[substep])
+            parent_substep = getattr(parent_obj, deprecated_method)
         except AttributeError:
-            self.log.debug("Easyblock does not provide deprecated method for installation substep: %s", substep)
+            log_msg = f"EasyBlock does not implement deprecated method '{deprecated_method}' "
+            log_msg += f"for installation substep {substep}"
+            self.log.debug(log_msg)
             ext_substep = getattr(self, substep)
         else:
             if ext_substep.__hash__() == parent_substep.__hash__():
@@ -251,13 +254,13 @@ class Extension(object):
                 ext_substep = getattr(self, substep)
             else:
                 # Custom deprecated method used by child Easyblock
-                self.log.debug("Easyblock provides custom deprecated method for installation substep: %s", substep)
+                self.log.debug(f"EasyBlock provides custom deprecated method for installation substep: {substep}")
                 self.log.deprecated(
                     f"Extension.{deprecated[substep]}() is deprecated, use Extension.{substep}() instead.",
                     "6.0",
                 )
 
-        return ext_substep()
+        return ext_substep(*args, **kwargs)
 
     def async_cmd_start(self, cmd, inp=None):
         """
