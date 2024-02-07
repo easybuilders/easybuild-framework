@@ -2414,7 +2414,14 @@ class ToyBuildTest(EnhancedTestCase):
 
         # modify test easyconfig: move lib/libtoy.a to lib64/libtoy.a
         ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy', ('lib/libtoy.a', 'lib/libfoo.a')],", ectxt)
-        postinstallcmd = "mkdir %(installdir)s/lib64 && mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/libtoy.a"
+        postinstallcmd = ' && '.join([
+            # remove lib64 symlink (if it's there)
+            "rm -f %(installdir)s/lib64",
+            # create empty lib64 dir
+            "mkdir %(installdir)s/lib64",
+            # move libtoy.a
+            "mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/libtoy.a",
+        ])
         ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
 
         test_ec = os.path.join(self.test_prefix, 'toy-0.0.eb')
@@ -3829,7 +3836,6 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
 
         test_ec_txt = read_file(toy_ec)
-        test_ec_txt += "\npostinstallcmds += ['mv %(installdir)s/lib %(installdir)s/lib64']"
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
@@ -3842,30 +3848,30 @@ class ToyBuildTest(EnhancedTestCase):
         lib_path = os.path.join(toy_installdir, 'lib')
         lib64_path = os.path.join(toy_installdir, 'lib64')
 
-        # lib64 subdir exists, is not a symlink
-        self.assertExists(lib64_path)
-        self.assertTrue(os.path.isdir(lib64_path))
-        self.assertFalse(os.path.islink(lib64_path))
-
-        # lib subdir is a symlink to lib64 subdir
+        # lib subdir exists, is not a symlink
         self.assertExists(lib_path)
         self.assertTrue(os.path.isdir(lib_path))
-        self.assertTrue(os.path.islink(lib_path))
-        self.assertTrue(os.path.samefile(lib_path, lib64_path))
+        self.assertFalse(os.path.islink(lib_path))
 
-        # lib symlink should point to a relative path
-        self.assertFalse(os.path.isabs(os.readlink(lib_path)))
+        # lib64 subdir is a symlink to lib subdir
+        self.assertExists(lib64_path)
+        self.assertTrue(os.path.isdir(lib64_path))
+        self.assertTrue(os.path.islink(lib64_path))
+        self.assertTrue(os.path.samefile(lib64_path, lib_path))
+
+        # lib64 symlink should point to a relative path
+        self.assertFalse(os.path.isabs(os.readlink(lib64_path)))
 
         # cleanup and try again with --disable-lib-lib64-symlink
         remove_dir(self.test_installpath)
         with self.mocked_stdout_stderr():
-            self._test_toy_build(ec_file=test_ec, extra_args=['--disable-lib-lib64-symlink'])
+            self._test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'])
 
-        self.assertExists(lib64_path)
-        self.assertNotExists(lib_path)
-        self.assertNotIn('lib', os.listdir(toy_installdir))
-        self.assertTrue(os.path.isdir(lib64_path))
-        self.assertFalse(os.path.islink(lib64_path))
+        self.assertExists(lib_path)
+        self.assertNotExists(lib64_path)
+        self.assertNotIn('lib64', os.listdir(toy_installdir))
+        self.assertTrue(os.path.isdir(lib_path))
+        self.assertFalse(os.path.islink(lib_path))
 
     def test_toy_build_sanity_check_linked_libs(self):
         """Test sanity checks for banned/requires libraries."""
