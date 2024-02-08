@@ -3030,12 +3030,6 @@ class EasyBlock(object):
         - run post install commands if any were specified
         """
 
-        self.run_post_install_commands()
-        self.apply_post_install_patches()
-        self.print_post_install_messages()
-
-        self.fix_shebang()
-
         lib_dir = os.path.join(self.installdir, 'lib')
         lib64_dir = os.path.join(self.installdir, 'lib64')
 
@@ -3055,6 +3049,12 @@ class EasyBlock(object):
             if os.path.exists(lib64_dir) and not os.path.exists(lib_dir):
                 # create *relative* 'lib' symlink to 'lib64';
                 symlink('lib64', lib_dir, use_abspath_source=False)
+
+        self.run_post_install_commands()
+        self.apply_post_install_patches()
+        self.print_post_install_messages()
+
+        self.fix_shebang()
 
     def sanity_check_step(self, *args, **kwargs):
         """
