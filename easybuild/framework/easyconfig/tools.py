@@ -701,7 +701,9 @@ def check_sha256_checksums(ecs, whitelist=None):
             continue
 
         eb_class = get_easyblock_class(ec['easyblock'], name=ec['name'])
-        checksum_issues.extend(eb_class(ec).check_checksums())
+        eb = eb_class(ec)
+        checksum_issues.extend(eb.check_checksums())
+        eb.close_log()
 
     return checksum_issues
 
