@@ -251,7 +251,7 @@ class Extension(object):
             substep_method_name = substep_method.__qualname__
             self.log.debug(f"Found deprecated method in EasyBlock: {substep_method_name}")
 
-            base_method_name = f"Extension.{substep}"
+            base_method_name = f"Extension.{deprecated_substep}"
             if substep_method_name == base_method_name:
                 # No custom method in child Easyblock, deprecated method is defined by base Extension class
                 # Switch to non-deprecated substep method
