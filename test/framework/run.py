@@ -750,6 +750,40 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(out.startswith("question\nanswer\nfoo "))
         self.assertTrue(out.endswith('bar'))
 
+    def test_run_shell_cmd_qa(self):
+        """Basic test for Q&A support in run_shell_cmd function."""
+
+        cmd = '; '.join([
+            "echo question1",
+            "read x",
+            "echo $x",
+            "echo question2",
+            "read y",
+            "echo $y",
+        ])
+        qa = [
+            ('question1', 'answer1'),
+            ('question2', 'answer2'),
+        ]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa)
+        self.assertEqual(res.output, "question1\nanswer1\nquestion2\nanswer2\n")
+        # no reason echo hello could fail
+        self.assertEqual(res.exit_code, 0)
+
+        # test running command that emits non-UTF8 characters
+        # this is constructed to reproduce errors like:
+        # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2
+        test_file = os.path.join(self.test_prefix, 'foo.txt')
+        write_file(test_file, b"foo \xe2 bar")
+        cmd += "; cat %s" % test_file
+
+        with self.mocked_stdout_stderr():
+             res = run_shell_cmd(cmd, qa_patterns=qa)
+        self.assertEqual(res.exit_code, 0)
+        self.assertTrue(res.output.startswith("question1\nanswer1\nquestion2\nanswer2\nfoo "))
+        self.assertTrue(res.output.endswith('bar'))
+
     def test_run_cmd_qa_buffering(self):
         """Test whether run_cmd_qa uses unbuffered output."""
 

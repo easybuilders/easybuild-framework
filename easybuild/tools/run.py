@@ -36,6 +36,7 @@ Authors:
 * Ward Poelmans (Ghent University)
 """
 import contextlib
+import fcntl
 import functools
 import inspect
 import os
@@ -231,7 +232,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         return cmd_str
 
     # temporarily raise a NotImplementedError until all options are implemented
-    if qa_patterns or qa_wait_patterns:
+    if qa_wait_patterns:
         raise NotImplementedError
 
     if work_dir is None:
@@ -315,23 +316,48 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     if stdin:
         stdin = stdin.encode()
 
-    if stream_output:
+    if stream_output or qa_patterns:
+
+        if qa_patterns:
+            # make stdout, stderr, stdin non-blocking files
+            channels = [proc.stdout, proc.stdin]
+            if split_stderr:
+                channels += proc.stderr
+            for channel in channels:
+                fd = channel.fileno()
+                flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+                fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
         if stdin:
             proc.stdin.write(stdin)
 
         exit_code = None
         stdout, stderr = b'', b''
 
+        # collect output piece-wise, while checking for questions to answer (if qa_patterns is provided)
         while exit_code is None:
-            exit_code = proc.poll()
 
             # use small read size (128 bytes) when streaming output, to make it stream more fluently
             # -1 means reading until EOF
             read_size = 128 if exit_code is None else -1
 
-            stdout += proc.stdout.read(read_size)
+            exit_code = proc.poll()
+
+            more_stdout = proc.stdout.read1(read_size) or b''
+            stdout += more_stdout
+
+            # note: we assume that there won't be any questions in stderr output
             if split_stderr:
-                stderr += proc.stderr.read(read_size)
+                stderr += proc.stderr.read1(read_size) or b''
+
+            # only consider answering questions if there's new output beyond additional whitespace
+            if more_stdout.strip() and qa_patterns:
+                for question, answer in qa_patterns:
+                    question += '[\s\n]*$'
+                    regex = re.compile(question.encode())
+                    if regex.search(stdout):
+                        answer += '\n'
+                        x= os.write(proc.stdin.fileno(), answer.encode())
     else:
         (stdout, stderr) = proc.communicate(input=stdin)
 
