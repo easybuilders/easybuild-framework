@@ -277,7 +277,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     if not in_dry_run and build_option('extended_dry_run'):
         if not hidden or verbose_dry_run:
             silent = build_option('silent')
-            msg = f"  running shell command \"{cmd_str}\"\n"
+            interactive = 'interactive ' if qa_patterns else ''
+            msg = f"  running {interactive}shell command \"{cmd_str}\"\n"
             msg += f"  (in {work_dir})"
             dry_run_msg(msg, silent=silent)
 
@@ -286,7 +287,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     start_time = datetime.now()
     if not hidden:
-        _cmd_trace_msg(cmd_str, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thread_id)
+        _cmd_trace_msg(cmd_str, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thread_id,
+                       interactive=bool(qa_patterns))
 
     if stream_output:
         print_msg(f"(streaming) output for command '{cmd_str}':")
@@ -430,7 +432,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     return res
 
 
-def _cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thread_id):
+def _cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thread_id, interactive=False):
     """
     Helper function to construct and print trace message for command being run
 
@@ -441,13 +443,15 @@ def _cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thr
     :param cmd_out_fp: path to output file for command
     :param cmd_err_fp: path to errors/warnings output file for command
     :param thread_id: thread ID (None when not running shell command asynchronously)
+    :param interactive: boolean indicating whether it is an interactive command, or not
     """
     start_time = start_time.strftime('%Y-%m-%d %H:%M:%S')
 
+    interactive = 'interactive ' if interactive else ''
     if thread_id:
-        run_cmd_msg = f"running shell command (asynchronously, thread ID: {thread_id}):"
+        run_cmd_msg = f"running {interactive}shell command (asynchronously, thread ID: {thread_id}):"
     else:
-        run_cmd_msg = "running shell command:"
+        run_cmd_msg = f"running {interactive}shell command:"
 
     lines = [
         run_cmd_msg,

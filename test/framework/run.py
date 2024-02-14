@@ -876,13 +876,22 @@ class RunTest(EnhancedTestCase):
         extra_pref = "# output for interactive command: echo 'n: '; read n; seq 1 $n\n\n"
         self.assertEqual(run_cmd_log_txt, extra_pref + "n: \n1\n2\n3\n4\n5\n")
 
+    def test_run_shell_cmd_qa_log(self):
+        """Test temporary log file for run_shell_cmd with qa_patterns"""
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd("echo 'n: '; read n; seq 1 $n", qa_patterns=[('n:', '5')])
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "n: \n1\n2\n3\n4\n5\n")
+
+        run_cmd_logs = glob.glob(os.path.join(tempfile.gettempdir(), 'run-shell-cmd-output', 'echo-*', 'out.txt'))
+        self.assertEqual(len(run_cmd_logs), 1)
+        run_cmd_log_txt = read_file(run_cmd_logs[0])
+        self.assertEqual(run_cmd_log_txt, "n: \n1\n2\n3\n4\n5\n")
+
     def test_run_cmd_qa_trace(self):
         """Test run_cmd under --trace"""
-        # replace log.experimental with log.warning to allow experimental code
-        easybuild.tools.utilities._log.experimental = easybuild.tools.utilities._log.warning
 
-        init_config(build_options={'trace': True})
-
+        # --trace is enabled by default
         self.mock_stdout(True)
         self.mock_stderr(True)
         (out, ec) = run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'})
@@ -903,6 +912,37 @@ class RunTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.mock_stderr(True)
         (out, ec) = run_cmd("echo hello", trace=False)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+
+    def test_run_shell_cmd_qa_trace(self):
+        """Test run_shell_cmd with qa_patterns under --trace"""
+
+        # --trace is enabled by default
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        run_shell_cmd("echo 'n: '; read n; seq 1 $n", qa_patterns=[('n: ', '5')])
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stderr, '')
+        pattern = r"^  >> running interactive shell command:\n"
+        pattern += r"\techo \'n: \'; read n; seq 1 \$n\n"
+        pattern += r"\t\[started at: .*\]\n"
+        pattern += r"\t\[working dir: .*\]\n"
+        pattern += r"\t\[output saved to .*\]\n"
+        pattern += r'  >> command completed: exit 0, ran in .*'
+        self.assertTrue(re.search(pattern, stdout), "Pattern '%s' found in: %s" % (pattern, stdout))
+
+        # trace output can be disabled on a per-command basis
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        run_shell_cmd("echo 'n: '; read n; seq 1 $n", qa_patterns=[('n: ', '5')], hidden=True)
         stdout = self.get_stdout()
         stderr = self.get_stderr()
         self.mock_stdout(False)
