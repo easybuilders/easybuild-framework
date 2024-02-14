@@ -4121,6 +4121,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
             '--debug',
+            '--disable-rpath',
         ]
 
         msg_regexs = [

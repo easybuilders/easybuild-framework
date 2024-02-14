@@ -2269,6 +2269,7 @@ class ToolchainTest(EnhancedTestCase):
             "--force",
             "--debug",
             "--disable-cleanup-tmpdir",
+            "--disable-rpath",
         ]
 
         ccache = which('ccache')
