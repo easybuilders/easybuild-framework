@@ -784,6 +784,21 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(res.output.startswith("question1\nanswer1\nquestion2\nanswer2\nfoo "))
         self.assertTrue(res.output.endswith('bar'))
 
+        # check type check on qa_patterns
+        error_pattern = "qa_patterns passed to run_shell_cmd should be a list of 2-tuples!"
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns={'foo': 'bar'})
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=('foo', 'bar'))
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=(('foo', 'bar'),))
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns='foo:bar')
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=['foo:bar'])
+
+        # validate use of qa_timeout to give up if there's no matching question for too long
+        cmd = "sleep 3; echo 'question'; read a; echo $a"
+        error_pattern = "No matching questions found for current command output, giving up after 1 seconds!"
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=qa, qa_timeout=1)
+
     def test_run_cmd_qa_buffering(self):
         """Test whether run_cmd_qa uses unbuffered output."""
 
@@ -815,6 +830,38 @@ class RunTest(EnhancedTestCase):
 
         self.assertEqual(ec, 1)
         self.assertEqual(out, "Hello, I am about to exit\nERROR: I failed\n")
+
+    def test_run_shell_cmd_qa_buffering(self):
+        """Test whether run_shell_cmd uses unbuffered output when running interactive commands."""
+
+        # command that generates a lot of output before waiting for input
+        # note: bug being fixed can be reproduced reliably using 1000, but not with too high values like 100000!
+        cmd = 'for x in $(seq 1000); do echo "This is a number you can pick: $x"; done; '
+        cmd += 'echo "Pick a number: "; read number; echo "Picked number: $number"'
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=[('Pick a number: ', '42')], qa_timeout=10)
+
+        self.assertEqual(res.exit_code, 0)
+        regex = re.compile("Picked number: 42$")
+        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' found in: {res.output}")
+
+        # also test with script run as interactive command that quickly exits with non-zero exit code;
+        # see https://github.com/easybuilders/easybuild-framework/issues/3593
+        script_txt = '\n'.join([
+            "#/bin/bash",
+            "echo 'Hello, I am about to exit'",
+            "echo 'ERROR: I failed' >&2",
+            "exit 1",
+        ])
+        script = os.path.join(self.test_prefix, 'test.sh')
+        write_file(script, script_txt)
+        adjust_permissions(script, stat.S_IXUSR)
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(script, qa_patterns=[], fail_on_error=False)
+
+        self.assertEqual(res.exit_code, 1)
+        self.assertEqual(res.output, "Hello, I am about to exit\nERROR: I failed\n")
 
     def test_run_cmd_qa_log_all(self):
         """Test run_cmd_qa with log_output enabled"""

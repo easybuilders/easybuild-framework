@@ -192,7 +192,7 @@ run_shell_cmd_cache = run_cmd_cache
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
                   hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, use_bash=True,
                   output_file=True, stream_output=None, asynchronous=False, task_id=None, with_hooks=True,
-                  qa_patterns=None, qa_wait_patterns=None):
+                  qa_patterns=None, qa_wait_patterns=None, qa_timeout=10000):
     """
     Run specified (interactive) shell command, and capture output + exit code.
 
@@ -213,6 +213,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     :param qa_patterns: list of 2-tuples with patterns for questions + corresponding answers
     :param qa_wait_patterns: list of 2-tuples with patterns for non-questions
                              and number of iterations to allow these patterns to match with end out command output
+    :param qa_timeout: amount of milliseconds to wait until more output is produced when there is no matching question
+
     :return: Named tuple with:
     - output: command output, stdout+stderr combined if split_stderr is disabled, only stdout otherwise
     - exit_code: exit code of command (integer)
@@ -230,6 +232,11 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             raise EasyBuildError(f"Unknown command type ('{type(cmd)}'): {cmd}")
 
         return cmd_str
+
+    # make sure that qa_patterns is a list of 2-tuples (not a dict, or something else)
+    if qa_patterns:
+        if not isinstance(qa_patterns, list) or any(not isinstance(x, tuple) or len(x) != 2 for x in qa_patterns):
+            raise EasyBuildError("qa_patterns passed to run_shell_cmd should be a list of 2-tuples!")
 
     # temporarily raise a NotImplementedError until all options are implemented
     if qa_wait_patterns:
@@ -333,6 +340,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
         exit_code = None
         stdout, stderr = b'', b''
+        check_interval_secs = 0.001
+        time_no_match = 0
 
         # collect output piece-wise, while checking for questions to answer (if qa_patterns is provided)
         while exit_code is None:
@@ -351,6 +360,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                 stderr += proc.stderr.read1(read_size) or b''
 
             # only consider answering questions if there's new output beyond additional whitespace
+            hit = False
             if more_stdout.strip() and qa_patterns:
                 for question, answer in qa_patterns:
                     question += '[\s\n]*$'
@@ -358,6 +368,17 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                     if regex.search(stdout):
                         answer += '\n'
                         x= os.write(proc.stdin.fileno(), answer.encode())
+                        hit = True
+
+            time.sleep(check_interval_secs)
+            if hit:
+                time_no_match = 0
+            else:
+                time_no_match += check_interval_secs
+                if time_no_match >= qa_timeout:
+                    error_msg = "No matching questions found for current command output, "
+                    error_msg += f"giving up after {qa_timeout} seconds!"
+                    raise EasyBuildError(error_msg)
     else:
         (stdout, stderr) = proc.communicate(input=stdin)
 
