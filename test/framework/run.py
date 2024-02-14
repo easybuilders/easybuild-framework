@@ -779,7 +779,7 @@ class RunTest(EnhancedTestCase):
         cmd += "; cat %s" % test_file
 
         with self.mocked_stdout_stderr():
-             res = run_shell_cmd(cmd, qa_patterns=qa)
+            res = run_shell_cmd(cmd, qa_patterns=qa)
         self.assertEqual(res.exit_code, 0)
         self.assertTrue(res.output.startswith("question1\nanswer1\nquestion2\nanswer2\nfoo "))
         self.assertTrue(res.output.endswith('bar'))

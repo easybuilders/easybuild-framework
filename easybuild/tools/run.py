@@ -363,11 +363,11 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             hit = False
             if more_stdout.strip() and qa_patterns:
                 for question, answer in qa_patterns:
-                    question += '[\s\n]*$'
+                    question += r'[\s\n]*$'
                     regex = re.compile(question.encode())
                     if regex.search(stdout):
                         answer += '\n'
-                        x= os.write(proc.stdin.fileno(), answer.encode())
+                        os.write(proc.stdin.fileno(), answer.encode())
                         hit = True
 
             time.sleep(check_interval_secs)
