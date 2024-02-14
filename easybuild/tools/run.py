@@ -42,6 +42,7 @@ import os
 import re
 import signal
 import shutil
+import string
 import subprocess
 import sys
 import tempfile
@@ -233,7 +234,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         work_dir = os.getcwd()
 
     cmd_str = to_cmd_str(cmd)
-    cmd_name = os.path.basename(cmd_str.split(' ')[0])
 
     # auto-enable streaming of command output under --logtostdout/-l, unless it was disabled explicitely
     if stream_output is None and build_option('logtostdout'):
@@ -244,6 +244,9 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     if output_file:
         toptmpdir = os.path.join(tempfile.gettempdir(), 'run-shell-cmd-output')
         os.makedirs(toptmpdir, exist_ok=True)
+        # restrict the allowed characters in the name of the output_file
+        allowed_chars = string.ascii_letters + string.digits
+        cmd_name = ''.join([c for c in os.path.basename(cmd_str.split(' ')[0]) if c in allowed_chars])
         tmpdir = tempfile.mkdtemp(dir=toptmpdir, prefix=f'{cmd_name}-')
         cmd_out_fp = os.path.join(tmpdir, 'out.txt')
         _log.info(f'run_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
