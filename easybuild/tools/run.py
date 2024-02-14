@@ -192,7 +192,7 @@ run_shell_cmd_cache = run_cmd_cache
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
                   hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, use_bash=True,
                   output_file=True, stream_output=None, asynchronous=False, task_id=None, with_hooks=True,
-                  qa_patterns=None, qa_wait_patterns=None, qa_timeout=10000):
+                  qa_patterns=None, qa_wait_patterns=None, qa_timeout=100):
     """
     Run specified (interactive) shell command, and capture output + exit code.
 
@@ -213,7 +213,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     :param qa_patterns: list of 2-tuples with patterns for questions + corresponding answers
     :param qa_wait_patterns: list of 2-tuples with patterns for non-questions
                              and number of iterations to allow these patterns to match with end out command output
-    :param qa_timeout: amount of milliseconds to wait until more output is produced when there is no matching question
+    :param qa_timeout: amount of seconds to wait until more output is produced when there is no matching question
 
     :return: Named tuple with:
     - output: command output, stdout+stderr combined if split_stderr is disabled, only stdout otherwise
