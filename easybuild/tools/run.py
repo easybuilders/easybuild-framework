@@ -360,25 +360,24 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                 stderr += proc.stderr.read1(read_size) or b''
 
             # only consider answering questions if there's new output beyond additional whitespace
-            hit = False
-            if more_stdout.strip() and qa_patterns:
+            if qa_patterns:
                 for question, answer in qa_patterns:
                     question += r'[\s\n]*$'
                     regex = re.compile(question.encode())
                     if regex.search(stdout):
                         answer += '\n'
                         os.write(proc.stdin.fileno(), answer.encode())
-                        hit = True
+                        time_no_match = 0
+                        break
+                else:
+                    # this will only run if the for loop above was *not* stopped by the break statement
+                    time_no_match += check_interval_secs
+                    if time_no_match > qa_timeout:
+                        error_msg = "No matching questions found for current command output, "
+                        error_msg += f"giving up after {qa_timeout} seconds!"
+                        raise EasyBuildError(error_msg)
 
             time.sleep(check_interval_secs)
-            if hit:
-                time_no_match = 0
-            else:
-                time_no_match += check_interval_secs
-                if time_no_match >= qa_timeout:
-                    error_msg = "No matching questions found for current command output, "
-                    error_msg += f"giving up after {qa_timeout} seconds!"
-                    raise EasyBuildError(error_msg)
     else:
         (stdout, stderr) = proc.communicate(input=stdin)
 
