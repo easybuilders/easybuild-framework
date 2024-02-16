@@ -357,7 +357,8 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'allow-use-as-root-and-accept-consequences': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)",
                                                           None, 'store_true', False),
-            'backup-modules': ("Back up an existing module file, if any. Only works when using --module-only",
+            'backup-modules': ("Back up an existing module file, if any. "
+                               "Auto-enabled when using --module-only or --skip",
                                None, 'store_true', None),  # default None to allow auto-enabling if not disabled
             'backup-patched-files': ("Create a backup (*.orig) file when applying a patch",
                                      None, 'store_true', False),
