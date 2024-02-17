@@ -1582,7 +1582,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
-        self.assertIn("Download instructions:\n\nManual download from example.com required", stderr)
+        self.assertIn("Download instructions:\n\n    Manual download from example.com required", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # create dummy source file
         write_file(os.path.join(os.path.dirname(self.eb_file), 'software_with_missing_sources-0.0.tar.gz'), '')
@@ -1596,7 +1597,8 @@ class EasyBlockTest(EnhancedTestCase):
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertIn("Download instructions:\n\nManual download from example.com required", stderr)
+        self.assertIn("Download instructions:\n\n    Manual download from example.com required", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # wipe top-level download instructions, try again
         self.contents = self.contents.replace(download_instructions, '')
@@ -1625,7 +1627,8 @@ class EasyBlockTest(EnhancedTestCase):
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertIn("Download instructions:\n\nExtension sources must be downloaded via example.com", stderr)
+        self.assertIn("Download instructions:\n\n    Extension sources must be downloaded via example.com", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # download instructions should also be printed if 'source_tmpl' is used to specify extension sources
         self.contents = self.contents.replace(sources, "'source_tmpl': SOURCE_TAR_GZ,")
@@ -1638,7 +1641,8 @@ class EasyBlockTest(EnhancedTestCase):
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertIn("Download instructions:\n\nExtension sources must be downloaded via example.com", stderr)
+        self.assertIn("Download instructions:\n\n    Extension sources must be downloaded via example.com", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # create dummy source file for extension
         write_file(os.path.join(os.path.dirname(self.eb_file), 'ext_with_missing_sources-0.0.tar.gz'), '')
