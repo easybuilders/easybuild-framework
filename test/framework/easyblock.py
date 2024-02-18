@@ -1040,6 +1040,7 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_extensions_step_deprecations(self):
         """Test extension install with deprecated substeps."""
+        install_substeps = ["pre_install_extension", "install_extension", "post_install_extension"]
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = '\n'.join([
@@ -1068,27 +1069,32 @@ class EasyBlockTest(EnhancedTestCase):
         # Default DummyExtension without deprecated or custom install substeps
         ext = eb.ext_instances[0]
         self.assertEqual(ext.__class__.__name__, "DummyExtension")
-        self.assertEqual(ext.install_extension_substep("install_extension"), None)
+        for substep in install_substeps:
+            self.assertEqual(ext.install_extension_substep(substep), None)
         # CustomDummyExtension
         ext = eb.ext_instances[1]
         self.assertEqual(ext.__class__.__name__, "CustomDummyExtension")
-        expected_return = "Extension installed with install_extension()"
-        self.assertEqual(ext.install_extension_substep("install_extension"), expected_return)
+        for substep in install_substeps:
+            expected_return = f"Extension installed with custom {substep}()"
+            self.assertEqual(ext.install_extension_substep(substep), expected_return)
         # DeprecatedDummyExtension
         ext = eb.ext_instances[2]
         self.assertEqual(ext.__class__.__name__, "DeprecatedDummyExtension")
-        error_msg = r"DEPRECATED \(since v6.0\).*use install_extension\(\) instead.*"
-        self.assertErrorRegex(EasyBuildError, error_msg, ext.install_extension_substep, "install_extension")
+        for substep in install_substeps:
+            expected_error = f"DEPRECATED \(since v6.0\).*use {substep}\(\) instead.*"
+            self.assertErrorRegex(EasyBuildError, expected_error, ext.install_extension_substep, substep)
         # ChildCustomDummyExtension
         ext = eb.ext_instances[3]
         self.assertEqual(ext.__class__.__name__, "ChildCustomDummyExtension")
-        expected_return = "Extension installed with install_extension()"
-        self.assertEqual(ext.install_extension_substep("install_extension"), expected_return)
+        for substep in install_substeps:
+            expected_return = f"Extension installed with custom {substep}()"
+            self.assertEqual(ext.install_extension_substep(substep), expected_return)
         # ChildDeprecatedDummyExtension
         ext = eb.ext_instances[4]
         self.assertEqual(ext.__class__.__name__, "ChildDeprecatedDummyExtension")
-        error_msg = r"DEPRECATED \(since v6.0\).*use install_extension\(\) instead.*"
-        self.assertErrorRegex(EasyBuildError, error_msg, ext.install_extension_substep, "install_extension")
+        for substep in install_substeps:
+            expected_error = f"DEPRECATED \(since v6.0\).*use {substep}\(\) instead.*"
+            self.assertErrorRegex(EasyBuildError, expected_error, ext.install_extension_substep, substep)
 
     def test_init_extensions(self):
         """Test creating extension instances."""

@@ -34,6 +34,14 @@ from easybuild.easyblocks.generic.dummyextension import DummyExtension
 class DeprecatedDummyExtension(DummyExtension):
     """Extension EasyBlock with deprecated install step"""
 
+    def prerun(self):
+
+        return "Extension installed with custom prerun()"
+
     def run(self):
 
-        return "Extension installed with run()"
+        return "Extension installed with custom run()"
+
+    def postrun(self):
+
+        return "Extension installed with custom postrun()"

@@ -34,6 +34,14 @@ from easybuild.easyblocks.generic.dummyextension import DummyExtension
 class CustomDummyExtension(DummyExtension):
     """Extension EasyBlock with customized install step"""
 
+    def pre_install_extension(self):
+
+        return "Extension installed with custom pre_install_extension()"
+
     def install_extension(self):
 
-        return "Extension installed with install_extension()"
+        return "Extension installed with custom install_extension()"
+
+    def post_install_extension(self):
+
+        return "Extension installed with custom post_install_extension()"
