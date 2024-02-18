@@ -1081,7 +1081,7 @@ class EasyBlockTest(EnhancedTestCase):
         ext = eb.ext_instances[2]
         self.assertEqual(ext.__class__.__name__, "DeprecatedDummyExtension")
         for substep in install_substeps:
-            expected_error = f"DEPRECATED \(since v6.0\).*use {substep}\(\) instead.*"
+            expected_error = rf"DEPRECATED \(since v6.0\).*use {substep}\(\) instead.*"
             self.assertErrorRegex(EasyBuildError, expected_error, ext.install_extension_substep, substep)
         # ChildCustomDummyExtension
         ext = eb.ext_instances[3]
@@ -1093,7 +1093,7 @@ class EasyBlockTest(EnhancedTestCase):
         ext = eb.ext_instances[4]
         self.assertEqual(ext.__class__.__name__, "ChildDeprecatedDummyExtension")
         for substep in install_substeps:
-            expected_error = f"DEPRECATED \(since v6.0\).*use {substep}\(\) instead.*"
+            expected_error = rf"DEPRECATED \(since v6.0\).*use {substep}\(\) instead.*"
             self.assertErrorRegex(EasyBuildError, expected_error, ext.install_extension_substep, substep)
 
     def test_init_extensions(self):
