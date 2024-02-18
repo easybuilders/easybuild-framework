@@ -37,4 +37,3 @@ class DeprecatedDummyExtension(DummyExtension):
     def run(self):
 
         return "Extension installed with run()"
-

@@ -37,4 +37,3 @@ class CustomDummyExtension(DummyExtension):
     def install_extension(self):
 
         return "Extension installed with install_extension()"
-

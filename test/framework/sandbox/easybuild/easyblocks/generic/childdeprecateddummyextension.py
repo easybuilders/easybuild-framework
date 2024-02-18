@@ -33,4 +33,3 @@ from easybuild.easyblocks.generic.deprecateddummyextension import DeprecatedDumm
 
 class ChildDeprecatedDummyExtension(DeprecatedDummyExtension):
     """Extension EasyBlock inheriting deprecated install step"""
-

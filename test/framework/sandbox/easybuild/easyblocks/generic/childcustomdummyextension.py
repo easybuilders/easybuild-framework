@@ -33,4 +33,3 @@ from easybuild.easyblocks.generic.customdummyextension import CustomDummyExtensi
 
 class ChildCustomDummyExtension(CustomDummyExtension):
     """Extension EasyBlock inheriting customized install step"""
-
