@@ -778,7 +778,7 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
         else:
             toolchain = '%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version'])
 
-        keys = ['description', 'homepage', 'version', 'versionsuffix']
+        keys = ['description', 'homepage', 'version', 'versionsuffix', 'authors']
 
         info = {'toolchain': toolchain}
         for key in keys:
