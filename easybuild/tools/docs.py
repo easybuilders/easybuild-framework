@@ -778,9 +778,9 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
         else:
             toolchain = '%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version'])
 
-        keys = ['description', 'homepage', 'version', 'versionsuffix', 'authors']
-
-        info = {'toolchain': toolchain}
+        keys = ['description', 'homepage', 'version', 'versionsuffix']
+        # authors should be a list and does not need to be templated
+        info = {'toolchain': toolchain, 'authors' : ec.get('authors', [])}
         for key in keys:
             info[key] = ec.get(key, '')
 
