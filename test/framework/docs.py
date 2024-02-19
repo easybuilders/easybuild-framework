@@ -59,6 +59,10 @@ LIST_EASYBLOCKS_SIMPLE_TXT = """EasyBlock
 |-- EB_toy_buggy
 |-- ExtensionEasyBlock
 |   |-- DummyExtension
+|   |   |-- CustomDummyExtension
+|   |   |   |-- ChildCustomDummyExtension
+|   |   |-- DeprecatedDummyExtension
+|   |   |   |-- ChildDeprecatedDummyExtension
 |   |-- EB_toy
 |   |   |-- EB_toy_eula
 |   |   |-- EB_toytoy
@@ -69,6 +73,10 @@ LIST_EASYBLOCKS_SIMPLE_TXT = """EasyBlock
 Extension
 |-- ExtensionEasyBlock
 |   |-- DummyExtension
+|   |   |-- CustomDummyExtension
+|   |   |   |-- ChildCustomDummyExtension
+|   |   |-- DeprecatedDummyExtension
+|   |   |   |-- ChildDeprecatedDummyExtension
 |   |-- EB_toy
 |   |   |-- EB_toy_eula
 |   |   |-- EB_toytoy
@@ -91,6 +99,10 @@ LIST_EASYBLOCKS_DETAILED_TXT = """EasyBlock (easybuild.framework.easyblock)
 |-- EB_toy_buggy (easybuild.easyblocks.toy_buggy @ %(topdir)s/t/toy_buggy.py)
 |-- ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
 |   |-- DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+|   |   |-- CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/customdummyextension.py)
+|   |   |   |-- ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/childcustomdummyextension.py)
+|   |   |-- DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/deprecateddummyextension.py)
+|   |   |   |-- ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/childdeprecateddummyextension.py)
 |   |-- EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
 |   |   |-- EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
 |   |   |-- EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
@@ -101,6 +113,10 @@ LIST_EASYBLOCKS_DETAILED_TXT = """EasyBlock (easybuild.framework.easyblock)
 Extension (easybuild.framework.extension)
 |-- ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
 |   |-- DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+|   |   |-- CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/customdummyextension.py)
+|   |   |   |-- ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/childcustomdummyextension.py)
+|   |   |-- DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/deprecateddummyextension.py)
+|   |   |   |-- ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/childdeprecateddummyextension.py)
 |   |-- EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
 |   |   |-- EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
 |   |   |-- EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
@@ -129,6 +145,16 @@ LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
   * ExtensionEasyBlock
 
     * DummyExtension
+
+      * CustomDummyExtension
+
+        * ChildCustomDummyExtension
+
+      * DeprecatedDummyExtension
+
+        * ChildDeprecatedDummyExtension
+
+
     * EB_toy
 
       * EB_toy_eula
@@ -145,6 +171,16 @@ LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
   * ExtensionEasyBlock
 
     * DummyExtension
+
+      * CustomDummyExtension
+
+        * ChildCustomDummyExtension
+
+      * DeprecatedDummyExtension
+
+        * ChildDeprecatedDummyExtension
+
+
     * EB_toy
 
       * EB_toy_eula
@@ -177,6 +213,16 @@ LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock
   * ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
 
     * DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+
+      * CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/customdummyextension.py)
+
+        * ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/childcustomdummyextension.py)
+
+      * DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/deprecateddummyextension.py)
+
+        * ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/childdeprecateddummyextension.py)
+
+
     * EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
 
       * EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
@@ -193,6 +239,16 @@ LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock
   * ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
 
     * DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+
+      * CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/customdummyextension.py)
+
+        * ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/childcustomdummyextension.py)
+
+      * DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/deprecateddummyextension.py)
+
+        * ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/childdeprecateddummyextension.py)
+
+
     * EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
 
       * EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
@@ -219,6 +275,10 @@ LIST_EASYBLOCKS_SIMPLE_MD = """- **EasyBlock**
   - EB_toy_buggy
   - ExtensionEasyBlock
     - DummyExtension
+      - CustomDummyExtension
+        - ChildCustomDummyExtension
+      - DeprecatedDummyExtension
+        - ChildDeprecatedDummyExtension
     - EB_toy
       - EB_toy_eula
       - EB_toytoy
@@ -229,6 +289,10 @@ LIST_EASYBLOCKS_SIMPLE_MD = """- **EasyBlock**
 - **Extension**
   - ExtensionEasyBlock
     - DummyExtension
+      - CustomDummyExtension
+        - ChildCustomDummyExtension
+      - DeprecatedDummyExtension
+        - ChildDeprecatedDummyExtension
     - EB_toy
       - EB_toy_eula
       - EB_toytoy
@@ -251,6 +315,10 @@ LIST_EASYBLOCKS_DETAILED_MD = """- **EasyBlock** (easybuild.framework.easyblock)
   - EB_toy_buggy (easybuild.easyblocks.toy_buggy @ %(topdir)s/t/toy_buggy.py)
   - ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
     - DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+      - CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/customdummyextension.py)
+        - ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/childcustomdummyextension.py)
+      - DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/deprecateddummyextension.py)
+        - ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/childdeprecateddummyextension.py)
     - EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
       - EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
       - EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
@@ -261,6 +329,10 @@ LIST_EASYBLOCKS_DETAILED_MD = """- **EasyBlock** (easybuild.framework.easyblock)
 - **Extension** (easybuild.framework.extension)
   - ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
     - DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+      - CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/customdummyextension.py)
+        - ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/childcustomdummyextension.py)
+      - DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/deprecateddummyextension.py)
+        - ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ /home/lexming/src/easybuild-framework/test/framework/sandbox/easybuild/easyblocks/generic/childdeprecateddummyextension.py)
     - EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
       - EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
       - EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
@@ -513,8 +585,20 @@ class DocsTest(EnhancedTestCase):
         # result should correspond with test easyblocks in test/framework/sandbox/easybuild/easyblocks/generic
         eb_classes = get_easyblock_classes('easybuild.easyblocks.generic')
         eb_names = [x.__name__ for x in eb_classes]
-        expected = ['ConfigureMake', 'DummyExtension', 'MakeCp', 'ModuleRC',
-                    'PythonBundle', 'Toolchain', 'Toy_Extension', 'bar']
+        expected = [
+            'ChildCustomDummyExtension',
+            'ChildDeprecatedDummyExtension',
+            'ConfigureMake',
+            'CustomDummyExtension',
+            'DeprecatedDummyExtension',
+            'DummyExtension',
+            'MakeCp',
+            'ModuleRC',
+            'PythonBundle',
+            'Toolchain',
+            'Toy_Extension',
+            'bar',
+        ]
         self.assertEqual(sorted(eb_names), expected)
 
     def test_gen_easyblocks_overview(self):
