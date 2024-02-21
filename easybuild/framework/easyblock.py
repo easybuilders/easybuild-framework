@@ -52,7 +52,7 @@ import stat
 import tempfile
 import time
 import traceback
-from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import easybuild.tools.environment as env
