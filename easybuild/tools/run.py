@@ -352,8 +352,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             # -1 means reading until EOF
             read_size = 128 if exit_code is None else -1
 
-            exit_code = proc.poll()
-
             more_stdout = proc.stdout.read1(read_size) or b''
             stdout += more_stdout
 
@@ -380,6 +378,12 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                         raise EasyBuildError(error_msg)
 
             time.sleep(check_interval_secs)
+
+            exit_code = proc.poll()
+
+        stdout += proc.stdout.read()
+        if split_stderr:
+            stderr += proc.stderr.read()
     else:
         (stdout, stderr) = proc.communicate(input=stdin)
 
