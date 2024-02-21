@@ -49,6 +49,13 @@ import time
 from collections import namedtuple
 from datetime import datetime
 
+try:
+    # get_native_id is only available in Python >= 3.8
+    from threading import get_native_id as get_thread_id
+except ImportError:
+    # get_ident is available in Python >= 3.3
+    from threading import get_ident as get_thread_id
+
 import easybuild.tools.asyncprocess as asyncprocess
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
@@ -79,7 +86,7 @@ CACHED_COMMANDS = [
 
 
 RunShellCmdResult = namedtuple('RunShellCmdResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir',
-                                                     'out_file', 'err_file'))
+                                                     'out_file', 'err_file', 'thread_id', 'task_id'))
 
 
 class RunShellCmdError(BaseException):
@@ -183,7 +190,7 @@ run_shell_cmd_cache = run_cmd_cache
 @run_shell_cmd_cache
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
                   hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, use_bash=True,
-                  output_file=True, stream_output=None, asynchronous=False, with_hooks=True,
+                  output_file=True, stream_output=None, asynchronous=False, task_id=None, with_hooks=True,
                   qa_patterns=None, qa_wait_patterns=None):
     """
     Run specified (interactive) shell command, and capture output + exit code.
@@ -199,7 +206,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     :param use_bash: execute command through bash shell (enabled by default)
     :param output_file: collect command output in temporary output file
     :param stream_output: stream command output to stdout (auto-enabled with --logtostdout if None)
-    :param asynchronous: run command asynchronously
+    :param asynchronous: indicate that command is being run asynchronously
+    :param task_id: task ID for specified shell command (included in return value)
     :param with_hooks: trigger pre/post run_shell_cmd hooks (if defined)
     :param qa_patterns: list of 2-tuples with patterns for questions + corresponding answers
     :param qa_wait_patterns: list of 2-tuples with patterns for non-questions
@@ -223,9 +231,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         return cmd_str
 
     # temporarily raise a NotImplementedError until all options are implemented
-    if asynchronous:
-        raise NotImplementedError
-
     if qa_patterns or qa_wait_patterns:
         raise NotImplementedError
 
@@ -234,6 +239,11 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     cmd_str = to_cmd_str(cmd)
     cmd_name = os.path.basename(cmd_str.split(' ')[0])
+
+    thread_id = None
+    if asynchronous:
+        thread_id = get_thread_id()
+        _log.info(f"Initiating running of shell command '{cmd_str}' via thread with ID {thread_id}")
 
     # auto-enable streaming of command output under --logtostdout/-l, unless it was disabled explicitely
     if stream_output is None and build_option('logtostdout'):
@@ -259,16 +269,16 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     if not in_dry_run and build_option('extended_dry_run'):
         if not hidden or verbose_dry_run:
             silent = build_option('silent')
-            msg = f"  running command \"{cmd_str}\"\n"
+            msg = f"  running shell command \"{cmd_str}\"\n"
             msg += f"  (in {work_dir})"
             dry_run_msg(msg, silent=silent)
 
         return RunShellCmdResult(cmd=cmd_str, exit_code=0, output='', stderr=None, work_dir=work_dir,
-                                 out_file=cmd_out_fp, err_file=cmd_err_fp)
+                                 out_file=cmd_out_fp, err_file=cmd_err_fp, thread_id=thread_id, task_id=task_id)
 
     start_time = datetime.now()
     if not hidden:
-        cmd_trace_msg(cmd_str, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp)
+        _cmd_trace_msg(cmd_str, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thread_id)
 
     if stream_output:
         print_msg(f"(streaming) output for command '{cmd_str}':")
@@ -293,7 +303,11 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     stderr = subprocess.PIPE if split_stderr else subprocess.STDOUT
 
-    _log.info(f"Running command '{cmd_str}' in {work_dir}")
+    log_msg = f"Running shell command '{cmd_str}' in {work_dir}"
+    if thread_id:
+        log_msg += f" (via thread with ID {thread_id})"
+    _log.info(log_msg)
+
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr, stdin=subprocess.PIPE,
                             cwd=work_dir, env=env, shell=shell, executable=executable)
 
@@ -337,7 +351,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             raise EasyBuildError(f"Failed to dump command output to temporary file: {err}")
 
     res = RunShellCmdResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr, work_dir=work_dir,
-                            out_file=cmd_out_fp, err_file=cmd_err_fp)
+                            out_file=cmd_out_fp, err_file=cmd_err_fp, thread_id=thread_id, task_id=task_id)
 
     # always log command output
     cmd_name = cmd_str.split(' ')[0]
@@ -370,7 +384,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     return res
 
 
-def cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp):
+def _cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thread_id):
     """
     Helper function to construct and print trace message for command being run
 
@@ -380,11 +394,18 @@ def cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp):
     :param stdin: stdin input value for command
     :param cmd_out_fp: path to output file for command
     :param cmd_err_fp: path to errors/warnings output file for command
+    :param thread_id: thread ID (None when not running shell command asynchronously)
     """
     start_time = start_time.strftime('%Y-%m-%d %H:%M:%S')
 
+    if thread_id:
+        run_cmd_msg = f"running shell command (asynchronously, thread ID: {thread_id}):"
+    else:
+        run_cmd_msg = "running shell command:"
+
     lines = [
-        "running command:",
+        run_cmd_msg,
+        f"\t{cmd}",
         f"\t[started at: {start_time}]",
         f"\t[working dir: {work_dir}]",
     ]
@@ -394,8 +415,6 @@ def cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp):
         lines.append(f"\t[output saved to {cmd_out_fp}]")
     if cmd_err_fp:
         lines.append(f"\t[errors/warnings saved to {cmd_err_fp}]")
-
-    lines.append('\t' + cmd)
 
     trace_msg('\n'.join(lines))
 
