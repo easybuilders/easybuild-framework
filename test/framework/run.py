@@ -200,6 +200,8 @@ class RunTest(EnhancedTestCase):
             'abd123': 'abd123',
             'ab"a': 'aba',
             'a{:$:S@"a': 'aSa',
+            'cmd-with-dash': 'cmd-with-dash',
+            'cmd_with_underscore'. 'cmd_with_underscore',
         }
         for cmd, expected_simplification in cmds.items():
             self.assertEqual(fileprefix_from_cmd(cmd), expected_simplification)

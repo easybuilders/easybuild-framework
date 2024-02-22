@@ -186,10 +186,10 @@ def fileprefix_from_cmd(cmd, allowed_chars=False):
     Simplify the cmd to only the allowed_chars we want in a filename
 
     :param cmd: the cmd (string)
-    :param allowed_chars: characters allowed in filename (defaults to string.ascii_letters + string.digits)
+    :param allowed_chars: characters allowed in filename (defaults to string.ascii_letters + string.digits + "_-")
     """
     if not allowed_chars:
-        allowed_chars = string.ascii_letters + string.digits
+        allowed_chars = f"{string.ascii_letters}{string.digits}_-"
 
     return ''.join([c for c in cmd if c in allowed_chars])
 
