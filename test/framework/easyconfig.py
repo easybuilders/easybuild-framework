@@ -4441,7 +4441,7 @@ class EasyConfigTest(EnhancedTestCase):
             preconfigopts = 'CUDAARCHS="%(cuda_cc_cmake)s"'
             configopts = 'comma="%(cuda_sm_comma_sep)s" space="%(cuda_sm_space_sep)s"'
             prebuildopts = '%(cuda_cc_semicolon_sep)s'
-            buildopts = ('comma="%(cuda_int_comma_sep)s" space="%(cuda_int_space_sep)s"
+            buildopts = ('comma="%(cuda_int_comma_sep)s" space="%(cuda_int_space_sep)s"'
                          'semi="%(cuda_int_semicolon_sep)s"')
             preinstallopts = '%(cuda_cc_space_sep)s'
             installopts = '%(cuda_compute_capabilities)s'
