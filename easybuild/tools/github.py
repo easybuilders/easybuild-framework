@@ -1370,8 +1370,7 @@ def close_pr(pr, motivation_msg=None):
     if not reopen:
         msg += "\nPlease don't hesitate to reopen this PR or add a comment if you feel this contribution is still "
         msg += "relevant.\nFor more information on our policy w.r.t. closing PRs, see "
-        msg += "https://easybuild.readthedocs.io/en/latest/Contributing.html"
-        msg += "#why-a-pull-request-may-be-closed-by-a-maintainer"
+        msg += "https://docs.easybuild.io/contributing/#contributing_review_process_why_pr_closed_by_maintainer"
     post_comment_in_issue(pr, msg, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
 
     if dry_run:
