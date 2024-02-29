@@ -2802,26 +2802,25 @@ class FileToolsTest(EnhancedTestCase):
             'git_repo': 'git@github.com:easybuilders/testrepository.git',
             'test_prefix': self.test_prefix,
         }
+        reprod_tar_cmd_pattern = (
+            r' running shell command "find {} -name \".git\" -prune -o -print0 -exec touch -t 197001010100 {{}} \; |'
+            r' LC_ALL=C sort --zero-terminated | tar --create --no-recursion --owner=0 --group=0 --numeric-owner'
+            r' --format=gnu --null --files-from - | gzip --no-name > %(test_prefix)s/target/test.tar.gz'
+        )
 
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch tag_for_tests %(git_repo)s"',
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            r'  running command "find testrepository -print0 -path \'*/.git\' -prune | LC_ALL=C sort --zero-terminated'
-            r' | GZIP=--no-name tar --create --file %(test_prefix)s/target/test.tar.gz  --no-recursion'
-            r' --gzip --mtime="1970-01-01 00:00Z" --owner=0 --group=0 --numeric-owner --format=gnu'
-            r' --null --no-recursion --files-from -"',
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in .*/tmp.*\)",
         ]) % string_args
         run_check()
 
         git_config['clone_into'] = 'test123'
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch tag_for_tests %(git_repo)s test123"',
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests %(git_repo)s test123"',
             r"  \(in .*/tmp.*\)",
-            r'  running command "find test123 -print0 -path \'*/.git\' -prune | LC_ALL=C sort --zero-terminated'
-            r' | GZIP=--no-name tar --create --file #(test_fprefix)s/target/test.tar.gz --no-recursion'
-            r' --gzip --mtime="1970-01-01 00:00Z" --owner=0 --group=0 --numeric-owner --format=gnu'
-            r' --null --no-recursion --files-from -"',
+            reprod_tar_cmd_pattern.format("test123"),
             r"  \(in .*/tmp.*\)",
         ]) % string_args
         run_check()
@@ -2829,12 +2828,9 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config['recursive'] = True
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            r'  running command "find testrepository -print0 -path \'*/.git\' -prune | LC_ALL=C sort --zero-terminated'
-            r' | GZIP=--no-name tar --create --file #(test_fprefix)s/target/test.tar.gz --no-recursion'
-            r' --gzip --mtime="1970-01-01 00:00Z" --owner=0 --group=0 --numeric-owner --format=gnu'
-            r' --null --no-recursion --files-from -"',
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in .*/tmp.*\)",
         ]) % string_args
         run_check()
@@ -2844,9 +2840,9 @@ class FileToolsTest(EnhancedTestCase):
             '  running shell command "git clone --depth 1 --branch tag_for_tests --recursive'
             + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in .*/tmp.*\)",
-        ]) % git_repo
+        ]) % string_args
         run_check()
 
         git_config['extra_config_params'] = [
@@ -2858,21 +2854,18 @@ class FileToolsTest(EnhancedTestCase):
             + ' clone --depth 1 --branch tag_for_tests --recursive'
             + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in .*/tmp.*\)",
-        ]) % git_repo
+        ]) % string_args
         run_check()
         del git_config['recurse_submodules']
         del git_config['extra_config_params']
 
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
-            r'  running command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
+            r'  running shell command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            r'  running command "find testrepository -print0  | LC_ALL=C sort --zero-terminated | GZIP=--no-name tar'
-            r' --create --file #(test_fprefix)s/target/test.tar.gz --no-recursion --gzip'
-            r' --mtime="1970-01-01 00:00Z" --owner=0 --group=0 --numeric-owner --format=gnu --null --no-recursion'
-            r' --files-from -"',
+            r'  running shell command "tar cfvz .*/target/test.tar.gz testrepository"',
             r"  \(in .*/tmp.*\)",
         ]) % string_args
         run_check()
@@ -2881,28 +2874,22 @@ class FileToolsTest(EnhancedTestCase):
         del git_config['tag']
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
-            r'  running command "git clone --no-checkout %(git_repo)s"',
+            r'  running shell command "git clone --no-checkout %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            r'  running command "git checkout 8456f86 && git submodule update --init --recursive"',
+            r'  running shell command "git checkout 8456f86 && git submodule update --init --recursive"',
             r"  \(in testrepository\)",
-            r'  running command "find testrepository -print0 -path \'*/.git\' -prune | LC_ALL=C sort --zero-terminated'
-            r' | GZIP=--no-name tar --create --file #(test_fprefix)s/target/test.tar.gz --no-recursion'
-            r' --gzip --mtime="1970-01-01 00:00Z" --owner=0 --group=0 --numeric-owner --format=gnu'
-            r' --null --no-recursion --files-from -"',
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in .*/tmp.*\)",
         ]) % string_args
         run_check()
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
         expected = '\n'.join([
-            r'  running command "git clone --no-checkout %(git_repo)s"',
+            r'  running shell command "git clone --no-checkout %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            r'  running command "git checkout 8456f86"',
+            r'  running shell command "git checkout 8456f86"',
             r"  \(in testrepository\)",
-            r'  running command "find testrepository -print0 -path \'*/.git\' -prune | LC_ALL=C sort --zero-terminated'
-            r' | GZIP=--no-name tar --create --file #(test_fprefix)s/target/test.tar.gz --no-recursion'
-            r' --gzip --mtime="1970-01-01 00:00Z" --owner=0 --group=0 --numeric-owner --format=gnu'
-            r' --null --no-recursion --files-from -"',
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in .*/tmp.*\)",
         ]) % string_args
         run_check()
@@ -2914,9 +2901,9 @@ class FileToolsTest(EnhancedTestCase):
             r"  \(in /.*\)",
             r'  running shell command "git checkout 8456f86"',
             r"  \(in /.*/testrepository\)",
-            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in /.*\)",
-        ]) % git_repo
+        ]) % string_args
         run_check()
 
         # Test with real data.
