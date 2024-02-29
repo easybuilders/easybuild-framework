@@ -60,7 +60,8 @@ from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
 from easybuild.tools.filetools import read_file, resolve_path, which, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
-from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, fetch_easyconfigs_from_pr, fetch_pr_data
+from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, fetch_easyconfigs_from_commit
+from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_pr_data
 from easybuild.tools.github import fetch_files_from_pr
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import OrderedDict
@@ -310,7 +311,7 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     return paths
 
 
-def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None, review_pr=None):
+def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None, from_commit=None, review_pr=None):
     """Obtain alternative paths for easyconfig files."""
 
     # paths where tweaked easyconfigs will be placed, easyconfigs listed on the command line take priority and will be
@@ -321,18 +322,20 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None, review_pr=Non
         tweaked_ecs_paths = (os.path.join(tmpdir, 'tweaked_easyconfigs'),
                              os.path.join(tmpdir, 'tweaked_dep_easyconfigs'))
 
-    # paths where files touched in PRs will be downloaded to,
-    # which are picked up via 'pr_paths' build option in fetch_files_from_pr
-    pr_paths = []
+    # paths where files touched in commit/PRs will be downloaded to,
+    # which are picked up via 'extra_ec_paths' build option in fetch_files_from_pr
+    extra_ec_paths = []
     if from_prs:
-        pr_paths = from_prs[:]
-    if review_pr and review_pr not in pr_paths:
-        pr_paths.append(review_pr)
+        extra_ec_paths = from_prs[:]
+    if review_pr and review_pr not in extra_ec_paths:
+        extra_ec_paths.append(review_pr)
+    if extra_ec_paths:
+        extra_ec_paths = [os.path.join(tmpdir, 'files_pr%s' % pr) for pr in extra_ec_paths]
 
-    if pr_paths:
-        pr_paths = [os.path.join(tmpdir, 'files_pr%s' % pr) for pr in pr_paths]
+    if from_commit:
+        extra_ec_paths.append(os.path.join(tmpdir, 'files_commit_' + from_commit))
 
-    return tweaked_ecs_paths, pr_paths
+    return tweaked_ecs_paths, extra_ec_paths
 
 
 def det_easyconfig_paths(orig_paths):
@@ -346,27 +349,31 @@ def det_easyconfig_paths(orig_paths):
     except ValueError:
         raise EasyBuildError("Argument to --from-pr must be a comma separated list of PR #s.")
 
+    from_commit = build_option('from_commit')
     robot_path = build_option('robot_path')
 
     # list of specified easyconfig files
     ec_files = orig_paths[:]
 
+    commit_files, pr_files = [], []
     if from_prs:
-        pr_files = []
         for pr in from_prs:
-            # path to where easyconfig files should be downloaded is determined via 'pr_paths' build option,
-            # which corresponds to the list of PR paths returned by alt_easyconfig_paths
+            # path to where easyconfig files should be downloaded is determined
+            # via 'extra_ec_paths' build options,
+            # which corresponds to the list of commit/PR paths returned by alt_easyconfig_paths
             pr_files.extend(fetch_easyconfigs_from_pr(pr))
+    elif from_commit:
+        commit_files = fetch_easyconfigs_from_commit(from_commit, files=ec_files)
 
-        if ec_files:
-            # replace paths for specified easyconfigs that are touched in PR
-            for i, ec_file in enumerate(ec_files):
-                for pr_file in pr_files:
-                    if ec_file == os.path.basename(pr_file):
-                        ec_files[i] = pr_file
-        else:
-            # if no easyconfigs are specified, use all the ones touched in the PR
-            ec_files = [path for path in pr_files if path.endswith('.eb')]
+    if ec_files:
+        # replace paths for specified easyconfigs that are touched in commit/PRs
+        for i, ec_file in enumerate(ec_files):
+            for file in commit_files + pr_files:
+                if ec_file == os.path.basename(file):
+                    ec_files[i] = file
+    else:
+        # if no easyconfigs are specified, use all the ones touched in the commit/PRs
+        ec_files = [path for path in commit_files + pr_files if path.endswith('.eb')]
 
     filter_ecs = build_option('filter_ecs')
     if filter_ecs:
