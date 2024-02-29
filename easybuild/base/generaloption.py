@@ -93,7 +93,7 @@ def set_columns(cols=None):
                 pass
 
     if cols is not None:
-        os.environ['COLUMNS'] = "%s" % cols
+        os.environ['COLUMNS'] = str(cols)
 
 
 def what_str_list_tuple(name):
@@ -825,8 +825,8 @@ class ExtOptionParser(OptionParser):
                         self.environment_arguments.append("%s=%s" % (lo, val))
                     else:
                         # interpretation of values: 0/no/false means: don't set it
-                        if ("%s" % val).lower() not in ("0", "no", "false",):
-                            self.environment_arguments.append("%s" % lo)
+                        if str(val).lower() not in ("0", "no", "false",):
+                            self.environment_arguments.append(str(lo))
                 else:
                     self.log.debug("Environment variable %s is not set" % env_opt_name)
 
@@ -1034,7 +1034,7 @@ class GeneralOption(object):
         # make_init is deprecated
         if hasattr(self, 'make_init'):
             self.log.debug('main_options: make_init is deprecated. Rename function to main_options.')
-            getattr(self, 'make_init')()
+            self.make_init()
         else:
             # function names which end with _options and do not start with main or _
             reg_main_options = re.compile("^(?!_|main).*_options$")
@@ -1192,7 +1192,7 @@ class GeneralOption(object):
                 for extra_detail in details[4:]:
                     if isinstance(extra_detail, (list, tuple,)):
                         # choices
-                        nameds['choices'] = ["%s" % x for x in extra_detail]  # force to strings
+                        nameds['choices'] = [str(x) for x in extra_detail]  # force to strings
                         hlp += ' (choices: %s)' % ', '.join(nameds['choices'])
                     elif isinstance(extra_detail, str) and len(extra_detail) == 1:
                         args.insert(0, "-%s" % extra_detail)
@@ -1711,7 +1711,7 @@ class SimpleOption(GeneralOption):
     PARSER = SimpleOptionParser
     SETROOTLOGGER = True
 
-    def __init__(self, go_dict=None, descr=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
+    def __init__(self, go_dict=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
         """Initialisation
         :param go_dict: General Option option dict
         :param short_groupdescr: short description of main options
@@ -1740,18 +1740,13 @@ class SimpleOption(GeneralOption):
 
         super(SimpleOption, self).__init__(**kwargs)
 
-        if descr is not None:
-            # TODO: as there is no easy/clean way to access the version of the vsc-base package,
-            # this is equivalent to a warning
-            self.log.deprecated('SimpleOption descr argument', '2.5.0', '3.0.0')
-
     def main_options(self):
         if self.go_dict is not None:
             prefix = None
             self.add_group_parser(self.go_dict, self.descr, prefix=prefix)
 
 
-def simple_option(go_dict=None, descr=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
+def simple_option(go_dict=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
     """A function that returns a single level GeneralOption option parser
 
     :param go_dict: General Option option dict
@@ -1765,5 +1760,5 @@ def simple_option(go_dict=None, descr=None, short_groupdescr=None, long_groupdes
 
     the generated help will include the docstring
     """
-    return SimpleOption(go_dict=go_dict, descr=descr, short_groupdescr=short_groupdescr,
-                        long_groupdescr=long_groupdescr, config_files=config_files)
+    return SimpleOption(go_dict=go_dict, short_groupdescr=short_groupdescr, long_groupdescr=long_groupdescr,
+                        config_files=config_files)

@@ -4,6 +4,81 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.9.0 (30 December 2023)
+-------------------------
+
+feature release
+
+- various enhancements, including:
+  - allow tweaking of easyconfigs from different toolchains (#3669)
+  - add support for `--list-software --output-format=json` (#4152)
+  - add `--module-cache-suffix` configuration setting to allow multiple (Lmod) caches (#4403)
+- various bug fixes, including:
+  - deduplicate warnings & errors found in logs and add initial newline + tab in output (#4361)
+  - fix support for Environment Modules as modules tool to pass unit tests with v4.2+ (#4369)
+  - adapt module function check for Environment Modules v4+ (#4371)
+  - only install GitHub token when testing with Lmod 8.x + Python 3.6 or 3.9 (#4375)
+  - use `-qopenmp` instead of `-fiopenmp` for OpenMP in Intel compilers (#4377)
+  - fix `LIBBLAS_MT` for FlexiBLAS, ensure `-lpthread` is included (#4379)
+  - relax major version match regex in `find_related_easyconfigs` using for `--review-pr` (#4385)
+  - eliminate duplicate multideps from generated module files (#4386)
+  - resolve templated values in extension names in `_make_extension_list` (#4392)
+  - use source toolchain version when passing only `--try-toolchain` (#4395)
+  - fix writing spider cache for Lmod >= 8.7.12 (#4402)
+  - fix `--inject-checksums` when extension specifies patch file in tuple format (#4405)
+  - fix `LooseVersion` when running with Python 2.7 (#4408)
+  - use more recent easyblocks PR in `test_github_merge_pr` (#4414)
+- other changes:
+  - extend test that checks build environment to recent `foss/2023a` toolchain (#4391)
+
+
+v4.8.2 (29 October 2023)
+------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add support for `%(sysroot)s` template value (#4359)
+  - add `dependency_names` method to `EasyConfig` class to get set of names of (direct) dependencies (#4360)
+- various bug fixes, including:
+  - add CI workflow to run unit tests with Python 2 (again) (#4333)
+  - fix typo in help message for `--silence-hook-trigger` (#4343)
+  - include major version (`*majver`) templates in auto-generated documentation (#4347)
+  - reset `tempfile.tempdir` to `None` to avoid that tmpdir path gets progressively deeper with each easystack item (#4350)
+  - fix `findPythonDeps.py` script when called with an (absolute or relative) path to an easyconfig instead of a filename (#4365)
+  - fix broken test for `reasons_for_closing`, which fails because commit status of easyconfigs PR is no longer available (#4366)
+- other changes:
+  - reduce number of CI jobs by testing for Lua and Tcl module syntax in a single CI job (#4192)
+
+
+v4.8.1 (11 September 2023)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add end-to-end test for running EasyBuild in different Linux distros using containers (#3968)
+  - suggest default title in `--review-pr` (#4287)
+  - add `build_and_install_loop` hooks to run before and after the install loop for individual easyconfigs (#4304)
+  - implement support for `cancel_hook` and `fail_hook` (#4315, #4325)
+  - add postiter hook to the list of steps so the corresponding hook can be used (#4316)
+  - add `run_shell_cmd` hook (#4323)
+  - add `build_info_msg` easyconfig parameter to print message during installation of an easyconfig (#4324)
+  - add `--silence-hook-trigger` configuration option to supress printing of debug message every time a hook is triggered (#4329)
+  - add support for using fine grained Github tokens (#4332)
+  - add definitions for ifbf and iofbf toolchain (#4337)
+  - add support for submodule filtering and specifying extra Git configuration in `git_config` (#4338, #4339)
+- various bug fixes, including:
+  - improve error when checksum dict has no entry for a file (#4150)
+  - avoid error being logged when `checksums.json` is not found (#4261)
+  - don't fail in `mkdir` if path gets created while processing it (#4300, #4328)
+  - ignore request for external module (meta)data when no modules tool is active (#4308)
+  - use sys.executable to obtain path to `python` command in tests, rather than assuming that `python` command is available in `$PATH` (#4309)
+  - fix `test_add_and_remove_module_path` by replacing string comparison of paths by checking whether they point to the same path (since symlinks may cause trouble) (#4312)
+  - enhance `Toolchain.get_flag` to handle lists (#4319)
+  - only add extensions in module file if there are extensions (#4331)
+
+
 v4.8.0 (7 July 2023)
 --------------------
 

@@ -157,13 +157,13 @@ class Toolchain(object):
         """see if this class can provide support for toolchain named name"""
         # TODO report later in the initialization the found version
         if name:
-            if hasattr(cls, 'NAME') and name == cls.NAME:
-                return True
-            else:
+            try:
+                return name == cls.NAME
+            except AttributeError:
                 return False
         else:
             # is no name is supplied, check whether class can be used as a toolchain
-            return hasattr(cls, 'NAME') and cls.NAME
+            return bool(getattr(cls, 'NAME', None))
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
@@ -320,10 +320,12 @@ class Toolchain(object):
         if key not in self.CLASS_CONSTANT_COPIES:
             self.CLASS_CONSTANT_COPIES[key] = {}
             for cst in self.CLASS_CONSTANTS_TO_RESTORE:
-                if hasattr(self, cst):
-                    self.CLASS_CONSTANT_COPIES[key][cst] = copy.deepcopy(getattr(self, cst))
-                else:
+                try:
+                    value = getattr(self, cst)
+                except AttributeError:
                     raise EasyBuildError("Class constant '%s' to be restored does not exist in %s", cst, self)
+                else:
+                    self.CLASS_CONSTANT_COPIES[key][cst] = copy.deepcopy(value)
 
             self.log.devel("Copied class constants: %s", self.CLASS_CONSTANT_COPIES[key])
 
@@ -332,10 +334,12 @@ class Toolchain(object):
         key = self.__class__
         for cst in self.CLASS_CONSTANT_COPIES[key]:
             newval = copy.deepcopy(self.CLASS_CONSTANT_COPIES[key][cst])
-            if hasattr(self, cst):
-                self.log.devel("Restoring class constant '%s' to %s (was: %s)", cst, newval, getattr(self, cst))
-            else:
+            try:
+                oldval = getattr(self, cst)
+            except AttributeError:
                 self.log.devel("Restoring (currently undefined) class constant '%s' to %s", cst, newval)
+            else:
+                self.log.devel("Restoring class constant '%s' to %s (was: %s)", cst, newval, oldval)
 
             setattr(self, cst, newval)
 
@@ -549,16 +553,6 @@ class Toolchain(object):
             raise EasyBuildError("Missing modules for dependencies (use --robot?): %s", ', '.join(missing_dep_mods))
 
         return deps
-
-    def add_dependencies(self, dependencies):
-        """
-        [DEPRECATED] Verify if the given dependencies exist, and return them.
-
-        This method is deprecated.
-        You should pass the dependencies to the 'prepare' method instead, via the 'deps' named argument.
-        """
-        self.log.deprecated("use of 'Toolchain.add_dependencies' method", '4.0')
-        self.dependencies = self._check_dependencies(dependencies)
 
     def is_required(self, name):
         """Determine whether this is a required toolchain element."""
@@ -1117,8 +1111,11 @@ class Toolchain(object):
             setvar("EBVAR%s" % key, val, verbose=False)
 
     def get_flag(self, name):
-        """Get compiler flag for a certain option."""
-        return "-%s" % self.options.option(name)
+        """Get compiler flag(s) for a certain option."""
+        if isinstance(self.options.option(name), list):
+            return " ".join("-%s" % x for x in list(self.options.option(name)))
+        else:
+            return "-%s" % self.options.option(name)
 
     def toolchain_family(self):
         """Return toolchain family for this toolchain."""

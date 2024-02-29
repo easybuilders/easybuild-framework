@@ -82,7 +82,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 'Description',
                 '===========',
-                "%s" % descr,
+                descr,
                 '',
                 '',
                 "More information",
@@ -107,7 +107,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 'Description',
                 '===========',
-                "%s" % descr,
+                descr,
                 '',
                 '',
                 "More information",
@@ -137,7 +137,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 'Description',
                 '===========',
-                "%s" % descr,
+                descr,
                 '',
                 '',
                 "More information",
@@ -161,7 +161,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 'Description',
                 '===========',
-                "%s" % descr,
+                descr,
                 '',
                 '',
                 "More information",
@@ -755,6 +755,16 @@ class ModuleGeneratorTest(EnhancedTestCase):
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(desc), "Pattern '%s' found in: %s" % (regex.pattern, desc))
+
+        # check if the extensions is missing if there are no extensions
+        test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb')
+
+        ec = EasyConfig(test_ec)
+        eb = EasyBlock(ec)
+        modgen = self.MODULE_GENERATOR_CLASS(eb)
+        desc = modgen.get_description()
+
+        self.assertFalse(re.search(r"\s*extensions\(", desc), "No extensions found in: %s" % desc)
 
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""

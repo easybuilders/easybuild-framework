@@ -63,7 +63,7 @@ def search_toolchain(name):
     package = easybuild.tools.toolchain
     check_attr_name = '%s_PROCESSED' % TC_CONST_PREFIX
 
-    if not hasattr(package, check_attr_name) or not getattr(package, check_attr_name):
+    if not getattr(package, check_attr_name, None):
         # import all available toolchains, so we know about them
         tc_modules = import_available_modules('easybuild.toolchains')
 
@@ -76,7 +76,7 @@ def search_toolchain(name):
                 if hasattr(elem, '__module__'):
                     # exclude the toolchain class defined in that module
                     if not tc_mod.__file__ == sys.modules[elem.__module__].__file__:
-                        elem_name = elem.__name__ if hasattr(elem, '__name__') else elem
+                        elem_name = getattr(elem, '__name__', elem)
                         _log.debug("Adding %s to list of imported classes used for looking for constants", elem_name)
                         mod_classes.append(elem)
 
@@ -89,13 +89,14 @@ def search_toolchain(name):
                         tc_const_value = getattr(mod_class_mod, elem)
                         _log.debug("Found constant %s ('%s') in module %s, adding it to %s",
                                    tc_const_name, tc_const_value, mod_class_mod.__name__, package.__name__)
-                        if hasattr(package, tc_const_name):
+                        try:
                             cur_value = getattr(package, tc_const_name)
+                        except AttributeError:
+                            setattr(package, tc_const_name, tc_const_value)
+                        else:
                             if not tc_const_value == cur_value:
                                 raise EasyBuildError("Constant %s.%s defined as '%s', can't set it to '%s'.",
                                                      package.__name__, tc_const_name, cur_value, tc_const_value)
-                        else:
-                            setattr(package, tc_const_name, tc_const_value)
 
         # indicate that processing of toolchain constants is done, so it's not done again
         setattr(package, check_attr_name, True)

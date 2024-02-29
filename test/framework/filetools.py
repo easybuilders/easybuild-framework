@@ -351,6 +351,14 @@ class FileToolsTest(EnhancedTestCase):
         alt_checksums = ('7167b64b1ca062b9674ffef46f9325db7167b64b1ca062b9674ffef46f9325db', broken_checksums['sha256'])
         self.assertFalse(ft.verify_checksum(fp, alt_checksums))
 
+        # Check dictionary
+        alt_checksums = (known_checksums['sha256'],)
+        self.assertTrue(ft.verify_checksum(fp, {os.path.basename(fp): known_checksums['sha256']}))
+        faulty_dict = {'wrong-name': known_checksums['sha256']}
+        self.assertErrorRegex(EasyBuildError,
+                              "Missing checksum for " + os.path.basename(fp) + " in .*wrong-name.*",
+                              ft.verify_checksum, fp, faulty_dict)
+
         # check whether missing checksums are enforced
         build_options = {
             'enforce_checksums': True,
@@ -365,6 +373,8 @@ class FileToolsTest(EnhancedTestCase):
         for checksum in [known_checksums[x] for x in ('md5', 'sha256')]:
             dict_checksum = {os.path.basename(fp): checksum, 'foo': 'baa'}
             self.assertTrue(ft.verify_checksum(fp, dict_checksum))
+            del dict_checksum[os.path.basename(fp)]
+            self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum, fp, dict_checksum)
 
     def test_common_path_prefix(self):
         """Test get common path prefix for a list of paths."""
@@ -2280,7 +2290,7 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertNotExists(os.path.join(self.test_prefix, 'toy-0.0'))
-        self.assertTrue(re.search('running command "tar xzf .*/toy-0.0.tar.gz"', txt))
+        self.assertTrue(re.search('running shell command "tar xzf .*/toy-0.0.tar.gz"', txt))
 
         with self.mocked_stdout_stderr():
             path = ft.extract_file(toy_tarball, self.test_prefix, forced=True, change_into_dir=False)
@@ -2304,7 +2314,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
         self.assertFalse(stderr)
-        self.assertTrue("running command" in stdout)
+        self.assertTrue("running shell command" in stdout)
 
         # check whether disabling trace output works
         with self.mocked_stdout_stderr():
@@ -2397,7 +2407,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 91)
+            self.assertEqual(len(index), 92)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
@@ -2411,12 +2421,13 @@ class FileToolsTest(EnhancedTestCase):
                 self.assertTrue(fp.endswith('.eb') or os.path.basename(fp) == 'checksums.json')
 
         # set up some files to create actual index file for
-        ft.copy_dir(os.path.join(test_ecs, 'g'), os.path.join(self.test_prefix, 'g'))
+        ecs_dir = os.path.join(self.test_prefix, 'easyconfigs')
+        ft.copy_dir(os.path.join(test_ecs, 'g'), ecs_dir)
 
         # test dump_index function
-        index_fp = ft.dump_index(self.test_prefix)
+        index_fp = ft.dump_index(ecs_dir)
         self.assertExists(index_fp)
-        self.assertTrue(os.path.samefile(self.test_prefix, os.path.dirname(index_fp)))
+        self.assertTrue(os.path.samefile(ecs_dir, os.path.dirname(index_fp)))
 
         datestamp_pattern = r"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]+"
         expected_header = [
@@ -2424,9 +2435,9 @@ class FileToolsTest(EnhancedTestCase):
             "# valid until: " + datestamp_pattern,
         ]
         expected = [
-            os.path.join('g', 'gzip', 'gzip-1.4.eb'),
-            os.path.join('g', 'GCC', 'GCC-7.3.0-2.30.eb'),
-            os.path.join('g', 'gompic', 'gompic-2018a.eb'),
+            os.path.join('gzip', 'gzip-1.4.eb'),
+            os.path.join('GCC', 'GCC-7.3.0-2.30.eb'),
+            os.path.join('gompic', 'gompic-2018a.eb'),
         ]
         index_txt = ft.read_file(index_fp)
         for fn in expected_header + expected:
@@ -2436,28 +2447,28 @@ class FileToolsTest(EnhancedTestCase):
         # test load_index function
         self.mock_stderr(True)
         self.mock_stdout(True)
-        index = ft.load_index(self.test_prefix)
+        index = ft.load_index(ecs_dir)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
 
         self.assertFalse(stderr)
-        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
+        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 26)
+        self.assertEqual(len(index), 25)
         for fn in expected:
             self.assertIn(fn, index)
 
         # dump_index will not overwrite existing index without force
         error_pattern = "File exists, not overwriting it without --force"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.dump_index, self.test_prefix)
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.dump_index, ecs_dir)
 
         ft.remove_file(index_fp)
 
         # test creating index file that's infinitely valid
-        index_fp = ft.dump_index(self.test_prefix, max_age_sec=0)
+        index_fp = ft.dump_index(ecs_dir, max_age_sec=0)
         index_txt = ft.read_file(index_fp)
         expected_header[1] = r"# valid until: 9999-12-31 23:59:59\.9+"
         for fn in expected_header + expected:
@@ -2466,40 +2477,40 @@ class FileToolsTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        index = ft.load_index(self.test_prefix)
+        index = ft.load_index(ecs_dir)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
 
         self.assertFalse(stderr)
-        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % self.test_prefix)
+        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 26)
+        self.assertEqual(len(index), 25)
         for fn in expected:
             self.assertIn(fn, index)
 
         ft.remove_file(index_fp)
 
         # test creating index file that's only valid for a (very) short amount of time
-        index_fp = ft.dump_index(self.test_prefix, max_age_sec=1)
+        index_fp = ft.dump_index(ecs_dir, max_age_sec=1)
         time.sleep(3)
         self.mock_stderr(True)
         self.mock_stdout(True)
-        index = ft.load_index(self.test_prefix)
+        index = ft.load_index(ecs_dir)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertIsNone(index)
         self.assertFalse(stdout)
-        regex = re.compile(r"WARNING: Index for %s is no longer valid \(too old\), so ignoring it" % self.test_prefix)
+        regex = re.compile(r"WARNING: Index for %s is no longer valid \(too old\), so ignoring it" % ecs_dir)
         self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
 
         # check whether load_index takes into account --ignore-index
         init_config(build_options={'ignore_index': True})
-        self.assertEqual(ft.load_index(self.test_prefix), None)
+        self.assertEqual(ft.load_index(ecs_dir), None)
 
     def test_search_file(self):
         """Test search_file function."""
@@ -2828,6 +2839,32 @@ class FileToolsTest(EnhancedTestCase):
         ]) % string_args
         run_check()
 
+        git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
+        expected = '\n'.join([
+            '  running shell command "git clone --depth 1 --branch tag_for_tests --recursive'
+            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+
+        git_config['extra_config_params'] = [
+            'submodule."fastahack".active=false',
+            'submodule."sha1".active=false',
+        ]
+        expected = '\n'.join([
+            '  running shell command "git -c submodule."fastahack".active=false -c submodule."sha1".active=false'
+            + ' clone --depth 1 --branch tag_for_tests --recursive'
+            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+        del git_config['recurse_submodules']
+        del git_config['extra_config_params']
+
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
             r'  running command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
@@ -2856,7 +2893,7 @@ class FileToolsTest(EnhancedTestCase):
         ]) % string_args
         run_check()
 
-        del git_config['recursive']
+        git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
         expected = '\n'.join([
             r'  running command "git clone --no-checkout %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
@@ -2868,6 +2905,18 @@ class FileToolsTest(EnhancedTestCase):
             r' --null --no-recursion --files-from -"',
             r"  \(in .*/tmp.*\)",
         ]) % string_args
+        run_check()
+
+        del git_config['recursive']
+        del git_config['recurse_submodules']
+        expected = '\n'.join([
+            r'  running shell command "git clone --no-checkout %(git_repo)s"',
+            r"  \(in /.*\)",
+            r'  running shell command "git checkout 8456f86"',
+            r"  \(in /.*/testrepository\)",
+            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in /.*\)",
+        ]) % git_repo
         run_check()
 
         # Test with real data.
