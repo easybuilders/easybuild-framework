@@ -2676,8 +2676,6 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     else:
         # create reproducible archive
         # see https://reproducible-builds.org/docs/archives/
-        # TODO: when CentOS 7 is phased out and tar>1.28 is everywhere, replace sort step
-        # in the pipe with tar-flag '--sort=name' and place LC_ALL in front of tar. 
         tar_cmd = [
             # print names of all files and folders excluding .git directory
             'find', repo_name, '-name ".git"', '-prune', '-o', '-print0',
