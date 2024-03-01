@@ -31,7 +31,7 @@ jobs:
         # for building CentOS 7 container images
         APT_PKGS="rpm dnf"
         # for modules tool
-        APT_PKGS="lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev"
+        APT_PKGS+="lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev"
 
         # Avoid apt-get update, as we don't really need it,
         # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
