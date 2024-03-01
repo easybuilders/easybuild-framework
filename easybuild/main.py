@@ -42,6 +42,7 @@ import copy
 import os
 import stat
 import sys
+import tempfile
 import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
@@ -69,7 +70,8 @@ from easybuild.tools.github import check_github, close_pr, find_easybuild_easyco
 from easybuild.tools.github import add_pr_labels, install_github_token, list_prs, merge_pr, new_branch_github, new_pr
 from easybuild.tools.github import new_pr_from_branch
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
-from easybuild.tools.hooks import BUILD_AND_INSTALL_LOOP, PRE_PREF, POST_PREF, START, END, load_hooks, run_hook
+from easybuild.tools.hooks import BUILD_AND_INSTALL_LOOP, PRE_PREF, POST_PREF, START, END, CANCEL, CRASH, FAIL
+from easybuild.tools.hooks import load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import opts_dict_to_eb_opts, set_up_configuration, use_color
 from easybuild.tools.output import COLOR_GREEN, COLOR_RED, STATUS_BAR, colorize, print_checks, rich_live_cm
@@ -147,11 +149,11 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
         # keep track of success/total count
         if ec_res['success']:
-            test_msg = "Successfully built %s" % ec['spec']
+            test_msg = "Successfully installed %s" % ec['spec']
         else:
-            test_msg = "Build of %s failed" % ec['spec']
+            test_msg = "Installation of %s failed" % os.path.basename(ec['spec'])
             if 'err' in ec_res:
-                test_msg += " (err: %s)" % ec_res['err']
+                test_msg += ": %s" % ec_res['err']
 
         # dump test report next to log file
         test_report_txt = create_test_report(test_msg, [(ec, ec_res)], init_session_state)
@@ -167,8 +169,8 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
                 adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
 
         if not ec_res['success'] and exit_on_failure:
-            if 'traceback' in ec_res:
-                raise EasyBuildError(ec_res['traceback'])
+            if not isinstance(ec_res['err'], EasyBuildError):
+                raise ec_res['err']
             else:
                 raise EasyBuildError(test_msg)
 
@@ -252,8 +254,9 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
         easyconfig._easyconfigs_cache.clear()
         easyconfig._easyconfig_files_cache.clear()
 
-        # restore environment
+        # restore environment and reset tempdir (to avoid tmpdir path getting progressively longer)
         restore_env(init_env)
+        tempfile.tempdir = None
 
         # If EasyConfig specific arguments were supplied in EasyStack file
         # merge arguments with original command line args
@@ -329,11 +332,23 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     categorized_paths = categorize_files_by_type(eb_args)
 
+    set_pr_options = [opt for opt in (
+        'new_branch_github',
+        'new_pr',
+        'new_pr_from_branch',
+        'preview_pr',
+        'sync_branch_with_develop',
+        'sync_pr_with_develop',
+        'update_branch_github',
+        'update_pr',
+        ) if getattr(options, opt)
+    ]
+    any_pr_option_set = len(set_pr_options) > 0
+    if len(set_pr_options) > 1:
+        raise EasyBuildError("The following options are set but incompatible: %s.\nYou can only use one at a time!",
+                             ', '.join(['--' + opt.replace('_', '-') for opt in set_pr_options]))
     # command line options that do not require any easyconfigs to be specified
-    pr_options = options.new_branch_github or options.new_pr or options.new_pr_from_branch or options.preview_pr
-    pr_options = pr_options or options.sync_branch_with_develop or options.sync_pr_with_develop
-    pr_options = pr_options or options.update_branch_github or options.update_pr
-    no_ec_opts = [options.aggregate_regtest, options.regtest, pr_options, search_query]
+    no_ec_opts = [options.aggregate_regtest, options.regtest, any_pr_option_set, search_query]
 
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
@@ -423,9 +438,10 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     forced = options.force or options.rebuild
     dry_run_mode = options.dry_run or options.dry_run_short or options.missing_modules
 
-    keep_available_modules = forced or dry_run_mode or options.extended_dry_run or pr_options or options.copy_ec
-    keep_available_modules = keep_available_modules or options.inject_checksums or options.sanity_check_only
-    keep_available_modules = keep_available_modules or options.inject_checksums_to_json
+    keep_available_modules = any((
+        forced, dry_run_mode, options.extended_dry_run, any_pr_option_set, options.copy_ec, options.inject_checksums,
+        options.sanity_check_only, options.inject_checksums_to_json)
+    )
 
     # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
     if not keep_available_modules:
@@ -444,12 +460,12 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     if len(easyconfigs) > 0:
         # resolve dependencies if robot is enabled, except in dry run mode
         # one exception: deps *are* resolved with --new-pr or --update-pr when dry run mode is enabled
-        if options.robot and (not dry_run_mode or pr_options):
+        if options.robot and (not dry_run_mode or any_pr_option_set):
             print_msg("resolving dependencies ...", log=_log, silent=testing)
             ordered_ecs = resolve_dependencies(easyconfigs, modtool)
         else:
             ordered_ecs = easyconfigs
-    elif pr_options:
+    elif any_pr_option_set:
         ordered_ecs = None
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
@@ -468,7 +484,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         return True
 
     # creating/updating PRs
-    if pr_options:
+    if any_pr_option_set:
         if options.new_pr:
             new_pr(categorized_paths, ordered_ecs)
         elif options.new_branch_github:
@@ -578,30 +594,20 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     return overall_success
 
 
-def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
+def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, prepared_cfg_data=None):
     """
     Main function: parse command line options, and act accordingly.
     :param args: command line arguments to use
     :param logfile: log file to use
     :param do_build: whether or not to actually perform the build
     :param testing: enable testing mode
+    :param prepared_cfg_data: prepared configuration data for main function, as returned by prepare_main (or None)
     """
+    if prepared_cfg_data is None or any([args, logfile, testing]):
+        init_session_state, eb_go, cfg_settings = prepare_main(args=args, logfile=logfile, testing=testing)
+    else:
+        init_session_state, eb_go, cfg_settings = prepared_cfg_data
 
-    register_lock_cleanup_signal_handlers()
-
-    # if $CDPATH is set, unset it, it'll only cause trouble...
-    # see https://github.com/easybuilders/easybuild-framework/issues/2944
-    if 'CDPATH' in os.environ:
-        del os.environ['CDPATH']
-
-    # When EB is run via `exec` the special bash variable $_ is not set
-    # So emulate this here to allow (module) scripts depending on that to work
-    if '_' not in os.environ:
-        os.environ['_'] = sys.executable
-
-    # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
-    init_session_state = session_state()
-    eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
     options, orig_paths = eb_go.options, eb_go.args
 
     global _log
@@ -727,10 +733,49 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         cleanup(logfile, eb_tmpdir, testing, silent=False)
 
 
-if __name__ == "__main__":
+def prepare_main(args=None, logfile=None, testing=None):
+    """
+    Prepare for calling main function by setting up the EasyBuild configuration
+    :param args: command line arguments to take into account when parsing the EasyBuild configuration settings
+    :param logfile: log file to use
+    :param testing: enable testing mode
+    :return: 3-tuple with initial session state data, EasyBuildOptions instance, and tuple with configuration settings
+    """
+    register_lock_cleanup_signal_handlers()
+
+    # if $CDPATH is set, unset it, it'll only cause trouble...
+    # see https://github.com/easybuilders/easybuild-framework/issues/2944
+    if 'CDPATH' in os.environ:
+        del os.environ['CDPATH']
+
+    # When EB is run via `exec` the special bash variable $_ is not set
+    # So emulate this here to allow (module) scripts depending on that to work
+    if '_' not in os.environ:
+        os.environ['_'] = sys.executable
+
+    # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
+    init_session_state = session_state()
+    eb_go, cfg_settings = set_up_configuration(args=args, logfile=logfile, testing=testing)
+
+    return init_session_state, eb_go, cfg_settings
+
+
+def main_with_hooks(args=None):
+    init_session_state, eb_go, cfg_settings = prepare_main(args=args)
+    hooks = load_hooks(eb_go.options.hooks)
     try:
-        main()
+        main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
     except EasyBuildError as err:
-        print_error(err.msg)
+        run_hook(FAIL, hooks, args=[err])
+        print_error(err.msg, exit_on_error=True, exit_code=1)
     except KeyboardInterrupt as err:
+        run_hook(CANCEL, hooks, args=[err])
         print_error("Cancelled by user: %s" % err)
+    except Exception as err:
+        run_hook(CRASH, hooks, args=[err])
+        sys.stderr.write("EasyBuild crashed! Please consider reporting a bug, this should not happen...\n\n")
+        raise
+
+
+if __name__ == "__main__":
+    main_with_hooks()

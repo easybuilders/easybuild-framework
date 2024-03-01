@@ -50,11 +50,11 @@ from easybuild.tools.filetools import read_file, remove_dir, remove_file, symlin
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
-from easybuild.tools.run import run
+from easybuild.tools.run import run_shell_cmd
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 92
+TEST_MODULES_COUNT = 110
 
 
 class ModulesTest(EnhancedTestCase):
@@ -212,12 +212,12 @@ class ModulesTest(EnhancedTestCase):
 
         # test modules include 3 GCC modules and one GCCcore module
         ms = self.modtool.available('GCC')
-        expected = ['GCC/4.6.3', 'GCC/4.6.4', 'GCC/6.4.0-2.28', 'GCC/7.3.0-2.30']
+        expected = ['GCC/12.3.0', 'GCC/4.6.3', 'GCC/4.6.4', 'GCC/6.4.0-2.28', 'GCC/7.3.0-2.30']
         # Tcl-only modules tool does an exact match on module name, Lmod & Tcl/C do prefix matching
         # EnvironmentModules is a subclass of EnvironmentModulesTcl, but Modules 4+ behaves similarly to Tcl/C impl.,
         # so also append GCCcore/6.2.0 if we are an instance of EnvironmentModules
         if not isinstance(self.modtool, EnvironmentModulesTcl) or isinstance(self.modtool, EnvironmentModules):
-            expected.append('GCCcore/6.2.0')
+            expected.extend(['GCCcore/12.3.0', 'GCCcore/6.2.0'])
         self.assertEqual(ms, expected)
 
         # test modules include one GCC/4.6.3 module
@@ -231,6 +231,12 @@ class ModulesTest(EnhancedTestCase):
             # with recent versions of Lmod, also the hidden modules are included in the output of 'avail'
             self.assertEqual(len(ms), TEST_MODULES_COUNT + 3)
             self.assertIn('bzip2/.1.0.6', ms)
+            self.assertIn('toy/.0.0-deps', ms)
+            self.assertIn('OpenMPI/.2.1.2-GCC-6.4.0-2.28', ms)
+        elif (isinstance(self.modtool, EnvironmentModules)
+                and StrictVersion(self.modtool.version) >= StrictVersion('4.6.0')):
+            # bzip2/.1.0.6 is not there, since that's a module file in Lua syntax
+            self.assertEqual(len(ms), TEST_MODULES_COUNT + 2)
             self.assertIn('toy/.0.0-deps', ms)
             self.assertIn('OpenMPI/.2.1.2-GCC-6.4.0-2.28', ms)
         else:
@@ -452,9 +458,8 @@ class ModulesTest(EnhancedTestCase):
         # if GCC is loaded again, $EBROOTGCC should be set again, and GCC should be listed last
         self.modtool.load(['GCC/6.4.0-2.28'])
 
-        # environment modules v4.0 does not reload already loaded modules, will be changed in v4.2
-        modtool_ver = StrictVersion(self.modtool.version)
-        if not isinstance(self.modtool, EnvironmentModules) or modtool_ver >= StrictVersion('4.2'):
+        # environment modules v4+ does not reload already loaded modules
+        if not isinstance(self.modtool, EnvironmentModules):
             self.assertTrue(os.environ.get('EBROOTGCC'))
 
         if isinstance(self.modtool, Lmod):
@@ -1332,7 +1337,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertIn(modules_dir, modulepath)
 
         with self.mocked_stdout_stderr():
-            res = run("bash -c 'echo MODULEPATH: $MODULEPATH'")
+            res = run_shell_cmd("bash -c 'echo MODULEPATH: $MODULEPATH'")
         self.assertEqual(res.output.strip(), f"MODULEPATH: {modulepath}")
         self.assertIn(modules_dir, res.output)
 
@@ -1538,8 +1543,10 @@ class ModulesTest(EnhancedTestCase):
 
         os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.getenv('PATH'))
 
-        modtool = EnvironmentModulesC()
-        modtool.run_module('load', 'test123')
+        self.allow_deprecated_behaviour()
+        with self.mocked_stdout_stderr():
+            modtool = EnvironmentModulesC()
+            modtool.run_module('load', 'test123')
         self.assertEqual(os.getenv('TEST123'), 'test123')
 
     def test_get_setenv_value_from_modulefile(self):

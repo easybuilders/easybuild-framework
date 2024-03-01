@@ -79,7 +79,7 @@ from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
-from easybuild.tools.docs import FORMAT_MD, FORMAT_RST, FORMAT_TXT
+from easybuild.tools.docs import FORMAT_JSON, FORMAT_MD, FORMAT_RST, FORMAT_TXT
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
@@ -98,13 +98,13 @@ from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_ge
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
 from easybuild.tools.robot import det_robot_path
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
-from easybuild.tools.systemtools import UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
-from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_system_info
+from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
+from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -130,6 +130,8 @@ DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 DEFAULT_LIST_PR_STATE = GITHUB_PR_STATE_OPEN
 DEFAULT_LIST_PR_ORDER = GITHUB_PR_ORDER_CREATED
 DEFAULT_LIST_PR_DIREC = GITHUB_PR_DIRECTION_DESC
+
+RPATH_DEFAULT = False if get_os_type() == DARWIN else True
 
 _log = fancylogger.getLogger('options', fname=False)
 
@@ -275,8 +277,8 @@ class EasyBuildOptions(GeneralOption):
             'only-blocks': ("Only build listed blocks", 'strlist', 'extend', None, 'b', {'metavar': 'BLOCKS'}),
             'rebuild': ("Rebuild software, even if module already exists (don't skip OS dependencies checks)",
                         None, 'store_true', False),
-            'robot': ("Enable dependency resolution, using easyconfigs in specified paths",
-                      'pathlist', 'store_or_None', [], 'r', {'metavar': 'PATH[%sPATH]' % os.pathsep}),
+            'robot': ("Enable dependency resolution, optionally consider additional paths to search for easyconfigs",
+                      'pathlist', 'store_or_None', [], 'r', {'metavar': '[PATH[%sPATH]]' % os.pathsep}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
                             'pathlist', 'add_flex', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'search-paths': ("Additional locations to consider in --search (next to --robot and --robot-paths paths)",
@@ -400,6 +402,8 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
                               'strlist', 'extend', None),
+            'fail-on-mod-files-gcccore': ("Fail if .mod files are detected in a GCCcore install", None, 'store_true',
+                                          False),
             'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
                       "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
             'filter-deps': ("List of dependencies that you do *not* want to install with EasyBuild, "
@@ -455,6 +459,9 @@ class EasyBuildOptions(GeneralOption):
                                   "environment variable and its value separated by a colon (':')",
                                   None, 'store', DEFAULT_MINIMAL_BUILD_ENV),
             'minimal-toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
+            'module-cache-suffix': ("Suffix to add to the cache file name (before the extension) "
+                                    "when updating the modules tool cache",
+                                    None, 'store', None),
             'module-only': ("Only generate module file(s); skip all steps except for %s" % ', '.join(MODULE_ONLY_STEPS),
                             None, 'store_true', False),
             'modules-tool-version-check': ("Check version of modules tool being used", None, 'store_true', True),
@@ -463,11 +470,12 @@ class EasyBuildOptions(GeneralOption):
             'mpi-tests': ("Run MPI tests (when relevant)", None, 'store_true', True),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
-            'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_MD, FORMAT_RST, FORMAT_TXT]),
+            'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT,
+                              [FORMAT_JSON, FORMAT_MD, FORMAT_RST, FORMAT_TXT]),
             'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
                              "with fallback to basic colored output",
                              'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),
-            'parallel': ("Specify (maximum) level of parallellism used during build procedure",
+            'parallel': ("Specify (maximum) level of parallelism used during build procedure",
                          'int', 'store', None),
             'parallel-extensions-install': ("Install list of extensions in parallel (if supported)",
                                             None, 'store_true', False),
@@ -483,7 +491,7 @@ class EasyBuildOptions(GeneralOption):
             'required-linked-shared-libs': ("Comma-separated list of shared libraries (names, file names, or paths) "
                                             "which must be linked in all installed binaries/libraries",
                                             'strlist', 'extend', None),
-            'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', False),
+            'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', RPATH_DEFAULT),
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
             'rpath-override-dirs': ("Path(s) to be prepended when linking with RPATH (string, colon-separated)",
                                     None, 'store', None),
@@ -495,6 +503,8 @@ class EasyBuildOptions(GeneralOption):
             'silence-deprecation-warnings': (
                 "Silence specified deprecation warnings out of (%s)" % ', '.join(all_deprecations),
                 'strlist', 'extend', []),
+            'silence-hook-trigger': ("Suppress printing of debug message every time a hook is triggered",
+                                     None, 'store_true', False),
             'skip-extensions': ("Skip installation of extensions", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'skip-test-step': ("Skip running the test step (e.g. unit tests)", None, 'store_true', False),
@@ -1723,11 +1733,13 @@ def process_software_build_specs(options):
             })
 
     # provide both toolchain and toolchain_name/toolchain_version keys
-    if 'toolchain_name' in build_specs:
+    try:
         build_specs['toolchain'] = {
             'name': build_specs['toolchain_name'],
-            'version': build_specs.get('toolchain_version', None),
+            'version': build_specs['toolchain_version'],
         }
+    except KeyError:
+        pass  # Don't set toolchain key if we don't have both keys
 
     # process --amend and --try-amend
     if options.amend or options.try_amend:
@@ -1883,8 +1895,9 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             fd, tmptest_file = tempfile.mkstemp()
             os.close(fd)
             os.chmod(tmptest_file, 0o700)
-            if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False, force_in_dry_run=True, trace=False,
-                           stream_output=False):
+            res = run_shell_cmd(tmptest_file, fail_on_error=False, in_dry_run=True, hidden=True, stream_output=False,
+                                with_hooks=False)
+            if res.exit_code:
                 msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
                 msg += "This can cause problems in the build process, consider using --tmpdir."
                 if raise_error:

@@ -35,7 +35,7 @@ import os
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import load_source
+from importlib.util import spec_from_file_location, module_from_spec
 
 
 _log = fancylogger.getLogger('hooks', fname=False)
@@ -65,6 +65,12 @@ BUILD_AND_INSTALL_LOOP = 'build_and_install_loop'
 SINGLE_EXTENSION = 'single_extension'
 MODULE_WRITE = 'module_write'
 END = 'end'
+
+CANCEL = 'cancel'
+CRASH = 'crash'
+FAIL = 'fail'
+
+RUN_SHELL_CMD = 'run_shell_cmd'
 
 PRE_PREF = 'pre_'
 POST_PREF = 'post_'
@@ -101,12 +107,25 @@ HOOK_NAMES = [
      for p in [PRE_PREF, POST_PREF]] + [
     POST_PREF + BUILD_AND_INSTALL_LOOP,
     END,
+    CANCEL,
+    CRASH,
+    FAIL,
+    PRE_PREF + RUN_SHELL_CMD,
+    POST_PREF + RUN_SHELL_CMD,
 ]
 KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
 
 
 # cached version of hooks, to avoid having to load them from file multiple times
 _cached_hooks = {}
+
+
+def load_source(filename, path):
+    """Load file as Python module"""
+    spec = spec_from_file_location(filename, path)
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def load_hooks(hooks_path):
@@ -198,7 +217,7 @@ def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
     return res
 
 
-def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None, msg=None):
+def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None, kwargs=None, msg=None):
     """
     Run hook with specified label and return result of calling the hook or None.
 
@@ -214,6 +233,8 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
     if hook:
         if args is None:
             args = []
+        if kwargs is None:
+            kwargs = {}
 
         if pre_step_hook:
             label = 'pre-' + label
@@ -222,9 +243,9 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
 
         if msg is None:
             msg = "Running %s hook..." % label
-        if build_option('debug'):
+        if build_option('debug') and not build_option('silence_hook_trigger'):
             print_msg(msg)
 
-        _log.info("Running '%s' hook function (arguments: %s)...", hook.__name__, args)
-        res = hook(*args)
+        _log.info("Running '%s' hook function (args: %s, keyword args: %s)...", hook.__name__, args, kwargs)
+        res = hook(*args, **kwargs)
     return res

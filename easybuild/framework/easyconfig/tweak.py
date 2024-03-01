@@ -90,15 +90,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     tweaked_ecs_path, tweaked_ecs_deps_path = None, None
     if targetdirs is not None:
         tweaked_ecs_path, tweaked_ecs_deps_path = targetdirs
-    # make sure easyconfigs all feature the same toolchain (otherwise we *will* run into trouble)
-    toolchains = nub(['%(name)s/%(version)s' % ec['ec']['toolchain'] for ec in easyconfigs])
-    if len(toolchains) > 1:
-        raise EasyBuildError("Multiple toolchains featured in easyconfigs, --try-X not supported in that case: %s",
-                             toolchains)
-    # Toolchain is unique, let's store it
-    source_toolchain = easyconfigs[-1]['ec']['toolchain']
     modifying_toolchains_or_deps = False
-    target_toolchain = {}
     src_to_dst_tc_mapping = {}
     revert_to_regex = False
 
@@ -116,6 +108,16 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
                 revert_to_regex = True
 
         if not revert_to_regex:
+            # make sure easyconfigs all feature the same toolchain (otherwise we *will* run into trouble)
+            toolchains = nub(['%(name)s/%(version)s' % ec['ec']['toolchain'] for ec in easyconfigs])
+            if len(toolchains) > 1:
+                raise EasyBuildError("Multiple toolchains featured in easyconfigs, "
+                                     "--try-X not supported in that case: %s",
+                                     toolchains)
+            # Toolchain is unique, let's store it
+            source_toolchain = easyconfigs[-1]['ec']['toolchain']
+            target_toolchain = {}
+
             # we're doing something that involves the toolchain hierarchy;
             # obtain full dependency graph for specified easyconfigs;
             # easyconfigs will be ordered 'top-to-bottom' (toolchains and dependencies appearing first)
@@ -321,7 +323,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
                     newval = "%s + %s" % (fval, res.group('val'))
                     _log.debug("Prepending %s to %s" % (fval, key))
                 else:
-                    newval = "%s" % fval
+                    newval = str(fval)
                     _log.debug("Overwriting %s with %s" % (key, fval))
                 ectxt = regexp.sub("%s = %s" % (res.group('key'), newval), ectxt)
                 _log.info("Tweaked %s list to '%s'" % (key, newval))

@@ -58,15 +58,15 @@ import time
 import zlib
 from functools import partial
 from html.parser import HTMLParser
-from importlib.util import spec_from_file_location, module_from_spec
 import urllib.request as std_urllib
 
 from easybuild.base import fancylogger
-from easybuild.tools import run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN, build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
+from easybuild.tools.hooks import load_source
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars, trace_msg
 
 try:
@@ -445,7 +445,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     """
 
     if not os.path.isfile(fn) and not build_option('extended_dry_run'):
-        raise EasyBuildError("Can't extract file %s: no such file", fn)
+        raise EasyBuildError(f"Can't extract file {fn}: no such file")
 
     mkdir(dest, parents=True)
 
@@ -453,24 +453,24 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     abs_dest = os.path.abspath(dest)
 
     # change working directory
-    _log.debug("Unpacking %s in directory %s", fn, abs_dest)
+    _log.debug(f"Unpacking {fn} in directory {abs_dest}")
     cwd = change_dir(abs_dest)
 
     if cmd:
         # complete command template with filename
         cmd = cmd % fn
-        _log.debug("Using specified command to unpack %s: %s", fn, cmd)
+        _log.debug("Using specified command to unpack {fn}: {cmd}")
     else:
         cmd = extract_cmd(fn, overwrite=overwrite)
-        _log.debug("Using command derived from file extension to unpack %s: %s", fn, cmd)
+        _log.debug("Using command derived from file extension to unpack {fn}: {cmd}")
 
     if not cmd:
-        raise EasyBuildError("Can't extract file %s with unknown filetype", fn)
+        raise EasyBuildError("Can't extract file {fn} with unknown filetype")
 
     if extra_options:
-        cmd = "%s %s" % (cmd, extra_options)
+        cmd = f"{cmd} {extra_options}"
 
-    run.run_cmd(cmd, simple=True, force_in_dry_run=forced, trace=trace)
+    run_shell_cmd(cmd, in_dry_run=forced, hidden=not trace)
 
     # note: find_base_dir also changes into the base dir!
     base_dir = find_base_dir()
@@ -479,14 +479,14 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     # change back to where we came from (unless that was a non-existing directory)
     if not change_into_dir:
         if cwd is None:
-            raise EasyBuildError("Can't change back to non-existing directory after extracting %s in %s", fn, dest)
+            raise EasyBuildError(f"Can't change back to non-existing directory after extracting {fn} in {dest}")
         else:
             change_dir(cwd)
 
     return base_dir
 
 
-def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=None, on_error=None):
+def which(cmd, retain_all=False, check_perms=True, log_ok=True, on_error=WARN):
     """
     Return (first) path in $PATH for specified command, or None if command is not found
 
@@ -495,17 +495,6 @@ def which(cmd, retain_all=False, check_perms=True, log_ok=True, log_error=None, 
     :param log_ok: Log an info message where the command has been found (if any)
     :param on_error: What to do if the command was not found, default: WARN. Possible values: IGNORE, WARN, ERROR
     """
-    if log_error is not None:
-        _log.deprecated("'log_error' named argument in which function has been replaced by 'on_error'", '5.0')
-        # If set, make sure on_error is at least WARN
-        if log_error and on_error == IGNORE:
-            on_error = WARN
-        elif not log_error and on_error is None:  # If set to False, use IGNORE unless on_error is also set
-            on_error = IGNORE
-    # Set default
-    # TODO: After removal of log_error from the parameters, on_error=WARN can be used instead of this
-    if on_error is None:
-        on_error = WARN
     if on_error not in (IGNORE, WARN, ERROR):
         raise EasyBuildError("Invalid value for 'on_error': %s", on_error)
 
@@ -1263,14 +1252,11 @@ def verify_checksum(path, checksums):
 
     for checksum in checksums:
         if isinstance(checksum, dict):
-            if filename in checksum:
+            try:
                 # Set this to a string-type checksum
                 checksum = checksum[filename]
-            elif build_option('enforce_checksums'):
-                raise EasyBuildError("Missing checksum for %s", filename)
-            else:
-                # Set to None and allow to fail elsewhere
-                checksum = None
+            except KeyError:
+                raise EasyBuildError("Missing checksum for %s in %s", filename, checksum)
 
         if isinstance(checksum, str):
             # if no checksum type is specified, it is assumed to be MD5 (32 characters) or SHA256 (64 characters)
@@ -1300,7 +1286,8 @@ def verify_checksum(path, checksums):
                 # no matching checksums
                 return False
         else:
-            raise EasyBuildError("Invalid checksum spec '%s', should be a string (MD5) or 2-tuple (type, value).",
+            raise EasyBuildError("Invalid checksum spec '%s': should be a string (MD5 or SHA256), "
+                                 "2-tuple (type, value), or tuple of alternative checksum specs.",
                                  checksum)
 
         actual_checksum = compute_checksum(path, typ)
@@ -1547,27 +1534,27 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git=False
     if build_option('extended_dry_run'):
         # skip checking of files in dry run mode
         patch_filename = os.path.basename(patch_file)
-        dry_run_msg("* applying patch file %s" % patch_filename, silent=build_option('silent'))
+        dry_run_msg(f"* applying patch file {patch_filename}", silent=build_option('silent'))
 
     elif not os.path.isfile(patch_file):
-        raise EasyBuildError("Can't find patch %s: no such file", patch_file)
+        raise EasyBuildError(f"Can't find patch {patch_file}: no such file")
 
     elif fn and not os.path.isfile(fn):
-        raise EasyBuildError("Can't patch file %s: no such file", fn)
+        raise EasyBuildError(f"Can't patch file {fn}: no such file")
 
     # copy missing files
     if copy:
         if build_option('extended_dry_run'):
-            dry_run_msg("  %s copied to %s" % (patch_file, dest), silent=build_option('silent'))
+            dry_run_msg(f"  {patch_file} copied to {dest}", silent=build_option('silent'))
         else:
             copy_file(patch_file, dest)
-            _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
+            _log.debug(f"Copied patch {patch_file} to dir {dest}")
 
         # early exit, work is done after copying
         return True
 
     elif not os.path.isdir(dest):
-        raise EasyBuildError("Can't patch directory %s: no such directory", dest)
+        raise EasyBuildError(f"Can't patch directory {dest}: no such directory")
 
     # use absolute paths
     abs_patch_file = os.path.abspath(patch_file)
@@ -1582,14 +1569,14 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git=False
         patch_subextension = os.path.splitext(patch_stem)[1]
         if patch_subextension == ".patch":
             workdir = tempfile.mkdtemp(prefix='eb-patch-')
-            _log.debug("Extracting the patch to: %s", workdir)
+            _log.debug(f"Extracting the patch to: {workdir}")
             # extracting the patch
             extracted_dir = extract_file(abs_patch_file, workdir, change_into_dir=False)
             abs_patch_file = os.path.join(extracted_dir, patch_stem)
 
     if use_git:
         verbose = '--verbose ' if build_option('debug') else ''
-        patch_cmd = "git apply %s%s" % (verbose, abs_patch_file)
+        patch_cmd = f"git apply {verbose}{abs_patch_file}"
     else:
         if level is None and build_option('extended_dry_run'):
             level = '<derived>'
@@ -1602,27 +1589,30 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git=False
             patched_files = det_patched_files(path=abs_patch_file)
 
             if not patched_files:
-                raise EasyBuildError("Can't guess patchlevel from patch %s: no testfile line found in patch",
-                                     abs_patch_file)
+                msg = f"Can't guess patchlevel from patch {abs_patch_file}: no testfile line found in patch"
+                raise EasyBuildError(msg)
 
             level = guess_patch_level(patched_files, abs_dest)
 
             if level is None:  # level can also be 0 (zero), so don't use "not level"
                 # no match
-                raise EasyBuildError("Can't determine patch level for patch %s from directory %s", patch_file, abs_dest)
+                raise EasyBuildError(f"Can't determine patch level for patch {patch_file} from directory {abs_dest}")
             else:
-                _log.debug("Guessed patch level %d for patch %s" % (level, patch_file))
+                _log.debug(f"Guessed patch level {level} for patch {patch_file}")
 
         else:
-            _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
+            _log.debug(f"Using specified patch level {level} for patch {patch_file}")
 
         backup_option = '-b ' if build_option('backup_patched_files') else ''
-        patch_cmd = "patch " + backup_option + "-p%s -i %s" % (level, abs_patch_file)
+        patch_cmd = f"patch {backup_option} -p{level} -i {abs_patch_file}"
 
-    out, ec = run.run_cmd(patch_cmd, simple=False, path=abs_dest, log_ok=False, trace=False)
+    res = run_shell_cmd(patch_cmd, fail_on_error=False, hidden=True, work_dir=abs_dest)
 
-    if ec:
-        raise EasyBuildError("Couldn't apply patch file %s. Process exited with code %s: %s", patch_file, ec, out)
+    if res.exit_code:
+        msg = f"Couldn't apply patch file {patch_file}. "
+        msg += f"Process exited with code {res.exit_code}: {res.output}"
+        raise EasyBuildError(msg)
+
     return True
 
 
@@ -1731,7 +1721,7 @@ def convert_name(name, upper=False):
 
 
 def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
-                       group_id=None, relative=True, ignore_errors=False, skip_symlinks=None):
+                       group_id=None, relative=True, ignore_errors=False):
     """
     Change permissions for specified path, using specified permission bits
 
@@ -1747,11 +1737,6 @@ def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False
     Add or remove (if add is False) permission_bits from all files (if onlydirs is False)
     and directories (if onlyfiles is False) in path
     """
-
-    if skip_symlinks is not None:
-        depr_msg = "Use of 'skip_symlinks' argument for 'adjust_permissions' is deprecated "
-        depr_msg += "(symlinks are never followed anymore)"
-        _log.deprecated(depr_msg, '4.0')
 
     provided_path = os.path.abspath(provided_path)
 
@@ -1912,7 +1897,7 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                 # climb up until we hit an existing path or the empty string (for relative paths)
                 while existing_parent_path and not os.path.exists(existing_parent_path):
                     existing_parent_path = os.path.dirname(existing_parent_path)
-                os.makedirs(path)
+                os.makedirs(path, exist_ok=True)
             else:
                 os.mkdir(path)
         except FileExistsError as err:
@@ -2088,13 +2073,6 @@ def path_matches(path, paths):
     return False
 
 
-def rmtree2(path, n=3):
-    """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
-
-    _log.deprecated("Use 'remove_dir' rather than 'rmtree2'", '5.0')
-    remove_dir(path)
-
-
 def find_backup_name_candidate(src_file):
     """Returns a non-existing file to be used as destination for backup files"""
 
@@ -2148,7 +2126,7 @@ def move_logs(src_logfile, target_logfile):
     try:
 
         # there may be multiple log files, due to log rotation
-        app_logs = glob.glob('%s*' % src_logfile)
+        app_logs = glob.glob(f'{src_logfile}*')
         for app_log in app_logs:
             # retain possible suffix
             new_log_path = target_logfile + app_log[src_logfile_len:]
@@ -2159,11 +2137,11 @@ def move_logs(src_logfile, target_logfile):
 
             # move log to target path
             move_file(app_log, new_log_path)
-            _log.info("Moved log file %s to %s" % (src_logfile, new_log_path))
+            _log.info(f"Moved log file {src_logfile} to {new_log_path}")
 
             if zip_log_cmd:
-                run.run_cmd("%s %s" % (zip_log_cmd, new_log_path))
-                _log.info("Zipped log %s using '%s'", new_log_path, zip_log_cmd)
+                run_shell_cmd(f"{zip_log_cmd} {new_log_path}")
+                _log.info(f"Zipped log {new_log_path} using '{zip_log_cmd}'")
 
     except (IOError, OSError) as err:
         raise EasyBuildError("Failed to move log file(s) %s* to new log file %s*: %s",
@@ -2199,11 +2177,6 @@ def cleanup(logfile, tempdir, testing, silent=False):
     else:
         msg = "Keeping temporary log file(s) %s* and directory %s." % (logfile, tempdir)
         print_msg(msg, log=None, silent=testing or silent)
-
-
-def copytree(src, dst, symlinks=False, ignore=None):
-    """DEPRECATED and removed. Use copy_dir"""
-    _log.deprecated("Use 'copy_dir' rather than 'copytree'", '4.0')
 
 
 def encode_string(name):
@@ -2251,21 +2224,6 @@ def decode_class_name(name):
     else:
         name = name[len(EASYBLOCK_CLASS_PREFIX):]
         return decode_string(name)
-
-
-def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
-    """NO LONGER SUPPORTED: use run_cmd from easybuild.tools.run instead"""
-    _log.nosupport("run_cmd was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
-
-
-def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
-    """NO LONGER SUPPORTED: use run_cmd_qa from easybuild.tools.run instead"""
-    _log.nosupport("run_cmd_qa was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
-
-
-def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
-    """NO LONGER SUPPORTED: use parse_log_for_error from easybuild.tools.run instead"""
-    _log.nosupport("parse_log_for_error was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
 
 
 def det_size(path):
@@ -2582,17 +2540,17 @@ def copy(paths, target_path, force_in_dry_run=False, **kwargs):
             raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
 
 
-def get_source_tarball_from_git(filename, targetdir, git_config):
+def get_source_tarball_from_git(filename, target_dir, git_config):
     """
     Downloads a git repository, at a specific tag or commit, recursively or not, and make an archive with it
 
     :param filename: name of the archive to save the code to (must be .tar.gz)
-    :param targetdir: target directory where to save the archive to
+    :param target_dir: target directory where to save the archive to
     :param git_config: dictionary containing url, repo_name, recursive, and one of tag or commit
     """
     # sanity check on git_config value being passed
     if not isinstance(git_config, dict):
-        raise EasyBuildError("Found unexpected type of value for 'git_config' argument: %s" % type(git_config))
+        raise EasyBuildError("Found unexpected type of value for 'git_config' argument: {type(git_config)}")
 
     # Making a copy to avoid modifying the object with pops
     git_config = git_config.copy()
@@ -2603,10 +2561,12 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     recursive = git_config.pop('recursive', False)
     clone_into = git_config.pop('clone_into', False)
     keep_git_dir = git_config.pop('keep_git_dir', False)
+    extra_config_params = git_config.pop('extra_config_params', None)
+    recurse_submodules = git_config.pop('recurse_submodules', None)
 
     # input validation of git_config dict
     if git_config:
-        raise EasyBuildError("Found one or more unexpected keys in 'git_config' specification: %s", git_config)
+        raise EasyBuildError("Found one or more unexpected keys in 'git_config' specification: {git_config}")
 
     if not repo_name:
         raise EasyBuildError("repo_name not specified in git_config parameter")
@@ -2624,11 +2584,14 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         raise EasyBuildError("git_config currently only supports filename ending in .tar.gz")
 
     # prepare target directory and clone repository
-    mkdir(targetdir, parents=True)
-    targetpath = os.path.join(targetdir, filename)
+    mkdir(target_dir, parents=True)
 
     # compose 'git clone' command, and run it
-    clone_cmd = ['git', 'clone']
+    if extra_config_params:
+        git_cmd = 'git ' + ' '.join(['-c %s' % param for param in extra_config_params])
+    else:
+        git_cmd = 'git'
+    clone_cmd = [git_cmd, 'clone']
 
     if not keep_git_dir and not commit:
         # Speed up cloning by only fetching the most recent commit, not the whole history
@@ -2639,18 +2602,20 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         clone_cmd.extend(['--branch', tag])
         if recursive:
             clone_cmd.append('--recursive')
+        if recurse_submodules:
+            clone_cmd.extend(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
     else:
         # checkout is done separately below for specific commits
         clone_cmd.append('--no-checkout')
 
-    clone_cmd.append('%s/%s.git' % (url, repo_name))
+    clone_cmd.append(f'{url}/{repo_name}.git')
 
     if clone_into:
-        clone_cmd.append('%s' % clone_into)
+        clone_cmd.append(clone_into)
 
     tmpdir = tempfile.mkdtemp()
-    cwd = change_dir(tmpdir)
-    run.run_cmd(' '.join(clone_cmd), log_all=True, simple=True, regexp=False, trace=False)
+
+    run_shell_cmd(' '.join(clone_cmd), hidden=True, verbose_dry_run=True, work_dir=tmpdir)
 
     # If the clone is done into a specified name, change repo_name
     if clone_into:
@@ -2658,54 +2623,78 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
 
     # if a specific commit is asked for, check it out
     if commit:
-        checkout_cmd = ['git', 'checkout', commit]
-        if recursive:
-            checkout_cmd.extend(['&&', 'git', 'submodule', 'update', '--init', '--recursive'])
+        checkout_cmd = [git_cmd, 'checkout', commit]
 
-        run.run_cmd(' '.join(checkout_cmd), log_all=True, simple=True, regexp=False, path=repo_name, trace=False)
+        if recursive or recurse_submodules:
+            checkout_cmd.extend(['&&', git_cmd, 'submodule', 'update', '--init'])
+            if recursive:
+                checkout_cmd.append('--recursive')
+            if recurse_submodules:
+                checkout_cmd.extend(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
+
+        work_dir = os.path.join(tmpdir, repo_name) if repo_name else tmpdir
+        run_shell_cmd(' '.join(checkout_cmd), work_dir=work_dir, hidden=True, verbose_dry_run=True)
 
     elif not build_option('extended_dry_run'):
         # If we wanted to get a tag make sure we actually got a tag and not a branch with the same name
         # This doesn't make sense in dry-run mode as we don't have anything to check
-        cmd = 'git describe --exact-match --tags HEAD'
-        # Note: Disable logging to also disable the error handling in run_cmd
-        (out, ec) = run.run_cmd(cmd, log_ok=False, log_all=False, regexp=False, path=repo_name, trace=False)
-        if ec != 0 or tag not in out.splitlines():
-            print_warning('Tag %s was not downloaded in the first try due to %s/%s containing a branch'
-                          ' with the same name. You might want to alert the maintainers of %s about that issue.',
-                          tag, url, repo_name, repo_name)
+        cmd = f"{git_cmd} describe --exact-match --tags HEAD"
+        work_dir = os.path.join(tmpdir, repo_name) if repo_name else tmpdir
+        res = run_shell_cmd(cmd, fail_on_error=False, work_dir=work_dir, hidden=True, verbose_dry_run=True)
+
+        if res.exit_code != 0 or tag not in res.output.splitlines():
+            msg = f"Tag {tag} was not downloaded in the first try due to {url}/{repo_name} containing a branch"
+            msg += f" with the same name. You might want to alert the maintainers of {repo_name} about that issue."
+            print_warning(msg)
+
             cmds = []
 
             if not keep_git_dir:
                 # make the repo unshallow first;
                 # this is equivalent with 'git fetch -unshallow' in Git 1.8.3+
                 # (first fetch seems to do nothing, unclear why)
-                cmds.append('git fetch --depth=2147483647 && git fetch --depth=2147483647')
+                cmds.append(f"{git_cmd} fetch --depth=2147483647 && git fetch --depth=2147483647")
 
-            cmds.append('git checkout refs/tags/' + tag)
+            cmds.append(f"{git_cmd} checkout refs/tags/{tag}")
             # Clean all untracked files, e.g. from left-over submodules
-            cmds.append('git clean --force -d -x')
+            cmds.append(f"{git_cmd} clean --force -d -x")
             if recursive:
-                cmds.append('git submodule update --init --recursive')
-            for cmd in cmds:
-                run.run_cmd(cmd, log_all=True, simple=True, regexp=False, path=repo_name, trace=False)
+                cmds.append(f"{git_cmd} submodule update --init --recursive")
+            elif recurse_submodules:
+                cmds.append(f"{git_cmd} submodule update --init ")
+                cmds[-1] += ' '.join(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
 
-    # When CentOS 7 is phased out and tar>1.28 is everywhere, replace find-sort-pipe with tar-flag
-    # '--sort=name' and place LC_ALL in front of tar. Also remove flags --null, --no-recursion, and
-    # --files-from - from the flags to tar. See https://reproducible-builds.org/docs/archives/
-    tar_cmd = ['find', repo_name, '-print0', '-path \'*/.git\' -prune' if not keep_git_dir else '', '|',
-               'LC_ALL=C', 'sort', '--zero-terminated', '|',
-               'GZIP=--no-name', 'tar', '--create', '--file', targetpath, '--no-recursion',
-               '--gzip', '--mtime="1970-01-01 00:00Z"', '--owner=0', '--group=0',
-               '--numeric-owner', '--format=gnu', '--null',
-               '--no-recursion', '--files-from -']
-    run.run_cmd(' '.join(tar_cmd), log_all=True, simple=True, regexp=False, trace=False)
+            for cmd in cmds:
+                run_shell_cmd(cmd, work_dir=work_dir, hidden=True, verbose_dry_run=True)
+
+    # Create archive
+    archive_path = os.path.join(target_dir, filename)
+
+    if keep_git_dir:
+        # create archive of git repo including .git directory
+        tar_cmd = ['tar', 'cfvz', archive_path, repo_name]
+    else:
+        # create reproducible archive
+        # see https://reproducible-builds.org/docs/archives/
+        tar_cmd = [
+            # print names of all files and folders excluding .git directory
+            'find', repo_name, '-name ".git"', '-prune', '-o', '-print0',
+            # reset access and modification timestamps
+            '-exec', 'touch', '-t 197001010100', '{}', '\;', '|',
+            # sort file list
+            'LC_ALL=C', 'sort', '--zero-terminated', '|',
+            # create tarball in GNU format with ownership reset
+            'tar', '--create', '--no-recursion', '--owner=0', '--group=0', '--numeric-owner', '--format=gnu',
+            '--null', '--files-from', '-', '|',
+            # compress tarball with gzip without original file name and timestamp
+            'gzip', '--no-name', '>', archive_path
+        ]
+    run_shell_cmd(' '.join(tar_cmd), work_dir=tmpdir, hidden=True, verbose_dry_run=True)
 
     # cleanup (repo_name dir does not exist in dry run mode)
-    change_dir(cwd)
     remove(tmpdir)
 
-    return targetpath
+    return archive_path
 
 
 def move_file(path, target_path, force_in_dry_run=False):
@@ -2783,14 +2772,6 @@ def install_fake_vsc():
     sys.path.insert(0, fake_vsc_path)
 
     return fake_vsc_path
-
-
-def load_source(filename, path):
-    """Load file as Python module"""
-    spec = spec_from_file_location(filename, path)
-    module = module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def get_easyblock_class_name(path):

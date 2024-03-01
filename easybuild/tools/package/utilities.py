@@ -45,7 +45,7 @@ from easybuild.tools.config import build_option, get_package_naming_scheme, log_
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import change_dir, which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import get_subclasses, import_available_modules
 
 
@@ -145,7 +145,7 @@ def package_with_fpm(easyblock):
     ])
     cmd = ' '.join(cmdlist)
     _log.debug("The flattened cmdlist looks like: %s", cmd)
-    run_cmd(cmdlist, log_all=True, simple=True, shell=False)
+    run_shell_cmd(cmdlist, use_bash=False)
 
     _log.info("Created %s package(s) in %s", pkgtype, workdir)
 

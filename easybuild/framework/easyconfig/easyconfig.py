@@ -74,7 +74,7 @@ from easybuild.tools.hooks import PARSE, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
-from easybuild.tools.modules import modules_tool
+from easybuild.tools.modules import modules_tool, NoModulesTool
 from easybuild.tools.systemtools import check_os_dependency, pick_dep_version
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
@@ -401,20 +401,6 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
 
     _log.info("Found toolchain hierarchy for toolchain %s: %s", parent_toolchain, toolchain_hierarchy)
     return toolchain_hierarchy
-
-
-@contextmanager
-def disable_templating(ec):
-    """Temporarily disable templating on the given EasyConfig
-
-    Usage:
-        with disable_templating(ec):
-            # Do what you want without templating
-        # Templating set to previous value
-    """
-    _log.deprecated("disable_templating(ec) was replaced by ec.disable_templating()", '5.0')
-    with ec.disable_templating() as old_value:
-        yield old_value
 
 
 class EasyConfig(object):
@@ -1131,6 +1117,15 @@ class EasyConfig(object):
 
         return retained_deps
 
+    def dependency_names(self, build_only=False):
+        """
+        Return a set of names of all (direct) dependencies after filtering.
+        Iterable builddependencies are flattened when not iterating.
+
+        :param build_only: only return build dependencies, discard others
+        """
+        return {dep['name'] for dep in self.dependencies(build_only=build_only) if dep['name']}
+
     def builddependencies(self):
         """
         Return a flat list of the parsed build dependencies
@@ -1298,6 +1293,9 @@ class EasyConfig(object):
         :param existing_metadata: already available metadata for this external module (if any)
         """
         res = {}
+        if isinstance(self.modules_tool, NoModulesTool):
+            self.log.debug('Ignoring request for external module data for %s as no modules tool is active', mod_name)
+            return res
 
         if existing_metadata is None:
             existing_metadata = {}
@@ -1857,19 +1855,10 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
     _log.nosupport('Use det_full_ec_version from easybuild.tools.module_generator instead of %s' % old_fn, '2.0')
 
 
-def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error_on_missing_easyblock=None, **kwargs):
+def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error_on_missing_easyblock=True, **kwargs):
     """
     Get class for a particular easyblock (or use default)
     """
-    if 'default_fallback' in kwargs:
-        msg = "Named argument 'default_fallback' for get_easyblock_class is deprecated, "
-        msg += "use 'error_on_missing_easyblock' instead"
-        _log.deprecated(msg, '4.0')
-        if error_on_missing_easyblock is None:
-            error_on_missing_easyblock = kwargs['default_fallback']
-    elif error_on_missing_easyblock is None:
-        error_on_missing_easyblock = True
-
     cls = None
     try:
         if easyblock:

@@ -130,6 +130,7 @@ DEFAULT_CONFIG = {
     'sanity_check_paths': [{}, ("List of files and directories to check "
                                 "(format: {'files':<list>, 'dirs':<list>})"), BUILD],
     'skip': [False, "Skip existing software", BUILD],
+    'skip_mod_files_sanity_check': [False, "Skip the check for .mod files in a GCCcore level install", BUILD],
     'skipsteps': [[], "Skip these steps", BUILD],
     'source_urls': [[], "List of URLs for source files", BUILD],
     'sources': [[], "List of source files", BUILD],
@@ -189,10 +190,12 @@ DEFAULT_CONFIG = {
     'exts_list': [[], 'List with extensions added to the base installation', EXTENSIONS],
 
     # MODULES easyconfig parameters
+    'allow_append_abs_path': [False, "Allow specifying absolute paths to append in modextrapaths_append", MODULES],
     'allow_prepend_abs_path': [False, "Allow specifying absolute paths to prepend in modextrapaths", MODULES],
     'include_modpath_extensions': [True, "Include $MODULEPATH extensions specified by module naming scheme.", MODULES],
     'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
+    'modextrapaths_append': [{}, "Extra paths to be appended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
     'modloadmsg': [{}, "Message that should be printed when generated module is loaded", MODULES],
     'modunloadmsg': [{}, "Message that should be printed when generated module is unloaded", MODULES],
@@ -228,6 +231,8 @@ DEFAULT_CONFIG = {
     'buildstats': [None, "A list of dicts with build statistics", OTHER],
     'deprecated': [False, "String specifying reason why this easyconfig file is deprecated "
                           "and will be archived in the next major release of EasyBuild", OTHER],
+    'build_info_msg': [None, "String with information to be printed to stdout and logged during the building "
+                             "of the easyconfig", OTHER],
 }
 
 

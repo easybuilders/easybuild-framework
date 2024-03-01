@@ -35,11 +35,14 @@ import glob
 import os
 import re
 import signal
+import string
 import stat
 import subprocess
 import sys
 import tempfile
+import textwrap
 import time
+from concurrent.futures import ThreadPoolExecutor
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from easybuild.base.fancylogger import setLogLevelDebug
@@ -47,9 +50,11 @@ from easybuild.base.fancylogger import setLogLevelDebug
 import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
-from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, write_file
-from easybuild.tools.run import check_async_cmd, check_log_for_errors, complete_cmd, get_output_from_process
-from easybuild.tools.run import RunResult, parse_log_for_error, run, run_cmd, run_cmd_qa, subprocess_terminate
+from easybuild.tools.config import update_build_option
+from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, write_file
+from easybuild.tools.run import RunShellCmdResult, RunShellCmdError, check_async_cmd, check_log_for_errors
+from easybuild.tools.run import complete_cmd, fileprefix_from_cmd, get_output_from_process, parse_log_for_error
+from easybuild.tools.run import run_cmd, run_cmd_qa, run_shell_cmd, subprocess_terminate
 from easybuild.tools.config import ERROR, IGNORE, WARN
 
 
@@ -159,11 +164,11 @@ class RunTest(EnhancedTestCase):
             self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
             self.assertEqual(type(out), str)
 
-    def test_run_basic(self):
-        """Basic test for run function."""
+    def test_run_shell_cmd_basic(self):
+        """Basic test for run_shell_cmd function."""
 
         with self.mocked_stdout_stderr():
-            res = run("echo hello")
+            res = run_shell_cmd("echo hello")
         self.assertEqual(res.output, "hello\n")
         # no reason echo hello could fail
         self.assertEqual(res.cmd, "echo hello")
@@ -183,12 +188,32 @@ class RunTest(EnhancedTestCase):
             cmd = "cat %s" % test_file
 
             with self.mocked_stdout_stderr():
-                res = run(cmd)
+                res = run_shell_cmd(cmd)
             self.assertEqual(res.cmd, cmd)
             self.assertEqual(res.exit_code, 0)
             self.assertTrue(res.output.startswith('foo ') and res.output.endswith(' bar'))
             self.assertTrue(isinstance(res.output, str))
             self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
+
+    def test_fileprefix_from_cmd(self):
+        """test simplifications from fileprefix_from_cmd."""
+        cmds = {
+            'abd123': 'abd123',
+            'ab"a': 'aba',
+            'a{:$:S@"a': 'aSa',
+            'cmd-with-dash': 'cmd-with-dash',
+            'cmd_with_underscore': 'cmd_with_underscore',
+        }
+        for cmd, expected_simplification in cmds.items():
+            self.assertEqual(fileprefix_from_cmd(cmd), expected_simplification)
+
+        cmds = {
+            'abd123': 'abd',
+            'ab"a': 'aba',
+            '0a{:$:2@"a': 'aa',
+        }
+        for cmd, expected_simplification in cmds.items():
+            self.assertEqual(fileprefix_from_cmd(cmd, allowed_chars=string.ascii_letters), expected_simplification)
 
     def test_run_cmd_log(self):
         """Test logging of executed commands."""
@@ -239,24 +264,25 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(logfiles[0].startswith("easybuild"))
         self.assertTrue(logfiles[0].endswith("log"))
 
-    def test_run_log(self):
-        """Test logging of executed commands with run function."""
+    def test_run_shell_cmd_log(self):
+        """Test logging of executed commands with run_shell_cmd function."""
 
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
         os.close(fd)
 
-        regex_start_cmd = re.compile("Running command 'echo hello' in /")
-        regex_cmd_exit = re.compile("Command 'echo hello' exited with exit code [0-9]* and output:")
+        regex_start_cmd = re.compile("Running shell command 'echo hello' in /")
+        regex_cmd_exit = re.compile(r"Shell command completed successfully \(see output above\): echo hello")
 
         # command output is always logged
         init_logging(logfile, silent=True)
         with self.mocked_stdout_stderr():
-            res = run("echo hello")
+            res = run_shell_cmd("echo hello")
         stop_logging(logfile)
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, 'hello\n')
-        self.assertEqual(len(regex_start_cmd.findall(read_file(logfile))), 1)
-        self.assertEqual(len(regex_cmd_exit.findall(read_file(logfile))), 1)
+        logtxt = read_file(logfile)
+        self.assertEqual(len(regex_start_cmd.findall(logtxt)), 1)
+        self.assertEqual(len(regex_cmd_exit.findall(logtxt)), 1)
         write_file(logfile, '')
 
         # with debugging enabled, exit code and output of command should only get logged once
@@ -264,7 +290,7 @@ class RunTest(EnhancedTestCase):
 
         init_logging(logfile, silent=True)
         with self.mocked_stdout_stderr():
-            res = run("echo hello")
+            res = run_shell_cmd("echo hello")
         stop_logging(logfile)
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, 'hello\n')
@@ -302,11 +328,14 @@ class RunTest(EnhancedTestCase):
             signal.signal(signal.SIGALRM, orig_sigalrm_handler)
             signal.alarm(0)
 
-    def test_run_fail_cmd(self):
-        """Test run function with command that has negative exit code."""
+    def test_run_shell_cmd_fail(self):
+        """Test run_shell_cmd function with command that has negative exit code."""
         # define signal handler to call in case run takes too long
         def handler(signum, _):
             raise RuntimeError("Signal handler called with signal %s" % signum)
+
+        # disable trace output for this test (so stdout remains empty)
+        update_build_option('trace', False)
 
         orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
@@ -315,9 +344,87 @@ class RunTest(EnhancedTestCase):
             signal.signal(signal.SIGALRM, handler)
             signal.alarm(3)
 
-            with self.mocked_stdout_stderr():
-                res = run("kill -9 $$", fail_on_error=False)
+            # command to kill parent shell
+            cmd = "kill -9 $$"
+
+            work_dir = os.path.realpath(self.test_prefix)
+            change_dir(work_dir)
+
+            try:
+                run_shell_cmd(cmd)
+                self.assertFalse("This should never be reached, RunShellCmdError should occur!")
+            except RunShellCmdError as err:
+                self.assertEqual(str(err), "Shell command 'kill' failed!")
+                self.assertEqual(err.cmd, "kill -9 $$")
+                self.assertEqual(err.cmd_name, 'kill')
+                self.assertEqual(err.exit_code, -9)
+                self.assertEqual(err.work_dir, work_dir)
+                self.assertEqual(err.output, '')
+                self.assertEqual(err.stderr, None)
+                self.assertTrue(isinstance(err.caller_info, tuple))
+                self.assertEqual(len(err.caller_info), 3)
+                self.assertEqual(err.caller_info[0], __file__)
+                self.assertTrue(isinstance(err.caller_info[1], int))  # line number of calling site
+                self.assertEqual(err.caller_info[2], 'test_run_shell_cmd_fail')
+
+                with self.mocked_stdout_stderr() as (_, stderr):
+                    err.print()
+
+                # check error reporting output
+                stderr = stderr.getvalue()
+                patterns = [
+                    r"^ERROR: Shell command failed!",
+                    r"^\s+full command\s* ->  kill -9 \$\$",
+                    r"^\s+exit code\s* ->  -9",
+                    r"^\s+working directory\s* ->  " + work_dir,
+                    r"^\s+called from\s* ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
+                    r"^\s+output \(stdout \+ stderr\)\s* ->  .*/run-shell-cmd-output/kill-.*/out.txt",
+                ]
+                for pattern in patterns:
+                    regex = re.compile(pattern, re.M)
+                    self.assertTrue(regex.search(stderr), "Pattern '%s' should be found in: %s" % (pattern, stderr))
+
+            # check error reporting output when stdout/stderr are collected separately
+            try:
+                run_shell_cmd(cmd, split_stderr=True)
+                self.assertFalse("This should never be reached, RunShellCmdError should occur!")
+            except RunShellCmdError as err:
+                self.assertEqual(str(err), "Shell command 'kill' failed!")
+                self.assertEqual(err.cmd, "kill -9 $$")
+                self.assertEqual(err.cmd_name, 'kill')
+                self.assertEqual(err.exit_code, -9)
+                self.assertEqual(err.work_dir, work_dir)
+                self.assertEqual(err.output, '')
+                self.assertEqual(err.stderr, '')
+                self.assertTrue(isinstance(err.caller_info, tuple))
+                self.assertEqual(len(err.caller_info), 3)
+                self.assertEqual(err.caller_info[0], __file__)
+                self.assertTrue(isinstance(err.caller_info[1], int))  # line number of calling site
+                self.assertEqual(err.caller_info[2], 'test_run_shell_cmd_fail')
+
+                with self.mocked_stdout_stderr() as (_, stderr):
+                    err.print()
+
+                # check error reporting output
+                stderr = stderr.getvalue()
+                patterns = [
+                    r"^ERROR: Shell command failed!",
+                    r"^\s+full command\s+ ->  kill -9 \$\$",
+                    r"^\s+exit code\s+ ->  -9",
+                    r"^\s+working directory\s+ ->  " + work_dir,
+                    r"^\s+called from\s+ ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
+                    r"^\s+output \(stdout\)\s+ -> .*/run-shell-cmd-output/kill-.*/out.txt",
+                    r"^\s+error/warnings \(stderr\)\s+ -> .*/run-shell-cmd-output/kill-.*/err.txt",
+                ]
+                for pattern in patterns:
+                    regex = re.compile(pattern, re.M)
+                    self.assertTrue(regex.search(stderr), "Pattern '%s' should be found in: %s" % (pattern, stderr))
+
+            # no error reporting when fail_on_error is disabled
+            with self.mocked_stdout_stderr() as (_, stderr):
+                res = run_shell_cmd(cmd, fail_on_error=False)
             self.assertEqual(res.exit_code, -9)
+            self.assertEqual(stderr.getvalue(), '')
 
         finally:
             # cleanup: disable the alarm + reset signal handler for SIGALRM
@@ -333,14 +440,56 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(len(out), len("hello\n" * 300))
         self.assertEqual(ec, 0)
 
-    def test_run_bis(self):
-        """More 'complex' test for run function."""
+    def test_run_shell_cmd_bis(self):
+        """More 'complex' test for run_shell_cmd function."""
         # a more 'complex' command to run, make sure all required output is there
         with self.mocked_stdout_stderr():
-            res = run("for j in `seq 1 3`; do for i in `seq 1 100`; do echo hello; done; sleep 1.4; done")
+            res = run_shell_cmd("for j in `seq 1 3`; do for i in `seq 1 100`; do echo hello; done; sleep 1.4; done")
         self.assertTrue(res.output.startswith('hello\nhello\n'))
         self.assertEqual(len(res.output), len("hello\n" * 300))
         self.assertEqual(res.exit_code, 0)
+
+    def test_run_cmd_work_dir(self):
+        """
+        Test running command in specific directory with run_cmd function.
+        """
+        orig_wd = os.getcwd()
+        self.assertFalse(os.path.samefile(orig_wd, self.test_prefix))
+
+        test_dir = os.path.join(self.test_prefix, 'test')
+        for fn in ('foo.txt', 'bar.txt'):
+            write_file(os.path.join(test_dir, fn), 'test')
+
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd("ls | sort", path=test_dir)
+
+        self.assertEqual(ec, 0)
+        self.assertEqual(out, 'bar.txt\nfoo.txt\n')
+
+        self.assertTrue(os.path.samefile(orig_wd, os.getcwd()))
+
+    def test_run_shell_cmd_work_dir(self):
+        """
+        Test running shell command in specific directory with run_shell_cmd function.
+        """
+        orig_wd = os.getcwd()
+        self.assertFalse(os.path.samefile(orig_wd, self.test_prefix))
+
+        test_dir = os.path.join(self.test_prefix, 'test')
+        for fn in ('foo.txt', 'bar.txt'):
+            write_file(os.path.join(test_dir, fn), 'test')
+
+        cmd = "ls | sort"
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, work_dir=test_dir)
+
+        self.assertEqual(res.cmd, cmd)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'bar.txt\nfoo.txt\n')
+        self.assertEqual(res.stderr, None)
+        self.assertEqual(res.work_dir, test_dir)
+
+        self.assertTrue(os.path.samefile(orig_wd, os.getcwd()))
 
     def test_run_cmd_log_output(self):
         """Test run_cmd with log_output enabled"""
@@ -374,8 +523,8 @@ class RunTest(EnhancedTestCase):
             self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
             self.assertEqual(type(out), str)
 
-    def test_run_split_stderr(self):
-        """Test getting split stdout/stderr output from run function."""
+    def test_run_shell_cmd_split_stderr(self):
+        """Test getting split stdout/stderr output from run_shell_cmd function."""
         cmd = ';'.join([
             "echo ok",
             "echo warning >&2",
@@ -383,7 +532,7 @@ class RunTest(EnhancedTestCase):
 
         # by default, output contains both stdout + stderr
         with self.mocked_stdout_stderr():
-            res = run(cmd)
+            res = run_shell_cmd(cmd)
         self.assertEqual(res.exit_code, 0)
         output_lines = res.output.split('\n')
         self.assertTrue("ok" in output_lines)
@@ -391,7 +540,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.stderr, None)
 
         with self.mocked_stdout_stderr():
-            res = run(cmd, split_stderr=True)
+            res = run_shell_cmd(cmd, split_stderr=True)
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.stderr, "warning\n")
         self.assertEqual(res.output, "ok\n")
@@ -484,22 +633,22 @@ class RunTest(EnhancedTestCase):
             self.assertEqual(stdout, '')
             self.assertEqual(stderr, '')
 
-    def test_run_trace(self):
-        """Test run in trace mode, and with tracing disabled."""
+    def test_run_shell_cmd_trace(self):
+        """Test run_shell_cmd function in trace mode, and with tracing disabled."""
 
         pattern = [
-            r"^  >> running command:",
+            r"^  >> running shell command:",
+            r"\techo hello",
             r"\t\[started at: .*\]",
             r"\t\[working dir: .*\]",
-            r"\t\[output logged in .*\]",
-            r"\techo hello",
+            r"\t\[output saved to .*\]",
             r"  >> command completed: exit 0, ran in .*",
         ]
 
         # trace output is enabled by default (since EasyBuild v5.0)
         self.mock_stdout(True)
         self.mock_stderr(True)
-        res = run("echo hello")
+        res = run_shell_cmd("echo hello")
         stdout = self.get_stdout()
         stderr = self.get_stderr()
         self.mock_stdout(False)
@@ -514,7 +663,7 @@ class RunTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        res = run("echo hello")
+        res = run_shell_cmd("echo hello")
         stdout = self.get_stdout()
         stderr = self.get_stderr()
         self.mock_stdout(False)
@@ -532,7 +681,7 @@ class RunTest(EnhancedTestCase):
 
             self.mock_stdout(True)
             self.mock_stderr(True)
-            res = run("echo hello", hidden=True)
+            res = run_shell_cmd("echo hello", hidden=True)
             stdout = self.get_stdout()
             stderr = self.get_stderr()
             self.mock_stdout(False)
@@ -542,23 +691,23 @@ class RunTest(EnhancedTestCase):
             self.assertEqual(stdout, '')
             self.assertEqual(stderr, '')
 
-    def test_run_trace_stdin(self):
-        """Test run under --trace + passing stdin input."""
+    def test_run_shell_cmd_trace_stdin(self):
+        """Test run_shell_cmd function under --trace + passing stdin input."""
 
         init_config(build_options={'trace': True})
 
         pattern = [
-            r"^  >> running command:",
+            r"^  >> running shell command:",
+            r"\techo hello",
             r"\t\[started at: [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]\]",
             r"\t\[working dir: .*\]",
-            r"\t\[output logged in .*\]",
-            r"\techo hello",
+            r"\t\[output saved to .*\]",
             r"  >> command completed: exit 0, ran in .*",
         ]
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        res = run("echo hello")
+        res = run_shell_cmd("echo hello")
         stdout = self.get_stdout()
         stderr = self.get_stderr()
         self.mock_stdout(False)
@@ -572,7 +721,7 @@ class RunTest(EnhancedTestCase):
         # also test with command that is fed input via stdin
         self.mock_stdout(True)
         self.mock_stderr(True)
-        res = run('cat', stdin='hello')
+        res = run_shell_cmd('cat', stdin='hello')
         stdout = self.get_stdout()
         stderr = self.get_stderr()
         self.mock_stdout(False)
@@ -580,15 +729,15 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.output, 'hello')
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(stderr, '')
-        pattern.insert(3, r"\t\[input: hello\]")
-        pattern[-2] = "\tcat"
+        pattern.insert(4, r"\t\[input: hello\]")
+        pattern[1] = "\tcat"
         regex = re.compile('\n'.join(pattern))
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         # trace output can be disabled on a per-command basis by enabling 'hidden'
         self.mock_stdout(True)
         self.mock_stderr(True)
-        res = run("echo hello", hidden=True)
+        res = run_shell_cmd("echo hello", hidden=True)
         stdout = self.get_stdout()
         stderr = self.get_stderr()
         self.mock_stdout(False)
@@ -764,26 +913,28 @@ class RunTest(EnhancedTestCase):
 
         run_cmd.clear_cache()
 
-    def test_run_cache(self):
-        """Test caching for run"""
+    def test_run_shell_cmd_cache(self):
+        """Test caching for run_shell_cmd function"""
 
         cmd = "ulimit -u"
         with self.mocked_stdout_stderr():
-            res = run(cmd)
+            res = run_shell_cmd(cmd)
             first_out = res.output
         self.assertEqual(res.exit_code, 0)
 
         with self.mocked_stdout_stderr():
-            res = run(cmd)
+            res = run_shell_cmd(cmd)
             cached_out = res.output
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(first_out, cached_out)
 
         # inject value into cache to check whether executing command again really returns cached value
         with self.mocked_stdout_stderr():
-            cached_res = RunResult(cmd=cmd, output="123456", exit_code=123, stderr=None, work_dir='/test_ulimit')
-            run.update_cache({(cmd, None): cached_res})
-            res = run(cmd)
+            cached_res = RunShellCmdResult(cmd=cmd, output="123456", exit_code=123, stderr=None,
+                                           work_dir='/test_ulimit', out_file='/tmp/foo.out', err_file=None,
+                                           thread_id=None, task_id=None)
+            run_shell_cmd.update_cache({(cmd, None): cached_res})
+            res = run_shell_cmd(cmd)
         self.assertEqual(res.cmd, cmd)
         self.assertEqual(res.exit_code, 123)
         self.assertEqual(res.output, "123456")
@@ -793,22 +944,24 @@ class RunTest(EnhancedTestCase):
         # also test with command that uses stdin
         cmd = "cat"
         with self.mocked_stdout_stderr():
-            res = run(cmd, stdin='foo')
+            res = run_shell_cmd(cmd, stdin='foo')
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, 'foo')
 
         # inject different output for cat with 'foo' as stdin to check whether cached value is used
         with self.mocked_stdout_stderr():
-            cached_res = RunResult(cmd=cmd, output="bar", exit_code=123, stderr=None, work_dir='/test_cat')
-            run.update_cache({(cmd, 'foo'): cached_res})
-            res = run(cmd, stdin='foo')
+            cached_res = RunShellCmdResult(cmd=cmd, output="bar", exit_code=123, stderr=None,
+                                           work_dir='/test_cat', out_file='/tmp/cat.out', err_file=None,
+                                           thread_id=None, task_id=None)
+            run_shell_cmd.update_cache({(cmd, 'foo'): cached_res})
+            res = run_shell_cmd(cmd, stdin='foo')
         self.assertEqual(res.cmd, cmd)
         self.assertEqual(res.exit_code, 123)
         self.assertEqual(res.output, 'bar')
         self.assertEqual(res.stderr, None)
         self.assertEqual(res.work_dir, '/test_cat')
 
-        run.clear_cache()
+        run_shell_cmd.clear_cache()
 
     def test_parse_log_error(self):
         """Test basic parse_log_for_error functionality."""
@@ -858,8 +1011,8 @@ class RunTest(EnhancedTestCase):
         expected = """  running interactive command "some_qa_cmd"\n"""
         self.assertIn(expected, stdout)
 
-    def test_run_dry_run(self):
-        """Test use of run function under (extended) dry run."""
+    def test_run_shell_cmd_dry_run(self):
+        """Test use of run_shell_cmd function under (extended) dry run."""
         build_options = {
             'extended_dry_run': True,
             'silent': False,
@@ -869,7 +1022,7 @@ class RunTest(EnhancedTestCase):
         cmd = "somecommand foo 123 bar"
 
         self.mock_stdout(True)
-        res = run(cmd)
+        res = run_shell_cmd(cmd)
         stdout = self.get_stdout()
         self.mock_stdout(False)
         # fake output/exit code is returned for commands not actually run in dry run mode
@@ -877,12 +1030,12 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.output, '')
         self.assertEqual(res.stderr, None)
         # check dry run output
-        expected = """  running command "somecommand foo 123 bar"\n"""
+        expected = """  running shell command "somecommand foo 123 bar"\n"""
         self.assertIn(expected, stdout)
 
         # check enabling 'hidden'
         self.mock_stdout(True)
-        res = run(cmd, hidden=True)
+        res = run_shell_cmd(cmd, hidden=True)
         stdout = self.get_stdout()
         self.mock_stdout(False)
         # fake output/exit code is returned for commands not actually run in dry run mode
@@ -896,10 +1049,11 @@ class RunTest(EnhancedTestCase):
         outfile = os.path.join(self.test_prefix, 'cmd.out')
         self.assertNotExists(outfile)
         self.mock_stdout(True)
-        res = run("echo 'This is always echoed' > %s; echo done; false" % outfile, fail_on_error=False, in_dry_run=True)
+        res = run_shell_cmd("echo 'This is always echoed' > %s; echo done; false" % outfile,
+                            fail_on_error=False, in_dry_run=True)
         stdout = self.get_stdout()
         self.mock_stdout(False)
-        self.assertNotIn('running command "', stdout)
+        self.assertNotIn('running shell command "', stdout)
         self.assertNotEqual(res.exit_code, 0)
         self.assertEqual(res.output, 'done\n')
         self.assertEqual(res.stderr, None)
@@ -936,6 +1090,25 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         self.assertEqual(out, "hello\n")
 
+    def test_run_shell_cmd_no_bash(self):
+        """Testing use of run_shell_cmd with use_bash=False to call external scripts"""
+        py_test_script = os.path.join(self.test_prefix, 'test.py')
+        write_file(py_test_script, '\n'.join([
+            '#!%s' % sys.executable,
+            'print("hello")',
+        ]))
+        adjust_permissions(py_test_script, stat.S_IXUSR)
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(py_test_script)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "hello\n")
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd([py_test_script], use_bash=False)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "hello\n")
+
     def test_run_cmd_stream(self):
         """Test use of run_cmd with streaming output."""
         self.mock_stdout(True)
@@ -955,6 +1128,40 @@ class RunTest(EnhancedTestCase):
             "hello",
             '',
         ]
+        for line in expected:
+            self.assertIn(line, stdout)
+
+    def test_run_shell_cmd_stream(self):
+        """Test use of run_shell_cmd with streaming output."""
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        cmd = '; '.join([
+            "echo hello there",
+            "sleep 1",
+            "echo testing command that produces a fair amount of output",
+            "sleep 1",
+            "echo more than 128 bytes which means a whole bunch of characters...",
+            "sleep 1",
+            "echo more than 128 characters in fact, which is quite a bit when you think of it",
+        ])
+        res = run_shell_cmd(cmd, stream_output=True)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        expected_output = '\n'.join([
+            "hello there",
+            "testing command that produces a fair amount of output",
+            "more than 128 bytes which means a whole bunch of characters...",
+            "more than 128 characters in fact, which is quite a bit when you think of it",
+            '',
+        ])
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, expected_output)
+
+        self.assertEqual(stderr, '')
+        expected = ("== (streaming) output for command 'echo hello" + '\n' + expected_output).split('\n')
         for line in expected:
             self.assertIn(line, stdout)
 
@@ -1024,7 +1231,7 @@ class RunTest(EnhancedTestCase):
             "for i in $(seq 1 50)",
             "do sleep 0.1",
             "for j in $(seq 1000)",
-            "do echo foo",
+            "do echo foo${i}${j}",
             "done",
             "done",
             "echo done",
@@ -1074,8 +1281,68 @@ class RunTest(EnhancedTestCase):
             res = check_async_cmd(*cmd_info, output=res['output'])
         self.assertEqual(res['done'], True)
         self.assertEqual(res['exit_code'], 0)
-        self.assertTrue(res['output'].startswith('start\n'))
-        self.assertTrue(res['output'].endswith('\ndone\n'))
+        self.assertEqual(len(res['output']), 435661)
+        self.assertTrue(res['output'].startswith('start\nfoo11\nfoo12\n'))
+        self.assertTrue('\nfoo49999\nfoo491000\nfoo501\n' in res['output'])
+        self.assertTrue(res['output'].endswith('\nfoo501000\ndone\n'))
+
+    def test_run_shell_cmd_async(self):
+        """Test asynchronously running of a shell command via run_shell_cmd """
+
+        thread_pool = ThreadPoolExecutor()
+
+        os.environ['TEST'] = 'test123'
+        env = os.environ.copy()
+
+        test_cmd = "echo 'sleeping...'; sleep 2; echo $TEST"
+        task = thread_pool.submit(run_shell_cmd, test_cmd, hidden=True, asynchronous=True, env=env)
+
+        # change value of $TEST to check that command is completed with correct environment
+        os.environ['TEST'] = 'some_other_value'
+
+        # initial poll should result in None, since it takes a while for the command to complete
+        self.assertEqual(task.done(), False)
+
+        # wait until command is done
+        while not task.done():
+            time.sleep(1)
+            res = task.result()
+
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'sleeping...\ntest123\n')
+
+        # check asynchronous running of failing command
+        error_test_cmd = "echo 'FAIL!' >&2; exit 123"
+        task = thread_pool.submit(run_shell_cmd, error_test_cmd, hidden=True, fail_on_error=False, asynchronous=True)
+        time.sleep(1)
+        res = task.result()
+        self.assertEqual(res.exit_code, 123)
+        self.assertEqual(res.output, "FAIL!\n")
+        self.assertTrue(res.thread_id)
+
+        # also test with a command that produces a lot of output,
+        # since that tends to lock up things unless we frequently grab some output...
+        verbose_test_cmd = ';'.join([
+            "echo start",
+            "for i in $(seq 1 50)",
+            "do sleep 0.1",
+            "for j in $(seq 1000)",
+            "do echo foo${i}${j}",
+            "done",
+            "done",
+            "echo done",
+        ])
+        task = thread_pool.submit(run_shell_cmd, verbose_test_cmd, hidden=True, asynchronous=True)
+
+        while not task.done():
+            time.sleep(1)
+        res = task.result()
+
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(len(res.output), 435661)
+        self.assertTrue(res.output.startswith('start\nfoo11\nfoo12\n'))
+        self.assertTrue('\nfoo49999\nfoo491000\nfoo501\n' in res.output)
+        self.assertTrue(res.output.endswith('\nfoo501000\ndone\n'))
 
     def test_check_log_for_errors(self):
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
@@ -1094,8 +1361,9 @@ class RunTest(EnhancedTestCase):
             "enabling -Werror",
             "the process crashed with 0"
         ])
-        expected_msg = r"Found 2 error\(s\) in command output "\
-                       r"\(output: error found\n\tthe process crashed with 0\)"
+        expected_msg = r"Found 2 error\(s\) in command output:\n"\
+                       r"\terror found\n"\
+                       r"\tthe process crashed with 0"
 
         # String promoted to list
         self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
@@ -1107,14 +1375,17 @@ class RunTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
                               [(r"\b(error|crashed)\b", ERROR)])
 
-        expected_msg = "Found 2 potential error(s) in command output " \
-                       "(output: error found\n\tthe process crashed with 0)"
+        expected_msg = "Found 2 potential error(s) in command output:\n"\
+                       "\terror found\n"\
+                       "\tthe process crashed with 0"
         init_logging(logfile, silent=True)
         check_log_for_errors(input_text, [(r"\b(error|crashed)\b", WARN)])
         stop_logging(logfile)
         self.assertIn(expected_msg, read_file(logfile))
 
-        expected_msg = r"Found 2 error\(s\) in command output \(output: error found\n\ttest failed\)"
+        expected_msg = r"Found 2 error\(s\) in command output:\n"\
+                       r"\terror found\n"\
+                       r"\ttest failed"
         write_file(logfile, '')
         init_logging(logfile, silent=True)
         self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text, [
@@ -1124,8 +1395,113 @@ class RunTest(EnhancedTestCase):
             "fail"
         ])
         stop_logging(logfile)
-        expected_msg = "Found 1 potential error(s) in command output (output: the process crashed with 0)"
+        expected_msg = "Found 1 potential error(s) in command output:\n\tthe process crashed with 0"
         self.assertIn(expected_msg, read_file(logfile))
+
+    def test_run_cmd_with_hooks(self):
+        """
+        Test running command with run_cmd with pre/post run_shell_cmd hooks in place.
+        """
+        cwd = os.getcwd()
+
+        hooks_file = os.path.join(self.test_prefix, 'my_hooks.py')
+        hooks_file_txt = textwrap.dedent("""
+            def pre_run_shell_cmd_hook(cmd, *args, **kwargs):
+                work_dir = kwargs['work_dir']
+                if kwargs.get('interactive'):
+                    print("pre-run hook interactive '%s' in %s" % (cmd, work_dir))
+                else:
+                    print("pre-run hook '%s' in %s" % (cmd, work_dir))
+                if not cmd.startswith('echo'):
+                    cmds = cmd.split(';')
+                    return '; '.join(cmds[:-1] + ["echo " + cmds[-1].lstrip()])
+
+            def post_run_shell_cmd_hook(cmd, *args, **kwargs):
+                exit_code = kwargs.get('exit_code')
+                output = kwargs.get('output')
+                work_dir = kwargs['work_dir']
+                if kwargs.get('interactive'):
+                    msg = "post-run hook interactive '%s'" % cmd
+                else:
+                    msg = "post-run hook '%s'" % cmd
+                msg += " (exit code: %s, output: '%s')" % (exit_code, output)
+                print(msg)
+        """)
+        write_file(hooks_file, hooks_file_txt)
+        update_build_option('hooks', hooks_file)
+
+        # disable trace output to make checking of generated output produced by hooks easier
+        update_build_option('trace', False)
+
+        with self.mocked_stdout_stderr():
+            run_cmd("make")
+            stdout = self.get_stdout()
+
+        expected_stdout = '\n'.join([
+            "pre-run hook 'make' in %s" % cwd,
+            "post-run hook 'echo make' (exit code: 0, output: 'make\n')",
+            '',
+        ])
+        self.assertEqual(stdout, expected_stdout)
+
+        with self.mocked_stdout_stderr():
+            run_cmd_qa("sleep 2; make", qa={})
+            stdout = self.get_stdout()
+
+        expected_stdout = '\n'.join([
+            "pre-run hook interactive 'sleep 2; make' in %s" % cwd,
+            "post-run hook interactive 'sleep 2; echo make' (exit code: 0, output: 'make\n')",
+            '',
+        ])
+        self.assertEqual(stdout, expected_stdout)
+
+    def test_run_shell_cmd_with_hooks(self):
+        """
+        Test running shell command with run_shell_cmd function with pre/post run_shell_cmd hooks in place.
+        """
+        cwd = os.getcwd()
+
+        hooks_file = os.path.join(self.test_prefix, 'my_hooks.py')
+        hooks_file_txt = textwrap.dedent("""
+            def pre_run_shell_cmd_hook(cmd, *args, **kwargs):
+                work_dir = kwargs['work_dir']
+                if kwargs.get('interactive'):
+                    print("pre-run hook interactive '||%s||' in %s" % (cmd, work_dir))
+                else:
+                    print("pre-run hook '%s' in %s" % (cmd, work_dir))
+                    import sys
+                    sys.stderr.write('pre-run hook done\\n')
+                if not cmd.startswith('echo'):
+                    cmds = cmd.split(';')
+                    return '; '.join(cmds[:-1] + ["echo " + cmds[-1].lstrip()])
+
+            def post_run_shell_cmd_hook(cmd, *args, **kwargs):
+                exit_code = kwargs.get('exit_code')
+                output = kwargs.get('output')
+                work_dir = kwargs['work_dir']
+                if kwargs.get('interactive'):
+                    msg = "post-run hook interactive '%s'" % cmd
+                else:
+                    msg = "post-run hook '%s'" % cmd
+                msg += " (exit code: %s, output: '%s')" % (exit_code, output)
+                print(msg)
+        """)
+        write_file(hooks_file, hooks_file_txt)
+        update_build_option('hooks', hooks_file)
+
+        # disable trace output to make checking of generated output produced by hooks easier
+        update_build_option('trace', False)
+
+        with self.mocked_stdout_stderr():
+            run_shell_cmd("make")
+            stdout = self.get_stdout()
+
+        expected_stdout = '\n'.join([
+            "pre-run hook 'make' in %s" % cwd,
+            "post-run hook 'echo make' (exit code: 0, output: 'make\n')",
+            '',
+        ])
+        self.assertEqual(stdout, expected_stdout)
 
 
 def suite():

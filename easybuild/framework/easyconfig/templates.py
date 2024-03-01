@@ -76,9 +76,9 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
     ('installdir', "Installation directory"),
     ('start_dir', "Directory in which the build process begins"),
 ]
-# software names for which to define <pref>ver and <pref>shortver templates
+# software names for which to define <pref>ver, <pref>majver and <pref>shortver templates
 TEMPLATE_SOFTWARE_VERSIONS = [
-    # software name, prefix for *ver and *shortver
+    # software name, prefix for *ver, *majver and *shortver
     ('CUDA', 'cuda'),
     ('CUDAcore', 'cuda'),
     ('Java', 'java'),
@@ -89,12 +89,17 @@ TEMPLATE_SOFTWARE_VERSIONS = [
 # template values which are only generated dynamically
 TEMPLATE_NAMES_DYNAMIC = [
     ('arch', "System architecture (e.g. x86_64, aarch64, ppc64le, ...)"),
+    ('sysroot', "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
+     "as specify by the --sysroot configuration option"),
     ('mpi_cmd_prefix', "Prefix command for running MPI programs (with default number of ranks)"),
     ('cuda_compute_capabilities', "Comma-separated list of CUDA compute capabilities, as specified via "
      "--cuda-compute-capabilities configuration option or via cuda_compute_capabilities easyconfig parameter"),
     ('cuda_cc_cmake', "List of CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+"),
     ('cuda_cc_space_sep', "Space-separated list of CUDA compute capabilities"),
     ('cuda_cc_semicolon_sep', "Semicolon-separated list of CUDA compute capabilities"),
+    ('cuda_int_comma_sep', "Comma-separated list of integer CUDA compute capabilities"),
+    ('cuda_int_space_sep', "Space-separated list of integer CUDA compute capabilities"),
+    ('cuda_int_semicolon_sep', "Semicolon-separated list of integer CUDA compute capabilities"),
     ('cuda_sm_comma_sep', "Comma-separated list of sm_* values that correspond with CUDA compute capabilities"),
     ('cuda_sm_space_sep', "Space-separated list of sm_* values that correspond with CUDA compute capabilities"),
 ]
@@ -181,13 +186,10 @@ for pyver in ('py2.py3', 'py2', 'py3'):
 # versionmajor, versionminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
 
 
-def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None):
+def template_constant_dict(config, ignore=None, toolchain=None):
     """Create a dict for templating the values in the easyconfigs.
         - config is a dict with the structure of EasyConfig._config
     """
-    if skip_lower is not None:
-        _log.deprecated("Use of 'skip_lower' named argument for template_constant_dict has no effect anymore", '4.0')
-
     # TODO find better name
     # ignore
     if ignore is None:
@@ -199,6 +201,9 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
 
     # set 'arch' for system architecture based on 'machine' (4th) element of platform.uname() return value
     template_values['arch'] = platform.uname()[4]
+
+    # set 'sysroot' template based on 'sysroot' configuration option, using empty string as fallback
+    template_values['sysroot'] = build_option('sysroot') or ''
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     for name in TEMPLATE_NAMES_EASYCONFIG:
@@ -363,6 +368,10 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
         template_values['cuda_cc_space_sep'] = ' '.join(cuda_compute_capabilities)
         template_values['cuda_cc_semicolon_sep'] = ';'.join(cuda_compute_capabilities)
         template_values['cuda_cc_cmake'] = ';'.join(cc.replace('.', '') for cc in cuda_compute_capabilities)
+        int_values = [cc.replace('.', '') for cc in cuda_compute_capabilities]
+        template_values['cuda_int_comma_sep'] = ','.join(int_values)
+        template_values['cuda_int_space_sep'] = ' '.join(int_values)
+        template_values['cuda_int_semicolon_sep'] = ';'.join(int_values)
         sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_compute_capabilities]
         template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
         template_values['cuda_sm_space_sep'] = ' '.join(sm_values)
@@ -426,6 +435,7 @@ def template_documentation():
     # step 2: add *ver/*shortver templates for software listed in TEMPLATE_SOFTWARE_VERSIONS
     doc.append("Template names/values for (short) software versions")
     for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
+        doc.append("%s%%(%smajver)s: major version for %s" % (indent_l1, pref, name))
         doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (indent_l1, pref, name))
         doc.append("%s%%(%sver)s: full version for %s" % (indent_l1, pref, name))
 
