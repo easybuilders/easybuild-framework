@@ -4806,26 +4806,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(stderr.strip(), expected_stderr)
         self.assertTrue(stdout.strip().endswith(expected_stdout), "'%s' ends with '%s'" % (stdout, expected_stdout))
 
-        # full eligible merged PR, default target branch
+        # full eligible merged PR, default target branch;
+        # note: we frequently need to change to a more recent PR here,
+        #       to avoid that this test starts failing because commit status is set to None for old commits
         del args[-1]
-        args[1] = '17065'
+        # easyconfig PR for EasyBuild v4.8.2
+        args[1] = '19105'
 
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         expected_stdout = '\n'.join([
-            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #17065 for merging...",
+            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #19105 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* last test report is successful: OK",
             "* no pending change requests: OK",
             "* approved review: OK (by SebastianAchilles)",
-            "* milestone is set: OK (4.7.1)",
+            "* milestone is set: OK (4.9.0)",
             "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
             '',
-            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #17065: 'Going in, thanks @boegel!'",
-            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #17065",
+            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #19105: 'Going in, thanks @boegel!'",
+            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #19105",
         ])
         expected_stderr = ''
         self.assertEqual(stderr.strip(), expected_stderr)
