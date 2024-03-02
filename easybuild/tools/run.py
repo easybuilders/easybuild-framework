@@ -42,6 +42,7 @@ import os
 import re
 import signal
 import shutil
+import string
 import subprocess
 import sys
 import tempfile
@@ -187,6 +188,19 @@ def run_cmd_cache(func):
 run_shell_cmd_cache = run_cmd_cache
 
 
+def fileprefix_from_cmd(cmd, allowed_chars=False):
+    """
+    Simplify the cmd to only the allowed_chars we want in a filename
+
+    :param cmd: the cmd (string)
+    :param allowed_chars: characters allowed in filename (defaults to string.ascii_letters + string.digits + "_-")
+    """
+    if not allowed_chars:
+        allowed_chars = f"{string.ascii_letters}{string.digits}_-"
+
+    return ''.join([c for c in cmd if c in allowed_chars])
+
+
 @run_shell_cmd_cache
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
                   hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, use_bash=True,
@@ -238,7 +252,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         work_dir = os.getcwd()
 
     cmd_str = to_cmd_str(cmd)
-    cmd_name = os.path.basename(cmd_str.split(' ')[0])
 
     thread_id = None
     if asynchronous:
@@ -254,6 +267,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     if output_file:
         toptmpdir = os.path.join(tempfile.gettempdir(), 'run-shell-cmd-output')
         os.makedirs(toptmpdir, exist_ok=True)
+        cmd_name = fileprefix_from_cmd(os.path.basename(cmd_str.split(' ')[0]))
         tmpdir = tempfile.mkdtemp(dir=toptmpdir, prefix=f'{cmd_name}-')
         cmd_out_fp = os.path.join(tmpdir, 'out.txt')
         _log.info(f'run_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
