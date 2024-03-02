@@ -35,6 +35,7 @@ import glob
 import os
 import re
 import signal
+import string
 import stat
 import subprocess
 import sys
@@ -52,7 +53,7 @@ from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.config import update_build_option
 from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, write_file
 from easybuild.tools.run import RunShellCmdResult, RunShellCmdError, check_async_cmd, check_log_for_errors
-from easybuild.tools.run import complete_cmd, get_output_from_process, parse_log_for_error
+from easybuild.tools.run import complete_cmd, fileprefix_from_cmd, get_output_from_process, parse_log_for_error
 from easybuild.tools.run import run_cmd, run_cmd_qa, run_shell_cmd, subprocess_terminate
 from easybuild.tools.config import ERROR, IGNORE, WARN
 
@@ -193,6 +194,26 @@ class RunTest(EnhancedTestCase):
             self.assertTrue(res.output.startswith('foo ') and res.output.endswith(' bar'))
             self.assertTrue(isinstance(res.output, str))
             self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
+
+    def test_fileprefix_from_cmd(self):
+        """test simplifications from fileprefix_from_cmd."""
+        cmds = {
+            'abd123': 'abd123',
+            'ab"a': 'aba',
+            'a{:$:S@"a': 'aSa',
+            'cmd-with-dash': 'cmd-with-dash',
+            'cmd_with_underscore': 'cmd_with_underscore',
+        }
+        for cmd, expected_simplification in cmds.items():
+            self.assertEqual(fileprefix_from_cmd(cmd), expected_simplification)
+
+        cmds = {
+            'abd123': 'abd',
+            'ab"a': 'aba',
+            '0a{:$:2@"a': 'aa',
+        }
+        for cmd, expected_simplification in cmds.items():
+            self.assertEqual(fileprefix_from_cmd(cmd, allowed_chars=string.ascii_letters), expected_simplification)
 
     def test_run_cmd_log(self):
         """Test logging of executed commands."""

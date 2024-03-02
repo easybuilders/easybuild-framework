@@ -170,7 +170,7 @@ class EB_toy(ExtensionEasyBlock):
         cmd = compose_toy_build_cmd(self.cfg, self.name, self.cfg['prebuildopts'], self.cfg['buildopts'])
         task_id = f'ext_{self.name}_{self.version}'
         return thread_pool.submit(run_shell_cmd, cmd, asynchronous=True, env=os.environ.copy(),
-                                  fail_on_error=False, task_id=task_id)
+                                  fail_on_error=False, task_id=task_id, work_dir=os.getcwd())
 
     def postrun(self):
         """
