@@ -74,12 +74,6 @@ from easybuild.tools.utilities import nub, trace_msg
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
 
-# name/version for dummy toolchain
-# if name==DUMMY_TOOLCHAIN_NAME and version==DUMMY_TOOLCHAIN_VERSION, do not load dependencies
-# NOTE: use of 'dummy' toolchain is deprecated, replaced by 'system' toolchain (which always loads dependencies)
-DUMMY_TOOLCHAIN_NAME = 'dummy'
-DUMMY_TOOLCHAIN_VERSION = 'dummy'
-
 SYSTEM_TOOLCHAIN_NAME = 'system'
 
 CCACHE = 'ccache'
@@ -105,7 +99,7 @@ TOOLCHAIN_CAPABILITIES = [
 
 def is_system_toolchain(tc_name):
     """Return whether toolchain with specified name is a system toolchain or not."""
-    return tc_name in [DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME]
+    return tc_name in [SYSTEM_TOOLCHAIN_NAME]
 
 
 def env_vars_external_module(name, version, metadata):
@@ -197,10 +191,6 @@ class Toolchain(object):
         if name is None:
             raise EasyBuildError("Toolchain init: no name provided")
         self.name = name
-        if self.name == DUMMY_TOOLCHAIN_NAME:
-            self.log.deprecated("Use of 'dummy' toolchain is deprecated, use 'system' toolchain instead", '5.0',
-                                silent=build_option('silent'))
-            self.name = SYSTEM_TOOLCHAIN_NAME
 
         if version is None:
             version = self.VERSION
@@ -237,7 +227,7 @@ class Toolchain(object):
                 self.init_modpaths = self.mns.det_init_modulepaths(tc_dict)
 
     def is_system_toolchain(self):
-        """Return boolean to indicate whether this toolchain is a system(/dummy) toolchain."""
+        """Return boolean to indicate whether this toolchain is a system toolchain."""
         return is_system_toolchain(self.name)
 
     def set_minimal_build_env(self):
@@ -563,16 +553,6 @@ class Toolchain(object):
             raise EasyBuildError("Missing modules for dependencies (use --robot?): %s", ', '.join(missing_dep_mods))
 
         return deps
-
-    def add_dependencies(self, dependencies):
-        """
-        [DEPRECATED] Verify if the given dependencies exist, and return them.
-
-        This method is deprecated.
-        You should pass the dependencies to the 'prepare' method instead, via the 'deps' named argument.
-        """
-        self.log.deprecated("use of 'Toolchain.add_dependencies' method", '4.0')
-        self.dependencies = self._check_dependencies(dependencies)
 
     def is_required(self, name):
         """Determine whether this is a required toolchain element."""
@@ -1072,9 +1052,7 @@ class Toolchain(object):
             names should be a list of strings containing the name of the dependency
         """
         cpp_paths = ['include']
-        ld_paths = ['lib']
-        if not self.options.get('32bit', None):
-            ld_paths.insert(0, 'lib64')
+        ld_paths = ['lib64', 'lib']
 
         if cpp is not None:
             for p in cpp:

@@ -45,11 +45,12 @@ import random
 import tempfile
 import time
 from abc import ABCMeta
+from string import ascii_letters
 
 from easybuild.base import fancylogger
 from easybuild.base.frozendict import FrozenDictKnownKeys
+from easybuild.base.wrapper import create_base_metaclass
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
 
 try:
     import rich  # noqa
@@ -263,11 +264,9 @@ BUILD_OPTIONS_CMDLINE = {
         'test_report_env_filter',
         'testoutput',
         'umask',
-        'wait_on_lock',
         'zip_logs',
     ],
     False: [
-        'add_dummy_to_minimal_toolchains',
         'add_system_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
         'backup_patched_files',
@@ -279,6 +278,7 @@ BUILD_OPTIONS_CMDLINE = {
         'enforce_checksums',
         'experimental',
         'extended_dry_run',
+        'fail_on_mod_files_gcccore',
         'force',
         'generate_devel_module',
         'group_writable_installdir',
@@ -307,7 +307,6 @@ BUILD_OPTIONS_CMDLINE = {
         'skip_test_cases',
         'skip_test_step',
         'sticky_bit',
-        'trace',
         'unit_testing_mode',
         'upload_test_report',
         'update_modules_tool_cache',
@@ -330,6 +329,7 @@ BUILD_OPTIONS_CMDLINE = {
         'mpi_tests',
         'pre_create_installdir',
         'show_progress_bar',
+        'trace',
     ],
     EMPTY_LIST: [
         'accept_eula_for',
@@ -524,7 +524,7 @@ def init(options, config_options_dict):
 
     # make sure source path is a list
     sourcepath = tmpdict['sourcepath']
-    if isinstance(sourcepath, string_type):
+    if isinstance(sourcepath, str):
         tmpdict['sourcepath'] = sourcepath.split(':')
         _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
     elif not isinstance(sourcepath, (tuple, list)):
@@ -569,10 +569,6 @@ def init_build_options(build_options=None, cmdline_options=None):
             _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
 
-        if not cmdline_options.accept_eula_for and cmdline_options.accept_eula:
-            _log.deprecated("Use accept-eula-for configuration setting rather than accept-eula.", '5.0')
-            cmdline_options.accept_eula_for = cmdline_options.accept_eula
-
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]
         active_build_options.update(dict([(key, getattr(cmdline_options, key)) for key in cmdline_build_option_names]))
         # other options which can be derived but have no perfectly matching cmdline option
@@ -610,9 +606,6 @@ def build_option(key, **kwargs):
     build_options = BuildOptions()
     if key in build_options:
         return build_options[key]
-    elif key == 'accept_eula':
-        _log.deprecated("Use accept_eula_for build option rather than accept_eula.", '5.0')
-        return build_options['accept_eula_for']
     elif 'default' in kwargs:
         return kwargs['default']
     else:

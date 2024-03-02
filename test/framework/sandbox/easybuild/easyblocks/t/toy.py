@@ -38,7 +38,7 @@ from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.modules import get_software_root, get_software_version
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 
 
 def compose_toy_build_cmd(cfg, name, prebuildopts, buildopts):
@@ -108,7 +108,7 @@ class EB_toy(ExtensionEasyBlock):
             'echo "Configured"',
             cfg['configopts']
         ])
-        run_cmd(cmd)
+        run_shell_cmd(cmd)
 
         if os.path.exists("%s.source" % name):
             os.rename('%s.source' % name, '%s.c' % name)
@@ -124,8 +124,8 @@ class EB_toy(ExtensionEasyBlock):
         cmd = compose_toy_build_cmd(self.cfg, name, cfg['prebuildopts'], cfg['buildopts'])
         # purposely run build command without checking exit code;
         # we rely on this in test_toy_build_hooks
-        (out, ec) = run_cmd(cmd, log_ok=False, log_all=False)
-        if ec:
+        res = run_shell_cmd(cmd, fail_on_error=False)
+        if res.exit_code:
             print_warning("Command '%s' failed, but we'll ignore it..." % cmd)
 
     def install_step(self, name=None):
@@ -163,12 +163,14 @@ class EB_toy(ExtensionEasyBlock):
         """
         self.build_step()
 
-    def run_async(self):
+    def run_async(self, thread_pool):
         """
         Asynchronous installation of toy as extension.
         """
         cmd = compose_toy_build_cmd(self.cfg, self.name, self.cfg['prebuildopts'], self.cfg['buildopts'])
-        self.async_cmd_start(cmd)
+        task_id = f'ext_{self.name}_{self.version}'
+        return thread_pool.submit(run_shell_cmd, cmd, asynchronous=True, env=os.environ.copy(),
+                                  fail_on_error=False, task_id=task_id, work_dir=os.getcwd())
 
     def postrun(self):
         """

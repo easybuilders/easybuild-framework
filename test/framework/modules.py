@@ -50,7 +50,7 @@ from easybuild.tools.filetools import read_file, remove_dir, remove_file, symlin
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 
 
 # number of modules included for testing purposes
@@ -190,6 +190,21 @@ class ModulesTest(EnhancedTestCase):
         # show method only returns user-facing output (obtained via stderr), not changes to the environment
         regex = re.compile(r'^os\.environ\[', re.M)
         self.assertFalse(regex.search(out), "Pattern '%s' should not be found in: %s" % (regex.pattern, out))
+
+    def test_list(self):
+        """
+        Test running 'module list' via ModulesTool instance.
+        """
+        # make very sure no modules are currently loaded
+        self.modtool.run_module('purge', '--force')
+
+        out = self.modtool.list()
+        self.assertEqual(out, [])
+
+        mods = ['GCC/7.3.0-2.30']
+        self.modtool.load(mods)
+        out = self.modtool.list()
+        self.assertEqual([x['mod_name'] for x in out], mods)
 
     def test_avail(self):
         """Test if getting a (restricted) list of available modules works."""
@@ -1321,9 +1336,10 @@ class ModulesTest(EnhancedTestCase):
         modulepath = os.environ['MODULEPATH']
         self.assertIn(modules_dir, modulepath)
 
-        out, _ = run_cmd("bash -c 'echo MODULEPATH: $MODULEPATH'", simple=False)
-        self.assertEqual(out.strip(), "MODULEPATH: %s" % modulepath)
-        self.assertIn(modules_dir, out)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd("bash -c 'echo MODULEPATH: $MODULEPATH'")
+        self.assertEqual(res.output.strip(), f"MODULEPATH: {modulepath}")
+        self.assertIn(modules_dir, res.output)
 
     def test_load_in_hierarchy(self):
         """Test whether loading a module in a module hierarchy results in loading the correct module."""
@@ -1527,8 +1543,10 @@ class ModulesTest(EnhancedTestCase):
 
         os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.getenv('PATH'))
 
-        modtool = EnvironmentModulesC()
-        modtool.run_module('load', 'test123')
+        self.allow_deprecated_behaviour()
+        with self.mocked_stdout_stderr():
+            modtool = EnvironmentModulesC()
+            modtool.run_module('load', 'test123')
         self.assertEqual(os.getenv('TEST123'), 'test123')
 
     def test_get_setenv_value_from_modulefile(self):
@@ -1544,7 +1562,8 @@ class ModulesTest(EnhancedTestCase):
         write_file(test_ec, "\nmodextravars = {'FOO': 'value with spaces'}", append=True)
 
         toy_eb = EasyBlock(EasyConfig(test_ec))
-        toy_eb.make_module_step()
+        with self.mocked_stdout_stderr():
+            toy_eb.make_module_step()
 
         expected_root = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
         ebroot = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'EBROOTTOY')

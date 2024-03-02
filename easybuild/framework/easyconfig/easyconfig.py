@@ -47,16 +47,17 @@ import functools
 import os
 import re
 from contextlib import contextmanager
+from collections import OrderedDict
 
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
+from easybuild.base.wrapper import create_base_metaclass
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS, EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION, retrieve_blocks_in_spec
-from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION, is_yeb_format
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
@@ -74,7 +75,6 @@ from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import modules_tool, NoModulesTool
-from easybuild.tools.py2vs3 import OrderedDict, create_base_metaclass, string_type
 from easybuild.tools.systemtools import check_os_dependency, pick_dep_version
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
@@ -235,7 +235,7 @@ def det_subtoolchain_version(current_tc, subtoolchain_names, optional_toolchains
     subtoolchain_version = None
 
     # ensure we always have a tuple of alternative subtoolchain names, which makes things easier below
-    if isinstance(subtoolchain_names, string_type):
+    if isinstance(subtoolchain_names, str):
         subtoolchain_names = (subtoolchain_names,)
 
     system_subtoolchain = False
@@ -247,11 +247,6 @@ def det_subtoolchain_version(current_tc, subtoolchain_names, optional_toolchains
         # system toolchain: bottom of the hierarchy
         if is_system_toolchain(subtoolchain_name):
             add_system_to_minimal_toolchains = build_option('add_system_to_minimal_toolchains')
-            if not add_system_to_minimal_toolchains and build_option('add_dummy_to_minimal_toolchains'):
-                depr_msg = "Use --add-system-to-minimal-toolchains instead of --add-dummy-to-minimal-toolchains"
-                _log.deprecated(depr_msg, '5.0')
-                add_system_to_minimal_toolchains = True
-
             system_subtoolchain = True
 
             if add_system_to_minimal_toolchains and not incl_capabilities:
@@ -408,20 +403,6 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     return toolchain_hierarchy
 
 
-@contextmanager
-def disable_templating(ec):
-    """Temporarily disable templating on the given EasyConfig
-
-    Usage:
-        with disable_templating(ec):
-            # Do what you want without templating
-        # Templating set to previous value
-    """
-    _log.deprecated("disable_templating(ec) was replaced by ec.disable_templating()", '5.0')
-    with ec.disable_templating() as old_value:
-        yield old_value
-
-
 class EasyConfig(object):
     """
     Class which handles loading, reading, validation of easyconfigs
@@ -571,10 +552,7 @@ class EasyConfig(object):
     def filename(self):
         """Determine correct filename for this easyconfig file."""
 
-        if is_yeb_format(self.path, self.rawtxt):
-            ext = YEB_FORMAT_EXTENSION
-        else:
-            ext = EB_FORMAT_EXTENSION
+        ext = EB_FORMAT_EXTENSION
 
         return '%s-%s%s' % (self.name, det_full_ec_version(self), ext)
 
@@ -624,7 +602,7 @@ class EasyConfig(object):
         Update an easyconfig parameter with the specified value (i.e. append to it).
         Note: For dictionary easyconfig parameters, 'allow_duplicate' is ignored (since it's meaningless).
         """
-        if isinstance(value, string_type):
+        if isinstance(value, str):
             inval = [value]
         elif isinstance(value, (list, dict, tuple)):
             inval = value
@@ -642,7 +620,7 @@ class EasyConfig(object):
         # Grab current parameter value so we can modify it
         param_value = copy.deepcopy(self[key])
 
-        if isinstance(param_value, string_type):
+        if isinstance(param_value, str):
             for item in inval:
                 # re.search: only add value to string if it's not there yet (surrounded by whitespace)
                 if allow_duplicate or (not re.search(r'(^|\s+)%s(\s+|$)' % re.escape(item), param_value)):
@@ -784,7 +762,7 @@ class EasyConfig(object):
         for ext in self['exts_list']:
             if isinstance(ext, tuple) and len(ext) >= 3:
                 ext_opts = ext[2]
-                # check for 'sources' first, since that's also considered first by EasyBlock.fetch_extension_sources
+                # check for 'sources' first, since that's also considered first by EasyBlock.collect_exts_file_info
                 if 'sources' in ext_opts:
                     cnt += len(ext_opts['sources'])
                 elif 'source_tmpl' in ext_opts:
@@ -833,7 +811,7 @@ class EasyConfig(object):
 
         deprecated = self['deprecated']
         if deprecated:
-            if isinstance(deprecated, string_type):
+            if isinstance(deprecated, str):
                 if 'easyconfig' not in build_option('silence_deprecation_warnings'):
                     depr_msgs.append("easyconfig file '%s' is marked as deprecated:\n%s\n" % (path, deprecated))
             else:
@@ -911,7 +889,7 @@ class EasyConfig(object):
         not_found = []
         for dep in self['osdependencies']:
             # make sure we have a tuple
-            if isinstance(dep, string_type):
+            if isinstance(dep, str):
                 dep = (dep,)
             elif not isinstance(dep, tuple):
                 raise EasyBuildError("Non-tuple value type for OS dependency specification: %s (type %s)",
@@ -1877,19 +1855,10 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
     _log.nosupport('Use det_full_ec_version from easybuild.tools.module_generator instead of %s' % old_fn, '2.0')
 
 
-def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error_on_missing_easyblock=None, **kwargs):
+def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error_on_missing_easyblock=True, **kwargs):
     """
     Get class for a particular easyblock (or use default)
     """
-    if 'default_fallback' in kwargs:
-        msg = "Named argument 'default_fallback' for get_easyblock_class is deprecated, "
-        msg += "use 'error_on_missing_easyblock' instead"
-        _log.deprecated(msg, '4.0')
-        if error_on_missing_easyblock is None:
-            error_on_missing_easyblock = kwargs['default_fallback']
-    elif error_on_missing_easyblock is None:
-        error_on_missing_easyblock = True
-
     cls = None
     try:
         if easyblock:
@@ -1965,12 +1934,6 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err)
 
 
-def is_generic_easyblock(easyblock):
-    """Return whether specified easyblock name is a generic easyblock or not."""
-    _log.deprecated("is_generic_easyblock function was moved to easybuild.tools.filetools", '5.0')
-    return filetools.is_generic_easyblock(easyblock)
-
-
 def get_module_path(name, generic=None, decode=True):
     """
     Determine the module path for a given easyblock or software name,
@@ -2002,7 +1965,7 @@ def resolve_template(value, tmpl_dict):
         - value: some python object (supported are string, tuple/list, dict or some mix thereof)
         - tmpl_dict: template dictionary
     """
-    if isinstance(value, string_type):
+    if isinstance(value, str):
         # simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
         #         but ignore a string like '%(name)s'
         # behaviour of strings like '%(name)s',
@@ -2498,8 +2461,6 @@ def copy_patch_files(patch_specs, target_dir):
 def fix_deprecated_easyconfigs(paths):
     """Fix use of deprecated functionality in easyconfigs at specified locations."""
 
-    dummy_tc_regex = re.compile(r'^toolchain\s*=\s*{.*name.*dummy.*}', re.M)
-
     easyconfig_paths = []
     for path in paths:
         easyconfig_paths.extend(find_easyconfigs(path))
@@ -2511,11 +2472,6 @@ def fix_deprecated_easyconfigs(paths):
         print_msg("* [%d/%d] fixing %s... ", idx, cnt, path, prefix=False, newline=False)
 
         fixed = False
-
-        # fix use of 'dummy' toolchain, use SYSTEM constant instead
-        if dummy_tc_regex.search(ectxt):
-            ectxt = dummy_tc_regex.sub("toolchain = SYSTEM", ectxt)
-            fixed = True
 
         # fix use of local variables with a name other than a single letter or 'local_*'
         ec = EasyConfig(path, local_var_naming_check=LOCAL_VAR_NAMING_CHECK_LOG)

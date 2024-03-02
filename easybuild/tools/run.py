@@ -37,21 +37,31 @@ Authors:
 """
 import contextlib
 import functools
+import inspect
 import os
 import re
 import signal
+import shutil
+import string
 import subprocess
 import sys
 import tempfile
 import time
+from collections import namedtuple
 from datetime import datetime
+
+try:
+    # get_native_id is only available in Python >= 3.8
+    from threading import get_native_id as get_thread_id
+except ImportError:
+    # get_ident is available in Python >= 3.3
+    from threading import get_ident as get_thread_id
 
 import easybuild.tools.asyncprocess as asyncprocess
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
-from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import nub, trace_msg
 
 
@@ -76,6 +86,79 @@ CACHED_COMMANDS = [
 ]
 
 
+RunShellCmdResult = namedtuple('RunShellCmdResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir',
+                                                     'out_file', 'err_file', 'thread_id', 'task_id'))
+
+
+class RunShellCmdError(BaseException):
+
+    def __init__(self, cmd_result, caller_info, *args, **kwargs):
+        """Constructor for RunShellCmdError."""
+        self.cmd = cmd_result.cmd
+        self.cmd_name = os.path.basename(self.cmd.split(' ')[0])
+        self.exit_code = cmd_result.exit_code
+        self.work_dir = cmd_result.work_dir
+        self.output = cmd_result.output
+        self.out_file = cmd_result.out_file
+        self.stderr = cmd_result.stderr
+        self.err_file = cmd_result.err_file
+
+        self.caller_info = caller_info
+
+        msg = f"Shell command '{self.cmd_name}' failed!"
+        super(RunShellCmdError, self).__init__(msg, *args, **kwargs)
+
+    def print(self):
+        """
+        Report failed shell command for this RunShellCmdError instance
+        """
+
+        def pad_4_spaces(msg):
+            return ' ' * 4 + msg
+
+        error_info = [
+            '',
+            "ERROR: Shell command failed!",
+            pad_4_spaces(f"full command              ->  {self.cmd}"),
+            pad_4_spaces(f"exit code                 ->  {self.exit_code}"),
+            pad_4_spaces(f"working directory         ->  {self.work_dir}"),
+        ]
+
+        if self.out_file is not None:
+            # if there's no separate file for error/warnings, then out_file includes both stdout + stderr
+            out_info_msg = "output (stdout + stderr)" if self.err_file is None else "output (stdout)         "
+            error_info.append(pad_4_spaces(f"{out_info_msg}  ->  {self.out_file}"))
+
+        if self.err_file is not None:
+            error_info.append(pad_4_spaces(f"error/warnings (stderr)   ->  {self.err_file}"))
+
+        caller_file_name, caller_line_nr, caller_function_name = self.caller_info
+        called_from_info = f"'{caller_function_name}' function in {caller_file_name} (line {caller_line_nr})"
+        error_info.extend([
+            pad_4_spaces(f"called from               ->  {called_from_info}"),
+            '',
+        ])
+
+        sys.stderr.write('\n'.join(error_info) + '\n')
+
+
+def raise_run_shell_cmd_error(cmd_res):
+    """
+    Raise RunShellCmdError for failed shell command, after collecting additional caller info
+    """
+
+    # figure out where failing command was run
+    # need to go 3 levels down:
+    # 1) this function
+    # 2) run_shell_cmd function
+    # 3) run_cmd_cache decorator
+    # 4) actual caller site
+    frameinfo = inspect.getouterframes(inspect.currentframe())[3]
+    caller_info = (frameinfo.filename, frameinfo.lineno, frameinfo.function)
+
+    raise RunShellCmdError(cmd_res, caller_info)
+
+
 def run_cmd_cache(func):
     """Function decorator to cache (and retrieve cached) results of running commands."""
     cache = {}
@@ -83,10 +166,10 @@ def run_cmd_cache(func):
     @functools.wraps(func)
     def cache_aware_func(cmd, *args, **kwargs):
         """Retrieve cached result of selected commands, or run specified and collect & cache result."""
-        # cache key is combination of command and input provided via stdin
-        key = (cmd, kwargs.get('inp', None))
+        # cache key is combination of command and input provided via stdin ('stdin' for run, 'inp' for run_cmd)
+        key = (cmd, kwargs.get('stdin', None) or kwargs.get('inp', None))
         # fetch from cache if available, cache it if it's not, but only on cmd strings
-        if isinstance(cmd, string_type) and key in cache:
+        if isinstance(cmd, str) and key in cache:
             _log.debug("Using cached value for command '%s': %s", cmd, cache[key])
             return cache[key]
         else:
@@ -100,6 +183,254 @@ def run_cmd_cache(func):
     cache_aware_func.update_cache = cache.update
 
     return cache_aware_func
+
+
+run_shell_cmd_cache = run_cmd_cache
+
+
+def fileprefix_from_cmd(cmd, allowed_chars=False):
+    """
+    Simplify the cmd to only the allowed_chars we want in a filename
+
+    :param cmd: the cmd (string)
+    :param allowed_chars: characters allowed in filename (defaults to string.ascii_letters + string.digits + "_-")
+    """
+    if not allowed_chars:
+        allowed_chars = f"{string.ascii_letters}{string.digits}_-"
+
+    return ''.join([c for c in cmd if c in allowed_chars])
+
+
+@run_shell_cmd_cache
+def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
+                  hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, use_bash=True,
+                  output_file=True, stream_output=None, asynchronous=False, task_id=None, with_hooks=True,
+                  qa_patterns=None, qa_wait_patterns=None):
+    """
+    Run specified (interactive) shell command, and capture output + exit code.
+
+    :param fail_on_error: fail on non-zero exit code (enabled by default)
+    :param split_stderr: split of stderr from stdout output
+    :param stdin: input to be sent to stdin (nothing if set to None)
+    :param env: environment to use to run command (if None, inherit current process environment)
+    :param hidden: do not show command in terminal output (when using --trace, or with --extended-dry-run / -x)
+    :param in_dry_run: also run command in dry run mode
+    :param verbose_dry_run: show that command is run in dry run mode (overrules 'hidden')
+    :param work_dir: working directory to run command in (current working directory if None)
+    :param use_bash: execute command through bash shell (enabled by default)
+    :param output_file: collect command output in temporary output file
+    :param stream_output: stream command output to stdout (auto-enabled with --logtostdout if None)
+    :param asynchronous: indicate that command is being run asynchronously
+    :param task_id: task ID for specified shell command (included in return value)
+    :param with_hooks: trigger pre/post run_shell_cmd hooks (if defined)
+    :param qa_patterns: list of 2-tuples with patterns for questions + corresponding answers
+    :param qa_wait_patterns: list of 2-tuples with patterns for non-questions
+                             and number of iterations to allow these patterns to match with end out command output
+    :return: Named tuple with:
+    - output: command output, stdout+stderr combined if split_stderr is disabled, only stdout otherwise
+    - exit_code: exit code of command (integer)
+    - stderr: stderr output if split_stderr is enabled, None otherwise
+    """
+    def to_cmd_str(cmd):
+        """
+        Helper function to create string representation of specified command.
+        """
+        if isinstance(cmd, str):
+            cmd_str = cmd.strip()
+        elif isinstance(cmd, list):
+            cmd_str = ' '.join(cmd)
+        else:
+            raise EasyBuildError(f"Unknown command type ('{type(cmd)}'): {cmd}")
+
+        return cmd_str
+
+    # temporarily raise a NotImplementedError until all options are implemented
+    if qa_patterns or qa_wait_patterns:
+        raise NotImplementedError
+
+    if work_dir is None:
+        work_dir = os.getcwd()
+
+    cmd_str = to_cmd_str(cmd)
+
+    thread_id = None
+    if asynchronous:
+        thread_id = get_thread_id()
+        _log.info(f"Initiating running of shell command '{cmd_str}' via thread with ID {thread_id}")
+
+    # auto-enable streaming of command output under --logtostdout/-l, unless it was disabled explicitely
+    if stream_output is None and build_option('logtostdout'):
+        _log.info(f"Auto-enabling streaming output of '{cmd_str}' command because logging to stdout is enabled")
+        stream_output = True
+
+    # temporary output file(s) for command output
+    if output_file:
+        toptmpdir = os.path.join(tempfile.gettempdir(), 'run-shell-cmd-output')
+        os.makedirs(toptmpdir, exist_ok=True)
+        cmd_name = fileprefix_from_cmd(os.path.basename(cmd_str.split(' ')[0]))
+        tmpdir = tempfile.mkdtemp(dir=toptmpdir, prefix=f'{cmd_name}-')
+        cmd_out_fp = os.path.join(tmpdir, 'out.txt')
+        _log.info(f'run_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
+        if split_stderr:
+            cmd_err_fp = os.path.join(tmpdir, 'err.txt')
+            _log.info(f'run_cmd: Errors and warnings of "{cmd_str}" will be logged to {cmd_err_fp}')
+        else:
+            cmd_err_fp = None
+    else:
+        cmd_out_fp, cmd_err_fp = None, None
+
+    # early exit in 'dry run' mode, after printing the command that would be run (unless 'hidden' is enabled)
+    if not in_dry_run and build_option('extended_dry_run'):
+        if not hidden or verbose_dry_run:
+            silent = build_option('silent')
+            msg = f"  running shell command \"{cmd_str}\"\n"
+            msg += f"  (in {work_dir})"
+            dry_run_msg(msg, silent=silent)
+
+        return RunShellCmdResult(cmd=cmd_str, exit_code=0, output='', stderr=None, work_dir=work_dir,
+                                 out_file=cmd_out_fp, err_file=cmd_err_fp, thread_id=thread_id, task_id=task_id)
+
+    start_time = datetime.now()
+    if not hidden:
+        _cmd_trace_msg(cmd_str, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thread_id)
+
+    if stream_output:
+        print_msg(f"(streaming) output for command '{cmd_str}':")
+
+    # use bash as shell instead of the default /bin/sh used by subprocess.run
+    # (which could be dash instead of bash, like on Ubuntu, see https://wiki.ubuntu.com/DashAsBinSh)
+    # stick to None (default value) when not running command via a shell
+    if use_bash:
+        bash = shutil.which('bash')
+        _log.info(f"Path to bash that will be used to run shell commands: {bash}")
+        executable, shell = bash, True
+    else:
+        executable, shell = None, False
+
+    if with_hooks:
+        hooks = load_hooks(build_option('hooks'))
+        hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs={'work_dir': work_dir})
+        if hook_res:
+            cmd, old_cmd = hook_res, cmd
+            cmd_str = to_cmd_str(cmd)
+            _log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
+
+    stderr = subprocess.PIPE if split_stderr else subprocess.STDOUT
+
+    log_msg = f"Running shell command '{cmd_str}' in {work_dir}"
+    if thread_id:
+        log_msg += f" (via thread with ID {thread_id})"
+    _log.info(log_msg)
+
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr, stdin=subprocess.PIPE,
+                            cwd=work_dir, env=env, shell=shell, executable=executable)
+
+    # 'input' value fed to subprocess.run must be a byte sequence
+    if stdin:
+        stdin = stdin.encode()
+
+    if stream_output:
+        if stdin:
+            proc.stdin.write(stdin)
+
+        exit_code = None
+        stdout, stderr = b'', b''
+
+        while exit_code is None:
+            exit_code = proc.poll()
+
+            # use small read size (128 bytes) when streaming output, to make it stream more fluently
+            # -1 means reading until EOF
+            read_size = 128 if exit_code is None else -1
+
+            stdout += proc.stdout.read(read_size)
+            if split_stderr:
+                stderr += proc.stderr.read(read_size)
+    else:
+        (stdout, stderr) = proc.communicate(input=stdin)
+
+    # return output as a regular string rather than a byte sequence (and non-UTF-8 characters get stripped out)
+    output = stdout.decode('utf-8', 'ignore')
+    stderr = stderr.decode('utf-8', 'ignore') if split_stderr else None
+
+    # store command output to temporary file(s)
+    if output_file:
+        try:
+            with open(cmd_out_fp, 'w') as fp:
+                fp.write(output)
+            if split_stderr:
+                with open(cmd_err_fp, 'w') as fp:
+                    fp.write(stderr)
+        except IOError as err:
+            raise EasyBuildError(f"Failed to dump command output to temporary file: {err}")
+
+    res = RunShellCmdResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr, work_dir=work_dir,
+                            out_file=cmd_out_fp, err_file=cmd_err_fp, thread_id=thread_id, task_id=task_id)
+
+    # always log command output
+    cmd_name = cmd_str.split(' ')[0]
+    if split_stderr:
+        _log.info(f"Output of '{cmd_name} ...' shell command (stdout only):\n{res.output}")
+        _log.info(f"Warnings and errors of '{cmd_name} ...' shell command (stderr only):\n{res.stderr}")
+    else:
+        _log.info(f"Output of '{cmd_name} ...' shell command (stdout + stderr):\n{res.output}")
+
+    if res.exit_code == 0:
+        _log.info(f"Shell command completed successfully (see output above): {cmd_str}")
+    else:
+        _log.warning(f"Shell command FAILED (exit code {res.exit_code}, see output above): {cmd_str}")
+        if fail_on_error:
+            raise_run_shell_cmd_error(res)
+
+    if with_hooks:
+        run_hook_kwargs = {
+            'exit_code': res.exit_code,
+            'output': res.output,
+            'stderr': res.stderr,
+            'work_dir': res.work_dir,
+        }
+        run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
+
+    if not hidden:
+        time_since_start = time_str_since(start_time)
+        trace_msg(f"command completed: exit {res.exit_code}, ran in {time_since_start}")
+
+    return res
+
+
+def _cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thread_id):
+    """
+    Helper function to construct and print trace message for command being run
+
+    :param cmd: command being run
+    :param start_time: datetime object indicating when command was started
+    :param work_dir: path of working directory in which command is run
+    :param stdin: stdin input value for command
+    :param cmd_out_fp: path to output file for command
+    :param cmd_err_fp: path to errors/warnings output file for command
+    :param thread_id: thread ID (None when not running shell command asynchronously)
+    """
+    start_time = start_time.strftime('%Y-%m-%d %H:%M:%S')
+
+    if thread_id:
+        run_cmd_msg = f"running shell command (asynchronously, thread ID: {thread_id}):"
+    else:
+        run_cmd_msg = "running shell command:"
+
+    lines = [
+        run_cmd_msg,
+        f"\t{cmd}",
+        f"\t[started at: {start_time}]",
+        f"\t[working dir: {work_dir}]",
+    ]
+    if stdin:
+        lines.append(f"\t[input: {stdin}]")
+    if cmd_out_fp:
+        lines.append(f"\t[output saved to {cmd_out_fp}]")
+    if cmd_err_fp:
+        lines.append(f"\t[errors/warnings saved to {cmd_err_fp}]")
+
+    trace_msg('\n'.join(lines))
 
 
 def get_output_from_process(proc, read_size=None, asynchronous=False):
@@ -155,7 +486,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     """
     cwd = os.getcwd()
 
-    if isinstance(cmd, string_type):
+    if isinstance(cmd, str):
         cmd_msg = cmd.strip()
     elif isinstance(cmd, list):
         cmd_msg = ' '.join(cmd)
@@ -232,7 +563,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         if isinstance(cmd, list):
             exec_cmd = None
             cmd.insert(0, '/usr/bin/env')
-        elif isinstance(cmd, string_type):
+        elif isinstance(cmd, str):
             cmd = '/usr/bin/env %s' % cmd
         else:
             raise EasyBuildError("Don't know how to prefix with /usr/bin/env for commands of type %s", type(cmd))
@@ -240,7 +571,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     if with_hooks:
         hooks = load_hooks(build_option('hooks'))
         hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs={'work_dir': os.getcwd()})
-        if isinstance(hook_res, string_type):
+        if isinstance(hook_res, str):
             cmd, old_cmd = hook_res, cmd
             _log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
 
@@ -393,7 +724,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     """
     cwd = os.getcwd()
 
-    if not isinstance(cmd, string_type) and len(cmd) > 1:
+    if not isinstance(cmd, str) and len(cmd) > 1:
         # We use shell=True and hence we should really pass the command as a string
         # When using a list then every element past the first is passed to the shell itself, not the command!
         raise EasyBuildError("The command passed must be a string!")
@@ -468,7 +799,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 
     def check_answers_list(answers):
         """Make sure we have a list of answers (as strings)."""
-        if isinstance(answers, string_type):
+        if isinstance(answers, str):
             answers = [answers]
         elif not isinstance(answers, list):
             if cmd_log:
@@ -512,7 +843,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         'work_dir': os.getcwd(),
     }
     hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
-    if isinstance(hook_res, string_type):
+    if isinstance(hook_res, str):
         cmd, old_cmd = hook_res, cmd
         _log.info("Interactive command to run was changed by pre-%s hook: '%s' (was: '%s')",
                   RUN_SHELL_CMD, cmd, old_cmd)
@@ -758,7 +1089,7 @@ def extract_errors_from_log(log_txt, reg_exps):
     actions = (IGNORE, WARN, ERROR)
 
     # promote single string value to list, since code below expects a list
-    if isinstance(reg_exps, string_type):
+    if isinstance(reg_exps, str):
         reg_exps = [reg_exps]
 
     re_tuples = []
@@ -811,3 +1142,21 @@ def check_log_for_errors(log_txt, reg_exps):
     if errors:
         raise EasyBuildError("Found %s error(s) in command output:\n\t%s",
                              len(errors), "\n\t".join(errors))
+
+
+def subprocess_popen_text(cmd, **kwargs):
+    """Call subprocess.Popen in text mode with specified named arguments."""
+    # open stdout/stderr in text mode in Popen when using Python 3
+    kwargs.setdefault('stderr', subprocess.PIPE)
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, **kwargs)
+
+
+def subprocess_terminate(proc, timeout):
+    """Terminate the subprocess if it hasn't finished after the given timeout"""
+    try:
+        proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        for pipe in (proc.stdout, proc.stderr, proc.stdin):
+            if pipe:
+                pipe.close()
+        proc.terminate()

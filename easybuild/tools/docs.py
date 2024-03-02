@@ -40,7 +40,9 @@ import copy
 import inspect
 import json
 import os
+from collections import OrderedDict
 from easybuild.tools import LooseVersion
+from string import ascii_lowercase
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
@@ -60,8 +62,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.py2vs3 import OrderedDict, ascii_lowercase
-from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import INDENT_2SPACES, INDENT_4SPACES
 from easybuild.tools.utilities import import_available_modules, mk_md_table, mk_rst_table, nub, quote_str
@@ -1091,8 +1092,7 @@ def list_toolchains(output_format=FORMAT_TXT):
     """Show list of known toolchains."""
     _, all_tcs = search_toolchain('')
 
-    # filter deprecated 'dummy' toolchain
-    all_tcs = [x for x in all_tcs if x.NAME != DUMMY_TOOLCHAIN_NAME]
+    all_tcs = [x for x in all_tcs]
     all_tcs_names = [x.NAME for x in all_tcs]
 
     # start with dict that maps toolchain name to corresponding subclass of Toolchain

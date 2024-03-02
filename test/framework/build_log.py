@@ -139,8 +139,8 @@ class BuildLogTest(EnhancedTestCase):
             r"fancyroot.test_easybuildlog \[WARNING\] :: Deprecated functionality.*onemorewarning.*",
             r"fancyroot.test_easybuildlog \[WARNING\] :: Deprecated functionality.*lastwarning.*",
             r"fancyroot.test_easybuildlog \[WARNING\] :: Deprecated functionality.*thisisnotprinted.*",
-            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput",
-            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): err: msg: %s",
+            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild encountered an error \(at .* in .*\): kaput",
+            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild encountered an error \(at .* in .*\): err: msg: %s",
             r"fancyroot.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops",
             '',
         ])
@@ -168,7 +168,7 @@ class BuildLogTest(EnhancedTestCase):
             r"fancyroot.test_easybuildlog \[WARNING\] :: bleh",
             r"fancyroot.test_easybuildlog \[INFO\] :: 4\+2 = 42",
             r"fancyroot.test_easybuildlog \[DEBUG\] :: this is just a test",
-            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): foo baz baz",
+            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild encountered an error \(at .* in .*\): foo baz baz",
             '',
         ])
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
@@ -223,7 +223,7 @@ class BuildLogTest(EnhancedTestCase):
         info_msg = r"%s \[INFO\] :: fyi" % prefix
         warning_msg = r"%s \[WARNING\] :: this is a warning" % prefix
         deprecated_msg = r"%s \[WARNING\] :: Deprecated functionality, .*: almost kaput; see .*" % prefix
-        error_msg = r"%s \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput" % prefix
+        error_msg = r"%s \[ERROR\] :: EasyBuild encountered an error \(at .* in .*\): kaput" % prefix
 
         expected_logtxt = '\n'.join([
             error_msg,

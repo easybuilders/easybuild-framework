@@ -33,9 +33,9 @@ import difflib
 import os
 
 from easybuild.base import fancylogger
-from easybuild.tools.py2vs3 import load_source
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
+from importlib.util import spec_from_file_location, module_from_spec
 
 
 _log = fancylogger.getLogger('hooks', fname=False)
@@ -67,6 +67,7 @@ MODULE_WRITE = 'module_write'
 END = 'end'
 
 CANCEL = 'cancel'
+CRASH = 'crash'
 FAIL = 'fail'
 
 RUN_SHELL_CMD = 'run_shell_cmd'
@@ -107,6 +108,7 @@ HOOK_NAMES = [
     POST_PREF + BUILD_AND_INSTALL_LOOP,
     END,
     CANCEL,
+    CRASH,
     FAIL,
     PRE_PREF + RUN_SHELL_CMD,
     POST_PREF + RUN_SHELL_CMD,
@@ -116,6 +118,14 @@ KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
 
 # cached version of hooks, to avoid having to load them from file multiple times
 _cached_hooks = {}
+
+
+def load_source(filename, path):
+    """Load file as Python module"""
+    spec = spec_from_file_location(filename, path)
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def load_hooks(hooks_path):

@@ -49,7 +49,6 @@ from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
-from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import INDENT_4SPACES, quote_py_str
 
 
@@ -255,7 +254,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         else:
             # dependencies are already dumped as strings, so they do not need to be quoted again
-            if isinstance(param_val, string_type) and param_name not in DEPENDENCY_PARAMETERS:
+            if isinstance(param_val, str) and param_name not in DEPENDENCY_PARAMETERS:
                 res = quote_py_str(param_val)
 
         return res

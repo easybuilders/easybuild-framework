@@ -42,9 +42,9 @@ import struct
 import sys
 import termios
 import warnings
+from collections import OrderedDict
 from ctypes.util import find_library
 from socket import gethostname
-from easybuild.tools.py2vs3 import subprocess_popen_text
 
 # pkg_resources is provided by the setuptools Python package,
 # which we really want to keep as an *optional* dependency
@@ -64,8 +64,7 @@ from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import IGNORE
 from easybuild.tools.filetools import is_readable, read_file, which
-from easybuild.tools.py2vs3 import OrderedDict, string_type
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd, subprocess_popen_text
 
 
 _log = fancylogger.getLogger('systemtools', fname=False)
@@ -211,7 +210,7 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
     'python-hglib': ('hglib', "using Mercurial repository as easyconfigs archive"),
     'requests': (None, "fallback library for downloading files"),
     'Rich': (None, "eb command rich terminal output"),
-    'PyYAML': ('yaml', "easystack files and .yeb easyconfig format"),
+    'PyYAML': ('yaml', "easystack files easyconfig format"),
     'setuptools': ('pkg_resources', "obtaining information on Python packages via pkg_resources module"),
 }
 
@@ -274,10 +273,11 @@ def get_avail_core_count():
         core_cnt = int(sum(sched_getaffinity()))
     else:
         # BSD-type systems
-        out, _ = run_cmd('sysctl -n hw.ncpu', force_in_dry_run=True, trace=False, stream_output=False, with_hooks=False)
+        res = run_shell_cmd('sysctl -n hw.ncpu', in_dry_run=True, hidden=True, with_hooks=False,
+                            output_file=False, stream_output=False)
         try:
-            if int(out) > 0:
-                core_cnt = int(out)
+            if int(res.output) > 0:
+                core_cnt = int(res.output)
         except ValueError:
             pass
 
@@ -311,9 +311,9 @@ def get_total_memory():
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.memsize"
         _log.debug("Trying to determine total memory size on Darwin via cmd '%s'", cmd)
-        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, with_hooks=False)
-        if ec == 0:
-            memtotal = int(out.strip()) // (1024**2)
+        res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, with_hooks=False, output_file=False, stream_output=False)
+        if res.exit_code == 0:
+            memtotal = int(res.output.strip()) // (1024**2)
 
     if memtotal is None:
         memtotal = UNKNOWN
@@ -393,17 +393,18 @@ def get_cpu_vendor():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.vendor"
-        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, log_ok=False, with_hooks=False)
-        out = out.strip()
-        if ec == 0 and out in VENDOR_IDS:
+        res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
+                            output_file=False, stream_output=False)
+        out = res.output.strip()
+        if res.exit_code == 0 and out in VENDOR_IDS:
             vendor = VENDOR_IDS[out]
             _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
         else:
             cmd = "sysctl -n machdep.cpu.brand_string"
-            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, log_ok=False,
-                              with_hooks=False)
-            out = out.strip().split(' ')[0]
-            if ec == 0 and out in CPU_VENDORS:
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
+                                output_file=False, stream_output=False)
+            out = res.output.strip().split(' ')[0]
+            if res.exit_code == 0 and out in CPU_VENDORS:
                 vendor = out
                 _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
 
@@ -504,9 +505,9 @@ def get_cpu_model():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.brand_string"
-        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, with_hooks=False)
-        if ec == 0:
-            model = out.strip()
+        res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, with_hooks=False, output_file=False, stream_output=False)
+        if res.exit_code == 0:
+            model = res.output.strip()
             _log.debug("Determined CPU model on Darwin using cmd '%s': %s" % (cmd, model))
 
     if model is None:
@@ -549,10 +550,10 @@ def get_cpu_speed():
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.cpufrequency_max"
         _log.debug("Trying to determine CPU frequency on Darwin via cmd '%s'" % cmd)
-        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, with_hooks=False)
-        out = out.strip()
+        res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, with_hooks=False, output_file=False, stream_output=False)
+        out = res.output.strip()
         cpu_freq = None
-        if ec == 0 and out:
+        if res.exit_code == 0 and out:
             # returns clock frequency in cycles/sec, but we want MHz
             cpu_freq = float(out) // (1000 ** 2)
 
@@ -597,10 +598,10 @@ def get_cpu_features():
         for feature_set in ['extfeatures', 'features', 'leaf7_features']:
             cmd = "sysctl -n machdep.cpu.%s" % feature_set
             _log.debug("Trying to determine CPU features on Darwin via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, log_ok=False,
-                              with_hooks=False)
-            if ec == 0:
-                cpu_feat.extend(out.strip().lower().split())
+            res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, fail_on_error=False, with_hooks=False,
+                                output_file=False, stream_output=False)
+            if res.exit_code == 0:
+                cpu_feat.extend(res.output.strip().lower().split())
 
         cpu_feat.sort()
 
@@ -625,16 +626,16 @@ def get_gpu_info():
         try:
             cmd = "nvidia-smi --query-gpu=gpu_name,driver_version --format=csv,noheader"
             _log.debug("Trying to determine NVIDIA GPU info on Linux via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False,
-                              force_in_dry_run=True, trace=False, stream_output=False, with_hooks=False)
-            if ec == 0:
-                for line in out.strip().split('\n'):
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
+                                output_file=False, stream_output=False)
+            if res.exit_code == 0:
+                for line in res.output.strip().split('\n'):
                     nvidia_gpu_info = gpu_info.setdefault('NVIDIA', {})
                     nvidia_gpu_info.setdefault(line, 0)
                     nvidia_gpu_info[line] += 1
             else:
-                _log.debug("None zero exit (%s) from nvidia-smi: %s", ec, out)
-        except Exception as err:
+                _log.debug("None zero exit (%s) from nvidia-smi: %s", res.exit_code, res.output)
+        except EasyBuildError as err:
             _log.debug("Exception was raised when running nvidia-smi: %s", err)
             _log.info("No NVIDIA GPUs detected")
 
@@ -644,17 +645,17 @@ def get_gpu_info():
         try:
             cmd = "rocm-smi --showdriverversion --csv"
             _log.debug("Trying to determine AMD GPU driver on Linux via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False,
-                              force_in_dry_run=True, trace=False, stream_output=False, with_hooks=False)
-            if ec == 0:
-                amd_driver = out.strip().split('\n')[1].split(',')[1]
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
+                                output_file=False, stream_output=False)
+            if res.exit_code == 0:
+                amd_driver = res.output.strip().split('\n')[1].split(',')[1]
 
             cmd = "rocm-smi --showproductname --csv"
             _log.debug("Trying to determine AMD GPU info on Linux via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False,
-                              force_in_dry_run=True, trace=False, stream_output=False, with_hooks=False)
-            if ec == 0:
-                for line in out.strip().split('\n')[1:]:
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
+                                output_file=False, stream_output=False)
+            if res.exit_code == 0:
+                for line in res.output.strip().split('\n')[1:]:
                     amd_card_series = line.split(',')[1]
                     amd_card_model = line.split(',')[2]
                     amd_gpu = "%s (model: %s, driver: %s)" % (amd_card_series, amd_card_model, amd_driver)
@@ -662,8 +663,8 @@ def get_gpu_info():
                     amd_gpu_info.setdefault(amd_gpu, 0)
                     amd_gpu_info[amd_gpu] += 1
             else:
-                _log.debug("None zero exit (%s) from rocm-smi: %s", ec, out)
-        except Exception as err:
+                _log.debug("None zero exit (%s) from rocm-smi: %s", res.exit_code, res.output)
+        except EasyBuildError as err:
             _log.debug("Exception was raised when running rocm-smi: %s", err)
             _log.info("No AMD GPUs detected")
 
@@ -863,16 +864,17 @@ def check_os_dependency(dep):
 
     for pkg_cmd in pkg_cmds:
         if which(pkg_cmd):
-            cmd = [
+            cmd = ' '.join([
                 # unset $LD_LIBRARY_PATH to avoid broken rpm command due to loaded dependencies
                 # see https://github.com/easybuilders/easybuild-easyconfigs/pull/4179
                 'unset LD_LIBRARY_PATH &&',
                 pkg_cmd,
                 pkg_cmd_flag.get(pkg_cmd),
                 dep,
-            ]
-            found = run_cmd(' '.join(cmd), simple=True, log_all=False, log_ok=False,
-                            force_in_dry_run=True, trace=False, stream_output=False)
+            ])
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True,
+                                output_file=False, stream_output=False)
+            found = res.exit_code == 0
             if found:
                 break
 
@@ -883,10 +885,10 @@ def check_os_dependency(dep):
         # try locate if it's available
         if not found and which('locate'):
             cmd = 'locate -c --regexp "/%s$"' % dep
-            out, ec = run_cmd(cmd, simple=False, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
-                              stream_output=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True,
+                                output_file=False, stream_output=False)
             try:
-                found = (ec == 0 and int(out.strip()) > 0)
+                found = (res.exit_code == 0 and int(res.output.strip()) > 0)
             except ValueError:
                 # Returned something else than an int -> Error
                 found = False
@@ -899,41 +901,41 @@ def get_tool_version(tool, version_option='--version', ignore_ec=False):
     Get output of running version option for specific command line tool.
     Output is returned as a single-line string (newlines are replaced by '; ').
     """
-    out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False, force_in_dry_run=True,
-                      trace=False, stream_output=False, with_hooks=False)
-    if not ignore_ec and ec:
-        _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, out))
+    res = run_shell_cmd(' '.join([tool, version_option]), fail_on_error=False, in_dry_run=True,
+                        hidden=True, with_hooks=False, output_file=False, stream_output=False)
+    if not ignore_ec and res.exit_code:
+        _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, res.output))
         return UNKNOWN
     else:
-        return '; '.join(out.split('\n'))
+        return '; '.join(res.output.split('\n'))
 
 
 def get_gcc_version():
     """
     Process `gcc --version` and return the GCC version.
     """
-    out, ec = run_cmd('gcc --version', simple=False, log_ok=False, force_in_dry_run=True, verbose=False, trace=False,
-                      stream_output=False)
-    res = None
-    if ec:
-        _log.warning("Failed to determine the version of GCC: %s", out)
-        res = UNKNOWN
+    res = run_shell_cmd('gcc --version', fail_on_error=False, in_dry_run=True, hidden=True,
+                        output_file=False, stream_output=False)
+    gcc_ver = None
+    if res.exit_code:
+        _log.warning("Failed to determine the version of GCC: %s", res.output)
+        gcc_ver = UNKNOWN
 
     # Fedora: gcc (GCC) 5.1.1 20150618 (Red Hat 5.1.1-4)
     # Debian: gcc (Debian 4.9.2-10) 4.9.2
-    find_version = re.search(r"^gcc\s+\([^)]+\)\s+(?P<version>[^\s]+)\s+", out)
+    find_version = re.search(r"^gcc\s+\([^)]+\)\s+(?P<version>[^\s]+)\s+", res.output)
     if find_version:
-        res = find_version.group('version')
-        _log.debug("Found GCC version: %s from %s", res, out)
+        gcc_ver = find_version.group('version')
+        _log.debug("Found GCC version: %s from %s", res, res.output)
     else:
         # Apple likes to install clang but call it gcc. <insert rant about Apple>
         if get_os_type() == DARWIN:
             _log.warning("On recent version of Mac OS, gcc is actually clang, returning None as GCC version")
-            res = None
+            gcc_ver = None
         else:
-            raise EasyBuildError("Failed to determine the GCC version from: %s", out)
+            raise EasyBuildError("Failed to determine the GCC version from: %s", res.output)
 
-    return res
+    return gcc_ver
 
 
 def get_glibc_version():
@@ -969,9 +971,9 @@ def get_linked_libs_raw(path):
     or None for other types of files.
     """
 
-    file_cmd_out, ec = run_cmd("file %s" % path, simple=False, trace=False)
-    if ec:
-        fail_msg = "Failed to run 'file %s': %s" % (path, file_cmd_out)
+    res = run_shell_cmd("file %s" % path, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
+    if res.exit_code:
+        fail_msg = "Failed to run 'file %s': %s" % (path, res.output)
         _log.warning(fail_msg)
 
     os_type = get_os_type()
@@ -982,7 +984,7 @@ def get_linked_libs_raw(path):
         #   /usr/bin/ls: ELF 64-bit LSB executable, x86-64, ..., dynamically linked (uses shared libs), ...
         # example output for shared libraries:
         #   /lib64/libc-2.17.so: ELF 64-bit LSB shared object, x86-64, ..., dynamically linked (uses shared libs), ...
-        if "dynamically linked" in file_cmd_out:
+        if "dynamically linked" in res.output:
             # determine linked libraries via 'ldd'
             linked_libs_cmd = "ldd %s" % path
         else:
@@ -994,7 +996,7 @@ def get_linked_libs_raw(path):
         # example output for shared libraries:
         #   /usr/lib/libz.dylib: Mach-O 64-bit dynamically linked shared library x86_64
         bin_lib_regex = re.compile('(Mach-O .* executable)|(dynamically linked)', re.M)
-        if bin_lib_regex.search(file_cmd_out):
+        if bin_lib_regex.search(res.output):
             linked_libs_cmd = "otool -L %s" % path
         else:
             return None
@@ -1004,12 +1006,12 @@ def get_linked_libs_raw(path):
     # take into account that 'ldd' may fail for strange reasons,
     # like printing 'not a dynamic executable' when not enough memory is available
     # (see also https://bugzilla.redhat.com/show_bug.cgi?id=1817111)
-    out, ec = run_cmd(linked_libs_cmd, simple=False, trace=False, log_ok=False, log_all=False)
-    if ec == 0:
-        linked_libs_out = out
+    res = run_shell_cmd(linked_libs_cmd, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
+    if res.exit_code == 0:
+        linked_libs_out = res.output
     else:
-        fail_msg = "Determining linked libraries for %s via '%s' failed! Output: '%s'" % (path, linked_libs_cmd, out)
-        print_warning(fail_msg)
+        fail_msg = "Determining linked libraries for %s via '%s' failed! Output: '%s'"
+        print_warning(fail_msg % (path, linked_libs_cmd, res.output))
         linked_libs_out = None
 
     return linked_libs_out
@@ -1028,12 +1030,12 @@ def check_linked_shared_libs(path, required_patterns=None, banned_patterns=None)
     if required_patterns is None:
         required_regexs = []
     else:
-        required_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in required_patterns]
+        required_regexs = [re.compile(p) if isinstance(p, str) else p for p in required_patterns]
 
     if banned_patterns is None:
         banned_regexs = []
     else:
-        banned_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in banned_patterns]
+        banned_regexs = [re.compile(p) if isinstance(p, str) else p for p in banned_patterns]
 
     # resolve symbolic links (unless they're broken)
     if os.path.islink(path) and os.path.exists(path):
@@ -1185,20 +1187,21 @@ def det_parallelism(par=None, maxpar=None):
         except AttributeError:
             # No cache -> Calculate value from current system values
             par = get_avail_core_count()
-            # check ulimit -u
-            out, ec = run_cmd('ulimit -u', force_in_dry_run=True, trace=False, stream_output=False)
+            # determine max user processes via ulimit -u
+            res = run_shell_cmd("ulimit -u", in_dry_run=True, hidden=True, output_file=False, stream_output=False)
             try:
-                if out.startswith("unlimited"):
+                if res.output.startswith("unlimited"):
                     maxuserproc = 2 ** 32 - 1
                 else:
-                    maxuserproc = int(out)
+                    maxuserproc = int(res.output)
             except ValueError as err:
-                raise EasyBuildError("Failed to determine max user processes (%s, %s): %s", ec, out, err)
+                raise EasyBuildError("Failed to determine max user processes (%s, %s): %s",
+                                     res.exit_code, res.output, err)
             # assume 6 processes per build thread + 15 overhead
             par_guess = (maxuserproc - 15) // 6
             if par_guess < par:
                 par = par_guess
-                _log.info("Limit parallel builds to %s because max user processes is %s", par, out)
+                _log.info("Limit parallel builds to %s because max user processes is %s", par, res.output)
             # Cache value
             det_parallelism._default_parallelism = par
         return par
@@ -1244,17 +1247,13 @@ def check_python_version():
     python_ver = '%d.%d' % (python_maj_ver, python_min_ver)
     _log.info("Found Python version %s", python_ver)
 
-    if python_maj_ver == 2:
-        if python_min_ver < 7:
-            raise EasyBuildError("Python 2.7 is required when using Python 2, found Python %s", python_ver)
-        else:
-            _log.info("Running EasyBuild with Python 2 (version %s)", python_ver)
-
-    elif python_maj_ver == 3:
-        if python_min_ver < 5:
-            raise EasyBuildError("Python 3.5 or higher is required when using Python 3, found Python %s", python_ver)
+    if python_maj_ver == 3:
+        if python_min_ver < 6:
+            raise EasyBuildError("Python 3.6 or higher is required, found Python %s", python_ver)
         else:
             _log.info("Running EasyBuild with Python 3 (version %s)", python_ver)
+    elif python_maj_ver < 3:
+        raise EasyBuildError("EasyBuild is not compatible with Python %s", python_ver)
     else:
         raise EasyBuildError("EasyBuild is not compatible (yet) with Python %s", python_ver)
 
@@ -1315,7 +1314,7 @@ def pick_dep_version(dep_version):
         result = None
     else:
         result = pick_system_specific_value("version", dep_version)
-        if not isinstance(result, string_type) and result is not False:
+        if not isinstance(result, str) and result is not False:
             typ = type(dep_version)
             raise EasyBuildError("Unknown value type for version: %s (%s), should be string value", typ, dep_version)
 
