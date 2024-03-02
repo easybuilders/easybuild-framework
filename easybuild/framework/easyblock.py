@@ -54,6 +54,7 @@ import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from textwrap import indent
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
@@ -953,7 +954,8 @@ class EasyBlock(object):
                     if download_instructions is None:
                         download_instructions = self.cfg['download_instructions']
                     if download_instructions is not None and download_instructions != "":
-                        msg = "\nDownload instructions:\n\n" + download_instructions + '\n'
+                        msg = "\nDownload instructions:\n\n" + indent(download_instructions, '    ') + '\n\n'
+                        msg += "Make the files available in the active source path: %s\n" % ':'.join(source_paths())
                         print_msg(msg, prefix=False, stderr=True)
                         error_msg += "please follow the download instructions above, and make the file available "
                         error_msg += "in the active source path (%s)" % ':'.join(source_paths())
