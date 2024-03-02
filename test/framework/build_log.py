@@ -208,7 +208,7 @@ class BuildLogTest(EnhancedTestCase):
             log.error('kaput')
             log.deprecated('almost kaput', '10000000000000')
             log.raiseError = True
-            log.warn('this is a warning')
+            log.warning('this is a warning')
             log.info('fyi')
             log.debug('gdb')
             log.devel('tmi')

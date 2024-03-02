@@ -2240,7 +2240,7 @@ def det_size(path):
                 if os.path.exists(fullpath):
                     installsize += os.path.getsize(fullpath)
     except OSError as err:
-        _log.warn("Could not determine install size: %s" % err)
+        _log.warning("Could not determine install size: %s" % err)
 
     return installsize
 
