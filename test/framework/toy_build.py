@@ -3982,9 +3982,12 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests in this file """
-    return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(ToyBuildTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
