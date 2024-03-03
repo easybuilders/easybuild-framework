@@ -180,7 +180,7 @@ class EasyBlock(object):
         # indicates whether or not this instance represents a data EasyBlock
         try:
             self.is_data
-        except NameError:
+        except AttributeError:
             self.is_data = False
 
         # easyconfig for this application
