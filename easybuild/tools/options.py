@@ -622,7 +622,7 @@ class EasyBuildOptions(GeneralOption):
             'subdir-software': ("Installpath subdir for software",
                                 None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
             'subdir-data': ("Installpath subdir for data",
-                                None, 'store', DEFAULT_PATH_SUBDIRS['subdir_data']),
+                            None, 'store', DEFAULT_PATH_SUBDIRS['subdir_data']),
             'subdir-user-modules': ("Base path of user-specific modules relative to --envvars-user-modules",
                                     None, 'store', None),
             'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
