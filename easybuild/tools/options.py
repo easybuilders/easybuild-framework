@@ -578,6 +578,7 @@ class EasyBuildOptions(GeneralOption):
                                     None, 'store', None),
             'installpath-software': ("Install path for software (if None, combine --installpath and --subdir-software)",
                                      None, 'store', None),
+            'installpath-data': ("Install path for data (if None, use --installpath-software)", None, 'store', None),
             'job-backend': ("Backend to use for submitting jobs", 'choice', 'store',
                             DEFAULT_JOB_BACKEND, sorted(avail_job_backends().keys())),
             # purposely take a copy for the default logfile format
@@ -620,6 +621,8 @@ class EasyBuildOptions(GeneralOption):
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
             'subdir-software': ("Installpath subdir for software",
                                 None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
+            'subdir-data': ("Installpath subdir for data",
+                                None, 'store', DEFAULT_PATH_SUBDIRS['subdir_data']),
             'subdir-user-modules': ("Base path of user-specific modules relative to --envvars-user-modules",
                                     None, 'store', None),
             'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
@@ -1134,7 +1137,7 @@ class EasyBuildOptions(GeneralOption):
         #   which can be done in variety of formats (git@<url>:<org>/<repo>), https://<url>, etc.)
         #   (see also https://github.com/easybuilders/easybuild-framework/issues/3892);
         path_opt_names = ['buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
-                          'installpath_modules', 'installpath_software', 'prefix', 'packagepath',
+                          'installpath_modules', 'installpath_software', 'installpath_data', 'prefix', 'packagepath',
                           'robot_paths', 'sourcepath']
 
         for opt_name in path_opt_names:

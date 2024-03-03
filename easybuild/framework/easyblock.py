@@ -163,7 +163,7 @@ class EasyBlock(object):
 
         # build/install directories
         self.builddir = None
-        self.installdir = None  # software
+        self.installdir = None  # software or data
         self.installdir_mod = None  # module file
 
         # extensions
@@ -176,6 +176,12 @@ class EasyBlock(object):
         # indicates whether or not this instance represents an extension or not;
         # may be set to True by ExtensionEasyBlock
         self.is_extension = False
+
+        # indicates whether or not this instance represents a data EasyBlock
+        try:
+            self.is_data
+        except NameError:
+            self.is_data = False
 
         # easyconfig for this application
         if isinstance(ec, EasyConfig):
@@ -1106,7 +1112,8 @@ class EasyBlock(object):
         """
         Generate the name of the installation directory.
         """
-        basepath = install_path()
+        typ = 'data' if self.is_data else 'software'
+        basepath = install_path(typ)
         if basepath:
             self.install_subdir = ActiveMNS().det_install_subdir(self.cfg)
             self.installdir = os.path.join(os.path.abspath(basepath), self.install_subdir)

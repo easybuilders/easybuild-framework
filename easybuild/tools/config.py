@@ -112,6 +112,7 @@ DEFAULT_PATH_SUBDIRS = {
     'sourcepath': 'sources',
     'subdir_modules': 'modules',
     'subdir_software': 'software',
+    'subdir_data': 'data',
 }
 DEFAULT_PKG_RELEASE = '1'
 DEFAULT_PKG_TOOL = PKG_TOOL_FPM
@@ -470,6 +471,7 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'installpath',
         'installpath_modules',
         'installpath_software',
+        'installpath_data',
         'job_backend',
         'logfile_format',
         'moduleclasses',
@@ -484,6 +486,7 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'sourcepath',
         'subdir_modules',
         'subdir_software',
+        'subdir_data',
         'tmp_logdir',
     ]
     KNOWN_KEYS = REQUIRED  # KNOWN_KEYS must be defined for FrozenDictKnownKeys functionality
@@ -674,15 +677,16 @@ def source_path():
 def install_path(typ=None):
     """
     Returns the install path
-    - subdir 'software' for actual installation (default)
+    - subdir 'software' for actual software installation (default)
     - subdir 'modules' for environment modules (typ='mod')
+    - subdir 'data' for data installation (typ='data')
     """
     if typ is None:
         typ = 'software'
     elif typ == 'mod':
         typ = 'modules'
 
-    known_types = ['modules', 'software']
+    known_types = ['modules', 'software', 'data']
     if typ not in known_types:
         raise EasyBuildError("Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types))
 
