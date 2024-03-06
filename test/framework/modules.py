@@ -42,7 +42,7 @@ from unittest import TextTestRunner
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.tools import StrictVersion
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir
@@ -226,15 +226,16 @@ class ModulesTest(EnhancedTestCase):
 
         # all test modules are accounted for
         ms = self.modtool.available()
+        version = LooseVersion(self.modtool.version)
 
-        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.7.5'):
+        if isinstance(self.modtool, Lmod) and not version.is_prerelease_or_earlier('5.7.5', ['rc']):
             # with recent versions of Lmod, also the hidden modules are included in the output of 'avail'
             self.assertEqual(len(ms), TEST_MODULES_COUNT + 3)
             self.assertIn('bzip2/.1.0.6', ms)
             self.assertIn('toy/.0.0-deps', ms)
             self.assertIn('OpenMPI/.2.1.2-GCC-6.4.0-2.28', ms)
         elif (isinstance(self.modtool, EnvironmentModules)
-                and StrictVersion(self.modtool.version) >= StrictVersion('4.6.0')):
+                and not version.is_prerelease_or_earlier('4.6.0', ['-beta'])):
             # bzip2/.1.0.6 is not there, since that's a module file in Lua syntax
             self.assertEqual(len(ms), TEST_MODULES_COUNT + 2)
             self.assertIn('toy/.0.0-deps', ms)
@@ -314,7 +315,8 @@ class ModulesTest(EnhancedTestCase):
 
         avail_mods = self.modtool.available()
         self.assertIn('Java/1.8.0_181', avail_mods)
-        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
+        version = LooseVersion(self.modtool.version)
+        if isinstance(self.modtool, Lmod) and not version.is_earlier_or_prerelease('7.0', ['rc']):
             self.assertIn('Java/1.8', avail_mods)
             self.assertIn('Java/site_default', avail_mods)
             self.assertIn('JavaAlias', avail_mods)
@@ -374,7 +376,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(self.modtool.exist(['Core/Java/1.8', 'Core/Java/site_default']), [True, True])
 
         # also check with .modulerc.lua for Lmod 7.8 or newer
-        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.8'):
+        if isinstance(self.modtool, Lmod) and not version.is_earlier_or_prerelease('7.8', ['rc']):
             shutil.move(os.path.join(self.test_prefix, 'Core', 'Java'), java_mod_dir)
             reset_module_caches()
 
@@ -406,7 +408,7 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(self.modtool.exist(['Core/Java/site_default']), [True])
 
         # Test alias in home directory .modulerc
-        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
+        if isinstance(self.modtool, Lmod) and not version.is_earlier_or_prerelease('7.0', ['rc']):
             # Required or temporary HOME would be in MODULEPATH already
             self.init_testmods()
             # Sanity check: Module aliases don't exist yet

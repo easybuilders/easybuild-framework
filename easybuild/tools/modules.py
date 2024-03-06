@@ -42,7 +42,7 @@ import re
 import shlex
 
 from easybuild.base import fancylogger
-from easybuild.tools import StrictVersion
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
@@ -144,11 +144,11 @@ class ModulesTool(object):
     COMMAND_SHELL = None
     # option to determine the version
     VERSION_OPTION = '--version'
-    # minimal required version (StrictVersion; suffix rc replaced with b (and treated as beta by StrictVersion))
+    # minimal required version (cannot include -beta or rc)
     REQ_VERSION = None
     # deprecated version limit (support for versions below this version is deprecated)
     DEPR_VERSION = None
-    # maximum version allowed (StrictVersion; suffix rc replaced with b (and treated as beta by StrictVersion))
+    # maximum version allowed (cannot include -beta or rc)
     MAX_VERSION = None
     # the regexp, should have a "version" group (multiline search)
     VERSION_REGEXP = None
@@ -239,14 +239,6 @@ class ModulesTool(object):
             if res:
                 self.version = res.group('version')
                 self.log.info("Found %s version %s", self.NAME, self.version)
-
-                # make sure version is a valid StrictVersion (e.g., 5.7.3.1 is invalid),
-                # and replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
-                self.version = self.version.replace('rc', 'b').replace('-beta', 'b1')
-                if len(self.version.split('.')) > 3:
-                    self.version = '.'.join(self.version.split('.')[:3])
-
-                self.log.info("Converted actual version to '%s'" % self.version)
             else:
                 raise EasyBuildError("Failed to determine %s version from option '%s' output: %s",
                                      self.NAME, self.VERSION_OPTION, txt)
@@ -259,9 +251,10 @@ class ModulesTool(object):
         elif build_option('modules_tool_version_check'):
             self.log.debug("Checking whether %s version %s meets requirements", self.NAME, self.version)
 
+            version = LooseVersion(self.version)
             if self.REQ_VERSION is not None:
                 self.log.debug("Required minimum %s version defined: %s", self.NAME, self.REQ_VERSION)
-                if StrictVersion(self.version) < StrictVersion(self.REQ_VERSION):
+                if version.is_earlier_or_prerelease(self.REQ_VERSION, ['rc', '-beta']):
                     raise EasyBuildError("EasyBuild requires %s >= v%s, found v%s",
                                          self.NAME, self.REQ_VERSION, self.version)
                 else:
@@ -269,14 +262,14 @@ class ModulesTool(object):
 
             if self.DEPR_VERSION is not None:
                 self.log.debug("Deprecated %s version limit defined: %s", self.NAME, self.DEPR_VERSION)
-                if StrictVersion(self.version) < StrictVersion(self.DEPR_VERSION):
+                if version.is_earlier_or_prerelease(self.DEPR_VERSION, ['rc', '-beta']):
                     depr_msg = "Support for %s version < %s is deprecated, " % (self.NAME, self.DEPR_VERSION)
                     depr_msg += "found version %s" % self.version
                     self.log.deprecated(depr_msg, '6.0')
 
             if self.MAX_VERSION is not None:
                 self.log.debug("Maximum allowed %s version defined: %s", self.NAME, self.MAX_VERSION)
-                if StrictVersion(self.version) > StrictVersion(self.MAX_VERSION):
+                if version.is_earlier_or_prerelease(self.MAX_VERSION, ['rc', '-beta']):
                     raise EasyBuildError("EasyBuild requires %s <= v%s, found v%s",
                                          self.NAME, self.MAX_VERSION, self.version)
                 else:
@@ -1390,7 +1383,7 @@ class EnvironmentModules(EnvironmentModulesTcl):
         if extra_args is None:
             extra_args = []
         # make hidden modules visible (requires Environment Modules 4.6.0)
-        if StrictVersion(self.version) >= StrictVersion('4.6.0'):
+        if LooseVersion(self.version) >= LooseVersion('4.6.0'):
             extra_args.append(self.SHOW_HIDDEN_OPTION)
 
         return super(EnvironmentModules, self).available(mod_name=mod_name, extra_args=extra_args)
@@ -1440,11 +1433,11 @@ class Lmod(ModulesTool):
         setvar('LMOD_EXTENDED_DEFAULT', 'no', verbose=False)
 
         super(Lmod, self).__init__(*args, **kwargs)
-        version = StrictVersion(self.version)
+        version = LooseVersion(self.version)
 
         self.supports_depends_on = True
         # See https://lmod.readthedocs.io/en/latest/125_personal_spider_cache.html
-        if version >= '8.7.12':
+        if version >= LooseVersion('8.7.12'):
             self.USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.cache', 'lmod')
         else:
             self.USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
