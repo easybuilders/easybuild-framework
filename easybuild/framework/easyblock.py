@@ -3118,9 +3118,15 @@ class EasyBlock(object):
         self.log.info("Checking RPATH linkage for binaries/libraries...")
 
         fails = []
+        mixed_stack = False
 
-        # hard reset $LD_LIBRARY_PATH before running RPATH sanity check
-        orig_env = env.unset_env_vars(['LD_LIBRARY_PATH'])
+        if build_option('strict_rpath_sanity_check'):
+            self.log.info("Unsetting $LD_LIBRARY_PATH since strict RPATH sanity check is enabled...")
+            # hard reset $LD_LIBRARY_PATH before running RPATH sanity check
+            orig_env = env.unset_env_vars(['LD_LIBRARY_PATH'])
+        else:
+            self.log.info("Not unsetting $LD_LIBRARY_PATH since strict RPATH sanity check is disabled...")
+            orig_env = None
 
         ld_library_path = os.getenv('LD_LIBRARY_PATH', '(empty)')
         self.log.debug(f"$LD_LIBRARY_PATH during RPATH sanity check: {ld_library_path}")
@@ -3128,6 +3134,7 @@ class EasyBlock(object):
         self.log.debug(f"List of loaded modules: {modules_list}")
 
         not_found_regex = re.compile(r'(\S+)\s*\=\>\s*not found')
+        lib_path_regex = re.compile(r'\S+\s*\=\>\s*(\S+)')
         readelf_rpath_regex = re.compile('(RPATH)', re.M)
 
         # List of libraries that should be exempt from the RPATH sanity check;
@@ -3173,6 +3180,17 @@ class EasyBlock(object):
                                     fail_msg = f"Library {match} not found for {path}"
                                     self.log.warning(fail_msg)
                                     fails.append(fail_msg)
+
+                            # inject suggestion to disable strict RPATH sanity check if one or more dependency libraries
+                            # were not installed with RPATH linking enabled (so we're in a "mixed stack" situation)
+                            if fails:
+                                lib_paths = re.findall(lib_path_regex, out)
+                                for lib_path in lib_paths:
+                                    self.log.info(f"Checking whether dependency library {lib_path} has RPATH section")
+                                    res = run_shell_cmd(f"readelf -d {lib_path}", fail_on_error=False)
+                                    if res.exit_code:
+                                        self.log.info(f"No RPATH section found in {lib_path}")
+                                        mixed_stack = True
                         else:
                             self.log.debug(f"Output of 'ldd {path}' checked, looks OK")
 
@@ -3195,7 +3213,16 @@ class EasyBlock(object):
             else:
                 self.log.debug(f"Not sanity checking files in non-existing directory {dirpath}")
 
-        env.restore_env_vars(orig_env)
+        if orig_env:
+            env.restore_env_vars(orig_env)
+
+        if mixed_stack:
+            msg = "\nNo RPATH section found in one or more dependency libraries, "
+            msg += "so you should probably change your EasyBuild configuration to disable "
+            msg += "the strict RPATH sanity check that involves unsetting $LD_LIBRARY_PATH "
+            msg += "when checking for required libraries; "
+            msg += "see also https://docs.easybuild.io/easybuild-v5/strict-rpath-sanity-check"
+            fails.append(msg)
 
         return fails
 
