@@ -228,14 +228,14 @@ class ModulesTest(EnhancedTestCase):
         ms = self.modtool.available()
         version = LooseVersion(self.modtool.version)
 
-        if isinstance(self.modtool, Lmod) and not version.is_prerelease_or_earlier('5.7.5', ['rc']):
+        if isinstance(self.modtool, Lmod) and not version.is_earlier_or_prerelease('5.7.5', ['rc']):
             # with recent versions of Lmod, also the hidden modules are included in the output of 'avail'
             self.assertEqual(len(ms), TEST_MODULES_COUNT + 3)
             self.assertIn('bzip2/.1.0.6', ms)
             self.assertIn('toy/.0.0-deps', ms)
             self.assertIn('OpenMPI/.2.1.2-GCC-6.4.0-2.28', ms)
         elif (isinstance(self.modtool, EnvironmentModules)
-                and not version.is_prerelease_or_earlier('4.6.0', ['-beta'])):
+                and not version.is_earlier_or_prerelease('4.6.0', ['-beta'])):
             # bzip2/.1.0.6 is not there, since that's a module file in Lua syntax
             self.assertEqual(len(ms), TEST_MODULES_COUNT + 2)
             self.assertIn('toy/.0.0-deps', ms)
