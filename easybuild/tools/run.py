@@ -319,7 +319,11 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     if with_hooks:
         hooks = load_hooks(build_option('hooks'))
-        hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs={'work_dir': work_dir})
+        kwargs = {
+            'interactive': bool(qa_patterns),
+            'work_dir': work_dir,
+        }
+        hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs=kwargs)
         if hook_res:
             cmd, old_cmd = hook_res, cmd
             cmd_str = to_cmd_str(cmd)
@@ -375,10 +379,21 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
             # only consider answering questions if there's new output beyond additional whitespace
             if qa_patterns:
-                for question, answer in qa_patterns:
+                for question, answers in qa_patterns:
+
                     question += r'[\s\n]*$'
                     regex = re.compile(question.encode())
                     if regex.search(stdout):
+                        # if answer is specified as a list, we take the first item as current answer,
+                        # and add it to the back of the list (so we cycle through answers)
+                        if isinstance(answers, list):
+                            answer = answers.pop(0)
+                            answers.append(answer)
+                        elif isinstance(answers, str):
+                            answer = answers
+                        else:
+                            raise EasyBuildError(f"Unknown type of answers encountered: {answers}")
+
                         answer += '\n'
                         os.write(proc.stdin.fileno(), answer.encode())
                         time_no_match = 0
@@ -437,6 +452,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     if with_hooks:
         run_hook_kwargs = {
             'exit_code': res.exit_code,
+            'interactive': bool(qa_patterns),
             'output': res.output,
             'stderr': res.stderr,
             'work_dir': res.work_dir,

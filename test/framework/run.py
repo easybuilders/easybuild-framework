@@ -996,6 +996,27 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(out, "question\nanswer1\nquestion\nanswer2\n" * 2)
         self.assertEqual(ec, 0)
 
+    def test_run_shell_cmd_qa_answers(self):
+        """Test providing list of answers for a question in run_shell_cmd."""
+
+        cmd = "echo question; read x; echo $x; " * 2
+        qa = [("question", ["answer1", "answer2"])]
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa)
+        self.assertEqual(res.output, "question\nanswer1\nquestion\nanswer2\n")
+        self.assertEqual(res.exit_code, 0)
+
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, "Unknown type of answers encountered", run_shell_cmd, cmd, qa_patterns=[('question', 1)])
+
+        # test cycling of answers
+        cmd = cmd * 2
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa)
+        self.assertEqual(res.output, "question\nanswer1\nquestion\nanswer2\n" * 2)
+        self.assertEqual(res.exit_code, 0)
+
     def test_run_cmd_simple(self):
         """Test return value for run_cmd in 'simple' mode."""
         with self.mocked_stdout_stderr():
@@ -1124,6 +1145,14 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(read_file(outfile), "This is always echoed\n")
 
         # Q&A commands
+        self.mock_stdout(True)
+        run_shell_cmd("some_qa_cmd", qa_patterns=[('question1', 'answer1')])
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        expected = """  running interactive shell command "some_qa_cmd"\n"""
+        self.assertIn(expected, stdout)
+
         self.mock_stdout(True)
         run_cmd_qa("some_qa_cmd", {'question1': 'answer1'})
         stdout = self.get_stdout()
@@ -1561,6 +1590,17 @@ class RunTest(EnhancedTestCase):
         expected_stdout = '\n'.join([
             "pre-run hook 'make' in %s" % cwd,
             "post-run hook 'echo make' (exit code: 0, output: 'make\n')",
+            '',
+        ])
+        self.assertEqual(stdout, expected_stdout)
+
+        with self.mocked_stdout_stderr():
+            run_shell_cmd("sleep 2; make", qa_patterns=[('q', 'a')])
+            stdout = self.get_stdout()
+
+        expected_stdout = '\n'.join([
+            "pre-run hook interactive 'sleep 2; make' in %s" % cwd,
+            "post-run hook interactive 'sleep 2; echo make' (exit code: 0, output: 'make\n')",
             '',
         ])
         self.assertEqual(stdout, expected_stdout)
