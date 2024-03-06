@@ -93,7 +93,7 @@ class Toy_Extension(ExtensionEasyBlock):
             cmd = f"echo 'no sources for {self.name}'"
 
         return thread_pool.submit(run_shell_cmd, cmd, asynchronous=True, env=os.environ.copy(),
-                                  fail_on_error=False, task_id=task_id)
+                                  fail_on_error=False, task_id=task_id, work_dir=os.getcwd())
 
     def postrun(self):
         """
