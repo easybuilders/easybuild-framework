@@ -42,6 +42,7 @@ API_VERSION = str(VERSION).split('.')[0]
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
+
 log = logging.getLogger("EasyBuild")
 
 # log levels: NOTSET (default), DEBUG, INFO, WARNING, ERROR, CRITICAL
