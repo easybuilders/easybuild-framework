@@ -55,7 +55,7 @@ CURRENT_VERSION = VERSION
 # allow some experimental experimental code
 EXPERIMENTAL = False
 
-DEPRECATED_DOC_URL = 'http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html'
+DEPRECATED_DOC_URL = 'https://docs.easybuild.io/deprecated-functionality/'
 
 DRY_RUN_BUILD_DIR = None
 DRY_RUN_SOFTWARE_INSTALL_DIR = None

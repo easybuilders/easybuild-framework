@@ -945,7 +945,7 @@ class ModulesTool(object):
                     "use the --allow-loaded-modules configuration option.",
                     "To specify action to take when loaded modules are detected, use %s." % opt,
                     '',
-                    "See http://easybuild.readthedocs.io/en/latest/Detecting_loaded_modules.html for more information.",
+                    "See https://docs.easybuild.io/detecting-loaded-modules/ for more information.",
                 ])
 
                 action = build_option('detect_loaded_modules')

@@ -792,7 +792,7 @@ class EasyConfig(object):
             msg = "Use of %d unknown easyconfig parameters detected %s: %s\n" % (cnt, in_fn, unknown_keys_msg)
             msg += "If these are just local variables please rename them to start with '%s', " % LOCAL_VAR_PREFIX
             msg += "or try using --fix-deprecated-easyconfigs to do this automatically.\nFor more information, see "
-            msg += "https://easybuild.readthedocs.io/en/latest/Easyconfig-files-local-variables.html ."
+            msg += "https://docs.easybuild.io/easyconfig-files-local-variables/ ."
 
             # always log a warning if local variable that don't follow recommended naming scheme are found
             self.log.warning(msg)
@@ -830,7 +830,7 @@ class EasyConfig(object):
             depr_maj_ver = int(str(VERSION).split('.')[0]) + 1
             depr_ver = '%s.0' % depr_maj_ver
 
-            more_info_depr_ec = " (see also http://easybuild.readthedocs.org/en/latest/Deprecated-easyconfigs.html)"
+            more_info_depr_ec = " (https://docs.easybuild.io/deprecated-easyconfigs)"
 
             self.log.deprecated(depr_msg, depr_ver, more_info=more_info_depr_ec, silent=build_option('silent'))
 
