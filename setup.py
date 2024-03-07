@@ -24,16 +24,14 @@
 ##
 """
 This script can be used to install easybuild-framework, e.g. using:
-  easy_install --user .
-or
-  python setup.py --prefix=$HOME/easybuild
+  python setup.py install --prefix=$HOME/easybuild
 
 @author: Kenneth Hoste (Ghent University)
 """
 import glob
 import os
-from distutils import log
-from distutils.core import setup
+import logging
+from setuptools import setup
 
 from easybuild.tools.version import VERSION
 
@@ -44,9 +42,10 @@ API_VERSION = str(VERSION).split('.')[0]
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
+log = logging.getLogger("EasyBuild")
 
-# log levels: 0 = WARN (default), 1 = INFO, 2 = DEBUG
-log.set_verbosity(1)
+# log levels: NOTSET (default), DEBUG, INFO, WARNING, ERROR, CRITICAL
+log.setLevel(logging.INFO)
 
 log.info("Installing version %s (API version %s)" % (VERSION, API_VERSION))
 
