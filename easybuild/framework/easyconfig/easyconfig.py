@@ -830,7 +830,7 @@ class EasyConfig(object):
             depr_maj_ver = int(str(VERSION).split('.')[0]) + 1
             depr_ver = '%s.0' % depr_maj_ver
 
-            more_info_depr_ec = " (https://docs.easybuild.io/deprecated-easyconfigs)"
+            more_info_depr_ec = " (see also https://docs.easybuild.io/deprecated-easyconfigs)"
 
             self.log.deprecated(depr_msg, depr_ver, more_info=more_info_depr_ec, silent=build_option('silent'))
 
