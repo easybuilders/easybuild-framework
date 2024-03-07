@@ -280,9 +280,9 @@ def to_toolchain_dict(spec):
         # 3-element list
         elif len(spec) == 3:
             hidden = spec[2].strip().lower()
-            if hidden in {'yes', 'true', 't', 'y', '1'}:
+            if hidden in {'yes', 'true', 't', 'y', '1', 'on'}:
                 hidden = True
-            elif hidden in {'no', 'false', 'f', 'n', '0'}:
+            elif hidden in {'no', 'false', 'f', 'n', '0', 'off'}:
                 hidden = False
             else:
                 raise EasyBuildError("Invalid truth value %s", hidden)
