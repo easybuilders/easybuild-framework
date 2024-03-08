@@ -323,7 +323,7 @@ class Compiler(Toolchain):
             optarch = build_option('optarch')
 
         # --optarch is specified with flags to use
-        if optarch is not None and isinstance(optarch, dict):
+        if isinstance(optarch, dict):
             # optarch has been validated as complex string with multiple compilers and converted to a dictionary
             # first try module names, then the family in optarch
             current_compiler_names = (getattr(self, 'COMPILER_MODULE_NAME', []) +
@@ -338,14 +338,12 @@ class Compiler(Toolchain):
                 self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.",
                               current_compiler)
 
-        use_generic = False
-        if optarch is not None:
-            # optarch has been parsed as a simple string
-            if isinstance(optarch, string_type):
-                if optarch == OPTARCH_GENERIC:
-                    use_generic = True
-            else:
-                raise EasyBuildError("optarch is neither an string or a dict %s. This should never happen", optarch)
+        if isinstance(optarch, string_type):
+            use_generic = (optarch == OPTARCH_GENERIC)
+        elif optarch is None:
+            use_generic = False
+        else:
+            raise EasyBuildError("optarch is neither an string or a dict %s. This should never happen", optarch)
 
         if use_generic:
             if (self.arch, self.cpu_family) in (self.COMPILER_GENERIC_OPTION or []):
@@ -360,10 +358,11 @@ class Compiler(Toolchain):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(self.arch, self.cpu_family)]
 
         if optarch is not None:
-            self.log.info("_set_optimal_architecture: using %s as optarch for %s.", optarch, self.arch)
+            optarch_log_str = optarch or 'no flags'
+            self.log.info("_set_optimal_architecture: using %s as optarch for %s/%s.",
+                          optarch_log_str, self.arch, self.cpu_family)
             self.options.options_map['optarch'] = optarch
-
-        if self.options.options_map.get('optarch', None) is None:
+        elif self.options.options_map.get('optarch', None) is None:
             optarch_flags_str = "%soptarch flags" % ('', 'generic ')[use_generic]
             error_msg = "Don't know how to set %s for %s/%s! " % (optarch_flags_str, self.arch, self.cpu_family)
             error_msg += "Use --optarch='<flags>' to override (see "
