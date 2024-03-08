@@ -578,7 +578,8 @@ class EasyBuildOptions(GeneralOption):
                                     None, 'store', None),
             'installpath-software': ("Install path for software (if None, combine --installpath and --subdir-software)",
                                      None, 'store', None),
-            'installpath-data': ("Install path for data (if None, use --installpath-software)", None, 'store', None),
+            'installpath-data': ("Install path for data (if None, combine --installpath and --subdir-data)",
+                                 None, 'store', None),
             'job-backend': ("Backend to use for submitting jobs", 'choice', 'store',
                             DEFAULT_JOB_BACKEND, sorted(avail_job_backends().keys())),
             # purposely take a copy for the default logfile format
