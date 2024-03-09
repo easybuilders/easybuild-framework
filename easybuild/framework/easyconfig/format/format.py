@@ -69,7 +69,7 @@ GROUPED_PARAMS = [
     ['preconfigopts', 'configopts'],
     ['prebuildopts', 'buildopts'],
     ['preinstallopts', 'installopts'],
-    ['parallel', 'maxparallel'],
+    ['maxparallel'],
 ]
 LAST_PARAMS = ['exts_default_options', 'exts_list',
                'sanity_check_paths', 'sanity_check_commands',
