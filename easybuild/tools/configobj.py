@@ -1254,7 +1254,7 @@ class ConfigObj(Section):
                 self.configspec = None
             return
 
-        elif getattr(infile, 'read', MISSING) is not MISSING:
+        elif hasattr(infile, 'read'):
             # This supports file like objects
             infile = infile.read() or []
             # needs splitting into lines - but needs doing *after* decoding

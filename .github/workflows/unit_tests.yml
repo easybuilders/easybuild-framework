@@ -178,7 +178,7 @@ jobs:
               echo "Not testing with '${module_syntax}' as module syntax with '${EASYBUILD_MODULES_TOOL}' as modules tool"
               continue
             fi
-            printf '\n\n=====================> Using $module_syntax module syntax <=====================\n\n'
+            printf "\n\n=====================> Using $module_syntax module syntax <=====================\n\n"
             export EASYBUILD_MODULE_SYNTAX="${module_syntax}"
             export TEST_EASYBUILD_MODULE_SYNTAX="${EASYBUILD_MODULE_SYNTAX}"
 

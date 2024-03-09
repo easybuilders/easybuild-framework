@@ -8,14 +8,17 @@ description = """Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and
 
 toolchain = SYSTEM
 
+local_compver = '2016.1.150'
+local_gccver = '4.9.3'
+local_binutilsver = '2.25'
+local_gccsuff = '-GCC-%s-%s' % (local_gccver, local_binutilsver)
 # fake intel toolchain easyconfig, no dependencies (good enough for testing)
 local_fake_dependencies = [
-    ('GCCcore', '6.4.0'),
-    ('binutils', '2.28', '-GCCcore-6.4.0'),
-    ('icc', '2018.1.163', '-GCCcore-6.4.0'),
-    ('ifort', '2018.1.163', '-GCCcore-6.4.0'),
-    ('impi', '2018.1.163', '', ('iccifort', '2018.1.163-GCCcore-6.4.0')),
-    ('imkl', '2018.1.163', '', ('iimpi', version)),
+    ('GCCcore', local_gccver),
+    ('binutils', local_binutilsver, '-GCCcore-%s' % local_gccver),
+    ('icc', local_compver, local_gccsuff),
+    ('ifort', local_compver, local_gccsuff),
+    ('impi', '5.1.2.150', '', ('iccifort', '%s%s' % (local_compver, local_gccsuff))),
 ]
 
 moduleclass = 'toolchain'

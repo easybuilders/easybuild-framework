@@ -178,7 +178,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
         ])
     test_report.extend([
         "#### Test result",
-        "%s" % msg,
+        msg,
         "",
     ])
 

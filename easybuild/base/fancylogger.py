@@ -286,7 +286,7 @@ class FancyLogger(logging.getLoggerClass()):
         overwrite make record to use a fancy record (with more options)
         """
         logrecordcls = logging.LogRecord
-        if hasattr(self, 'fancyrecord') and self.fancyrecord:
+        if getattr(self, 'fancyrecord', None):
             logrecordcls = FancyLogRecord
         try:
             new_msg = str(msg)

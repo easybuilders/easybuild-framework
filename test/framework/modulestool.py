@@ -39,7 +39,7 @@ from easybuild.base import fancylogger
 from easybuild.tools import modules, StrictVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, which, write_file
-from easybuild.tools.modules import Lmod
+from easybuild.tools.modules import EnvironmentModules, Lmod
 from test.framework.utilities import init_config
 
 
@@ -191,6 +191,38 @@ class ModulesToolTest(EnhancedTestCase):
 
             # test updating local spider cache (but don't actually update the local cache file!)
             self.assertTrue(lmod.update(), "Updated local Lmod spider cache is non-empty")
+
+    def test_environment_modules_specific(self):
+        """Environment Modules-specific test (skipped unless installed)."""
+        modulecmd_abspath = which(EnvironmentModules.COMMAND)
+        # only run this test if 'modulecmd.tcl' is installed
+        if modulecmd_abspath is not None:
+            # redefine 'module' and '_module_raw' function (deliberate mismatch with used module
+            # command in EnvironmentModules)
+            os.environ['_module_raw'] = "() {  eval `/usr/share/Modules/libexec/foo.tcl' bash $*`;\n}"
+            os.environ['module'] = "() {  _module_raw \"$@\" 2>&1;\n}"
+            error_regex = ".*pattern .* not found in defined 'module' function"
+            self.assertErrorRegex(EasyBuildError, error_regex, EnvironmentModules, testing=True)
+
+            # redefine '_module_raw' function with correct module command
+            os.environ['_module_raw'] = "() {  eval `/usr/share/Modules/libexec/modulecmd.tcl' bash $*`;\n}"
+            mt = EnvironmentModules(testing=True)
+            self.assertIsInstance(mt.loaded_modules(), list)  # dummy usage
+
+            # initialize Environment Modules tool with non-official version number
+            # pass (fake) full path to 'modulecmd.tcl' via $MODULES_CMD
+            fake_path = os.path.join(self.test_installpath, 'libexec', 'modulecmd.tcl')
+            fake_modulecmd_txt = '\n'.join([
+                'puts stderr {Modules Release 5.3.1+unload-188-g14b6b59b (2023-10-21)}',
+                "puts {os.environ['FOO'] = 'foo'}",
+            ])
+            write_file(fake_path, fake_modulecmd_txt)
+            os.chmod(fake_path, stat.S_IRUSR | stat.S_IXUSR)
+            os.environ['_module_raw'] = "() {  eval `%s' bash $*`;\n}" % fake_path
+            os.environ['MODULES_CMD'] = fake_path
+            EnvironmentModules.COMMAND = fake_path
+            mt = EnvironmentModules(testing=True)
+            self.assertTrue(os.path.samefile(mt.cmd, fake_path), "%s - %s" % (mt.cmd, fake_path))
 
     def tearDown(self):
         """Testcase cleanup."""

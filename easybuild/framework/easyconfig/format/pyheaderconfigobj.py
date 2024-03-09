@@ -233,12 +233,13 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             current_builtins = globals()['__builtins__']
             builtins = {}
             for name in self.PYHEADER_ALLOWED_BUILTINS:
-                if hasattr(current_builtins, name):
+                try:
                     builtins[name] = getattr(current_builtins, name)
-                elif isinstance(current_builtins, dict) and name in current_builtins:
-                    builtins[name] = current_builtins[name]
-                else:
-                    self.log.warning('No builtin %s found.' % name)
+                except AttributeError:
+                    if isinstance(current_builtins, dict) and name in current_builtins:
+                        builtins[name] = current_builtins[name]
+                    else:
+                        self.log.warning('No builtin %s found.' % name)
             global_vars['__builtins__'] = builtins
             self.log.debug("Available builtins: %s" % global_vars['__builtins__'])
 

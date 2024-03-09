@@ -66,4 +66,4 @@ class TestModuleNamingScheme(ModuleNamingScheme):
         """
         Determine whether the specified (short) module name is a module for software with the specified name.
         """
-        return modname.find('%s' % name) != -1
+        return modname.find(name) != -1

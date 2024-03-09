@@ -70,6 +70,7 @@ class FlexiBLAS(LinAlg):
     """
     BLAS_MODULE_NAME = ['FlexiBLAS']
     BLAS_LIB = ['flexiblas']
+    BLAS_LIB_MT = ['flexiblas']
     BLAS_INCLUDE_DIR = [os.path.join('include', 'flexiblas')]
     BLAS_FAMILY = TC_CONSTANT_FLEXIBLAS
 

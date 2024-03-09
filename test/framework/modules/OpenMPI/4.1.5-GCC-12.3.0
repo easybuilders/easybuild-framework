@@ -1,0 +1,70 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+The Open MPI Project is an open source MPI-3 implementation.
+
+
+More information
+================
+ - Homepage: https://www.open-mpi.org/
+    }
+}
+
+module-whatis {Description: The Open MPI Project is an open source MPI-3 implementation.}
+module-whatis {Homepage: https://www.open-mpi.org/}
+module-whatis {URL: https://www.open-mpi.org/}
+
+set root /scratch/brussel/vo/000/bvo00005/vsc10009/ebtest/tclmodules/software/OpenMPI/4.1.5-GCC-12.3.0
+
+conflict OpenMPI
+
+if { ![ is-loaded GCC/12.3.0 ] } {
+    module load GCC/12.3.0
+}
+
+if { ![ is-loaded zlib/1.2.13-GCCcore-12.3.0 ] } {
+    module load zlib/1.2.13-GCCcore-12.3.0
+}
+
+if { ![ is-loaded hwloc/2.9.1-GCCcore-12.3.0 ] } {
+    module load hwloc/2.9.1-GCCcore-12.3.0
+}
+
+if { ![ is-loaded libevent/2.1.12-GCCcore-12.3.0 ] } {
+    module load libevent/2.1.12-GCCcore-12.3.0
+}
+
+if { ![ is-loaded UCX/1.14.1-GCCcore-12.3.0 ] } {
+    module load UCX/1.14.1-GCCcore-12.3.0
+}
+
+if { ![ is-loaded libfabric/1.18.0-GCCcore-12.3.0 ] } {
+    module load libfabric/1.18.0-GCCcore-12.3.0
+}
+
+if { ![ is-loaded PMIx/4.2.4-GCCcore-12.3.0 ] } {
+    module load PMIx/4.2.4-GCCcore-12.3.0
+}
+
+if { ![ is-loaded UCC/1.2.0-GCCcore-12.3.0 ] } {
+    module load UCC/1.2.0-GCCcore-12.3.0
+}
+
+prepend-path	CMAKE_PREFIX_PATH		$root
+prepend-path	CPATH		$root/include
+prepend-path	LD_LIBRARY_PATH		$root/lib
+prepend-path	LIBRARY_PATH		$root/lib
+prepend-path	MANPATH		$root/share/man
+prepend-path	PATH		$root/bin
+prepend-path	PKG_CONFIG_PATH		$root/lib/pkgconfig
+prepend-path	XDG_DATA_DIRS		$root/share
+
+setenv	EBROOTOPENMPI		"$root"
+setenv	EBVERSIONOPENMPI		"4.1.5"
+setenv	EBDEVELOPENMPI		"$root/easybuild/OpenMPI-4.1.5-GCC-12.3.0-easybuild-devel"
+
+setenv	SLURM_MPI_TYPE		"pmix"
+# Built with EasyBuild version 4.9.0.dev0-rea8433dcf5e6edea3e72ad9bd9e23023ecc6b228

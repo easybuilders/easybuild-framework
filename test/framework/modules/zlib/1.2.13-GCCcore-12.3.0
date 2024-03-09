@@ -1,0 +1,44 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+zlib is designed to be a free, general-purpose, legally unencumbered -- that is,
+ not covered by any patents -- lossless data-compression library for use on virtually any
+ computer hardware and operating system.
+
+
+More information
+================
+ - Homepage: https://www.zlib.net/
+    }
+}
+
+module-whatis {Description: zlib is designed to be a free, general-purpose, legally unencumbered -- that is,
+ not covered by any patents -- lossless data-compression library for use on virtually any
+ computer hardware and operating system.}
+module-whatis {Homepage: https://www.zlib.net/}
+module-whatis {URL: https://www.zlib.net/}
+
+set root /prefix/software/zlib/1.2.13-GCCcore-12.3.0
+
+conflict zlib
+
+if { ![ is-loaded GCCcore/12.3.0 ] } {
+    module load GCCcore/12.3.0
+}
+
+prepend-path	CMAKE_PREFIX_PATH		$root
+prepend-path	CPATH		$root/include
+prepend-path	LD_LIBRARY_PATH		$root/lib
+prepend-path	LIBRARY_PATH		$root/lib
+prepend-path	MANPATH		$root/share/man
+prepend-path	PKG_CONFIG_PATH		$root/lib/pkgconfig
+prepend-path	XDG_DATA_DIRS		$root/share
+
+setenv	EBROOTZLIB		"$root"
+setenv	EBVERSIONZLIB		"1.2.13"
+setenv	EBDEVELZLIB		"$root/easybuild/zlib-1.2.13-GCCcore-12.3.0-easybuild-devel"
+
+# Built with EasyBuild version 4.9.0.dev0-rea8433dcf5e6edea3e72ad9bd9e23023ecc6b228

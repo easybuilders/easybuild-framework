@@ -161,7 +161,7 @@ EXTRACT_CMDS = {
     # tar.Z: using compress (LZW), but can be handled with gzip so use 'z'
     '.tar.z': "tar xzf %(filepath)s",
     # shell scripts don't need to be unpacked, just copy there
-    '.sh': "cp -a %(filepath)s .",
+    '.sh': "cp -dR %(filepath)s .",
 }
 
 ZIPPED_PATCH_EXTS = ('.bz2', '.gz', '.xz')
@@ -2668,7 +2668,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     clone_cmd.append('%s/%s.git' % (url, repo_name))
 
     if clone_into:
-        clone_cmd.append('%s' % clone_into)
+        clone_cmd.append(clone_into)
 
     tmpdir = tempfile.mkdtemp()
     cwd = change_dir(tmpdir)

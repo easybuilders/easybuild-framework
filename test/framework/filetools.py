@@ -104,7 +104,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.txz', "unset TAPE; unxz test.txz --stdout | tar x"),
             ('test.iso', "7z x test.iso"),
             ('test.tar.Z', "tar xzf test.tar.Z"),
-            ('test.foo.bar.sh', "cp -a test.foo.bar.sh ."),
+            ('test.foo.bar.sh', "cp -dR test.foo.bar.sh ."),
             # check whether extension is stripped correct to determine name of target file
             # cfr. https://github.com/easybuilders/easybuild-framework/pull/3705
             ('testbz2.bz2', "bunzip2 -c testbz2.bz2 > testbz2"),
@@ -2401,7 +2401,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 91)
+            self.assertEqual(len(index), 92)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
