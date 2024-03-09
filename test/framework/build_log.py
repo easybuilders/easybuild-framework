@@ -116,7 +116,7 @@ class BuildLogTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stderr(False)
 
-        more_info = "see http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html for more information"
+        more_info = "see https://docs.easybuild.io/deprecated-functionality/ for more information"
         expected_stderr = '\n\n'.join([
             "\nWARNING: Deprecated functionality, will no longer work in v10000001: anotherwarning; " + more_info,
             "\nWARNING: Deprecated functionality, will no longer work in v2.0: onemorewarning",

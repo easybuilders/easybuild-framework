@@ -2178,7 +2178,7 @@ def check_github():
         msg = '\n'.join([
             '',
             "One or more checks FAILed, GitHub configuration not fully complete!",
-            "See http://easybuild.readthedocs.org/en/latest/Integration_with_GitHub.html#configuration for help.",
+            "See https://docs.easybuild.io/integration-with-github/#github_configuration for help.",
             '',
         ])
     print_msg(msg, log=_log, prefix=False)
