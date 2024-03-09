@@ -79,7 +79,7 @@ from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
-from easybuild.tools.docs import FORMAT_MD, FORMAT_RST, FORMAT_TXT
+from easybuild.tools.docs import FORMAT_JSON, FORMAT_MD, FORMAT_RST, FORMAT_TXT
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
@@ -357,7 +357,8 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'allow-use-as-root-and-accept-consequences': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)",
                                                           None, 'store_true', False),
-            'backup-modules': ("Back up an existing module file, if any. Only works when using --module-only",
+            'backup-modules': ("Back up an existing module file, if any. "
+                               "Auto-enabled when using --module-only or --skip",
                                None, 'store_true', None),  # default None to allow auto-enabling if not disabled
             'backup-patched-files': ("Create a backup (*.orig) file when applying a patch",
                                      None, 'store_true', False),
@@ -472,7 +473,8 @@ class EasyBuildOptions(GeneralOption):
             'mpi-tests': ("Run MPI tests (when relevant)", None, 'store_true', True),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
-            'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_MD, FORMAT_RST, FORMAT_TXT]),
+            'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT,
+                              [FORMAT_JSON, FORMAT_MD, FORMAT_RST, FORMAT_TXT]),
             'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
                              "with fallback to basic colored output",
                              'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),

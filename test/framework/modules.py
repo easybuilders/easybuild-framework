@@ -218,6 +218,12 @@ class ModulesTest(EnhancedTestCase):
             self.assertIn('bzip2/.1.0.6', ms)
             self.assertIn('toy/.0.0-deps', ms)
             self.assertIn('OpenMPI/.2.1.2-GCC-6.4.0-2.28', ms)
+        elif (isinstance(self.modtool, EnvironmentModules)
+                and StrictVersion(self.modtool.version) >= StrictVersion('4.6.0')):
+            # bzip2/.1.0.6 is not there, since that's a module file in Lua syntax
+            self.assertEqual(len(ms), TEST_MODULES_COUNT + 2)
+            self.assertIn('toy/.0.0-deps', ms)
+            self.assertIn('OpenMPI/.2.1.2-GCC-6.4.0-2.28', ms)
         else:
             self.assertEqual(len(ms), TEST_MODULES_COUNT)
 
@@ -437,9 +443,8 @@ class ModulesTest(EnhancedTestCase):
         # if GCC is loaded again, $EBROOTGCC should be set again, and GCC should be listed last
         self.modtool.load(['GCC/6.4.0-2.28'])
 
-        # environment modules v4.0 does not reload already loaded modules, will be changed in v4.2
-        modtool_ver = StrictVersion(self.modtool.version)
-        if not isinstance(self.modtool, EnvironmentModules) or modtool_ver >= StrictVersion('4.2'):
+        # environment modules v4+ does not reload already loaded modules
+        if not isinstance(self.modtool, EnvironmentModules):
             self.assertTrue(os.environ.get('EBROOTGCC'))
 
         if isinstance(self.modtool, Lmod):

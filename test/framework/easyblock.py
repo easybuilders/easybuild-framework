@@ -645,6 +645,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # also check how absolute paths specified in modexself.contents = '\n'.join([
         self.contents += "\nmodextrapaths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
+        self.contents += "\nmodextrapaths_append = {'TEST_PATH_VAR_APPEND': ['foo', '/test/absolute/path', 'bar']}"
         self.writeEC()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
@@ -657,6 +658,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # allow use of absolute paths, and verify contents of module
         self.contents += "\nallow_prepend_abs_path = True"
+        self.contents += "\nallow_append_abs_path = True"
         self.writeEC()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
@@ -675,6 +677,9 @@ class EasyBlockTest(EnhancedTestCase):
             r"^prepend[-_]path.*TEST_PATH_VAR.*root.*foo",
             r"^prepend[-_]path.*TEST_PATH_VAR.*/test/absolute/path",
             r"^prepend[-_]path.*TEST_PATH_VAR.*root.*bar",
+            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*root.*foo",
+            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*/test/absolute/path",
+            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*root.*bar",
         ]
         for pattern in patterns:
             self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
@@ -1173,6 +1178,7 @@ class EasyBlockTest(EnhancedTestCase):
             'PATH': ('xbin', 'pibin'),
             'CPATH': 'pi/include',
         }
+        modextrapaths_append = {'APPEND_PATH': 'append_path'}
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
@@ -1186,6 +1192,7 @@ class EasyBlockTest(EnhancedTestCase):
             "hiddendependencies = [('test', '1.2.3'), ('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             "modextravars = %s" % str(modextravars),
             "modextrapaths = %s" % str(modextrapaths),
+            "modextrapaths_append = %s" % str(modextrapaths_append),
         ])
 
         # test if module is generated correctly
@@ -1255,6 +1262,18 @@ class EasyBlockTest(EnhancedTestCase):
                 # Check for duplicates
                 num_prepends = len(regex.findall(txt))
                 self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
+
+        for (key, vals) in modextrapaths_append.items():
+            if isinstance(vals, string_type):
+                vals = [vals]
+            for val in vals:
+                if get_module_syntax() == 'Tcl':
+                    regex = re.compile(r'^append-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+                elif get_module_syntax() == 'Lua':
+                    regex = re.compile(r'^append_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
+                else:
+                    self.fail("Unknown module syntax: %s" % get_module_syntax())
+                self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('GCC', '6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':

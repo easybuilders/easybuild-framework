@@ -212,9 +212,9 @@ class LinAlg(Toolchain):
         """Set BLACS related variables"""
 
         lib_map = {}
-        if hasattr(self, 'BLAS_LIB_MAP') and self.BLAS_LIB_MAP is not None:
+        if getattr(self, 'BLAS_LIB_MAP', None) is not None:
             lib_map.update(self.BLAS_LIB_MAP)
-        if hasattr(self, 'BLACS_LIB_MAP') and self.BLACS_LIB_MAP is not None:
+        if getattr(self, 'BLACS_LIB_MAP', None) is not None:
             lib_map.update(self.BLACS_LIB_MAP)
 
         # BLACS
@@ -254,11 +254,11 @@ class LinAlg(Toolchain):
             raise EasyBuildError("_set_blas_variables: SCALAPACK_LIB not set")
 
         lib_map = {}
-        if hasattr(self, 'BLAS_LIB_MAP') and self.BLAS_LIB_MAP is not None:
+        if getattr(self, 'BLAS_LIB_MAP', None) is not None:
             lib_map.update(self.BLAS_LIB_MAP)
-        if hasattr(self, 'BLACS_LIB_MAP') and self.BLACS_LIB_MAP is not None:
+        if getattr(self, 'BLACS_LIB_MAP', None) is not None:
             lib_map.update(self.BLACS_LIB_MAP)
-        if hasattr(self, 'SCALAPACK_LIB_MAP') and self.SCALAPACK_LIB_MAP is not None:
+        if getattr(self, 'SCALAPACK_LIB_MAP', None) is not None:
             lib_map.update(self.SCALAPACK_LIB_MAP)
 
         self.SCALAPACK_LIB = self.variables.nappend('LIBSCALAPACK_ONLY', [x % lib_map for x in self.SCALAPACK_LIB])

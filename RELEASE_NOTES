@@ -4,6 +4,34 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.9.0 (30 December 2023)
+-------------------------
+
+feature release
+
+- various enhancements, including:
+  - allow tweaking of easyconfigs from different toolchains (#3669)
+  - add support for `--list-software --output-format=json` (#4152)
+  - add `--module-cache-suffix` configuration setting to allow multiple (Lmod) caches (#4403)
+- various bug fixes, including:
+  - deduplicate warnings & errors found in logs and add initial newline + tab in output (#4361)
+  - fix support for Environment Modules as modules tool to pass unit tests with v4.2+ (#4369)
+  - adapt module function check for Environment Modules v4+ (#4371)
+  - only install GitHub token when testing with Lmod 8.x + Python 3.6 or 3.9 (#4375)
+  - use `-qopenmp` instead of `-fiopenmp` for OpenMP in Intel compilers (#4377)
+  - fix `LIBBLAS_MT` for FlexiBLAS, ensure `-lpthread` is included (#4379)
+  - relax major version match regex in `find_related_easyconfigs` using for `--review-pr` (#4385)
+  - eliminate duplicate multideps from generated module files (#4386)
+  - resolve templated values in extension names in `_make_extension_list` (#4392)
+  - use source toolchain version when passing only `--try-toolchain` (#4395)
+  - fix writing spider cache for Lmod >= 8.7.12 (#4402)
+  - fix `--inject-checksums` when extension specifies patch file in tuple format (#4405)
+  - fix `LooseVersion` when running with Python 2.7 (#4408)
+  - use more recent easyblocks PR in `test_github_merge_pr` (#4414)
+- other changes:
+  - extend test that checks build environment to recent `foss/2023a` toolchain (#4391)
+
+
 v4.8.2 (29 October 2023)
 ------------------------
 

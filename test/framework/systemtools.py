@@ -366,17 +366,14 @@ class SystemToolsTest(EnhancedTestCase):
         self.orig_is_readable = st.is_readable
         self.orig_read_file = st.read_file
         self.orig_run_cmd = st.run_cmd
-        self.orig_platform_dist = st.platform.dist if hasattr(st.platform, 'dist') else None
+        self.orig_platform_dist = getattr(st.platform, 'dist', None)
         self.orig_platform_uname = st.platform.uname
         self.orig_get_tool_version = st.get_tool_version
         self.orig_sys_version_info = st.sys.version_info
         self.orig_HAVE_ARCHSPEC = st.HAVE_ARCHSPEC
         self.orig_HAVE_DISTRO = st.HAVE_DISTRO
         self.orig_ETC_OS_RELEASE = st.ETC_OS_RELEASE
-        if hasattr(st, 'archspec_cpu_host'):
-            self.orig_archspec_cpu_host = st.archspec_cpu_host
-        else:
-            self.orig_archspec_cpu_host = None
+        self.orig_archspec_cpu_host = getattr(st, 'archspec_cpu_host', None)
 
     def tearDown(self):
         """Cleanup after systemtools test."""

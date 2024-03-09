@@ -104,7 +104,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.txz', "unset TAPE; unxz test.txz --stdout | tar x"),
             ('test.iso', "7z x test.iso"),
             ('test.tar.Z', "tar xzf test.tar.Z"),
-            ('test.foo.bar.sh', "cp -a test.foo.bar.sh ."),
+            ('test.foo.bar.sh', "cp -dR test.foo.bar.sh ."),
             # check whether extension is stripped correct to determine name of target file
             # cfr. https://github.com/easybuilders/easybuild-framework/pull/3705
             ('testbz2.bz2', "bunzip2 -c testbz2.bz2 > testbz2"),
