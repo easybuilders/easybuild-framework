@@ -324,7 +324,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
                     newval = "%s + %s" % (fval, res.group('val'))
                     _log.debug("Prepending %s to %s" % (fval, key))
                 else:
-                    newval = "%s" % fval
+                    newval = str(fval)
                     _log.debug("Overwriting %s with %s" % (key, fval))
                 ectxt = regexp.sub("%s = %s" % (res.group('key'), newval), ectxt)
                 _log.info("Tweaked %s list to '%s'" % (key, newval))

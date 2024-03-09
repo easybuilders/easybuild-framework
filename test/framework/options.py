@@ -2190,7 +2190,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(regex.search(outtxt), "OS dependencies are checked, outtxt: %s" % outtxt)
         msg = "One or more OS dependencies were not found: "
         msg += r"\[\('nosuchosdependency',\), \('nosuchdep_option1', 'nosuchdep_option2'\)\]"
-        regex = re.compile(r'%s' % msg, re.M)
+        regex = re.compile(msg, re.M)
         self.assertTrue(regex.search(outtxt), "OS dependencies are honored, outtxt: %s" % outtxt)
 
         # check whether OS dependencies are effectively ignored
@@ -3914,6 +3914,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.assertNotIn("2016.04", txt)
 
+    def test_set_multiple_pr_opts(self):
+        """Test that passing multiple PR options results in an error"""
+        test_cases = [
+            ['--new-pr', 'dummy.eb', '--preview-pr'],
+            ['--new-pr', 'dummy.eb', '--update-pr', '42'],
+            ['--new-pr', 'dummy.eb', '--sync-pr-with-develop', '42'],
+            ['--new-pr', 'dummy.eb', '--new-pr-from-branch', 'mybranch'],
+        ]
+        for args in test_cases:
+            error_pattern = "The following options are set but incompatible.* " + args[0]
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
+
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
         self.purge_environment()
@@ -4793,26 +4805,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(stderr.strip(), expected_stderr)
         self.assertTrue(stdout.strip().endswith(expected_stdout), "'%s' ends with '%s'" % (stdout, expected_stdout))
 
-        # full eligible merged PR, default target branch
+        # full eligible merged PR, default target branch;
+        # note: we frequently need to change to a more recent PR here,
+        #       to avoid that this test starts failing because commit status is set to None for old commits
         del args[-1]
-        args[1] = '17065'
+        # easyconfig PR for EasyBuild v4.8.2
+        args[1] = '19105'
 
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         expected_stdout = '\n'.join([
-            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #17065 for merging...",
+            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #19105 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* last test report is successful: OK",
             "* no pending change requests: OK",
             "* approved review: OK (by SebastianAchilles)",
-            "* milestone is set: OK (4.7.1)",
+            "* milestone is set: OK (4.9.0)",
             "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
             '',
-            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #17065: 'Going in, thanks @boegel!'",
-            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #17065",
+            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #19105: 'Going in, thanks @boegel!'",
+            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #19105",
         ])
         expected_stderr = ''
         self.assertEqual(stderr.strip(), expected_stderr)
@@ -4821,7 +4836,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # --merge-pr also works on easyblocks (& framework) PRs
         args = [
             '--merge-pr',
-            '2805',
+            '2995',
             '--pr-target-repo=easybuild-easyblocks',
             '-D',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -4829,12 +4844,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
         self.assertEqual(stderr.strip(), '')
         expected_stdout = '\n'.join([
-            "Checking eligibility of easybuilders/easybuild-easyblocks PR #2805 for merging...",
+            "Checking eligibility of easybuilders/easybuild-easyblocks PR #2995 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* no pending change requests: OK",
-            "* approved review: OK (by ocaisa)",
-            "* milestone is set: OK (4.6.2)",
+            "* approved review: OK (by boegel)",
+            "* milestone is set: OK (4.8.1)",
             "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",

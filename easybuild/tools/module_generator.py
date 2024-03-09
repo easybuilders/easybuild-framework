@@ -1289,7 +1289,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             extensions_list = self._generate_extensions_list()
 
             if extensions_list:
-                extensions_stmt = 'extensions("%s")' % ','.join(['%s' % x for x in extensions_list])
+                extensions_stmt = 'extensions("%s")' % ','.join([str(x) for x in extensions_list])
                 # put this behind a Lmod version check as 'extensions' is only (well) supported since Lmod 8.2.8,
                 # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions and
                 # https://github.com/TACC/Lmod/issues/428

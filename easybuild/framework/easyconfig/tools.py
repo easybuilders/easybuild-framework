@@ -472,7 +472,7 @@ def find_related_easyconfigs(path, ec):
     if len(parsed_version) >= 2:
         version_patterns.append(r'%s\.%s\.\w+' % tuple(parsed_version[:2]))  # major/minor version match
     if parsed_version != parsed_version[0]:
-        version_patterns.append(r'%s\.[\d-]+\.\w+' % parsed_version[0])  # major version match
+        version_patterns.append(r'%s\.[\d-]+(\.\w+)*' % parsed_version[0])  # major version match
     version_patterns.append(r'[\w.]+')  # any version
 
     regexes = []
@@ -701,7 +701,9 @@ def check_sha256_checksums(ecs, whitelist=None):
             continue
 
         eb_class = get_easyblock_class(ec['easyblock'], name=ec['name'])
-        checksum_issues.extend(eb_class(ec).check_checksums())
+        eb = eb_class(ec)
+        checksum_issues.extend(eb.check_checksums())
+        eb.close_log()
 
     return checksum_issues
 

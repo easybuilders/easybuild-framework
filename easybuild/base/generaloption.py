@@ -90,7 +90,7 @@ def set_columns(cols=None):
                 pass
 
     if cols is not None:
-        os.environ['COLUMNS'] = "%s" % cols
+        os.environ['COLUMNS'] = str(cols)
 
 
 def what_str_list_tuple(name):
@@ -822,8 +822,8 @@ class ExtOptionParser(OptionParser):
                         self.environment_arguments.append("%s=%s" % (lo, val))
                     else:
                         # interpretation of values: 0/no/false means: don't set it
-                        if ("%s" % val).lower() not in ("0", "no", "false",):
-                            self.environment_arguments.append("%s" % lo)
+                        if str(val).lower() not in ("0", "no", "false",):
+                            self.environment_arguments.append(str(lo))
                 else:
                     self.log.debug("Environment variable %s is not set" % env_opt_name)
 
@@ -1031,7 +1031,7 @@ class GeneralOption(object):
         # make_init is deprecated
         if hasattr(self, 'make_init'):
             self.log.debug('main_options: make_init is deprecated. Rename function to main_options.')
-            getattr(self, 'make_init')()
+            self.make_init()
         else:
             # function names which end with _options and do not start with main or _
             reg_main_options = re.compile("^(?!_|main).*_options$")
@@ -1189,7 +1189,7 @@ class GeneralOption(object):
                 for extra_detail in details[4:]:
                     if isinstance(extra_detail, (list, tuple,)):
                         # choices
-                        nameds['choices'] = ["%s" % x for x in extra_detail]  # force to strings
+                        nameds['choices'] = [str(x) for x in extra_detail]  # force to strings
                         hlp += ' (choices: %s)' % ', '.join(nameds['choices'])
                     elif isinstance(extra_detail, string_type) and len(extra_detail) == 1:
                         args.insert(0, "-%s" % extra_detail)
