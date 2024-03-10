@@ -272,11 +272,7 @@ class ModulesTool(object):
                 if StrictVersion(self.version) < StrictVersion(self.DEPR_VERSION):
                     depr_msg = "Support for %s version < %s is deprecated, " % (self.NAME, self.DEPR_VERSION)
                     depr_msg += "found version %s" % self.version
-
-                    if self.version.startswith('6') and 'Lmod6' in build_option('silence_deprecation_warnings'):
-                        self.log.warning(depr_msg)
-                    else:
-                        self.log.deprecated(depr_msg, '5.0')
+                    self.log.deprecated(depr_msg, '6.0')
 
             if self.MAX_VERSION is not None:
                 self.log.debug("Maximum allowed %s version defined: %s", self.NAME, self.MAX_VERSION)
@@ -949,7 +945,7 @@ class ModulesTool(object):
                     "use the --allow-loaded-modules configuration option.",
                     "To specify action to take when loaded modules are detected, use %s." % opt,
                     '',
-                    "See http://easybuild.readthedocs.io/en/latest/Detecting_loaded_modules.html for more information.",
+                    "See https://docs.easybuild.io/detecting-loaded-modules/ for more information.",
                 ])
 
                 action = build_option('detect_loaded_modules')
@@ -1185,6 +1181,7 @@ class EnvironmentModulesC(ModulesTool):
     COMMAND = "modulecmd"
     REQ_VERSION = '3.2.10'
     MAX_VERSION = '3.99'
+    DEPR_VERSION = '3.999'
     VERSION_REGEXP = r'^\s*(VERSION\s*=\s*)?(?P<version>\d\S*)\s*'
 
     def run_module(self, *args, **kwargs):
@@ -1246,6 +1243,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
     COMMAND_SHELL = ['tclsh']
     VERSION_OPTION = ''
     REQ_VERSION = None
+    DEPR_VERSION = '9999.9'
     VERSION_REGEXP = r'^Modules\s+Release\s+Tcl\s+(?P<version>\d\S*)\s'
 
     def set_path_env_var(self, key, paths):
@@ -1320,6 +1318,7 @@ class EnvironmentModules(EnvironmentModulesTcl):
     COMMAND = os.path.join(os.getenv('MODULESHOME', 'MODULESHOME_NOT_DEFINED'), 'libexec', 'modulecmd.tcl')
     COMMAND_ENVIRONMENT = 'MODULES_CMD'
     REQ_VERSION = '4.0.0'
+    DEPR_VERSION = '4.0.0'  # needs to be set as EnvironmentModules inherits from EnvironmentModulesTcl
     MAX_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d[^+\s]*)(\+\S*)?\s'
 

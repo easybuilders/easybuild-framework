@@ -103,8 +103,8 @@ from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
-from easybuild.tools.systemtools import UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
-from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_system_info
+from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
+from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -130,6 +130,8 @@ DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 DEFAULT_LIST_PR_STATE = GITHUB_PR_STATE_OPEN
 DEFAULT_LIST_PR_ORDER = GITHUB_PR_ORDER_CREATED
 DEFAULT_LIST_PR_DIREC = GITHUB_PR_DIRECTION_DESC
+
+RPATH_DEFAULT = False if get_os_type() == DARWIN else True
 
 _log = fancylogger.getLogger('options', fname=False)
 
@@ -351,7 +353,8 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'allow-use-as-root-and-accept-consequences': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)",
                                                           None, 'store_true', False),
-            'backup-modules': ("Back up an existing module file, if any. Only works when using --module-only",
+            'backup-modules': ("Back up an existing module file, if any. "
+                               "Auto-enabled when using --module-only or --skip",
                                None, 'store_true', None),  # default None to allow auto-enabling if not disabled
             'backup-patched-files': ("Create a backup (*.orig) file when applying a patch",
                                      None, 'store_true', False),
@@ -489,7 +492,7 @@ class EasyBuildOptions(GeneralOption):
             'required-linked-shared-libs': ("Comma-separated list of shared libraries (names, file names, or paths) "
                                             "which must be linked in all installed binaries/libraries",
                                             'strlist', 'extend', None),
-            'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', False),
+            'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', RPATH_DEFAULT),
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
             'rpath-override-dirs': ("Path(s) to be prepended when linking with RPATH (string, colon-separated)",
                                     None, 'store', None),

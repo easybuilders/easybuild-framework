@@ -1733,7 +1733,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, error_regex, foo, key)
 
     def test_deprecated_easyconfig_parameters(self):
-        """Test handling of replaced easyconfig parameters."""
+        """Test handling of deprecated easyconfig parameters."""
         os.environ.pop('EASYBUILD_DEPRECATED')
         easybuild.tools.build_log.CURRENT_VERSION = self.orig_current_version
         init_config()
@@ -1744,10 +1744,13 @@ class EasyConfigTest(EnhancedTestCase):
         orig_deprecated_parameters = copy.deepcopy(easyconfig.parser.DEPRECATED_PARAMETERS)
         easyconfig.parser.DEPRECATED_PARAMETERS.update({
             'foobar': ('barfoo', '0.0'),  # deprecated since forever
-            'foobarbarfoo': ('barfoofoobar', '1000000000'),  # won't be actually deprecated for a while
+            # won't be actually deprecated for a while;
+            # note that we should map foobarbarfoo to a valid easyconfig parameter here,
+            # or we'll hit errors when parsing an easyconfig file that uses it
+            'foobarbarfoo': ('required_linked_shared_libs', '1000000000'),
         })
 
-        # copy classes before reloading, so we can restore them (other isinstance checks fail)
+        # copy classes before reloading, so we can restore them (otherwise isinstance checks fail)
         orig_EasyConfig = copy.deepcopy(easyconfig.easyconfig.EasyConfig)
         orig_ActiveMNS = copy.deepcopy(easyconfig.easyconfig.ActiveMNS)
         reload(easyconfig.parser)
@@ -1771,6 +1774,35 @@ class EasyConfigTest(EnhancedTestCase):
                 ec[newkey] = '123test'
                 self.assertEqual(ec[newkey], '123test')
                 self.assertEqual(ec[key], '123test')
+
+        variables = {
+            'name': 'example',
+            'version': '1.2.3',
+            'foobar': 'foobar',
+            'local_var': 'test',
+        }
+        ec = {
+            'name': None,
+            'version': None,
+            'homepage': None,
+            'toolchain': None,
+        }
+        ec_params, unknown_keys = triage_easyconfig_params(variables, ec)
+        # deprecated easyconfig parameter 'foobar' is retained as easyconfig parameter;
+        # only local_var is not retained, since that's a local variable
+        self.assertEqual(unknown_keys, [])
+        expected = {'name': 'example', 'version': '1.2.3', 'foobar': 'foobar'}
+        self.assertEqual(ec_params, expected)
+
+        # try parsing an easyconfig file that defines a deprecated easyconfig parameter
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, read_file(toy_ec))
+        write_file(test_ec, "\nfoobarbarfoo = 'foobarbarfoo'", append=True)
+
+        with self.mocked_stdout_stderr():
+            ec = EasyConfig(test_ec)
+        self.assertEqual(ec['required_linked_shared_libs'], 'foobarbarfoo')
 
         easyconfig.parser.DEPRECATED_PARAMETERS = orig_deprecated_parameters
         reload(easyconfig.parser)
@@ -4288,14 +4320,18 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(sorted(unknown_keys), ['bleh', 'foobar'])
 
         # check behaviour when easyconfig parameters that use a name indicating a local variable were defined
-        ec.update({
+        local_vars = {
             'x': None,
             'local_foo': None,
             '_foo': None,
             '_': None,
-        })
+        }
+        ec.update(local_vars)
         error = "Found 4 easyconfig parameters that are considered local variables: _, _foo, local_foo, x"
         self.assertErrorRegex(EasyBuildError, error, triage_easyconfig_params, variables, ec)
+
+        for key in local_vars:
+            del ec[key]
 
     def test_local_vars_detection(self):
         """Test detection of using unknown easyconfig parameters that are likely local variables."""
@@ -4438,31 +4474,39 @@ class EasyConfigTest(EnhancedTestCase):
             description = 'test'
             toolchain = SYSTEM
             cuda_compute_capabilities = ['5.1', '7.0', '7.1']
-            installopts = '%(cuda_compute_capabilities)s'
-            preinstallopts = '%(cuda_cc_space_sep)s'
-            prebuildopts = '%(cuda_cc_semicolon_sep)s'
-            configopts = 'comma="%(cuda_sm_comma_sep)s" space="%(cuda_sm_space_sep)s"'
             preconfigopts = 'CUDAARCHS="%(cuda_cc_cmake)s"'
+            configopts = 'comma="%(cuda_sm_comma_sep)s" space="%(cuda_sm_space_sep)s"'
+            prebuildopts = '%(cuda_cc_semicolon_sep)s'
+            buildopts = ('comma="%(cuda_int_comma_sep)s" space="%(cuda_int_space_sep)s" '
+                         'semi="%(cuda_int_semicolon_sep)s"')
+            preinstallopts = '%(cuda_cc_space_sep)s'
+            installopts = '%(cuda_compute_capabilities)s'
         """)
         self.prep()
 
         ec = EasyConfig(self.eb_file)
-        self.assertEqual(ec['installopts'], '5.1,7.0,7.1')
-        self.assertEqual(ec['preinstallopts'], '5.1 7.0 7.1')
-        self.assertEqual(ec['prebuildopts'], '5.1;7.0;7.1')
+        self.assertEqual(ec['preconfigopts'], 'CUDAARCHS="51;70;71"')
         self.assertEqual(ec['configopts'], 'comma="sm_51,sm_70,sm_71" '
                                            'space="sm_51 sm_70 sm_71"')
-        self.assertEqual(ec['preconfigopts'], 'CUDAARCHS="51;70;71"')
+        self.assertEqual(ec['prebuildopts'], '5.1;7.0;7.1')
+        self.assertEqual(ec['buildopts'], 'comma="51,70,71" '
+                                          'space="51 70 71" '
+                                          'semi="51;70;71"')
+        self.assertEqual(ec['preinstallopts'], '5.1 7.0 7.1')
+        self.assertEqual(ec['installopts'], '5.1,7.0,7.1')
 
         # build options overwrite it
         init_config(build_options={'cuda_compute_capabilities': ['4.2', '6.3']})
         ec = EasyConfig(self.eb_file)
-        self.assertEqual(ec['installopts'], '4.2,6.3')
-        self.assertEqual(ec['preinstallopts'], '4.2 6.3')
-        self.assertEqual(ec['prebuildopts'], '4.2;6.3')
+        self.assertEqual(ec['preconfigopts'], 'CUDAARCHS="42;63"')
         self.assertEqual(ec['configopts'], 'comma="sm_42,sm_63" '
                                            'space="sm_42 sm_63"')
-        self.assertEqual(ec['preconfigopts'], 'CUDAARCHS="42;63"')
+        self.assertEqual(ec['buildopts'], 'comma="42,63" '
+                                          'space="42 63" '
+                                          'semi="42;63"')
+        self.assertEqual(ec['prebuildopts'], '4.2;6.3')
+        self.assertEqual(ec['preinstallopts'], '4.2 6.3')
+        self.assertEqual(ec['installopts'], '4.2,6.3')
 
     def test_det_copy_ec_specs(self):
         """Test det_copy_ec_specs function."""
@@ -4725,6 +4769,9 @@ class EasyConfigTest(EnhancedTestCase):
             'cuda_compute_capabilities': '6.5,7.0',
             'cuda_cc_space_sep': '6.5 7.0',
             'cuda_cc_semicolon_sep': '6.5;7.0',
+            'cuda_int_comma_sep': '65,70',
+            'cuda_int_space_sep': '65 70',
+            'cuda_int_semicolon_sep': '65;70',
             'cuda_sm_comma_sep': 'sm_65,sm_70',
             'cuda_sm_space_sep': 'sm_65 sm_70',
         }

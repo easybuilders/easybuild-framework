@@ -106,7 +106,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.txz', "unset TAPE; unxz test.txz --stdout | tar x"),
             ('test.iso', "7z x test.iso"),
             ('test.tar.Z', "tar xzf test.tar.Z"),
-            ('test.foo.bar.sh', "cp -a test.foo.bar.sh ."),
+            ('test.foo.bar.sh', "cp -dR test.foo.bar.sh ."),
             # check whether extension is stripped correct to determine name of target file
             # cfr. https://github.com/easybuilders/easybuild-framework/pull/3705
             ('testbz2.bz2', "bunzip2 -c testbz2.bz2 > testbz2"),
@@ -2290,7 +2290,7 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertNotExists(os.path.join(self.test_prefix, 'toy-0.0'))
-        self.assertTrue(re.search('running command "tar xzf .*/toy-0.0.tar.gz"', txt))
+        self.assertTrue(re.search('running shell command "tar xzf .*/toy-0.0.tar.gz"', txt))
 
         with self.mocked_stdout_stderr():
             path = ft.extract_file(toy_tarball, self.test_prefix, forced=True, change_into_dir=False)
@@ -2314,7 +2314,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
         self.assertFalse(stderr)
-        self.assertTrue("running command" in stdout)
+        self.assertTrue("running shell command" in stdout)
 
         # check whether disabling trace output works
         with self.mocked_stdout_stderr():
@@ -2800,18 +2800,18 @@ class FileToolsTest(EnhancedTestCase):
         }
         git_repo = {'git_repo': 'git@github.com:easybuilders/testrepository.git'}  # Just to make the below shorter
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch tag_for_tests %(git_repo)s"',
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests %(git_repo)s"',
             r"  \(in /.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in /.*\)",
         ]) % git_repo
         run_check()
 
         git_config['clone_into'] = 'test123'
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch tag_for_tests %(git_repo)s test123"',
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests %(git_repo)s test123"',
             r"  \(in /.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git test123"',
+            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git test123"',
             r"  \(in /.*\)",
         ]) % git_repo
         run_check()
@@ -2819,19 +2819,19 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config['recursive'] = True
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
             r"  \(in /.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in /.*\)",
         ]) % git_repo
         run_check()
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
         expected = '\n'.join([
-            '  running command "git clone --depth 1 --branch tag_for_tests --recursive'
+            '  running shell command "git clone --depth 1 --branch tag_for_tests --recursive'
             + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
         ]) % git_repo
         run_check()
@@ -2841,11 +2841,11 @@ class FileToolsTest(EnhancedTestCase):
             'submodule."sha1".active=false',
         ]
         expected = '\n'.join([
-            '  running command "git -c submodule."fastahack".active=false -c submodule."sha1".active=false'
+            '  running shell command "git -c submodule."fastahack".active=false -c submodule."sha1".active=false'
             + ' clone --depth 1 --branch tag_for_tests --recursive'
             + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
         ]) % git_repo
         run_check()
@@ -2854,9 +2854,9 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
-            r'  running command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
+            r'  running shell command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
             r"  \(in /.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz testrepository"',
+            r'  running shell command "tar cfvz .*/target/test.tar.gz testrepository"',
             r"  \(in /.*\)",
         ]) % git_repo
         run_check()
@@ -2865,23 +2865,23 @@ class FileToolsTest(EnhancedTestCase):
         del git_config['tag']
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
-            r'  running command "git clone --no-checkout %(git_repo)s"',
+            r'  running shell command "git clone --no-checkout %(git_repo)s"',
             r"  \(in /.*\)",
-            r'  running command "git checkout 8456f86 && git submodule update --init --recursive"',
+            r'  running shell command "git checkout 8456f86 && git submodule update --init --recursive"',
             r"  \(in /.*/testrepository\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in /.*\)",
         ]) % git_repo
         run_check()
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
         expected = '\n'.join([
-            r'  running command "git clone --no-checkout %(git_repo)s"',
+            r'  running shell command "git clone --no-checkout %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            '  running command "git checkout 8456f86 && git submodule update --init --recursive'
+            '  running shell command "git checkout 8456f86 && git submodule update --init --recursive'
             + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\'"',
             r"  \(in /.*/testrepository\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
         ]) % git_repo
         run_check()
@@ -2889,11 +2889,11 @@ class FileToolsTest(EnhancedTestCase):
         del git_config['recursive']
         del git_config['recurse_submodules']
         expected = '\n'.join([
-            r'  running command "git clone --no-checkout %(git_repo)s"',
+            r'  running shell command "git clone --no-checkout %(git_repo)s"',
             r"  \(in /.*\)",
-            r'  running command "git checkout 8456f86"',
+            r'  running shell command "git checkout 8456f86"',
             r"  \(in /.*/testrepository\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in /.*\)",
         ]) % git_repo
         run_check()

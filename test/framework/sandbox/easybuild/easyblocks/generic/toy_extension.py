@@ -27,6 +27,7 @@ EasyBuild support for building and installing toy extensions, implemented as an 
 
 @author: Kenneth Hoste (Ghent University)
 """
+import os
 
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
@@ -81,15 +82,18 @@ class Toy_Extension(ExtensionEasyBlock):
 
             return self.module_generator.set_environment('TOY_EXT_%s' % self.name.upper().replace('-', '_'), self.name)
 
-    def install_extension_async(self):
+    def install_extension_async(self, thread_pool):
         """
         Install toy extension asynchronously.
         """
+        task_id = f'ext_{self.name}_{self.version}'
         if self.src:
             cmd = compose_toy_build_cmd(self.cfg, self.name, self.cfg['prebuildopts'], self.cfg['buildopts'])
-            self.async_cmd_start(cmd)
         else:
-            self.async_cmd_info = False
+            cmd = f"echo 'no sources for {self.name}'"
+
+        return thread_pool.submit(run_shell_cmd, cmd, asynchronous=True, env=os.environ.copy(),
+                                  fail_on_error=False, task_id=task_id, work_dir=os.getcwd())
 
     def post_install_extension(self):
         """

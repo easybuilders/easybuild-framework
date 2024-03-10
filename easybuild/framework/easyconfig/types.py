@@ -31,7 +31,6 @@ Authors:
 * Caroline De Brouwer (Ghent University)
 * Kenneth Hoste (Ghent University)
 """
-from distutils.util import strtobool
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
@@ -280,7 +279,14 @@ def to_toolchain_dict(spec):
             res = {'name': spec[0].strip(), 'version': spec[1].strip()}
         # 3-element list
         elif len(spec) == 3:
-            res = {'name': spec[0].strip(), 'version': spec[1].strip(), 'hidden': strtobool(spec[2].strip())}
+            hidden = spec[2].strip().lower()
+            if hidden in {'yes', 'true', 't', 'y', '1', 'on'}:
+                hidden = True
+            elif hidden in {'no', 'false', 'f', 'n', '0', 'off'}:
+                hidden = False
+            else:
+                raise EasyBuildError("Invalid truth value %s", hidden)
+            res = {'name': spec[0].strip(), 'version': spec[1].strip(), 'hidden': hidden}
         else:
             raise EasyBuildError("Can not convert list %s to toolchain dict. Expected 2 or 3 elements", spec)
 

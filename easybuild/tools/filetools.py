@@ -162,7 +162,7 @@ EXTRACT_CMDS = {
     # tar.Z: using compress (LZW), but can be handled with gzip so use 'z'
     '.tar.z': "tar xzf %(filepath)s",
     # shell scripts don't need to be unpacked, just copy there
-    '.sh': "cp -a %(filepath)s .",
+    '.sh': "cp -dR %(filepath)s .",
 }
 
 ZIPPED_PATCH_EXTS = ('.bz2', '.gz', '.xz')
@@ -2240,7 +2240,7 @@ def det_size(path):
                 if os.path.exists(fullpath):
                     installsize += os.path.getsize(fullpath)
     except OSError as err:
-        _log.warn("Could not determine install size: %s" % err)
+        _log.warning("Could not determine install size: %s" % err)
 
     return installsize
 

@@ -163,12 +163,14 @@ class EB_toy(ExtensionEasyBlock):
         """
         self.build_step()
 
-    def install_extension_async(self):
+    def install_extension_async(self, thread_pool):
         """
         Asynchronous installation of toy as extension.
         """
         cmd = compose_toy_build_cmd(self.cfg, self.name, self.cfg['prebuildopts'], self.cfg['buildopts'])
-        self.async_cmd_start(cmd)
+        task_id = f'ext_{self.name}_{self.version}'
+        return thread_pool.submit(run_shell_cmd, cmd, asynchronous=True, env=os.environ.copy(),
+                                  fail_on_error=False, task_id=task_id, work_dir=os.getcwd())
 
     def post_install_extension(self):
         """

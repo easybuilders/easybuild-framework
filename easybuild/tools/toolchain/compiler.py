@@ -358,9 +358,9 @@ class Compiler(Toolchain):
             optarch_flags_str = "%soptarch flags" % ('', 'generic ')[use_generic]
             error_msg = "Don't know how to set %s for %s/%s! " % (optarch_flags_str, self.arch, self.cpu_family)
             error_msg += "Use --optarch='<flags>' to override (see "
-            error_msg += "http://easybuild.readthedocs.io/en/latest/Controlling_compiler_optimization_flags.html "
+            error_msg += "https://docs.easybuild.io/controlling-compiler-optimization-flags/ "
             error_msg += "for details) and consider contributing your settings back (see "
-            error_msg += "http://easybuild.readthedocs.io/en/latest/Contributing.html)."
+            error_msg += "https://docs.easybuild.io/contributing/)."
             raise EasyBuildError(error_msg)
 
     def comp_family(self, prefix=None):
