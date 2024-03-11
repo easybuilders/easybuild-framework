@@ -11,19 +11,19 @@ toolchain = {'name': 'GCC', 'version': '7.3.0-2.30'}
 sources = [SOURCELOWER_TAR_GZ]
 source_urls = ['http://www.open-mpi.org/software/ompi/v%(version_major_minor)s/downloads']
 
-dependencies = [('hwloc', '1.11.8')]
+deps = [('hwloc', '1.11.8')]
 
-configopts = '--with-threads=posix --enable-shared --enable-mpi-thread-multiple --with-openib '
-configopts += '--enable-mpirun-prefix-by-default '  # suppress failure modes in relation to mpirun path
-configopts += '--with-hwloc=$EBROOTHWLOC '  # hwloc support
-configopts += '--disable-dlopen '  # statically link component, don't do dynamic loading
+configure_opts = '--with-threads=posix --enable-shared --enable-mpi-thread-multiple --with-openib '
+configure_opts += '--enable-mpirun-prefix-by-default '  # suppress failure modes in relation to mpirun path
+configure_opts += '--with-hwloc=$EBROOTHWLOC '  # hwloc support
+configure_opts += '--disable-dlopen '  # statically link component, don't do dynamic loading
 
 # needed for --with-openib
 if OS_NAME in ['debian', 'ubuntu']:
-    osdependencies = ['libibverbs-dev']
+    os_deps = ['libibverbs-dev']
 else:
     # OK for OS_NAME == redhat, fedora, RHEL, SL, centos
-    osdependencies = ['libibverbs-devel']
+    os_deps = ['libibverbs-devel']
 
 sanity_check_paths = {
     'files': ["bin/%s" % f for f in ["ompi_info", "opal_wrapper", "orterun"]] +
@@ -36,4 +36,4 @@ sanity_check_paths = {
     'dirs': ["include/openmpi/ompi/mpi/cxx"],
 }
 
-moduleclass = 'mpi'
+env_mod_class = 'mpi'

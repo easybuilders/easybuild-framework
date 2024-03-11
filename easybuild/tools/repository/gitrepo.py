@@ -140,7 +140,7 @@ class GitRepository(FileRepository):
 
         :param cfg: location of easyconfig file
         :param name: software name
-        :param version: software install version, incl. toolchain & versionsuffix
+        :param version: software install version, incl. toolchain & version_suffix
         :param stats: build stats, to add to archived easyconfig
         :param previous_stats: list of previous build stats
         :return: location of archived easyconfig

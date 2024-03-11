@@ -11,7 +11,7 @@ name = 'doesnotexist'
 
 homepage = "http://www.example.com/"
 description = "doesnotexist is bug free software"
-docurls = ["http://www.example.com/docs"]
+doc_urls = ["http://www.example.com/docs"]
 
 software_license = VeryRestrictive
 software_license_urls = ['http://localhost/my_license']

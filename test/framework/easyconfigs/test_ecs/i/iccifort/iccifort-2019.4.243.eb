@@ -9,4 +9,4 @@ description = "Intel C, C++ & Fortran compilers"
 
 toolchain = SYSTEM
 
-moduleclass = 'compiler'
+env_mod_class = 'compiler'

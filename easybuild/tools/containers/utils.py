@@ -42,11 +42,11 @@ from easybuild.tools.run import run_shell_cmd
 def det_os_deps(easyconfigs):
     """
     Using an easyconfigs object, this utility function will return a list
-    of operating system dependencies that are required to build one or more
+    of operating system deps that are required to build one or more
     easybuilds modules.
     """
     res = set()
-    os_deps = reduce(operator.add, [obj['ec']['osdependencies'] for obj in easyconfigs], [])
+    os_deps = reduce(operator.add, [obj['ec']['os_deps'] for obj in easyconfigs], [])
     for os_dep in os_deps:
         if isinstance(os_dep, str):
             res.add(os_dep)

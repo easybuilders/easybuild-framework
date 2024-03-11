@@ -27,4 +27,4 @@ source_urls = ['http://developer.download.nvidia.com/compute/cuda/9_1/rel/instal
 
 sources = ['%(namelower)s_%(version)s_linux_64.run']
 
-moduleclass = 'system'
+env_mod_class = 'system'

@@ -113,7 +113,7 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
 
     :param easyconfigs: list of parsed easyconfigs
     :param avail_modules: list of available modules
-    :param retain_all_deps: retain all dependencies, regardless of whether modules are available for them or not
+    :param retain_all_deps: retain all deps, regardless of whether modules are available for them or not
     """
     ordered_ecs = []
     new_easyconfigs = []
@@ -128,7 +128,7 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
         else:
             easyconfig = easyconfig.copy()
         deps = []
-        for dep in easyconfig['dependencies']:
+        for dep in easyconfig['deps']:
             dep_mod_name = dep.get('full_mod_name', ActiveMNS().det_full_module_name(dep))
 
             # always treat external modules as resolved,
@@ -137,7 +137,7 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
                 _log.debug("Treating dependency marked as external module as resolved: %s", dep_mod_name)
 
             elif retain_all_deps and dep_mod_name not in avail_modules:
-                # if all dependencies should be retained, include dep unless it has been already
+                # if all deps should be retained, include dep unless it has been already
                 _log.debug("Retaining new dep %s in 'retain all deps' mode", dep_mod_name)
                 deps.append(dep)
 
@@ -154,16 +154,16 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
                 _log.debug("No module available for dep %s, retaining it", dep)
                 deps.append(dep)
 
-        # update list of dependencies with only those unresolved
-        easyconfig['dependencies'] = deps
+        # update list of deps with only those unresolved
+        easyconfig['deps'] = deps
 
-        # if all dependencies have been resolved, add module for this easyconfig in the list of available modules
-        if not easyconfig['dependencies']:
+        # if all deps have been resolved, add module for this easyconfig in the list of available modules
+        if not easyconfig['deps']:
             _log.debug("Adding easyconfig %s to final list" % easyconfig['spec'])
             ordered_ecs.append(easyconfig)
             mod_name = easyconfig['full_mod_name']
             avail_modules.append(mod_name)
-            # remove module name from list, so dependencies can be marked as resolved
+            # remove module name from list, so deps can be marked as resolved
             ec_mod_names.remove(mod_name)
 
         else:
@@ -199,12 +199,12 @@ def dep_graph(filename, specs):
     for spec in specs:
         spec['module'] = mk_node_name(spec['ec'])
         all_nodes.add(spec['module'])
-        spec['ec']._all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
-        all_nodes.update(spec['ec'].all_dependencies)
+        spec['ec']._all_deps = [mk_node_name(s) for s in spec['ec'].all_deps]
+        all_nodes.update(spec['ec'].all_deps)
 
-        # Get the build dependencies for each spec so we can distinguish them later
-        spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec'].builddependencies()]
-        all_nodes.update(spec['ec'].build_dependencies)
+        # Get the build deps for each spec so we can distinguish them later
+        spec['ec'].build_deps = [mk_node_name(s) for s in spec['ec'].build_deps()]
+        all_nodes.update(spec['ec'].build_deps)
 
     # build directed graph
     edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
@@ -212,9 +212,9 @@ def dep_graph(filename, specs):
     dgr.add_nodes(all_nodes)
     edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
     for spec in specs:
-        for dep in spec['ec'].all_dependencies:
+        for dep in spec['ec'].all_deps:
             dgr.add_edge((spec['module'], dep))
-            if dep in spec['ec'].build_dependencies:
+            if dep in spec['ec'].build_deps:
                 dgr.add_edge_attributes((spec['module'], dep), attrs=edge_attrs)
 
     _dep_graph_dump(dgr, filename)
@@ -313,7 +313,7 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None, review_pr=Non
     """Obtain alternative paths for easyconfig files."""
 
     # paths where tweaked easyconfigs will be placed, easyconfigs listed on the command line take priority and will be
-    # prepended to the robot path, tweaked dependencies are also created but these will only be appended to the robot
+    # prepended to the robot path, tweaked deps are also created but these will only be appended to the robot
     # path (and therefore only used if strictly necessary)
     tweaked_ecs_paths = None
     if tweaked_ecs:
@@ -437,18 +437,18 @@ def find_related_easyconfigs(path, ec):
     The following criteria are considered (in this order) next to common software version criterion, i.e.
     exact version match, a major/minor version match, a major version match, or no version match (in that order).
 
-    (i)   matching versionsuffix and toolchain name/version
-    (ii)  matching versionsuffix and toolchain name (any toolchain version)
-    (iii) matching versionsuffix (any toolchain name/version)
-    (iv)  matching toolchain name/version (any versionsuffix)
-    (v)   matching toolchain name (any versionsuffix, toolchain version)
-    (vi)  no extra requirements (any versionsuffix, toolchain name/version)
+    (i)   matching version_suffix and toolchain name/version
+    (ii)  matching version_suffix and toolchain name (any toolchain version)
+    (iii) matching version_suffix (any toolchain name/version)
+    (iv)  matching toolchain name/version (any version_suffix)
+    (v)   matching toolchain name (any version_suffix, toolchain version)
+    (vi)  no extra requirements (any version_suffix, toolchain name/version)
 
     If no related easyconfigs with a matching software name are found, an empty list is returned.
     """
     name = ec.name
     version = ec.version
-    versionsuffix = ec['versionsuffix']
+    version_suffix = ec['version_suffix']
     toolchain_name = ec['toolchain']['name']
     toolchain_name_pattern = r'-%s-\S+' % toolchain_name
     toolchain_pattern = '-%s-%s' % (toolchain_name, ec['toolchain']['version'])
@@ -472,9 +472,9 @@ def find_related_easyconfigs(path, ec):
     for version_pattern in version_patterns:
         common_pattern = r'^\S+/%s-%s%%s\.eb$' % (re.escape(name), version_pattern)
         regexes.extend([
-            common_pattern % (toolchain_pattern + versionsuffix),
-            common_pattern % (toolchain_name_pattern + versionsuffix),
-            common_pattern % (r'\S*%s' % versionsuffix),
+            common_pattern % (toolchain_pattern + version_suffix),
+            common_pattern % (toolchain_name_pattern + version_suffix),
+            common_pattern % (r'\S*%s' % version_suffix),
             common_pattern % toolchain_pattern,
             common_pattern % toolchain_name_pattern,
             common_pattern % r'\S*',

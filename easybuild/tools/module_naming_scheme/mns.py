@@ -74,7 +74,7 @@ class ModuleNamingScheme(BaseModuleNamingScheme):
         Determine full module name, relative to the top of the module path.
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
-                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
+                   'version', 'version_suffix' and 'toolchain' parameters are guaranteed to be available
         :return: string with full module name, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
         """
         raise NotImplementedError
@@ -84,7 +84,7 @@ class ModuleNamingScheme(BaseModuleNamingScheme):
         Determine short module name, i.e. the name under which modules will be exposed to users.
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
-                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
+                   'version', 'version_suffix' and 'toolchain' parameters are guaranteed to be available
         :return: string with module name, e.g. '<name>/<version>'
         """
         # by default: full module name doesn't include a $MODULEPATH subdir
@@ -95,7 +95,7 @@ class ModuleNamingScheme(BaseModuleNamingScheme):
         Determine name of software installation subdirectory of install path.
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
-                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
+                   'version', 'version_suffix' and 'toolchain' parameters are guaranteed to be available
 
         :return: string with name of subdirectory, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
         """
@@ -108,7 +108,7 @@ class ModuleNamingScheme(BaseModuleNamingScheme):
         This determines the separation between module names exposed to users, and what's part of the $MODULEPATH.
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
-                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
+                   'version', 'version_suffix' and 'toolchain' parameters are guaranteed to be available
         :return: string with subdir path (relative to $MODULEPATH), e.g. '<compiler>/<mpi_lib>'
         """
         # by default: no subdirectory
@@ -118,15 +118,15 @@ class ModuleNamingScheme(BaseModuleNamingScheme):
         """
         Determine list of paths in which symlinks to module files must be created.
         """
-        # by default: make a symlink from moduleclass subdirectory of $MODULEPATH
-        return [ec['moduleclass']]
+        # by default: make a symlink from env_mod_class subdirectory of $MODULEPATH
+        return [ec['env_mod_class']]
 
     def det_modpath_extensions(self, ec):
         """
         Determine list of subdirectories for which to extend $MODULEPATH with when this module is loaded (if any).
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
-                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
+                   'version', 'version_suffix' and 'toolchain' parameters are guaranteed to be available
         :return: A list of $MODULEPATH subdirectories.
         """
         # by default: an empty list of subdirectories to extend $MODULEPATH with
@@ -138,7 +138,7 @@ class ModuleNamingScheme(BaseModuleNamingScheme):
         $MODULEPATH with when this module is loaded (if any).
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
-                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
+                   'version', 'version_suffix' and 'toolchain' parameters are guaranteed to be available
         :return: A list of $MODULEPATH subdirectories.
         """
         # by default: use "system" module path extensions of naming scheme
@@ -152,7 +152,7 @@ class ModuleNamingScheme(BaseModuleNamingScheme):
 
     def expand_toolchain_load(self, ec=None):
         """
-        Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
+        Determine whether load statements for a toolchain should be expanded to load statements for its deps.
         This is useful when toolchains are not exposed to users.
         """
         # by default: just include a load statement for the toolchain

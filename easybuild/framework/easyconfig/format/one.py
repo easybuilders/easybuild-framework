@@ -54,10 +54,10 @@ from easybuild.tools.utilities import INDENT_4SPACES, quote_py_str
 
 EB_FORMAT_EXTENSION = '.eb'
 
-# dependency parameters always need to be reformatted, to correctly deal with dumping parsed dependencies
+# dependency parameters always need to be reformatted, to correctly deal with dumping parsed deps
 REFORMAT_FORCED_PARAMS = ['sanity_check_paths'] + DEPENDENCY_PARAMETERS
-REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchainopts']
-REFORMAT_LIST_OF_LISTS_OF_TUPLES = ['builddependencies']
+REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchain_opts']
+REFORMAT_LIST_OF_LISTS_OF_TUPLES = ['build_deps']
 REFORMAT_THRESHOLD_LENGTH = 100  # only reformat lines that would be longer than this amount of characters
 REFORMAT_ORDERED_ITEM_KEYS = {
     'sanity_check_paths': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
@@ -81,12 +81,12 @@ def dump_dependency(dep, toolchain, toolchain_hierarchy=None):
         if all(dep['toolchain'] != subtoolchain for subtoolchain in toolchain_hierarchy):
             if dep[SYSTEM_TOOLCHAIN_NAME]:
                 # use SYSTEM constant to indicate that system toolchain should be used for this dependency
-                res = re.sub(r'\)$', ', SYSTEM)', str(tup + (dep['versionsuffix'],)))
+                res = re.sub(r'\)$', ', SYSTEM)', str(tup + (dep['version_suffix'],)))
             else:
-                tup += (dep['versionsuffix'], (dep['toolchain']['name'], dep['toolchain']['version']))
+                tup += (dep['version_suffix'], (dep['toolchain']['name'], dep['toolchain']['version']))
 
-        elif dep['versionsuffix']:
-            tup += (dep['versionsuffix'],)
+        elif dep['version_suffix']:
+            tup += (dep['version_suffix'],)
 
         if res is None:
             res = str(tup)
@@ -228,8 +228,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
                         addlen = addlen + len(INDENT_4SPACES) + len(inline_comment)
                         # the tuples are really strings here that are constructed from the dependency dicts
-                        # so for a plain list of builddependencies param_val is a list of strings here;
-                        # and for iterated builddependencies it is a list of lists of strings
+                        # so for a plain list of build_deps param_val is a list of strings here;
+                        # and for iterated build_deps it is a list of lists of strings
                         is_list_of_lists_of_tuples = isinstance(item, list) and all(isinstance(x, str) for x in item)
                         if list_of_lists_of_tuples_param and is_list_of_lists_of_tuples:
                             itemstr = '[' + (',\n ' + INDENT_4SPACES).join([
@@ -253,7 +253,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     res += end_comments['inline']
 
         else:
-            # dependencies are already dumped as strings, so they do not need to be quoted again
+            # deps are already dumped as strings, so they do not need to be quoted again
             if isinstance(param_val, str) and param_name not in DEPENDENCY_PARAMETERS:
                 res = quote_py_str(param_val)
 
@@ -308,8 +308,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     if key in DEPENDENCY_PARAMETERS:
                         if key in ecfg.iterate_options:
                             if 'multi_deps' in ecfg:
-                                # the way that builddependencies are constructed with multi_deps
-                                # we just need to dump the first entry without the dependencies
+                                # the way that build_deps are constructed with multi_deps
+                                # we just need to dump the first entry without the deps
                                 # that are listed in multi_deps
                                 valstr = [
                                     dump_dependency(d, ecfg['toolchain'], toolchain_hierarchy=toolchain_hierarchy)
@@ -567,11 +567,11 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
             # dependency block
             dep_block = reg_dep_block.search(block_contents)
             if dep_block:
-                dependencies = eval(dep_block.group(1))
-                if isinstance(dependencies, list):
-                    block['dependencies'] = dependencies
+                deps = eval(dep_block.group(1))
+                if isinstance(deps, list):
+                    block['deps'] = deps
                 else:
-                    block['dependencies'] = [dependencies]
+                    block['deps'] = [deps]
 
             blocks.append(block)
 
@@ -589,8 +589,8 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
 
             txt = common
 
-            if 'dependencies' in block:
-                for dep in block['dependencies']:
+            if 'deps' in block:
+                for dep in block['deps']:
                     if dep not in [b['name'] for b in blocks]:
                         raise EasyBuildError("Block %s depends on %s, but block was not found.", name, dep)
 

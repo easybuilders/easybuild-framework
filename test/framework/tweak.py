@@ -36,11 +36,11 @@ from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, p
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obtain_ec_for, pick_version, tweak_one
 from easybuild.framework.easyconfig.tweak import check_capability_mapping, match_minimum_tc_specs
-from easybuild.framework.easyconfig.tweak import get_dep_tree_of_toolchain, map_common_versionsuffixes
+from easybuild.framework.easyconfig.tweak import get_dep_tree_of_toolchain, map_common_version_suffixes
 from easybuild.framework.easyconfig.tweak import get_matching_easyconfig_candidates, map_toolchain_hierarchies
 from easybuild.framework.easyconfig.tweak import find_potential_version_mappings
 from easybuild.framework.easyconfig.tweak import map_easyconfig_to_target_tc_hierarchy
-from easybuild.framework.easyconfig.tweak import list_deps_versionsuffixes
+from easybuild.framework.easyconfig.tweak import list_deps_version_suffixes
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.filetools import change_dir, write_file
@@ -96,7 +96,7 @@ class TweakTest(EnhancedTestCase):
         specs = {
             'name': 'GCC',
             'version': '6.4.0',
-            'versionsuffix': '-2.28',
+            'version_suffix': '-2.28',
         }
         (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
         self.assertFalse(generated)
@@ -107,7 +107,7 @@ class TweakTest(EnhancedTestCase):
             'version': '2.0.2',
             'toolchain_name': 'gompi',
             'toolchain_version': '2018a',
-            'versionsuffix': '-OpenBLAS-0.2.20',
+            'version_suffix': '-OpenBLAS-0.2.20',
         }
         (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
         self.assertFalse(generated)
@@ -115,7 +115,7 @@ class TweakTest(EnhancedTestCase):
 
         specs = {
             'name': 'ifort',
-            'versionsuffix': '-GCC-4.9.3-2.25',
+            'version_suffix': '-GCC-4.9.3-2.25',
         }
         (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
         self.assertFalse(generated)
@@ -242,7 +242,7 @@ class TweakTest(EnhancedTestCase):
                               foss_hierarchy[3], iimpi_hierarchy)
 
     def test_dep_tree_of_toolchain(self):
-        """Test getting list of dependencies of a toolchain (as EasyConfig objects)"""
+        """Test getting list of deps of a toolchain (as EasyConfig objects)"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
             'valid_module_classes': module_classes(),
@@ -304,7 +304,7 @@ class TweakTest(EnhancedTestCase):
         expected = {
             'GCC': {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
             'GCCcore': {'name': 'GCCcore', 'version': '4.9.3'},
-            'binutils': {'version': '2.25', 'versionsuffix': ''}
+            'binutils': {'version': '2.25', 'version_suffix': ''}
         }
         self.assertEqual(map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool), expected)
 
@@ -326,7 +326,7 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(paths, [])
         self.assertEqual(toolchain_stub, expected_toolchain_suff)
 
-    def test_map_common_versionsuffixes(self):
+    def test_map_common_version_suffixes(self):
         """Test mapping between two toolchain hierarchies"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
@@ -340,16 +340,16 @@ class TweakTest(EnhancedTestCase):
         iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
 
         toolchain_mapping = map_toolchain_hierarchies(iccifort_binutils_tc, gcc_binutils_tc, self.modtool)
-        possible_mappings = map_common_versionsuffixes('binutils', iccifort_binutils_tc, toolchain_mapping)
+        possible_mappings = map_common_version_suffixes('binutils', iccifort_binutils_tc, toolchain_mapping)
         self.assertEqual(possible_mappings, {'-binutils-2.25': '-binutils-2.26'})
 
         # Make sure we only map upwards, here it's gzip 1.4 in gcc and 1.6 in iccifort
-        possible_mappings = map_common_versionsuffixes('gzip', iccifort_binutils_tc, toolchain_mapping)
+        possible_mappings = map_common_version_suffixes('gzip', iccifort_binutils_tc, toolchain_mapping)
         self.assertEqual(possible_mappings, {})
 
         # newer gzip is picked up other way around (GCC -> iccifort)
         toolchain_mapping = map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool)
-        possible_mappings = map_common_versionsuffixes('gzip', gcc_binutils_tc, toolchain_mapping)
+        possible_mappings = map_common_version_suffixes('gzip', gcc_binutils_tc, toolchain_mapping)
         self.assertEqual(possible_mappings, {'-gzip-1.4': '-gzip-1.6'})
 
     def test_find_potential_version_mappings(self):
@@ -368,7 +368,7 @@ class TweakTest(EnhancedTestCase):
         tc_mapping = map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool)
         ec_spec = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb')
         parsed_ec = process_easyconfig(ec_spec)[0]
-        gzip_dep = [dep for dep in parsed_ec['ec']['dependencies'] if dep['name'] == 'gzip'][0]
+        gzip_dep = [dep for dep in parsed_ec['ec']['deps'] if dep['name'] == 'gzip'][0]
         self.assertEqual(gzip_dep['full_mod_name'], 'gzip/1.4-GCC-4.9.3-2.26')
 
         potential_versions = find_potential_version_mappings(gzip_dep, tc_mapping)
@@ -378,22 +378,22 @@ class TweakTest(EnhancedTestCase):
             'path': os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.6-iccifort-2016.1.150-GCC-4.9.3-2.25.eb'),
             'toolchain': {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
             'version': '1.6',
-            'versionsuffix': '',
+            'version_suffix': '',
         }
         self.assertEqual(potential_versions[0], expected)
 
-        # Test that we can override respecting the versionsuffix
+        # Test that we can override respecting the version_suffix
 
         # Create toolchain mapping for OpenBLAS
         gcc_4_tc = {'name': 'GCC', 'version': '4.8.2'}
         gcc_6_tc = {'name': 'GCC', 'version': '6.4.0-2.28'}
         tc_mapping = map_toolchain_hierarchies(gcc_4_tc, gcc_6_tc, self.modtool)
-        # Create a dep with the necessary params (including versionsuffix)
+        # Create a dep with the necessary params (including version_suffix)
         openblas_dep = {
             'toolchain': {'version': '4.8.2', 'name': 'GCC'},
             'name': 'OpenBLAS',
             'system': False,
-            'versionsuffix': '-LAPACK-3.4.2',
+            'version_suffix': '-LAPACK-3.4.2',
             'version': '0.2.8'
         }
 
@@ -401,17 +401,17 @@ class TweakTest(EnhancedTestCase):
         potential_versions = find_potential_version_mappings(openblas_dep, tc_mapping)
         errtxt = self.get_stderr()
         warning_stub = "\nWARNING: There may be newer version(s) of dep 'OpenBLAS' available with a different " \
-                       "versionsuffix to '-LAPACK-3.4.2'"
+                       "version_suffix to '-LAPACK-3.4.2'"
         self.mock_stderr(False)
         self.assertTrue(errtxt.startswith(warning_stub))
         self.assertEqual(len(potential_versions), 0)
-        potential_versions = find_potential_version_mappings(openblas_dep, tc_mapping, ignore_versionsuffixes=True)
+        potential_versions = find_potential_version_mappings(openblas_dep, tc_mapping, ignore_version_suffixes=True)
         self.assertEqual(len(potential_versions), 1)
         expected = {
             'path': os.path.join(test_easyconfigs, 'o', 'OpenBLAS', 'OpenBLAS-0.2.20-GCC-6.4.0-2.28.eb'),
             'toolchain': {'version': '6.4.0-2.28', 'name': 'GCC'},
             'version': '0.2.20',
-            'versionsuffix': '',
+            'version_suffix': '',
         }
         self.assertEqual(potential_versions[0], expected)
 
@@ -439,11 +439,11 @@ class TweakTest(EnhancedTestCase):
         self.assertIn(key, tweaked_dict)
         self.assertEqual(value, tweaked_dict[key])
         # Also check that binutils has been mapped
-        for key, value in {'name': 'binutils', 'version': '2.25', 'versionsuffix': ''}.items():
-            self.assertIn(key, tweaked_dict['builddependencies'][0])
-            self.assertEqual(tweaked_dict['builddependencies'][0][key], value)
+        for key, value in {'name': 'binutils', 'version': '2.25', 'version_suffix': ''}.items():
+            self.assertIn(key, tweaked_dict['build_deps'][0])
+            self.assertEqual(tweaked_dict['build_deps'][0][key], value)
 
-        # Now test the case where we try to update the dependencies
+        # Now test the case where we try to update the deps
         init_config(build_options=build_options)
         get_toolchain_hierarchy.clear()
         tweaked_spec = map_easyconfig_to_target_tc_hierarchy(ec_spec, tc_mapping, update_dep_versions=True)
@@ -454,13 +454,13 @@ class TweakTest(EnhancedTestCase):
         self.assertIn(key, tweaked_dict)
         self.assertEqual(value, tweaked_dict[key])
         # Also check that binutils has been mapped
-        for key, value in {'name': 'binutils', 'version': '2.25', 'versionsuffix': ''}.items():
-            self.assertIn(key, tweaked_dict['builddependencies'][0])
-            self.assertEqual(tweaked_dict['builddependencies'][0][key], value)
+        for key, value in {'name': 'binutils', 'version': '2.25', 'version_suffix': ''}.items():
+            self.assertIn(key, tweaked_dict['build_deps'][0])
+            self.assertEqual(tweaked_dict['build_deps'][0][key], value)
         # Also check that the gzip dependency was upgraded
-        for key, value in {'name': 'gzip', 'version': '1.6', 'versionsuffix': ''}.items():
-            self.assertIn(key, tweaked_dict['dependencies'][0])
-            self.assertEqual(tweaked_dict['dependencies'][0][key], value)
+        for key, value in {'name': 'gzip', 'version': '1.6', 'version_suffix': ''}.items():
+            self.assertIn(key, tweaked_dict['deps'][0])
+            self.assertEqual(tweaked_dict['deps'][0][key], value)
 
         # Make sure there are checksums for our next test
         self.assertTrue(tweaked_dict['checksums'])
@@ -480,13 +480,13 @@ class TweakTest(EnhancedTestCase):
         self.assertIn(key, tweaked_dict)
         self.assertEqual(tweaked_dict[key], value)
         # Also check that binutils has been mapped
-        for key, value in {'name': 'binutils', 'version': '2.25', 'versionsuffix': ''}.items():
-            self.assertIn(key, tweaked_dict['builddependencies'][0])
-            self.assertEqual(tweaked_dict['builddependencies'][0][key], value)
+        for key, value in {'name': 'binutils', 'version': '2.25', 'version_suffix': ''}.items():
+            self.assertIn(key, tweaked_dict['build_deps'][0])
+            self.assertEqual(tweaked_dict['build_deps'][0][key], value)
         # Also check that the gzip dependency was upgraded
-        for key, value in {'name': 'gzip', 'version': '1.6', 'versionsuffix': ''}.items():
-            self.assertIn(key, tweaked_dict['dependencies'][0])
-            self.assertEqual(tweaked_dict['dependencies'][0][key], value)
+        for key, value in {'name': 'gzip', 'version': '1.6', 'version_suffix': ''}.items():
+            self.assertIn(key, tweaked_dict['deps'][0])
+            self.assertEqual(tweaked_dict['deps'][0][key], value)
 
         # Finally check that the version was upgraded
         key, value = 'version', new_version
@@ -521,8 +521,8 @@ class TweakTest(EnhancedTestCase):
                 hit_extension += 1
         self.assertEqual(hit_extension, 1, "Should only have updated one extension")
 
-    def test_list_deps_versionsuffixes(self):
-        """Test listing of dependencies' version suffixes"""
+    def test_list_deps_version_suffixes(self):
+        """Test listing of deps' version suffixes"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
             'robot_path': [test_easyconfigs],
@@ -533,11 +533,11 @@ class TweakTest(EnhancedTestCase):
         get_toolchain_hierarchy.clear()
 
         ec_spec = os.path.join(test_easyconfigs, 'g', 'golf', 'golf-2018a.eb')
-        self.assertEqual(list_deps_versionsuffixes(ec_spec), ['-serial'])
+        self.assertEqual(list_deps_version_suffixes(ec_spec), ['-serial'])
         ec_spec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
-        self.assertEqual(list_deps_versionsuffixes(ec_spec), [])
+        self.assertEqual(list_deps_version_suffixes(ec_spec), [])
         ec_spec = os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
-        self.assertEqual(list_deps_versionsuffixes(ec_spec), ['-deps'])
+        self.assertEqual(list_deps_version_suffixes(ec_spec), ['-deps'])
 
 
 def suite():

@@ -258,13 +258,13 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
         opts = OrderedDict({
-            'dry-run': ("Print build overview incl. dependencies (full paths)", None, 'store_true', False),
-            'dry-run-short': ("Print build overview incl. dependencies (short paths)", None, 'store_true', False, 'D'),
+            'dry-run': ("Print build overview incl. deps (full paths)", None, 'store_true', False),
+            'dry-run-short': ("Print build overview incl. deps (short paths)", None, 'store_true', False, 'D'),
             'extended-dry-run': ("Print build environment and (expected) build procedure that will be performed",
                                  None, 'store_true', False, 'x'),
             'extended-dry-run-ignore-errors': ("Ignore errors that occur during dry run", None, 'store_true', True),
             'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module), "
-                      "and skipping check for OS dependencies", None, 'store_true', False, 'f'),
+                      "and skipping check for OS deps", None, 'store_true', False, 'f'),
             'ignore-locks': ("Ignore locks that prevent two identical installations running in parallel",
                              None, 'store_true', False),
             'job': ("Submit the build as a job", None, 'store_true', False),
@@ -272,10 +272,10 @@ class EasyBuildOptions(GeneralOption):
             'locks-dir': ("Directory to store lock files (should be on a shared filesystem); "
                           "None implies .locks subdirectory of software installation directory",
                           None, 'store_or_None', None),
-            'missing-modules': ("Print list of missing modules for dependencies of specified easyconfigs",
+            'missing-modules': ("Print list of missing modules for deps of specified easyconfigs",
                                 None, 'store_true', False, 'M'),
             'only-blocks': ("Only build listed blocks", 'strlist', 'extend', None, 'b', {'metavar': 'BLOCKS'}),
-            'rebuild': ("Rebuild software, even if module already exists (don't skip OS dependencies checks)",
+            'rebuild': ("Rebuild software, even if module already exists (don't skip OS deps checks)",
                         None, 'store_true', False),
             'robot': ("Enable dependency resolution, optionally consider additional paths to search for easyconfigs",
                       'pathlist', 'store_or_None', [], 'r', {'metavar': '[PATH[%sPATH]]' % os.pathsep}),
@@ -305,7 +305,7 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'amend': (("Specify additional search and build parameters (can be used multiple times); "
-                       "for example: versionprefix=foo or patches=one.patch,two.patch)"),
+                       "for example: version_prefix=foo or patches=one.patch,two.patch)"),
                       None, 'append', None, {'metavar': 'VAR=VALUE[,VALUE]'}),
             'software': ("Search and build software with given name and version",
                          'strlist', 'extend', None, {'metavar': 'NAME,VERSION'}),
@@ -328,10 +328,10 @@ class EasyBuildOptions(GeneralOption):
 
         opts['map-toolchains'] = ("Enable mapping of (sub)toolchains when --try-toolchain(-version) is used",
                                   None, 'store_true', True)
-        opts['try-update-deps'] = ("Try to update versions of the dependencies of an easyconfig based on what is "
+        opts['try-update-deps'] = ("Try to update versions of the deps of an easyconfig based on what is "
                                    "available in the robot path",
                                    None, 'store_true', False)
-        opts['try-ignore-versionsuffixes'] = ("Ignore versionsuffix differences when --try-update-deps is used",
+        opts['try-ignore-version_suffixes'] = ("Ignore version_suffix differences when --try-update-deps is used",
                                               None, 'store_true', False)
 
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
@@ -405,9 +405,9 @@ class EasyBuildOptions(GeneralOption):
                               'strlist', 'extend', None),
             'fail-on-mod-files-gcccore': ("Fail if .mod files are detected in a GCCcore install", None, 'store_true',
                                           False),
-            'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
+            'fetch': ("Allow downloading sources ignoring OS and modules tool deps, "
                       "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
-            'filter-deps': ("List of dependencies that you do *not* want to install with EasyBuild, "
+            'filter-deps': ("List of deps that you do *not* want to install with EasyBuild, "
                             "because equivalent OS packages are installed. (e.g. --filter-deps=zlib,ncurses)",
                             'strlist', 'extend', None),
             'filter-ecs': ("List of easyconfigs (given as glob patterns) to *ignore* when given on command line "
@@ -432,7 +432,7 @@ class EasyBuildOptions(GeneralOption):
                                           None, 'store_true', False),
             'hidden': ("Install 'hidden' module file(s) by prefixing their version with '.'",
                        None, 'store_true', False),
-            'hide-deps': ("Comma separated list of dependencies that you want automatically hidden, "
+            'hide-deps': ("Comma separated list of deps that you want automatically hidden, "
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
             'hide-toolchains': ("Comma separated list of toolchains that you want automatically hidden, "
                                 "(e.g. --hide-toolchains=GCCcore)", 'strlist', 'extend', None),
@@ -443,7 +443,7 @@ class EasyBuildOptions(GeneralOption):
                                           None, 'append', None, {'metavar': '[URLPAT::][HEADER:]FILE|FIELD'}),
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-test-failure': ("Ignore a failing test step", None, 'store_true', False),
-            'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
+            'ignore-osdeps': ("Ignore any listed OS deps", None, 'store_true', False),
             'insecure-download': ("Don't check the server certificate against the available certificate authorities.",
                                   None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
@@ -459,7 +459,7 @@ class EasyBuildOptions(GeneralOption):
                                   "specified as a comma-separated list that defines a mapping between name of "
                                   "environment variable and its value separated by a colon (':')",
                                   None, 'store', DEFAULT_MINIMAL_BUILD_ENV),
-            'minimal-toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
+            'minimal-toolchains': ("Use minimal toolchain when resolving deps", None, 'store_true', False),
             'module-cache-suffix': ("Suffix to add to the cache file name (before the extension) "
                                     "when updating the modules tool cache",
                                     None, 'store', None),
@@ -522,7 +522,7 @@ class EasyBuildOptions(GeneralOption):
                            str, 'store', False, {'metavar': "PATH"}),
             'use-f90cache': ("Enable use of f90cache to speed up compilation, with specified cache dir",
                              str, 'store', False, {'metavar': "PATH"}),
-            'use-existing-modules': ("Use existing modules when resolving dependencies with minimal toolchains",
+            'use-existing-modules': ("Use existing modules when resolving deps with minimal toolchains",
                                      None, 'store_true', False),
             'verify-easyconfig-filenames': ("Verify whether filename of specified easyconfigs matches with contents",
                                             None, 'store_true', False),
@@ -577,7 +577,7 @@ class EasyBuildOptions(GeneralOption):
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
-            'module-depends-on': ("Use depends_on (Lmod 7.6.1+) for dependencies in all generated modules "
+            'module-depends-on': ("Use depends_on (Lmod 7.6.1+) for deps in all generated modules "
                                   "(implies recursive unloading of modules).",
                                   None, 'store_true', False),
             'module-extensions': ("Include 'extensions' statement in generated module file (Lua syntax only)",
@@ -585,8 +585,8 @@ class EasyBuildOptions(GeneralOption):
             'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
             'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
                               sorted(avail_module_generators().keys())),
-            'moduleclasses': (("Extend supported module classes "
-                               "(For more info on the default classes, use --show-default-moduleclasses)"),
+            'env_mod_classes': (("Extend supported module classes "
+                               "(For more info on the default classes, use --show-default-env_mod_classes)"),
                               'strlist', 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
             'modules-footer': ("Path to file containing footer to be added to all generated module files",
                                None, 'store_or_None', None, {'metavar': "PATH"}),
@@ -648,10 +648,10 @@ class EasyBuildOptions(GeneralOption):
             'avail-hooks': ("Show list of known hooks", None, 'store_true', False),
             'avail-toolchain-opts': ("Show options for toolchain", 'str', 'store', None),
             'check-conflicts': ("Check for version conflicts in dependency graphs", None, 'store_true', False),
-            'check-eb-deps': ("Check presence and version of (required and optional) EasyBuild dependencies",
+            'check-eb-deps': ("Check presence and version of (required and optional) EasyBuild deps",
                               None, 'store_true', False),
             'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
-            'dump-env-script': ("Dump source script to set up build environment based on toolchain/dependencies",
+            'dump-env-script': ("Dump source script to set up build environment based on toolchain/deps",
                                 None, 'store_true', False),
             'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),
             'list-easyblocks': ("Show list of available easyblocks",
@@ -671,7 +671,7 @@ class EasyBuildOptions(GeneralOption):
             'show-config': ("Show current EasyBuild configuration (only non-default + selected settings)",
                             None, 'store_true', False),
             'show-default-configfiles': ("Show list of default config files", None, 'store_true', False),
-            'show-default-moduleclasses': ("Show default module classes with description",
+            'show-default-env_mod_classes': ("Show default module classes with description",
                                            None, 'store_true', False),
             'show-ec': ("Show contents of specified easyconfig(s)", None, 'store_true', False),
             'show-full-config': ("Show current EasyBuild configuration (all settings)", None, 'store_true', False),
@@ -933,7 +933,7 @@ class EasyBuildOptions(GeneralOption):
         if any((self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
                 self.options.list_easyblocks, self.options.list_toolchains, self.options.avail_cfgfile_constants,
                 self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
-                self.options.avail_repositories, self.options.show_default_moduleclasses,
+                self.options.avail_repositories, self.options.show_default_env_mod_classes,
                 self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
                 self.options.show_default_configfiles, self.options.avail_toolchain_opts,
                 self.options.avail_hooks, self.options.show_system_info,
@@ -1049,7 +1049,7 @@ class EasyBuildOptions(GeneralOption):
     def _postprocess_checks(self):
         """Check whether (combination of) configuration options make sense."""
 
-        # fail early if required dependencies for functionality requiring using GitHub API are not available:
+        # fail early if required deps for functionality requiring using GitHub API are not available:
         if self.options.from_pr or self.options.include_easyblocks_from_pr or self.options.upload_test_report:
             if not HAVE_GITHUB_API:
                 raise EasyBuildError("Required support for using GitHub API is not available (see warnings)")
@@ -1246,9 +1246,9 @@ class EasyBuildOptions(GeneralOption):
         if self.options.show_default_configfiles:
             msg += self.show_default_configfiles()
 
-        # dump default moduleclasses with description
-        if self.options.show_default_moduleclasses:
-            msg += self.show_default_moduleclasses()
+        # dump default env_mod_classes with description
+        if self.options.show_default_env_mod_classes:
+            msg += self.show_default_env_mod_classes()
 
         # dump system information
         if self.options.show_system_info:
@@ -1315,8 +1315,8 @@ class EasyBuildOptions(GeneralOption):
         ]
         return '\n'.join(lines)
 
-    def show_default_moduleclasses(self):
-        """Show list of default moduleclasses and description."""
+    def show_default_env_mod_classes(self):
+        """Show list of default env_mod_classes and description."""
         lines = ["Default available module classes:", '']
         maxlen = max([len(x[0]) for x in DEFAULT_MODULECLASSES]) + 1  # at least 1 space
         for name, descr in DEFAULT_MODULECLASSES:
@@ -1699,7 +1699,7 @@ def process_software_build_specs(options):
         'toolchain_name': options.try_toolchain_name,
         'toolchain_version': options.try_toolchain_version,
         'update_deps': options.try_update_deps,
-        'ignore_versionsuffixes': options.try_ignore_versionsuffixes,
+        'ignore_version_suffixes': options.try_ignore_version_suffixes,
     }
 
     # process easy options

@@ -26,8 +26,8 @@ sources = ['%(name)s-%(version)s.tar.gz']
 # download location for source files
 source_urls = [GNU_SOURCE]
 
-hiddendependencies = [('toy', '0.0', '-deps', SYSTEM)]
-dependencies = hiddendependencies  # hidden deps must be included in list of deps
+hidden_deps = [('toy', '0.0', '-deps', SYSTEM)]
+deps = hidden_deps  # hidden deps must be included in list of deps
 
 # make sure the gzip and gunzip binaries are available after installation
 sanity_check_paths = {
@@ -36,8 +36,8 @@ sanity_check_paths = {
 }
 
 # run 'gzip -h' and 'gzip --version' after installation
-sanity_check_commands = [True, ('gzip', '--version')]
+sanity_check_cmds = [True, ('gzip', '--version')]
 
 software_license = GPLv3
 
-moduleclass = 'tools'
+env_mod_class = 'tools'

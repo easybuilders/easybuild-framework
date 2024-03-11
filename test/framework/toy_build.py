@@ -111,10 +111,10 @@ class ToyBuildTest(EnhancedTestCase):
         if os.path.exists(self.dummylogfn):
             os.remove(self.dummylogfn)
 
-    def check_toy(self, installpath, outtxt, name='toy', version='0.0', versionprefix='', versionsuffix='', error=None):
+    def check_toy(self, installpath, outtxt, name='toy', version='0.0', version_prefix='', version_suffix='', error=None):
         """Check whether toy build succeeded."""
 
-        full_version = ''.join([versionprefix, version, versionsuffix])
+        full_version = ''.join([version_prefix, version, version_suffix])
 
         if error is not None:
             error_msg = '\nNote: Caught error: %s' % error
@@ -132,7 +132,7 @@ class ToyBuildTest(EnhancedTestCase):
             toy_module += '.lua'
         self.assertExists(toy_module, msg + error_msg)
 
-        # module file is symlinked according to moduleclass
+        # module file is symlinked according to env_mod_class
         toy_module_symlink = os.path.join(installpath, 'modules', 'tools', name, full_version)
         if get_module_syntax() == 'Lua':
             toy_module_symlink += '.lua'
@@ -158,7 +158,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertExists(devel_module_path)
 
     def _test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
-                        raise_error=False, test_report=None, name='toy', versionsuffix='', testing=True,
+                        raise_error=False, test_report=None, name='toy', version_suffix='', testing=True,
                         raise_systemexit=False, force=True, test_report_regexs=None, debug=True):
         """Perform a toy build."""
         if extra_args is None:
@@ -167,7 +167,7 @@ class ToyBuildTest(EnhancedTestCase):
         if ec_file is None:
             ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
             test_readme = True
-        full_ver = '0.0%s' % versionsuffix
+        full_ver = '0.0%s' % version_suffix
         args = [
             ec_file,
             '--sourcepath=%s' % self.test_sourcepath,
@@ -195,10 +195,10 @@ class ToyBuildTest(EnhancedTestCase):
                 raise myerr
 
         if verify:
-            self.check_toy(self.test_installpath, outtxt, name=name, versionsuffix=versionsuffix, error=myerr)
+            self.check_toy(self.test_installpath, outtxt, name=name, version_suffix=version_suffix, error=myerr)
 
         if test_readme:
-            # make sure postinstallcmds were used
+            # make sure post_install_cmds were used
             toy_install_path = os.path.join(self.test_installpath, 'software', 'toy', full_ver)
             self.assertEqual(read_file(os.path.join(toy_install_path, 'README')), "TOY\n")
 
@@ -290,24 +290,24 @@ class ToyBuildTest(EnhancedTestCase):
         ec_file = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
         shutil.copy2(os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', 'toy-0.0.eb'), ec_file)
 
-        modloadmsg = 'THANKS FOR LOADING ME\\nI AM %(name)s v%(version)s'
-        modloadmsg_regex_tcl = r'THANKS.*\n\s*I AM toy v0.0\n\s*"'
-        modloadmsg_regex_lua = r'\[==\[THANKS.*\n\s*I AM toy v0.0\n\s*\]==\]'
+        env_mod_load_msg = 'THANKS FOR LOADING ME\\nI AM %(name)s v%(version)s'
+        env_mod_load_msg_regex_tcl = r'THANKS.*\n\s*I AM toy v0.0\n\s*"'
+        env_mod_load_msg_regex_lua = r'\[==\[THANKS.*\n\s*I AM toy v0.0\n\s*\]==\]'
 
         # tweak easyconfig by appending to it
         ec_extra = '\n'.join([
-            "versionsuffix = '-tweaked'",
-            "modextrapaths = {'SOMEPATH': ['foo/bar', 'baz', '']}",
-            "modextrapaths_append = {'SOMEPATH_APPEND': ['qux/fred', 'thud', '']}",
-            "modextravars = {'FOO': 'bar'}",
-            "modloadmsg =  '%s'" % modloadmsg,
-            "modtclfooter = 'puts stderr \"oh hai!\"'",  # ignored when module syntax is Lua
-            "modluafooter = 'io.stderr:write(\"oh hai!\")'",  # ignored when module syntax is Tcl
+            "version_suffix = '-tweaked'",
+            "env_mod_extra_paths = {'SOMEPATH': ['foo/bar', 'baz', '']}",
+            "env_mod_extra_paths_append = {'SOMEPATH_APPEND': ['qux/fred', 'thud', '']}",
+            "env_mod_extra_vars = {'FOO': 'bar'}",
+            "env_mod_load_msg =  '%s'" % env_mod_load_msg,
+            "env_mod_tcl_footer = 'puts stderr \"oh hai!\"'",  # ignored when module syntax is Lua
+            "env_mod_lua_footer = 'io.stderr:write(\"oh hai!\")'",  # ignored when module syntax is Tcl
             "usage = 'This toy is easy to use, 100%!'",
             "examples = 'No example available, 0% complete'",
             "citing = 'If you use this package, please cite our paper https://ieeexplore.ieee.org/document/6495863'",
-            "docpaths = ['share/doc/toy/readme.txt', 'share/doc/toy/html/index.html']",
-            "docurls = ['https://easybuilders.github.io/easybuild/toy/docs.html']",
+            "doc_paths = ['share/doc/toy/readme.txt', 'share/doc/toy/html/index.html']",
+            "doc_urls = ['https://easybuilders.github.io/easybuild/toy/docs.html']",
             "upstream_contacts = 'support@toy.org'",
             "site_contacts = ['Jim Admin', 'Jane Admin']",
         ])
@@ -322,7 +322,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--force',
         ]
         outtxt = self.run_eb_main_capture_output(args, do_build=True, verbose=True, raise_error=True)
-        self.check_toy(self.test_installpath, outtxt, versionsuffix='-tweaked')
+        self.check_toy(self.test_installpath, outtxt, version_suffix='-tweaked')
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-tweaked')
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
@@ -336,7 +336,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^append-path\s*SOMEPATH_APPEND\s*\$root/qux/fred$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^append-path\s*SOMEPATH_APPEND\s*\$root/thud$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^append-path\s*SOMEPATH_APPEND\s*\$root$', toy_module_txt, re.M))
-            mod_load_msg = r'module-info mode load.*\n\s*puts stderr\s*.*%s$' % modloadmsg_regex_tcl
+            mod_load_msg = r'module-info mode load.*\n\s*puts stderr\s*.*%s$' % env_mod_load_msg_regex_tcl
             self.assertTrue(re.search(mod_load_msg, toy_module_txt, re.M))
             self.assertTrue(re.search(r'^puts stderr "oh hai!"$', toy_module_txt, re.M))
         elif get_module_syntax() == 'Lua':
@@ -350,13 +350,13 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^append_path\("SOMEPATH_APPEND", root\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", root\)$', toy_module_txt, re.M))
-            mod_load_msg = r'^if mode\(\) == "load" then\n\s*io.stderr:write\(%s\)$' % modloadmsg_regex_lua
+            mod_load_msg = r'^if mode\(\) == "load" then\n\s*io.stderr:write\(%s\)$' % env_mod_load_msg_regex_lua
             regex = re.compile(mod_load_msg, re.M)
             self.assertTrue(regex.search(toy_module_txt), "Pattern '%s' found in: %s" % (regex.pattern, toy_module_txt))
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
-        # newline between "I AM toy v0.0" (modloadmsg) and "oh hai!" (mod*footer) is added automatically
+        # newline between "I AM toy v0.0" (env_mod_load_msg) and "oh hai!" (mod*footer) is added automatically
         expected = "\nTHANKS FOR LOADING ME\nI AM toy v0.0\n"
 
         # with module files in Tcl syntax, a newline is added automatically
@@ -388,7 +388,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
-        # set $MODULEPATH such that modules for specified dependencies are found
+        # set $MODULEPATH such that modules for specified deps are found
         modulepath = os.environ.get('MODULEPATH')
         os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
 
@@ -445,7 +445,7 @@ class ToyBuildTest(EnhancedTestCase):
             ('someprefix-', '0.0', '-somesuffix')
         ]:
             self.check_toy(self.test_installpath, outtxt, version=toy_version,
-                           versionprefix=toy_prefix, versionsuffix=toy_suffix)
+                           version_prefix=toy_prefix, version_suffix=toy_suffix)
 
         # cleanup
         shutil.rmtree(tmpdir)
@@ -454,13 +454,13 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_build_formatv2_sections(self):
         """Perform a toy build (format v2, using sections)."""
         versions = {
-            '0.0': {'versionprefix': '', 'versionsuffix': ''},
-            '1.0': {'versionprefix': '', 'versionsuffix': ''},
-            '1.1': {'versionprefix': 'stable-', 'versionsuffix': ''},
-            '1.5': {'versionprefix': 'stable-', 'versionsuffix': '-early'},
-            '1.6': {'versionprefix': 'stable-', 'versionsuffix': '-early'},
-            '2.0': {'versionprefix': 'stable-', 'versionsuffix': '-early'},
-            '3.0': {'versionprefix': 'stable-', 'versionsuffix': '-mature'},
+            '0.0': {'version_prefix': '', 'version_suffix': ''},
+            '1.0': {'version_prefix': '', 'version_suffix': ''},
+            '1.1': {'version_prefix': 'stable-', 'version_suffix': ''},
+            '1.5': {'version_prefix': 'stable-', 'version_suffix': '-early'},
+            '1.6': {'version_prefix': 'stable-', 'version_suffix': '-early'},
+            '2.0': {'version_prefix': 'stable-', 'version_suffix': '-early'},
+            '3.0': {'version_prefix': 'stable-', 'version_suffix': '-mature'},
         }
 
         for version, specs in versions.items():
@@ -520,7 +520,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt = read_file(toy_ec_file)
 
         # remove exec perms on bin subdirectory for others, to check whether correct dir permissions are set
-        test_ec_txt += "\npostinstallcmds += ['chmod o-x %(installdir)s/bin']"
+        test_ec_txt += "\npost_install_cmds += ['chmod o-x %(installdir)s/bin']"
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
@@ -631,7 +631,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         test_ec_txt = read_file(toy_ec)
         # take away read permissions, to check whether they are correctly restored by EasyBuild after installation
-        test_ec_txt += "\npostinstallcmds += ['chmod -R og-r %(installdir)s']"
+        test_ec_txt += "\npost_install_cmds += ['chmod -R og-r %(installdir)s']"
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
@@ -858,7 +858,7 @@ class ToyBuildTest(EnhancedTestCase):
             toy_module_path += '.lua'
         self.assertExists(toy_module_path)
 
-        # check that toolchain load is expanded to loads for toolchain dependencies,
+        # check that toolchain load is expanded to loads for toolchain deps,
         # except for the ones that extend $MODULEPATH to make the toy module available
         if get_module_syntax() == 'Tcl':
             load_regex_template = "load %s"
@@ -890,14 +890,14 @@ class ToyBuildTest(EnhancedTestCase):
             toy_module_path += '.lua'
         self.assertExists(toy_module_path)
 
-        # no dependencies or toolchain => no module load statements in module file
+        # no deps or toolchain => no module load statements in module file
         modtxt = read_file(toy_module_path)
         self.assertFalse(re.search("module load", modtxt))
         os.remove(toy_module_path)
-        # test module path with GCC/6.4.0-2.28 build, pretend to be an MPI lib by setting moduleclass
+        # test module path with GCC/6.4.0-2.28 build, pretend to be an MPI lib by setting env_mod_class
         extra_args = [
             '--try-toolchain=GCC,6.4.0-2.28',
-            '--try-amend=moduleclass=mpi',
+            '--try-amend=env_mod_class=mpi',
         ]
         with self.mocked_stdout_stderr():
             self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
@@ -922,7 +922,7 @@ class ToyBuildTest(EnhancedTestCase):
         os.remove(toy_module_path)
 
         # ... unless they shouldn't be
-        extra_args.append('--try-amend=include_modpath_extensions=')  # pass empty string as equivalent to False
+        extra_args.append('--try-amend=include_modulepath_exts=')  # pass empty string as equivalent to False
         with self.mocked_stdout_stderr():
             self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
         modtxt = read_file(toy_module_path)
@@ -950,15 +950,15 @@ class ToyBuildTest(EnhancedTestCase):
             toy_module_path += '.lua'
         self.assertExists(toy_module_path)
 
-        # no dependencies or toolchain => no module load statements in module file
+        # no deps or toolchain => no module load statements in module file
         modtxt = read_file(toy_module_path)
         self.assertFalse(re.search("module load", modtxt))
         os.remove(toy_module_path)
 
-        # test module path with system/system build, pretend to be a compiler by setting moduleclass
+        # test module path with system/system build, pretend to be a compiler by setting env_mod_class
         extra_args = [
             '--try-toolchain=system,system',
-            '--try-amend=moduleclass=compiler',
+            '--try-amend=env_mod_class=compiler',
         ]
         with self.mocked_stdout_stderr():
             self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
@@ -969,7 +969,7 @@ class ToyBuildTest(EnhancedTestCase):
             toy_module_path += '.lua'
         self.assertExists(toy_module_path)
 
-        # no dependencies or toolchain => no module load statements in module file
+        # no deps or toolchain => no module load statements in module file
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'Compiler', 'toy', '0.0')
         if get_module_syntax() == 'Tcl':
@@ -1122,7 +1122,7 @@ class ToyBuildTest(EnhancedTestCase):
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
         with self.mocked_stdout_stderr():
-            self._test_toy_build(ec_file=test_ec, versionsuffix='-gompi-2018a-test', extra_args=['--debug'])
+            self._test_toy_build(ec_file=test_ec, version_suffix='-gompi-2018a-test', extra_args=['--debug'])
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-gompi-2018a-test')
         if get_module_syntax() == 'Lua':
@@ -1148,13 +1148,13 @@ class ToyBuildTest(EnhancedTestCase):
 
         toy_ec_txt = read_file(toy_ec)
         # add FFTW as build dependency, just to filter it out again
-        toy_ec_txt += "\nbuilddependencies = [('FFTW', '3.3.3')]"
+        toy_ec_txt += "\nbuild_deps = [('FFTW', '3.3.3')]"
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, toy_ec_txt)
 
         with self.mocked_stdout_stderr():
-            self._test_toy_build(ec_file=test_ec, versionsuffix='-gompi-2018a-test', extra_args=["--filter-deps=FFTW"])
+            self._test_toy_build(ec_file=test_ec, version_suffix='-gompi-2018a-test', extra_args=["--filter-deps=FFTW"])
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-gompi-2018a-test')
         if get_module_syntax() == 'Lua':
@@ -1259,8 +1259,8 @@ class ToyBuildTest(EnhancedTestCase):
         archived_patch_file = os.path.join(repositorypath, 'toy', 'toy-0.0_fix-silly-typo-in-printf-statement.patch')
         self.assertTrue(os.path.isfile(archived_patch_file))
 
-    def test_toy_extension_patches_postinstallcmds(self):
-        """Test install toy that includes extensions with patches and postinstallcmds."""
+    def test_toy_extension_patches_post_install_cmds(self):
+        """Test install toy that includes extensions with patches and post_install_cmds."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec)
@@ -1273,13 +1273,13 @@ class ToyBuildTest(EnhancedTestCase):
             toy_ec_txt,
             'exts_list = [',
             '   ("bar", "0.0", {',
-            '       "buildopts": " && ls -l test.txt",',
+            '       "build_opts": " && ls -l test.txt",',
             '       "patches": [',
             '           "bar-0.0_fix-silly-typo-in-printf-statement.patch",',  # normal patch
             '           ("bar-0.0_fix-very-silly-typo-in-printf-statement.patch", 0),',  # patch with patch level
             '           ("test.txt", "."),',  # file to copy to build dir (not a real patch file)
             '       ],',
-            '       "postinstallcmds": ["touch %(installdir)s/created-via-postinstallcmds.txt"],',
+            '       "post_install_cmds": ["touch %(installdir)s/created-via-post_install_cmds.txt"],',
             '   }),',
             ']',
         ])
@@ -1297,7 +1297,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(res.output, "I'm a bar, and very very proud of it.\n")
 
         # verify that post-install command for 'bar' extension was executed
-        fn = 'created-via-postinstallcmds.txt'
+        fn = 'created-via-post_install_cmds.txt'
         self.assertExists(os.path.join(installdir, fn))
 
     def test_toy_extension_sources(self):
@@ -1469,10 +1469,10 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = '\n'.join([
             toy_ec_txt,
-            'prebuildopts = "echo \\\"%s\\\" > %s && ",' % (ext_code, ext_cfile),
+            'pre_build_opts = "echo \\\"%s\\\" > %s && ",' % (ext_code, ext_cfile),
             'exts_list = [',
             '   ("exts-git", "0.0", {',
-            '       "buildopts": "&& ls -l %s %s",' % (ext_tarball, ext_tarfile),
+            '       "build_opts": "&& ls -l %s %s",' % (ext_tarball, ext_tarfile),
             '       "sources": {',
             '           "filename": "%(name)s.tar.gz",',
             '           "git_config": {',
@@ -1497,12 +1497,12 @@ class ToyBuildTest(EnhancedTestCase):
             toy_module += '.lua'
         toy_mod_txt = read_file(toy_module)
 
-        modloadmsg_tcl = [
+        env_mod_load_msg_tcl = [
             r'puts stderr "THANKS FOR LOADING ME',
             r'I AM toy v0.0',
             '"',
         ]
-        modloadmsg_lua = [
+        env_mod_load_msg_lua = [
             r'io.stderr:write\(\[==\[THANKS FOR LOADING ME',
             r'I AM toy v0.0',
             r'\]==\]\)',
@@ -1573,7 +1573,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'append_path\("SOMEPATH_APPEND", root\)',
                 r'',
                 r'if mode\(\) == "load" then',
-            ] + modloadmsg_lua + [
+            ] + env_mod_load_msg_lua + [
                 r'end',
                 r'setenv\("TOY", "toy-0.0"\)',
                 r'-- Built with EasyBuild version .*',
@@ -1614,7 +1614,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'append-path	SOMEPATH_APPEND		\$root',
                 r'',
                 r'if { \[ module-info mode load \] } {',
-            ] + modloadmsg_tcl + [
+            ] + env_mod_load_msg_tcl + [
                 r'}',
                 r'setenv	TOY		"toy-0.0"',
                 r'# Built with EasyBuild version .*',
@@ -1627,17 +1627,17 @@ class ToyBuildTest(EnhancedTestCase):
         msg = "Pattern '%s' matches with: %s" % (mod_txt_regex.pattern, toy_mod_txt)
         self.assertTrue(mod_txt_regex.match(toy_mod_txt), msg)
 
-    def test_external_dependencies(self):
-        """Test specifying external (build) dependencies."""
+    def test_external_deps(self):
+        """Test specifying external (build) deps."""
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         ectxt = read_file(os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-deps.eb'))
         toy_ec = os.path.join(self.test_prefix, 'toy-0.0-external-deps.eb')
 
         # just specify some of the test modules we ship, doesn't matter where they come from
-        extraectxt = "\ndependencies += [('foobar/1.2.3', EXTERNAL_MODULE)]"
-        extraectxt += "\nbuilddependencies = [('somebuilddep/0.1', EXTERNAL_MODULE)]"
-        extraectxt += "\nversionsuffix = '-external-deps'"
+        extraectxt = "\ndeps += [('foobar/1.2.3', EXTERNAL_MODULE)]"
+        extraectxt += "\nbuild_deps = [('somebuilddep/0.1', EXTERNAL_MODULE)]"
+        extraectxt += "\nversion_suffix = '-external-deps'"
         write_file(toy_ec, ectxt + extraectxt)
 
         # install dummy modules
@@ -1652,7 +1652,7 @@ class ToyBuildTest(EnhancedTestCase):
         start_env = copy.deepcopy(os.environ)
 
         with self.mocked_stdout_stderr():
-            self._test_toy_build(ec_file=toy_ec, versionsuffix='-external-deps', verbose=True, raise_error=True)
+            self._test_toy_build(ec_file=toy_ec, version_suffix='-external-deps', verbose=True, raise_error=True)
 
         self.modtool.load(['toy/0.0-external-deps'])
         # note build dependency is not loaded
@@ -1663,8 +1663,8 @@ class ToyBuildTest(EnhancedTestCase):
         modify_env(os.environ, start_env, verbose=False)
 
         # check behaviour when a non-existing external (build) dependency is included
-        extraectxt = "\nbuilddependencies = [('nosuchbuilddep/0.0.0', EXTERNAL_MODULE)]"
-        extraectxt += "\nversionsuffix = '-external-deps-broken1'"
+        extraectxt = "\nbuild_deps = [('nosuchbuilddep/0.0.0', EXTERNAL_MODULE)]"
+        extraectxt += "\nversion_suffix = '-external-deps-broken1'"
         write_file(toy_ec, ectxt + extraectxt)
 
         if isinstance(self.modtool, Lmod):
@@ -1676,8 +1676,8 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, err_msg, self._test_toy_build, ec_file=toy_ec,
                                   raise_error=True, verbose=False)
 
-        extraectxt = "\ndependencies += [('nosuchmodule/1.2.3', EXTERNAL_MODULE)]"
-        extraectxt += "\nversionsuffix = '-external-deps-broken2'"
+        extraectxt = "\ndeps += [('nosuchmodule/1.2.3', EXTERNAL_MODULE)]"
+        extraectxt += "\nversion_suffix = '-external-deps-broken2'"
         write_file(toy_ec, ectxt + extraectxt)
 
         if isinstance(self.modtool, Lmod):
@@ -1725,7 +1725,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.eb_main(args + ['--force'], do_build=True, raise_error=True)
         self.assertExists(toy_mod)
 
-        # make sure load statements for dependencies are included in additional module file generated with --module-only
+        # make sure load statements for deps are included in additional module file generated with --module-only
         modtxt = read_file(toy_mod)
         self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
         self.assertTrue(re.search('load.*GCC/6.4.0-2.28', modtxt), "load statement for GCC/6.4.0-2.28 found in module")
@@ -1768,7 +1768,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 3)
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
-        # make sure load statements for dependencies are included
+        # make sure load statements for deps are included
         modtxt = read_file(toy_core_mod)
         self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
 
@@ -1786,7 +1786,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 3)
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
-        # make sure load statements for dependencies are included
+        # make sure load statements for deps are included
         modtxt = read_file(toy_core_mod)
         self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
 
@@ -1812,7 +1812,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 3)
             self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
-            # make sure load statements for dependencies are included
+            # make sure load statements for deps are included
             modtxt = read_file(toy_mod + '.lua')
             self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
 
@@ -1832,7 +1832,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.ec')
         test_ec_txt = read_file(toy_ec)
         test_ec_txt += '\n' + '\n'.join([
-            "sanity_check_commands = ['barbar', 'toy']",
+            "sanity_check_cmds = ['barbar', 'toy']",
             "sanity_check_paths = {'files': ['bin/barbar', 'bin/toy'], 'dirs': ['bin']}",
             "exts_list = [",
             "    ('barbar', '0.0', {",
@@ -1911,7 +1911,7 @@ class ToyBuildTest(EnhancedTestCase):
             "    }),",
             "    ('toy', '0.0'),",
             "]",
-            "sanity_check_commands = ['barbar', 'toy']",
+            "sanity_check_cmds = ['barbar', 'toy']",
             "sanity_check_paths = {'files': ['bin/barbar', 'bin/toy'], 'dirs': ['bin']}",
         ])
         write_file(test_ec, test_ec_txt)
@@ -2325,15 +2325,15 @@ class ToyBuildTest(EnhancedTestCase):
         ec1 = os.path.join(self.test_prefix, 'toy1.eb')
         ec1_txt = '\n'.join([
             toy_ec_txt,
-            "versionsuffix = '-one'",
+            "version_suffix = '-one'",
         ])
         write_file(ec1, ec1_txt)
 
         ec2 = os.path.join(self.test_prefix, 'toy2.eb')
         ec2_txt = '\n'.join([
             toy_ec_txt,
-            "versionsuffix = '-two'",
-            "dependencies = [('toy', '0.0', '-one')]",
+            "version_suffix = '-two'",
+            "deps = [('toy', '0.0', '-one')]",
         ])
         write_file(ec2, ec2_txt)
 
@@ -2371,7 +2371,7 @@ class ToyBuildTest(EnhancedTestCase):
         for pattern in patterns:
             self.assertIn(pattern, env_file)
 
-    def test_toy_sanity_check_commands(self):
+    def test_toy_sanity_check_cmds(self):
         """Test toy build with extra sanity check commands."""
 
         self.setup_hierarchical_modules()
@@ -2385,7 +2385,7 @@ class ToyBuildTest(EnhancedTestCase):
             # specially construct (sort of senseless) sanity check commands,
             # that will fail if the corresponding modules are not loaded
             # cfr. https://github.com/easybuilders/easybuild-framework/pull/1754
-            "sanity_check_commands = [",
+            "sanity_check_cmds = [",
             "   'env | grep EBROOTFFTW',",
             "   'env | grep EBROOTGCC',",
             # tuple format (kinda weird but kept in place for backward compatibility)
@@ -2437,7 +2437,7 @@ class ToyBuildTest(EnhancedTestCase):
             # move libtoy.a
             "mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/libtoy.a",
         ])
-        ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
+        ectxt = re.sub("post_install_cmds.*", "post_install_cmds = ['%s']" % postinstallcmd, ectxt)
 
         test_ec = os.path.join(self.test_prefix, 'toy-0.0.eb')
         write_file(test_ec, ectxt)
@@ -2502,7 +2502,7 @@ class ToyBuildTest(EnhancedTestCase):
         ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy', 'lib/test/libtoy.a'],", ectxt)
         postinstallcmd = "mkdir -p %(installdir)s/lib64/test && "
         postinstallcmd += "mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/test/libtoy.a"
-        ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
+        ectxt = re.sub("post_install_cmds.*", "post_install_cmds = ['%s']" % postinstallcmd, ectxt)
         write_file(test_ec, ectxt)
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
@@ -2573,7 +2573,7 @@ class ToyBuildTest(EnhancedTestCase):
         # to avoid trouble with subsequent EasyBuild sessions in this test
         del sys.modules['easybuild.easyblocks.toy']
 
-        # easyconfig specifies custom sanity_check_paths & sanity_check_commands,
+        # easyconfig specifies custom sanity_check_paths & sanity_check_cmds,
         # the ones defined by the easyblock are skipped by default
         test_ec_txt = test_ec_txt + '\n'.join([
             '',
@@ -2581,7 +2581,7 @@ class ToyBuildTest(EnhancedTestCase):
             "    'files': ['README'],",
             "    'dirs': ['bin/']",
             "}",
-            "sanity_check_commands = ['ls %(installdir)s']",
+            "sanity_check_cmds = ['ls %(installdir)s']",
         ])
         write_file(test_ec, test_ec_txt)
 
@@ -2695,9 +2695,9 @@ class ToyBuildTest(EnhancedTestCase):
                 self.eb_main(args, do_build=True)
             easybuild.tools.build_log.EXPERIMENTAL = True
             ec = EasyConfig(args[0])
-            buildstats = ec.parser.get_config_dict()['buildstats']
+            build_stats = ec.parser.get_config_dict()['build_stats']
 
-            self.assertTrue(all(isinstance(bs, dict) for bs in buildstats))
+            self.assertTrue(all(isinstance(bs, dict) for bs in build_stats))
 
     def test_toy_filter_env_vars(self):
         """Test use of --filter-env-vars on generated module file"""
@@ -2725,21 +2725,21 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertFalse(regexs[2].search(toy_mod_txt), "Pattern '%s' found in: %s" % (regexs[2].pattern, toy_mod_txt))
 
     def test_toy_iter(self):
-        """Test toy build that involves iterating over buildopts."""
+        """Test toy build that involves iterating over build_opts."""
         topdir = os.path.abspath(os.path.dirname(__file__))
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-iter.eb')
 
-        expected_buildopts = ['', '-O2; mv %(name)s toy_O2_$EBVERSIONGCC', '-O1; mv %(name)s toy_O1_$EBVERSIONGCC']
+        expected_build_opts = ['', '-O2; mv %(name)s toy_O2_$EBVERSIONGCC', '-O1; mv %(name)s toy_O1_$EBVERSIONGCC']
 
         for extra_args in [None, ['--minimal-toolchains']]:
-            # sanity check will make sure all entries in buildopts list were taken into account
+            # sanity check will make sure all entries in build_opts list were taken into account
             with self.mocked_stdout_stderr():
-                self._test_toy_build(ec_file=toy_ec, extra_args=extra_args, versionsuffix='-iter')
+                self._test_toy_build(ec_file=toy_ec, extra_args=extra_args, version_suffix='-iter')
 
-            # verify whether dumped easyconfig contains original value for buildopts
+            # verify whether dumped easyconfig contains original value for build_opts
             dumped_toy_ec = os.path.join(self.test_prefix, 'ebfiles_repo', 'toy', os.path.basename(toy_ec))
             ec = EasyConfigParser(dumped_toy_ec).get_config_dict()
-            self.assertEqual(ec['buildopts'], expected_buildopts)
+            self.assertEqual(ec['build_opts'], expected_build_opts)
 
     def test_toy_rpath(self):
         """Test toy build using --rpath."""
@@ -2822,7 +2822,7 @@ class ToyBuildTest(EnhancedTestCase):
         # test use of rpath toolchain option
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb'))
-        toy_ec_txt += "\ntoolchainopts = {'rpath': False}\n"
+        toy_ec_txt += "\ntoolchain_opts = {'rpath': False}\n"
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         write_file(toy_ec, toy_ec_txt)
         with self.mocked_stdout_stderr():
@@ -2900,28 +2900,28 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(notfound.search(res.output),
                         f"Pattern '{notfound.pattern}' should be found in: {res.output}")
 
-    def test_toy_modaltsoftname(self):
-        """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
+    def test_toy_env_mod_alt_soft_name(self):
+        """Build two dependent toys as in test_toy_toy but using env_mod_alt_soft_name"""
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec_file)
 
-        self.assertFalse(re.search('^modaltsoftname', toy_ec_txt, re.M))
+        self.assertFalse(re.search('^env_mod_alt_soft_name', toy_ec_txt, re.M))
 
         ec1 = os.path.join(self.test_prefix, 'toy-0.0-one.eb')
         ec1_txt = '\n'.join([
             toy_ec_txt,
-            "versionsuffix = '-one'",
-            "modaltsoftname = 'yot'"
+            "version_suffix = '-one'",
+            "env_mod_alt_soft_name = 'yot'"
         ])
         write_file(ec1, ec1_txt)
 
         ec2 = os.path.join(self.test_prefix, 'toy-0.0-two.eb')
         ec2_txt = '\n'.join([
             toy_ec_txt,
-            "versionsuffix = '-two'",
-            "dependencies = [('toy', '0.0', '-one')]",
-            "modaltsoftname = 'toytwo'",
+            "version_suffix = '-two'",
+            "deps = [('toy', '0.0', '-one')]",
+            "env_mod_alt_soft_name = 'toytwo'",
         ])
         write_file(ec2, ec2_txt)
 
@@ -2965,7 +2965,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        write_file(test_ec, read_file(toy_ec_file) + '\nsanity_check_commands = ["toy"]')
+        write_file(test_ec, read_file(toy_ec_file) + '\nsanity_check_cmds = ["toy"]')
 
         self.mock_stderr(True)
         self.mock_stdout(True)
@@ -3027,8 +3027,8 @@ class ToyBuildTest(EnhancedTestCase):
                print(ec['sources'])
             # try appending to postinstallcmd to see whether the modification is actually picked up
             # (required templating to be disabled before parse_hook is called)
-               ec['postinstallcmds'].append('echo toy')
-               print(ec['postinstallcmds'][-1])
+               ec['post_install_cmds'].append('echo toy')
+               print(ec['post_install_cmds'][-1])
 
             def pre_configure_hook(self):
                 print('pre-configure: toy.source: %s' % os.path.exists('toy.source'))
@@ -3363,7 +3363,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         test_ec_txt = '\n'.join([
             toy_ec_txt,
-            "postinstallcmds = ["
+            "post_install_cmds = ["
             # copy of bin/toy to use in fix_python_shebang_for and fix_perl_shebang_for
             "    'cp -a %(installdir)s/bin/toy %(installdir)s/bin/toy.python',",
             "    'cp -a %(installdir)s/bin/toy %(installdir)s/bin/toy.perl',",
@@ -3754,7 +3754,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec_txt = read_file(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        write_file(test_ec, toy_ec_txt + '\npostinstallcmds = ["sleep 5"]')
+        write_file(test_ec, toy_ec_txt + '\npost_install_cmds = ["sleep 5"]')
 
         signums = [
             (signal.SIGABRT, SystemExit),
@@ -3989,7 +3989,7 @@ class ToyBuildTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=test_ec)
 
-        test_ec_txt += "\npostinstallcmds += ['touch %(installdir)s/lib/file.mod']"
+        test_ec_txt += "\npost_install_cmds += ['touch %(installdir)s/lib/file.mod']"
         write_file(test_ec, test_ec_txt)
 
         with self.mocked_stdout_stderr():
@@ -4010,7 +4010,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, pattern, self.run_test_toy_build_with_output, ec_file=test_ec,
                               extra_args=args, verify=False, fails=True, verbose=False, raise_error=True)
 
-        test_ec_txt += "\nskip_mod_files_sanity_check = True"
+        test_ec_txt += "\nskip_fortran_mod_files_sanity_check = True"
         write_file(test_ec, test_ec_txt)
 
         with self.mocked_stdout_stderr():
@@ -4032,7 +4032,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
 
         test_ec_txt = read_file(toy_ec)
-        test_ec_txt += "\npostinstallpatches = ['toy-0.0_fix-README.patch']"
+        test_ec_txt += "\npost_install_patches = ['toy-0.0_fix-README.patch']"
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
 
@@ -4047,14 +4047,14 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_unavailable_os_dep(self):
         """
         Test unavailable OS dep
-        Existence of OS dependencies is checking during the parsing of the easyconfig.
+        Existence of OS deps is checking during the parsing of the easyconfig.
         Test here that this problem is caught and a test report generated (#4102).
         """
         test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
 
         test_ec_txt = read_file(toy_ec)
-        test_ec_txt += "\nosdependencies = [('package-does-not-exist')]"
+        test_ec_txt += "\nos_deps = [('package-does-not-exist')]"
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
 
@@ -4063,7 +4063,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.mock_stderr(True)
         self.mock_stdout(True)
         self._test_toy_build(ec_file=test_ec, force=False, raise_error=False, verify=False,
-                             test_report_regexs=[r"One or more OS dependencies were not found"],
+                             test_report_regexs=[r"One or more OS deps were not found"],
                              test_report=test_report_fp)
         stdout = self.get_stdout()
         self.mock_stderr(False)
@@ -4071,7 +4071,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         patterns = [
             r"Failed to process easyconfig",
-            r"One or more OS dependencies were not found",
+            r"One or more OS deps were not found",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -4085,7 +4085,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
 
         test_ec_txt = read_file(toy_ec)
-        test_ec_txt += "\npostinstallmsgs = ['This is post install message 1', 'This is post install message 2']"
+        test_ec_txt += "\npost_install_msgs = ['This is post install message 1', 'This is post install message 2']"
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
 
@@ -4138,7 +4138,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
 
         test_ec_txt = read_file(toy_ec)
-        test_ec_txt += '\nruntest = "false"'
+        test_ec_txt += '\nrun_test = "false"'
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
 
@@ -4190,7 +4190,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = read_file(toy_ec)
-        test_ec_txt += "\ndependencies = [('nosuchdep', '1.0')]"
+        test_ec_txt += "\ndeps = [('nosuchdep', '1.0')]"
         write_file(test_ec, test_ec_txt)
 
         with self.mocked_stdout_stderr() as (_, stderr):
@@ -4200,7 +4200,7 @@ class ToyBuildTest(EnhancedTestCase):
             except SystemExit:
                 pass
 
-            regex = re.compile("^ERROR: Missing dependencies", re.M)
+            regex = re.compile("^ERROR: Missing deps", re.M)
             stderr = stderr.getvalue()
             self.assertTrue(regex.search(stderr), f"Pattern '{regex.pattern}' should be found in {stderr}")
 

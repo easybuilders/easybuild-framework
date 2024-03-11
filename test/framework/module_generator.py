@@ -38,7 +38,7 @@ from unittest import TextTestRunner, TestSuite
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.filetools import mkdir, read_file, remove_file, write_file
-from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, dependencies_for
+from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, deps_for
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
@@ -1176,7 +1176,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'gzip-1.5-foss-2018a.eb': 'gzip/1.5-foss-2018a',
             'gzip-1.5-intel-2018a.eb': 'gzip/1.5-intel-2018a',
             'toy-0.0.eb': 'toy/0.0',
-            'toy-0.0-multiple.eb': 'toy/0.0-somesuffix',  # first block sets versionsuffix to '-somesuffix'
+            'toy-0.0-multiple.eb': 'toy/0.0-somesuffix',  # first block sets version_suffix to '-somesuffix'
         }
         ec2mod_map = default_ec2mod_map
         test_mns()
@@ -1185,7 +1185,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         non_parsed = {
             'name': 'foo',
             'version': '1.2.3',
-            'versionsuffix': '-bar',
+            'version_suffix': '-bar',
             'toolchain': {
                 'name': 't00ls',
                 'version': '6.6.6',
@@ -1240,28 +1240,28 @@ class ModuleGeneratorTest(EnhancedTestCase):
         }
         test_mns()
 
-        # test determining module name for dependencies (i.e. non-parsed easyconfigs)
+        # test determining module name for deps (i.e. non-parsed easyconfigs)
         # using a module naming scheme that requires all easyconfig parameters
         ec2mod_map['gzip-1.5-foss-2018a.eb'] = 'gzip/.65dc39f92bf634667c478c50e43f0cda96b093a9'
         for dep_ec, dep_spec in [
             ('GCC-4.6.3.eb', {
                 'name': 'GCC',
                 'version': '4.6.3',
-                'versionsuffix': '',
+                'version_suffix': '',
                 'toolchain': {'name': 'system', 'version': 'system'},
                 'hidden': False,
             }),
             ('gzip-1.5-foss-2018a.eb', {
                 'name': 'gzip',
                 'version': '1.5',
-                'versionsuffix': '',
+                'version_suffix': '',
                 'toolchain': {'name': 'foss', 'version': '2018a'},
                 'hidden': True,
             }),
             ('toy-0.0-multiple.eb', {
                 'name': 'toy',
                 'version': '0.0',
-                'versionsuffix': '-multiple',
+                'version_suffix': '-multiple',
                 'toolchain': {'name': 'system', 'version': 'system'},
                 'hidden': False,
             }),
@@ -1285,9 +1285,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
         faulty_dep_spec = {
             'name': 'test',
             'version': '1.2.3',
-            'versionsuffix': {'name': 'system', 'version': 'system'},
+            'version_suffix': {'name': 'system', 'version': 'system'},
         }
-        error_pattern = "versionsuffix value should be a string, found 'dict'"
+        error_pattern = "version_suffix value should be a string, found 'dict'"
         self.assertErrorRegex(EasyBuildError, error_pattern, ActiveMNS().det_full_module_name, faulty_dep_spec)
 
     def test_mod_name_validation(self):
@@ -1337,7 +1337,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_hierarchical_mns(self):
         """Test hierarchical module naming scheme."""
 
-        moduleclasses = ['base', 'compiler', 'mpi', 'numlib', 'system', 'toolchain']
+        env_mod_classes = ['base', 'compiler', 'mpi', 'numlib', 'system', 'toolchain']
         ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         build_options = {
@@ -1345,7 +1345,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'robot_path': [ecs_dir],
             'valid_stops': all_stops,
             'validate': False,
-            'valid_module_classes': moduleclasses,
+            'valid_module_classes': env_mod_classes,
         }
 
         def test_ec(ecfile, short_modname, mod_subdir, modpath_exts, user_modpath_exts, init_modpaths):
@@ -1437,32 +1437,32 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # format: easyconfig_file: (short_mod_name, mod_subdir, modpath_exts, user_modpath_exts)
         test_ecs = {
             'GCC-6.4.0-2.28.eb': ('GCC/6.4.0-2.28', 'Core/compiler',
-                                  ['Compiler/GCC/6.4.0-2.28/%s' % c for c in moduleclasses],
+                                  ['Compiler/GCC/6.4.0-2.28/%s' % c for c in env_mod_classes],
                                   ['Compiler/GCC/6.4.0-2.28']),
             'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb': ('OpenMPI/2.1.2', 'Compiler/GCC/6.4.0-2.28/mpi',
-                                                ['MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/%s' % c for c in moduleclasses],
+                                                ['MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/%s' % c for c in env_mod_classes],
                                                 ['MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2']),
             'gzip-1.5-foss-2018a.eb': ('gzip/1.5', 'MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/tools',
                                        [], []),
             'foss-2018a.eb': ('foss/2018a', 'Core/toolchain',
                               [], []),
             'icc-2016.1.150-GCC-4.9.3-2.25.eb': ('icc/%s' % iccver, 'Core/compiler',
-                                                 ['Compiler/intel/%s/%s' % (iccver, c) for c in moduleclasses],
+                                                 ['Compiler/intel/%s/%s' % (iccver, c) for c in env_mod_classes],
                                                  ['Compiler/intel/%s' % iccver]),
             'ifort-2016.1.150.eb': ('ifort/2016.1.150', 'Core/compiler',
-                                    ['Compiler/intel/2016.1.150/%s' % c for c in moduleclasses],
+                                    ['Compiler/intel/2016.1.150/%s' % c for c in env_mod_classes],
                                     ['Compiler/intel/2016.1.150']),
             'CUDA-9.1.85-GCC-6.4.0-2.28.eb': ('CUDA/9.1.85', 'Compiler/GCC/6.4.0-2.28/system',
-                                              ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85/%s' % c for c in moduleclasses],
+                                              ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85/%s' % c for c in env_mod_classes],
                                               ['Compiler/GCC-CUDA/6.4.0-2.28-9.1.85']),
             impi_ec: ('impi/5.1.2.150', 'Compiler/intel/%s/mpi' % iccver,
-                      ['MPI/intel/%s/impi/5.1.2.150/%s' % (iccver, c) for c in moduleclasses],
+                      ['MPI/intel/%s/impi/5.1.2.150/%s' % (iccver, c) for c in env_mod_classes],
                       ['MPI/intel/%s/impi/5.1.2.150' % iccver]),
             imkl_ec: ('imkl/11.3.1.150', 'MPI/intel/%s/impi/5.1.2.150/numlib' % iccver,
                       [], []),
         }
         for ecfile, mns_vals in test_ecs.items():
-            test_ec(ecfile, *mns_vals, init_modpaths=['Core/%s' % c for c in moduleclasses])
+            test_ec(ecfile, *mns_vals, init_modpaths=['Core/%s' % c for c in env_mod_classes])
 
         # impi with dummy toolchain, which doesn't make sense in a hierarchical context
         ec = EasyConfig(os.path.join(ecs_dir, 'i', 'impi', 'impi-5.1.2.150.eb'))
@@ -1494,8 +1494,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
 
-    def test_dependencies_for(self):
-        """Test for dependencies_for function."""
+    def test_deps_for(self):
+        """Test for deps_for function."""
         expected = [
             'GCC/6.4.0-2.28',
             'OpenMPI/2.1.2-GCC-6.4.0-2.28',
@@ -1505,10 +1505,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'hwloc/1.11.8-GCC-6.4.0-2.28',
             'gompi/2018a',
         ]
-        self.assertEqual(dependencies_for('foss/2018a', self.modtool), expected)
+        self.assertEqual(deps_for('foss/2018a', self.modtool), expected)
 
-        # only with depth=0, only direct dependencies are returned
-        self.assertEqual(dependencies_for('foss/2018a', self.modtool, depth=0), expected[:-2])
+        # only with depth=0, only direct deps are returned
+        self.assertEqual(deps_for('foss/2018a', self.modtool, depth=0), expected[:-2])
 
         # Lmod 7.6+ is required to use depends-on
         if self.modtool.supports_depends_on:
@@ -1537,7 +1537,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'OpenMPI/2.1.2-GCC-6.4.0-2.28',
                 'hwloc/1.11.8-GCC-6.4.0-2.28',  # recursive dep, via OpenMPI
             ]
-            self.assertEqual(dependencies_for('test/1.2.3', self.modtool), expected)
+            self.assertEqual(deps_for('test/1.2.3', self.modtool), expected)
 
     def test_det_installdir(self):
         """Test det_installdir method."""

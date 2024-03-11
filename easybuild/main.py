@@ -76,7 +76,7 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import opts_dict_to_eb_opts, set_up_configuration, use_color
 from easybuild.tools.output import COLOR_GREEN, COLOR_RED, STATUS_BAR, colorize, print_checks, rich_live_cm
 from easybuild.tools.output import start_progress_bar, stop_progress_bar, update_progress_bar
-from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
+from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_deps, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
@@ -426,7 +426,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     # tweak obtained easyconfig files, if requested
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
-    # if easyconfig files for the dependencies are not available
+    # if easyconfig files for the deps are not available
     if try_to_generate and build_specs and not generated_ecs:
         easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths)
 
@@ -458,11 +458,11 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
-        # resolve dependencies if robot is enabled, except in dry run mode
+        # resolve deps if robot is enabled, except in dry run mode
         # one exception: deps *are* resolved with --new-pr or --update-pr when dry run mode is enabled
         if options.robot and (not dry_run_mode or any_pr_option_set):
-            print_msg("resolving dependencies ...", log=_log, silent=testing)
-            ordered_ecs = resolve_dependencies(easyconfigs, modtool)
+            print_msg("resolving deps ...", log=_log, silent=testing)
+            ordered_ecs = resolve_deps(easyconfigs, modtool)
         else:
             ordered_ecs = easyconfigs
     elif any_pr_option_set:
@@ -473,7 +473,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     if options.copy_ec and tweaked_ecs_paths:
         all_specs = [spec['spec'] for spec in
-                     resolve_dependencies(easyconfigs, modtool, retain_all_deps=True, raise_error_missing_ecs=False)]
+                     resolve_deps(easyconfigs, modtool, retain_all_deps=True, raise_error_missing_ecs=False)]
         tweaked_ecs_in_all_ecs = [path for path in all_specs if
                                   any(tweaked_ecs_path in path for tweaked_ecs_path in tweaked_ecs_paths)]
         if tweaked_ecs_in_all_ecs:
@@ -504,7 +504,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         else:
             raise EasyBuildError("Unknown PR option!")
 
-    # dry_run: print all easyconfigs and dependencies, and whether they are already built
+    # dry_run: print all easyconfigs and deps, and whether they are already built
     elif dry_run_mode:
         if options.missing_modules:
             txt = missing_deps(easyconfigs, modtool)

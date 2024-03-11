@@ -11,10 +11,10 @@ toolchain = SYSTEM
 
 local_comp = ('GCC', '4.9.3-2.25')
 
-# compiler toolchain dependencies
-dependencies = [
+# compiler toolchain deps
+deps = [
     local_comp,
     ('MVAPICH2', '2.2a', '', local_comp),
 ]
 
-moduleclass = 'toolchain'
+env_mod_class = 'toolchain'

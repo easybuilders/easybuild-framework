@@ -28,14 +28,14 @@ patches = [
     (local_timing_src, '.'),
 ]
 
-skipsteps = ['configure']
+skip_steps = ['configure']
 
 local_threading = 'USE_THREAD=1'
-buildopts = 'BINARY=64 ' + local_threading + ' CC="$CC" FC="$F77"'
-installopts = local_threading + " PREFIX=%(installdir)s"
+build_opts = 'BINARY=64 ' + local_threading + ' CC="$CC" FC="$F77"'
+install_opts = local_threading + " PREFIX=%(installdir)s"
 
 # extensive testing can be enabled by uncommenting the line below
-# runtest = 'PATH=.:$PATH lapack-timing'
+# run_test = 'PATH=.:$PATH lapack-timing'
 
 sanity_check_paths = {
     'files': ['include/cblas.h', 'include/f77blas.h', 'include/lapacke_config.h', 'include/lapacke.h',
@@ -44,4 +44,4 @@ sanity_check_paths = {
     'dirs': [],
 }
 
-moduleclass = 'numlib'
+env_mod_class = 'numlib'

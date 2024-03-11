@@ -1149,9 +1149,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[0], expected)
         self.assertEqual(lines[1], "=====")
 
-        # different versionsuffix
-        self.assertTrue(lines[2].startswith("3 %s- versionsuffix = '-deps'%s (1/2) toy-0.0-" % (red, endcol)))
-        self.assertTrue(lines[3].startswith("3 %s- versionsuffix = '-test'%s (1/2) toy-0.0-" % (red, endcol)))
+        # different version_suffix
+        self.assertTrue(lines[2].startswith("3 %s- version_suffix = '-deps'%s (1/2) toy-0.0-" % (red, endcol)))
+        self.assertTrue(lines[3].startswith("3 %s- version_suffix = '-test'%s (1/2) toy-0.0-" % (red, endcol)))
 
         # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (added line in green)
         expected = "7 %(green)s+ toolchain = SYSTEM%(endcol)s"
@@ -1162,8 +1162,8 @@ class FileToolsTest(EnhancedTestCase):
         expected = expected % {'endcol': endcol, 'green': green, 'red': red}
         self.assertTrue(lines[8].startswith(expected))
 
-        # no postinstallcmds in toy-0.0-deps.eb
-        expected = "29 %s+ postinstallcmds = " % green
+        # no post_install_cmds in toy-0.0-deps.eb
+        expected = "29 %s+ post_install_cmds = " % green
         self.assertTrue(any(line.startswith(expected) for line in lines))
         expected = "30 %s+%s (1/2) toy-0.0" % (green, endcol)
         self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
@@ -1173,9 +1173,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[0], "Comparing toy-0.0.eb with toy-0.0-deps.eb, toy-0.0-gompi-2018a-test.eb")
         self.assertEqual(lines[1], "=====")
 
-        # different versionsuffix
-        self.assertTrue(lines[2].startswith("3 - versionsuffix = '-deps' (1/2) toy-0.0-"))
-        self.assertTrue(lines[3].startswith("3 - versionsuffix = '-test' (1/2) toy-0.0-"))
+        # different version_suffix
+        self.assertTrue(lines[2].startswith("3 - version_suffix = '-deps' (1/2) toy-0.0-"))
+        self.assertTrue(lines[3].startswith("3 - version_suffix = '-test' (1/2) toy-0.0-"))
 
         # different toolchain in toy-0.0-gompi-2018a-test: '+' added line, '-' removed line
         expected = "7 + toolchain = SYSTEM (1/2) toy"
@@ -1183,8 +1183,8 @@ class FileToolsTest(EnhancedTestCase):
         expected = "8 - toolchain = {'name': 'gompi', 'version': '2018a'} (1/2) toy"
         self.assertTrue(lines[8].startswith(expected))
 
-        # no postinstallcmds in toy-0.0-deps.eb
-        expected = "29 + postinstallcmds = "
+        # no post_install_cmds in toy-0.0-deps.eb
+        expected = "29 + post_install_cmds = "
         self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
         expected = "30 + (1/2) toy-0.0-"
         self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))

@@ -84,8 +84,8 @@ class Dependency(Convert):
         else:
             return None
 
-    def versionsuffix(self):
-        """Get dependency versionsuffix (if any)."""
+    def version_suffix(self):
+        """Get dependency version_suffix (if any)."""
         return self['versop'].suffix
 
     def toolchain(self):

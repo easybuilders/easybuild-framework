@@ -82,7 +82,7 @@ CRAY_TOOLCHAIN_NAME_PREFIXES = ('Cray', 'cpe')
 class HierarchicalMNS(ModuleNamingScheme):
     """Class implementing an example hierarchical module naming scheme."""
 
-    REQUIRED_KEYS = ['name', 'versionprefix', 'version', 'versionsuffix', 'toolchain', 'moduleclass']
+    REQUIRED_KEYS = ['name', 'version_prefix', 'version', 'version_suffix', 'toolchain', 'env_mod_class']
 
     def requires_toolchain_details(self):
         """
@@ -107,9 +107,9 @@ class HierarchicalMNS(ModuleNamingScheme):
 
     def det_full_version(self, ec):
         """Determine full version, taking into account version prefix/suffix."""
-        # versionprefix is not always available (e.g., for toolchains)
-        versionprefix = ec.get('versionprefix', '')
-        return versionprefix + ec['version'] + ec['versionsuffix']
+        # version_prefix is not always available (e.g., for toolchains)
+        version_prefix = ec.get('version_prefix', '')
+        return version_prefix + ec['version'] + ec['version_suffix']
 
     def det_toolchain_compilers_name_version(self, tc_comps):
         """
@@ -182,12 +182,12 @@ class HierarchicalMNS(ModuleNamingScheme):
         Determine module path extensions, if any.
         Examples: Compiler/GCC/4.8.3 (for GCC/4.8.3 module), MPI/GCC/4.8.3/OpenMPI/1.6.5 (for OpenMPI/1.6.5 module)
         """
-        modclass = ec['moduleclass']
+        modclass = ec['env_mod_class']
         tc_comps = det_toolchain_compilers(ec)
         tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
 
         # we consider the following to be compilers:
-        # * has 'compiler' specified as moduleclass
+        # * has 'compiler' specified as env_mod_class
         is_compiler = modclass == MODULECLASS_COMPILER
         # * CUDA, but only when not installed with 'system' toolchain (i.e. one or more toolchain compilers found)
         non_system_tc = tc_comps is not None
@@ -254,7 +254,7 @@ class HierarchicalMNS(ModuleNamingScheme):
 
     def expand_toolchain_load(self, ec=None):
         """
-        Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
+        Determine whether load statements for a toolchain should be expanded to load statements for its deps.
         This is useful when toolchains are not exposed to users.
         """
         return True

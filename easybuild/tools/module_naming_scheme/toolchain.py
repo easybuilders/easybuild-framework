@@ -56,7 +56,7 @@ def det_toolchain_element_details(tc, elem, allow_missing=False):
     """
     # check for cached version first
     tc_dict = tc.as_dict()
-    key = (tc_dict['name'], tc_dict['version'] + tc_dict['versionsuffix'], elem)
+    key = (tc_dict['name'], tc_dict['version'] + tc_dict['version_suffix'], elem)
     if key in _toolchain_details_cache:
         _log.debug("Obtained details for '%s' in toolchain '%s' from cache" % (elem, tc_dict))
         return _toolchain_details_cache[key]
@@ -69,7 +69,7 @@ def det_toolchain_element_details(tc, elem, allow_missing=False):
         _log.debug("Full list of toolchain specifications: %s" % tc_ec)
     tc_ec = tc_ec[0]['ec']
     tc_elem_details = None
-    for tc_dep in tc_ec.dependencies():
+    for tc_dep in tc_ec.deps():
         if tc_dep['name'] == elem:
             tc_elem_details = tc_dep
             _log.debug("Found details for toolchain element %s: %s" % (elem, tc_elem_details))

@@ -62,17 +62,17 @@ def det_full_ec_version(ec):
         ecver = "%s-%s-%s" % (ec['version'], toolchain['name'], toolchain['version'])
 
     # prepend/append version prefix/suffix
-    versionprefix = ec.get('versionprefix', '')
-    if versionprefix and not isinstance(versionprefix, str):
-        raise EasyBuildError("versionprefix value should be a string, found '%s': %s (full spec: %s)",
-                             type(versionprefix).__name__, versionprefix, ec)
+    version_prefix = ec.get('version_prefix', '')
+    if version_prefix and not isinstance(version_prefix, str):
+        raise EasyBuildError("version_prefix value should be a string, found '%s': %s (full spec: %s)",
+                             type(version_prefix).__name__, version_prefix, ec)
 
-    versionsuffix = ec.get('versionsuffix', '')
-    if versionsuffix and not isinstance(versionsuffix, str):
-        raise EasyBuildError("versionsuffix value should be a string, found '%s': %s (full spec: %s)",
-                             type(versionsuffix).__name__, versionsuffix, ec)
+    version_suffix = ec.get('version_suffix', '')
+    if version_suffix and not isinstance(version_suffix, str):
+        raise EasyBuildError("version_suffix value should be a string, found '%s': %s (full spec: %s)",
+                             type(version_suffix).__name__, version_suffix, ec)
 
-    ecver = ''.join([x for x in [versionprefix or '', ecver, versionsuffix or ''] if x])
+    ecver = ''.join([x for x in [version_prefix or '', ecver, version_suffix or ''] if x])
 
     return ecver
 

@@ -24,7 +24,7 @@
 # #
 """
 Module for doing parallel builds. This uses a PBS-like cluster. You should be able to submit jobs (which can have
-dependencies)
+deps)
 
 Support for PBS is provided via the PbsJob class. If you want you could create other job classes and use them here.
 
@@ -51,7 +51,7 @@ from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file, write_
 from easybuild.tools.github import GITHUB_EASYBLOCKS_REPO, GITHUB_EASYCONFIGS_REPO, create_gist, post_comment_in_issue
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
-from easybuild.tools.robot import resolve_dependencies
+from easybuild.tools.robot import resolve_deps
 from easybuild.tools.systemtools import UNKNOWN, get_gpu_info, get_system_info
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 
@@ -117,7 +117,7 @@ def regtest(easyconfig_paths, modtool, build_specs=None):
     if build_option('sequential'):
         return build_easyconfigs(easyconfigs, output_dir, test_results)
     else:
-        resolved = resolve_dependencies(easyconfigs, modtool)
+        resolved = resolve_deps(easyconfigs, modtool)
 
         cmd = "eb %(spec)s --regtest --sequential -ld --testoutput=%(output_dir)s"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)

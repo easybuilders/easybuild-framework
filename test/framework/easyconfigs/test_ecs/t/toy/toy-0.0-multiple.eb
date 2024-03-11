@@ -1,7 +1,7 @@
 name = 'toy'
 version = '0.0'
 # required to fool test in modulegenerator, but will never be used (overwritten later)
-versionsuffix = '-multiple'
+version_suffix = '-multiple'
 
 homepage = 'https://easybuilders.github.io/easybuild'
 description = "Toy C program, 100% toy."
@@ -15,11 +15,11 @@ checksums = [
     'a99f2a72cee1689a2f7e3ace0356efb1',
 ]
 
-moduleclass = 'tools'
+env_mod_class = 'tools'
 
-[versionsuffixed]
-versionsuffix = '-somesuffix'
+[version_suffixed]
+version_suffix = '-somesuffix'
 
-[versionprefixed]
-block = 'versionsuffixed'
-versionprefix = 'someprefix-'
+[version_prefixed]
+block = 'version_suffixed'
+version_prefix = 'someprefix-'

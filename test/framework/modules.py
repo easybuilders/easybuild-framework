@@ -1559,7 +1559,7 @@ class ModulesTest(EnhancedTestCase):
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, read_file(eb_path))
-        write_file(test_ec, "\nmodextravars = {'FOO': 'value with spaces'}", append=True)
+        write_file(test_ec, "\nenv_mod_extra_vars = {'FOO': 'value with spaces'}", append=True)
 
         toy_eb = EasyBlock(EasyConfig(test_ec))
         with self.mocked_stdout_stderr():

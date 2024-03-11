@@ -71,7 +71,7 @@ class IccIfort(IntelIccIfort):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
         res = super(IccIfort, self).is_dep_in_toolchain_module(name)
 
-        # icc & ifort do not need to be actual dependencies in iccifort module,
+        # icc & ifort do not need to be actual deps in iccifort module,
         # since they could also be installed together in a single directory;
         # as long as the corresponding $EBROOT* and $EBVERSION* environment variables are defined, it should be OK
         if not res:

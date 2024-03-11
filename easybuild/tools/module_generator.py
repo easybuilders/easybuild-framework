@@ -78,7 +78,7 @@ def module_generator(app, fake=False):
 
 def module_load_regex(modfilepath):
     """
-    Return the correct (compiled) regex to extract dependencies, depending on the module file type (Lua vs Tcl)
+    Return the correct (compiled) regex to extract deps, depending on the module file type (Lua vs Tcl)
     """
     if modfilepath.endswith(ModuleGeneratorLua.MODULE_FILE_EXTENSION):
         regex = ModuleGeneratorLua.LOAD_REGEX
@@ -87,9 +87,9 @@ def module_load_regex(modfilepath):
     return re.compile(regex, re.M)
 
 
-def dependencies_for(mod_name, modtool, depth=None):
+def deps_for(mod_name, modtool, depth=None):
     """
-    Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
+    Obtain a list of deps for the given module, determined recursively, up to a specified depth (optionally)
     :param depth: recursion depth (default is None, which corresponds to infinite recursion depth)
     """
     mod_filepath = modtool.modulefile_path(mod_name)
@@ -100,13 +100,13 @@ def dependencies_for(mod_name, modtool, depth=None):
     if depth is None or depth > 0:
         if depth and depth > 0:
             depth = depth - 1
-        # recursively determine dependencies for these dependency modules, until depth is non-positive
-        moddeps = [dependencies_for(mod, modtool, depth=depth) for mod in mods]
+        # recursively determine deps for these dependency modules, until depth is non-positive
+        moddeps = [deps_for(mod, modtool, depth=depth) for mod in mods]
     else:
-        # ignore any deeper dependencies
+        # ignore any deeper deps
         moddeps = []
 
-    # add dependencies of dependency modules only if they're not there yet
+    # add deps of dependency modules only if they're not there yet
     for moddepdeps in moddeps:
         for dep in moddepdeps:
             if dep not in mods:
@@ -163,7 +163,7 @@ class ModuleGenerator(object):
             self.added_paths_per_key = None
 
     def create_symlinks(self, mod_symlink_paths, fake=False):
-        """Create moduleclass symlink(s) to actual module file."""
+        """Create env_mod_class symlink(s) to actual module file."""
         mod_filepath = self.get_module_filepath(fake=fake)
         class_mod_files = [self.get_module_filepath(fake=fake, mod_path_suffix=p) for p in mod_symlink_paths]
         try:
@@ -644,13 +644,13 @@ class ModuleGenerator(object):
         # Additional information: homepage + (if available) doc paths/urls, upstream/site contact
         lines.extend(self._generate_section("More information", " - Homepage: %s" % self.app.cfg['homepage']))
 
-        docpaths = self.app.cfg['docpaths'] or []
-        docurls = self.app.cfg['docurls'] or []
-        if docpaths or docurls:
+        doc_paths = self.app.cfg['doc_paths'] or []
+        doc_urls = self.app.cfg['doc_urls'] or []
+        if doc_paths or doc_urls:
             root_envvar = ROOT_ENV_VAR_NAME_PREFIX + convert_name(self.app.name, upper=True)
             lines.extend([" - Documentation:"])
-            lines.extend(["    - $%s/%s" % (root_envvar, path) for path in docpaths])
-            lines.extend(["    - %s" % url for url in docurls])
+            lines.extend(["    - $%s/%s" % (root_envvar, path) for path in doc_paths])
+            lines.extend(["    - %s" % url for url in doc_urls])
 
         for contacts_type in ['upstream', 'site']:
             contacts = self.app.cfg['%s_contacts' % contacts_type]
@@ -830,7 +830,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             "set root %(installdir)s",
         ]
 
-        if self.app.cfg['moduleloadnoconflict']:
+        if self.app.cfg['env_mod_load_no_conflict']:
             cond_unload = self.conditional_statement(self.is_loaded('%(name)s'), "module unload %(name)s")
             lines.extend([
                 '',
@@ -1273,7 +1273,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             'local root = "%(installdir)s"',
         ]
 
-        if self.app.cfg['moduleloadnoconflict']:
+        if self.app.cfg['env_mod_load_no_conflict']:
             self.log.info("Nothing to do to ensure no conflicts can occur on load when using Lua modules files/Lmod")
 
         elif conflict:

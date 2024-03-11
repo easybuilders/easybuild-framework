@@ -2,25 +2,25 @@ easyblock = 'ConfigureMake'
 
 name = 'FFTW'
 version = '3.3.3'
-versionsuffix = '-serial'
+version_suffix = '-serial'
 
 homepage = 'http://www.fftw.org'
 description = """FFTW is a C subroutine library for computing the discrete Fourier transform (DFT)
  in one or more dimensions, of arbitrary input size, and of both real and complex data."""
 
 toolchain = {'name': 'GCC', 'version': '4.8.2'}
-toolchainopts = {'optarch': True, 'pic': True}
+toolchain_opts = {'optarch': True, 'pic': True}
 
 sources = [SOURCELOWER_TAR_GZ]
 source_urls = [homepage]
 
-local_common_configopts = "--enable-threads --enable-openmp --with-pic"
+local_common_configure_opts = "--enable-threads --enable-openmp --with-pic"
 
-configopts = [
-    local_common_configopts + " --enable-single --enable-sse2 --enable-mpi",
-    local_common_configopts + " --enable-long-double --enable-mpi",
-    local_common_configopts + " --enable-quad-precision",
-    local_common_configopts + " --enable-sse2 --enable-mpi",  # default as last
+configure_opts = [
+    local_common_configure_opts + " --enable-single --enable-sse2 --enable-mpi",
+    local_common_configure_opts + " --enable-long-double --enable-mpi",
+    local_common_configure_opts + " --enable-quad-precision",
+    local_common_configure_opts + " --enable-sse2 --enable-mpi",  # default as last
 ]
 
 sanity_check_paths = {
@@ -32,4 +32,4 @@ sanity_check_paths = {
     'dirs': ['lib/pkgconfig'],
 }
 
-moduleclass = 'numlib'
+env_mod_class = 'numlib'

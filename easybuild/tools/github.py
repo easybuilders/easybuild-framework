@@ -785,7 +785,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     * push PR branch to GitHub (to account specified by --github-user)
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
-    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param ecs: list of parsed easyconfigs, incl. for deps (if robot is enabled)
     :param start_branch: name of branch to use as base for PR
     :param pr_branch: name of branch to push to GitHub
     :param start_account: name of GitHub account to use as base for PR
@@ -889,15 +889,15 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         'new': [],
     }
 
-    # include missing easyconfigs for dependencies, if robot is enabled
+    # include missing easyconfigs for deps, if robot is enabled
     if ecs is not None:
 
         abs_paths = [os.path.realpath(os.path.abspath(path)) for path in ec_paths]
         dep_paths = [ec['spec'] for ec in ecs if os.path.realpath(ec['spec']) not in abs_paths]
-        _log.info("Paths to easyconfigs for missing dependencies: %s", dep_paths)
+        _log.info("Paths to easyconfigs for missing deps: %s", dep_paths)
         all_dep_info = copy_easyconfigs(dep_paths, target_dir)
 
-        # only consider new easyconfig files for dependencies (not updated ones)
+        # only consider new easyconfig files for deps (not updated ones)
         for idx in range(len(all_dep_info['ecs'])):
             if all_dep_info['new'][idx]:
                 for key in dep_info:
@@ -1297,8 +1297,8 @@ def reasons_for_closing(pr_data):
                     if fn.endswith('.eb'):
                         ec = EasyConfigParser(os.path.join(dirpath, fn)).get_config_dict()
                         if ec.get('easyblock') == 'Toolchain':
-                            if 'versionsuffix' in ec:
-                                archived_tc = '%s-%s%s' % (ec['name'], ec['version'], ec.get('versionsuffix'))
+                            if 'version_suffix' in ec:
+                                archived_tc = '%s-%s%s' % (ec['name'], ec['version'], ec.get('version_suffix'))
                             else:
                                 archived_tc = '%s-%s' % (ec['name'], ec['version'])
                             if pr_tc == archived_tc:
@@ -1568,7 +1568,7 @@ def new_branch_github(paths, ecs, commit_msg=None):
     Create new branch on GitHub using specified files
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches, files with .py extension)
-    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param ecs: list of parsed easyconfigs, incl. for deps (if robot is enabled)
     :param commit_msg: commit message to use
     """
     branch_name = build_option('pr_branch_name')
@@ -1592,8 +1592,8 @@ def det_pr_title(ecs):
     toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
     toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
 
-    # only use most common module class(es) in moduleclass label of PR title
-    classes = [ec['moduleclass'] for ec in ecs]
+    # only use most common module class(es) in env_mod_class label of PR title
+    classes = [ec['env_mod_class'] for ec in ecs]
     classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
     class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
@@ -1608,8 +1608,8 @@ def det_pr_title(ecs):
     # Find all suffixes
     suffixes = []
     for ec in ecs:
-        if 'versionsuffix' in ec and ec['versionsuffix']:
-            suffixes.append(ec['versionsuffix'].strip('-').replace('-', ' '))
+        if 'version_suffix' in ec and ec['version_suffix']:
+            suffixes.append(ec['version_suffix'].strip('-').replace('-', ' '))
     if suffixes:
         suffixes = sorted(nub(suffixes))
         if len(suffixes) <= 2:
@@ -1793,7 +1793,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     Open new pull request using specified files
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
-    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param ecs: list of parsed easyconfigs, incl. for deps (if robot is enabled)
     :param title: title to use for pull request
     :param descr: description to use for description
     :param commit_msg: commit message to use
@@ -1901,7 +1901,7 @@ def update_branch(branch_name, paths, ecs, github_account=None, commit_msg=None)
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
     :param github_account: GitHub account where branch is located
-    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param ecs: list of parsed easyconfigs, incl. for deps (if robot is enabled)
     :param commit_msg: commit message to use
     """
     if commit_msg is None:
@@ -1933,7 +1933,7 @@ def update_pr(pr_id, paths, ecs, commit_msg=None):
 
     :param pr_id: ID of pull request to update
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
-    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param ecs: list of parsed easyconfigs, incl. for deps (if robot is enabled)
     :param commit_msg: commit message to use
     """
 

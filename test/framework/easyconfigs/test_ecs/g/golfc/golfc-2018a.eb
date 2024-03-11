@@ -11,14 +11,14 @@ toolchain = SYSTEM
 
 local_comp = ('GCC', '6.4.0-2.28')
 
-# compiler toolchain dependencies
+# compiler toolchain deps
 # we need GCC as explicit dependency instead of golf toolchain
 # because of toolchain preperation functions
-dependencies = [
+deps = [
     local_comp, # part of golf and gcccuda
     ('CUDA', '9.1.85', '', local_comp),  # part of gcccuda
     ('OpenBLAS', '0.2.20', '', local_comp),
     ('FFTW', '3.3.7', '-serial', local_comp),
 ]
 
-moduleclass = 'toolchain'
+env_mod_class = 'toolchain'

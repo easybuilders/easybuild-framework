@@ -14,4 +14,4 @@ source_urls = ['https://registrationcenter-download.intel.com/akdlm/irc_nas/tec/
 sources = ['l_onemkl_p_%(version)s.296_offline.sh']
 checksums = ['816e9df26ff331d6c0751b86ed5f7d243f9f172e76f14e83b32bf4d1d619dbae']
 
-moduleclass = 'numlib'
+env_mod_class = 'numlib'

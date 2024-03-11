@@ -261,7 +261,7 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = SYSTEM',
-            'moduleclass = "compiler"',
+            'env_mod_class = "compiler"',
         ])
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -290,7 +290,7 @@ class EasyBlockTest(EnhancedTestCase):
             regexs.extend([
                 # extension for user modules is guarded
                 r'if { \[ file isdirectory \[ file join %s \[ %s \] \] \] } {$' % (home, fj_usermodsdir),
-                # no per-moduleclass extension for user modules
+                # no per-env_mod_class extension for user modules
                 r'^\s+module use \[ file join %s \[ %s \] \]$' % (home, fj_usermodsdir),
             ])
         elif module_syntax == 'Lua':
@@ -300,7 +300,7 @@ class EasyBlockTest(EnhancedTestCase):
             regexs.extend([
                 # extension for user modules is guarded
                 r'if isDir\(pathJoin\(%s, %s\)\) then' % (home, pj_usermodsdir),
-                # no per-moduleclass extension for user modules
+                # no per-env_mod_class extension for user modules
                 r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, %s\)\)' % (home, pj_usermodsdir),
             ])
         else:
@@ -334,7 +334,7 @@ class EasyBlockTest(EnhancedTestCase):
                 regexs.extend([
                     # extension for user modules is guarded
                     r'if { \[ file isdirectory \[ file join %s \[ %s \] \] \] } {$' % (module_envvar, fj_usermodsdir),
-                    # no per-moduleclass extension for user modules
+                    # no per-env_mod_class extension for user modules
                     r'^\s+module use \[ file join %s \[ %s \] \]$' % (module_envvar, fj_usermodsdir),
                 ])
             elif module_syntax == 'Lua':
@@ -345,7 +345,7 @@ class EasyBlockTest(EnhancedTestCase):
                 regexs.extend([
                     # extension for user modules is guarded
                     r'if isDir\(pathJoin\(%s, %s\)\) then' % (module_envvar, pj_usermodsdir),
-                    # no per-moduleclass extension for user modules
+                    # no per-env_mod_class extension for user modules
                     r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, %s\)\)' % (module_envvar, pj_usermodsdir),
                 ])
             else:
@@ -597,7 +597,7 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             "toolchain = {'name': 'gompi', 'version': '2018a'}",
-            'dependencies = [',
+            'deps = [',
             "   ('FFTW', '3.3.7'),",
             "   ('OpenBLAS', '0.2.20'),",
             ']',
@@ -642,8 +642,8 @@ class EasyBlockTest(EnhancedTestCase):
         installver = '3.14-gompi-2018a'
 
         # also check how absolute paths specified in modexself.contents = '\n'.join([
-        self.contents += "\nmodextrapaths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
-        self.contents += "\nmodextrapaths_append = {'TEST_PATH_VAR_APPEND': ['foo', '/test/absolute/path', 'bar']}"
+        self.contents += "\nenv_mod_extra_paths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
+        self.contents += "\nenv_mod_extra_paths_append = {'TEST_PATH_VAR_APPEND': ['foo', '/test/absolute/path', 'bar']}"
         self.writeEC()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
@@ -695,8 +695,8 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             "toolchain = {'name': 'gompi', 'version': '2018a'}",
-            'moddependpaths = "/path/to/mods"',
-            'dependencies = [',
+            'modulepath_prepend_paths = "/path/to/mods"',
+            'deps = [',
             "   ('FFTW', '3.3.7'),",
             ']',
         ])
@@ -739,7 +739,7 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             "toolchain = {'name': 'gompi', 'version': '2018a'}",
-            'dependencies = [',
+            'deps = [',
             "   ('FFTW', '3.3.7'),",
             "   ('OpenBLAS', '0.2.20', '', ('GCC', '6.4.0-2.28')),",
             ']',
@@ -839,7 +839,7 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             "toolchain = {'name': 'gompi', 'version': '2018a'}",
-            'dependencies = [',
+            'deps = [',
             "   ('FFTW', '3.3.7'),",
             ']',
         ])
@@ -852,7 +852,7 @@ class EasyBlockTest(EnhancedTestCase):
             eb.make_builddir()
             eb.prepare_step()
 
-        # GCC, OpenMPI and hwloc modules should *not* be included in loads for dependencies
+        # GCC, OpenMPI and hwloc modules should *not* be included in loads for deps
         with self.mocked_stdout_stderr():
             mod_dep_txt = eb.make_module_dep()
         for mod in ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2']:
@@ -863,7 +863,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
     def test_make_module_dep_of_dep_hmns(self):
-        """Test for make_module_dep under HMNS with dependencies of dependencies"""
+        """Test for make_module_dep under HMNS with deps of deps"""
         test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         build_options = {
@@ -884,7 +884,7 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             "toolchain = {'name': 'foss', 'version': '2018a'}",
-            'dependencies = [',
+            'deps = [',
             "   ('GCC', '6.4.0-2.28', '', SYSTEM),"
             "   ('hwloc', '1.11.8', '', ('GCC', '6.4.0-2.28')),",
             "   ('OpenMPI', '2.1.2', '', ('GCC', '6.4.0-2.28')),"
@@ -896,10 +896,10 @@ class EasyBlockTest(EnhancedTestCase):
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
         eb.check_readiness_step()
 
-        # toolchain must be loaded such that dependencies are accessible
+        # toolchain must be loaded such that deps are accessible
         self.modtool.load(['foss/2018a'])
 
-        # GCC, OpenMPI and hwloc modules should *not* be included in loads for dependencies
+        # GCC, OpenMPI and hwloc modules should *not* be included in loads for deps
         mod_dep_txt = eb.make_module_dep()
         for mod in ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2', 'hwloc/1.11.8']:
             regex = re.compile('load.*%s' % mod)
@@ -924,19 +924,19 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.det_iter_cnt(), 1)
 
         # adding a list of build deps shouldn't affect the default
-        self.contents += "\nbuilddependencies = [('one', '1.0'), ('two', '2.0'), ('three', '3.0')]"
+        self.contents += "\nbuild_deps = [('one', '1.0'), ('two', '2.0'), ('three', '3.0')]"
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
         self.assertEqual(eb.det_iter_cnt(), 1)
 
         # list of configure options to iterate over affects iteration count
-        self.contents += "\nconfigopts = ['--one', '--two', '--three', '--four']"
+        self.contents += "\nconfigure_opts = ['--one', '--two', '--three', '--four']"
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
         self.assertEqual(eb.det_iter_cnt(), 4)
 
         # different lengths for iterative easyconfig parameters mean trouble during validation of iterative parameters
-        self.contents += "\nbuildopts = ['FOO=one', 'FOO=two']"
+        self.contents += "\nbuild_opts = ['FOO=one', 'FOO=two']"
         self.writeEC()
 
         error_pattern = "lists for iterated build should have same length"
@@ -948,7 +948,7 @@ class EasyBlockTest(EnhancedTestCase):
         toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        write_file(test_ec, read_file(toy_ec) + "\nconfigopts = ['--opt1 --anotheropt', '--opt2', '--opt3 --optbis']")
+        write_file(test_ec, read_file(toy_ec) + "\nconfigure_opts = ['--opt1 --anotheropt', '--opt2', '--opt3 --optbis']")
 
         ec = process_easyconfig(test_ec)[0]
         eb = get_easyblock_instance(ec)
@@ -958,9 +958,9 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.iter_opts, {})
         self.assertEqual(eb.cfg.iterating, False)
         self.assertEqual(eb.cfg.iterate_options, [])
-        self.assertEqual(eb.cfg['configopts'], ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"])
+        self.assertEqual(eb.cfg['configure_opts'], ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"])
 
-        expected_iter_opts = {'configopts': ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"]}
+        expected_iter_opts = {'configure_opts': ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"]}
 
         # once iteration mode is set, we're still in iteration #0
         self.mock_stdout(True)
@@ -970,8 +970,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.iter_idx, 0)
         self.assertEqual(stdout, "== starting iteration #0 ...\n")
         self.assertEqual(eb.cfg.iterating, True)
-        self.assertEqual(eb.cfg.iterate_options, ['configopts'])
-        self.assertEqual(eb.cfg['configopts'], "--opt1 --anotheropt")
+        self.assertEqual(eb.cfg.iterate_options, ['configure_opts'])
+        self.assertEqual(eb.cfg['configure_opts'], "--opt1 --anotheropt")
         self.assertEqual(eb.iter_opts, expected_iter_opts)
 
         # when next iteration is start, iteration index gets bumped
@@ -982,8 +982,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.iter_idx, 1)
         self.assertEqual(stdout, "== starting iteration #1 ...\n")
         self.assertEqual(eb.cfg.iterating, True)
-        self.assertEqual(eb.cfg.iterate_options, ['configopts'])
-        self.assertEqual(eb.cfg['configopts'], "--opt2")
+        self.assertEqual(eb.cfg.iterate_options, ['configure_opts'])
+        self.assertEqual(eb.cfg['configure_opts'], "--opt2")
         self.assertEqual(eb.iter_opts, expected_iter_opts)
 
         self.mock_stdout(True)
@@ -993,13 +993,13 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.iter_idx, 2)
         self.assertEqual(stdout, "== starting iteration #2 ...\n")
         self.assertEqual(eb.cfg.iterating, True)
-        self.assertEqual(eb.cfg.iterate_options, ['configopts'])
-        self.assertEqual(eb.cfg['configopts'], "--opt3 --optbis")
+        self.assertEqual(eb.cfg.iterate_options, ['configure_opts'])
+        self.assertEqual(eb.cfg['configure_opts'], "--opt3 --optbis")
         self.assertEqual(eb.iter_opts, expected_iter_opts)
 
         eb.post_iter_step()
         self.assertEqual(eb.cfg.iterating, False)
-        self.assertEqual(eb.cfg['configopts'], ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"])
+        self.assertEqual(eb.cfg['configure_opts'], ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"])
 
     def test_extensions_step(self):
         """Test the extensions_step"""
@@ -1171,7 +1171,7 @@ class EasyBlockTest(EnhancedTestCase):
         version = "3.14"
         # purposely use a 'nasty' description, that includes (unbalanced) special chars: [, ], {, }
         descr = "This {is a}} [fancy]] [[description]]. {{[[TEST}]"
-        modextravars = {
+        env_mod_extra_vars = {
             'PI': '3.1415',
             'FOO': 'bar',
         }
@@ -1179,13 +1179,13 @@ class EasyBlockTest(EnhancedTestCase):
         # also test setting environment variables via pushenv for Lmod or recent Environment Modules
         is_modtool_ver51 = LooseVersion(self.modtool.version) >= LooseVersion('5.1')
         if isinstance(self.modtool, Lmod) or (isinstance(self.modtool, EnvironmentModules) and is_modtool_ver51):
-            modextravars['TEST_PUSHENV'] = {'value': '123', 'pushenv': True}
+            env_mod_extra_vars['TEST_PUSHENV'] = {'value': '123', 'pushenv': True}
 
-        modextrapaths = {
+        env_mod_extra_paths = {
             'PATH': ('xbin', 'pibin'),
             'CPATH': 'pi/include',
         }
-        modextrapaths_append = {'APPEND_PATH': 'append_path'}
+        env_mod_extra_paths_append = {'APPEND_PATH': 'append_path'}
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
@@ -1193,13 +1193,13 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "%s"' % descr,
             "toolchain = SYSTEM",
-            "dependencies = [('GCC', '6.4.0-2.28'), ('test', '1.2.3')]",
-            "builddependencies = [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
+            "deps = [('GCC', '6.4.0-2.28'), ('test', '1.2.3')]",
+            "build_deps = [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             # hidden deps must be included in list of (build)deps
-            "hiddendependencies = [('test', '1.2.3'), ('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
-            "modextravars = %s" % str(modextravars),
-            "modextrapaths = %s" % str(modextrapaths),
-            "modextrapaths_append = %s" % str(modextrapaths_append),
+            "hidden_deps = [('test', '1.2.3'), ('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
+            "env_mod_extra_vars = %s" % str(env_mod_extra_vars),
+            "env_mod_extra_paths = %s" % str(env_mod_extra_paths),
+            "env_mod_extra_paths_append = %s" % str(env_mod_extra_paths_append),
         ])
 
         # test if module is generated correctly
@@ -1212,7 +1212,7 @@ class EasyBlockTest(EnhancedTestCase):
             eb.make_builddir()
             eb.prepare_step()
 
-        # Create a dummy file in bin to test if the duplicate entry of modextrapaths is ignored
+        # Create a dummy file in bin to test if the duplicate entry of env_mod_extra_paths is ignored
         os.makedirs(os.path.join(eb.installdir, 'bin'))
         write_file(os.path.join(eb.installdir, 'bin', 'dummy_exe'), 'hello')
 
@@ -1241,7 +1241,7 @@ class EasyBlockTest(EnhancedTestCase):
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
-        for (key, val) in modextravars.items():
+        for (key, val) in env_mod_extra_vars.items():
             pushenv = False
             if isinstance(val, dict):
                 pushenv = val.get('pushenv', False)
@@ -1257,7 +1257,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-        for (key, vals) in modextrapaths.items():
+        for (key, vals) in env_mod_extra_paths.items():
             if isinstance(vals, str):
                 vals = [vals]
             for val in vals:
@@ -1272,7 +1272,7 @@ class EasyBlockTest(EnhancedTestCase):
                 num_prepends = len(regex.findall(txt))
                 self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
 
-        for (key, vals) in modextrapaths_append.items():
+        for (key, vals) in env_mod_extra_paths_append.items():
             if isinstance(vals, str):
                 vals = [vals]
             for val in vals:
@@ -1317,7 +1317,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.modtool.load(['pi/3.14'])
 
         # check value for $TEST_PUSHENV
-        if 'TEST_PUSHENV' in modextravars:
+        if 'TEST_PUSHENV' in env_mod_extra_vars:
             self.assertEqual(os.environ['TEST_PUSHENV'], '123')
 
         self.modtool.unload(['pi/3.14'])
@@ -1362,17 +1362,17 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(os.path.isdir(eb.installdir))
 
         # make sure cleaning up old build dir is default
-        self.assertTrue(eb.cfg['cleanupoldbuild'] or eb.cfg.get('cleanupoldbuild', True))
+        self.assertTrue(eb.cfg['clean_up_old_build'] or eb.cfg.get('clean_up_old_build', True))
         builddir = eb.builddir
         eb.gen_builddir()
         self.assertEqual(builddir, eb.builddir)
 
-        eb.cfg['cleanupoldbuild'] = True
+        eb.cfg['clean_up_old_build'] = True
         eb.gen_builddir()
         self.assertEqual(builddir, eb.builddir)
 
         # make sure build dir is unique
-        eb.cfg['cleanupoldbuild'] = False
+        eb.cfg['clean_up_old_build'] = False
         builddir = eb.builddir
         for i in range(3):
             eb.gen_builddir()
@@ -1416,7 +1416,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(os.listdir(eb.builddir), [])
 
         # make sure that build directory does *not* get re-created when we're building in installation directory
-        # and we're iterating over a list of (pre)config/build/installopts
+        # and we're iterating over a list of (pre)config/build/install_opts
         eb.build_in_installdir = True
         with self.mocked_stdout_stderr():
             eb.make_builddir()
@@ -1946,7 +1946,7 @@ class EasyBlockTest(EnhancedTestCase):
         """Test check_readiness method."""
         init_config(build_options={'validate': False, 'silent': True})
 
-        # check that check_readiness step works (adding dependencies, etc.)
+        # check that check_readiness step works (adding deps, etc.)
         ec_file = 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb'
         topdir = os.path.dirname(os.path.abspath(__file__))
         ec_path = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'o', 'OpenMPI', ec_file)
@@ -1954,17 +1954,17 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         eb.check_readiness_step()
 
-        # a proper error should be thrown for dependencies that can't be resolved (module should be there)
+        # a proper error should be thrown for deps that can't be resolved (module should be there)
         tmpdir = tempfile.mkdtemp()
         shutil.copy2(ec_path, tmpdir)
         ec_path = os.path.join(tmpdir, ec_file)
-        write_file(ec_path, "\ndependencies += [('nosuchsoftware', '1.2.3')]\n", append=True)
+        write_file(ec_path, "\ndeps += [('nosuchsoftware', '1.2.3')]\n", append=True)
         ec = EasyConfig(ec_path)
         eb = EasyBlock(ec)
         try:
             eb.check_readiness_step()
         except EasyBuildError as err:
-            err_regex = re.compile("Missing modules dependencies .*: nosuchsoftware/1.2.3-GCC-6.4.0-2.28")
+            err_regex = re.compile("Missing modules deps .*: nosuchsoftware/1.2.3-GCC-6.4.0-2.28")
             self.assertTrue(err_regex.search(str(err)), "Pattern '%s' found in '%s'" % (err_regex.pattern, err))
 
         shutil.rmtree(tmpdir)
@@ -2113,7 +2113,7 @@ class EasyBlockTest(EnhancedTestCase):
         # to check whether sanity check is only run once;
         # sanity check commands are checked after checking sanity check paths, so this should work
         toy_ec = EasyConfig(toy_ec_fn)
-        toy_ec.update('sanity_check_commands', [("%(installdir)s/bin/toy && rm %(installdir)s/bin/toy", '')])
+        toy_ec.update('sanity_check_cmds', [("%(installdir)s/bin/toy && rm %(installdir)s/bin/toy", '')])
         eb = EB_toy(toy_ec)
         eb.silent = True
         with self.mocked_stdout_stderr():
@@ -2131,7 +2131,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         handle, toy_ec2 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
-        write_file(toy_ec2, toytxt + "\nparallel = 123\nmaxparallel = 67")
+        write_file(toy_ec2, toytxt + "\nparallel = 123\nmax_parallel = 67")
 
         handle, toy_ec3 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
@@ -2147,7 +2147,7 @@ class EasyBlockTest(EnhancedTestCase):
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg['parallel'], 123)
 
-        # both 'parallel' and 'maxparallel' easyconfig parameters specified (no 'parallel' build option)
+        # both 'parallel' and 'max_parallel' easyconfig parameters specified (no 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec2))
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg['parallel'], 67)
@@ -2163,12 +2163,12 @@ class EasyBlockTest(EnhancedTestCase):
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg['parallel'], 97)
 
-        # both 'parallel' build option and easyconfig parameter specified (no 'maxparallel')
+        # both 'parallel' build option and easyconfig parameter specified (no 'max_parallel')
         test_eb = EasyBlock(EasyConfig(toy_ec1))
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg['parallel'], 97)
 
-        # both 'parallel' and 'maxparallel' easyconfig parameters specified + 'parallel' build option
+        # both 'parallel' and 'max_parallel' easyconfig parameters specified + 'parallel' build option
         test_eb = EasyBlock(EasyConfig(toy_ec2))
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg['parallel'], 67)
@@ -2340,7 +2340,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(self.modtool.list()[0]['mod_name'], 'GCC/6.4.0-2.28')
 
     def test_prepare_step_load_tc_deps_modules(self):
-        """Test disabling loading of toolchain + dependencies in build environment."""
+        """Test disabling loading of toolchain + deps in build environment."""
 
         init_config(build_options={'robot_path': os.environ['EASYBUILD_ROBOT_PATHS']})
 
@@ -2356,7 +2356,7 @@ class EasyBlockTest(EnhancedTestCase):
         os.environ['EBROOTGCC'] = self.test_prefix
         os.environ['EBROOTHWLOC'] = self.test_prefix
 
-        # loaded of modules for toolchain + dependencies can be disabled via load_tc_deps_modules=False
+        # loaded of modules for toolchain + deps can be disabled via load_tc_deps_modules=False
         with self.mocked_stdout_stderr():
             eb.prepare_step(load_tc_deps_modules=False)
         self.assertEqual(self.modtool.list(), [])
@@ -2364,7 +2364,7 @@ class EasyBlockTest(EnhancedTestCase):
         del os.environ['EBROOTGCC']
         del os.environ['EBROOTHWLOC']
 
-        # modules for toolchain + dependencies are still loaded by default
+        # modules for toolchain + deps are still loaded by default
         with self.mocked_stdout_stderr():
             eb.prepare_step()
         loaded_modules = self.modtool.list()
@@ -2376,7 +2376,7 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_prepare_step_hmns(self):
         """
-        Check whether loading of already existing dependencies during prepare step works when HierarchicalMNS is used.
+        Check whether loading of already existing deps during prepare step works when HierarchicalMNS is used.
         """
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
@@ -2384,7 +2384,7 @@ class EasyBlockTest(EnhancedTestCase):
         init_config(build_options={'robot_path': [test_ecs]})
 
         # set up hierarchical modules, but reset $MODULEPATH to empty
-        # the expectation is that EasyBuild set's up the $MODULEPATH such that pre-installed dependencies can be loaded
+        # the expectation is that EasyBuild set's up the $MODULEPATH such that pre-installed deps can be loaded
         # see also https://github.com/easybuilders/easybuild-framework/issues/2186
         self.setup_hierarchical_modules()
 
@@ -2398,7 +2398,7 @@ class EasyBlockTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         regex = re.compile('^toolchain = .*', re.M)
         test_ectxt = regex.sub("toolchain = SYSTEM", read_file(toy_ec))
-        test_ectxt += "\ndependencies = [('GCC', '6.4.0', '-2.28')]"
+        test_ectxt += "\ndeps = [('GCC', '6.4.0', '-2.28')]"
         write_file(test_ec, test_ectxt)
 
         test_ec = process_easyconfig(test_ec)[0]
@@ -2738,7 +2738,7 @@ class EasyBlockTest(EnhancedTestCase):
             "toolchain = SYSTEM",
             "homepage = 'https://example.com'",
             "description = '2nd test easyconfig'",
-            "dependencies = [('one', '1.0')]",
+            "deps = [('one', '1.0')]",
         ])
         write_file(ec2, ec2_txt)
 

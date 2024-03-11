@@ -1,6 +1,6 @@
 name = 'toy'
 version = '0.0'
-versionsuffix = '-test'
+version_suffix = '-test'
 
 homepage = 'https://easybuilders.github.io/easybuild'
 description = "Toy C program, 100% toy."
@@ -27,9 +27,9 @@ sanity_check_paths = {
     'dirs': ['bin'],
 }
 
-runtest = "make_test dummy_cmd" # Provide some value which is unique enough to be checked for
+run_test = "make_test dummy_cmd" # Provide some value which is unique enough to be checked for
 
-postinstallcmds = ["echo TOY > %(installdir)s/README"]
+post_install_cmds = ["echo TOY > %(installdir)s/README"]
 
-moduleclass = 'tools'
+env_mod_class = 'tools'
 # trailing comment, leave this here, it may trigger bugs with extract_comments()

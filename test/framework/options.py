@@ -369,8 +369,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
-        # check use of skipsteps to skip sanity check
-        test_ec_txt += "\nskipsteps = ['sanitycheck']\n"
+        # check use of skip_steps to skip sanity check
+        test_ec_txt += "\nskip_steps = ['sanitycheck']\n"
         write_file(test_ec, test_ec_txt)
         with self.mocked_stdout_stderr():
             self.eb_main(args, do_build=True, raise_error=True)
@@ -416,7 +416,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test ignore failing tests (--ignore-test-failure)."""
 
         topdir = os.path.abspath(os.path.dirname(__file__))
-        # This EC uses a `runtest` command which does not exist and hence will make the test step fail
+        # This EC uses a `run_test` command which does not exist and hence will make the test step fail
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb')
 
         args = [toy_ec, '--ignore-test-failure', '--force']
@@ -649,9 +649,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     msg = "Parameter type %s is featured in output of eb %s (args: %s): %s" % tup
                     self.assertTrue(regex.search(logtxt), msg)
 
-                ordered_params = ['name', 'toolchain', 'version', 'versionsuffix']
-                params = ordered_params + ['buildopts', 'sources', 'start_dir', 'dependencies', 'group',
-                                           'exts_list', 'moduleclass', 'buildstats'] + extra_params
+                ordered_params = ['name', 'toolchain', 'version', 'version_suffix']
+                params = ordered_params + ['build_opts', 'sources', 'start_dir', 'deps', 'group',
+                                           'exts_list', 'env_mod_class', 'build_stats'] + extra_params
 
                 # check a couple of easyconfig parameters
                 param_start = 0
@@ -1458,7 +1458,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.eb_main(args, logfile=dummylogfn)
         logtxt = read_file(self.logfile)
 
-        info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
+        info_msg = r"Dry run: printing build status of easyconfigs and deps"
         self.assertTrue(re.search(info_msg, logtxt, re.M), "Info message dry running in '%s'" % logtxt)
         ecs_mods = [
             ("gzip-1.4-GCC-4.6.3.eb", "gzip/1.4-GCC-4.6.3", ' '),
@@ -1537,7 +1537,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
-            info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
+            info_msg = r"Dry run: printing build status of easyconfigs and deps"
             self.assertTrue(re.search(info_msg, outtxt, re.M), "Info message dry running in '%s'" % outtxt)
             self.assertTrue(re.search('CFGS=', outtxt), "CFGS line message found in '%s'" % outtxt)
             ecs_mods = [
@@ -1558,7 +1558,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_try_robot_force(self):
         """
         Test correct behavior for combination of --try-toolchain --robot --force.
-        Only the listed easyconfigs should be forced, resolved dependencies should not (even if tweaked).
+        Only the listed easyconfigs should be forced, resolved deps should not (even if tweaked).
         """
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
@@ -1587,7 +1587,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         scalapack_ver = '2.0.2-gompi-2018b-OpenBLAS-0.2.20'
         ecs_mods = [
-            # GCC/OpenMPI dependencies are there, but part of toolchain => 'x'
+            # GCC/OpenMPI deps are there, but part of toolchain => 'x'
             ("GCC-7.3.0-2.30.eb", "GCC/7.3.0-2.30", 'x'),
             ("OpenMPI-3.1.1-GCC-7.3.0-2.30.eb", "OpenMPI/3.1.1-GCC-7.3.0-2.30", 'x'),
             # toolchain used for OpenBLAS is mapped to GCC/7.3.0-2.30 subtoolchain in gompi/2018b
@@ -1655,8 +1655,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '',
             "toolchain = {'name': 'GCC', 'version': '4.9.3-2.26'}",
             '',
-            "builddependencies = [('gzip', '1.4')]",
-            "dependencies = [('hwloc', '1.6.2')]",
+            "build_deps = [('gzip', '1.4')]",
+            "deps = [('hwloc', '1.6.2')]",
         ])
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ectxt)
@@ -1689,7 +1689,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(outtxt), "Pattern '%s' should be found in: %s" % (regex.pattern, outtxt))
 
-        # construct another toy easyconfig that is well suited for testing ignoring versionsuffix
+        # construct another toy easyconfig that is well suited for testing ignoring version_suffix
         test_ectxt = '\n'.join([
             "easyblock = 'ConfigureMake'",
             '',
@@ -1701,14 +1701,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '',
             "toolchain = {'name': 'GCC', 'version': '4.8.2'}",
             '',
-            "dependencies = [('OpenBLAS', '0.2.8', '-LAPACK-3.4.2')]",
+            "deps = [('OpenBLAS', '0.2.8', '-LAPACK-3.4.2')]",
         ])
         write_file(test_ec, test_ectxt)
         self.mock_stderr(True)
         outtxt = self.eb_main(args, raise_error=True, do_build=True)
         errtxt = self.get_stderr()
         warning_stub = "\nWARNING: There may be newer version(s) of dep 'OpenBLAS' available with a different " \
-                       "versionsuffix to '-LAPACK-3.4.2'"
+                       "version_suffix to '-LAPACK-3.4.2'"
         self.mock_stderr(False)
         self.assertIn(warning_stub, errtxt)
         patterns = [
@@ -1724,8 +1724,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(outtxt), "Pattern '%s' should be found in: %s" % (regex.pattern, outtxt))
 
-        # Now verify that we can ignore versionsuffixes
-        args.append('--try-ignore-versionsuffixes')
+        # Now verify that we can ignore version_suffixes
+        args.append('--try-ignore-version_suffixes')
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, raise_error=True, do_build=True)
         patterns = [
@@ -2132,7 +2132,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.remove(modules_footer)
         os.remove(modules_header)
 
-    def test_recursive_module_unload(self):
+    def test_recursive_env_mod_unload(self):
         """Test generating recursively unloading modules."""
 
         # use toy-0.0.eb easyconfig file that comes with the tests
@@ -2205,7 +2205,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         shutil.rmtree(tmpdir)
 
     def test_ignore_osdeps(self):
-        """Test ignoring of listed OS dependencies."""
+        """Test ignoring of listed OS deps."""
         txt = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -2213,27 +2213,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = SYSTEM',
-            'osdependencies = ["nosuchosdependency", ("nosuchdep_option1", "nosuchdep_option2")]',
+            'os_deps = ["nosuchosdependency", ("nosuchdep_option1", "nosuchdep_option2")]',
         ])
         fd, eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')
         os.close(fd)
         write_file(eb_file, txt)
 
-        # check whether non-existing OS dependencies result in failure, by default
+        # check whether non-existing OS deps result in failure, by default
         args = [
             eb_file,
         ]
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, do_build=True)
 
-        regex = re.compile("Checking OS dependencies")
-        self.assertTrue(regex.search(outtxt), "OS dependencies are checked, outtxt: %s" % outtxt)
-        msg = "One or more OS dependencies were not found: "
+        regex = re.compile("Checking OS deps")
+        self.assertTrue(regex.search(outtxt), "OS deps are checked, outtxt: %s" % outtxt)
+        msg = "One or more OS deps were not found: "
         msg += r"\[\('nosuchosdependency',\), \('nosuchdep_option1', 'nosuchdep_option2'\)\]"
         regex = re.compile(msg, re.M)
-        self.assertTrue(regex.search(outtxt), "OS dependencies are honored, outtxt: %s" % outtxt)
+        self.assertTrue(regex.search(outtxt), "OS deps are honored, outtxt: %s" % outtxt)
 
-        # check whether OS dependencies are effectively ignored
+        # check whether OS deps are effectively ignored
         args = [
             eb_file,
             '--ignore-osdeps',
@@ -2242,8 +2242,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, do_build=True)
 
-        regex = re.compile("Not checking OS dependencies", re.M)
-        self.assertTrue(regex.search(outtxt), "OS dependencies are ignored with --ignore-osdeps, outtxt: %s" % outtxt)
+        regex = re.compile("Not checking OS deps", re.M)
+        self.assertTrue(regex.search(outtxt), "OS deps are ignored with --ignore-osdeps, outtxt: %s" % outtxt)
 
         txt += "\nstop = 'notavalidstop'"
         write_file(eb_file, txt)
@@ -2433,22 +2433,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
             (['--try-software-name=foo', '--try-software-version=1.2.3'], 'foo/1.2.3'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=2018a'], 'toy/0.0-GCC-6.4.0.2.28'),
             (['--try-software-version=1.2.3', '--try-toolchain=gompi,2018a'], 'toy/1.2.3-GCC-6.4.0.2.28'),
-            (['--try-amend=versionsuffix=-test'], 'toy/0.0-test'),
+            (['--try-amend=version_suffix=-test'], 'toy/0.0-test'),
             # --try-amend is overridden by --amend
-            (['--amend=versionsuffix=', '--try-amend=versionsuffix=-test'], 'toy/0.0'),
+            (['--amend=version_suffix=', '--try-amend=version_suffix=-test'], 'toy/0.0'),
             (['--try-toolchain=gompi,2018a', '--toolchain=system,system'], 'toy/0.0'),
             # tweak existing list-typed value (patches)
-            (['--try-amend=versionsuffix=-test2', '--try-amend=patches=1.patch,2.patch'], 'toy/0.0-test2'),
+            (['--try-amend=version_suffix=-test2', '--try-amend=patches=1.patch,2.patch'], 'toy/0.0-test2'),
             # append to existing list-typed value (patches)
-            (['--try-amend=versionsuffix=-test3', '--try-amend=patches=,extra.patch'], 'toy/0.0-test3'),
+            (['--try-amend=version_suffix=-test3', '--try-amend=patches=,extra.patch'], 'toy/0.0-test3'),
             # prepend to existing list-typed value (patches)
-            (['--try-amend=versionsuffix=-test4', '--try-amend=patches=extra.patch,'], 'toy/0.0-test4'),
+            (['--try-amend=version_suffix=-test4', '--try-amend=patches=extra.patch,'], 'toy/0.0-test4'),
             # define extra list-typed parameter
-            (['--try-amend=versionsuffix=-test5', '--try-amend=exts_list=1,2,3'], 'toy/0.0-test5'),
+            (['--try-amend=version_suffix=-test5', '--try-amend=exts_list=1,2,3'], 'toy/0.0-test5'),
             # only --try causes other build specs to be included too
             (['--try-software=foo,1.2.3', '--toolchain=gompi,2018a'], 'foo/1.2.3-GCC-6.4.0-2.28'),
             (['--software=foo,1.2.3', '--try-toolchain=gompi,2018a'], 'foo/1.2.3-GCC-6.4.0-2.28'),
-            (['--software=foo,1.2.3', '--try-amend=versionsuffix=-test'], 'foo/1.2.3-test'),
+            (['--software=foo,1.2.3', '--try-amend=version_suffix=-test'], 'foo/1.2.3-test'),
         ]
 
         for extra_args, mod in test_cases:
@@ -2555,7 +2555,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
         copy_file(os.path.join(ecs_path, 't', 'toy', 'toy-0.0.eb'), tweaked_toy_ec)
-        write_file(tweaked_toy_ec, "dependencies = [('gzip', '1.4')]\n", append=True)  # add fictious dependency
+        write_file(tweaked_toy_ec, "deps = [('gzip', '1.4')]\n", append=True)  # add fictious dependency
 
         sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
         args = [
@@ -2612,7 +2612,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
         # clear fictitious dependency
-        write_file(tweaked_toy_ec, "dependencies = []\n", append=True)
+        write_file(tweaked_toy_ec, "deps = []\n", append=True)
 
         # no recursive try if --disable-map-toolchains is involved
         for extra_args in [['--try-software-version=1.2.3'], ['--software-version=1.2.3']]:
@@ -2650,7 +2650,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             toy_ec,
             '--force',
-            '--try-amend=prebuildopts=nosuchcommand &&',
+            '--try-amend=pre_build_opts=nosuchcommand &&',
         ]
         with self.mocked_stdout_stderr():
             self.eb_main(args, do_build=True)
@@ -3098,7 +3098,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             eb_file,
             '--robot-paths=%s' % test_ecs_path,
         ]
-        error_regex = r"Missing modules for dependencies .*: toy/\.0.0-deps"
+        error_regex = r"Missing modules for deps .*: toy/\.0.0-deps"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True, do_build=True)
 
@@ -3109,9 +3109,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--robot',
         ]
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, 'Missing dependencies', self.eb_main, args, raise_error=True)
+            self.assertErrorRegex(EasyBuildError, 'Missing deps', self.eb_main, args, raise_error=True)
 
-        # add path to test easyconfigs to robot paths, so dependencies can be resolved
+        # add path to test easyconfigs to robot paths, so deps can be resolved
         args.append('--dry-run')
         with self.mocked_stdout_stderr():
             self.eb_main(args + ['--robot-paths=%s' % test_ecs_path], raise_error=True)
@@ -3212,14 +3212,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True)
 
-    def test_show_default_moduleclasses(self):
-        """Test --show-default-moduleclasses."""
+    def test_show_default_env_mod_classes(self):
+        """Test --show-default-env_mod_classes."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
         args = [
             '--unittest-file=%s' % self.logfile,
-            '--show-default-moduleclasses',
+            '--show-default-env_mod_classes',
         ]
         write_file(self.logfile, '')
         with self.mocked_stdout_stderr():
@@ -4086,7 +4086,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "toolchain = {'name': 'gompi', 'version': '2018a'}",
             # hwloc-1.11.8-gompi-2018a.eb is *not* available, but hwloc-1.11.8-GCC-6.4.0-2.28.eb is,
             # and GCC/6.4.0-2.28 is a subtoolchain of gompi/2018a
-            "dependencies = [('hwloc', '1.11.8'), ('SQLite', '3.8.10.2')]",
+            "deps = [('hwloc', '1.11.8'), ('SQLite', '3.8.10.2')]",
         ])
         write_file(ec_file, ectxt)
 
@@ -4393,7 +4393,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         toy_patch = os.path.join(topdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
-        # purposely picked one with non-default toolchain/versionsuffix
+        # purposely picked one with non-default toolchain/version_suffix
         copy_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'), toy_ec)
 
         # modify file to mock archived easyconfig
@@ -4402,7 +4402,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "# Built with EasyBuild version 3.1.2 on 2017-04-25_21-35-15",
             toy_ec_txt,
             "# Build statistics",
-            "buildstats = [{",
+            "build_stats = [{",
             '   "build_time": 8.34,',
             '   "os_type": "Linux",',
             "}]",
@@ -4583,11 +4583,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         self._assert_regexs(regexs, txt)
 
-        # check whether comments/buildstats get filtered out
+        # check whether comments/build_stats get filtered out
         regexs = [
             r"# Built with EasyBuild",
             r"# Build statistics",
-            r"buildstats\s*=",
+            r"build_stats\s*=",
         ]
         self._assert_regexs(regexs, txt, assert_true=False)
 
@@ -4711,7 +4711,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # modify file to include Python dependency
         toy_ec_txt = read_file(toy_ec)
-        write_file(toy_ec, toy_ec_txt + "\ndependencies = [('Python', '3.7.2')]")
+        write_file(toy_ec, toy_ec_txt + "\ndeps = [('Python', '3.7.2')]")
 
         args = [
             '--new-pr',
@@ -4729,7 +4729,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         gzip_ec = os.path.join(self.test_prefix, 'test.eb')
         copy_file(os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.4.eb'), gzip_ec)
         gzip_ec_txt = read_file(gzip_ec)
-        write_file(gzip_ec, gzip_ec_txt + "\ndependencies = [('Python', '3.7.2')]")
+        write_file(gzip_ec, gzip_ec_txt + "\ndeps = [('Python', '3.7.2')]")
 
         txt, _ = self._run_mock_eb(args + [gzip_ec], do_build=True, raise_error=True, testing=False)
 
@@ -4768,11 +4768,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt)
 
-    def test_github_new_pr_dependencies(self):
+    def test_github_new_pr_deps(self):
         """Test use of --new-pr with automatic dependency lookup."""
 
         if self.github_token is None:
-            print("Skipping test_new_pr_dependencies, no GitHub token available?")
+            print("Skipping test_new_pr_deps, no GitHub token available?")
             return
 
         foo_eb = '\n'.join([
@@ -4782,7 +4782,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = SYSTEM',
-            'dependencies = [("bar", "2.0")]'
+            'deps = [("bar", "2.0")]'
         ])
         bar_eb = '\n'.join([
             'easyblock = "ConfigureMake"',
@@ -5414,7 +5414,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test --list-software and --list-installed-software."""
 
         # copy selected test easyconfigs for testing --list-*software options with;
-        # full test is a nuisance, because all dependencies must be available and toolchains like intel must have
+        # full test is a nuisance, because all deps must be available and toolchains like intel must have
         # all expected components when testing with HierarchicalMNS (which the test easyconfigs don't always have)
         topdir = os.path.dirname(os.path.abspath(__file__))
 
@@ -5740,7 +5740,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # when --verify-easyconfig-filenames is enabled, EB gets picky about the easyconfig filename
         args.append('--verify-easyconfig-filenames')
         error_pattern = r"Easyconfig filename 'test.eb' does not match with expected filename 'toy-0.0.eb' \(specs: "
-        error_pattern += r"name: 'toy'; version: '0.0'; versionsuffix: ''; "
+        error_pattern += r"name: 'toy'; version: '0.0'; version_suffix: ''; "
         error_pattern += r"toolchain name, version: 'system', 'system'\)"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, logfile=dummylogfn,
@@ -5780,7 +5780,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         else:
             self.fail("Uknown module syntax: %s" % get_module_syntax())
 
-        # make sure default is also set for moduleclass symlink
+        # make sure default is also set for env_mod_class symlink
         toy_mod_symlink_dir = os.path.join(self.test_installpath, 'modules', 'tools', 'toy')
         if get_module_syntax() == 'Lua':
             self.assertEqual(sorted(os.listdir(toy_mod_symlink_dir)), ['0.0-deps.lua', 'default'])
@@ -5816,7 +5816,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "homepage = 'https://example.com'",
             "description = 'this is just a test'",
             "toolchain = SYSTEM",
-            "dependencies = [('thisisjustatestdep', '3.14')]",
+            "deps = [('thisisjustatestdep', '3.14')]",
         ]))
         testdep_ec = os.path.join(self.test_prefix, 'thisisjustatestdep-3.14.eb')
         write_file(testdep_ec, '\n'.join([
@@ -5952,7 +5952,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # exactly three checksum specs for extensions, one list of checksums for each extension
         self.assertEqual(re.findall("[ ]*'checksums'", ec_txt, re.M), ["        'checksums'"] * 3)
 
-        # there should be only one hit for 'source_urls', i.e. the one in exts_default_options
+        # there should be only one hit for 'source_urls', i.e. the one in exts_default_opts
         self.assertEqual(len(re.findall('source_urls*.*$', ec_txt, re.M)), 1)
 
         # no parse errors for updated easyconfig file...
@@ -5961,10 +5961,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(ec['patches'], ['toy-0.0_fix-silly-typo-in-printf-statement.patch'])
         self.assertEqual(ec['checksums'], [{'toy-0.0.tar.gz': toy_source_sha256},
                                            {'toy-0.0_fix-silly-typo-in-printf-statement.patch': toy_patch_sha256}])
-        self.assertEqual(ec['exts_default_options'], {'source_urls': ['http://example.com/%(name)s']})
+        self.assertEqual(ec['exts_default_opts'], {'source_urls': ['http://example.com/%(name)s']})
         self.assertEqual(ec['exts_list'][0], 'ulimit')
         self.assertEqual(ec['exts_list'][1], ('bar', '0.0', {
-            'buildopts': " && gcc bar.c -o anotherbar",
+            'build_opts': " && gcc bar.c -o anotherbar",
             'checksums': [
                 {'bar-0.0.tar.gz': bar_tar_gz_sha256},
                 {'bar-0.0_fix-silly-typo-in-printf-statement.patch': bar_patch_sha256},
@@ -5974,7 +5974,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'patches': [bar_patch, bar_patch_bis],
             'toy_ext_param': "mv anotherbar bar_bis",
             'unknowneasyconfigparameterthatshouldbeignored': 'foo',
-            'keepsymlinks': True,
+            'keep_symlinks': True,
         }))
         self.assertEqual(ec['exts_list'][2], ('barbar', '1.2', {
             'checksums': ['d5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838'],
@@ -6269,10 +6269,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         opt_dep_info_pattern = r'([0-9.]+|\(NOT FOUND\)|not found|\(unknown version\))'
         tool_info_pattern = r'([0-9.]+|\(NOT FOUND\)|not found|\(found, UNKNOWN version\)|version\?\!)'
         patterns = [
-            r"Required dependencies",
+            r"Required deps",
             r"Python.* [23][0-9.]+",
             r"modules tool.* [A-Za-z0-9.\s-]+",
-            r"Optional dependencies",
+            r"Optional deps",
             r"archspec.* %s.*determining name" % opt_dep_info_pattern,
             r"GitPython.* %s.*GitHub integration" % opt_dep_info_pattern,
             r"Rich.* %s.*eb command rich terminal output" % opt_dep_info_pattern,
@@ -6328,7 +6328,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.ec')
         test_ec_txt = read_file(toy_ec)
         test_ec_txt += '\n' + '\n'.join([
-            "sanity_check_commands = ['barbar', 'toy']",
+            "sanity_check_cmds = ['barbar', 'toy']",
             "sanity_check_paths = {'files': ['bin/barbar', 'bin/toy'], 'dirs': ['bin']}",
             "exts_list = [",
             "    ('barbar', '0.0', {",
@@ -6420,11 +6420,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout = self.mocked_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
 
         # check whether %(builddir)s value is correct
-        # when buildininstalldir is enabled in easyconfig and --sanity-check-only is used
+        # when build_in_install_dir is enabled in easyconfig and --sanity-check-only is used
         # (see https://github.com/easybuilders/easybuild-framework/issues/3895)
         test_ec_txt += '\n' + '\n'.join([
-            "buildininstalldir = True",
-            "sanity_check_commands = [",
+            "build_in_install_dir = True",
+            "sanity_check_cmds = [",
             # build and install directory should be the same path
             "    'test %(builddir)s = %(installdir)s',",
             # build/install directory must exist (even though step that creates build dir was never run)
@@ -6449,7 +6449,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_eb = os.path.join(self.test_prefix, 'toy.py')
         write_file(toy_eb, toy_eb_txt)
 
-        test_ec_txt = test_ec_txt.replace('buildininstalldir = True', '')
+        test_ec_txt = test_ec_txt.replace('build_in_install_dir = True', '')
         write_file(test_ec, test_ec_txt)
 
         orig_local_sys_path = sys.path[:]
@@ -6870,7 +6870,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         test_ec = os.path.join(self.test_prefix, 'toy-0.0.eb')
         test_ec_txt = read_file(toy_ec)
-        test_ec_txt += "\ndependencies = [('libtoy', '0.0')]"
+        test_ec_txt += "\ndeps = [('libtoy', '0.0')]"
         write_file(test_ec, test_ec_txt)
 
         test_subdir = os.path.join(self.test_prefix, 'deps')

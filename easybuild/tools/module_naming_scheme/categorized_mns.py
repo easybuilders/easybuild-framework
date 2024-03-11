@@ -41,7 +41,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 class CategorizedModuleNamingScheme(ModuleNamingScheme):
     """Class implementing the categorized module naming scheme."""
 
-    REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain', 'moduleclass']
+    REQUIRED_KEYS = ['name', 'version', 'version_suffix', 'toolchain', 'env_mod_class']
 
     def det_full_module_name(self, ec):
         """
@@ -50,7 +50,7 @@ class CategorizedModuleNamingScheme(ModuleNamingScheme):
         :param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
         :return: string representing full module name, e.g.: 'biology/ABySS/1.3.4-goolf-1.4.10'
         """
-        return os.path.join(ec['moduleclass'], ec['name'], det_full_ec_version(ec))
+        return os.path.join(ec['env_mod_class'], ec['name'], det_full_ec_version(ec))
 
     def is_short_modname_for(self, short_modname, name):
         """

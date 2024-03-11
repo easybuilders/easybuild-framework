@@ -467,7 +467,7 @@ LIST_SOFTWARE_DETAILED_JSON = """[
     "name": "GCC",
     "toolchain": "system",
     "version": "4.6.3",
-    "versionsuffix": ""
+    "version_suffix": ""
 },
 {
     "description": "%(gzip_descr)s",
@@ -475,7 +475,7 @@ LIST_SOFTWARE_DETAILED_JSON = """[
     "name": "gzip",
     "toolchain": "GCC/4.6.3",
     "version": "1.4",
-    "versionsuffix": ""
+    "version_suffix": ""
 },
 {
     "description": "%(gzip_descr)s",
@@ -483,7 +483,7 @@ LIST_SOFTWARE_DETAILED_JSON = """[
     "name": "gzip",
     "toolchain": "system",
     "version": "1.4",
-    "versionsuffix": ""
+    "version_suffix": ""
 },
 {
     "description": "%(gzip_descr)s",
@@ -491,7 +491,7 @@ LIST_SOFTWARE_DETAILED_JSON = """[
     "name": "gzip",
     "toolchain": "foss/2018a",
     "version": "1.5",
-    "versionsuffix": ""
+    "version_suffix": ""
 },
 {
     "description": "%(gzip_descr)s",
@@ -499,7 +499,7 @@ LIST_SOFTWARE_DETAILED_JSON = """[
     "name": "gzip",
     "toolchain": "intel/2018a",
     "version": "1.5",
-    "versionsuffix": ""
+    "version_suffix": ""
 }
 ]""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
 
@@ -522,7 +522,7 @@ class DocsTest(EnhancedTestCase):
         gen_easyblocks_pkg = 'easybuild.easyblocks.generic'
         modules = import_available_modules(gen_easyblocks_pkg)
         common_params = {
-            'ConfigureMake': ['configopts', 'buildopts', 'installopts'],
+            'ConfigureMake': ['configure_opts', 'build_opts', 'install_opts'],
         }
         doc_functions = ['build_step', 'configure_step', 'test_step']
 
@@ -557,9 +557,9 @@ class DocsTest(EnhancedTestCase):
             "====================    ================================================================",
             "easyconfig parameter    description",
             "====================    ================================================================",
-            "configopts              Extra options passed to configure (default already has --prefix)",
-            "buildopts               Extra options passed to make step (default already has -j X)",
-            "installopts             Extra options for installation",
+            "configure_opts              Extra options passed to configure (default already has --prefix)",
+            "build_opts               Extra options passed to make step (default already has -j X)",
+            "install_opts             Extra options for installation",
             "====================    ================================================================",
         ])
 
@@ -604,9 +604,9 @@ class DocsTest(EnhancedTestCase):
             '',
             "easyconfig parameter|description",
             "--------------------|----------------------------------------------------------------",
-            "configopts          |Extra options passed to configure (default already has --prefix)",
-            "buildopts           |Extra options passed to make step (default already has -j X)",
-            "installopts         |Extra options for installation",
+            "configure_opts          |Extra options passed to configure (default already has --prefix)",
+            "build_opts           |Extra options passed to make step (default already has -j X)",
+            "install_opts         |Extra options for installation",
         ])
 
         self.assertIn(check_configuremake, ebdoc)
@@ -724,10 +724,10 @@ class DocsTest(EnhancedTestCase):
             'homepage: https://easybuilders.github.io/easybuild',
             '',
             "  * toy v0.0: gompi/2018a, system",
-            "  * toy v0.0 (versionsuffix: '-deps'): system",
-            "  * toy v0.0 (versionsuffix: '-iter'): system",
-            "  * toy v0.0 (versionsuffix: '-multiple'): system",
-            "  * toy v0.0 (versionsuffix: '-test'): gompi/2018a, system",
+            "  * toy v0.0 (version_suffix: '-deps'): system",
+            "  * toy v0.0 (version_suffix: '-iter'): system",
+            "  * toy v0.0 (version_suffix: '-multiple'): system",
+            "  * toy v0.0 (version_suffix: '-test'): gompi/2018a, system",
         ]
         txt = list_software(output_format='txt', detailed=True)
         lines = txt.split('\n')
@@ -743,7 +743,7 @@ class DocsTest(EnhancedTestCase):
             '*homepage*: https://easybuilders.github.io/easybuild',
             '',
             '=======    =============    ===========================',
-            'version    versionsuffix    toolchain',
+            'version    version_suffix    toolchain',
             '=======    =============    ===========================',
             '``0.0``                     ``gompi/2018a``, ``system``',
             '``0.0``    ``-deps``        ``system``',

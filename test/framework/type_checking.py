@@ -36,7 +36,7 @@ from easybuild.framework.easyconfig.types import check_required_keys, check_type
 from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, ensure_iterable_license_specs
 from easybuild.framework.easyconfig.types import LIST_OF_STRINGS, SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST
 from easybuild.framework.easyconfig.types import TOOLCHAIN_DICT
-from easybuild.framework.easyconfig.types import is_value_of_type, to_checksums, to_dependencies, to_dependency
+from easybuild.framework.easyconfig.types import is_value_of_type, to_checksums, to_deps, to_dependency
 from easybuild.framework.easyconfig.types import to_list_of_strings, to_list_of_strings_and_tuples
 from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples_and_dicts
 from easybuild.framework.easyconfig.types import to_sanity_check_paths_dict, to_toolchain_dict
@@ -91,19 +91,19 @@ class TypeCheckingTest(EnhancedTestCase):
             self.assertEqual(check_type_of_param_value('toolchain', tcspec, auto_convert=True), (True, toolchain))
 
     def test_check_type_of_param_value_deps(self):
-        """Test check_type_of_param_value function for *dependencies."""
+        """Test check_type_of_param_value function for *deps."""
 
-        # dependencies (type check)
+        # deps (type check)
         inputs = [
             [],
             [{'name': 'foo', 'version': '1.2.3'}],
-            [{'name': 'foo', 'version': '1.2.3', 'versionsuffix': ''}],
-            [{'name': 'foo', 'version': '1.2.3', 'versionsuffix': '', 'toolchain': {'name': 'GCC', 'version': '4.7'}}],
+            [{'name': 'foo', 'version': '1.2.3', 'version_suffix': ''}],
+            [{'name': 'foo', 'version': '1.2.3', 'version_suffix': '', 'toolchain': {'name': 'GCC', 'version': '4.7'}}],
             [{'name': 'foo', 'version': '1.2.3', 'toolchain': {'name': 'GCC', 'version': '4.7'}}],
             [{'name': 'foo', 'version': '1.2.3'}, {'name': 'bar', 'version': '3.4.5'}],
         ]
         for inp in inputs:
-            self.assertEqual(check_type_of_param_value('dependencies', inp), (True, inp))
+            self.assertEqual(check_type_of_param_value('deps', inp), (True, inp))
 
         inputs = [
             ['foo'],
@@ -115,33 +115,33 @@ class TypeCheckingTest(EnhancedTestCase):
             [{'name': 'foo', 'version': '1.2.3', 'somekey': 'wrong'}],
         ]
         for inp in inputs:
-            self.assertEqual(check_type_of_param_value('dependencies', inp), (False, None))
+            self.assertEqual(check_type_of_param_value('deps', inp), (False, None))
 
-        # dependencies (auto-convert)
-        self.assertEqual(check_type_of_param_value('dependencies', [{'foo': '1.2.3'}], auto_convert=True),
+        # deps (auto-convert)
+        self.assertEqual(check_type_of_param_value('deps', [{'foo': '1.2.3'}], auto_convert=True),
                          (True, [{'name': 'foo', 'version': '1.2.3'}]))
         # tuple values pass through untouched (are handled later by EasyConfig._parse_dependency)
         inp = [('foo', '1.2.3')]
-        self.assertEqual(check_type_of_param_value('dependencies', inp, auto_convert=True), (True, [('foo', '1.2.3')]))
+        self.assertEqual(check_type_of_param_value('deps', inp, auto_convert=True), (True, [('foo', '1.2.3')]))
         inp = [('foo', '1.2.3'), {'bar': '3.4.5'}, ('baz', '9.8.7')]
         out = (True, [('foo', '1.2.3'), {'name': 'bar', 'version': '3.4.5'}, ('baz', '9.8.7')])
-        self.assertEqual(check_type_of_param_value('dependencies', inp, auto_convert=True), out)
+        self.assertEqual(check_type_of_param_value('deps', inp, auto_convert=True), out)
 
-        # osdependencies (type check)
+        # os_deps (type check)
         inputs = [
             ['zlib'],
             [('openssl-devel', 'libssl-dev', 'libopenssl-devel')],
             ['zlib', ('openssl-devel', 'libssl-dev', 'libopenssl-devel')],
         ]
         for inp in inputs:
-            self.assertEqual(check_type_of_param_value('osdependencies', inp), (True, inp))
+            self.assertEqual(check_type_of_param_value('os_deps', inp), (True, inp))
 
         inp = ['zlib', ['openssl-devel', 'libssl-dev', 'libopenssl-devel']]
-        self.assertEqual(check_type_of_param_value('osdependencies', inp), (False, None))
+        self.assertEqual(check_type_of_param_value('os_deps', inp), (False, None))
 
-        # osdependencies (auto-convert)
+        # os_deps (auto-convert)
         out = ['zlib', ('openssl-devel', 'libssl-dev', 'libopenssl-devel')]
-        self.assertEqual(check_type_of_param_value('osdependencies', inp, auto_convert=True), (True, out))
+        self.assertEqual(check_type_of_param_value('os_deps', inp, auto_convert=True), (True, out))
 
     def test_check_type_of_param_value_sanity_check_paths(self):
         """Test check_type_of_param_value function for sanity_check_paths."""
@@ -276,8 +276,8 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(convert_value_type([], LIST_OF_STRINGS), [])
 
         # complex types
-        dep = [{'GCC': '1.2.3', 'versionsuffix': 'foo'}]
-        converted_dep = [{'name': 'GCC', 'version': '1.2.3', 'versionsuffix': 'foo'}]
+        dep = [{'GCC': '1.2.3', 'version_suffix': 'foo'}]
+        converted_dep = [{'name': 'GCC', 'version': '1.2.3', 'version_suffix': 'foo'}]
         self.assertEqual(convert_value_type(dep, DEPENDENCIES), converted_dep)
 
         # no conversion function available for specific type
@@ -336,7 +336,7 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(to_dependency({'lib': '1.2.8'}), {'name': 'lib', 'version': '1.2.8'})
         self.assertEqual(to_dependency({'lib': '1.2.8', 'toolchain': 'GCC, 4.8.2'}), lib_dict)
         self.assertEqual(to_dependency({'lib': '1.2.8', 'toolchain': ['GCC', '4.8.2']}), lib_dict)
-        lib_dict.update({'versionsuffix': ''})
+        lib_dict.update({'version_suffix': ''})
 
         # to_dependency doesn't touch values of non-dict type
         dep_specs = [
@@ -359,12 +359,12 @@ class TypeCheckingTest(EnhancedTestCase):
         foo_dict = {
             'name': 'foo',
             'version': '1.3',
-            'versionsuffix': '-bar',
+            'version_suffix': '-bar',
         }
-        self.assertEqual(to_dependency({'foo': '1.3', 'versionsuffix': '-bar'}), foo_dict)
+        self.assertEqual(to_dependency({'foo': '1.3', 'version_suffix': '-bar'}), foo_dict)
 
         foo_dict.update({'toolchain': {'name': 'GCC', 'version': '4.8.2'}})
-        self.assertEqual(to_dependency({'foo': '1.3', 'versionsuffix': '-bar', 'toolchain': 'GCC, 4.8.2'}), foo_dict)
+        self.assertEqual(to_dependency({'foo': '1.3', 'version_suffix': '-bar', 'toolchain': 'GCC, 4.8.2'}), foo_dict)
 
         # using 'name' and 'version' in dictionary being passed yields the expected result
         foo_dict = {'name': 'foo', 'version': '1.2.3'}
@@ -379,37 +379,37 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # no name/version
         self.assertErrorRegex(EasyBuildError, "Can not parse dependency without name and version: .*",
-                              to_dependency, {'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
+                              to_dependency, {'toolchain': 'lib, 1.2.8', 'version_suffix': 'suff'})
         # too many values
-        dep_spec = {'lib': '1.2.8', 'foo': '1.3', 'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'}
+        dep_spec = {'lib': '1.2.8', 'foo': '1.3', 'toolchain': 'lib, 1.2.8', 'version_suffix': 'suff'}
         self.assertErrorRegex(EasyBuildError, r"Found unexpected \(key, value\) pair: .*", to_dependency, dep_spec)
 
-    def test_to_dependencies(self):
-        """Test to_dependencies function."""
-        self.assertEqual(to_dependencies([]), [])
+    def test_to_deps(self):
+        """Test to_deps function."""
+        self.assertEqual(to_deps([]), [])
         deps = [
             'foo/1.2.3',
             ('foo', '1.2.3'),
             ('bar', '4.5.6', '-test'),
             ('foobar', '1.3.5', '', ('GCC', '4.7.2')),
             {'toy': '0.0'},
-            {'toy': '0.0', 'versionsuffix': '-bleh'},
+            {'toy': '0.0', 'version_suffix': '-bleh'},
             {'toy': '0.0', 'toolchain': 'gompi, 2015a'},
-            {'gzip': '1.5', 'versionsuffix': '', 'toolchain': 'foss, 2014b'},
-            {'name': 'toy', 'version': '0.0', 'versionsuffix': '-bleh',
+            {'gzip': '1.5', 'version_suffix': '', 'toolchain': 'foss, 2014b'},
+            {'name': 'toy', 'version': '0.0', 'version_suffix': '-bleh',
              'toolchain': {'name': 'gompi', 'version': '2015a'}},
         ]
-        self.assertEqual(to_dependencies(deps), [
+        self.assertEqual(to_deps(deps), [
             'foo/1.2.3',
             ('foo', '1.2.3'),
             ('bar', '4.5.6', '-test'),
             ('foobar', '1.3.5', '', ('GCC', '4.7.2')),
             {'name': 'toy', 'version': '0.0'},
-            {'name': 'toy', 'version': '0.0', 'versionsuffix': '-bleh'},
+            {'name': 'toy', 'version': '0.0', 'version_suffix': '-bleh'},
             {'name': 'toy', 'version': '0.0', 'toolchain': {'name': 'gompi', 'version': '2015a'}},
-            {'name': 'gzip', 'version': '1.5', 'versionsuffix': '',
+            {'name': 'gzip', 'version': '1.5', 'version_suffix': '',
              'toolchain': {'name': 'foss', 'version': '2014b'}},
-            {'name': 'toy', 'version': '0.0', 'versionsuffix': '-bleh',
+            {'name': 'toy', 'version': '0.0', 'version_suffix': '-bleh',
              'toolchain': {'name': 'gompi', 'version': '2015a'}},
         ])
 
@@ -448,7 +448,7 @@ class TypeCheckingTest(EnhancedTestCase):
             'name': 'intel',
             'version': '2015a',
             'toolchain': {'name': 'intel', 'version': '2015a'},
-            'versionsuffix': 'foo',
+            'version_suffix': 'foo',
         }, DEPENDENCY_DICT))
         # no version key
         self.assertFalse(is_value_of_type({'name': 'intel'}, TOOLCHAIN_DICT))
@@ -457,22 +457,22 @@ class TypeCheckingTest(EnhancedTestCase):
             'name': 'intel',
             'version': '2015a',
             'toolchain': 'intel, 2015a',
-            'versionsuffix': 'foo',
+            'version_suffix': 'foo',
             'extra': 'bar',
         }, DEPENDENCY_DICT))
 
-        # list of dependencies type check
-        dependencies = [
+        # list of deps type check
+        deps = [
             {'name': 'intel', 'version': '2015a'},
             {'name': 'gcc', 'version': '4.1.3'},
-            {'name': 'dummy', 'version': 'dummy', 'versionsuffix': 'foo',
+            {'name': 'dummy', 'version': 'dummy', 'version_suffix': 'foo',
              'toolchain': {'name': 'intel', 'version': '2015a'}},
         ]
-        self.assertTrue(is_value_of_type(dependencies, DEPENDENCIES))
+        self.assertTrue(is_value_of_type(deps, DEPENDENCIES))
 
         # string value for toolchain key is not OK
-        dependencies.append({'name': 'foo', 'version': '1.2.3', 'toolchain': 'intel, 2015a'})
-        self.assertFalse(is_value_of_type(dependencies, DEPENDENCIES))
+        deps.append({'name': 'foo', 'version': '1.2.3', 'toolchain': 'intel, 2015a'})
+        self.assertFalse(is_value_of_type(deps, DEPENDENCIES))
 
         # wrong keys (name/version is strictly required)
         self.assertFalse(is_value_of_type([{'a': 'b', 'c': 'd'}], DEPENDENCIES))
@@ -480,7 +480,7 @@ class TypeCheckingTest(EnhancedTestCase):
         # not a list
         self.assertFalse(is_value_of_type({'name': 'intel', 'version': '2015a'}, DEPENDENCIES))
 
-        # no extra keys allowed, only name/version/versionsuffix/toolchain
+        # no extra keys allowed, only name/version/version_suffix/toolchain
         self.assertFalse(is_value_of_type({'name': 'intel', 'version': '2015a', 'foo': 'bar'}, DEPENDENCIES))
 
         # list of strings and tuples test
@@ -544,9 +544,9 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertTrue(check_known_keys({'one': 1, 'two': 2}, ('one', 'two', 'three')))
         self.assertFalse(check_known_keys({'one': 1, 'two': 2}, ['one']))
 
-        known_keys = ['name', 'toolchain', 'version', 'versionsuffix']
+        known_keys = ['name', 'toolchain', 'version', 'version_suffix']
         self.assertTrue(check_known_keys({'name': 'intel', 'version': '2015a'}, known_keys))
-        self.assertTrue(check_known_keys({'name': 'intel', 'version': '2015a', 'versionsuffix': '-test'}, known_keys))
+        self.assertTrue(check_known_keys({'name': 'intel', 'version': '2015a', 'version_suffix': '-test'}, known_keys))
         self.assertFalse(check_known_keys({'name': 'intel', 'version': '2015a', 'foo': 'bar'}, known_keys))
 
     def test_check_required_keys(self):
@@ -558,8 +558,8 @@ class TypeCheckingTest(EnhancedTestCase):
         req_keys = ['name', 'version']
         self.assertTrue(check_required_keys({'name': 'intel', 'version': '2015a'}, req_keys))
         self.assertFalse(check_required_keys({'name': 'intel'}, req_keys))
-        self.assertTrue(check_required_keys({'name': 'foo', 'version': '1.2.3', 'versionsuffix': '-test'}, req_keys))
-        self.assertFalse(check_required_keys({'name': 'foo', 'versionsuffix': '-test'}, req_keys))
+        self.assertTrue(check_required_keys({'name': 'foo', 'version': '1.2.3', 'version_suffix': '-test'}, req_keys))
+        self.assertFalse(check_required_keys({'name': 'foo', 'version_suffix': '-test'}, req_keys))
 
     def test_check_element_types(self):
         """Test check_element_types function."""

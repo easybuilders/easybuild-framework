@@ -26,7 +26,7 @@ sanity_check_paths = {
     'dirs': ['bin'],
 }
 
-postinstallcmds = ["echo TOY > %(installdir)s/README"]
+post_install_cmds = ["echo TOY > %(installdir)s/README"]
 
-moduleclass = 'tools'
+env_mod_class = 'tools'
 # trailing comment, leave this here, it may trigger bugs with extract_comments()

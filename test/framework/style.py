@@ -77,7 +77,7 @@ class StyleTest(EnhancedTestCase):
             '''description = """start of long description, ''',  # trailing whitespace, but allowed in description
             ''' continuation of long description ''',  # trailing whitespace, but allowed in continued description
             ''' end of long description"""''',
-            "moduleclass = 'tools'   ",  # trailing whitespace
+            "env_mod_class = 'tools'   ",  # trailing whitespace
             '',
         ]
         line_numbers = range(1, len(lines) + 1)

@@ -12,26 +12,26 @@ from easybuild.tools.modules import get_software_root
 from easybuild.tools.systemtools import get_shared_lib_ext
 
 
-# Add/remove dependencies and/or patches
+# Add/remove deps and/or patches
 # Access to the raw values before templating and such.
 def parse_hook(ec, *args, **kwargs):
 
     # Internal helper function
-    def add_extra_dependencies(ec, dep_type, extra_deps):
-        """dep_type: must be in DEPENDENCY_PARAMETERS or 'osdependencies'"""
+    def add_extra_deps(ec, dep_type, extra_deps):
+        """dep_type: must be in DEPENDENCY_PARAMETERS or 'os_deps'"""
         ec.log.info("[parse hook] Adding %s: %s" % (dep_type, extra_deps))
 
         if dep_type in DEPENDENCY_PARAMETERS:
             for dep in extra_deps:
                 ec[dep_type].append(dep)
-        elif dep_type == 'osdependencies':
+        elif dep_type == 'os_deps':
             if isinstance(extra_deps, tuple):
                 ec[dep_type].append(extra_deps)
             else:
-                raise EasyBuildError("parse_hook: Type of extra_deps argument (%s), for 'osdependencies' must be "
+                raise EasyBuildError("parse_hook: Type of extra_deps argument (%s), for 'os_deps' must be "
                                      "tuple, found %s" % (extra_deps, type(extra_deps)))
         else:
-            raise EasyBuildError("parse_hook: Incorrect dependency type in add_extra_dependencies: %s" % dep_type)
+            raise EasyBuildError("parse_hook: Incorrect dependency type in add_extra_deps: %s" % dep_type)
 
     extra_deps = []
 
@@ -73,7 +73,7 @@ def parse_hook(ec, *args, **kwargs):
         extra_deps.append(('PMIx', pmix_version))
 
     if extra_deps:
-        add_extra_dependencies(ec, 'dependencies', extra_deps)
+        add_extra_deps(ec, 'deps', extra_deps)
 
 
 def pre_configure_hook(self, *args, **kwargs):
@@ -81,7 +81,7 @@ def pre_configure_hook(self, *args, **kwargs):
         # HPC2N always uses -DGMX_USE_NVML=ON on GPU builds
         if get_software_root('CUDA'):
             self.log.info("[pre-configure hook] Adding -DGMX_USE_NVML=ON")
-            self.cfg.update('configopts', "-DGMX_USE_NVML=ON ")
+            self.cfg.update('configure_opts', "-DGMX_USE_NVML=ON ")
 
     if self.name == 'OpenMPI':
         extra_opts = ""
@@ -104,7 +104,7 @@ def pre_configure_hook(self, *args, **kwargs):
                                          "external libevent, which was not found. "
                                          "Check parse_hook for dependency settings.")
             else:
-                raise EasyBuildError("Error in pre_configure_hook for OpenMPI: PMIx not defined in dependencies. "
+                raise EasyBuildError("Error in pre_configure_hook for OpenMPI: PMIx not defined in deps. "
                                      "Check parse_hook for dependency settings.")
 
             if get_software_root('UCX'):
@@ -120,29 +120,29 @@ def pre_configure_hook(self, *args, **kwargs):
         # extra_opts += "--with-knem=/opt/knem-1.1.2.90mlnx1 "
 
         self.log.info("[pre-configure hook] Adding %s" % extra_opts)
-        self.cfg.update('configopts', extra_opts)
+        self.cfg.update('configure_opts', extra_opts)
 
         if LooseVersion(self.version) >= LooseVersion('2.1'):
             self.log.info("[pre-configure hook] Re-enabling ucx")
-            self.cfg['configopts'] = self.cfg['configopts'].replace('--without-ucx', ' ')
+            self.cfg['configure_opts'] = self.cfg['configure_opts'].replace('--without-ucx', ' ')
 
         self.log.info("[pre-configure hook] Re-enabling dlopen")
-        self.cfg['configopts'] = self.cfg['configopts'].replace('--disable-dlopen', ' ')
+        self.cfg['configure_opts'] = self.cfg['configure_opts'].replace('--disable-dlopen', ' ')
 
     if self.name == 'PMIx':
         self.log.info("[pre-configure hook] Adding --with-munge")
-        self.cfg.update('configopts', "--with-munge ")
+        self.cfg.update('configure_opts', "--with-munge ")
         if LooseVersion(self.version) >= LooseVersion('2'):
             self.log.info("[pre-configure hook] Adding --with-tests-examples")
-            self.cfg.update('configopts', "--with-tests-examples ")
+            self.cfg.update('configure_opts', "--with-tests-examples ")
             self.log.info("[pre-configure hook] Adding --disable-per-user-config-files")
-            self.cfg.update('configopts', "--disable-per-user-config-files")
+            self.cfg.update('configure_opts', "--disable-per-user-config-files")
 
 
 def pre_build_hook(self, *args, **kwargs):
     if self.name == 'pyslurm':
         self.log.info("[pre-build hook] Adding --slurm=/lap/slurm")
-        self.cfg.update('buildopts', "--slurm=/lap/slurm ")
+        self.cfg.update('build_opts', "--slurm=/lap/slurm ")
 
 
 def post_install_hook(self, *args, **kwargs):
@@ -160,25 +160,25 @@ def pre_module_hook(self, *args, **kwargs):
         # Add I_MPI_PMI_LIBRARY to module for IntelMPI so it works with
         # srun.
         self.log.info("[pre-module hook] Set I_MPI_PMI_LIBRARY in impi module")
-        # Must be done this way, updating self.cfg['modextravars']
+        # Must be done this way, updating self.cfg['env_mod_extra_vars']
         # directly doesn't work due to templating.
         with self.cfg.disable_templating():
             shlib_ext = get_shared_lib_ext()
             pmix_root = get_software_root('PMIx')
             if pmix_root:
                 mpi_type = 'pmix_v3'
-                self.cfg['modextravars'].update({
+                self.cfg['env_mod_extra_vars'].update({
                     'I_MPI_PMI_LIBRARY': os.path.join(pmix_root, "lib", "libpmi." + shlib_ext)
                 })
-                self.cfg['modextravars'].update({'SLURM_MPI_TYPE': mpi_type})
+                self.cfg['env_mod_extra_vars'].update({'SLURM_MPI_TYPE': mpi_type})
                 # Unfortunately UCX doesn't yet work for unknown reasons. Make sure it is off.
-                self.cfg['modextravars'].update({'SLURM_PMIX_DIRECT_CONN_UCX': 'false'})
+                self.cfg['env_mod_extra_vars'].update({'SLURM_PMIX_DIRECT_CONN_UCX': 'false'})
             else:
-                self.cfg['modextravars'].update({'I_MPI_PMI_LIBRARY': "/lap/slurm/lib/libpmi.so"})
+                self.cfg['env_mod_extra_vars'].update({'I_MPI_PMI_LIBRARY': "/lap/slurm/lib/libpmi.so"})
 
     if self.name == 'OpenBLAS':
         self.log.info("[pre-module hook] Set OMP_NUM_THREADS=1 in OpenBLAS module")
-        self.cfg.update('modluafooter', 'if ((mode() == "load" and os.getenv("OMP_NUM_THREADS") == nil) '
+        self.cfg.update('env_mod_lua_footer', 'if ((mode() == "load" and os.getenv("OMP_NUM_THREADS") == nil) '
                         'or (mode() == "unload" and os.getenv("__OpenBLAS_set_OMP_NUM_THREADS") == "1")) then '
                         'setenv("OMP_NUM_THREADS","1"); setenv("__OpenBLAS_set_OMP_NUM_THREADS", "1") end')
 
@@ -193,16 +193,16 @@ def pre_module_hook(self, *args, **kwargs):
             mpi_type = 'pmix_v3'
 
         self.log.info("[pre-module hook] Set SLURM_MPI_TYPE=%s in OpenMPI module" % mpi_type)
-        # Must be done this way, updating self.cfg['modextravars']
+        # Must be done this way, updating self.cfg['env_mod_extra_vars']
         # directly doesn't work due to templating.
         with self.cfg.disable_templating():
-            self.cfg['modextravars'].update({'SLURM_MPI_TYPE': mpi_type})
+            self.cfg['env_mod_extra_vars'].update({'SLURM_MPI_TYPE': mpi_type})
             # Unfortunately UCX doesn't yet work for unknown reasons. Make sure it is off.
-            self.cfg['modextravars'].update({'SLURM_PMIX_DIRECT_CONN_UCX': 'false'})
+            self.cfg['env_mod_extra_vars'].update({'SLURM_PMIX_DIRECT_CONN_UCX': 'false'})
 
     if self.name == 'PMIx':
         # This is a, hopefully, temporary workaround for https://github.com/pmix/pmix/issues/1114
         if LooseVersion(self.version) > LooseVersion('2') and LooseVersion(self.version) < LooseVersion('3'):
             self.log.info("[pre-module hook] Set PMIX_MCA_gds=^ds21 in PMIx module")
             with self.cfg.disable_templating():
-                self.cfg['modextravars'].update({'PMIX_MCA_gds': '^ds21'})
+                self.cfg['env_mod_extra_vars'].update({'PMIX_MCA_gds': '^ds21'})

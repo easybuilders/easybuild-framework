@@ -749,7 +749,7 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
     Show list of supported software
 
     :param output_format: output format to use
-    :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :param detailed: whether or not to return detailed information (incl. version, version_suffix, toolchain info)
     :param only_installed: only retain software for which a corresponding module is available
     :return: multi-line string presenting requested info
     """
@@ -779,13 +779,13 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
         else:
             toolchain = '%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version'])
 
-        keys = ['description', 'homepage', 'version', 'versionsuffix']
+        keys = ['description', 'homepage', 'version', 'version_suffix']
 
         info = {'toolchain': toolchain}
         for key in keys:
             info[key] = ec.get(key, '')
 
-        # make sure values like homepage & versionsuffix get properly templated
+        # make sure values like homepage & version_suffix get properly templated
         if isinstance(ec, dict):
             template_values = template_constant_dict(ec)
             for key in keys:
@@ -822,7 +822,7 @@ def list_software_md(software, detailed=True):
     Return overview of supported software in MarkDown format
 
     :param software: software information (structured like list_software does)
-    :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :param detailed: whether or not to return detailed information (incl. version, version_suffix, toolchain info)
     :return: multi-line string presenting requested info
     """
 
@@ -866,17 +866,17 @@ def list_software_md(software, detailed=True):
             table_titles = ['version', 'toolchain']
             table_values = [[], []]
 
-            # first determine unique pairs of version/versionsuffix
+            # first determine unique pairs of version/version_suffix
             # we can't use LooseVersion yet here, since nub uses set and LooseVersion instances are not hashable
-            pairs = nub((x['version'], x['versionsuffix']) for x in software[key])
+            pairs = nub((x['version'], x['version_suffix']) for x in software[key])
 
-            # check whether any non-empty versionsuffixes are in play
+            # check whether any non-empty version_suffixes are in play
             with_vsuff = any(vs for (_, vs) in pairs)
             if with_vsuff:
-                table_titles.insert(1, 'versionsuffix')
+                table_titles.insert(1, 'version_suffix')
                 table_values.insert(1, [])
 
-            # sort pairs by version (and then by versionsuffix);
+            # sort pairs by version (and then by version_suffix);
             # we sort by LooseVersion to obtain chronological version ordering,
             # but we also need to retain original string version for filtering-by-version done below
             sorted_pairs = sorted((LooseVersion(v), vs, v) for v, vs in pairs)
@@ -888,7 +888,7 @@ def list_software_md(software, detailed=True):
                         table_values[1].append('``%s``' % vsuff)
                     else:
                         table_values[1].append('')
-                tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['versionsuffix'] == vsuff]
+                tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['version_suffix'] == vsuff]
                 table_values[-1].append(', '.join('``%s``' % tc for tc in sorted(nub(tcs))))
 
             lines.extend([
@@ -911,7 +911,7 @@ def list_software_rst(software, detailed=False):
     Return overview of supported software in RST format
 
     :param software: software information (structured like list_software does)
-    :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :param detailed: whether or not to return detailed information (incl. version, version_suffix, toolchain info)
     :return: multi-line string presenting requested info
     """
 
@@ -970,17 +970,17 @@ def list_software_rst(software, detailed=False):
             table_titles = ['version', 'toolchain']
             table_values = [[], []]
 
-            # first determine unique pairs of version/versionsuffix
+            # first determine unique pairs of version/version_suffix
             # we can't use LooseVersion yet here, since nub uses set and LooseVersion instances are not hashable
-            pairs = nub((x['version'], x['versionsuffix']) for x in software[key])
+            pairs = nub((x['version'], x['version_suffix']) for x in software[key])
 
-            # check whether any non-empty versionsuffixes are in play
+            # check whether any non-empty version_suffixes are in play
             with_vsuff = any(vs for (_, vs) in pairs)
             if with_vsuff:
-                table_titles.insert(1, 'versionsuffix')
+                table_titles.insert(1, 'version_suffix')
                 table_values.insert(1, [])
 
-            # sort pairs by version (and then by versionsuffix);
+            # sort pairs by version (and then by version_suffix);
             # we sort by LooseVersion to obtain chronological version ordering,
             # but we also need to retain original string version for filtering-by-version done below
             sorted_pairs = sorted((LooseVersion(v), vs, v) for v, vs in pairs)
@@ -992,7 +992,7 @@ def list_software_rst(software, detailed=False):
                         table_values[1].append('``%s``' % vsuff)
                     else:
                         table_values[1].append('')
-                tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['versionsuffix'] == vsuff]
+                tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['version_suffix'] == vsuff]
                 table_values[-1].append(', '.join('``%s``' % tc for tc in sorted(nub(tcs))))
 
             lines.extend([
@@ -1018,7 +1018,7 @@ def list_software_txt(software, detailed=False):
     Return overview of supported software in plain text
 
     :param software: software information (structured like list_software does)
-    :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :param detailed: whether or not to return detailed information (incl. version, version_suffix, toolchain info)
     :return: multi-line string presenting requested info
     """
 
@@ -1034,21 +1034,21 @@ def list_software_txt(software, detailed=False):
                 '',
             ])
 
-            # first determine unique pairs of version/versionsuffix
+            # first determine unique pairs of version/version_suffix
             # we can't use LooseVersion yet here, since nub uses set and LooseVersion instances are not hashable
-            pairs = nub((x['version'], x['versionsuffix']) for x in software[key])
+            pairs = nub((x['version'], x['version_suffix']) for x in software[key])
 
-            # sort pairs by version (and then by versionsuffix);
+            # sort pairs by version (and then by version_suffix);
             # we sort by LooseVersion to obtain chronological version ordering,
             # but we also need to retain original string version for filtering-by-version done below
             sorted_pairs = sorted((LooseVersion(v), vs, v) for v, vs in pairs)
 
             for _, vsuff, ver in sorted_pairs:
-                tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['versionsuffix'] == vsuff]
+                tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['version_suffix'] == vsuff]
 
                 line = "  * %s v%s" % (key, ver)
                 if vsuff:
-                    line += " (versionsuffix: '%s')" % vsuff
+                    line += " (version_suffix: '%s')" % vsuff
                 line += ": %s" % ', '.join(sorted(nub(tcs)))
                 lines.append(line)
             lines.append('')
@@ -1061,7 +1061,7 @@ def list_software_json(software, detailed=False):
     Return overview of supported software in json
 
     :param software: software information (strucuted like list_software does)
-    :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :param detailed: whether or not to return detailed information (incl. version, version_suffix, toolchain info)
     :return: multi-line string presenting requested info
     """
     lines = ['[']

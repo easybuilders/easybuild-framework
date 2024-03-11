@@ -41,7 +41,7 @@ class FCC(FujitsuCompiler):
 
     # override in order to add an exception for the Fujitsu lang/tcsds module
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
-        """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
+        """ Add LDFLAGS and CPPFLAGS to the self.variables based on the deps
             names should be a list of strings containing the name of the dependency
         """
         cpp_paths = ['include']
@@ -57,11 +57,11 @@ class FCC(FujitsuCompiler):
                     ld_paths.append(p)
 
         if not names:
-            deps = self.dependencies
+            deps = self.deps
         else:
             deps = [{'name': name} for name in names if name is not None]
 
-        # collect software install prefixes for dependencies
+        # collect software install prefixes for deps
         roots = []
         for dep in deps:
             if dep.get('external_module', False):

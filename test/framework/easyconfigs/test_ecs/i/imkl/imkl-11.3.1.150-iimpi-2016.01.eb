@@ -14,8 +14,8 @@ toolchain = {'name': 'iimpi', 'version': '2016.01'}
 
 sources = ['l_mkl_%(version)s.tgz']
 
-dontcreateinstalldir = 'True'
+dont_create_install_dir = 'True'
 
 license_file = HOME + '/licenses/intel/license.lic'
 
-moduleclass = 'numlib'
+env_mod_class = 'numlib'

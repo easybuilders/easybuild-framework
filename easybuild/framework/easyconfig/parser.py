@@ -45,7 +45,7 @@ from easybuild.tools.filetools import read_file, write_file
 # deprecated easyconfig parameters, and their replacements
 DEPRECATED_PARAMETERS = {
     # <old_param>: (<new_param>, <deprecation_version>),
-        'builddependencies': ('build_deps', '6.0'),
+    'builddependencies': ('build_deps', '6.0'),
     'buildininstalldir': ('build_in_install_dir', '6.0'),
     'buildopts': ('build_opts', '6.0'),
     'buildstats': ('build_stats', '6.0'),
@@ -103,8 +103,8 @@ DEPRECATED_PARAMETERS = {
 # replaced easyconfig parameters, and their replacements
 REPLACED_PARAMETERS = {
     'license': 'license_file',
-    'makeopts': 'buildopts',
-    'premakeopts': 'prebuildopts',
+    'makeopts': 'build_opts',
+    'premakeopts': 'pre_build_opts',
 }
 
 _log = fancylogger.getLogger('easyconfig.parser', fname=False)

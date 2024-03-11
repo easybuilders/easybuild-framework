@@ -439,7 +439,7 @@ def to_sanity_check_paths_dict(spec):
 # this uses to_toolchain, so it needs to be at the bottom of the module
 def to_dependency(dep):
     """
-    Convert a dependency specification to a dependency dict with name/version/versionsuffix/toolchain keys.
+    Convert a dependency specification to a dependency dict with name/version/version_suffix/toolchain keys.
 
     Example:
         {'foo': '1.2.3', 'toolchain': 'GCC, 4.8.2'}
@@ -451,8 +451,8 @@ def to_dependency(dep):
         to
         {'name': 'fftw/3.3.4.1', 'external_module': True, 'version': None}
     """
-    # deal with dependencies coming for .eb easyconfig, typically in tuple format:
-    #   (name, version[, versionsuffix[, toolchain]])
+    # deal with deps coming for .eb easyconfig, typically in tuple format:
+    #   (name, version[, version_suffix[, toolchain]])
     if isinstance(dep, dict):
         depspec = {}
 
@@ -479,7 +479,7 @@ def to_dependency(dep):
                     dep_keys.remove(key)
 
             for key in dep_keys:
-                if key == 'versionsuffix':
+                if key == 'version_suffix':
                     depspec[key] = str(dep[key])
                 elif key == 'toolchain':
                     depspec['toolchain'] = to_toolchain_dict(dep[key])
@@ -502,10 +502,10 @@ def to_dependency(dep):
     return depspec
 
 
-def to_dependencies(dep_list):
+def to_deps(dep_list):
     """
-    Convert a list of dependencies obtained from parsing a .yeb easyconfig
-    to a list of dependencies in the correct format
+    Convert a list of deps obtained from parsing a .yeb easyconfig
+    to a list of deps in the correct format
     """
     return [to_dependency(dep) for dep in dep_list]
 
@@ -579,9 +579,9 @@ DEPENDENCY_DICT = (dict, as_hashable({
         'short_mod_name': [str],
         'toolchain': [TOOLCHAIN_DICT],
         'version': [str],
-        'versionsuffix': [str],
+        'version_suffix': [str],
     },
-    'opt_keys': ['full_mod_name', 'short_mod_name', 'toolchain', 'versionsuffix'],
+    'opt_keys': ['full_mod_name', 'short_mod_name', 'toolchain', 'version_suffix'],
     'req_keys': ['name', 'version'],
 }))
 DEPENDENCIES = (list, as_hashable({'elem_types': [DEPENDENCY_DICT]}))
@@ -630,15 +630,15 @@ EASY_TYPES = [str, bool, dict, int, list, str, tuple]
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
     'checksums': CHECKSUMS,
-    'docurls': LIST_OF_STRINGS,
+    'doc_urls': LIST_OF_STRINGS,
     'name': str,
-    'osdependencies': STRING_OR_TUPLE_LIST,
+    'os_deps': STRING_OR_TUPLE_LIST,
     'patches': STRING_OR_TUPLE_OR_DICT_LIST,
     'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
     'toolchain': TOOLCHAIN_DICT,
     'version': str,
 }
-# add all dependency types as dependencies
+# add all dependency types as deps
 for dep in DEPENDENCY_PARAMETERS:
     PARAMETER_TYPES[dep] = DEPENDENCIES
 
@@ -648,7 +648,7 @@ TYPE_CONVERSION_FUNCTIONS = {
     int: int,
     str: str,
     CHECKSUMS: to_checksums,
-    DEPENDENCIES: to_dependencies,
+    DEPENDENCIES: to_deps,
     LIST_OF_STRINGS: to_list_of_strings,
     TOOLCHAIN_DICT: to_toolchain_dict,
     SANITY_CHECK_PATHS_DICT: to_sanity_check_paths_dict,
