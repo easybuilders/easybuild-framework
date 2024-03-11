@@ -136,7 +136,7 @@ def read_environment(env_vars, strict=False):
     :param env_vars: a dict with key a name, value a environment variable name
     :param strict: boolean, if True enforces that all specified environment variables are found
     """
-    result = dict([(k, os.environ.get(v)) for k, v in env_vars.items() if v in os.environ])
+    result = {k: os.environ.get(v) for k, v in env_vars.items() if v in os.environ}
 
     if not len(env_vars) == len(result):
         missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if k not in result])

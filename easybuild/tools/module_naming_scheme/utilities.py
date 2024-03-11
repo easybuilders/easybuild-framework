@@ -86,7 +86,7 @@ def avail_module_naming_schemes():
     import_available_modules('easybuild.tools.module_naming_scheme')
 
     # construct name-to-class dict of available module naming scheme
-    avail_mnss = dict([(x.__name__, x) for x in get_subclasses(ModuleNamingScheme)])
+    avail_mnss = {x.__name__: x for x in get_subclasses(ModuleNamingScheme)}
 
     return avail_mnss
 
