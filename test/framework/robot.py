@@ -128,8 +128,7 @@ class RobotTest(EnhancedTestCase):
         config.modules_tool = ORIG_MODULES_TOOL
         ecec.modules_tool = ORIG_ECEC_MODULES_TOOL
         if ORIG_MODULE_FUNCTION is None:
-            if 'module' in os.environ:
-                del os.environ['module']
+            os.environ.pop('module', None)
         else:
             os.environ['module'] = ORIG_MODULE_FUNCTION
         self.modtool = self.orig_modtool
