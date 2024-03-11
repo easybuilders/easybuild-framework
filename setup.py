@@ -31,7 +31,10 @@ This script can be used to install easybuild-framework, e.g. using:
 import glob
 import os
 import logging
-from setuptools import setup
+try:
+    from distutils.core import setup
+except ImportError:
+    from setuptools import setup
 
 from easybuild.tools.version import VERSION
 
