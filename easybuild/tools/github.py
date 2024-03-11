@@ -377,6 +377,15 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, commit=None, accoun
     mkdir(path, parents=True)
 
     if commit:
+        # make sure that full commit SHA-1 is provided
+        commit_sha1_regex = re.compile('[0-9a-f]{40}')
+        if commit_sha1_regex.match(commit):
+            _log.info("Valid commit SHA-1 provided for downloading %s/%s: %s", account, repo, commit)
+        else:
+            error_msg = "Specified commit SHA-1 %s for downloading %s/%s is not valid, "
+            error_msg += "must be full SHA-1 (40 chars)"
+            raise EasyBuildError(error_msg, commit, account, repo)
+
         extracted_dir_name = '%s-%s' % (repo, commit)
         base_name = '%s.tar.gz' % commit
         latest_commit_sha = commit
@@ -401,8 +410,11 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, commit=None, accoun
 
     target_path = os.path.join(path, base_name)
     _log.debug("downloading repo %s/%s as archive from %s to %s" % (account, repo, url, target_path))
-    download_file(base_name, url, target_path, forced=True)
-    _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
+    downloaded_path = download_file(base_name, url, target_path, forced=True)
+    if downloaded_path is None:
+        raise EasyBuildError("Failed to download tarball for %s/%s commit %s", account, repo, commit)
+    else:
+        _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
     base_dir = extract_file(target_path, path, forced=True, change_into_dir=False)
     extracted_path = os.path.join(base_dir, extracted_dir_name)

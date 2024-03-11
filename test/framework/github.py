@@ -590,6 +590,34 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
         self.assertExists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py'))
 
+    def test_github_download_repo_commit(self):
+        """Test downloading repo at specific commit (which does not require any GitHub token)"""
+
+        # commit bdcc586189fcb3e5a340cddebb50d0e188c63cdc corresponds to easybuild-easyconfigs release v4.9.0
+        test_commit = 'bdcc586189fcb3e5a340cddebb50d0e188c63cdc'
+        gh.download_repo(path=self.test_prefix, commit=test_commit)
+        repo_path = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-' + test_commit)
+        self.assertTrue(os.path.exists(repo_path))
+
+        setup_py_txt = read_file(os.path.join(repo_path, 'setup.py'))
+        self.assertTrue("VERSION = '4.9.0'" in setup_py_txt)
+
+        # also check downloading non-default forked repo
+        test_commit = '434151c3dbf88b2382e8ead8655b4b2c01b92617'
+        gh.download_repo(path=self.test_prefix, account='boegel', repo='easybuild-framework', commit=test_commit)
+        repo_path = os.path.join(self.test_prefix, 'boegel', 'easybuild-framework-' + test_commit)
+        self.assertTrue(os.path.exists(repo_path))
+
+        release_notes_txt = read_file(os.path.join(repo_path, 'RELEASE_NOTES'))
+        self.assertTrue("v4.9.0 (30 December 2023)" in release_notes_txt)
+
+        # short commit doesn't work, must be full commit ID
+        self.assertErrorRegex(EasyBuildError, "Specified commit SHA-1 bdcc586 .* is not valid", gh.download_repo,
+                              path=self.test_prefix, commit='bdcc586')
+
+        self.assertErrorRegex(EasyBuildError, "Failed to download tarball .* commit", gh.download_repo,
+                              path=self.test_prefix, commit='0000000000000000000000000000000000000000')
+
     def test_install_github_token(self):
         """Test for install_github_token function."""
         if self.skip_github_tests:
