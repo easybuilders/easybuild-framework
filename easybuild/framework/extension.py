@@ -168,11 +168,25 @@ class Extension(object):
 
     def prerun(self):
         """
+        [DEPRECATED][6.0] Stuff to do before installing a extension.
+        """
+        # Deprecation warning triggered by Extension.install_extension_substep()
+        self.pre_install_extension()
+
+    def pre_install_extension(self):
+        """
         Stuff to do before installing a extension.
         """
         pass
 
     def run(self, *args, **kwargs):
+        """
+        [DEPRECATED][6.0] Actual installation of an extension.
+        """
+        # Deprecation warning triggered by Extension.install_extension_substep()
+        self.install_extension(*args, **kwargs)
+
+    def install_extension(self, *args, **kwargs):
         """
         Actual installation of an extension.
         """
@@ -180,15 +194,71 @@ class Extension(object):
 
     def run_async(self, *args, **kwargs):
         """
+        [DEPRECATED][6.0] Asynchronous installation of an extension.
+        """
+        # Deprecation warning triggered by Extension.install_extension_substep()
+        self.install_extension_async(*args, **kwargs)
+
+    def install_extension_async(self, *args, **kwargs):
+        """
         Asynchronous installation of an extension.
         """
         raise NotImplementedError
 
     def postrun(self):
         """
+        [DEPRECATED][6.0] Stuff to do after installing a extension.
+        """
+        # Deprecation warning triggered by Extension.install_extension_substep()
+        self.post_install_extension()
+
+    def post_install_extension(self):
+        """
         Stuff to do after installing a extension.
         """
         self.master.run_post_install_commands(commands=self.cfg.get('postinstallcmds', []))
+
+    def install_extension_substep(self, substep, *args, **kwargs):
+        """
+        Carry out extension installation substep allowing use of deprecated
+        methods on those extensions using an older EasyBlock
+        """
+        substeps_mapping = {
+            'pre_install_extension': 'prerun',
+            'install_extension': 'run',
+            'install_extension_async': 'run_async',
+            'post_install_extension': 'postrun',
+        }
+
+        deprecated_substep = substeps_mapping.get(substep)
+        if deprecated_substep is None:
+            raise EasyBuildError("Unknown extension installation substep: %s", substep)
+
+        try:
+            substep_method = getattr(self, deprecated_substep)
+        except AttributeError:
+            log_msg = f"EasyBlock does not implement deprecated method '{deprecated_substep}' "
+            log_msg += f"for installation substep {substep}"
+            self.log.debug(log_msg)
+            substep_method = getattr(self, substep)
+        else:
+            # Qualified method name contains class defining the method (PEP 3155)
+            substep_method_name = substep_method.__qualname__
+            self.log.debug(f"Found deprecated method in EasyBlock: {substep_method_name}")
+
+            base_method_name = f"Extension.{deprecated_substep}"
+            if substep_method_name == base_method_name:
+                # No custom method in child Easyblock, deprecated method is defined by base Extension class
+                # Switch to non-deprecated substep method
+                substep_method = getattr(self, substep)
+            else:
+                # Custom deprecated method used by child Easyblock
+                self.log.deprecated(
+                    f"{substep_method_name}() is deprecated, use {substep}() instead.",
+                    "6.0",
+                )
+
+        return substep_method(*args, **kwargs)
 
     @property
     def required_deps(self):

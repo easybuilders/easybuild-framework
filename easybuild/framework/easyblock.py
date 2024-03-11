@@ -1857,7 +1857,15 @@ class EasyBlock(object):
 
         self.ext_instances = retained_ext_instances
 
-    def install_extensions(self, install=True):
+    def install_extensions(self, *args, **kwargs):
+        """[DEPRECATED] Install extensions."""
+        self.log.deprecated(
+            "EasyBlock.install_extensions() is deprecated, use EasyBlock.install_all_extensions() instead.",
+            '6.0',
+        )
+        self.install_all_extensions(*args, **kwargs)
+
+    def install_all_extensions(self, install=True):
         """
         Install extensions.
 
@@ -1921,15 +1929,15 @@ class EasyBlock(object):
                 ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
                                       rpath_filter_dirs=self.rpath_filter_dirs)
 
-            # real work
+            # actual installation of the extension
             if install:
                 try:
-                    ext.prerun()
+                    ext.install_extension_substep("pre_install_extension")
                     with self.module_generator.start_module_creation():
-                        txt = ext.run()
+                        txt = ext.install_extension_substep("install_extension")
                     if txt:
                         self.module_extra_extensions += txt
-                    ext.postrun()
+                    ext.install_extension_substep("post_install_extension")
                 finally:
                     if not self.dry_run:
                         ext_duration = datetime.now() - start_time
@@ -1996,7 +2004,7 @@ class EasyBlock(object):
                             self.log.info(f"Installation of extension {ext.name} completed!")
                             # run post-install method for extension from same working dir as installation of extension
                             cwd = change_dir(res.work_dir)
-                            ext.postrun()
+                            ext.install_extension_substep("post_install_extension")
                             change_dir(cwd)
                             running_exts.remove(ext)
                             installed_ext_names.append(ext.name)
@@ -2070,8 +2078,8 @@ class EasyBlock(object):
                     ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
                                           rpath_filter_dirs=self.rpath_filter_dirs)
                     if install:
-                        ext.prerun()
-                        ext.async_cmd_task = ext.run_async(thread_pool)
+                        ext.install_extension_substep("pre_install_extension")
+                        ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
                         running_exts.append(ext)
                         self.log.info(f"Started installation of extension {ext.name} in the background...")
                         update_exts_progress_bar_helper(running_exts, 0)
@@ -2904,7 +2912,7 @@ class EasyBlock(object):
         if self.skip:
             self.skip_extensions()
 
-        self.install_extensions(install=install)
+        self.install_all_extensions(install=install)
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
@@ -4475,7 +4483,7 @@ def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
         for easyblock_class in inspect.getmro(type(easyblock_instance)):
             easyblock_path = inspect.getsourcefile(easyblock_class)
             # if we reach EasyBlock, Extension or ExtensionEasyBlock class, we are done
-            # (Extension and ExtensionEasyblock are hardcoded to avoid a cyclical import)
+            # (Extension and ExtensionEasyBlock are hardcoded to avoid a cyclical import)
             if easyblock_class.__name__ in [EasyBlock.__name__, 'Extension', 'ExtensionEasyBlock']:
                 break
             else:

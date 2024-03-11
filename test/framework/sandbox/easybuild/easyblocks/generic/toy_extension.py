@@ -60,7 +60,17 @@ class Toy_Extension(ExtensionEasyBlock):
         else:
             raise EasyBuildError("Dependencies for %s are unknown!", self.name)
 
-    def run(self, *args, **kwargs):
+    def pre_install_extension(self):
+        """
+        Prepare installation of toy extension.
+        """
+        super(Toy_Extension, self).pre_install_extension()
+
+        if self.src:
+            super(Toy_Extension, self).install_extension(unpack_src=True)
+            EB_toy.configure_step(self.master, name=self.name, cfg=self.cfg)
+
+    def install_extension(self, *args, **kwargs):
         """
         Install toy extension.
         """
@@ -72,17 +82,7 @@ class Toy_Extension(ExtensionEasyBlock):
 
             return self.module_generator.set_environment('TOY_EXT_%s' % self.name.upper().replace('-', '_'), self.name)
 
-    def prerun(self):
-        """
-        Prepare installation of toy extension.
-        """
-        super(Toy_Extension, self).prerun()
-
-        if self.src:
-            super(Toy_Extension, self).run(unpack_src=True)
-            EB_toy.configure_step(self.master, name=self.name, cfg=self.cfg)
-
-    def run_async(self, thread_pool):
+    def install_extension_async(self, thread_pool):
         """
         Install toy extension asynchronously.
         """
@@ -95,11 +95,12 @@ class Toy_Extension(ExtensionEasyBlock):
         return thread_pool.submit(run_shell_cmd, cmd, asynchronous=True, env=os.environ.copy(),
                                   fail_on_error=False, task_id=task_id, work_dir=os.getcwd())
 
-    def postrun(self):
+    def post_install_extension(self):
         """
         Wrap up installation of toy extension.
         """
-        super(Toy_Extension, self).postrun()
+        super(Toy_Extension, self).post_install_extension()
+
         EB_toy.install_step(self.master, name=self.name)
 
     def sanity_check_step(self, *args, **kwargs):
