@@ -254,7 +254,7 @@ class ModulesTool(object):
             version = LooseVersion(self.version)
             if self.REQ_VERSION is not None:
                 self.log.debug("Required minimum %s version defined: %s", self.NAME, self.REQ_VERSION)
-                if version.is_prerelease(self.REQ_VERSION, ['rc', '-beta']) or version < self.REQ_VERSION:
+                if version < self.REQ_VERSION or version.is_prerelease(self.REQ_VERSION, ['rc', '-beta']):
                     raise EasyBuildError("EasyBuild requires %s >= v%s, found v%s",
                                          self.NAME, self.REQ_VERSION, self.version)
                 else:
@@ -262,14 +262,14 @@ class ModulesTool(object):
 
             if self.DEPR_VERSION is not None:
                 self.log.debug("Deprecated %s version limit defined: %s", self.NAME, self.DEPR_VERSION)
-                if version.is_prerelease(self.DEPR_VERSION, ['rc', '-beta']) or version < self.DEPR_VERSION:
+                if version < self.DEPR_VERSION or version.is_prerelease(self.DEPR_VERSION, ['rc', '-beta']):
                     depr_msg = "Support for %s version < %s is deprecated, " % (self.NAME, self.DEPR_VERSION)
                     depr_msg += "found version %s" % self.version
                     self.log.deprecated(depr_msg, '6.0')
 
             if self.MAX_VERSION is not None:
                 self.log.debug("Maximum allowed %s version defined: %s", self.NAME, self.MAX_VERSION)
-                if not version.is_prerelease(self.MAX_VERSION, ['rc', '-beta']) and self.version > self.MAX_VERSION:
+                if self.version > self.MAX_VERSION and not version.is_prerelease(self.MAX_VERSION, ['rc', '-beta']):
                     raise EasyBuildError("EasyBuild requires %s <= v%s, found v%s",
                                          self.NAME, self.MAX_VERSION, self.version)
                 else:
