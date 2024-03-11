@@ -355,7 +355,8 @@ def fetch_latest_commit_sha(repo, account, branch=None, github_user=None, token=
     return res
 
 
-def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, commit=None, account=GITHUB_EB_MAIN, path=None, github_user=None):
+def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, commit=None, account=GITHUB_EB_MAIN, path=None,
+                  github_user=None):
     """
     Download entire GitHub repo as a tar.gz archive, and extract it into specified path.
     :param repo: repo to download
@@ -475,7 +476,8 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
                 if len(cands) == 1:
                     path = cands[0]
                 else:
-                    raise EasyBuildError("Failed to isolate path for PR #%s from list of PR paths: %s", pr, extra_ec_paths)
+                    raise EasyBuildError("Failed to isolate path for PR #%s from list of PR paths: %s",
+                                         pr, extra_ec_paths)
 
         elif github_repo == GITHUB_EASYBLOCKS_REPO:
             path = os.path.join(tempfile.gettempdir(), 'ebs_pr%s' % pr)
@@ -606,7 +608,8 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
                 if len(cands) == 1:
                     path = cands[0]
                 else:
-                    raise EasyBuildError("Failed to isolate path for commit %s from list of commit paths: %s", commit, extra_ec_paths)
+                    raise EasyBuildError("Failed to isolate path for commit %s from list of commit paths: %s",
+                                         commit, extra_ec_paths)
 
         elif github_repo == GITHUB_EASYBLOCKS_REPO:
             path = os.path.join(tempfile.gettempdir(), 'ebs_commit_' + commit)
@@ -640,7 +643,7 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
         # if only filename is specified, we need to determine the file path
         if file == os.path.basename(file):
             src_path = None
-            for (dirpath, dirnames, filenames) in os.walk(repo_commit, topdown=True):
+            for (dirpath, _, filenames) in os.walk(repo_commit, topdown=True):
                 if file in filenames:
                     src_path = os.path.join(dirpath, file)
                     break

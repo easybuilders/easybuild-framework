@@ -748,7 +748,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(tweaked_ecs_path[1], os.path.join(self.test_prefix, 'tweaked_dep_easyconfigs'))
         self.assertEqual(extra_ecs_path, [])
 
-        tweaked_ecs_path, extra_ecs_path = alt_easyconfig_paths(self.test_prefix, from_prs=[123,456])
+        tweaked_ecs_path, extra_ecs_path = alt_easyconfig_paths(self.test_prefix, from_prs=[123, 456])
         self.assertEqual(tweaked_ecs_path, None)
         self.assertTrue(extra_ecs_path)
         self.assertTrue(isinstance(extra_ecs_path, list))
@@ -756,8 +756,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(extra_ecs_path[0], os.path.join(self.test_prefix, 'files_pr123'))
         self.assertEqual(extra_ecs_path[1], os.path.join(self.test_prefix, 'files_pr456'))
 
-        review_pr_path = os.path.join(self.test_prefix, 'review_pr')
-        tweaked_ecs_path, extra_ecs_path = alt_easyconfig_paths(self.test_prefix, from_prs=[123,456],
+        tweaked_ecs_path, extra_ecs_path = alt_easyconfig_paths(self.test_prefix, from_prs=[123, 456],
                                                                 review_pr=789, from_commit='c0ff33')
         self.assertEqual(tweaked_ecs_path, None)
         self.assertTrue(extra_ecs_path)

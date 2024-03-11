@@ -722,7 +722,8 @@ class RobotTest(EnhancedTestCase):
         args = [
             os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),  # absolute path
             'toy-0.0-iter.eb',  # relative path, available via robot search path
-            # commit in which ReFrame-4.3.2.eb was added, see https://github.com/easybuilders/easybuild-easyconfigs/pull/18763/commits
+            # commit in which ReFrame-4.3.2.eb was added,
+            # see https://github.com/easybuilders/easybuild-easyconfigs/pull/18763/commits
             '--from-commit', commit,
             'ReFrame-4.3.2.eb',  # easyconfig included in commit, should be resolved via robot search path
             '--dry-run',
