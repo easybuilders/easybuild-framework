@@ -461,7 +461,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         # resolve deps if robot is enabled, except in dry run mode
         # one exception: deps *are* resolved with --new-pr or --update-pr when dry run mode is enabled
         if options.robot and (not dry_run_mode or any_pr_option_set):
-            print_msg("resolving deps ...", log=_log, silent=testing)
+            print_msg("resolving dependencies ...", log=_log, silent=testing)
             ordered_ecs = resolve_deps(easyconfigs, modtool)
         else:
             ordered_ecs = easyconfigs
