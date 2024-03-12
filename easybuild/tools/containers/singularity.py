@@ -290,7 +290,7 @@ class SingularityContainer(ContainerGenerator):
                 ('openssl-devel', 'libssl-dev', 'libopenssl-devel'),  # for CMake, Python, ...
             ])
 
-        # also include additional OS deps specified in easyconfigs
+        # also include additional OS dependencies specified in easyconfigs
         for ec in self.easyconfigs:
             for osdep in ec['ec']['os_deps']:
                 if osdep not in osdeps:
