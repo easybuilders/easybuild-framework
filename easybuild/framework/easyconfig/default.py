@@ -78,16 +78,16 @@ DEFAULT_CONFIG = {
 
     # TOOLCHAIN easyconfig parameters
     'only_toolchain_mod_env': [False, ('Boolean/string to indicate if the toolchain should only load '
-                          'the environment with module (True) or also set all other '
-                          'variables (False) like compiler CC etc (if string: comma '
-                          'separated list of variables that will be ignored).'), TOOLCHAIN],
+                                       'the environment with module (True) or also set all other '
+                                       'variables (False) like compiler CC etc (if string: comma '
+                                       'separated list of variables that will be ignored)'), TOOLCHAIN],
     'toolchain_opts': [None, 'Extra options for compilers', TOOLCHAIN],
 
     # BUILD easyconfig parameters
-    'banned_linked_shared_libs': [[], "List of shared libraries (names, file names, or paths) which are not allowed "
-                                      "to be linked in any installed binary/library", BUILD],
-    'bitbucket_account': ['%(namelower)s', "Bitbucket account name to be used to resolve template values in source"
-                                           " URLs", BUILD],
+    'banned_linked_shared_libs': [[], ("List of shared libraries (names, file names, or paths) which are not allowed "
+                                      "to be linked in any installed binary/library"), BUILD],
+    'bitbucket_account': ['%(namelower)s', ("Bitbucket account name to be used to resolve template values in source"
+                                           " URLs"), BUILD],
     'build_opts': ['', 'Extra options passed to make step (default already has -j X)', BUILD],
     'checksums': [[], "Checksums for sources and patches", BUILD],
     'configure_opts': ['', 'Extra options passed to configure (default already has --prefix)', BUILD],
@@ -112,21 +112,21 @@ DEFAULT_CONFIG = {
     'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
                         'cores, active cpuset and restrictions in ulimit)'), BUILD],
     'patches': [[], "List of patches to apply", BUILD],
-    'pre_build_opts': ['', 'Extra options pre-passed to build command.', BUILD],
-    'pre_configure_opts': ['', 'Extra options pre-passed to configure.', BUILD],
-    'pre_install_opts': ['', 'Extra prefix options for installation.', BUILD],
-    'pre_test_opts': ['', 'Extra prefix options for test.', BUILD],
-    'post_install_cmds': [[], 'Commands to run after the install step.', BUILD],
-    'post_install_patches': [[], 'Patch files to apply after running the install step.', BUILD],
-    'post_install_msgs': [[], 'Messages to print after running the install step.', BUILD],
-    'required_linked_shared_libs': [[], "List of shared libraries (names, file names, or paths) which must be "
-                                        "linked in all installed binaries/libraries", BUILD],
+    'pre_build_opts': ['', 'Extra options pre-passed to build command', BUILD],
+    'pre_configure_opts': ['', 'Extra options pre-passed to configure', BUILD],
+    'pre_install_opts': ['', 'Extra prefix options for installation', BUILD],
+    'pre_test_opts': ['', 'Extra prefix options for test', BUILD],
+    'post_install_cmds': [[], 'Commands to run after the install step', BUILD],
+    'post_install_patches': [[], 'Patch files to apply after running the install step', BUILD],
+    'post_install_msgs': [[], 'Messages to print after running the install step', BUILD],
+    'required_linked_shared_libs': [[], ("List of shared libraries (names, file names, or paths) which must be "
+                                        "linked in all installed binaries/libraries"), BUILD],
     'run_test': [None, ('Indicates if a test should be run after make; should specify argument '
                        'after make (for e.g.,"test" for make test)'), BUILD],
     'bin_lib_subdirs': [[], "List of subdirectories for binaries and libraries, which is used during sanity check "
                             "to check RPATH linking and banned/required libraries", BUILD],
-    'sanity_check_cmds': [[], ("format: [(name, options)] e.g. [('gzip','-h')]. "
-                                   "Using a non-tuple is equivalent to (name, '-h')"), BUILD],
+    'sanity_check_cmds': [[], ("format: [(name, options)] e.g. [('gzip','-h')] "
+                               "Using a non-tuple is equivalent to (name, '-h')"), BUILD],
     'sanity_check_paths': [{}, ("List of files and directories to check "
                                 "(format: {'files':<list>, 'dirs':<list>})"), BUILD],
     'skip': [False, "Skip existing software", BUILD],
@@ -135,41 +135,40 @@ DEFAULT_CONFIG = {
     'source_urls': [[], "List of URLs for source files", BUILD],
     'sources': [[], "List of source files", BUILD],
     'stop': [None, 'Keyword to halt the build process after a certain step.', BUILD],
-    'test_opts': ['', 'Extra options for test.', BUILD],
+    'test_opts': ['', 'Extra options for test', BUILD],
     'tests': [[], ("List of test-scripts to run after install. A test script should return a "
                    "non-zero exit status to fail"), BUILD],
     'unpack_opts': ['', "Extra options for unpacking source", BUILD],
     'unwanted_env_vars': [[], "List of environment variables that shouldn't be set during build", BUILD],
-    'version_prefix': ['', ('Additional prefix for software version '
-                           '(placed before version and toolchain name)'), BUILD],
-    'version_suffix': ['', 'Additional suffix for software version (placed after toolchain name)', BUILD],
+    'version_prefix': ['', ("Additional prefix for software version '
+                            '(placed before version and toolchain name)"), BUILD],
+    'version_suffix': ['', "Additional suffix for software version (placed after toolchain name)", BUILD],
 
     # FILEMANAGEMENT easyconfig parameters
-    'build_in_install_dir': [False, ('Boolean to build (True) or not build (False) in the installation directory'),
-                          FILEMANAGEMENT],
-    'clean_up_old_build': [True, ('Boolean to remove (True) or backup (False) the previous build '
-                               'directory with identical name or not.'), FILEMANAGEMENT],
-    'clean_up_old_install': [True, ('Boolean to remove (True) or backup (False) the previous install '
-                                 'directory with identical name or not.'), FILEMANAGEMENT],
-    'dont_create_install_dir': [False, ('Boolean to create (False) or not create (True) the install directory'),
+    'build_in_install_dir': [False, ("Boolean to build (True) or not build (False) in the installation directory"),
                              FILEMANAGEMENT],
-    'keep_previous_install': [False, ('Boolean to keep the previous installation with identical '
-                                    'name. Experts only!'), FILEMANAGEMENT],
-    'keep_symlinks': [False, ('Boolean to determine whether symlinks are to be kept during copying '
-                             'or if the content of the files pointed to should be copied'),
-                     FILEMANAGEMENT],
-    'start_dir': [None, ('Path to start the make in. If the path is absolute, use that path. '
-                         'If not, this is added to the guessed path.'), FILEMANAGEMENT],
+    'clean_up_old_build': [True, ("Boolean to remove (True) or backup (False) the previous build "
+                                  "directory with identical name or not"), FILEMANAGEMENT],
+    'clean_up_old_install': [True, ("Boolean to remove (True) or backup (False) the previous install "
+                                    "directory with identical name or not"), FILEMANAGEMENT],
+    'dont_create_install_dir': [False, ("Boolean to create (False) or not create (True) the install directory"),
+                                FILEMANAGEMENT],
+    'keep_previous_install': [False, ("Boolean to keep the previous installation with identical "
+                                      "name. Experts only!"), FILEMANAGEMENT],
+    'keep_symlinks': [False, ("Boolean to determine whether symlinks are to be kept during copying "
+                              "or if the content of the files pointed to should be copied"), FILEMANAGEMENT],
+    'start_dir': [None, ("Path to start the make in. If the path is absolute, use that path. "
+                         "If not, this is added to the guessed path"), FILEMANAGEMENT],
 
     # DEPENDENCIES easyconfig parameters
-    'allow_system_deps': [[], "Allow listed system deps (format: (<name>, <version>))", DEPENDENCIES],
-    'build_deps': [[], "List of build deps", DEPENDENCIES],
-    'deps': [[], "List of deps", DEPENDENCIES],
-    'hidden_deps': [[], "List of deps available as hidden modules", DEPENDENCIES],
+    'allow_system_deps': [[], "Allow listed system dependencies (format: (<name>, <version>))", DEPENDENCIES],
+    'build_deps': [[], "List of build dependencies", DEPENDENCIES],
+    'deps': [[], "List of dependencies", DEPENDENCIES],
+    'hidden_deps': [[], "List of dependencies available as hidden modules", DEPENDENCIES],
     'multi_deps': [{}, "Dict of lists of dependency versions over which to iterate", DEPENDENCIES],
     'multi_deps_load_default': [True, "Load module for first version listed in multi_deps by default", DEPENDENCIES],
-    'os_deps': [[], "OS deps that should be present on the system", DEPENDENCIES],
-    'modulepath_prepend_paths': [None, "Absolute path(s) to prepend to MODULEPATH before loading deps", DEPENDENCIES],
+    'os_deps': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
+    'modulepath_prepend_paths': [None, "Absolute path(s) to prepend to MODULEPATH before loading dependencies", DEPENDENCIES],
 
     # LICENSE easyconfig parameters
     'accept_eula': [False, "Accepted End User License Agreement (EULA) for this software", LICENSE],
@@ -181,36 +180,36 @@ DEFAULT_CONFIG = {
     'license_server_port': [None, 'Port for license server', LICENSE],
 
     # EXTENSIONS easyconfig parameters
-    'exts_download_dep_fail': [False, "Fail if downloaded deps are detected for extensions", EXTENSIONS],
-    'exts_class_map': [{}, "Map of extension name to class for handling build and installation.", EXTENSIONS],
+    'exts_download_dep_fail': [False, "Fail if downloaded dependencies are detected for extensions", EXTENSIONS],
+    'exts_class_map': [{}, "Map of extension name to class for handling build and installation", EXTENSIONS],
     'exts_default_class': [None, "List of module for and name of the default extension class", EXTENSIONS],
     'exts_default_opts': [{}, "List of default options for extensions", EXTENSIONS],
     'exts_filter': [None, ("Extension filter details: template for cmd and input to cmd "
-                           "(templates for ext_name, ext_version and src)."), EXTENSIONS],
+                           "(templates for ext_name, ext_version and src)"), EXTENSIONS],
     'exts_list': [[], 'List with extensions added to the base installation', EXTENSIONS],
 
     # MODULES easyconfig parameters
     'allow_append_abs_path': [False, "Allow specifying absolute paths to append in env_mod_extra_paths_append", MODULES],
     'allow_prepend_abs_path': [False, "Allow specifying absolute paths to prepend in env_mod_extra_paths", MODULES],
-    'include_modulepath_exts': [True, "Include $MODULEPATH extensions specified by module naming scheme.", MODULES],
-    'env_mod_aliases': [{}, "Aliases to be defined in module file", MODULES],
-    'env_mod_extra_paths': [{}, "Extra paths to be prepended in module file", MODULES],
-    'env_mod_extra_paths_append': [{}, "Extra paths to be appended in module file", MODULES],
-    'env_mod_extra_vars': [{}, "Extra environment variables to be added to module file", MODULES],
-    'env_mod_load_msg': [{}, "Message that should be printed when generated module is loaded", MODULES],
-    'env_mod_unload_msg': [{}, "Message that should be printed when generated module is unloaded", MODULES],
+    'include_modulepath_exts': [True, "Include $MODULEPATH extensions specified by module naming scheme", MODULES],
+    'env_mod_aliases': [{}, "Aliases to be defined in the environemnt module file", MODULES],
+    'env_mod_extra_paths': [{}, "Extra paths to be prepended in the environment module file", MODULES],
+    'env_mod_extra_paths_append': [{}, "Extra paths to be appended in the environment module file", MODULES],
+    'env_mod_extra_vars': [{}, "Extra environment variables to be added to the environment module file", MODULES],
+    'env_mod_load_msg': [{}, "Message that should be printed when generated environment module is loaded", MODULES],
+    'env_mod_unload_msg': [{}, "Message that should be printed when generated environment module is unloaded", MODULES],
     'env_mod_lua_footer': ["", "Footer to include in generated module file (Lua syntax)", MODULES],
-    'env_mod_alt_soft_name': [None, "Module name to use (rather than using software name", MODULES],
-    'env_mod_tcl_footer': ["", "Footer to include in generated module file (Tcl syntax)", MODULES],
-    'env_mod_class': [MODULECLASS_BASE, 'Module class to be used for this software', MODULES],
-    'env_mod_force_unload': [False, 'Force unload of all modules when loading the extension', MODULES],
-    'env_mod_load_no_conflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
-    'env_mod_depends_on': [False, 'Use depends_on (Lmod 7.6.1+) for deps in generated module '
-                          '(implies recursive unloading of modules).', MODULES],
-    'recursive_env_mod_unload': [None, "Recursive unload of all deps when unloading module "
-                                      "(True/False to hard enable/disable; None implies honoring "
-                                      "the --recursive-module-unload EasyBuild configuration setting",
-                                MODULES],
+    'env_mod_alt_soft_name': [None, "Environment module name to use (rather than using software name", MODULES],
+    'env_mod_tcl_footer': ["", "Footer to include in generated environment module file (Tcl syntax)", MODULES],
+    'env_mod_class': [MODULECLASS_BASE, 'Environment module class to be used for this software', MODULES],
+    'env_mod_force_unload': [False, 'Force unload of all environment modules when loading the extension', MODULES],
+    'env_mod_load_no_conflict': [False, ("Don't check for environment module conflicts, unload"
+                                         " other versions instead"), MODULES],
+    'env_mod_depends_on': [False, ("Use depends_on (Lmod 7.6.1+) for dependencies in generated environment module"
+                                   " (implies recursive unloading of modules)"), MODULES],
+    'recursive_env_mod_unload': [None, "Recursive unload of all dependencies when unloading environment module"
+                                       " (True/False to hard enable/disable; None implies honoring"
+                                       " the --recursive-env-mod-unload EasyBuild configuration setting", MODULES],
 
     # MODULES documentation easyconfig parameters
     #    (doc_urls is part of MANDATORY)
@@ -218,21 +217,21 @@ DEFAULT_CONFIG = {
     'doc_paths': [None, "List of paths for documentation relative to installation directory", MODULES],
     'examples': [None, "Free-form text with examples on using the software", MODULES],
     'site_contacts': [None, "String/list of strings with site contacts for the software", MODULES],
-    'upstream_contacts': [None, "String/list of strings with upstream contact addresses "
-                          "(e.g., support e-mail, mailing list, bugtracker)", MODULES],
+    'upstream_contacts': [None, ("String/list of strings with upstream contact addresses "
+                                 "(e.g., support e-mail, mailing list, bugtracker)"), MODULES],
     'usage': [None, "Usage instructions for the software", MODULES],
     'whatis': [None, "List of brief (one line) description entries for the software", MODULES],
 
     # OTHER easyconfig parameters
     # 'block' must be a known easyconfig parameter in case strict local variable naming is enabled;
     # see also retrieve_blocks_in_spec function
-    'block': [None, "List of other 'block' sections on which this block depends "
-                    "(only relevant in easyconfigs with subblocks)", OTHER],
+    'block': [None, ("List of other 'block' sections on which this block depends "
+                     "(only relevant in easyconfigs with subblocks)"), OTHER],
     'build_stats': [None, "A list of dicts with build statistics", OTHER],
-    'deprecated': [False, "String specifying reason why this easyconfig file is deprecated "
-                          "and will be archived in the next major release of EasyBuild", OTHER],
-    'build_info_msg': [None, "String with information to be printed to stdout and logged during the building "
-                             "of the easyconfig", OTHER],
+    'deprecated': [False, ("String specifying reason why this easyconfig file is deprecated "
+                           "and will be archived in the next major release of EasyBuild"), OTHER],
+    'build_info_msg': [None, ("String with information to be printed to stdout and logged during the building "
+                              "of the easyconfig"), OTHER],
 }
 
 
