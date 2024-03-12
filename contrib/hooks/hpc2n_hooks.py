@@ -12,7 +12,7 @@ from easybuild.tools.modules import get_software_root
 from easybuild.tools.systemtools import get_shared_lib_ext
 
 
-# Add/remove deps and/or patches
+# Add/remove dependencies and/or patches
 # Access to the raw values before templating and such.
 def parse_hook(ec, *args, **kwargs):
 

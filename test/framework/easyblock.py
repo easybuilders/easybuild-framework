@@ -1016,14 +1016,14 @@ class EasyBlockTest(EnhancedTestCase):
         ])
         self.writeEC()
         """Testcase for extensions"""
-        # test for proper error message without the exts_defaultclass set
+        # test for proper error message without the exts_default_class set
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.installdir = config.install_path()
         self.assertRaises(EasyBuildError, eb.extensions_step, fetch=True)
         self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step, fetch=True)
 
         # test if everything works fine if set
-        self.contents += "\nexts_defaultclass = 'DummyExtension'"
+        self.contents += "\nexts_default_class = 'DummyExtension'"
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.builddir = config.build_path()
@@ -1122,7 +1122,7 @@ class EasyBlockTest(EnhancedTestCase):
                     then exit 0;\
                 elif [ %(ext_name)s == 'real_ext' ]; then exit 0;\
                 else exit 1; fi", "")
-            exts_defaultclass = "DummyExtension"
+            exts_default_class = "DummyExtension"
         """)
         # check if skip skips correct extensions
         self.writeEC()
@@ -2253,7 +2253,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertEqual(os.getcwd(), cwd)
             remove_dir(eb.builddir)
 
-        ec['ec']['exts_defaultclass'] = 'DummyExtension'
+        ec['ec']['exts_default_class'] = 'DummyExtension'
 
         # default (no start_dir specified): use unpacked dir as start dir
         ec['ec']['exts_list'] = [

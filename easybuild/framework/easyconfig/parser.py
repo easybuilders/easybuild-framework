@@ -57,7 +57,7 @@ DEPRECATED_PARAMETERS = {
     'docurls': ('doc_urls', '6.0'),
     'dontcreateinstalldir': ('dont_create_install_dir', '6.0'),
     'exts_classmap': ('exts_class_map', '6.0'),
-    'exts_default_class': ('exts_default_class', '6.0'),
+    'exts_defaultclass': ('exts_default_class', '6.0'),
     'exts_default_options': ('exts_default_opts', '6.0'),
     'hiddendependencies': ('hidden_deps', '6.0'),
     'include_modpath_extensions': ('include_modulepath_exts', '6.0'),

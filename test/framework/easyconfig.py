@@ -547,7 +547,7 @@ class EasyConfigTest(EnhancedTestCase):
             'description = "test easyconfig"',
             'toolchain = SYSTEM',
             'deps = [("Python", "3.6.6")]',
-            'exts_defaultclass = "EB_Toy"',
+            'exts_default_class = "EB_Toy"',
             # bogus, but useful to check whether this get resolved
             'exts_default_opts = {"source_urls": [PYPI_SOURCE]}',
             'exts_list = [',
@@ -1363,7 +1363,7 @@ class EasyConfigTest(EnhancedTestCase):
             pre_configure_opts = 'echo start_dir in configure is %(start_dir)s && '
             pre_build_opts = 'echo start_dir in build is %(start_dir)s && '
 
-            exts_defaultclass = 'EB_Toy'
+            exts_default_class = 'EB_Toy'
             exts_list = [
                ('bar', '0.0', {
                    'sources': ['bar-0.0-local.tar.gz'],
@@ -4130,7 +4130,7 @@ class EasyConfigTest(EnhancedTestCase):
         # inject extension that uses %(pyshortver)s, to check whether the template value is properly resolved
         test_ec_txt += '\n'.join([
             '',
-            "exts_defaultclass = 'Toy_Extension'",
+            "exts_default_class = 'Toy_Extension'",
             "exts_list = [('bar', '0.0', {'pre_install_opts': 'echo \\'py%(pyshortver)s\\' && '})]",
         ])
 
