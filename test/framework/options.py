@@ -1458,7 +1458,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.eb_main(args, logfile=dummylogfn)
         logtxt = read_file(self.logfile)
 
-        info_msg = r"Dry run: printing build status of easyconfigs and deps"
+        info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
         self.assertTrue(re.search(info_msg, logtxt, re.M), "Info message dry running in '%s'" % logtxt)
         ecs_mods = [
             ("gzip-1.4-GCC-4.6.3.eb", "gzip/1.4-GCC-4.6.3", ' '),
@@ -1537,7 +1537,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
-            info_msg = r"Dry run: printing build status of easyconfigs and deps"
+            info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
             self.assertTrue(re.search(info_msg, outtxt, re.M), "Info message dry running in '%s'" % outtxt)
             self.assertTrue(re.search('CFGS=', outtxt), "CFGS line message found in '%s'" % outtxt)
             ecs_mods = [
@@ -1558,7 +1558,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_try_robot_force(self):
         """
         Test correct behavior for combination of --try-toolchain --robot --force.
-        Only the listed easyconfigs should be forced, resolved deps should not (even if tweaked).
+        Only the listed easyconfigs should be forced, resolved dependencies should not (even if tweaked).
         """
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
@@ -2205,7 +2205,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         shutil.rmtree(tmpdir)
 
     def test_ignore_osdeps(self):
-        """Test ignoring of listed OS deps."""
+        """Test ignoring of listed OS dependencies."""
         txt = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -2226,12 +2226,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, do_build=True)
 
-        regex = re.compile("Checking OS deps")
-        self.assertTrue(regex.search(outtxt), "OS deps are checked, outtxt: %s" % outtxt)
-        msg = "One or more OS deps were not found: "
+        regex = re.compile("Checking OS dependencies")
+        self.assertTrue(regex.search(outtxt), "OS dependencies are checked, outtxt: %s" % outtxt)
+        msg = "One or more OS dependencies were not found: "
         msg += r"\[\('nosuchosdependency',\), \('nosuchdep_option1', 'nosuchdep_option2'\)\]"
         regex = re.compile(msg, re.M)
-        self.assertTrue(regex.search(outtxt), "OS deps are honored, outtxt: %s" % outtxt)
+        self.assertTrue(regex.search(outtxt), "OS dependencies are honored, outtxt: %s" % outtxt)
 
         # check whether OS deps are effectively ignored
         args = [
@@ -2242,8 +2242,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, do_build=True)
 
-        regex = re.compile("Not checking OS deps", re.M)
-        self.assertTrue(regex.search(outtxt), "OS deps are ignored with --ignore-osdeps, outtxt: %s" % outtxt)
+        regex = re.compile("Not checking OS dependencies", re.M)
+        self.assertTrue(regex.search(outtxt), "OS dependencies are ignored with --ignore-osdeps, outtxt: %s" % outtxt)
 
         txt += "\nstop = 'notavalidstop'"
         write_file(eb_file, txt)
@@ -3109,7 +3109,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--robot',
         ]
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, 'Missing deps', self.eb_main, args, raise_error=True)
+            self.assertErrorRegex(EasyBuildError, 'Missing dependencies', self.eb_main, args, raise_error=True)
 
         # add path to test easyconfigs to robot paths, so deps can be resolved
         args.append('--dry-run')
