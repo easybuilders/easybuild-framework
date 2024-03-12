@@ -254,7 +254,7 @@ class HierarchicalMNS(ModuleNamingScheme):
 
     def expand_toolchain_load(self, ec=None):
         """
-        Determine whether load statements for a toolchain should be expanded to load statements for its deps.
+        Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
         This is useful when toolchains are not exposed to users.
         """
         return True
