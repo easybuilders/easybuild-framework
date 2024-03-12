@@ -1744,7 +1744,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertExists(nodesfile.split(' ')[1])
 
     def test_prepare_deps(self):
-        """Test preparing for a toolchain when deps are involved."""
+        """Test preparing for a toolchain when dependencies are involved."""
         tc = self.get_toolchain('GCC', version='6.4.0-2.28')
         deps = [
             {
@@ -1762,7 +1762,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(sorted(m['mod_name'] for m in self.modtool.list()), sorted(mods))
 
     def test_prepare_deps_external(self):
-        """Test preparing for a toolchain when deps and external modules are involved."""
+        """Test preparing for a toolchain when dependencies and external modules are involved."""
         deps = [
             {
                 'name': 'OpenMPI',
