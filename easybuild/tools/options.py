@@ -332,7 +332,7 @@ class EasyBuildOptions(GeneralOption):
                                    "available in the robot path",
                                    None, 'store_true', False)
         opts['try-ignore-version_suffixes'] = ("Ignore version_suffix differences when --try-update-deps is used",
-                                              None, 'store_true', False)
+                                               None, 'store_true', False)
 
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
@@ -672,7 +672,7 @@ class EasyBuildOptions(GeneralOption):
                             None, 'store_true', False),
             'show-default-configfiles': ("Show list of default config files", None, 'store_true', False),
             'show-default-env_mod_classes': ("Show default module classes with description",
-                                           None, 'store_true', False),
+                                             None, 'store_true', False),
             'show-ec': ("Show contents of specified easyconfig(s)", None, 'store_true', False),
             'show-full-config': ("Show current EasyBuild configuration (all settings)", None, 'store_true', False),
             'show-system-info': ("Show system information relevant to EasyBuild", None, 'store_true', False),

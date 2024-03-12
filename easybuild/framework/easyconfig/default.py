@@ -85,9 +85,9 @@ DEFAULT_CONFIG = {
 
     # BUILD easyconfig parameters
     'banned_linked_shared_libs': [[], ("List of shared libraries (names, file names, or paths) which are not allowed "
-                                      "to be linked in any installed binary/library"), BUILD],
+                                       "to be linked in any installed binary/library"), BUILD],
     'bitbucket_account': ['%(namelower)s', ("Bitbucket account name to be used to resolve template values in source"
-                                           " URLs"), BUILD],
+                                            " URLs"), BUILD],
     'build_opts': ['', 'Extra options passed to make step (default already has -j X)', BUILD],
     'checksums': [[], "Checksums for sources and patches", BUILD],
     'configure_opts': ['', 'Extra options passed to configure (default already has --prefix)', BUILD],
@@ -120,9 +120,9 @@ DEFAULT_CONFIG = {
     'post_install_patches': [[], 'Patch files to apply after running the install step', BUILD],
     'post_install_msgs': [[], 'Messages to print after running the install step', BUILD],
     'required_linked_shared_libs': [[], ("List of shared libraries (names, file names, or paths) which must be "
-                                        "linked in all installed binaries/libraries"), BUILD],
+                                         "linked in all installed binaries/libraries"), BUILD],
     'run_test': [None, ('Indicates if a test should be run after make; should specify argument '
-                       'after make (for e.g.,"test" for make test)'), BUILD],
+                        'after make (for e.g.,"test" for make test)'), BUILD],
     'bin_lib_subdirs': [[], "List of subdirectories for binaries and libraries, which is used during sanity check "
                             "to check RPATH linking and banned/required libraries", BUILD],
     'sanity_check_cmds': [[], ("format: [(name, options)] e.g. [('gzip','-h')] "
@@ -168,7 +168,8 @@ DEFAULT_CONFIG = {
     'multi_deps': [{}, "Dict of lists of dependency versions over which to iterate", DEPENDENCIES],
     'multi_deps_load_default': [True, "Load module for first version listed in multi_deps by default", DEPENDENCIES],
     'os_deps': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
-    'modulepath_prepend_paths': [None, "Absolute path(s) to prepend to MODULEPATH before loading dependencies", DEPENDENCIES],
+    'modulepath_prepend_paths': [None, "Absolute path(s) to prepend to MODULEPATH before loading dependencies",
+                                 DEPENDENCIES],
 
     # LICENSE easyconfig parameters
     'accept_eula': [False, "Accepted End User License Agreement (EULA) for this software", LICENSE],
@@ -189,7 +190,8 @@ DEFAULT_CONFIG = {
     'exts_list': [[], 'List with extensions added to the base installation', EXTENSIONS],
 
     # MODULES easyconfig parameters
-    'allow_append_abs_path': [False, "Allow specifying absolute paths to append in env_mod_extra_paths_append", MODULES],
+    'allow_append_abs_path': [False, "Allow specifying absolute paths to append in env_mod_extra_paths_append",
+                              MODULES],
     'allow_prepend_abs_path': [False, "Allow specifying absolute paths to prepend in env_mod_extra_paths", MODULES],
     'include_modulepath_exts': [True, "Include $MODULEPATH extensions specified by module naming scheme", MODULES],
     'env_mod_aliases': [{}, "Aliases to be defined in the environemnt module file", MODULES],

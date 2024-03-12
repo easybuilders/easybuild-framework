@@ -4451,11 +4451,11 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(self.eb_file)
         self.assertEqual(ec['pre_configure_opts'], 'CUDAARCHS="51;70;71"')
         self.assertEqual(ec['configure_opts'], 'comma="sm_51,sm_70,sm_71" '
-                                           'space="sm_51 sm_70 sm_71"')
+                                               'space="sm_51 sm_70 sm_71"')
         self.assertEqual(ec['pre_build_opts'], '5.1;7.0;7.1')
         self.assertEqual(ec['build_opts'], 'comma="51,70,71" '
-                                          'space="51 70 71" '
-                                          'semi="51;70;71"')
+                                           'space="51 70 71" '
+                                           'semi="51;70;71"')
         self.assertEqual(ec['pre_install_opts'], '5.1 7.0 7.1')
         self.assertEqual(ec['install_opts'], '5.1,7.0,7.1')
 
@@ -4464,10 +4464,10 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(self.eb_file)
         self.assertEqual(ec['pre_configure_opts'], 'CUDAARCHS="42;63"')
         self.assertEqual(ec['configure_opts'], 'comma="sm_42,sm_63" '
-                                           'space="sm_42 sm_63"')
+                                               'space="sm_42 sm_63"')
         self.assertEqual(ec['build_opts'], 'comma="42,63" '
-                                          'space="42 63" '
-                                          'semi="42;63"')
+                                           'space="42 63" '
+                                           'semi="42;63"')
         self.assertEqual(ec['pre_build_opts'], '4.2;6.3')
         self.assertEqual(ec['pre_install_opts'], '4.2 6.3')
         self.assertEqual(ec['install_opts'], '4.2,6.3')

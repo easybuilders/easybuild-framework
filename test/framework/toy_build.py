@@ -111,7 +111,8 @@ class ToyBuildTest(EnhancedTestCase):
         if os.path.exists(self.dummylogfn):
             os.remove(self.dummylogfn)
 
-    def check_toy(self, installpath, outtxt, name='toy', version='0.0', version_prefix='', version_suffix='', error=None):
+    def check_toy(self, installpath, outtxt, name='toy', version='0.0', version_prefix='', version_suffix='',
+                  error=None):
         """Check whether toy build succeeded."""
 
         full_version = ''.join([version_prefix, version, version_suffix])

@@ -1214,7 +1214,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, version_suffix_mappi
                 # add what is left to the possibilities
                 for path in cand_paths:
                     version, newversion_suffix = fetch_parameters_from_easyconfig(read_file(path), ['version',
-                                                                                                   'version_suffix'])
+                                                                                                    'version_suffix'])
                     if not newversion_suffix:
                         newversion_suffix = ''
                     if version:
@@ -1245,7 +1245,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, version_suffix_mappi
                 print_warning(
                     "There may be newer version(s) of dep '%s' available with a different version_suffix to '%s': %s",
                     dep['name'], version_suffix, [d['path'] for d in potential_version_mappings if
-                                                 d['version'] == highest_version_ignoring_version_suffix])
+                                                  d['version'] == highest_version_ignoring_version_suffix])
             # exclude candidates with a different version_suffix
             exclude_alternate_version_suffixes = True
     else:

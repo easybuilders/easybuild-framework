@@ -643,7 +643,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # also check how absolute paths specified in modexself.contents = '\n'.join([
         self.contents += "\nenv_mod_extra_paths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
-        self.contents += "\nenv_mod_extra_paths_append = {'TEST_PATH_VAR_APPEND': ['foo', '/test/absolute/path', 'bar']}"
+        self.contents += ("\nenv_mod_extra_paths_append = {'TEST_PATH_VAR_APPEND': "
+                          "['foo', '/test/absolute/path', 'bar']}")
         self.writeEC()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
@@ -948,7 +949,8 @@ class EasyBlockTest(EnhancedTestCase):
         toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        write_file(test_ec, read_file(toy_ec) + "\nconfigure_opts = ['--opt1 --anotheropt', '--opt2', '--opt3 --optbis']")
+        write_file(test_ec, read_file(toy_ec)
+                   + "\nconfigure_opts = ['--opt1 --anotheropt', '--opt2', '--opt3 --optbis']")
 
         ec = process_easyconfig(test_ec)[0]
         eb = get_easyblock_instance(ec)

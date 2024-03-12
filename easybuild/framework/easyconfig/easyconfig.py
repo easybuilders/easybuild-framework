@@ -729,7 +729,7 @@ class EasyConfig(object):
 
             self['deps'] = remove_false_versions(self._parse_dependency(dep) for dep in self['deps'])
             self['hidden_deps'] = remove_false_versions(self._parse_dependency(dep, hidden=True) for dep in
-                                                               self['hidden_deps'])
+                                                        self['hidden_deps'])
 
             # need to take into account that build_deps may need to be iterated over,
             # i.e. when the value is a list of lists of tuples
@@ -2631,9 +2631,10 @@ class ActiveMNS(BaseActiveMNS):
         self.log.debug("Obtained valid short module name %s" % mod_name)
 
         # sanity check: obtained module name should pass the 'is_short_modname_for' check
-        if 'env_mod_alt_soft_name' in ec and not self.is_short_modname_for(mod_name, ec['env_mod_alt_soft_name'] or ec['name']):
-            raise EasyBuildError("is_short_modname_for('%s', '%s') for active module naming scheme returns False",
-                                 mod_name, ec['name'])
+        if 'env_mod_alt_soft_name' in ec:
+            if not self.is_short_modname_for(mod_name, ec['env_mod_alt_soft_name'] or ec['name']):
+                raise EasyBuildError("is_short_modname_for('%s', '%s') for active module naming scheme returns False",
+                                     mod_name, ec['name'])
         return mod_name
 
     def det_module_subdir(self, ec):

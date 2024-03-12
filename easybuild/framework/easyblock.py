@@ -1057,7 +1057,8 @@ class EasyBlock(object):
             # self.builddir should be already set by gen_builddir()
             if not self.builddir:
                 raise EasyBuildError("self.builddir not set, make sure gen_builddir() is called first!")
-            self.log.debug("Creating the build directory %s (cleanup: %s)", self.builddir, self.cfg['clean_up_old_build'])
+            self.log.debug("Creating the build directory %s (cleanup: %s)", self.builddir,
+                           self.cfg['clean_up_old_build'])
         else:
             self.log.info("Overriding 'clean_up_old_install' (to False), 'clean_up_old_build' (to True) "
                           "and 'keep_previous_install' because we're building in the installation directory.")
