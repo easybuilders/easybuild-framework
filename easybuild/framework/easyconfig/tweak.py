@@ -103,7 +103,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
                 raise EasyBuildError("Cannot use --try-update-deps without setting --map-toolchains")
             else:
                 msg = "Mapping of (sub)toolchains (with --map-toolchains) disabled, so falling back to regex mode, "
-                msg += "disabling recursion and not changing (sub)toolchains for deps"
+                msg += "disabling recursion and not changing (sub)toolchains for dependencies"
                 _log.info(msg)
                 revert_to_regex = True
 
@@ -121,7 +121,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             # we're doing something that involves the toolchain hierarchy;
             # obtain full dependency graph for specified easyconfigs;
             # easyconfigs will be ordered 'top-to-bottom' (toolchains and deps appearing first)
-            _log.debug("Updating toolchain and/or deps requested...applying build specifications recursively "
+            _log.debug("Updating toolchain and/or dependencies requested...applying build specifications recursively "
                        "(where appropriate):\n%s", build_specs)
             modifying_toolchains_or_deps = True
             pruned_build_specs = copy.copy(build_specs)
@@ -129,7 +129,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             update_deps = pruned_build_specs.pop('update_deps', None)
             ignore_version_suffixes = pruned_build_specs.pop('ignore_version_suffixes', None)
             if ignore_version_suffixes and not update_deps:
-                print_warning("--try-ignore-version_suffixes is ignored if --try-update-deps is not True")
+                print_warning("--try-ignore-version-suffixes is ignored if --try-update-deps is not True")
                 ignore_version_suffixes = False
             if 'toolchain' in pruned_build_specs:
                 target_toolchain = pruned_build_specs.pop('toolchain')
@@ -156,7 +156,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             orig_ecs = resolve_deps(easyconfigs, modtool, retain_all_deps=True)
 
             # Filter out the toolchain hierarchy (which would only appear if we are applying build_specs recursively)
-            # Also filter any deps of the hierarchy (unless they were originally listed for tweaking)
+            # Also filter any dependencies of the hierarchy (unless they were originally listed for tweaking)
             _log.debug("Filtering out toolchain hierarchy and deps for %s", source_toolchain)
             if source_toolchain['name'] != SYSTEM_TOOLCHAIN_NAME:
                 path = robot_find_easyconfig(source_toolchain['name'], source_toolchain['version'])
@@ -189,7 +189,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     for orig_ec in orig_ecs:
         # Only return tweaked easyconfigs for easyconfigs which were listed originally on the command line
         # (and use the prepended path so that they are found first).
-        # easyconfig files for deps are also generated but not included, they will be resolved via --robot
+        # easyconfig files for dependencies are also generated but not included, they will be resolved via --robot
         # either from existing easyconfigs or, if that fails, from easyconfigs in the appended path
 
         tc_name = orig_ec['ec']['toolchain']['name']
@@ -222,7 +222,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             # Place all tweaked dependency easyconfigs in the directory appended to the robot path
             if modifying_toolchains_or_deps:
                 if tc_name in src_to_dst_tc_mapping:
-                    # Note pruned_build_specs are not passed down for deps
+                    # Note pruned_build_specs are not passed down for dependencies
                     map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
                                                           targetdir=tweaked_ecs_deps_path,
                                                           update_dep_versions=update_deps,
@@ -238,7 +238,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
     Tweak an easyconfig file with the given list of tweaks, using replacement via regular expressions.
     Note: this will only work 'well-written' easyconfig files, i.e. ones that e.g. set the version
     once and then use the 'version' variable to construct the list of sources, and possibly other
-    parameters that depend on the version (e.g. list of patch files, deps, version suffix, ...)
+    parameters that depend on the version (e.g. list of patch files, dependencies, version suffix, ...)
 
     The tweaks should be specified in a dictionary, with parameters and keys that map to the values
     to be set.
@@ -801,9 +801,9 @@ def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
 
 def get_dep_tree_of_toolchain(toolchain_spec, modtool):
     """
-    Get list of deps of a toolchain (as EasyConfig objects)
+    Get list of dependencies of a toolchain (as EasyConfig objects)
 
-    :param toolchain_spec: toolchain spec to get the deps of
+    :param toolchain_spec: toolchain spec to get the dependencies of
     :param modtool: module tool used
 
     :return: The dependency tree of the toolchain spec
@@ -861,7 +861,7 @@ def map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool):
 
 
 def map_version_suffixes_cache(func):
-    """Function decorator to cache (and retrieve cached) version_suffixes mapping between toolchains."""
+    """Function decorator to cache (and retrieve cached) version suffixes mapping between toolchains."""
     cache = {}
 
     @functools.wraps(func)
@@ -983,7 +983,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
 
     versonsuffix_mapping = {}
     # We only need to map version_suffixes if we are updating dependency versions and if there are
-    # version_suffixes being used in deps
+    # version_suffixes being used in dependencies
     if update_dep_versions and (list_deps_version_suffixes(ec_spec) or parsed_ec['version_suffix']):
         # We may need to update the version_suffix if it is like, for example, `-Python-2.7.8`
         versonsuffix_mapping = map_common_version_suffixes('Python', parsed_ec['toolchain'], toolchain_mapping)
@@ -1131,7 +1131,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, version_suffix_mappi
     :param version_suffix_mapping: mapping of version suffixes
                                   (required by software with a special version suffix, such as Python packages)
     :param highest_versions_only: only return highest versions
-    :return: list of deps that match
+    :return: list of dependencies that match
     """
     if version_suffix_mapping is None:
         version_suffix_mapping = {}
