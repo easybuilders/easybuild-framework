@@ -24,7 +24,7 @@
 # #
 """
 Module for doing parallel builds. This uses a PBS-like cluster. You should be able to submit jobs (which can have
-deps)
+dependencies)
 
 Support for PBS is provided via the PbsJob class. If you want you could create other job classes and use them here.
 
@@ -62,7 +62,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
     Return list of jobs submitted.
 
     Argument `easyconfigs` is a list of easyconfigs which can be
-    built: e.g. they have no unresolved deps.  This function
+    built: e.g. they have no unresolved dependencies.  This function
     will build them in parallel by submitting jobs.
 
     :param build_command: build command to use
@@ -81,7 +81,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
     except RuntimeError as err:
         raise EasyBuildError("connection to server failed (%s: %s), can't submit jobs.", err.__class__.__name__, err)
 
-    # deps have already been resolved,
+    # dependencies have already been resolved,
     # so one can linearly walk over the list and use previous job id's
     jobs = []
 
@@ -99,7 +99,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
         _log.info("creating job for ec: %s" % os.path.basename(easyconfig['spec']))
         new_job = create_job(active_job_backend, build_command, easyconfig, output_dir=output_dir)
 
-        # filter out deps marked as external modules
+        # filter out dependencies marked as external modules
         deps = [d for d in easyconfig['ec'].all_deps if not d.get('external_module', False)]
 
         dep_mod_names = map(ActiveMNS().det_full_module_name, deps)
