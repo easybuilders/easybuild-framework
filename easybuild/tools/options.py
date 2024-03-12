@@ -586,7 +586,7 @@ class EasyBuildOptions(GeneralOption):
             'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
                               sorted(avail_module_generators().keys())),
             'env_mod_classes': (("Extend supported module classes "
-                               "(For more info on the default classes, use --show-default-env_mod_classes)"),
+                                "(For more info on the default classes, use --show-default-env_mod_classes)"),
                               'strlist', 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
             'modules-footer': ("Path to file containing footer to be added to all generated module files",
                                None, 'store_or_None', None, {'metavar': "PATH"}),
