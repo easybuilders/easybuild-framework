@@ -141,7 +141,7 @@ DEFAULT_CONFIG = {
     'unpack_opts': ['', "Extra options for unpacking source", BUILD],
     'unwanted_env_vars': [[], "List of environment variables that shouldn't be set during build", BUILD],
     'version_prefix': ['', ("Additional prefix for software version "
-                            '(placed before version and toolchain name)"), BUILD],
+                            "(placed before version and toolchain name)"), BUILD],
     'version_suffix': ['', "Additional suffix for software version (placed after toolchain name)", BUILD],
 
     # FILEMANAGEMENT easyconfig parameters
