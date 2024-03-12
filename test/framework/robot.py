@@ -224,7 +224,7 @@ class RobotTest(EnhancedTestCase):
 
         # this should not resolve (cannot find gzip-1.4.eb), both with and without robot enabled
         ecs = [deepcopy(easyconfig_dep)]
-        msg = "Missing deps"
+        msg = "Missing dependencies"
         self.assertErrorRegex(EasyBuildError, msg, resolve_deps, ecs, self.modtool)
 
         # test if deps of an automatically found file are also loaded
@@ -578,7 +578,7 @@ class RobotTest(EnhancedTestCase):
             }],
         }
 
-        error = r"Missing deps: somedep/4.5.6 \(no easyconfig file or existing module found\)"
+        error = r"Missing dependencies: somedep/4.5.6 \(no easyconfig file or existing module found\)"
         self.assertErrorRegex(EasyBuildError, error, resolve_deps, [ec], self.modtool)
 
         # check behaviour if only module file is available
@@ -587,7 +587,7 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0]['full_mod_name'], 'test/123')
 
-        error = r"Missing deps: somedep/4.5.6 \(no easyconfig file found in robot search path\)"
+        error = r"Missing dependencies: somedep/4.5.6 \(no easyconfig file found in robot search path\)"
         self.assertErrorRegex(EasyBuildError, error, resolve_deps, [ec], self.modtool, retain_all_deps=True)
 
         res = resolve_deps([ec], self.modtool, retain_all_deps=True, raise_error_missing_ecs=False)
@@ -1394,7 +1394,7 @@ class RobotTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         self.assertTrue(conflicts)
-        self.assertIn("Conflict found for deps of foss-2018a: GCC-4.6.4 vs GCC-6.4.0-2.28", stderr)
+        self.assertIn("Conflict found for dependencies of foss-2018a: GCC-4.6.4 vs GCC-6.4.0-2.28", stderr)
 
         # conflicts between specified easyconfigs are also detected
 
@@ -1409,7 +1409,7 @@ class RobotTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         self.assertTrue(conflicts)
-        self.assertIn("Conflict between (deps of) easyconfigs: GCC-4.9.3-2.25 vs GCC-6.4.0-2.28", stderr)
+        self.assertIn("Conflict between (dependencies of) easyconfigs: GCC-4.9.3-2.25 vs GCC-6.4.0-2.28", stderr)
 
         # indirect conflict on deps
         ecs, _ = parse_easyconfigs([
@@ -1491,7 +1491,7 @@ class RobotTest(EnhancedTestCase):
         test_ectxt = regex.sub(tc_spec, gzip_ectxt)
         write_file(test_ec, test_ectxt)
         ecs, _ = parse_easyconfigs([(test_ec, False)])
-        self.assertErrorRegex(EasyBuildError, "Missing deps", resolve_deps,
+        self.assertErrorRegex(EasyBuildError, "Missing dependencies", resolve_deps,
                               ecs, self.modtool, retain_all_deps=True)
 
         # --consider-archived-easyconfigs must be used to let robot pick up archived easyconfigs
