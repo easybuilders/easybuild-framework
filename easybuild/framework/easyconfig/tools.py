@@ -113,7 +113,7 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
 
     :param easyconfigs: list of parsed easyconfigs
     :param avail_modules: list of available modules
-    :param retain_all_deps: retain all deps, regardless of whether modules are available for them or not
+    :param retain_all_deps: retain all dependencies, regardless of whether modules are available for them or not
     """
     ordered_ecs = []
     new_easyconfigs = []
@@ -313,7 +313,7 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None, review_pr=Non
     """Obtain alternative paths for easyconfig files."""
 
     # paths where tweaked easyconfigs will be placed, easyconfigs listed on the command line take priority and will be
-    # prepended to the robot path, tweaked deps are also created but these will only be appended to the robot
+    # prepended to the robot path, tweaked dependencies are also created but these will only be appended to the robot
     # path (and therefore only used if strictly necessary)
     tweaked_ecs_paths = None
     if tweaked_ecs:
