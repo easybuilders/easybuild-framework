@@ -83,7 +83,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
 
     :param easyconfigs: list of easyconfig files (EasyConfig instances) to check for conflicts
     :param modtool: ModulesTool instance to use
-    :param check_inter_ec_conflicts: also check for conflicts between (deps of) listed easyconfigs
+    :param check_inter_ec_conflicts: also check for conflicts between (dependencies of) listed easyconfigs
     :return: True if one or more conflicts were found, False otherwise
     """
 
@@ -185,7 +185,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
 
     def check_conflict(parent, dep1, dep2):
         """
-        Check whether deps with given name/(install) version conflict with each other.
+        Check whether dependencies with given name/(install) version conflict with each other.
 
         :param parent: name & install version of 'parent' software
         :param dep1: name & install version of 1st dependency
@@ -246,7 +246,7 @@ def dry_run(easyconfigs, modtool, short=False):
         lines.append("Dry run: printing build status of easyconfigs")
         all_specs = easyconfigs
     else:
-        lines.append("Dry run: printing build status of easyconfigs and deps")
+        lines.append("Dry run: printing build status of easyconfigs and dependencies")
         all_specs = resolve_deps(easyconfigs, modtool, retain_all_deps=True, raise_error_missing_ecs=False)
 
     unbuilt_specs = skip_available(all_specs, modtool)
@@ -311,16 +311,16 @@ def missing_deps(easyconfigs, modtool):
 
 
 def raise_error_missing_deps(missing_deps, extra_msg=None):
-    """Raise error to report missing deps."""
+    """Raise error to report missing dependencies."""
 
     _log.warning("Missing deps (details): %s", missing_deps)
 
     mod_names_eb = ', '.join(EasyBuildMNS().det_full_module_name(dep) for dep in missing_deps)
-    _log.warning("Missing deps (EasyBuild module names): %s", mod_names_eb)
+    _log.warning("Missing dependencies (EasyBuild module names): %s", mod_names_eb)
 
     mod_names = ', '.join(ActiveMNS().det_full_module_name(dep) for dep in missing_deps)
 
-    error_msg = "Missing deps: %s" % mod_names
+    error_msg = "Missing dependencies: %s" % mod_names
     if extra_msg:
         error_msg += ' (%s)' % extra_msg
     raise EasyBuildError(error_msg)
@@ -331,8 +331,8 @@ def resolve_deps(easyconfigs, modtool, retain_all_deps=False, raise_error_missin
     Work through the list of easyconfigs to determine an optimal order
     :param easyconfigs: list of easyconfigs
     :param modtool: ModulesTool instance to use
-    :param retain_all_deps: boolean indicating whether all deps must be retained, regardless of availability;
-                            retain all deps when True, check matching build option when False
+    :param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
+                            retain all dependencies when True, check matching build option when False
     :param raise_error_missing_ecs: raise an error when one or more easyconfig files could not be found
     """
     robot = build_option('robot_path')
@@ -343,7 +343,7 @@ def resolve_deps(easyconfigs, modtool, retain_all_deps=False, raise_error_missin
     if retain_all_deps:
         # assume that no modules are available when forced, to retain all deps
         avail_modules = []
-        _log.info("Forcing all deps to be retained.")
+        _log.info("Forcing all dependencies to be retained.")
     else:
         if len(avail_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
@@ -353,7 +353,7 @@ def resolve_deps(easyconfigs, modtool, retain_all_deps=False, raise_error_missin
     being_installed = [p['full_mod_name'] for p in easyconfigs]
     avail_modules = [m for m in avail_modules if m not in being_installed]
 
-    _log.debug('easyconfigs before resolving deps: %s', easyconfigs)
+    _log.debug('easyconfigs before resolving dependencies: %s', easyconfigs)
 
     totally_missing, missing_easyconfigs = [], []
 
@@ -383,7 +383,7 @@ def resolve_deps(easyconfigs, modtool, retain_all_deps=False, raise_error_missin
         missing_external_modules = [d['full_mod_name'] for ec in easyconfigs for d in ec['deps']
                                     if d.get('external_module', False)]
         if missing_external_modules:
-            raise EasyBuildError("Missing modules for deps marked as external modules: %s",
+            raise EasyBuildError("Missing modules for dependencies marked as external modules: %s",
                                  ', '.join(missing_external_modules))
 
         # robot: look for existing deps, add them
@@ -447,11 +447,11 @@ def resolve_deps(easyconfigs, modtool, retain_all_deps=False, raise_error_missin
                                 _log.debug("Added %s as dependency of %s" % (ec, entry))
                 else:
                     mod_name = EasyBuildMNS().det_full_module_name(entry['ec'])
-                    _log.debug("No more candidate deps to resolve for %s" % mod_name)
+                    _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
 
             # add additional (new) easyconfigs to list of stuff to process
             easyconfigs.extend(additional)
-            _log.debug("Unprocessed deps: %s", easyconfigs)
+            _log.debug("Unprocessed dependencies: %s", easyconfigs)
 
         elif not robot:
             # no use in continuing if robot is not enabled, deps won't be resolved anyway
