@@ -54,7 +54,7 @@ from easybuild.tools.utilities import INDENT_4SPACES, quote_py_str
 
 EB_FORMAT_EXTENSION = '.eb'
 
-# dependency parameters always need to be reformatted, to correctly deal with dumping parsed deps
+# dependency parameters always need to be reformatted, to correctly deal with dumping parsed dependencies
 REFORMAT_FORCED_PARAMS = ['sanity_check_paths'] + DEPENDENCY_PARAMETERS
 REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchain_opts']
 REFORMAT_LIST_OF_LISTS_OF_TUPLES = ['build_deps']
@@ -309,7 +309,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                         if key in ecfg.iterate_options:
                             if 'multi_deps' in ecfg:
                                 # the way that build_deps are constructed with multi_deps
-                                # we just need to dump the first entry without the deps
+                                # we just need to dump the first entry without the dependencies
                                 # that are listed in multi_deps
                                 valstr = [
                                     dump_dependency(d, ecfg['toolchain'], toolchain_hierarchy=toolchain_hierarchy)
