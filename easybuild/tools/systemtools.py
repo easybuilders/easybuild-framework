@@ -176,18 +176,18 @@ ZYPPER = 'zypper'
 SYSTEM_TOOLS = {
     '7z': "extracting sources (.iso)",
     'bunzip2': "decompressing sources (.bz2, .tbz, .tbz2, ...)",
-    DPKG: "checking OS deps (Debian, Ubuntu, ...)",
+    DPKG: "checking OS dependencies (Debian, Ubuntu, ...)",
     'git': "downloading sources using 'git clone'",
     'gunzip': "decompressing source files (.gz, .tgz, ...)",
     'make': "build tool",
     'patch': "applying patch files",
-    RPM: "checking OS deps (CentOS, RHEL, OpenSuSE, SLES, ...)",
+    RPM: "checking OS dependencies (CentOS, RHEL, OpenSuSE, SLES, ...)",
     'sed': "runtime patching",
     'Slurm': "backend for --job (sbatch command)",
     'tar': "unpacking source files (.tar)",
     'unxz': "decompressing source files (.xz, .txz)",
     'unzip': "decompressing files (.zip)",
-    ZYPPER: "checking OS deps (openSUSE)",
+    ZYPPER: "checking OS dependencies (openSUSE)",
 }
 
 SYSTEM_TOOL_CMDS = {
@@ -1347,7 +1347,7 @@ def det_pypkg_version(pkg_name, imported_pkg, import_name=None):
 
 def check_easybuild_deps(modtool):
     """
-    Check presence and version of required and optional EasyBuild deps, and report back to terminal.
+    Check presence and version of required and optional EasyBuild dependencies, and report back to terminal.
     """
     version_regex = re.compile(r'\s(?P<version>[0-9][0-9.]+[a-z]*)')
 
