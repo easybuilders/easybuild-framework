@@ -78,7 +78,7 @@ def module_generator(app, fake=False):
 
 def module_load_regex(modfilepath):
     """
-    Return the correct (compiled) regex to extract deps, depending on the module file type (Lua vs Tcl)
+    Return the correct (compiled) regex to extract dependencies, depending on the module file type (Lua vs Tcl)
     """
     if modfilepath.endswith(ModuleGeneratorLua.MODULE_FILE_EXTENSION):
         regex = ModuleGeneratorLua.LOAD_REGEX
@@ -89,7 +89,7 @@ def module_load_regex(modfilepath):
 
 def deps_for(mod_name, modtool, depth=None):
     """
-    Obtain a list of deps for the given module, determined recursively, up to a specified depth (optionally)
+    Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
     :param depth: recursion depth (default is None, which corresponds to infinite recursion depth)
     """
     mod_filepath = modtool.modulefile_path(mod_name)
