@@ -1118,7 +1118,7 @@ class ModulesTool(object):
         if modpath_exts is None:
             # only retain deps that have a non-empty lists of $MODULEPATH extensions
             modpath_exts = dict([(k, v) for k, v in self.modpath_extensions_for(deps).items() if v])
-            self.log.debug("Non-empty lists of module path extensions for deps: %s" % modpath_exts)
+            self.log.debug("Non-empty lists of module path extensions for dependencies: %s" % modpath_exts)
 
         mods_to_top = []
         full_mod_subdirs = []
@@ -1137,7 +1137,7 @@ class ModulesTool(object):
                                dep, dep_full_mod_subdir, full_modpath_exts)
 
             if full_modpath_exts:
-                # load module for this dependency, since it may extend $MODULEPATH to make deps available
+                # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
                 # this is required to obtain the corresponding module file paths (via 'module show')
                 # don't reload module if it is already loaded, since that'll mess up the order in $MODULEPATH
                 self.load([dep], allow_reload=False)
