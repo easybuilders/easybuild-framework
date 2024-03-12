@@ -242,7 +242,7 @@ class TweakTest(EnhancedTestCase):
                               foss_hierarchy[3], iimpi_hierarchy)
 
     def test_dep_tree_of_toolchain(self):
-        """Test getting list of deps of a toolchain (as EasyConfig objects)"""
+        """Test getting list of dependencies of a toolchain (as EasyConfig objects)"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
             'valid_module_classes': module_classes(),
@@ -522,7 +522,7 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(hit_extension, 1, "Should only have updated one extension")
 
     def test_list_deps_version_suffixes(self):
-        """Test listing of deps' version suffixes"""
+        """Test listing of dependencies' version suffixes"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
             'robot_path': [test_easyconfigs],
