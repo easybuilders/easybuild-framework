@@ -89,12 +89,12 @@ def get_dep_tree(package_spec, verbose):
         # install pipdeptree, figure out dependency tree for installed package
         run_in_venv('pip install pipdeptree', venv_dir, action_desc='install pipdeptree')
         dep_tree = run_in_venv('pipdeptree -j -p "%s"' % package_name,
-                               venv_dir, action_desc='collect deps')
+                               venv_dir, action_desc='collect dependencies')
     return json.loads(dep_tree)
 
 
 def find_deps(pkgs, dep_tree):
-    """Recursively resolve deps of the given package(s) and return them"""
+    """Recursively resolve dependencies of the given package(s) and return them"""
     res = []
     for orig_pkg in pkgs:
         pkg = canonicalize_name(orig_pkg)
@@ -109,7 +109,7 @@ def find_deps(pkgs, dep_tree):
             raise RuntimeError("Found multiple installed packages for '%s' in %s" % (pkg, dep_tree))
         entry = matching_entries[0]
         res.append((entry['package']['package_name'], entry['package']['installed_version']))
-        deps = (dep['package_name'] for dep in entry['deps'])
+        deps = (dep['package_name'] for dep in entry['dependencies'])
         res.extend(find_deps(deps, dep_tree))
     return res
 
@@ -119,7 +119,7 @@ def print_deps(package, verbose):
         print('Getting dep tree of ' + package)
     dep_tree = get_dep_tree(package, verbose)
     if verbose:
-        print('Extracting deps of ' + package)
+        print('Extracting dependencies of ' + package)
     deps = find_deps([extract_pkg_name(package)], dep_tree)
 
     installed_modules = {mod.project_name for mod in pkg_resources.working_set}
@@ -139,9 +139,9 @@ def print_deps(package, verbose):
             else:
                 res.append(dep)
 
-    print("List of deps in (likely) install order:")
+    print("List of dependencies in (likely) install order:")
     pprint(res, indent=4)
-    print("Sorted list of deps:")
+    print("Sorted list of dependencies:")
     pprint(sorted(res), indent=4)
 
 
@@ -155,7 +155,7 @@ examples = [
                         ]),
 ]
 parser = argparse.ArgumentParser(
-    description='Find deps of Python packages by installing it in a temporary virtualenv. ',
+    description='Find dependencies of Python packages by installing it in a temporary virtualenv. ',
     epilog='\n'.join(examples),
     formatter_class=argparse.RawDescriptionHelpFormatter
 )
@@ -171,10 +171,10 @@ if args.ec:
         print('EasyBuild not found or executable. Make sure it is in your $PATH when using --ec!')
         sys.exit(1)
     if args.verbose:
-        print('Checking with EasyBuild for missing deps')
+        print('Checking with EasyBuild for missing dependencies')
     missing_dep_out = run_shell_cmd(['eb', args.ec, '--missing'],
                                     capture_stderr=False,
-                                    action_desc='Get missing deps')
+                                    action_desc='Get missing dependencies')
     excluded_dep = '(%s)' % os.path.basename(args.ec)
     missing_deps = [dep for dep in missing_dep_out.split('\n')
                     if dep.startswith('*') and excluded_dep not in dep
