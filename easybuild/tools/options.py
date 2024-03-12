@@ -258,13 +258,13 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
         opts = OrderedDict({
-            'dry-run': ("Print build overview incl. deps (full paths)", None, 'store_true', False),
-            'dry-run-short': ("Print build overview incl. deps (short paths)", None, 'store_true', False, 'D'),
+            'dry-run': ("Print build overview incl. dependencies (full paths)", None, 'store_true', False),
+            'dry-run-short': ("Print build overview incl. dependencies (short paths)", None, 'store_true', False, 'D'),
             'extended-dry-run': ("Print build environment and (expected) build procedure that will be performed",
                                  None, 'store_true', False, 'x'),
             'extended-dry-run-ignore-errors': ("Ignore errors that occur during dry run", None, 'store_true', True),
             'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module), "
-                      "and skipping check for OS deps", None, 'store_true', False, 'f'),
+                      "and skipping check for OS dependencies", None, 'store_true', False, 'f'),
             'ignore-locks': ("Ignore locks that prevent two identical installations running in parallel",
                              None, 'store_true', False),
             'job': ("Submit the build as a job", None, 'store_true', False),
@@ -272,10 +272,10 @@ class EasyBuildOptions(GeneralOption):
             'locks-dir': ("Directory to store lock files (should be on a shared filesystem); "
                           "None implies .locks subdirectory of software installation directory",
                           None, 'store_or_None', None),
-            'missing-modules': ("Print list of missing modules for deps of specified easyconfigs",
+            'missing-modules': ("Print list of missing modules for dependencies of specified easyconfigs",
                                 None, 'store_true', False, 'M'),
             'only-blocks': ("Only build listed blocks", 'strlist', 'extend', None, 'b', {'metavar': 'BLOCKS'}),
-            'rebuild': ("Rebuild software, even if module already exists (don't skip OS deps checks)",
+            'rebuild': ("Rebuild software, even if module already exists (don't skip OS dependency checks)",
                         None, 'store_true', False),
             'robot': ("Enable dependency resolution, optionally consider additional paths to search for easyconfigs",
                       'pathlist', 'store_or_None', [], 'r', {'metavar': '[PATH[%sPATH]]' % os.pathsep}),
@@ -328,7 +328,7 @@ class EasyBuildOptions(GeneralOption):
 
         opts['map-toolchains'] = ("Enable mapping of (sub)toolchains when --try-toolchain(-version) is used",
                                   None, 'store_true', True)
-        opts['try-update-deps'] = ("Try to update versions of the deps of an easyconfig based on what is "
+        opts['try-update-deps'] = ("Try to update versions of the dependencies of an easyconfig based on what is "
                                    "available in the robot path",
                                    None, 'store_true', False)
         opts['try-ignore-version_suffixes'] = ("Ignore version_suffix differences when --try-update-deps is used",
@@ -405,9 +405,9 @@ class EasyBuildOptions(GeneralOption):
                               'strlist', 'extend', None),
             'fail-on-mod-files-gcccore': ("Fail if .mod files are detected in a GCCcore install", None, 'store_true',
                                           False),
-            'fetch': ("Allow downloading sources ignoring OS and modules tool deps, "
+            'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
                       "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
-            'filter-deps': ("List of deps that you do *not* want to install with EasyBuild, "
+            'filter-deps': ("List of dependencies that you do *not* want to install with EasyBuild, "
                             "because equivalent OS packages are installed. (e.g. --filter-deps=zlib,ncurses)",
                             'strlist', 'extend', None),
             'filter-ecs': ("List of easyconfigs (given as glob patterns) to *ignore* when given on command line "
@@ -432,7 +432,7 @@ class EasyBuildOptions(GeneralOption):
                                           None, 'store_true', False),
             'hidden': ("Install 'hidden' module file(s) by prefixing their version with '.'",
                        None, 'store_true', False),
-            'hide-deps': ("Comma separated list of deps that you want automatically hidden, "
+            'hide-deps': ("Comma separated list of dependencies that you want automatically hidden, "
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
             'hide-toolchains': ("Comma separated list of toolchains that you want automatically hidden, "
                                 "(e.g. --hide-toolchains=GCCcore)", 'strlist', 'extend', None),
@@ -443,7 +443,7 @@ class EasyBuildOptions(GeneralOption):
                                           None, 'append', None, {'metavar': '[URLPAT::][HEADER:]FILE|FIELD'}),
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-test-failure': ("Ignore a failing test step", None, 'store_true', False),
-            'ignore-osdeps': ("Ignore any listed OS deps", None, 'store_true', False),
+            'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'insecure-download': ("Don't check the server certificate against the available certificate authorities.",
                                   None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
@@ -459,7 +459,7 @@ class EasyBuildOptions(GeneralOption):
                                   "specified as a comma-separated list that defines a mapping between name of "
                                   "environment variable and its value separated by a colon (':')",
                                   None, 'store', DEFAULT_MINIMAL_BUILD_ENV),
-            'minimal-toolchains': ("Use minimal toolchain when resolving deps", None, 'store_true', False),
+            'minimal-toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
             'module-cache-suffix': ("Suffix to add to the cache file name (before the extension) "
                                     "when updating the modules tool cache",
                                     None, 'store', None),
@@ -522,7 +522,7 @@ class EasyBuildOptions(GeneralOption):
                            str, 'store', False, {'metavar': "PATH"}),
             'use-f90cache': ("Enable use of f90cache to speed up compilation, with specified cache dir",
                              str, 'store', False, {'metavar': "PATH"}),
-            'use-existing-modules': ("Use existing modules when resolving deps with minimal toolchains",
+            'use-existing-modules': ("Use existing modules when resolving dependencies with minimal toolchains",
                                      None, 'store_true', False),
             'verify-easyconfig-filenames': ("Verify whether filename of specified easyconfigs matches with contents",
                                             None, 'store_true', False),
@@ -1049,7 +1049,7 @@ class EasyBuildOptions(GeneralOption):
     def _postprocess_checks(self):
         """Check whether (combination of) configuration options make sense."""
 
-        # fail early if required deps for functionality requiring using GitHub API are not available:
+        # fail early if required dependencies for functionality requiring using GitHub API are not available:
         if self.options.from_pr or self.options.include_easyblocks_from_pr or self.options.upload_test_report:
             if not HAVE_GITHUB_API:
                 raise EasyBuildError("Required support for using GitHub API is not available (see warnings)")
