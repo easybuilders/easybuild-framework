@@ -329,6 +329,7 @@ BUILD_OPTIONS_CMDLINE = {
         'mpi_tests',
         'pre_create_installdir',
         'show_progress_bar',
+        'strict_rpath_sanity_check',
         'trace',
     ],
     EMPTY_LIST: [
