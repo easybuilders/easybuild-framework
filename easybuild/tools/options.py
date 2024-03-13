@@ -332,7 +332,7 @@ class EasyBuildOptions(GeneralOption):
                                    "available in the robot path",
                                    None, 'store_true', False)
         opts['try-ignore-versionsuffixes'] = ("Ignore version_suffix differences when --try-update-deps is used",
-                                               None, 'store_true', False)
+                                              None, 'store_true', False)
 
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
@@ -587,7 +587,7 @@ class EasyBuildOptions(GeneralOption):
                               sorted(avail_module_generators().keys())),
             'moduleclasses': (("Extend supported module classes "
                                "(For more info on the default classes, use --show-default-moduleclasses)"),
-                               'strlist', 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
+                              'strlist', 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
             'modules-footer': ("Path to file containing footer to be added to all generated module files",
                                None, 'store_or_None', None, {'metavar': "PATH"}),
             'modules-header': ("Path to file containing header to be added to all generated module files",
@@ -672,7 +672,7 @@ class EasyBuildOptions(GeneralOption):
                             None, 'store_true', False),
             'show-default-configfiles': ("Show list of default config files", None, 'store_true', False),
             'show-default-moduleclasses': ("Show default module classes with description",
-                                             None, 'store_true', False),
+                                           None, 'store_true', False),
             'show-ec': ("Show contents of specified easyconfig(s)", None, 'store_true', False),
             'show-full-config': ("Show current EasyBuild configuration (all settings)", None, 'store_true', False),
             'show-system-info': ("Show system information relevant to EasyBuild", None, 'store_true', False),
@@ -1699,7 +1699,7 @@ def process_software_build_specs(options):
         'toolchain_name': options.try_toolchain_name,
         'toolchain_version': options.try_toolchain_version,
         'update_deps': options.try_update_deps,
-        'ignore_version_suffixes': options.try_ignore_version_suffixes,
+        'ignore_versionsuffixes': options.try_ignore_versionsuffixes,
     }
 
     # process easy options
