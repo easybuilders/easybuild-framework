@@ -36,7 +36,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.base import fancylogger
-from easybuild.tools import modules, StrictVersion
+from easybuild.tools import modules, LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, which, write_file
 from easybuild.tools.modules import EnvironmentModules, Lmod
@@ -76,7 +76,7 @@ class ModulesToolTest(EnhancedTestCase):
         mmt = MockModulesTool(mod_paths=[], testing=True)
 
         # the version of the MMT is the commandline option
-        self.assertEqual(mmt.version, StrictVersion(MockModulesTool.VERSION_OPTION))
+        self.assertEqual(mmt.version, LooseVersion(MockModulesTool.VERSION_OPTION))
 
         cmd_abspath = which(MockModulesTool.COMMAND)
 
@@ -100,7 +100,7 @@ class ModulesToolTest(EnhancedTestCase):
         bmmt = BrokenMockModulesTool(mod_paths=[], testing=True)
         cmd_abspath = which(MockModulesTool.COMMAND)
 
-        self.assertEqual(bmmt.version, StrictVersion(MockModulesTool.VERSION_OPTION))
+        self.assertEqual(bmmt.version, LooseVersion(MockModulesTool.VERSION_OPTION))
         self.assertEqual(bmmt.cmd, cmd_abspath)
 
         # clean it up
