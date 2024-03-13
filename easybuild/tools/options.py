@@ -933,7 +933,7 @@ class EasyBuildOptions(GeneralOption):
         if any((self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
                 self.options.list_easyblocks, self.options.list_toolchains, self.options.avail_cfgfile_constants,
                 self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
-                self.options.avail_repositories, self.options.show_default_env_mod_classes,
+                self.options.avail_repositories, self.options.show_default_moduleclasses,
                 self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
                 self.options.show_default_configfiles, self.options.avail_toolchain_opts,
                 self.options.avail_hooks, self.options.show_system_info,
@@ -1246,9 +1246,9 @@ class EasyBuildOptions(GeneralOption):
         if self.options.show_default_configfiles:
             msg += self.show_default_configfiles()
 
-        # dump default env_mod_classes with description
-        if self.options.show_default_env_mod_classes:
-            msg += self.show_default_env_mod_classes()
+        # dump default moduleclasses with description
+        if self.options.show_default_moduleclasses:
+            msg += self.show_default_moduleclasses()
 
         # dump system information
         if self.options.show_system_info:
@@ -1315,8 +1315,8 @@ class EasyBuildOptions(GeneralOption):
         ]
         return '\n'.join(lines)
 
-    def show_default_env_mod_classes(self):
-        """Show list of default env_mod_classes and description."""
+    def show_default_moduleclasses(self):
+        """Show list of default moduleclasses and description."""
         lines = ["Default available module classes:", '']
         maxlen = max([len(x[0]) for x in DEFAULT_MODULECLASSES]) + 1  # at least 1 space
         for name, descr in DEFAULT_MODULECLASSES:
