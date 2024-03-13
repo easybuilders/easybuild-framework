@@ -32,6 +32,10 @@ jobs:
         # update to latest pip, check version
         pip install --upgrade pip
         pip --version
+        if [[ "${{matrix.python}}" == 3.12 ]]; then
+            # needed for python setup.py sdist
+            pip install --upgrade setuptools
+        fi
 
         # for modules tool
         APT_PKGS="lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev"
