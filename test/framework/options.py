@@ -1725,7 +1725,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(regex.search(outtxt), "Pattern '%s' should be found in: %s" % (regex.pattern, outtxt))
 
         # Now verify that we can ignore version_suffixes
-        args.append('--try-ignore-version_suffixes')
+        args.append('--try-ignore-version-suffixes')
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, raise_error=True, do_build=True)
         patterns = [
@@ -3213,13 +3213,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True)
 
     def test_show_default_env_mod_classes(self):
-        """Test --show-default-env_mod_classes."""
+        """Test --show-default-moduleclasses."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
         args = [
             '--unittest-file=%s' % self.logfile,
-            '--show-default-env_mod_classes',
+            '--show-default-moduleclasses',
         ]
         write_file(self.logfile, '')
         with self.mocked_stdout_stderr():

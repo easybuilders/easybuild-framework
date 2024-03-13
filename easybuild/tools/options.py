@@ -331,7 +331,7 @@ class EasyBuildOptions(GeneralOption):
         opts['try-update-deps'] = ("Try to update versions of the dependencies of an easyconfig based on what is "
                                    "available in the robot path",
                                    None, 'store_true', False)
-        opts['try-ignore-version_suffixes'] = ("Ignore version_suffix differences when --try-update-deps is used",
+        opts['try-ignore-versionsuffixes'] = ("Ignore version_suffix differences when --try-update-deps is used",
                                                None, 'store_true', False)
 
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
@@ -585,9 +585,9 @@ class EasyBuildOptions(GeneralOption):
             'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
             'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
                               sorted(avail_module_generators().keys())),
-            'env_mod_classes': (("Extend supported module classes "
-                                "(For more info on the default classes, use --show-default-env_mod_classes)"),
-                              'strlist', 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
+            'moduleclasses': (("Extend supported module classes "
+                               "(For more info on the default classes, use --show-default-moduleclasses)"),
+                               'strlist', 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
             'modules-footer': ("Path to file containing footer to be added to all generated module files",
                                None, 'store_or_None', None, {'metavar': "PATH"}),
             'modules-header': ("Path to file containing header to be added to all generated module files",
@@ -671,7 +671,7 @@ class EasyBuildOptions(GeneralOption):
             'show-config': ("Show current EasyBuild configuration (only non-default + selected settings)",
                             None, 'store_true', False),
             'show-default-configfiles': ("Show list of default config files", None, 'store_true', False),
-            'show-default-env_mod_classes': ("Show default module classes with description",
+            'show-default-moduleclasses': ("Show default module classes with description",
                                              None, 'store_true', False),
             'show-ec': ("Show contents of specified easyconfig(s)", None, 'store_true', False),
             'show-full-config': ("Show current EasyBuild configuration (all settings)", None, 'store_true', False),
@@ -1005,11 +1005,11 @@ class EasyBuildOptions(GeneralOption):
         """Postprocess --close-pr-reasons options"""
         if self.options.close_pr_msg:
             raise EasyBuildError("Please either specify predefined reasons with --close-pr-reasons or " +
-                                 "a custom message with--close-pr-msg")
+                                 "a custom message with --close-pr-msg")
 
         reasons = self.options.close_pr_reasons.split(',')
         if any([reason not in VALID_CLOSE_PR_REASONS.keys() for reason in reasons]):
-            raise EasyBuildError("Argument to --close-pr_reasons must be a comma separated list of valid reasons " +
+            raise EasyBuildError("Argument to --close-pr-reasons must be a comma separated list of valid reasons " +
                                  "among %s" % VALID_CLOSE_PR_REASONS.keys())
         self.options.close_pr_msg = ", ".join([VALID_CLOSE_PR_REASONS[reason] for reason in reasons])
 
