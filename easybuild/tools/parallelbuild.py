@@ -100,7 +100,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
         new_job = create_job(active_job_backend, build_command, easyconfig, output_dir=output_dir)
 
         # filter out dependencies marked as external modules
-        deps = [d for d in easyconfig['ec'].all_dependencies if not d.get('external_module', False)]
+        deps = [d for d in easyconfig['ec'].all_deps if not d.get('external_module', False)]
 
         dep_mod_names = map(ActiveMNS().det_full_module_name, deps)
         job_deps = [module_to_job[dep] for dep in dep_mod_names if dep in module_to_job]
@@ -187,10 +187,10 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
 
     # just use latest build stats
     repo = init_repository(get_repository(), get_repositorypath())
-    buildstats = repo.get_buildstats(*ec_tuple)
+    build_stats = repo.get_build_stats(*ec_tuple)
     extra = {}
-    if buildstats:
-        previous_time = buildstats[-1]['build_time']
+    if build_stats:
+        previous_time = build_stats[-1]['build_time']
         extra['hours'] = int(math.ceil(previous_time * 2 / 60))
 
     if build_option('job_cores'):

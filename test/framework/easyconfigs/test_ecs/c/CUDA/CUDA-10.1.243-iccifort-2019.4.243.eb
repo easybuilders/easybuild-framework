@@ -25,4 +25,4 @@ toolchain = {'name': 'iccifort', 'version': '2019.4.243'}
 
 sources = ['%(namelower)s_%(version)s_linux_64.run']
 
-moduleclass = 'system'
+env_mod_class = 'system'

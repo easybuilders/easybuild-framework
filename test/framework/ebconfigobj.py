@@ -207,12 +207,12 @@ class TestEBConfigObj(EnhancedTestCase):
             'versions = %s, 0.0, 1.1, 1.5, 1.6, 2.0, 3.0' % default_version,
             'toolchains = %(name)s == %(version)s' % tc,  # set tc, don't use it
             '[> 1.0]',
-            'versionprefix = stable-',
+            'version_prefix = stable-',
             '[[>= 1.5]]',
-            'versionsuffix = -early',
+            'version_suffix = -early',
             '[> 2.0]',
-            'versionprefix = production-',
-            'versionsuffix = -mature',
+            'version_prefix = production-',
+            'version_suffix = -mature',
         ]
 
         # version string, attributes without version and toolchain
@@ -220,11 +220,11 @@ class TestEBConfigObj(EnhancedTestCase):
             (None, {}),
             (default_version, {}),
             ('0.0', {}),
-            ('1.1', {'versionprefix': 'stable-'}),
-            ('1.5', {'versionprefix': 'stable-', 'versionsuffix': '-early'}),
-            ('1.6', {'versionprefix': 'stable-', 'versionsuffix': '-early'}),
-            ('2.0', {'versionprefix': 'stable-', 'versionsuffix': '-early'}),
-            ('3.0', {'versionprefix': 'production-', 'versionsuffix': '-mature'}),
+            ('1.1', {'version_prefix': 'stable-'}),
+            ('1.5', {'version_prefix': 'stable-', 'version_suffix': '-early'}),
+            ('1.6', {'version_prefix': 'stable-', 'version_suffix': '-early'}),
+            ('2.0', {'version_prefix': 'stable-', 'version_suffix': '-early'}),
+            ('3.0', {'version_prefix': 'production-', 'version_suffix': '-mature'}),
         ]
 
         for version, res in data:

@@ -60,7 +60,7 @@ class TestModuleNamingScheme(ModuleNamingScheme):
         """
         Determine list of paths in which symlinks to module files must be created.
         """
-        return [ec['moduleclass'].upper(), ec['name'].lower()[0]]
+        return [ec['env_mod_class'].upper(), ec['name'].lower()[0]]
 
     def is_short_modname_for(self, modname, name):
         """

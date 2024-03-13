@@ -291,7 +291,7 @@ class Compiler(Toolchain):
             if self.options.get(extra):
                 extraflags = self.options.option(extra)
                 if not extraflags or extraflags[0] != '-':
-                    raise EasyBuildError("toolchainopts %s: '%s' must start with a '-'." % (extra, extraflags))
+                    raise EasyBuildError("toolchain_opts %s: '%s' must start with a '-'." % (extra, extraflags))
                 self.variables.nappend_el(var, extraflags[1:])
 
     def _set_optimal_architecture(self, default_optarch=None):

@@ -91,7 +91,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.module_generator = self.master.module_generator
             self.robot_path = self.master.robot_path
             self.is_extension = True
-            self.unpack_options = None
+            self.unpack_opts = None
         else:
             EasyBlock.__init__(self, *args, **kwargs)
             self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step
@@ -139,7 +139,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         # unpack file if desired
         if unpack_src:
             targetdir = os.path.join(self.master.builddir, remove_unwanted_chars(self.name))
-            self.ext_dir = extract_file(self.src, targetdir, extra_options=self.unpack_options,
+            self.ext_dir = extract_file(self.src, targetdir, extra_options=self.unpack_opts,
                                         change_into_dir=False, cmd=self.src_extract_cmd)
 
             # setting start dir must be done from unpacked source directory for extension,

@@ -72,11 +72,11 @@ class JobBackend(object):
         pass
 
     @abstractmethod
-    def queue(self, job, dependencies=frozenset()):
+    def queue(self, job, deps=frozenset()):
         """
         Add a job to the queue.
 
-        If second optional argument `dependencies` is given, it must be a
+        If second optional argument `deps` is given, it must be a
         sequence of jobs that must be successfully terminated before
         the new job can run.
 

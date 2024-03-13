@@ -889,7 +889,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         'new': [],
     }
 
-    # include missing easyconfigs for dependencies, if robot is enabled
+    # include missing easyconfigs for deps, if robot is enabled
     if ecs is not None:
 
         abs_paths = [os.path.realpath(os.path.abspath(path)) for path in ec_paths]
@@ -897,7 +897,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         _log.info("Paths to easyconfigs for missing dependencies: %s", dep_paths)
         all_dep_info = copy_easyconfigs(dep_paths, target_dir)
 
-        # only consider new easyconfig files for dependencies (not updated ones)
+        # only consider new easyconfig files for deps (not updated ones)
         for idx in range(len(all_dep_info['ecs'])):
             if all_dep_info['new'][idx]:
                 for key in dep_info:
@@ -1297,8 +1297,8 @@ def reasons_for_closing(pr_data):
                     if fn.endswith('.eb'):
                         ec = EasyConfigParser(os.path.join(dirpath, fn)).get_config_dict()
                         if ec.get('easyblock') == 'Toolchain':
-                            if 'versionsuffix' in ec:
-                                archived_tc = '%s-%s%s' % (ec['name'], ec['version'], ec.get('versionsuffix'))
+                            if 'version_suffix' in ec:
+                                archived_tc = '%s-%s%s' % (ec['name'], ec['version'], ec.get('version_suffix'))
                             else:
                                 archived_tc = '%s-%s' % (ec['name'], ec['version'])
                             if pr_tc == archived_tc:
@@ -1592,8 +1592,8 @@ def det_pr_title(ecs):
     toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
     toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
 
-    # only use most common module class(es) in moduleclass label of PR title
-    classes = [ec['moduleclass'] for ec in ecs]
+    # only use most common module class(es) in env_mod_class label of PR title
+    classes = [ec['env_mod_class'] for ec in ecs]
     classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
     class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
@@ -1608,8 +1608,8 @@ def det_pr_title(ecs):
     # Find all suffixes
     suffixes = []
     for ec in ecs:
-        if 'versionsuffix' in ec and ec['versionsuffix']:
-            suffixes.append(ec['versionsuffix'].strip('-').replace('-', ' '))
+        if 'version_suffix' in ec and ec['version_suffix']:
+            suffixes.append(ec['version_suffix'].strip('-').replace('-', ' '))
     if suffixes:
         suffixes = sorted(nub(suffixes))
         if len(suffixes) <= 2:

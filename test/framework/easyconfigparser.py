@@ -119,7 +119,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
     def test_v20_deps(self):
-        """Test parsing of easyconfig in format v2 that includes dependencies."""
+        """Test parsing of easyconfig in format v2 that includes deps."""
         # hard enable experimental
         orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
@@ -133,8 +133,8 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(ec['version'], '1.5.10')
         self.assertEqual(ec['toolchain'], {'name': 'foss', 'version': '2018a'})
 
-        # dependencies should be parsed correctly
-        deps = ec['dependencies']
+        # deps should be parsed correctly
+        deps = ec['deps']
         self.assertIsInstance(deps[0], Dependency)
         self.assertEqual(deps[0].name(), 'zlib')
         self.assertEqual(deps[0].version(), '1.2.5')
@@ -147,20 +147,20 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(ec['version'], '2018a')
         self.assertEqual(ec['toolchain'], {'name': 'system', 'version': 'system'})
 
-        # dependencies should be parsed correctly
+        # deps should be parsed correctly
         deps = [
-            # name, version, versionsuffix, toolchain
+            # name, version, version_suffix, toolchain
             ('GCC', '6.4.0-2.28', None, None),
             ('OpenMPI', '2.1.2', None, {'name': 'GCC', 'version': '6.4.0-2.28'}),
             ('OpenBLAS', '0.2.20', None, {'name': 'GCC', 'version': '6.4.0-2.28'}),
             ('FFTW', '3.3.7', None, {'name': 'gompi', 'version': '2018a'}),
             ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.20', {'name': 'gompi', 'version': '2018a'}),
         ]
-        for i, (name, version, versionsuffix, toolchain) in enumerate(deps):
-            self.assertEqual(ec['dependencies'][i].name(), name)
-            self.assertEqual(ec['dependencies'][i].version(), version)
-            self.assertEqual(ec['dependencies'][i].versionsuffix(), versionsuffix)
-            self.assertEqual(ec['dependencies'][i].toolchain(), toolchain)
+        for i, (name, version, version_suffix, toolchain) in enumerate(deps):
+            self.assertEqual(ec['deps'][i].name(), name)
+            self.assertEqual(ec['deps'][i].version(), version)
+            self.assertEqual(ec['deps'][i].version_suffix(), version_suffix)
+            self.assertEqual(ec['deps'][i].toolchain(), toolchain)
 
         # restore
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental

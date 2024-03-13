@@ -10,10 +10,10 @@ toolchain = SYSTEM
 
 local_compver = '2016.1.150-GCC-4.9.3-2.25'
 
-dependencies = [
+deps = [
     ('icc', local_compver),
     ('ifort', local_compver),
     ('impi', '5.1.2.150', '', ('iccifort', local_compver)),
 ]
 
-moduleclass = 'toolchain'
+env_mod_class = 'toolchain'

@@ -1,6 +1,6 @@
 # EASYCONFIGFORMAT 2.0
 """
-Example easyconfig with 'complex' dependencies
+Example easyconfig with 'complex' deps
 @author: Kenneth Hoste (UGent)
 """
 name = 'foss'
@@ -10,13 +10,13 @@ description = 'GCC based compiler toolchain, including OpenMPI, OpenBLAS, FFTW a
 
 software_license = GPLv2
 software_license_urls = ['https://github.com/easybuilders/easybuild-framework/blob/master/easybuild/toolchains/foss.py'] 
-docurls = ["https://github.com/easybuilders/easybuild/wiki/Compiler-toolchains"]
+doc_urls = ["https://github.com/easybuilders/easybuild/wiki/Compiler-toolchains"]
 
 [DEFAULT]
 easyblock = Toolchain
 
 
-moduleclass = toolchain
+env_mod_class = toolchain
 
 [SUPPORTED]
 versions = 2018a

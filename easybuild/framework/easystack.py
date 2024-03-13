@@ -93,12 +93,12 @@ class EasyStack(object):
 class SoftwareSpecs(object):
     """Contains information about every software that should be installed"""
 
-    def __init__(self, name, version, versionsuffix, toolchain_version, toolchain_name):
+    def __init__(self, name, version, version_suffix, toolchain_version, toolchain_name):
         self.name = name
         self.version = version
         self.toolchain_version = toolchain_version
         self.toolchain_name = toolchain_name
-        self.versionsuffix = versionsuffix
+        self.version_suffix = version_suffix
 
 
 class EasyStackParser(object):

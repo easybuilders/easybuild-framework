@@ -46,7 +46,7 @@ def det_os_deps(easyconfigs):
     easybuilds modules.
     """
     res = set()
-    os_deps = reduce(operator.add, [obj['ec']['osdependencies'] for obj in easyconfigs], [])
+    os_deps = reduce(operator.add, [obj['ec']['os_deps'] for obj in easyconfigs], [])
     for os_dep in os_deps:
         if isinstance(os_dep, str):
             res.add(os_dep)

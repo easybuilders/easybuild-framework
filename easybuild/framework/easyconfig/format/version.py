@@ -598,7 +598,7 @@ class ToolchainVersionOperator(VersionOperator):
                 'version': version,
             }
             if self.suffix is not None:
-                tc_dict.update({'versionsuffix': self.suffix})
+                tc_dict.update({'version_suffix': self.suffix})
             self.log.debug('returning %s as dict (allowed operator %s)' % (tc_dict, self.operator))
             return tc_dict
         else:

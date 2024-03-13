@@ -16,4 +16,4 @@ toolchain = {'name': 'gcccuda', 'version': '2018a'}
 source_urls = ['http://www.open-mpi.org/software/hwloc/v%(version_major_minor)s/downloads/']
 sources = [SOURCE_TAR_GZ]
 
-moduleclass = 'system'
+env_mod_class = 'system'

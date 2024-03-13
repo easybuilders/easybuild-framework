@@ -13,8 +13,8 @@ toolchain = {'name': 'iccifort', 'version': '2019.4.243'}
 
 sources = ['l_mpi_p_%(version)s.tgz']
 
-dontcreateinstalldir = 'True'
+dont_create_install_dir = 'True'
 
 license_file = HOME + '/licenses/intel/license.lic'
 
-moduleclass = 'mpi'
+env_mod_class = 'mpi'

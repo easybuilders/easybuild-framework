@@ -865,7 +865,7 @@ def check_os_dependency(dep):
     for pkg_cmd in pkg_cmds:
         if which(pkg_cmd):
             cmd = ' '.join([
-                # unset $LD_LIBRARY_PATH to avoid broken rpm command due to loaded dependencies
+                # unset $LD_LIBRARY_PATH to avoid broken rpm command due to loaded deps
                 # see https://github.com/easybuilders/easybuild-easyconfigs/pull/4179
                 'unset LD_LIBRARY_PATH &&',
                 pkg_cmd,
@@ -1387,12 +1387,12 @@ def check_easybuild_deps(modtool):
 
     checks_data['col_titles'] = ('name', 'version', 'used for')
 
-    req_deps_key = "Required dependencies"
+    req_deps_key = "Required deps"
     checks_data[req_deps_key] = OrderedDict()
     checks_data[req_deps_key]['Python'] = (python_version, None)
     checks_data[req_deps_key]['modules tool:'] = (str(modtool), None)
 
-    opt_deps_key = "Optional dependencies"
+    opt_deps_key = "Optional deps"
     checks_data[opt_deps_key] = {}
 
     for key in opt_dep_versions:

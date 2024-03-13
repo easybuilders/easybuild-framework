@@ -217,8 +217,8 @@ class ModulesTool(object):
             res += ' (unknown version)'
         return res
 
-    def buildstats(self):
-        """Return tuple with data to be included in buildstats"""
+    def build_stats(self):
+        """Return tuple with data to be included in build_stats"""
         return (self.NAME, self.cmd, self.version)
 
     def set_and_check_version(self):
@@ -1109,7 +1109,7 @@ class ModulesTool(object):
         self.log.debug("Checking for dependency that extends $MODULEPATH with %s" % full_mod_subdir)
 
         if modpath_exts is None:
-            # only retain dependencies that have a non-empty lists of $MODULEPATH extensions
+            # only retain deps that have a non-empty lists of $MODULEPATH extensions
             modpath_exts = dict([(k, v) for k, v in self.modpath_extensions_for(deps).items() if v])
             self.log.debug("Non-empty lists of module path extensions for dependencies: %s" % modpath_exts)
 
@@ -1140,7 +1140,7 @@ class ModulesTool(object):
 
         path = mods_to_top[:]
         if mods_to_top:
-            # remove retained dependencies from the list, since we're climbing up the module tree
+            # remove retained deps from the list, since we're climbing up the module tree
             remaining_modpath_exts = dict([m for m in modpath_exts.items() if not m[0] in mods_to_top])
 
             self.log.debug("Path to top from %s extended to %s, so recursing to find way to the top",

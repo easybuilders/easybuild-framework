@@ -76,7 +76,7 @@ class FileRepository(Repository):
 
         :param cfg: location of easyconfig file
         :param name: software name
-        :param version: software install version, incl. toolchain & versionsuffix
+        :param version: software install version, incl. toolchain & version_suffix
         :param stats: build stats, to add to archived easyconfig
         :param previous: list of previous build stats
         :return: location of archived easyconfig
@@ -85,7 +85,7 @@ class FileRepository(Repository):
         full_path = os.path.join(self.wc, self.subdir, name)
 
         extension = EB_FORMAT_EXTENSION
-        prefix = "buildstats = ["
+        prefix = "build_stats = ["
 
         # destination
         dest = os.path.join(full_path, "%s-%s%s" % (name, version, extension))
@@ -124,7 +124,7 @@ class FileRepository(Repository):
         copy_file(patch, full_path)
         return full_path
 
-    def get_buildstats(self, name, ec_version):
+    def get_build_stats(self, name, ec_version):
         """
         return the build statistics
         """
@@ -139,4 +139,4 @@ class FileRepository(Repository):
             return []
 
         eb = EasyConfig(dest, validate=False)
-        return eb['buildstats']
+        return eb['build_stats']

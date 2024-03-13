@@ -472,7 +472,7 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'installpath_software',
         'job_backend',
         'logfile_format',
-        'moduleclasses',
+        'env_mod_classes',
         'module_naming_scheme',
         'module_syntax',
         'modules_tool',
@@ -575,8 +575,8 @@ def init_build_options(build_options=None, cmdline_options=None):
         active_build_options.update({
             'check_osdeps': not cmdline_options.ignore_osdeps,
             'dry_run': cmdline_options.dry_run or cmdline_options.dry_run_short,
-            'recursive_mod_unload': cmdline_options.recursive_module_unload,
-            'mod_depends_on': cmdline_options.module_depends_on,
+            'recursive_mod_unload': cmdline_options.recursive_env_mod_unload,
+            'mod_depends_on': cmdline_options.env_mod_depends_on,
             'retain_all_deps': retain_all_deps,
             'validate': not cmdline_options.force,
             'valid_module_classes': module_classes(),
@@ -922,7 +922,7 @@ def module_classes():
     """
     Return list of module classes specified in config file.
     """
-    return ConfigurationVariables()['moduleclasses']
+    return ConfigurationVariables()['env_mod_classes']
 
 
 def read_environment(env_vars, strict=False):

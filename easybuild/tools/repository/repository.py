@@ -100,7 +100,7 @@ class Repository(object):
 
         :param cfg: location of easyconfig file
         :param name: software name
-        :param version: software install version, incl. toolchain & versionsuffix
+        :param version: software install version, incl. toolchain & version_suffix
         :param stats: build stats, to add to archived easyconfig
         :param previous: list of previous build stats
         :return: location of archived easyconfig
@@ -131,7 +131,7 @@ class Repository(object):
         """
         pass
 
-    def get_buildstats(self, name, ec_version):
+    def get_build_stats(self, name, ec_version):
         """
         Get the build statististics for software with name and easyconfig version
         """

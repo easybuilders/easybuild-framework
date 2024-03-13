@@ -92,17 +92,17 @@ class Slurm(JobBackend):
         """
         self._submitted = []
 
-    def queue(self, job, dependencies=frozenset()):
+    def queue(self, job, deps=frozenset()):
         """
         Add a job to the queue.
 
-        :param dependencies: jobs on which this job depends.
+        :param deps: jobs on which this job depends.
         """
         submit_cmd = 'sbatch'
 
-        if dependencies:
-            job.job_specs['dependency'] = self.job_deps_type + ':' + ':'.join(str(d.jobid) for d in dependencies)
-            # make sure job that has invalid dependencies doesn't remain queued indefinitely
+        if deps:
+            job.job_specs['dependency'] = self.job_deps_type + ':' + ':'.join(str(d.jobid) for d in deps)
+            # make sure job that has invalid deps doesn't remain queued indefinitely
             submit_cmd += " --kill-on-invalid-dep=yes"
 
         # submit job with hold in place

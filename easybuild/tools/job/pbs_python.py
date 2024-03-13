@@ -109,14 +109,14 @@ class PbsPython(JobBackend):
             self.conn = pbs.pbs_connect(self.pbs_server)
         return self.conn
 
-    def queue(self, job, dependencies=frozenset()):
+    def queue(self, job, deps=frozenset()):
         """
         Add a job to the queue.
 
-        :param dependencies: jobs on which this job depends.
+        :param deps: jobs on which this job depends.
         """
-        if dependencies:
-            job.add_dependencies(dependencies)
+        if deps:
+            job.add_deps(deps)
         job._submit()
         self._submitted.append(job)
 
@@ -242,14 +242,14 @@ class PbsJob(object):
         self.queue = None
         # job id of this job
         self.jobid = None
-        # list of dependencies for this job
+        # list of deps for this job
         self.deps = []
         # list of holds that are placed on this job
         self.holds = []
 
         job_deps_type = build_option('job_deps_type')
 
-        # mark job dependencies with 'afterany' by default to retain backward compatibility for pbs_python job backend
+        # mark job deps with 'afterany' by default to retain backward compatibility for pbs_python job backend
         if job_deps_type is None:
             job_deps_type = JOB_DEPS_TYPE_ALWAYS_RUN
             self.log.info("Using default job dependency type: %s", job_deps_type)
@@ -268,9 +268,9 @@ class PbsJob(object):
         return (str(self.jobid) if self.jobid is not None
                 else repr(self))
 
-    def add_dependencies(self, jobs):
+    def add_deps(self, jobs):
         """
-        Add dependencies to this job.
+        Add deps to this job.
 
         Argument `jobs` is a sequence of `PbsJob` objects.
         """
@@ -303,7 +303,7 @@ class PbsJob(object):
             idx += 1
         pbs_attributes.extend(resource_attributes)
 
-        # add job dependencies to attributes
+        # add job deps to attributes
         if self.deps:
             deps_attributes = pbs.new_attropl(1)
             deps_attributes[0].name = pbs.ATTR_depend

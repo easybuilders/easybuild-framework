@@ -45,16 +45,16 @@ def get_build_stats(app, start_time, command_line):
     time_now = time.time()
     build_time = round(time_now - start_time, 2)
 
-    buildstats = OrderedDict([
+    build_stats = OrderedDict([
         ('easybuild-framework_version', str(FRAMEWORK_VERSION)),
         ('easybuild-easyblocks_version', str(EASYBLOCKS_VERSION)),
         ('timestamp', int(time_now)),
         ('build_time', build_time),
         ('install_size', det_size(app.installdir)),
         ('command_line', command_line),
-        ('modules_tool', app.modules_tool.buildstats()),
+        ('modules_tool', app.modules_tool.build_stats()),
     ])
     for key, val in sorted(get_system_info().items()):
-        buildstats.update({key: val})
+        build_stats.update({key: val})
 
-    return buildstats
+    return build_stats

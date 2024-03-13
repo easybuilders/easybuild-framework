@@ -17,7 +17,7 @@ extract_cmd="local_extract_cmd_pattern"
 if [[ "$(basename "$git_repo")" == "pytorch" ]]; then
     # Folder in git_repo where submodules are located in
     thirdparty_dir="third_party"
-    # Repo names for dependencies that should be ignored
+    # Repo names for deps that should be ignored
     repo_ignore=(zstd nccl six enum34 ios-cmake ARM_NEON_2_x86_SSE clang-cindex-python3 protobuf pybind11)
     # Subdir of git_repo to ignore
     subdir_ignore=(

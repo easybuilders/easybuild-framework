@@ -13,7 +13,7 @@ sources = [SOURCE_TAR_GZ]
 source_urls = [GNU_SOURCE]
 
 # Testing purposes only so remove deps
-#builddependencies = [
+#build_deps = [
 #    ('M4', '1.4.17'),
 #    ('flex', '2.5.39'),
 #    ('Bison', '3.0.4'),
@@ -23,4 +23,4 @@ source_urls = [GNU_SOURCE]
 #    ('binutils', version, '', SYSTEM)
 #]
 
-moduleclass = 'tools'
+env_mod_class = 'tools'

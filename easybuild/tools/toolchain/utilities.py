@@ -124,7 +124,7 @@ def get_toolchain(tc, tcopts, mns=None, tcdeps=None, modtool=None):
     :param tc: dictionary specifying toolchain name/version
     :param tcopts: dictionary specifying toolchain options
     :param mns: module naming scheme to use
-    :param tcdeps: toolchain dependencies (i.e. toolchain components)
+    :param tcdeps: toolchain deps (i.e. toolchain components)
     :param modtool: ModulesTool instance to use
     """
     key = (tc['name'], tc['version'])

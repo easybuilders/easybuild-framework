@@ -60,7 +60,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     USABLE = True
 
     PYHEADER_ALLOWED_BUILTINS = ['len', 'False', 'True']
-    PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'software_license', 'software_license_urls', 'docurls']
+    PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'software_license', 'software_license_urls', 'doc_urls']
     PYHEADER_BLACKLIST = ['version', 'toolchain']
 
     NAME_DOCSTRING_REGEX_TEMPLATE = r'^\s*@%s\s*:\s*(?P<name>\S.*?)\s*$'  # non-greedy match in named pattern

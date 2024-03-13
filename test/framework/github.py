@@ -127,58 +127,58 @@ class GithubTest(EnhancedTestCase):
             homepage = 'http://foo.com/'
             description = ''
             toolchain = {'name': '%s', 'version': '%s'}
-            moduleclass = '%s'
+            env_mod_class = '%s'
             %s
         """)
 
-        # 1 easyconfig, with no versionsuffix
+        # 1 easyconfig, with no version_suffix
         ecs = []
         ecs.append(EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools', '')))
         self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0] prog v1')
 
-        # 2 easyconfigs, with no versionsuffixes
+        # 2 easyconfigs, with no version_suffixes
         ecs.append(EasyConfig(None, rawtxt=rawtxt % ('otherprog', '2', 'GCCcore', '11.2.0', 'lib', '')))
         self.assertEqual(det_pr_title(ecs), '{lib,tools}[GCC/11.2.0,GCCcore/11.2.0] prog v1, otherprog v2')
 
-        # 3 easyconfigs, with no versionsuffixes
+        # 3 easyconfigs, with no version_suffixes
         ecs.append(EasyConfig(None, rawtxt=rawtxt % ('extraprog', '3', 'foss', '2022a', 'astro', '')))
         self.assertEqual(det_pr_title(ecs),
                          '{astro,lib,tools}[GCC/11.2.0,GCCcore/11.2.0,foss/2022a] prog v1, otherprog v2, extraprog v3')
 
-        # 2 easyconfigs for the same prog, with no versionsuffixes
+        # 2 easyconfigs for the same prog, with no version_suffixes
         ecs[1] = EasyConfig(None, rawtxt=rawtxt % ('prog', '2', 'GCC', '11.3.0', 'tools', ''))
         ecs.pop(2)
         self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0,GCC/11.3.0] prog v1, prog v2')
 
-        # 1 easyconfig, with versionsuffix
+        # 1 easyconfig, with version_suffix
         ecs = []
         ecs.append(EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
-                                                     'versionsuffix = "-Python-3.10.4"')))
+                                                     'version_suffix = "-Python-3.10.4"')))
         self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0] prog v1 w/ Python 3.10.4')
 
-        # 1 easyconfig, with versionsuffix
+        # 1 easyconfig, with version_suffix
         ecs[0] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
-                                                   'versionsuffix = "-Python-3.10.4-CUDA-11.3.1"'))
+                                                   'version_suffix = "-Python-3.10.4-CUDA-11.3.1"'))
         self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0] prog v1 w/ Python 3.10.4 CUDA 11.3.1')
 
-        # 2 easyconfigs, with same versionsuffix
+        # 2 easyconfigs, with same version_suffix
         ecs[0] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
-                                                   'versionsuffix = "-Python-3.10.4"'))
+                                                   'version_suffix = "-Python-3.10.4"'))
         ecs.append(EasyConfig(None, rawtxt=rawtxt % ('prog', '2', 'GCC', '11.3.0', 'tools',
-                                                     'versionsuffix = "-Python-3.10.4"')))
+                                                     'version_suffix = "-Python-3.10.4"')))
         self.assertEqual(det_pr_title(ecs), '{tools}[GCC/11.2.0,GCC/11.3.0] prog v1, prog v2 w/ Python 3.10.4')
 
-        # 2 easyconfigs, with different versionsuffix
+        # 2 easyconfigs, with different version_suffix
         ecs[0] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
-                                                   'versionsuffix = "-CUDA-11.3.1"'))
+                                                   'version_suffix = "-CUDA-11.3.1"'))
         self.assertEqual(det_pr_title(ecs),
                          '{tools}[GCC/11.2.0,GCC/11.3.0] prog v1, prog v2 w/ CUDA 11.3.1, Python 3.10.4')
 
-        # 2 easyconfigs, with unusual versionsuffixes
+        # 2 easyconfigs, with unusual version_suffixes
         ecs[0] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
-                                                   'versionsuffix = "-contrib"'))
+                                                   'version_suffix = "-contrib"'))
         ecs[1] = EasyConfig(None, rawtxt=rawtxt % ('prog', '1', 'GCC', '11.2.0', 'tools',
-                                                   'versionsuffix = "-Python-3.10.4-CUDA-11.3.1-contrib"'))
+                                                   'version_suffix = "-Python-3.10.4-CUDA-11.3.1-contrib"'))
         self.assertEqual(det_pr_title(ecs),
                          '{tools}[GCC/11.2.0] prog v1 w/ Python 3.10.4 CUDA 11.3.1 contrib, contrib')
 

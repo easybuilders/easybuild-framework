@@ -3,7 +3,7 @@ easyblock = 'EB_toy'
 
 name = "GCC"
 version = '7.3.0'
-versionsuffix = '-2.30'
+version_suffix = '-2.30'
 
 homepage = 'http://gcc.gnu.org/'
 description = """The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran,
@@ -23,6 +23,6 @@ sources = [SOURCELOWER_TAR_GZ]
 # languages = ['c', 'c++', 'fortran', 'lto']
 
 # building GCC sometimes fails if make parallelism is too high, so let's limit it
-maxparallel = 4
+max_parallel = 4
 
-moduleclass = 'compiler'
+env_mod_class = 'compiler'

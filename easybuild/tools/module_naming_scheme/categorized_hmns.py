@@ -50,27 +50,27 @@ from easybuild.tools.config import build_option
 class CategorizedHMNS(HierarchicalMNS):
     """
     Class implementing an extended hierarchical module naming scheme using the
-    'moduleclass' easyconfig parameter to categorize modulefiles on each level
+    'env_mod_class' easyconfig parameter to categorize modulefiles on each level
     of the hierarchy.
     """
 
-    REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain', 'moduleclass']
+    REQUIRED_KEYS = ['name', 'version', 'version_suffix', 'toolchain', 'env_mod_class']
 
     def det_module_subdir(self, ec):
         """
         Determine module subdirectory, relative to the top of the module path.
         This determines the separation between module names exposed to users,
         and what's part of the $MODULEPATH. This implementation appends the
-        'moduleclass' easyconfig parameter to the base path of the corresponding
+        'env_mod_class' easyconfig parameter to the base path of the corresponding
         hierarchy level.
 
         Examples:
         Core/compiler, Compiler/GCC/4.8.3/mpi, MPI/GCC/4.8.3/OpenMPI/1.6.5/bio
         """
-        moduleclass = ec['moduleclass']
+        env_mod_class = ec['env_mod_class']
         basedir = super(CategorizedHMNS, self).det_module_subdir(ec)
 
-        return os.path.join(basedir, moduleclass)
+        return os.path.join(basedir, env_mod_class)
 
     def det_modpath_extensions(self, ec):
         """
@@ -78,8 +78,8 @@ class CategorizedHMNS(HierarchicalMNS):
         module classes to the base path of the corresponding hierarchy level.
 
         Examples:
-        Compiler/GCC/4.8.3/<moduleclasses> (for GCC/4.8.3 module),
-        MPI/GCC/4.8.3/OpenMPI/1.6.5/<moduleclasses> (for OpenMPI/1.6.5 module)
+        Compiler/GCC/4.8.3/<env_mod_classes> (for GCC/4.8.3 module),
+        MPI/GCC/4.8.3/OpenMPI/1.6.5/<env_mod_classes> (for OpenMPI/1.6.5 module)
         """
         basepaths = super(CategorizedHMNS, self).det_modpath_extensions(ec)
 
@@ -102,7 +102,7 @@ class CategorizedHMNS(HierarchicalMNS):
         Appends all known (valid) module classes to the top-level base path.
 
         Examples:
-        Core/<moduleclasses>
+        Core/<env_mod_classes>
         """
         basepaths = super(CategorizedHMNS, self).det_init_modulepaths(ec)
 
@@ -117,7 +117,7 @@ class CategorizedHMNS(HierarchicalMNS):
 
         paths = []
         for path in basepaths:
-            for moduleclass in valid_module_classes:
-                paths.extend([os.path.join(path, moduleclass)])
+            for env_mod_class in valid_module_classes:
+                paths.extend([os.path.join(path, env_mod_class)])
 
         return paths

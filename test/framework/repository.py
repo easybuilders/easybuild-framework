@@ -168,14 +168,14 @@ class RepositoryTest(EnhancedTestCase):
         repo = init_repository('FileRepository', self.path)
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
 
-        def check_ec(path, expected_buildstats):
+        def check_ec(path, expected_build_stats):
             """Check easyconfig at specified path"""
             self.assertExists(path)
             ectxt = read_file(path)
             self.assertTrue(ectxt.startswith("# Built with EasyBuild version"))
             self.assertIn("# Build statistics", ectxt)
             ecdict = EasyConfigParser(path).get_config_dict()
-            self.assertEqual(ecdict['buildstats'], expected_buildstats)
+            self.assertEqual(ecdict['build_stats'], expected_build_stats)
 
         toy_eb_file = os.path.join(test_easyconfigs, 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 

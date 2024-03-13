@@ -25,8 +25,8 @@ source_urls = ['http://www.sqlite.org/2015/']
 local_version_str = '%(version_major)s' + ''.join('%02d' % int(x) for x in version.split('.')[1:])
 sources = ['sqlite-autoconf-%s.tar.gz' % local_version_str]
 
-# commented out for testing to avoid having to add them all - dependencies are tested in other files
-dependencies = [
+# commented out for testing to avoid having to add them all - deps are tested in other files
+deps = [
     # ('libreadline', '6.3'),
     # ('Tcl', '8.6.4'),
 ]
@@ -38,4 +38,4 @@ sanity_check_paths = {
     'dirs': ['lib/pkgconfig'],
 }
 
-moduleclass = 'devel'
+env_mod_class = 'devel'

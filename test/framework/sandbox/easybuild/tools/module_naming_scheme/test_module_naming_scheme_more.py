@@ -46,7 +46,7 @@ _log = fancylogger.getLogger('TestModuleNamingSchemeMore', fname=False)
 class TestModuleNamingSchemeMore(ModuleNamingScheme):
     """Class implementing a test module naming scheme that uses some 'unusual' easyconfig parameters."""
 
-    REQUIRED_KEYS = ['name', 'version', 'toolchain', 'moduleclass', 'sources', 'description']
+    REQUIRED_KEYS = ['name', 'version', 'toolchain', 'env_mod_class', 'sources', 'description']
 
     def det_full_module_name(self, ec):
         """

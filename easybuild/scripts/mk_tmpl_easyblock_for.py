@@ -172,7 +172,7 @@ class %(class_name)s(%(parent)s):
     def test_step(self):
         \"\"\"Custom built-in test procedure for %(name)s.\"\"\"
 
-        if self.cfg['runtest']:
+        if self.cfg['run_test']:
             cmd = "test-command"
             run_shell_cmd(cmd)
 

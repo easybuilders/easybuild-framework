@@ -118,10 +118,10 @@ def package_with_fpm(easyblock):
         toolchain_dict = easyblock.toolchain.as_dict()
         deps.extend([toolchain_dict])
 
-    deps.extend(easyblock.cfg.dependencies())
+    deps.extend(easyblock.cfg.deps())
 
     _log.debug("The dependencies to be added to the package are: %s",
-               pprint.pformat([easyblock.toolchain.as_dict()] + easyblock.cfg.dependencies()))
+               pprint.pformat([easyblock.toolchain.as_dict()] + easyblock.cfg.deps()))
     for dep in deps:
         if dep.get('external_module', False):
             _log.debug("Skipping dep marked as external module: %s", dep['name'])

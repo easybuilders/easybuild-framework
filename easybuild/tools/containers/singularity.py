@@ -292,7 +292,7 @@ class SingularityContainer(ContainerGenerator):
 
         # also include additional OS dependencies specified in easyconfigs
         for ec in self.easyconfigs:
-            for osdep in ec['ec']['osdependencies']:
+            for osdep in ec['ec']['os_deps']:
                 if osdep not in osdeps:
                     osdeps.append(osdep)
 

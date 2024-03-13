@@ -275,7 +275,7 @@ class EasyBuildOptions(GeneralOption):
             'missing-modules': ("Print list of missing modules for dependencies of specified easyconfigs",
                                 None, 'store_true', False, 'M'),
             'only-blocks': ("Only build listed blocks", 'strlist', 'extend', None, 'b', {'metavar': 'BLOCKS'}),
-            'rebuild': ("Rebuild software, even if module already exists (don't skip OS dependencies checks)",
+            'rebuild': ("Rebuild software, even if module already exists (don't skip OS dependency checks)",
                         None, 'store_true', False),
             'robot': ("Enable dependency resolution, optionally consider additional paths to search for easyconfigs",
                       'pathlist', 'store_or_None', [], 'r', {'metavar': '[PATH[%sPATH]]' % os.pathsep}),
@@ -305,7 +305,7 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'amend': (("Specify additional search and build parameters (can be used multiple times); "
-                       "for example: versionprefix=foo or patches=one.patch,two.patch)"),
+                       "for example: version_prefix=foo or patches=one.patch,two.patch)"),
                       None, 'append', None, {'metavar': 'VAR=VALUE[,VALUE]'}),
             'software': ("Search and build software with given name and version",
                          'strlist', 'extend', None, {'metavar': 'NAME,VERSION'}),
@@ -331,7 +331,7 @@ class EasyBuildOptions(GeneralOption):
         opts['try-update-deps'] = ("Try to update versions of the dependencies of an easyconfig based on what is "
                                    "available in the robot path",
                                    None, 'store_true', False)
-        opts['try-ignore-versionsuffixes'] = ("Ignore versionsuffix differences when --try-update-deps is used",
+        opts['try-ignore-versionsuffixes'] = ("Ignore version_suffix differences when --try-update-deps is used",
                                               None, 'store_true', False)
 
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
@@ -577,7 +577,7 @@ class EasyBuildOptions(GeneralOption):
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
-            'module-depends-on': ("Use depends_on (Lmod 7.6.1+) for dependencies in all generated modules "
+            'module-depends-on': ("Use depends_on (Lmod 7.6.1+) for deps in all generated modules "
                                   "(implies recursive unloading of modules).",
                                   None, 'store_true', False),
             'module-extensions': ("Include 'extensions' statement in generated module file (Lua syntax only)",
@@ -648,10 +648,10 @@ class EasyBuildOptions(GeneralOption):
             'avail-hooks': ("Show list of known hooks", None, 'store_true', False),
             'avail-toolchain-opts': ("Show options for toolchain", 'str', 'store', None),
             'check-conflicts': ("Check for version conflicts in dependency graphs", None, 'store_true', False),
-            'check-eb-deps': ("Check presence and version of (required and optional) EasyBuild dependencies",
+            'check-eb-deps': ("Check presence and version of (required and optional) EasyBuild deps",
                               None, 'store_true', False),
             'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
-            'dump-env-script': ("Dump source script to set up build environment based on toolchain/dependencies",
+            'dump-env-script': ("Dump source script to set up build environment based on toolchain/deps",
                                 None, 'store_true', False),
             'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),
             'list-easyblocks': ("Show list of available easyblocks",
@@ -1005,11 +1005,11 @@ class EasyBuildOptions(GeneralOption):
         """Postprocess --close-pr-reasons options"""
         if self.options.close_pr_msg:
             raise EasyBuildError("Please either specify predefined reasons with --close-pr-reasons or " +
-                                 "a custom message with--close-pr-msg")
+                                 "a custom message with --close-pr-msg")
 
         reasons = self.options.close_pr_reasons.split(',')
         if any([reason not in VALID_CLOSE_PR_REASONS.keys() for reason in reasons]):
-            raise EasyBuildError("Argument to --close-pr_reasons must be a comma separated list of valid reasons " +
+            raise EasyBuildError("Argument to --close-pr-reasons must be a comma separated list of valid reasons " +
                                  "among %s" % VALID_CLOSE_PR_REASONS.keys())
         self.options.close_pr_msg = ", ".join([VALID_CLOSE_PR_REASONS[reason] for reason in reasons])
 

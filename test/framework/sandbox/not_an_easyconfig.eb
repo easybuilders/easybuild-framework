@@ -1225,7 +1225,7 @@
       </tr>
       <tr>
         <td id="L4" class="blob-num js-line-number" data-line-number="4"></td>
-        <td id="LC4" class="blob-code blob-code-inner js-file-line">versionsuffix <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">&#39;</span>-X11-<span class="pl-c1">%s</span><span class="pl-pds">&#39;</span></span> <span class="pl-k">%</span> x11ver</td>
+        <td id="LC4" class="blob-code blob-code-inner js-file-line">version_suffix <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">&#39;</span>-X11-<span class="pl-c1">%s</span><span class="pl-pds">&#39;</span></span> <span class="pl-k">%</span> x11ver</td>
       </tr>
       <tr>
         <td id="L5" class="blob-num js-line-number" data-line-number="5"></td>
@@ -1273,7 +1273,7 @@
       </tr>
       <tr>
         <td id="L15" class="blob-num js-line-number" data-line-number="15"></td>
-        <td id="LC15" class="blob-code blob-code-inner js-file-line">builddependencies <span class="pl-k">=</span> [</td>
+        <td id="LC15" class="blob-code blob-code-inner js-file-line">build_deps <span class="pl-k">=</span> [</td>
       </tr>
       <tr>
         <td id="L16" class="blob-num js-line-number" data-line-number="16"></td>
@@ -1285,7 +1285,7 @@
       </tr>
       <tr>
         <td id="L18" class="blob-num js-line-number" data-line-number="18"></td>
-        <td id="LC18" class="blob-code blob-code-inner js-file-line">dependencies <span class="pl-k">=</span> [</td>
+        <td id="LC18" class="blob-code blob-code-inner js-file-line">deps <span class="pl-k">=</span> [</td>
       </tr>
       <tr>
         <td id="L19" class="blob-num js-line-number" data-line-number="19"></td>
@@ -1414,7 +1414,7 @@
       </tr>
       <tr>
         <td id="L50" class="blob-num js-line-number" data-line-number="50"></td>
-        <td id="LC50" class="blob-code blob-code-inner js-file-line">osdependencies <span class="pl-k">=</span> [(<span class="pl-s"><span class="pl-pds">&#39;</span>openssl-devel<span class="pl-pds">&#39;</span></span>, <span class="pl-s"><span class="pl-pds">&#39;</span>libssl-dev<span class="pl-pds">&#39;</span></span>, <span class="pl-s"><span class="pl-pds">&#39;</span>libopenssl-devel<span class="pl-pds">&#39;</span></span>)]</td>
+        <td id="LC50" class="blob-code blob-code-inner js-file-line">os_deps <span class="pl-k">=</span> [(<span class="pl-s"><span class="pl-pds">&#39;</span>openssl-devel<span class="pl-pds">&#39;</span></span>, <span class="pl-s"><span class="pl-pds">&#39;</span>libssl-dev<span class="pl-pds">&#39;</span></span>, <span class="pl-s"><span class="pl-pds">&#39;</span>libopenssl-devel<span class="pl-pds">&#39;</span></span>)]</td>
       </tr>
       <tr>
         <td id="L51" class="blob-num js-line-number" data-line-number="51"></td>
@@ -1423,7 +1423,7 @@
       </tr>
       <tr>
         <td id="L52" class="blob-num js-line-number" data-line-number="52"></td>
-        <td id="LC52" class="blob-code blob-code-inner js-file-line">configopts <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">&quot;</span>--with-pic --enable-threads --enable-R-shlib<span class="pl-pds">&quot;</span></span></td>
+        <td id="LC52" class="blob-code blob-code-inner js-file-line">configure_opts <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">&quot;</span>--with-pic --enable-threads --enable-R-shlib<span class="pl-pds">&quot;</span></span></td>
       </tr>
       <tr>
         <td id="L53" class="blob-num js-line-number" data-line-number="53"></td>
@@ -1431,7 +1431,7 @@
       </tr>
       <tr>
         <td id="L54" class="blob-num js-line-number" data-line-number="54"></td>
-        <td id="LC54" class="blob-code blob-code-inner js-file-line">configopts <span class="pl-k">+=</span> <span class="pl-s"><span class="pl-pds">&quot;</span> --with-recommended-packages=no<span class="pl-pds">&quot;</span></span></td>
+        <td id="LC54" class="blob-code blob-code-inner js-file-line">configure_opts <span class="pl-k">+=</span> <span class="pl-s"><span class="pl-pds">&quot;</span> --with-recommended-packages=no<span class="pl-pds">&quot;</span></span></td>
       </tr>
       <tr>
         <td id="L55" class="blob-num js-line-number" data-line-number="55"></td>
@@ -1457,7 +1457,7 @@
       </tr>
       <tr>
         <td id="L60" class="blob-num js-line-number" data-line-number="60"></td>
-        <td id="LC60" class="blob-code blob-code-inner js-file-line">exts_default_options <span class="pl-k">=</span> {</td>
+        <td id="LC60" class="blob-code blob-code-inner js-file-line">exts_default_opts <span class="pl-k">=</span> {</td>
       </tr>
       <tr>
         <td id="L61" class="blob-num js-line-number" data-line-number="61"></td>
@@ -8467,7 +8467,7 @@
       </tr>
       <tr>
         <td id="L1812" class="blob-num js-line-number" data-line-number="1812"></td>
-        <td id="LC1812" class="blob-code blob-code-inner js-file-line">moduleclass <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">&#39;</span>lang<span class="pl-pds">&#39;</span></span></td>
+        <td id="LC1812" class="blob-code blob-code-inner js-file-line">env_mod_class <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">&#39;</span>lang<span class="pl-pds">&#39;</span></span></td>
       </tr>
 </table>
 

@@ -28,7 +28,7 @@ source_urls = [
 # languages = ['c', 'c++', 'fortran', 'lto']
 
 # compiler class
-moduleclass = 'compiler'
+env_mod_class = 'compiler'
 
 # building GCC sometimes fails if make parallelism is too high, so let's limit it
-maxparallel = 4
+max_parallel = 4

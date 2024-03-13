@@ -43,7 +43,7 @@ from easybuild.tools.job import pbs_python
 from easybuild.tools.job.pbs_python import PbsPython
 from easybuild.tools.options import parse_options
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel, submit_jobs
-from easybuild.tools.robot import resolve_dependencies
+from easybuild.tools.robot import resolve_deps
 
 
 # test GC3Pie configuration with large resource specs
@@ -94,7 +94,7 @@ class MockPbsJob(object):
         self.script = args[1]
         self.cores = kwargs['cores']
 
-    def add_dependencies(self, jobs):
+    def add_deps(self, jobs):
         self.deps.extend(jobs)
 
     def cleanup(self, *args, **kwargs):
@@ -141,7 +141,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
         easyconfigs = process_easyconfig(ec_file)
-        ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
+        ordered_ecs = resolve_deps(easyconfigs, self.modtool)
         jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
         # only one job submitted since foss/2018a module is already available
         self.assertEqual(len(jobs), 1)
@@ -149,7 +149,7 @@ class ParallelBuildTest(EnhancedTestCase):
         self.assertTrue(regex.search(jobs[-1].script), "Pattern '%s' found in: %s" % (regex.pattern, jobs[-1].script))
 
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
-        ordered_ecs = resolve_dependencies(process_easyconfig(ec_file), self.modtool, retain_all_deps=True)
+        ordered_ecs = resolve_deps(process_easyconfig(ec_file), self.modtool, retain_all_deps=True)
         jobs = submit_jobs(ordered_ecs, '', testing=False, prepare_first=False)
 
         # make sure command is correct, and that --hidden is there when it needs to be
@@ -172,7 +172,7 @@ class ParallelBuildTest(EnhancedTestCase):
         self.assertEqual(len(jobs[2].deps), 1)
         self.assertIn('intel-2018a.eb', jobs[2].deps[0].script)
 
-        # dependencies for gzip/1.4-GCC-4.6.3: GCC/4.6.3 (toolchain) + toy/.0.0-deps
+        # deps for gzip/1.4-GCC-4.6.3: GCC/4.6.3 (toolchain) + toy/.0.0-deps
         self.assertIn('gzip-1.4-GCC-4.6.3.eb', jobs[3].script)
         self.assertEqual(len(jobs[3].deps), 2)
         regex = re.compile(r'toy-0.0-deps\.eb.* --hidden')
@@ -183,7 +183,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         # also test use of --pre-create-installdir
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-        ordered_ecs = resolve_dependencies(process_easyconfig(ec_file), self.modtool)
+        ordered_ecs = resolve_deps(process_easyconfig(ec_file), self.modtool)
 
         # installation directory doesn't exist yet before submission
         toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
@@ -258,7 +258,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         easyconfigs = process_easyconfig(ec_file)
-        ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
+        ordered_ecs = resolve_deps(easyconfigs, self.modtool)
         topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         test_easyblocks_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
         cmd = "PYTHONPATH=%s:%s:$PYTHONPATH eb %%(spec)s -df" % (topdir, test_easyblocks_path)
@@ -277,7 +277,7 @@ class ParallelBuildTest(EnhancedTestCase):
         regex = re.compile('^version = .*', re.M)
         ectxt = regex.sub("version = '1.2.3'", ectxt)
         write_file(test_ecfile, ectxt)
-        ecs = resolve_dependencies(process_easyconfig(test_ecfile), self.modtool)
+        ecs = resolve_deps(process_easyconfig(test_ecfile), self.modtool)
 
         error = "1 jobs failed: toy-1.2.3"
         self.assertErrorRegex(EasyBuildError, error, build_easyconfigs_in_parallel, cmd, ecs, prepare_first=False)
@@ -360,7 +360,7 @@ class ParallelBuildTest(EnhancedTestCase):
         init_config(args=['--job-backend=Slurm'], build_options=build_options)
 
         easyconfigs = process_easyconfig(test_ec) + process_easyconfig(foss_ec)
-        ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
+        ordered_ecs = resolve_deps(easyconfigs, self.modtool)
         self.mock_stdout(True)
         jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
         self.mock_stdout(False)

@@ -211,13 +211,13 @@ class GC3Pie(JobBackend):
 
         return Application(['/bin/sh', '-c', script], **named_args)
 
-    def queue(self, job, dependencies=frozenset()):
+    def queue(self, job, deps=frozenset()):
         """
-        Add a job to the queue, optionally specifying dependencies.
+        Add a job to the queue, optionally specifying deps.
 
-        :param dependencies: jobs on which this job depends.
+        :param deps: jobs on which this job depends.
         """
-        self.jobs.add(job, dependencies)
+        self.jobs.add(job, deps)
         # since it's not trivial to determine the correct job count from self.jobs, we keep track of a count ourselves
         self.job_cnt += 1
 

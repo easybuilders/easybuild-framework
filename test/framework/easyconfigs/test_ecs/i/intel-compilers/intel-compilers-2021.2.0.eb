@@ -28,9 +28,9 @@ checksums = [
 
 # dummy easyconfig, only for use with easybuild-framwork test suite!
 local_gccver = '10.3.0'
-dependencies = [
+deps = [
     # ('GCCcore', local_gccver),
     # ('binutils', '2.36.1', '', ('GCCcore', local_gccver)),
 ]
 
-moduleclass = 'compiler'
+env_mod_class = 'compiler'

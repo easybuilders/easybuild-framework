@@ -20,4 +20,4 @@ sources = [
     SOURCELOWER_TAR_BZ2,
 ]
 
-moduleclass = 'compiler'
+env_mod_class = 'compiler'

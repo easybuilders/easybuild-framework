@@ -61,8 +61,8 @@ TEMPLATE_NAMES_CONFIG = [
     'name',
     'parallel',
     'version',
-    'versionsuffix',
-    'versionprefix',
+    'version_suffix',
+    'version_prefix',
 ]
 # lowercase versions of ._config
 TEMPLATE_NAMES_LOWER_TEMPLATE = "%(name)slower"
@@ -258,28 +258,28 @@ def template_constant_dict(config, ignore=None, toolchain=None):
     if TEMPLATE_SOFTWARE_VERSIONS:
 
         name_to_prefix = dict((name.lower(), pref) for name, pref in TEMPLATE_SOFTWARE_VERSIONS)
-        deps = config.get('dependencies', [])
+        deps = config.get('deps', [])
 
-        # also consider build dependencies for *ver and *shortver templates;
+        # also consider build deps for *ver and *shortver templates;
         # we need to be a bit careful here, because for iterative installations
-        # (when multi_deps is used for example) the builddependencies value may be a list of lists
+        # (when multi_deps is used for example) the build_deps value may be a list of lists
 
         # first, determine if we have an EasyConfig instance
         # (indirectly by checking for 'iterating' and 'iterate_options' attributes,
         #  because we can't import the EasyConfig class here without introducing
         #  a cyclic import...);
-        # we need to know to determine whether we're iterating over a list of build dependencies
+        # we need to know to determine whether we're iterating over a list of build deps
         is_easyconfig = hasattr(config, 'iterating') and hasattr(config, 'iterate_options')
         if is_easyconfig:
-            # if we're iterating over different lists of build dependencies,
-            # only consider build dependencies when we're actually in iterative mode!
-            if 'builddependencies' in config.iterate_options:
+            # if we're iterating over different lists of build deps,
+            # only consider build deps when we're actually in iterative mode!
+            if 'build_deps' in config.iterate_options:
                 if config.iterating:
-                    build_deps = config.get('builddependencies')
+                    build_deps = config.get('build_deps')
                 else:
                     build_deps = None
             else:
-                build_deps = config.get('builddependencies')
+                build_deps = config.get('build_deps')
             if build_deps:
                 # Don't use += to avoid changing original list
                 deps = deps + build_deps
@@ -296,7 +296,7 @@ def template_constant_dict(config, ignore=None, toolchain=None):
             if isinstance(dep, dict):
                 dep_name, dep_version = dep['name'], dep['version']
 
-                # take into account dependencies marked as external modules,
+                # take into account deps marked as external modules,
                 # where name/version may have to be harvested from metadata available for that external module
                 if dep.get('external_module', False):
                     metadata = dep.get('external_module_metadata', {})
