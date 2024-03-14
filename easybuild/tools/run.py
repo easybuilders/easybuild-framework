@@ -38,6 +38,7 @@ Authors:
 import contextlib
 import functools
 import inspect
+import locale
 import os
 import re
 import signal
@@ -350,8 +351,11 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         (stdout, stderr) = proc.communicate(input=stdin)
 
     # return output as a regular string rather than a byte sequence (and non-UTF-8 characters get stripped out)
-    output = stdout.decode('utf-8', 'ignore')
-    stderr = stderr.decode('utf-8', 'ignore') if split_stderr else None
+    # getpreferredencoding normally gives 'utf-8' but can be ASCII (ANSI_X3.4-1968)
+    # for Python 3.6 and older with LC_ALL=C
+    encoding = locale.getpreferredencoding(False)
+    output = stdout.decode(encoding, 'ignore')
+    stderr = stderr.decode(encoding, 'ignore') if split_stderr else None
 
     # store command output to temporary file(s)
     if output_file:
