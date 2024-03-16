@@ -377,12 +377,12 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, commit=None, accoun
     mkdir(path, parents=True)
 
     if commit:
-        # make sure that full commit SHA-1 is provided
+        # make sure that full commit SHA is provided
         commit_sha1_regex = re.compile('[0-9a-f]{40}')
         if commit_sha1_regex.match(commit):
-            _log.info("Valid commit SHA-1 provided for downloading %s/%s: %s", account, repo, commit)
+            _log.info("Valid commit SHA provided for downloading %s/%s: %s", account, repo, commit)
         else:
-            error_msg = "Specified commit SHA-1 %s for downloading %s/%s is not valid, "
+            error_msg = r"Specified commit SHA %s for downloading %s/%s is not valid, "
             error_msg += "must be full SHA-1 (40 chars)"
             raise EasyBuildError(error_msg, commit, account, repo)
 
@@ -622,6 +622,8 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
                 else:
                     raise EasyBuildError("Failed to isolate path for commit %s from list of commit paths: %s",
                                          commit, extra_ec_paths)
+            else:
+                path = os.path.join(tempfile.gettempdir(), 'ecs_commit_' + commit)
 
         elif github_repo == GITHUB_EASYBLOCKS_REPO:
             path = os.path.join(tempfile.gettempdir(), 'ebs_commit_' + commit)
@@ -633,12 +635,14 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
         diff_url = os.path.join(GITHUB_URL, github_account, github_repo, 'commit', commit + '.diff')
         diff_fn = os.path.basename(diff_url)
         diff_filepath = os.path.join(path, diff_fn)
-        download_file(diff_fn, diff_url, diff_filepath, forced=True)
-        diff_txt = read_file(diff_filepath)
-        _log.debug("Diff for commit %s:\n%s", commit, diff_txt)
+        if download_file(diff_fn, diff_url, diff_filepath, forced=True):
+            diff_txt = read_file(diff_filepath)
+            _log.debug("Diff for commit %s:\n%s", commit, diff_txt)
 
-        files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
-        _log.debug("List of patched files for commit %s: %s", commit, files)
+            files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
+            _log.debug("List of patched files for commit %s: %s", commit, files)
+        else:
+            raise EasyBuildError("Failed to download diff for commit %s of %s/%s", commit, github_account, github_repo)
 
     # download tarball for specific commit
     repo_commit = download_repo(repo=github_repo, commit=commit, account=github_account)
@@ -647,6 +651,8 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
         files_subdir = 'easybuild/easyconfigs/'
     elif github_repo == GITHUB_EASYBLOCKS_REPO:
         files_subdir = 'easybuild/easyblocks/'
+    else:
+        raise EasyBuildError("Unknown repo: %s" % github_repo)
 
     # copy specified files to directory where they're expected to be found
     file_paths = []
