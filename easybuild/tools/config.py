@@ -489,6 +489,7 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'repository',
         'repositorypath',
         'sourcepath',
+        'sourcepath_data',
         'subdir_modules',
         'subdir_software',
         'subdir_data',
@@ -530,13 +531,14 @@ def init(options, config_options_dict):
     """
     tmpdict = copy.deepcopy(config_options_dict)
 
-    # make sure source path is a list
-    sourcepath = tmpdict['sourcepath']
-    if isinstance(sourcepath, string_type):
-        tmpdict['sourcepath'] = sourcepath.split(':')
-        _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
-    elif not isinstance(sourcepath, (tuple, list)):
-        raise EasyBuildError("Value for sourcepath has invalid type (%s): %s", type(sourcepath), sourcepath)
+    for srcpath in ['sourcepath', 'sourcepath_data']:
+        # make sure source path is a list
+        sourcepath = tmpdict[srcpath]
+        if isinstance(sourcepath, string_type):
+            tmpdict[srcpath] = sourcepath.split(':')
+            _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict[srcpath]))
+        elif not isinstance(sourcepath, (tuple, list)):
+            raise EasyBuildError("Value for %s has invalid type (%s): %s", srcpath, type(sourcepath), sourcepath)
 
     # initialize configuration variables (any future calls to ConfigurationVariables() will yield the same instance
     variables = ConfigurationVariables(tmpdict, ignore_unknown_keys=True)
@@ -669,9 +671,16 @@ def build_path():
 
 def source_paths():
     """
-    Return the list of source paths
+    Return the list of source paths for software
     """
     return ConfigurationVariables()['sourcepath']
+
+
+def source_paths_data():
+    """
+    Return the list of source paths for data
+    """
+    return ConfigurationVariables()['sourcepath_data']
 
 
 def source_path():

@@ -73,7 +73,7 @@ from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
-from easybuild.tools.config import install_path, log_path, package_path, source_paths
+from easybuild.tools.config import install_path, log_path, package_path, source_paths, source_paths_data
 from easybuild.tools.config import DATA, SOFTWARE
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
@@ -773,7 +773,8 @@ class EasyBlock(object):
         :param download_instructions: instructions to manually add source (used for complex cases)
         :param alt_location: alternative location to use instead of self.name
         """
-        srcpaths = source_paths()
+        srcpaths_map = {SOFTWARE: source_paths, DATA: source_paths_data}
+        srcpaths = srcpaths_map[self.easyblock_type]()
 
         update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
 
@@ -985,7 +986,7 @@ class EasyBlock(object):
                         msg = "\nDownload instructions:\n\n" + download_instructions + '\n'
                         print_msg(msg, prefix=False, stderr=True)
                         error_msg += "please follow the download instructions above, and make the file available "
-                        error_msg += "in the active source path (%s)" % ':'.join(source_paths())
+                        error_msg += "in the active source path (%s)" % ':'.join(srcpaths_map[self.easyblock_type]())
                     else:
                         # flatten list to string with '%' characters escaped (literal '%' desired in 'sprintf')
                         failedpaths_msg = ', '.join(failedpaths).replace('%', '%%')

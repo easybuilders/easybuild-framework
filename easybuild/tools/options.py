@@ -606,7 +606,7 @@ class EasyBuildOptions(GeneralOption):
                             None, 'store', mk_full_default_path('packagepath')),
             'package-naming-scheme': ("Packaging naming scheme choice",
                                       'choice', 'store', DEFAULT_PNS, sorted(avail_package_naming_schemes().keys())),
-            'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
+            'prefix': (("Change prefix for buildpath, installpath, sourcepath, sourcepath_data, and repositorypath "
                         "(used prefix for defaults %s)" % DEFAULT_PREFIX),
                        None, 'store', None),
             'recursive-module-unload': ("Enable generating of modules that unload recursively.",
@@ -617,8 +617,10 @@ class EasyBuildOptions(GeneralOption):
                                 "(is passed as list of arguments to create the repository instance). "
                                 "For more info, use --avail-repositories."),
                                'strlist', 'store', self.default_repositorypath),
-            'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
+            'sourcepath': ("Path(s) to where software sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
+            'sourcepath_data': ("Path(s) to where data sources should be downloaded (string, colon-separated)",
+                                None, 'store', mk_full_default_path('sourcepath_data')),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
             'subdir-software': ("Installpath subdir for software",
                                 None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
@@ -1139,7 +1141,7 @@ class EasyBuildOptions(GeneralOption):
         #   (see also https://github.com/easybuilders/easybuild-framework/issues/3892);
         path_opt_names = ['buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
                           'installpath_modules', 'installpath_software', 'installpath_data', 'prefix', 'packagepath',
-                          'robot_paths', 'sourcepath']
+                          'robot_paths', 'sourcepath', 'sourcepath_data']
 
         for opt_name in path_opt_names:
             self._ensure_abs_path(opt_name)
@@ -1148,7 +1150,7 @@ class EasyBuildOptions(GeneralOption):
             # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath in account
             # in the legacy-style configuration, repository is initialised in configuration file itself
             path_opts = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'repository', 'repositorypath',
-                         'sourcepath']
+                         'sourcepath', 'sourcepath_data']
             for dest in path_opts:
                 if not self.options._action_taken.get(dest, False):
                     if dest == 'repository':
@@ -1392,7 +1394,8 @@ class EasyBuildOptions(GeneralOption):
 
         # options that should never/always be printed
         ignore_opts = ['show_config', 'show_full_config']
-        include_opts = ['buildpath', 'containerpath', 'installpath', 'repositorypath', 'robot_paths', 'sourcepath']
+        include_opts = ['buildpath', 'containerpath', 'installpath', 'repositorypath', 'robot_paths', 'sourcepath',
+                        'sourcepath_data']
         cmdline_opts_dict = self.dict_by_prefix()
 
         def reparse_cfg(args=None, withcfg=True):
