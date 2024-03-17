@@ -286,6 +286,17 @@ class EasyBlock(object):
         if group_name is not None:
             self.group = use_group(group_name)
 
+        if self.easyblock_type == SOFTWARE and self.cfg['data_sources']:
+            raise EasyBuildError(
+                "Easyconfig parameter 'data_sources' not supported for software installations. Use 'sources' instead.")
+        if self.easyblock_type == DATA and self.cfg['sources']:
+            raise EasyBuildError(
+                "Easyconfig parameter 'sources' not supported for data installations. Use 'data_sources' instead.")
+
+        # use 'data_sources' as alias for 'sources'
+        if self.cfg['data_sources']:
+            self.cfg['sources'] = self.cfg['data_sources']
+
         # generate build/install directories
         self.gen_builddir()
         self.gen_installdir()

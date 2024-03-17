@@ -114,9 +114,10 @@ DEFAULT_PATH_SUBDIRS = {
     'packagepath': 'packages',
     'repositorypath': 'ebfiles_repo',
     'sourcepath': 'sources',
-    'subdir_modules': 'modules',
-    'subdir_software': 'software',
-    'subdir_data': 'data',
+    'sourcepath_data': 'data_sources',
+    'subdir_data': DATA,
+    'subdir_modules': MODULES,
+    'subdir_software': SOFTWARE,
 }
 DEFAULT_PKG_RELEASE = '1'
 DEFAULT_PKG_TOOL = PKG_TOOL_FPM
