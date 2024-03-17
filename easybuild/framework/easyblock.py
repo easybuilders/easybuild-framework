@@ -74,6 +74,7 @@ from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
+from easybuild.tools.config import DATA, SOFTWARE
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
@@ -123,6 +124,10 @@ _log = fancylogger.getLogger('easyblock')
 
 class EasyBlock(object):
     """Generic support for building and installing software, base class for actual easyblocks."""
+
+    # indicates whether or not this represents an EasyBlock for data or software
+    # set default value as class attribute, allowing custom easyblocks to override it
+    easyblock_type = SOFTWARE
 
     # static class method for extra easyconfig parameter definitions
     # this makes it easy to access the information without needing an instance
@@ -177,11 +182,10 @@ class EasyBlock(object):
         # may be set to True by ExtensionEasyBlock
         self.is_extension = False
 
-        # indicates whether or not this instance represents a data EasyBlock
-        try:
-            self.is_data
-        except AttributeError:
-            self.is_data = False
+        known_easyblock_types = [DATA, SOFTWARE]
+        if self.easyblock_type not in known_easyblock_types:
+            raise EasyBuildError(
+                "EasyBlock type %s is not in list of known types %s", self.easyblock_type, known_easyblock_types)
 
         # easyconfig for this application
         if isinstance(ec, EasyConfig):
@@ -1112,8 +1116,7 @@ class EasyBlock(object):
         """
         Generate the name of the installation directory.
         """
-        typ = 'data' if self.is_data else 'software'
-        basepath = install_path(typ)
+        basepath = install_path(self.easyblock_type)
         if basepath:
             self.install_subdir = ActiveMNS().det_install_subdir(self.cfg)
             self.installdir = os.path.join(os.path.abspath(basepath), self.install_subdir)

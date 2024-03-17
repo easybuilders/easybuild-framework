@@ -70,6 +70,10 @@ WARN = 'warn'
 
 EMPTY_LIST = 'empty_list'
 
+DATA = 'data'
+MODULES = 'modules'
+SOFTWARE = 'software'
+
 PKG_TOOL_FPM = 'fpm'
 PKG_TYPE_RPM = 'rpm'
 
@@ -682,11 +686,11 @@ def install_path(typ=None):
     - subdir 'data' for data installation (typ='data')
     """
     if typ is None:
-        typ = 'software'
+        typ = SOFTWARE
     elif typ == 'mod':
-        typ = 'modules'
+        typ = MODULES
 
-    known_types = ['modules', 'software', 'data']
+    known_types = [MODULES, SOFTWARE, DATA]
     if typ not in known_types:
         raise EasyBuildError("Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types))
 
