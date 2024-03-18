@@ -85,8 +85,8 @@ jobs:
         pip install --upgrade pip
         pip --version
         pip install -r requirements.txt
-        if [[ "${{matrix.python}}" == 3.12 ]]; then
-            # needed for python setup.py sdist
+        if ! python -c "import distutils" 2> /dev/null; then
+            # we need setuptools for distutils in Python 3.12+, needed for python setup.py sdist
             pip install --upgrade setuptools
         fi
         # git config is required to make actual git commits (cfr. tests for GitRepository)

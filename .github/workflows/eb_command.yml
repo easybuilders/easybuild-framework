@@ -32,8 +32,8 @@ jobs:
         # update to latest pip, check version
         pip install --upgrade pip
         pip --version
-        if [[ "${{matrix.python}}" == 3.12 ]]; then
-            # needed for python setup.py sdist
+        if ! python -c "import distutils" 2> /dev/null; then
+            # we need setuptools for distutils in Python 3.12+, needed for python setup.py sdist
             pip install --upgrade setuptools
         fi
 
