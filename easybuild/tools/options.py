@@ -606,7 +606,7 @@ class EasyBuildOptions(GeneralOption):
                             None, 'store', mk_full_default_path('packagepath')),
             'package-naming-scheme': ("Packaging naming scheme choice",
                                       'choice', 'store', DEFAULT_PNS, sorted(avail_package_naming_schemes().keys())),
-            'prefix': (("Change prefix for buildpath, installpath, sourcepath, sourcepath_data, and repositorypath "
+            'prefix': (("Change prefix for buildpath, installpath, sourcepath, sourcepath-data, and repositorypath "
                         "(used prefix for defaults %s)" % DEFAULT_PREFIX),
                        None, 'store', None),
             'recursive-module-unload': ("Enable generating of modules that unload recursively.",
@@ -619,7 +619,7 @@ class EasyBuildOptions(GeneralOption):
                                'strlist', 'store', self.default_repositorypath),
             'sourcepath': ("Path(s) to where software sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
-            'sourcepath_data': ("Path(s) to where data sources should be downloaded (string, colon-separated)",
+            'sourcepath-data': ("Path(s) to where data sources should be downloaded (string, colon-separated)",
                                 None, 'store', mk_full_default_path('sourcepath_data')),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
             'subdir-software': ("Installpath subdir for software",
