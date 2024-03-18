@@ -61,7 +61,8 @@ from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION, retri
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import ALTERNATE_PARAMETERS, DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
+from easybuild.framework.easyconfig.templates import DEPRECATED_TEMPLATES, TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC
+from easybuild.framework.easyconfig.templates import template_constant_dict
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
@@ -1996,7 +1997,23 @@ def resolve_template(value, tmpl_dict):
             try:
                 value = value % tmpl_dict
             except KeyError:
-                _log.warning("Unable to resolve template value %s with dict %s", value, tmpl_dict)
+                # check if any deprecated templates resolve
+                try:
+                    orig_value = value
+                    # map old templates to new values
+                    depr_map = {old_tmpl: tmpl_dict[new_tmpl] for (old_tmpl, (new_tmpl, ver)) in
+                                DEPRECATED_TEMPLATES.items() if new_tmpl in tmpl_dict.keys()}
+                    value = value % depr_map
+
+                    for old_tmpl, val in depr_map.items():
+                        # check which deprecated templates were replaced, and issue deprecation warnings
+                        if old_tmpl in orig_value and val in value:
+                            new_tmpl, ver = DEPRECATED_TEMPLATES[old_tmpl]
+                            _log.deprecated("Easyconfig template '%s' is deprecated, use '%s' instead"
+                                            % (old_tmpl, new_tmpl), ver)
+                except KeyError:
+                    _log.warning("Unable to resolve template value %s with dict %s", value, tmpl_dict)
+
     else:
         # this block deals with references to objects and returns other references
         # for reading this is ok, but for self['x'] = {}
