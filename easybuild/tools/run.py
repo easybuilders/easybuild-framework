@@ -207,7 +207,8 @@ def fileprefix_from_cmd(cmd, allowed_chars=False):
 def save_cmd(cmd_str, work_dir, env):
     cmd_name = fileprefix_from_cmd(os.path.basename(cmd_str.split(' ')[0]))
     full_env = os.environ.copy()
-    full_env.update(env)
+    if env is not None:
+        full_env.update(env)
 
     with tempfile.NamedTemporaryFile(prefix=f"{cmd_name}-", suffix=".sh", delete=False) as fid:
         fid.write(f'cd "{work_dir}"\n')
