@@ -57,7 +57,7 @@ from easybuild.framework.easyconfig.easyconfig import letter_dir_for, process_ea
 from easybuild.framework.easyconfig.easyconfig import triage_easyconfig_params, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
+from easybuild.framework.easyconfig.templates import DEPRECATED_TEMPLATES, template_constant_dict, to_template_str
 from easybuild.framework.easyconfig.style import check_easyconfigs_style
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, categorize_files_by_type, check_sha256_checksums
 from easybuild.framework.easyconfig.tools import dep_graph, det_copy_ec_specs, find_related_easyconfigs, get_paths_for
@@ -1416,6 +1416,60 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['configopts'], "--some-opt=%s/" % self.test_prefix)
         self.assertEqual(ec['buildopts'], "--some-opt=%s/" % self.test_prefix)
         self.assertEqual(ec['installopts'], "--some-opt=%s/" % self.test_prefix)
+
+    def test_template_deprecation(self):
+        """Test deprecation of templates"""
+
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]
+
+        template_test_deprecations = {
+            'builddir': ('newbuilddir', '99'),
+            'cudaver': ('newcudaver', '99'),
+            'start_dir': ('newstart_dir', '99'),
+        }
+        DEPRECATED_TEMPLATES.update(template_test_deprecations)
+
+        self.contents = textwrap.dedent("""
+            name = 'toy'
+            version = '0.0'
+
+            homepage = 'https://easybuilders.github.io/easybuild'
+            description = 'Toy C program, 100% toy.'
+
+            toolchain = SYSTEM
+
+            sources = [SOURCE_TAR_GZ]
+
+            dependencies = [('CUDA', '10.1.243')]
+
+            preconfigopts = 'echo start_dir in configure is %(start_dir)s && '
+
+            exts_defaultclass = 'EB_Toy'
+            exts_list = [
+               ('bar', '0.0', {
+                   'sources': ['bar-0.0-local.tar.gz'],
+                   'prebuildopts': 'echo builddir in extension build is %(builddir)s && ',
+               }),
+            ]
+
+            moduleclass = 'tools'
+        """)
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+        self.assertEqual(ec.template_values[template_test_deprecations['cudaver'][0]], '10.1.243')
+        from easybuild.easyblocks.toy import EB_toy
+        eb = EB_toy(ec)
+        eb.cfg['stop'] = 'extensions'
+        with self.mocked_stdout_stderr():
+            eb.run_all_steps(False)
+        logtxt = read_file(eb.logfile)
+        for old, (new, _) in template_test_deprecations.items():
+            self.assertIn("template '%s' is deprecated, use '%s' instead" % (old, new), logtxt)
+        start_dir = os.path.join(eb.builddir, 'toy-0.0')
+        self.assertIn('start_dir in configure is %s/ &&' % start_dir, logtxt)
+        ext_start_dir = os.path.join(eb.builddir, 'bar', 'bar-0.0')
+        self.assertIn('builddir in extension build is %s &&' % ext_start_dir, logtxt)
 
     def test_constant_doc(self):
         """test constant documentation"""
