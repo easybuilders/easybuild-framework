@@ -43,6 +43,7 @@ import locale
 import os
 import re
 import signal
+import shlex
 import shutil
 import string
 import subprocess
@@ -201,6 +202,22 @@ def fileprefix_from_cmd(cmd, allowed_chars=False):
         allowed_chars = f"{string.ascii_letters}{string.digits}_-"
 
     return ''.join([c for c in cmd if c in allowed_chars])
+
+
+def save_cmd(cmd, work_dir, env):
+    cmd_name = fileprefix_from_cmd(os.path.basename(to_cmd_str(cmd).split(' ')[0]))
+    full_env = os.environ.copy()
+    full_env.update(env)
+
+    with tempfile.NamedTemporaryFile(prefix=f"{cmd_name}-", suffix=".sh", delete=False) as fid:
+        fid.write(f'cd "{work_dir}"\n')
+        fid.write(f'history -s "{shlex.quote(cmd)}"\n')
+        for key, value in full_env.items():
+            fid.write(f'{key}={shlex.quote(value)}\n')
+        fid.write(f'export PS1="eb-shell> $PS1"\n')
+        fid.write(f'echo Shell for the command: "{shlex.quote(cmd)}"\n')
+        fid.write(f'echo Use command history, exit to stop\n')
+        fid.write(f'bash\n')
 
 
 def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
@@ -393,6 +410,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         log_msg += f" (via thread with ID {thread_id})"
     _log.info(log_msg)
 
+    save_cmd(cmd, work_dir, env)
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr, stdin=subprocess.PIPE,
                             cwd=work_dir, env=env, shell=shell, executable=executable)
 
