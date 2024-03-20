@@ -215,10 +215,10 @@ def save_cmd(cmd_str, work_dir, env):
         fid.write('\n'.join([
             f'cd "{work_dir}"',
             f'history -s "{shlex.quote(cmd_str)}"',
-            f'export PS1="eb-shell> $PS1"',
             f'echo Shell for the command: "{shlex.quote(cmd_str)}"',
-            f'echo Use command history, exit to stop',
-            f'bash',
+            'echo Use command history, exit to stop',
+            'export PS1="eb-shell> $PS1"',
+            'bash',
             ]).encode('utf-8'))
 
 
