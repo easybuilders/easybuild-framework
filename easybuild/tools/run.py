@@ -211,14 +211,15 @@ def save_cmd(cmd_str, work_dir, env):
         full_env.update(env)
 
     with tempfile.NamedTemporaryFile(prefix=f"{cmd_name}-", suffix=".sh", delete=False) as fid:
-        fid.write(f'cd "{work_dir}"\n')
-        fid.write(f'history -s "{shlex.quote(cmd_str)}"\n')
-        for key, value in full_env.items():
-            fid.write(f'{key}={shlex.quote(value)}\n')
-        fid.write(f'export PS1="eb-shell> $PS1"\n')
-        fid.write(f'echo Shell for the command: "{shlex.quote(cmd_str)}"\n')
-        fid.write(f'echo Use command history, exit to stop\n')
-        fid.write(f'bash\n')
+        fid.write('\n'.join(f'{key}={shlex.quote(value)}' for key, value in full_env.items()).encode('utf-8'))
+        fid.write('\n'.join([
+            f'cd "{work_dir}"',
+            f'history -s "{shlex.quote(cmd_str)}"',
+            f'export PS1="eb-shell> $PS1"',
+            f'echo Shell for the command: "{shlex.quote(cmd_str)}"',
+            f'echo Use command history, exit to stop',
+            f'bash',
+            ]).encode('utf-8'))
 
 
 def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
