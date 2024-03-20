@@ -2001,7 +2001,8 @@ def resolve_template(value, tmpl_dict):
                     # map old templates to new values
                     depr_map = {old_tmpl: tmpl_dict[new_tmpl] for (old_tmpl, (new_tmpl, ver)) in
                                 DEPRECATED_TEMPLATES.items() if new_tmpl in tmpl_dict.keys()}
-                    value = value % depr_map
+                    # try templating with both tmpl_dict and depr_map
+                    value = value % {**tmpl_dict, **depr_map}
 
                     for old_tmpl, val in depr_map.items():
                         # check which deprecated templates were replaced, and issue deprecation warnings
