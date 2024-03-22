@@ -4893,6 +4893,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'EASYBUILD_INSTALLPATH',
             'EASYBUILD_ROBOT_PATHS',
             'EASYBUILD_SOURCEPATH',
+            'EASYBUILD_SOURCEPATH_DATA',
         ]
         for key in os.environ.keys():
             if key.startswith('EASYBUILD_') and key not in retained_eb_env_vars:
@@ -4925,6 +4926,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"repositorypath\s* \(D\) = " + os.path.join(default_prefix, 'ebfiles_repo'),
             r"robot-paths\s* \(E\) = " + os.path.join(test_dir, 'easyconfigs', 'test_ecs'),
             r"sourcepath\s* \(E\) = " + os.path.join(test_dir, 'sandbox', 'sources'),
+            r"sourcepath-data\s* \(E\) = " + os.path.join(test_dir, 'sandbox', 'data_sources'),
             r"subdir-modules\s* \(F\) = mods",
         ]
 
