@@ -1147,6 +1147,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
+    UPDATE_PATH_TEMPLATE_DELIM = '%s_path {"%s", %s, delim="%s"}'
 
     START_STR = '[==['
     END_STR = ']==]'
@@ -1468,7 +1469,10 @@ class ModuleGeneratorLua(ModuleGenerator):
                 else:
                     abspaths.append('root')
 
-        statements = [self.UPDATE_PATH_TEMPLATE % (update_type, key, p) for p in abspaths]
+        if key == 'TCLLIBPATH':  # special case: requires spaces and not : as the delimiter
+            statements = [self.UPDATE_PATH_TEMPLATE_DELIM % (update_type, key, p, ' ') for p in abspaths]
+        else:
+            statements = [self.UPDATE_PATH_TEMPLATE % (update_type, key, p) for p in abspaths]
         statements.append('')
         return '\n'.join(statements)
 
