@@ -702,6 +702,7 @@ class EasyBuildOptions(GeneralOption):
             'check-style': ("Run a style check on the given easyconfigs", None, 'store_true', False),
             'cleanup-easyconfigs': ("Clean up easyconfig files for pull request", None, 'store_true', True),
             'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
+            'from-commit': ("Obtain easyconfigs from specified commit", 'str', 'store', None, {'metavar': 'PR#'}),
             'from-pr': ("Obtain easyconfigs from specified PR", 'strlist', 'store', [], {'metavar': 'PR#'}),
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
             'github-user': ("GitHub username", str, 'store', None),
@@ -1588,10 +1589,11 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
     # determine robot path
     # --try-X, --dep-graph, --search use robot path for searching, so enable it with path of installed easyconfigs
     tweaked_ecs = try_to_generate and build_specs
-    tweaked_ecs_paths, pr_paths = alt_easyconfig_paths(tmpdir, tweaked_ecs=tweaked_ecs, from_prs=from_prs,
-                                                       review_pr=review_pr)
+    tweaked_ecs_paths, extra_ec_paths = alt_easyconfig_paths(tmpdir, tweaked_ecs=tweaked_ecs, from_prs=from_prs,
+                                                             from_commit=eb_go.options.from_commit,
+                                                             review_pr=review_pr)
     auto_robot = try_to_generate or options.check_conflicts or options.dep_graph or search_query
-    robot_path = det_robot_path(options.robot_paths, tweaked_ecs_paths, pr_paths, auto_robot=auto_robot)
+    robot_path = det_robot_path(options.robot_paths, tweaked_ecs_paths, extra_ec_paths, auto_robot=auto_robot)
     log.debug("Full robot path: %s", robot_path)
 
     if not robot_path:
@@ -1605,7 +1607,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
         'build_specs': build_specs,
         'command_line': eb_cmd_line,
         'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
-        'pr_paths': pr_paths,
+        'extra_ec_paths': extra_ec_paths,
         'robot_path': robot_path,
         'silent': testing or new_update_opt,
         'try_to_generate': try_to_generate,
