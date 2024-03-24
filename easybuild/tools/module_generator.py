@@ -248,7 +248,8 @@ class ModuleGenerator(object):
         if paths is None:
             return ''
         delim = ' ' if key == 'TCLLIBPATH' else ':'
-        return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths, delim=delim)
+        return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths,
+                                 delim=delim)
 
     def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
@@ -263,7 +264,8 @@ class ModuleGenerator(object):
         if paths is None:
             return ''
         delim = ' ' if key == 'TCLLIBPATH' else ':'
-        return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths, delim=delim)
+        return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths,
+                                 delim=delim)
 
     def _modulerc_check_module_version(self, module_version):
         """
