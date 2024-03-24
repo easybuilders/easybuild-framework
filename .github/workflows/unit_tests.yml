@@ -41,6 +41,8 @@ jobs:
             modules_tool: ${{needs.setup.outputs.lmod8}}
           - python: '3.11'
             modules_tool: ${{needs.setup.outputs.lmod8}}
+          - python: '3.12'
+            modules_tool: ${{needs.setup.outputs.lmod8}}
           # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
           # Hence run the tests (again) with LC_ALL=C and Python 3.6 (or any < 3.7)
           - python: 3.6
@@ -83,6 +85,10 @@ jobs:
         pip install --upgrade pip
         pip --version
         pip install -r requirements.txt
+        if ! python -c "import distutils" 2> /dev/null; then
+            # we need setuptools for distutils in Python 3.12+, needed for python setup.py sdist
+            pip install --upgrade setuptools
+        fi
         # git config is required to make actual git commits (cfr. tests for GitRepository)
         git config --global user.name "Travis CI"
         git config --global user.email "travis@travis-ci.org"
