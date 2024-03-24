@@ -1001,7 +1001,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
                 abspaths.append(path)
 
         if delim != ':':
-            statements = ['%s-path -d "%s"\t%s\t\t%s \n' % (update_type, sep, key, p) for p in abspaths]
+            statements = ['%s-path -d "%s"\t%s\t\t%s \n' % (update_type, delim, key, p) for p in abspaths]
         else:
             statements = ['%s-path\t%s\t\t%s\n' % (update_type, key, p) for p in abspaths]
         return ''.join(statements)
@@ -1478,7 +1478,7 @@ class ModuleGeneratorLua(ModuleGenerator):
                     abspaths.append('root')
 
         if delim != ':':
-            statements = [self.UPDATE_PATH_TEMPLATE_DELIM % (update_type, key, p, sep) for p in abspaths]
+            statements = [self.UPDATE_PATH_TEMPLATE_DELIM % (update_type, key, p, delim) for p in abspaths]
         else:
             statements = [self.UPDATE_PATH_TEMPLATE % (update_type, key, p) for p in abspaths]
         statements.append('')
