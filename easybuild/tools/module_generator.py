@@ -247,7 +247,8 @@ class ModuleGenerator(object):
         paths = self._filter_paths(key, paths)
         if paths is None:
             return ''
-        return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
+        delim = ' ' if key == 'TCLLIBPATH' else ':'
+        return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths, delim=delim)
 
     def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
@@ -261,7 +262,8 @@ class ModuleGenerator(object):
         paths = self._filter_paths(key, paths)
         if paths is None:
             return ''
-        return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
+        delim = ' ' if key == 'TCLLIBPATH' else ':'
+        return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths, delim=delim)
 
     def _modulerc_check_module_version(self, module_version):
         """
@@ -552,15 +554,16 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True, delim=':'):
         """
         Generate prepend-path or append-path statements for the given list of paths.
 
         :param key: environment variable to prepend/append paths to
-        :param paths: list of paths to prepend
+        :param paths: list of paths to prepend/append
         :param prepend: whether to prepend (True) or append (False) paths
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param delim: delimiter used between paths
         """
         raise NotImplementedError
 
@@ -956,15 +959,16 @@ class ModuleGeneratorTcl(ModuleGenerator):
         print_cmd = "puts stderr %s" % quote_str(msg, tcl=True)
         return '\n'.join(['', self.conditional_statement("module-info mode unload", print_cmd, indent=False)])
 
-    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True, delim=':'):
         """
         Generate prepend-path or append-path statements for the given list of paths.
 
         :param key: environment variable to prepend/append paths to
-        :param paths: list of paths to prepend
+        :param paths: list of paths to prepend/append
         :param prepend: whether to prepend (True) or append (False) paths
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param delim: delimiter used between paths
         """
         if prepend:
             update_type = 'prepend'
@@ -996,7 +1000,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
             else:
                 abspaths.append(path)
 
-        statements = ['%s-path\t%s\t\t%s\n' % (update_type, key, p) for p in abspaths]
+        if delim != ':':
+            statements = ['%s-path -d "%s"\t%s\t\t%s \n' % (update_type, sep, key, p) for p in abspaths]
+        else:
+            statements = ['%s-path\t%s\t\t%s\n' % (update_type, key, p) for p in abspaths]
         return ''.join(statements)
 
     def set_alias(self, key, value):
@@ -1428,7 +1435,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         return super(ModuleGeneratorLua, self).modulerc(module_version=module_version, filepath=filepath,
                                                         modulerc_txt=modulerc_txt)
 
-    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True, delim=':'):
         """
         Generate prepend_path or append_path statements for the given list of paths
 
@@ -1437,6 +1444,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param prepend: whether to prepend (True) or append (False) paths
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param delim: delimiter used between paths
         """
         if prepend:
             update_type = 'prepend'
@@ -1469,8 +1477,8 @@ class ModuleGeneratorLua(ModuleGenerator):
                 else:
                     abspaths.append('root')
 
-        if key == 'TCLLIBPATH':  # special case: requires spaces and not : as the delimiter
-            statements = [self.UPDATE_PATH_TEMPLATE_DELIM % (update_type, key, p, ' ') for p in abspaths]
+        if delim != ':':
+            statements = [self.UPDATE_PATH_TEMPLATE_DELIM % (update_type, key, p, sep) for p in abspaths]
         else:
             statements = [self.UPDATE_PATH_TEMPLATE % (update_type, key, p) for p in abspaths]
         statements.append('')
