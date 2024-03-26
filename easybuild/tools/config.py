@@ -114,7 +114,6 @@ DEFAULT_PATH_SUBDIRS = {
     'packagepath': 'packages',
     'repositorypath': 'ebfiles_repo',
     'sourcepath': 'sources',
-    'sourcepath_data': 'data_sources',
     'subdir_data': DATA,
     'subdir_modules': MODULES,
     'subdir_software': SOFTWARE,
@@ -530,6 +529,9 @@ def init(options, config_options_dict):
     Variables are read in this order of preference: generaloption > legacy environment > legacy config file
     """
     tmpdict = copy.deepcopy(config_options_dict)
+
+    if tmpdict['sourcepath_data'] is None:
+        tmpdict['sourcepath_data'] = tmpdict['sourcepath']
 
     for srcpath in ['sourcepath', 'sourcepath_data']:
         # make sure source path is a list

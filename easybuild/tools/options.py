@@ -619,8 +619,8 @@ class EasyBuildOptions(GeneralOption):
                                'strlist', 'store', self.default_repositorypath),
             'sourcepath': ("Path(s) to where software sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
-            'sourcepath-data': ("Path(s) to where data sources should be downloaded (string, colon-separated)",
-                                None, 'store', mk_full_default_path('sourcepath_data')),
+            'sourcepath-data': ("Path(s) to where data sources should be downloaded (string, colon-separated) "
+                                "(same as sourcepath if not specified)", None, 'store', None),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
             'subdir-software': ("Installpath subdir for software",
                                 None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
@@ -1394,8 +1394,7 @@ class EasyBuildOptions(GeneralOption):
 
         # options that should never/always be printed
         ignore_opts = ['show_config', 'show_full_config']
-        include_opts = ['buildpath', 'containerpath', 'installpath', 'repositorypath', 'robot_paths', 'sourcepath',
-                        'sourcepath_data']
+        include_opts = ['buildpath', 'containerpath', 'installpath', 'repositorypath', 'robot_paths', 'sourcepath']
         cmdline_opts_dict = self.dict_by_prefix()
 
         def reparse_cfg(args=None, withcfg=True):
