@@ -1226,6 +1226,67 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['sanity_check_commands'], ['mpiexec -np 1 -- toy'])
 
+    def test_template_constant_deprecation(self):
+        """Test that deprecation of easyconfig template constants works as expected"""
+        inp = {
+            'name': 'PI',
+            # purposely using minor version that starts with a 0, to check for correct version_minor value
+            'version': '3.04',
+            'namelower': 'pi',
+            'cmd': 'tar xfvz %s',
+        }
+        # don't use any escaping insanity here, since it is templated itself
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "%(name)s"',
+            'version = "%(version)s"',
+            'versionsuffix = "-Python-%%(pyver)s"',
+            'homepage = "http://example.com/%%(nameletter)s/%%(nameletterlower)s/v%%(version_major)s/"',
+            'description = "test easyconfig %%(name)s"',
+            'toolchain = SYSTEM',
+            'source_urls = [GOOGLECODE_SOURCE, GITHUB_SOURCE, GITHUB_RELEASE, GITHUB_LOWER_RELEASE]',
+            'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_BZ2, "%(cmd)s")]',
+            'sanity_check_paths = {',
+            '   "files": ["bin/pi_%%(version_major)s_%%(version_minor)s", "lib/python%%(pyshortver)s/site-packages"],',
+            '   "dirs": ["libfoo.%%s" %% SHLIB_EXT, "lib/%%(arch)s/" + SYS_PYTHON_VERSION, "include/" + ARCH],',
+            '}',
+            'dependencies = [',
+            '   ("CUDA", "10.1.105"),'
+            '   ("Java", "1.7.80"),'
+            '   ("Perl", "5.22.0"),'
+            '   ("Python", "2.7.10"),'
+            ']',
+            "github_account = 'easybuilders'",
+        ]) % inp
+
+        #
+        orig_deprecated_constants = copy.deepcopy(easyconfig.templates.DEPRECATED_TEMPLATE_CONSTANTS)
+        constants_test_deprecations = {
+            'GOOGLECODE_SOURCE': ('NEW_GOOGLECODE_SOURCE', '1000000000'),
+            'GITHUB_SOURCE': ('NEW_GITHUB_SOURCE', '1000000000'),
+            'ARCH': ('NEW_ARCH', '1000000000'),
+        }
+        easyconfig.templates.DEPRECATED_TEMPLATE_CONSTANTS.update(constants_test_deprecations)
+
+        with self.mocked_stdout_stderr() as (_, stderr):
+            self.prep()
+            ec = EasyConfig(self.eb_file, validate=False)
+            ec.validate()
+
+        stderr = stderr.getvalue()
+        for old, (new, ver) in constants_test_deprecations.items():
+            depr_str = (f"WARNING: Deprecated functionality, will no longer work in v{ver}: Easyconfig template "
+                        f"constant '{old}' is deprecated, use '{new}' instead")
+            self.assertIn(depr_str, stderr)
+
+        self.assertEqual(ec['source_urls'][0], 'http://pi.googlecode.com/files')
+        self.assertEqual(ec['source_urls'][1], 'https://github.com/easybuilders/PI/archive')
+        inc_regex = re.compile('^include/(aarch64|ppc64le|x86_64)$')
+        dirs = ec['sanity_check_paths']['dirs'][2]
+        self.assertTrue(inc_regex.match(dirs), "Pattern '%s' should match '%s'" % (inc_regex, dirs))
+
+        easyconfig.templates.DEPRECATED_TEMPLATE_CONSTANTS = orig_deprecated_constants
+
     def test_templating_cuda_toolchain(self):
         """Test templates via toolchain component, like setting %(cudaver)s with fosscuda toolchain."""
 
