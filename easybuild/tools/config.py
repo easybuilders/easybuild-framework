@@ -70,6 +70,10 @@ WARN = 'warn'
 
 EMPTY_LIST = 'empty_list'
 
+DATA = 'data'
+MODULES = 'modules'
+SOFTWARE = 'software'
+
 PKG_TOOL_FPM = 'fpm'
 PKG_TYPE_RPM = 'rpm'
 
@@ -110,8 +114,10 @@ DEFAULT_PATH_SUBDIRS = {
     'packagepath': 'packages',
     'repositorypath': 'ebfiles_repo',
     'sourcepath': 'sources',
-    'subdir_modules': 'modules',
-    'subdir_software': 'software',
+    'sourcepath_data': 'sources',
+    'subdir_data': DATA,
+    'subdir_modules': MODULES,
+    'subdir_software': SOFTWARE,
 }
 DEFAULT_PKG_RELEASE = '1'
 DEFAULT_PKG_TOOL = PKG_TOOL_FPM
@@ -470,6 +476,7 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'installpath',
         'installpath_modules',
         'installpath_software',
+        'installpath_data',
         'job_backend',
         'logfile_format',
         'moduleclasses',
@@ -482,8 +489,10 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'repository',
         'repositorypath',
         'sourcepath',
+        'sourcepath_data',
         'subdir_modules',
         'subdir_software',
+        'subdir_data',
         'tmp_logdir',
     ]
     KNOWN_KEYS = REQUIRED  # KNOWN_KEYS must be defined for FrozenDictKnownKeys functionality
@@ -522,13 +531,17 @@ def init(options, config_options_dict):
     """
     tmpdict = copy.deepcopy(config_options_dict)
 
-    # make sure source path is a list
-    sourcepath = tmpdict['sourcepath']
-    if isinstance(sourcepath, string_type):
-        tmpdict['sourcepath'] = sourcepath.split(':')
-        _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
-    elif not isinstance(sourcepath, (tuple, list)):
-        raise EasyBuildError("Value for sourcepath has invalid type (%s): %s", type(sourcepath), sourcepath)
+    if tmpdict['sourcepath_data'] is None:
+        tmpdict['sourcepath_data'] = tmpdict['sourcepath']
+
+    for srcpath in ['sourcepath', 'sourcepath_data']:
+        # make sure source path is a list
+        sourcepath = tmpdict[srcpath]
+        if isinstance(sourcepath, string_type):
+            tmpdict[srcpath] = sourcepath.split(':')
+            _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict[srcpath]))
+        elif not isinstance(sourcepath, (tuple, list)):
+            raise EasyBuildError("Value for %s has invalid type (%s): %s", srcpath, type(sourcepath), sourcepath)
 
     # initialize configuration variables (any future calls to ConfigurationVariables() will yield the same instance
     variables = ConfigurationVariables(tmpdict, ignore_unknown_keys=True)
@@ -661,9 +674,16 @@ def build_path():
 
 def source_paths():
     """
-    Return the list of source paths
+    Return the list of source paths for software
     """
     return ConfigurationVariables()['sourcepath']
+
+
+def source_paths_data():
+    """
+    Return the list of source paths for data
+    """
+    return ConfigurationVariables()['sourcepath_data']
 
 
 def source_path():
@@ -674,15 +694,16 @@ def source_path():
 def install_path(typ=None):
     """
     Returns the install path
-    - subdir 'software' for actual installation (default)
+    - subdir 'software' for actual software installation (default)
     - subdir 'modules' for environment modules (typ='mod')
+    - subdir 'data' for data installation (typ='data')
     """
     if typ is None:
-        typ = 'software'
+        typ = SOFTWARE
     elif typ == 'mod':
-        typ = 'modules'
+        typ = MODULES
 
-    known_types = ['modules', 'software']
+    known_types = [MODULES, SOFTWARE, DATA]
     if typ not in known_types:
         raise EasyBuildError("Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types))
 

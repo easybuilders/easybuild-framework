@@ -73,7 +73,8 @@ from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
-from easybuild.tools.config import install_path, log_path, package_path, source_paths
+from easybuild.tools.config import install_path, log_path, package_path, source_paths, source_paths_data
+from easybuild.tools.config import DATA, SOFTWARE
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
@@ -124,6 +125,10 @@ _log = fancylogger.getLogger('easyblock')
 class EasyBlock(object):
     """Generic support for building and installing software, base class for actual easyblocks."""
 
+    # indicates whether or not this represents an EasyBlock for data or software
+    # set default value as class attribute, allowing custom easyblocks to override it
+    easyblock_type = SOFTWARE
+
     # static class method for extra easyconfig parameter definitions
     # this makes it easy to access the information without needing an instance
     # subclasses of EasyBlock should call this method with a dictionary
@@ -163,7 +168,7 @@ class EasyBlock(object):
 
         # build/install directories
         self.builddir = None
-        self.installdir = None  # software
+        self.installdir = None  # software or data
         self.installdir_mod = None  # module file
 
         # extensions
@@ -176,6 +181,11 @@ class EasyBlock(object):
         # indicates whether or not this instance represents an extension or not;
         # may be set to True by ExtensionEasyBlock
         self.is_extension = False
+
+        known_easyblock_types = [DATA, SOFTWARE]
+        if self.easyblock_type not in known_easyblock_types:
+            raise EasyBuildError(
+                "EasyBlock type %s is not in list of known types %s", self.easyblock_type, known_easyblock_types)
 
         # easyconfig for this application
         if isinstance(ec, EasyConfig):
@@ -275,6 +285,17 @@ class EasyBlock(object):
         self.group = None
         if group_name is not None:
             self.group = use_group(group_name)
+
+        if self.easyblock_type == SOFTWARE and self.cfg['data_sources']:
+            raise EasyBuildError(
+                "Easyconfig parameter 'data_sources' not supported for software installations. Use 'sources' instead.")
+        if self.easyblock_type == DATA and self.cfg['sources']:
+            raise EasyBuildError(
+                "Easyconfig parameter 'sources' not supported for data installations. Use 'data_sources' instead.")
+
+        # use 'data_sources' as alias for 'sources'
+        if self.cfg['data_sources']:
+            self.cfg['sources'] = self.cfg['data_sources']
 
         # generate build/install directories
         self.gen_builddir()
@@ -752,7 +773,8 @@ class EasyBlock(object):
         :param download_instructions: instructions to manually add source (used for complex cases)
         :param alt_location: alternative location to use instead of self.name
         """
-        srcpaths = source_paths()
+        srcpaths_map = {SOFTWARE: source_paths, DATA: source_paths_data}
+        srcpaths = srcpaths_map[self.easyblock_type]()
 
         update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
 
@@ -964,7 +986,7 @@ class EasyBlock(object):
                         msg = "\nDownload instructions:\n\n" + download_instructions + '\n'
                         print_msg(msg, prefix=False, stderr=True)
                         error_msg += "please follow the download instructions above, and make the file available "
-                        error_msg += "in the active source path (%s)" % ':'.join(source_paths())
+                        error_msg += "in the active source path (%s)" % ':'.join(srcpaths_map[self.easyblock_type]())
                     else:
                         # flatten list to string with '%' characters escaped (literal '%' desired in 'sprintf')
                         failedpaths_msg = ', '.join(failedpaths).replace('%', '%%')
@@ -1106,7 +1128,7 @@ class EasyBlock(object):
         """
         Generate the name of the installation directory.
         """
-        basepath = install_path()
+        basepath = install_path(self.easyblock_type)
         if basepath:
             self.install_subdir = ActiveMNS().det_install_subdir(self.cfg)
             self.installdir = os.path.join(os.path.abspath(basepath), self.install_subdir)
@@ -2607,7 +2629,7 @@ class EasyBlock(object):
             copy_patch = 'copy' in patch and 'sourcepath' not in patch
 
             self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s",
-                           srcind, level, srcpathsuffix, copy)
+                           srcind, level, srcpathsuffix, copy_patch)
 
             if beginpath is None:
                 try:
