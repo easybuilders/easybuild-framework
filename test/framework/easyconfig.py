@@ -120,6 +120,9 @@ class EasyConfigTest(EnhancedTestCase):
         github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
         self.skip_github_tests = github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
 
+        self.orig_deprecated_constants = copy.deepcopy(easyconfig.templates.DEPRECATED_TEMPLATE_CONSTANTS)
+        self.orig_deprecated_templates = copy.deepcopy(easyconfig.templates.DEPRECATED_TEMPLATES)
+
     def prep(self):
         """Prepare for test."""
         # (re)cleanup last test file
@@ -133,6 +136,11 @@ class EasyConfigTest(EnhancedTestCase):
     def tearDown(self):
         """ make sure to remove the temporary file """
         st.get_cpu_architecture = self.orig_get_cpu_architecture
+
+        easyconfig.templates.DEPRECATED_TEMPLATE_CONSTANTS = self.orig_deprecated_constants
+        easyconfig.templates.DEPRECATED_TEMPLATES = self.orig_deprecated_templates
+        reload(easyconfig.templates)
+
         super(EasyConfigTest, self).tearDown()
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
@@ -1228,9 +1236,6 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_template_constant_deprecation(self):
         """Test that deprecation of easyconfig template constants works as expected"""
-        # backup original contents, DEPRECATED_TEMPLATE_CONSTANTS
-        orig_contents = copy.deepcopy(self.contents)
-        orig_deprecated_constants = copy.deepcopy(easyconfig.templates.DEPRECATED_TEMPLATE_CONSTANTS)
 
         inp = {
             'name': 'PI',
@@ -1287,10 +1292,6 @@ class EasyConfigTest(EnhancedTestCase):
         inc_regex = re.compile('^include/(aarch64|ppc64le|x86_64)$')
         dirs = ec['sanity_check_paths']['dirs'][2]
         self.assertTrue(inc_regex.match(dirs), "Pattern '%s' should match '%s'" % (inc_regex, dirs))
-
-        # restore non-deprecated backups
-        easyconfig.templates.DEPRECATED_TEMPLATE_CONSTANTS = orig_deprecated_constants
-        self.contents = orig_contents
 
     def test_templating_cuda_toolchain(self):
         """Test templates via toolchain component, like setting %(cudaver)s with fosscuda toolchain."""
@@ -1486,7 +1487,6 @@ class EasyConfigTest(EnhancedTestCase):
     def test_template_deprecation(self):
         """Test deprecation of templates"""
 
-        orig_deprecated_templates = copy.deepcopy(easyconfig.templates.DEPRECATED_TEMPLATES)
         template_test_deprecations = {
             'builddir': ('new_build_dir', '1000000000'),
             'cudaver': ('new_cuda_ver', '1000000000'),
@@ -1513,8 +1513,6 @@ class EasyConfigTest(EnhancedTestCase):
             depr_str = (f"WARNING: Deprecated functionality, will no longer work in v{ver}: Easyconfig template '{old}'"
                         f" is deprecated, use '{new}' instead")
             self.assertIn(depr_str, stderr)
-
-        easyconfig.templates.DEPRECATED_TEMPLATES = orig_deprecated_templates
 
     def test_constant_doc(self):
         """test constant documentation"""
