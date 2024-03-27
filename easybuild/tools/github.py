@@ -590,7 +590,7 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
 
 
 def fetch_easyblocks_from_pr(pr, path=None, github_user=None):
-    """Fetch patched easyconfig files for a particular PR."""
+    """Fetch patched easyblocks for a particular PR."""
     return fetch_files_from_pr(pr, path, github_user, github_repo=GITHUB_EASYBLOCKS_REPO)
 
 
@@ -683,6 +683,11 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
             _log.info("File %s not found in %s, so ignoring it...", file, repo_commit)
 
     return file_paths
+
+
+def fetch_easyblocks_from_commit(commit, files=None, path=None):
+    """Fetch easyblocks from a specified commit."""
+    return fetch_files_from_commit(commit, files=files, path=path, github_repo=GITHUB_EASYBLOCKS_REPO)
 
 
 def fetch_easyconfigs_from_commit(commit, files=None, path=None):

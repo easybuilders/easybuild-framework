@@ -89,7 +89,7 @@ from easybuild.tools.filetools import move_file, which
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED
 from easybuild.tools.github import GITHUB_PR_STATE_OPEN, GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
-from easybuild.tools.github import fetch_easyblocks_from_pr, fetch_github_token
+from easybuild.tools.github import fetch_easyblocks_from_commit, fetch_easyblocks_from_pr, fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
 from easybuild.tools.job.backend import avail_job_backends
@@ -702,11 +702,13 @@ class EasyBuildOptions(GeneralOption):
             'check-style': ("Run a style check on the given easyconfigs", None, 'store_true', False),
             'cleanup-easyconfigs': ("Clean up easyconfig files for pull request", None, 'store_true', True),
             'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
-            'from-commit': ("Obtain easyconfigs from specified commit", 'str', 'store', None, {'metavar': 'PR#'}),
+            'from-commit': ("Obtain easyconfigs from specified commit", 'str', 'store', None, {'metavar': 'commit_SHA'}),
             'from-pr': ("Obtain easyconfigs from specified PR", 'strlist', 'store', [], {'metavar': 'PR#'}),
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
             'github-user': ("GitHub username", str, 'store', None),
             'github-org': ("GitHub organization", str, 'store', None),
+            'include-easyblocks-from-commit': ("Include easyblocks from specified commit", 'str', 'store', None,
+                                               {'metavar': 'commit_SHA'}),
             'include-easyblocks-from-pr': ("Include easyblocks from specified PR", 'strlist', 'store', [],
                                            {'metavar': 'PR#'}),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
@@ -1225,8 +1227,9 @@ class EasyBuildOptions(GeneralOption):
         if self.options.avail_easyconfig_licenses:
             msg += avail_easyconfig_licenses(self.options.output_format)
 
-        # dump available easyblocks (unless including easyblocks from pr, in which case it will be done later)
-        if self.options.list_easyblocks and not self.options.include_easyblocks_from_pr:
+        # dump available easyblocks (unless including easyblocks from commit or PR, in which case it will be done later)
+        easyblocks_from = self.options.include_easyblocks_from_commit or self.options.include_easyblocks_from_pr
+        if self.options.list_easyblocks and not easyblocks_from:
             msg += list_easyblocks(self.options.list_easyblocks, self.options.output_format)
 
         # dump known toolchains
@@ -1270,7 +1273,7 @@ class EasyBuildOptions(GeneralOption):
             print(msg)
 
         # cleanup tmpdir and exit
-        if not self.options.include_easyblocks_from_pr:
+        if not (self.options.include_easyblocks_from_commit or self.options.include_easyblocks_from_pr):
             cleanup_and_exit(self.tmpdir)
 
     def avail_repositories(self):
@@ -1524,6 +1527,67 @@ def check_root_usage(allow_use_as_root=False):
             raise EasyBuildError("You seem to be running EasyBuild with root privileges which is not wise, "
                                  "so let's end this here.")
 
+def handle_include_easyblocks_from(options, log):
+    """
+    Handle --include-easyblocks-from-pr and --include-easyblocks-from-commit
+    """
+    def check_included_multiple(included_easyblocks_from, source):
+        """Check whether easyblock is being included multiple times"""
+        included_multiple = included_easyblocks_from & included_easyblocks
+        if included_multiple:
+            warning_msg = "One or more easyblocks included from multiple locations: %s " \
+                          % ', '.join(included_multiple)
+            warning_msg += "(the one(s) from %s will be used)" % source
+            print_warning(warning_msg)
+
+    if options.include_easyblocks_from_pr or options.include_easyblocks_from_commit:
+
+        if options.include_easyblocks:
+            # check if you are including the same easyblock twice
+            included_paths = expand_glob_paths(options.include_easyblocks)
+            included_easyblocks = set([os.path.basename(eb) for eb in included_paths])
+
+        if options.include_easyblocks_from_pr:
+            try:
+                easyblock_prs = [int(x) for x in options.include_easyblocks_from_pr]
+            except ValueError:
+                raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR #s.")
+
+            for easyblock_pr in easyblock_prs:
+                easyblocks_from_pr = fetch_easyblocks_from_pr(easyblock_pr)
+                included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
+
+                if options.include_easyblocks:
+                    check_included_multiple(included_from_pr, "PR #%s" % easyblock_pr)
+
+                included_easyblocks |= included_from_pr
+
+                for easyblock in included_from_pr:
+                    print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log)
+
+                include_easyblocks(options.tmpdir, easyblocks_from_pr)
+
+        easyblock_commit = options.include_easyblocks_from_commit
+        if easyblock_commit:
+            easyblocks_from_commit = fetch_easyblocks_from_commit(easyblock_commit)
+            included_from_commit = set([os.path.basename(eb) for eb in easyblocks_from_commit])
+
+            if options.include_easyblocks:
+                    check_included_multiple(included_from_commit, "commit %s" % easyblock_commit)
+
+            for easyblock in included_from_commit:
+                print_msg("easyblock %s included from comit %s" % (easyblock, easyblock_commit), log=log)
+
+            include_easyblocks(options.tmpdir, easyblocks_from_commit)
+
+        if options.list_easyblocks:
+            msg = list_easyblocks(options.list_easyblocks, options.output_format)
+            if options.unittest_file:
+                log.info(msg)
+            else:
+                print(msg)
+            cleanup_and_exit(tmpdir)
+
 
 def set_up_configuration(args=None, logfile=None, testing=False, silent=False, reconfigure=False):
     """
@@ -1633,41 +1697,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
     init_build_options(build_options=build_options, cmdline_options=options)
 
     # done here instead of in _postprocess_include because github integration requires build_options to be initialized
-    if eb_go.options.include_easyblocks_from_pr:
-        try:
-            easyblock_prs = [int(x) for x in eb_go.options.include_easyblocks_from_pr]
-        except ValueError:
-            raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR #s.")
-
-        if eb_go.options.include_easyblocks:
-            # check if you are including the same easyblock twice
-            included_paths = expand_glob_paths(eb_go.options.include_easyblocks)
-            included_from_file = set([os.path.basename(eb) for eb in included_paths])
-
-        for easyblock_pr in easyblock_prs:
-            easyblocks_from_pr = fetch_easyblocks_from_pr(easyblock_pr)
-            included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
-
-            if eb_go.options.include_easyblocks:
-                included_twice = included_from_pr & included_from_file
-                if included_twice:
-                    warning_msg = "One or more easyblocks included from multiple locations: %s " \
-                                  % ', '.join(included_twice)
-                    warning_msg += "(the one(s) from PR #%s will be used)" % easyblock_pr
-                    print_warning(warning_msg)
-
-            for easyblock in included_from_pr:
-                print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log)
-
-            include_easyblocks(eb_go.options.tmpdir, easyblocks_from_pr)
-
-        if eb_go.options.list_easyblocks:
-            msg = list_easyblocks(eb_go.options.list_easyblocks, eb_go.options.output_format)
-            if eb_go.options.unittest_file:
-                log.info(msg)
-            else:
-                print(msg)
-            cleanup_and_exit(tmpdir)
+    handle_include_easyblocks_from(eb_go.options, log)
 
     check_python_version()
 

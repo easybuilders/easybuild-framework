@@ -230,6 +230,7 @@ BUILD_OPTIONS_CMDLINE = {
         'http_header_fields_urlpat',
         'hooks',
         'ignore_dirs',
+        'include_easyblocks_from_commit',
         'insecure_download',
         'job_backend_config',
         'job_cores',
