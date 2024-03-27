@@ -114,6 +114,7 @@ DEFAULT_PATH_SUBDIRS = {
     'packagepath': 'packages',
     'repositorypath': 'ebfiles_repo',
     'sourcepath': 'sources',
+    'sourcepath_data': 'sources',
     'subdir_data': DATA,
     'subdir_modules': MODULES,
     'subdir_software': SOFTWARE,
