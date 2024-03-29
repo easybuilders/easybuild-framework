@@ -98,6 +98,7 @@ class Clang(Compiler):
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
+        (systemtools.RISCV64, systemtools.RISCV): 'march=rv64gc -mabi=lp64d', # the default for -mabi is system-dependent
         (systemtools.X86_64, systemtools.AMD): 'march=x86-64 -mtune=generic',
         (systemtools.X86_64, systemtools.INTEL): 'march=x86-64 -mtune=generic',
     }
