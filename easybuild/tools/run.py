@@ -204,14 +204,13 @@ def fileprefix_from_cmd(cmd, allowed_chars=False):
     return ''.join([c for c in cmd if c in allowed_chars])
 
 
-def save_cmd(cmd_str, work_dir, env):
-    cmd_name = fileprefix_from_cmd(os.path.basename(cmd_str.split(' ')[0]))
+def save_cmd(cmd_str, work_dir, env, filename):
     full_env = os.environ.copy()
     if env is not None:
         full_env.update(env)
 
-    with tempfile.NamedTemporaryFile(prefix=f"{cmd_name}-", suffix=".sh", delete=False) as fid:
-        fid.write('\n'.join(f'{key}={shlex.quote(value)}' for key, value in full_env.items()).encode('utf-8'))
+    with open(filename, 'w') as fid:
+        fid.write('\n'.join(f'{key}={shlex.quote(value)}' for key, value in full_env.items()))
         fid.write('\n'.join([
             f'cd "{work_dir}"',
             f'history -s "{shlex.quote(cmd_str)}"',
@@ -219,7 +218,7 @@ def save_cmd(cmd_str, work_dir, env):
             'echo Use command history, exit to stop',
             'export PS1="eb-shell> $PS1"',
             'bash',
-            ]).encode('utf-8'))
+            ]))
 
 
 def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
@@ -352,11 +351,14 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         os.makedirs(toptmpdir, exist_ok=True)
         cmd_name = fileprefix_from_cmd(os.path.basename(cmd_str.split(' ')[0]))
         tmpdir = tempfile.mkdtemp(dir=toptmpdir, prefix=f'{cmd_name}-')
+        cmd_log_fp = os.path.join(tmpdir, 'cmd.sh')
+        _log.info(f'run_shell_cmd: command environment of "{cmd_str}" will be saved to {cmd_log_fp}')
+        save_cmd(cmd_str, work_dir, env, cmd_log_fp)
         cmd_out_fp = os.path.join(tmpdir, 'out.txt')
-        _log.info(f'run_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
+        _log.info(f'run_shell_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
         if split_stderr:
             cmd_err_fp = os.path.join(tmpdir, 'err.txt')
-            _log.info(f'run_cmd: Errors and warnings of "{cmd_str}" will be logged to {cmd_err_fp}')
+            _log.info(f'run_shell_cmd: Errors and warnings of "{cmd_str}" will be logged to {cmd_err_fp}')
         else:
             cmd_err_fp = None
     else:
@@ -412,7 +414,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         log_msg += f" (via thread with ID {thread_id})"
     _log.info(log_msg)
 
-    save_cmd(cmd_str, work_dir, env)
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr, stdin=subprocess.PIPE,
                             cwd=work_dir, env=env, shell=shell, executable=executable)
 
