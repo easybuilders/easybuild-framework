@@ -924,7 +924,7 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertTrue(ft.is_binary(b'\00'))
         self.assertTrue(ft.is_binary(b"File is binary when it includes \00 somewhere"))
-        self.assertTrue(ft.is_binary(ft.read_file('/bin/ls', mode='rb')))
+        self.assertTrue(ft.is_binary(ft.read_file('/bin/bash', mode='rb')))
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""
