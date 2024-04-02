@@ -2028,6 +2028,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--tmpdir=%s' % tmpdir,
         ]
         try:
+
             outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
                 (tmpdir, 'EasyBuild/4.8.2'),
@@ -2046,7 +2047,43 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
         except URLError as err:
-            print("Ignoring URLError '%s' in test_from_pr" % err)
+            print("Ignoring URLError '%s' in test_from_commit" % err)
+            shutil.rmtree(tmpdir)
+
+    def test_include_easyblocks_from_commit(self):
+        """Test for --include-easyblocks-from-commit."""
+        # note: --include-easyblocks-from-commit does not involve using GitHub API, so no GitHub token required
+
+        # easyblocks commit only touching ConfigureMake easyblock
+        test_commit = '6005d37a1ed2b130a18b5bd525df810f19ba3bbd'
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        tmpdir = tempfile.mkdtemp()
+        args = [
+            '--include-easyblocks-from-commit=%s' % test_commit,
+            '--dry-run',
+            '--tmpdir=%s' % tmpdir,
+            'toy-0.0.eb',  # test easyconfig
+        ]
+        try:
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            pattern = "== easyblock configuremake.py included from comit %s" % test_commit
+            self.assertEqual(stderr, '')
+            self.assertIn(pattern, stdout)
+
+            regex = re.compile(r"^ \* \[.\] .*/toy-0.0.eb \(module: toy/0.0\)$", re.M)
+            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_include_easyblocks_from_commit" % err)
             shutil.rmtree(tmpdir)
 
     def test_no_such_software(self):
