@@ -62,7 +62,7 @@ from easybuild.tools.filetools import read_file, resolve_path, which, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, fetch_easyconfigs_from_commit
 from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_pr_data
-from easybuild.tools.github import fetch_files_from_pr
+from easybuild.tools.github import fetch_files_from_commit, fetch_files_from_pr
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
@@ -791,7 +791,7 @@ def avail_easyblocks():
     return easyblocks
 
 
-def det_copy_ec_specs(orig_paths, from_pr):
+def det_copy_ec_specs(orig_paths, from_pr=None, from_commit=None):
     """Determine list of paths + target directory for --copy-ec."""
 
     if from_pr is not None and not isinstance(from_pr, list):
@@ -854,5 +854,42 @@ def det_copy_ec_specs(orig_paths, from_pr):
                 paths[idx] = pr_matches[0]
             elif pr_matches:
                 raise EasyBuildError("Found multiple paths for %s in PR: %s", filename, pr_matches)
+
+    # consider --from-commit (only if --from-pr was not used)
+    elif from_commit:
+        tmpdir = os.path.join(tempfile.gettempdir(), 'fetch_files_from_commit_%s' % from_commit)
+        commit_paths = fetch_files_from_commit(from_commit, path=tmpdir)
+
+        # assume that files need to be copied to current working directory for now
+        target_path = os.getcwd()
+
+        if orig_paths:
+            last_path = orig_paths[-1]
+
+            # check files touched by commit and see if the target directory for --copy-ec
+            # corresponds to the name of one of these files;
+            # if so we should copy the specified file(s) to the current working directory,
+            # since interpreting the last argument as target location is very unlikely to be correct in this case
+            commit_filenames = [os.path.basename(p) for p in commit_paths]
+            if last_path in commit_filenames:
+                paths = orig_paths[:]
+            else:
+                target_path = last_path
+                # exclude last argument that is used as target location
+                paths = orig_paths[:-1]
+
+        # if list of files to copy is empty at this point,
+        # we simply copy *all* files touched by the PR
+        if not paths:
+            paths = commit_paths
+
+        # replace path for files touched by commit (no need to worry about others)
+        for idx, path in enumerate(paths):
+            filename = os.path.basename(path)
+            commit_matches = [x for x in commit_paths if os.path.basename(x) == filename]
+            if len(commit_matches) == 1:
+                paths[idx] = commit_matches[0]
+            elif commit_matches:
+                raise EasyBuildError("Found multiple paths for %s in commit: %s", filename, commit_matches)
 
     return paths, target_path

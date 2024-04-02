@@ -329,7 +329,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     if options.copy_ec:
         # figure out list of files to copy + target location (taking into account --from-pr)
-        eb_args, target_path = det_copy_ec_specs(eb_args, from_pr_list)
+        eb_args, target_path = det_copy_ec_specs(eb_args, from_pr=from_pr_list, from_commit=options.from_commit)
 
     categorized_paths = categorize_files_by_type(eb_args)
 

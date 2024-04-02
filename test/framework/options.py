@@ -1422,6 +1422,70 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertIn("name = 'ExifTool'", read_file(test_ec))
         remove_file(test_ec)
 
+    def test_copy_ec_from_commit(self):
+        """Test combination of --copy-ec with --from-commit."""
+        # note: --from-commit does not involve using GitHub API, so no GitHub token required
+
+        # using easyconfigs commit to add EasyBuild-4.8.2.eb
+        test_commit = '7c83a553950c233943c7b0189762f8c05cfea852'
+
+        test_dir = os.path.join(self.test_prefix, 'from_commit')
+        mkdir(test_dir, parents=True)
+        args = ['--copy-ec', '--from-commit=%s' % test_commit, test_dir]
+        try:
+            stdout = self.mocked_main(args)
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
+
+        pattern = "_%s/e/EasyBuild/EasyBuild-4.8.2.eb copied to " % test_commit
+        self.assertIn(pattern, stdout)
+        copied_ecs = os.listdir(test_dir)
+        self.assertEqual(copied_ecs, ['EasyBuild-4.8.2.eb'])
+
+        # cleanup
+        remove_dir(test_dir)
+        mkdir(test_dir)
+
+        # test again, using extra argument (name of file to copy), without specifying target directory
+        # (should copy to current directory)
+        cwd = change_dir(test_dir)
+        args = ['--copy-ec', '--from-commit=%s' % test_commit, "EasyBuild-4.8.2.eb"]
+        try:
+            stdout = self.mocked_main(args)
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
+
+        self.assertIn(pattern, stdout)
+        copied_ecs = os.listdir(test_dir)
+        self.assertEqual(copied_ecs, ['EasyBuild-4.8.2.eb'])
+
+        # cleanup
+        change_dir(cwd)
+        remove_dir(test_dir)
+        mkdir(test_dir)
+
+        # test with commit that touches a bunch of easyconfigs
+        test_commit = '49c887397b1a948e1909fc24bc905fdc1ad38388'
+        expected_ecs = [
+            'gompi-2023b.eb',
+            'gfbf-2023b.eb',
+            'ScaLAPACK-2.2.0-gompi-2023b-fb.eb',
+            'foss-2023b.eb',
+            'HPL-2.3-foss-2023b.eb',
+            'FFTW.MPI-3.3.10-gompi-2023b.eb',
+            'SciPy-bundle-2023.11-gfbf-2023b.eb',
+            'OSU-Micro-Benchmarks-7.2-gompi-2023b.eb',
+        ]
+        args = ['--copy-ec', '--from-commit=%s' % test_commit, test_dir]
+        try:
+            stdout = self.mocked_main(args)
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
+
+        copied_ecs = os.listdir(test_dir)
+        for ec in expected_ecs:
+            self.assertIn(ec, copied_ecs)
+
     def test_dry_run(self):
         """Test dry run (long format)."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -2028,7 +2092,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--tmpdir=%s' % tmpdir,
         ]
         try:
-
             outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
                 (tmpdir, 'EasyBuild/4.8.2'),
