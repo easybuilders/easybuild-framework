@@ -702,7 +702,8 @@ class EasyBuildOptions(GeneralOption):
             'check-style': ("Run a style check on the given easyconfigs", None, 'store_true', False),
             'cleanup-easyconfigs': ("Clean up easyconfig files for pull request", None, 'store_true', True),
             'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
-            'from-commit': ("Obtain easyconfigs from specified commit", 'str', 'store', None, {'metavar': 'commit_SHA'}),
+            'from-commit': ("Obtain easyconfigs from specified commit", 'str', 'store',
+                            None, {'metavar': 'commit_SHA'}),
             'from-pr': ("Obtain easyconfigs from specified PR", 'strlist', 'store', [], {'metavar': 'PR#'}),
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
             'github-user': ("GitHub username", str, 'store', None),
@@ -1527,6 +1528,7 @@ def check_root_usage(allow_use_as_root=False):
             raise EasyBuildError("You seem to be running EasyBuild with root privileges which is not wise, "
                                  "so let's end this here.")
 
+
 def handle_include_easyblocks_from(options, log):
     """
     Handle --include-easyblocks-from-pr and --include-easyblocks-from-commit
@@ -1551,7 +1553,7 @@ def handle_include_easyblocks_from(options, log):
             try:
                 easyblock_prs = [int(x) for x in options.include_easyblocks_from_pr]
             except ValueError:
-                raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR #s.")
+                raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR #s")
 
             for easyblock_pr in easyblock_prs:
                 easyblocks_from_pr = fetch_easyblocks_from_pr(easyblock_pr)
@@ -1573,7 +1575,7 @@ def handle_include_easyblocks_from(options, log):
             included_from_commit = set([os.path.basename(eb) for eb in easyblocks_from_commit])
 
             if options.include_easyblocks:
-                    check_included_multiple(included_from_commit, "commit %s" % easyblock_commit)
+                check_included_multiple(included_from_commit, "commit %s" % easyblock_commit)
 
             for easyblock in included_from_commit:
                 print_msg("easyblock %s included from comit %s" % (easyblock, easyblock_commit), log=log)
@@ -1586,6 +1588,8 @@ def handle_include_easyblocks_from(options, log):
                 log.info(msg)
             else:
                 print(msg)
+            # tmpdir is set by option parser via set_tmpdir function
+            tmpdir = tempfile.gettempdir()
             cleanup_and_exit(tmpdir)
 
 
