@@ -1574,8 +1574,7 @@ def handle_include_easyblocks_from(options, log):
 
                 if options.include_easyblocks:
                     check_included_multiple(included_from_pr, "PR #%s" % easyblock_pr)
-
-                included_easyblocks |= included_from_pr
+                    included_easyblocks |= included_from_pr
 
                 for easyblock in included_from_pr:
                     print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log)
