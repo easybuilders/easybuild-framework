@@ -361,6 +361,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, commit=None, accoun
     Download entire GitHub repo as a tar.gz archive, and extract it into specified path.
     :param repo: repo to download
     :param branch: branch to download
+    :param commit: commit to download
     :param account: GitHub account to download repo from
     :param path: path to extract to
     :param github_user: name of GitHub user to use
