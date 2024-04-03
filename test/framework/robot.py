@@ -715,6 +715,7 @@ class RobotTest(EnhancedTestCase):
 
     def test_github_det_easyconfig_paths_from_commit(self):
         """Test det_easyconfig_paths function in combination with --from-commit."""
+        # note: --from-commit does not involve using GitHub API, so no GitHub token required
 
         test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
@@ -730,7 +731,6 @@ class RobotTest(EnhancedTestCase):
             '--robot',
             '--robot=%s' % test_ecs_path,
             '--unittest-file=%s' % self.logfile,
-            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % self.test_prefix,
         ]
 
