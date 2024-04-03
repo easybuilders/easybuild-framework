@@ -202,6 +202,63 @@ def fileprefix_from_cmd(cmd, allowed_chars=False):
     return ''.join([c for c in cmd if c in allowed_chars])
 
 
+def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
+    """
+    Private helper function to try and answer questions raised in interactive shell commands.
+    """
+    match_found = False
+
+    for question, answers in qa_patterns:
+        # allow extra whitespace at the end
+        question += r'[\s\n]*$'
+        regex = re.compile(question.encode())
+        res = regex.search(stdout)
+        if res:
+            _log.debug(f"Found match for question pattern '{question}' at end of stdout: {stdout[:1000]}")
+            # if answer is specified as a list, we take the first item as current answer,
+            # and add it to the back of the list (so we cycle through answers)
+            if isinstance(answers, list):
+                answer = answers.pop(0)
+                answers.append(answer)
+            elif isinstance(answers, str):
+                answer = answers
+            else:
+                raise EasyBuildError(f"Unknown type of answers encountered: {answers}")
+
+            # answer may need to be completed via pattern extracted from question
+            _log.debug(f"Raw answer for question pattern '{question}': {answer}")
+            answer = answer % {k: v.decode() for (k, v) in res.groupdict().items()}
+            answer += '\n'
+            _log.info(f"Found match for question pattern '{question}', replying with: {answer}")
+
+            try:
+                os.write(proc.stdin.fileno(), answer.encode())
+            except OSError as err:
+                raise EasyBuildError("Failed to answer question raised by interactive command: %s", err)
+
+            time_no_match = 0
+            match_found = True
+            break
+    else:
+        _log.info("No match found for question patterns, considering question wait patterns")
+        # if no match was found among question patterns,
+        # take into account patterns for non-questions (qa_wait_patterns)
+        for pattern in qa_wait_patterns:
+            # allow extra whitespace at the end
+            pattern += r'[\s\n]*$'
+            regex = re.compile(pattern.encode())
+            if regex.search(stdout):
+                _log.info(f"Found match for wait pattern '{pattern}'")
+                _log.debug(f"Found match for wait pattern '{pattern}' at end of stdout: {stdout[:1000]}")
+                time_no_match = 0
+                match_found = True
+                break
+        else:
+            _log.info("No match found for question wait patterns")
+
+    return match_found
+
+
 @run_shell_cmd_cache
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
                   hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, use_bash=True,
@@ -378,51 +435,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                 stderr += proc.stderr.read1(read_size) or b''
 
             if qa_patterns:
-                match_found = False
-                for question, answers in qa_patterns:
-                    # allow extra whitespace at the end
-                    question += r'[\s\n]*$'
-                    regex = re.compile(question.encode())
-                    res = regex.search(stdout)
-                    if res:
-                        _log.debug(f"Found match for question pattern '{question}' at end of stdout: {stdout[:1000]}")
-                        # if answer is specified as a list, we take the first item as current answer,
-                        # and add it to the back of the list (so we cycle through answers)
-                        if isinstance(answers, list):
-                            answer = answers.pop(0)
-                            answers.append(answer)
-                        elif isinstance(answers, str):
-                            answer = answers
-                        else:
-                            raise EasyBuildError(f"Unknown type of answers encountered: {answers}")
-
-                        # answer may need to be completed via pattern extracted from question
-                        _log.debug(f"Raw answer for question pattern '{question}': {answer}")
-                        answer = answer % {k: v.decode() for (k, v) in res.groupdict().items()}
-                        answer += '\n'
-                        _log.info(f"Found match for question pattern '{question}', replying with: {answer}")
-                        os.write(proc.stdin.fileno(), answer.encode())
-                        time_no_match = 0
-                        match_found = True
-                        break
-                else:
-                    _log.info("No match found for question patterns, considering question wait patterns")
-                    # if no match was found among question patterns,
-                    # take into account patterns for non-questions (qa_wait_patterns)
-                    for pattern in qa_wait_patterns:
-                        # allow extra whitespace at the end
-                        pattern += r'[\s\n]*$'
-                        regex = re.compile(pattern.encode())
-                        if regex.search(stdout):
-                            _log.info(f"Found match for wait pattern '{pattern}'")
-                            _log.debug(f"Found match for wait pattern '{pattern}' at end of stdout: {stdout[:1000]}")
-                            time_no_match = 0
-                            match_found = True
-                            break
-                    else:
-                        _log.info("No match found for question wait patterns")
-
-                if not match_found:
+                if not _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
                     _log.debug(f"No match found in question/wait patterns at end of stdout: {stdout[:1000]}")
                     # this will only run if the for loop above was *not* stopped by the break statement
                     time_no_match += check_interval_secs
@@ -437,6 +450,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
             exit_code = proc.poll()
 
+        # collect last bit of output once processed has exited
         stdout += proc.stdout.read()
         if split_stderr:
             stderr += proc.stderr.read()
