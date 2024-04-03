@@ -268,6 +268,17 @@ class ModuleGenerator(object):
         paths = self._filter_paths(key, paths)
         if paths is None:
             return ''
+        if key == 'PYTHONPATH':
+            # Special condition for PYTHONPATHs that match the standard pattern,
+            # replace with EBPYTHONPREFIX which is added to python sys path at runtime
+            python_paths = {path for path in paths if re.match(r'lib/python\d+\.\d+/site-packages', path)}
+            if python_paths:
+                self.log.info("Replaced PYTHONPATH %s with EBPYTHONPREFIX", python_paths)
+                paths = [path for path in paths if path not in python_paths]
+                ret = self._update_paths('EBPYTHONPREFIX', [''], prepend, allow_abs, expand_relpaths)
+                if paths:
+                    ret += self._update_paths(key, paths, prepend, allow_abs, expand_relpaths)
+                return ret
         return self._update_paths(key, paths, prepend, allow_abs, expand_relpaths)
 
     def _modulerc_check_module_version(self, module_version):
