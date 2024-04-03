@@ -765,8 +765,14 @@ def prepare_main(args=None, logfile=None, testing=None):
 
 
 if __name__ == "__main__":
-    init_session_state, eb_go, cfg_settings = prepare_main()
+    # take into account that EasyBuildError may be raised when parsing the EasyBuild configuration
+    try:
+        init_session_state, eb_go, cfg_settings = prepare_main()
+    except EasyBuildError as err:
+        print_error(err.msg)
+
     hooks = load_hooks(eb_go.options.hooks)
+
     try:
         main(prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
     except EasyBuildError as err:

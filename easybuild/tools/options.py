@@ -1512,6 +1512,19 @@ def parse_options(args=None, with_include=True):
     return eb_go
 
 
+def check_options(options):
+    """
+    Check configuration options, some combinations are not allowed.
+    """
+    if options.from_commit and options.from_pr:
+        raise EasyBuildError("--from-commit and --from-pr should not be used together, pick one")
+
+    if options.include_easyblocks_from_commit and options.include_easyblocks_from_pr:
+        error_msg = "--include-easyblocks-from-commit and --include-easyblocks-from-pr "
+        error_msg += "should not be used together, pick one"
+        raise EasyBuildError(error_msg)
+
+
 def check_root_usage(allow_use_as_root=False):
     """
     Check whether we are running as root, and act accordingly
@@ -1612,6 +1625,8 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
     # parse EasyBuild configuration settings
     eb_go = parse_options(args=args)
     options = eb_go.options
+
+    check_options(options)
 
     # tmpdir is set by option parser via set_tmpdir function
     tmpdir = tempfile.gettempdir()
