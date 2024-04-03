@@ -236,7 +236,6 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
             except OSError as err:
                 raise EasyBuildError("Failed to answer question raised by interactive command: %s", err)
 
-            time_no_match = 0
             match_found = True
             break
     else:
@@ -250,7 +249,6 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
             if regex.search(stdout):
                 _log.info(f"Found match for wait pattern '{pattern}'")
                 _log.debug(f"Found match for wait pattern '{pattern}' at end of stdout: {stdout[:1000]}")
-                time_no_match = 0
                 match_found = True
                 break
         else:
@@ -435,7 +433,9 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                 stderr += proc.stderr.read1(read_size) or b''
 
             if qa_patterns:
-                if not _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
+                if _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
+                    time_no_match = 0
+                else:
                     _log.debug(f"No match found in question/wait patterns at end of stdout: {stdout[:1000]}")
                     # this will only run if the for loop above was *not* stopped by the break statement
                     time_no_match += check_interval_secs
