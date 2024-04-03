@@ -540,7 +540,7 @@ class GithubTest(EnhancedTestCase):
     def test_fetch_files_from_commit(self):
         """Test fetch_files_from_commit function."""
 
-        # easyconfigs commit to add EasyBuild-4.8.2.eb (also test short commit, should work)
+        # easyconfigs commit to add EasyBuild-4.8.2.eb
         test_commit = '7c83a553950c233943c7b0189762f8c05cfea852'
 
         # without specifying any files/repo, default is to use easybuilders/easybuilld-easyconfigs
