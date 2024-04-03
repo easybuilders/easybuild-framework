@@ -2113,12 +2113,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
             print("Ignoring URLError '%s' in test_from_commit" % err)
             shutil.rmtree(tmpdir)
 
-    def test_include_easyblocks_from_commit(self):
+    # must be run after test for --list-easyblocks, hence the '_xxx_'
+    # cleaning up the imported easyblocks is quite difficult...
+    def test_xxx_include_easyblocks_from_commit(self):
         """Test for --include-easyblocks-from-commit."""
         # note: --include-easyblocks-from-commit does not involve using GitHub API, so no GitHub token required
 
-        # easyblocks commit only touching ConfigureMake easyblock
-        test_commit = '6005d37a1ed2b130a18b5bd525df810f19ba3bbd'
+        orig_local_sys_path = sys.path[:]
+        # easyblocks commit only touching Binary easyblock
+        test_commit = '94d28c556947bd96d0978df775b15a50a4600c6f'
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
@@ -2138,7 +2141,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
             stderr = self.get_stderr()
             self.mock_stdout(False)
             self.mock_stderr(False)
-            pattern = "== easyblock configuremake.py included from comit %s" % test_commit
+
+            # 'undo' import of foo easyblock
+            del sys.modules['easybuild.easyblocks.generic.binary']
+            sys.path[:] = orig_local_sys_path
+            import easybuild.easyblocks
+            reload(easybuild.easyblocks)
+            import easybuild.easyblocks.generic
+            reload(easybuild.easyblocks.generic)
+
+            pattern = "== easyblock binary.py included from comit %s" % test_commit
             self.assertEqual(stderr, '')
             self.assertIn(pattern, stdout)
 
