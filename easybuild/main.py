@@ -749,8 +749,7 @@ def prepare_main(args=None, logfile=None, testing=None):
 
     # if $CDPATH is set, unset it, it'll only cause trouble...
     # see https://github.com/easybuilders/easybuild-framework/issues/2944
-    if 'CDPATH' in os.environ:
-        del os.environ['CDPATH']
+    os.environ.pop('CDPATH', None)
 
     # When EB is run via `exec` the special bash variable $_ is not set
     # So emulate this here to allow (module) scripts depending on that to work
