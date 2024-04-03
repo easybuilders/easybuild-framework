@@ -286,12 +286,14 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     else:
         cmd_out_fp, cmd_err_fp = None, None
 
+    interactive = bool(qa_patterns)
+    interactive_msg = 'interactive ' if interactive else ''
+
     # early exit in 'dry run' mode, after printing the command that would be run (unless 'hidden' is enabled)
     if not in_dry_run and build_option('extended_dry_run'):
         if not hidden or verbose_dry_run:
             silent = build_option('silent')
-            interactive = 'interactive ' if qa_patterns else ''
-            msg = f"  running {interactive}shell command \"{cmd_str}\"\n"
+            msg = f"  running {interactive_msg}shell command \"{cmd_str}\"\n"
             msg += f"  (in {work_dir})"
             dry_run_msg(msg, silent=silent)
 
@@ -300,8 +302,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     start_time = datetime.now()
     if not hidden:
-        _cmd_trace_msg(cmd_str, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thread_id,
-                       interactive=bool(qa_patterns))
+        _cmd_trace_msg(cmd_str, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thread_id, interactive=interactive)
 
     if stream_output:
         print_msg(f"(streaming) output for command '{cmd_str}':")
@@ -319,7 +320,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     if with_hooks:
         hooks = load_hooks(build_option('hooks'))
         kwargs = {
-            'interactive': bool(qa_patterns),
+            'interactive': interactive,
             'work_dir': work_dir,
         }
         hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs=kwargs)
@@ -330,7 +331,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     stderr = subprocess.PIPE if split_stderr else subprocess.STDOUT
 
-    log_msg = f"Running shell command '{cmd_str}' in {work_dir}"
+    log_msg = f"Running {interactive_msg}shell command '{cmd_str}' in {work_dir}"
     if thread_id:
         log_msg += f" (via thread with ID {thread_id})"
     _log.info(log_msg)
@@ -384,6 +385,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                     regex = re.compile(question.encode())
                     res = regex.search(stdout)
                     if res:
+                        _log.debug(f"Found match for question pattern '{question}' at end of: {stdout}")
                         # if answer is specified as a list, we take the first item as current answer,
                         # and add it to the back of the list (so we cycle through answers)
                         if isinstance(answers, list):
@@ -395,13 +397,16 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                             raise EasyBuildError(f"Unknown type of answers encountered: {answers}")
 
                         # answer may need to be completed via pattern extracted from question
+                        _log.debug(f"Raw answer for question pattern '{question}': {answer}")
                         answer = answer % {k: v.decode() for (k, v) in res.groupdict().items()}
                         answer += '\n'
+                        _log.info(f"Found match for question pattern '{question}', replying with: {answer}")
                         os.write(proc.stdin.fileno(), answer.encode())
                         time_no_match = 0
                         match_found = True
                         break
                 else:
+                    _log.info("No match found for question patterns, considering question wait patterns")
                     # if no match was found among question patterns,
                     # take into account patterns for non-questions (qa_wait_patterns)
                     for pattern in qa_wait_patterns:
@@ -409,17 +414,24 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                         pattern += r'[\s\n]*$'
                         regex = re.compile(pattern.encode())
                         if regex.search(stdout):
+                            _log.info(f"Found match for question wait pattern '{pattern}'")
+                            _log.debug(f"Found match for question wait pattern '{pattern}' at end of: {stdout}")
                             time_no_match = 0
                             match_found = True
                             break
+                    else:
+                        _log.info("No match found for question wait patterns")
 
                 if not match_found:
+                    _log.debug(f"No match found in question or wait patterns at end of current output: {stdout}")
                     # this will only run if the for loop above was *not* stopped by the break statement
                     time_no_match += check_interval_secs
                     if time_no_match > qa_timeout:
                         error_msg = "No matching questions found for current command output, "
                         error_msg += f"giving up after {qa_timeout} seconds!"
                         raise EasyBuildError(error_msg)
+                    else:
+                        _log.debug(f"{time_no_match} seconds without match in output of interactive shell command")
 
             time.sleep(check_interval_secs)
 
@@ -467,7 +479,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     if with_hooks:
         run_hook_kwargs = {
             'exit_code': res.exit_code,
-            'interactive': bool(qa_patterns),
+            'interactive': interactive,
             'output': res.output,
             'stderr': res.stderr,
             'work_dir': res.work_dir,
