@@ -1047,7 +1047,8 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.exit_code, 0)
 
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, "Unknown type of answers encountered", run_shell_cmd, cmd, qa_patterns=[('question', 1)])
+            self.assertErrorRegex(EasyBuildError, "Unknown type of answers encountered", run_shell_cmd, cmd,
+                                  qa_patterns=[('question', 1)])
 
         # test cycling of answers
         cmd = cmd * 2
