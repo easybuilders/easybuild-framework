@@ -382,7 +382,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                     # allow extra whitespace at the end
                     question += r'[\s\n]*$'
                     regex = re.compile(question.encode())
-                    if regex.search(stdout):
+                    res = regex.search(stdout)
+                    if res:
                         # if answer is specified as a list, we take the first item as current answer,
                         # and add it to the back of the list (so we cycle through answers)
                         if isinstance(answers, list):
@@ -393,6 +394,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                         else:
                             raise EasyBuildError(f"Unknown type of answers encountered: {answers}")
 
+                        # answer may need to be completed via pattern extracted from question
+                        answer = answer % {k: v.decode() for (k, v) in res.groupdict().items()}
                         answer += '\n'
                         os.write(proc.stdin.fileno(), answer.encode())
                         time_no_match = 0

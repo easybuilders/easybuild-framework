@@ -838,6 +838,18 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=qa, qa_timeout=1)
 
+        # check using answer that is completed via pattern extracted from question
+        cmd = ';'.join([
+            "echo 'and the magic number is: 42'",
+            "read magic_number",
+            "echo $magic_number",
+        ])
+        qa = [("and the magic number is: (?P<nr>[0-9]+)", "%(nr)s")]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "and the magic number is: 42\n42\n")
+
         # test handling of output that is not actually a question
         cmd = ';'.join([
             "echo not-a-question-but-a-statement",
