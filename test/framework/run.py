@@ -771,6 +771,24 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(out.startswith("question\nanswer\nfoo "))
         self.assertTrue(out.endswith('bar'))
 
+        # test handling of output that is not actually a question
+        cmd = ';'.join([
+            "echo not-a-question-but-a-statement",
+            "sleep 3",
+            "echo question",
+            "read x",
+            "echo $x",
+        ])
+        qa = {'question': 'answer'}
+
+        # fails because non-question is encountered
+        error_pattern = "Max nohits 1 reached: end of output not-a-question-but-a-statement"
+        self.assertErrorRegex(EasyBuildError, error_pattern, run_cmd_qa, cmd, qa, maxhits=1, trace=False)
+
+        (out, ec) = run_cmd_qa(cmd, qa, no_qa=["not-a-question-but-a-statement"], maxhits=1, trace=False)
+        self.assertEqual(out, "not-a-question-but-a-statement\nquestion\nanswer\n")
+        self.assertEqual(ec, 0)
+
     def test_run_shell_cmd_qa(self):
         """Basic test for Q&A support in run_shell_cmd function."""
 
@@ -819,6 +837,27 @@ class RunTest(EnhancedTestCase):
         error_pattern = "No matching questions found for current command output, giving up after 1 seconds!"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=qa, qa_timeout=1)
+
+        # test handling of output that is not actually a question
+        cmd = ';'.join([
+            "echo not-a-question-but-a-statement",
+            "sleep 3",
+            "echo question",
+            "read x",
+            "echo $x",
+        ])
+        qa = [('question', 'answer')]
+
+        # fails because non-question is encountered
+        error_pattern = "No matching questions found for current command output, giving up after 1 seconds!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=qa, qa_timeout=1,
+                              hidden=True)
+
+        qa_wait_patterns = ["not-a-question-but-a-statement"]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa, qa_wait_patterns=qa_wait_patterns, qa_timeout=1)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "not-a-question-but-a-statement\nquestion\nanswer\n")
 
     def test_run_cmd_qa_buffering(self):
         """Test whether run_cmd_qa uses unbuffered output."""

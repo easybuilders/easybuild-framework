@@ -252,9 +252,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         if not isinstance(qa_patterns, list) or any(not isinstance(x, tuple) or len(x) != 2 for x in qa_patterns):
             raise EasyBuildError("qa_patterns passed to run_shell_cmd should be a list of 2-tuples!")
 
-    # temporarily raise a NotImplementedError until all options are implemented
-    if qa_wait_patterns:
-        raise NotImplementedError
+    if qa_wait_patterns is None:
+        qa_wait_patterns = []
 
     if work_dir is None:
         work_dir = os.getcwd()
@@ -377,10 +376,10 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             if split_stderr:
                 stderr += proc.stderr.read1(read_size) or b''
 
-            # only consider answering questions if there's new output beyond additional whitespace
             if qa_patterns:
+                match_found = False
                 for question, answers in qa_patterns:
-
+                    # allow extra whitespace at the end
                     question += r'[\s\n]*$'
                     regex = re.compile(question.encode())
                     if regex.search(stdout):
@@ -397,8 +396,21 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                         answer += '\n'
                         os.write(proc.stdin.fileno(), answer.encode())
                         time_no_match = 0
+                        match_found = True
                         break
                 else:
+                    # if no match was found among question patterns,
+                    # take into account patterns for non-questions (qa_wait_patterns)
+                    for pattern in qa_wait_patterns:
+                        # allow extra whitespace at the end
+                        pattern += r'[\s\n]*$'
+                        regex = re.compile(pattern.encode())
+                        if regex.search(stdout):
+                            time_no_match = 0
+                            match_found = True
+                            break
+
+                if not match_found:
                     # this will only run if the for loop above was *not* stopped by the break statement
                     time_no_match += check_interval_secs
                     if time_no_match > qa_timeout:
