@@ -3657,7 +3657,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_det_subtoolchain_version(self):
         """Test det_subtoolchain_version function"""
         _, all_tc_classes = search_toolchain('')
-        subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
+        subtoolchains = {tc_class.NAME: getattr(tc_class, 'SUBTOOLCHAIN', None) for tc_class in all_tc_classes}
         optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
 
         current_tc = {'name': 'fosscuda', 'version': '2018a'}

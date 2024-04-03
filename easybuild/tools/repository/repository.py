@@ -146,7 +146,7 @@ def avail_repositories(check_useable=True):
     """
     import_available_modules('easybuild.tools.repository')
 
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_useable])
+    class_dict = {x.__name__: x for x in get_subclasses(Repository) if x.USABLE or not check_useable}
 
     if 'FileRepository' not in class_dict:
         raise EasyBuildError("avail_repositories: FileRepository missing from list of repositories")

@@ -60,7 +60,7 @@ OTHER = (9, 'other')
 # we use a tuple here so we can sort them based on the numbers
 CATEGORY_NAMES = ['BUILD', 'CUSTOM', 'DEPENDENCIES', 'EXTENSIONS', 'FILEMANAGEMENT', 'HIDDEN',
                   'LICENSE', 'MANDATORY', 'MODULES', 'OTHER', 'TOOLCHAIN']
-ALL_CATEGORIES = dict((name, eval(name)) for name in CATEGORY_NAMES)
+ALL_CATEGORIES = {name: eval(name) for name in CATEGORY_NAMES}
 
 # List of tuples. Each tuple has the following format (key, [default, help text, category])
 DEFAULT_CONFIG = {

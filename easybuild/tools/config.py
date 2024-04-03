@@ -576,7 +576,7 @@ def init_build_options(build_options=None, cmdline_options=None):
             cmdline_options.accept_eula_for = cmdline_options.accept_eula
 
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]
-        active_build_options.update(dict([(key, getattr(cmdline_options, key)) for key in cmdline_build_option_names]))
+        active_build_options.update({key: getattr(cmdline_options, key) for key in cmdline_build_option_names})
         # other options which can be derived but have no perfectly matching cmdline option
         active_build_options.update({
             'check_osdeps': not cmdline_options.ignore_osdeps,
@@ -599,7 +599,7 @@ def init_build_options(build_options=None, cmdline_options=None):
                 for opt in build_options_by_default[default]:
                     bo[opt] = []
             else:
-                bo.update(dict([(opt, default) for opt in build_options_by_default[default]]))
+                bo.update({opt: default for opt in build_options_by_default[default]})
     bo.update(active_build_options)
 
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
