@@ -1536,14 +1536,26 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 ])
 
             for opt in ['-M', '--missing-modules']:
-                self.mock_stderr(True)
-                self.mock_stdout(True)
-                self.eb_main(args + [opt], testing=False, raise_error=True)
-                stderr, stdout = self.get_stderr(), self.get_stdout()
-                self.mock_stderr(False)
-                self.mock_stdout(False)
+                with self.mocked_stdout_stderr():
+                    self.eb_main(args + [opt], testing=False, raise_error=True)
+                    stderr, stdout = self.get_stderr(), self.get_stdout()
                 self.assertFalse(stderr)
                 self.assertIn(expected, stdout)
+            # --terse
+            with self.mocked_stdout_stderr():
+                self.eb_main(args + ['-M', '--terse'], testing=False, raise_error=True)
+                stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.assertFalse(stderr)
+            if mns == 'HierarchicalMNS':
+                expected = '\n'.join([
+                    "GCC-4.6.3.eb",
+                    "intel-2018a.eb",
+                    "toy-0.0-deps.eb",
+                    "gzip-1.4-GCC-4.6.3.eb",
+                ])
+            else:
+                expected = 'gzip-1.4-GCC-4.6.3.eb'
+            self.assertEqual(stdout, expected + '\n')
 
     def test_dry_run_short(self):
         """Test dry run (short format)."""

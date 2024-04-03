@@ -309,6 +309,7 @@ BUILD_OPTIONS_CMDLINE = {
         'skip_test_cases',
         'skip_test_step',
         'sticky_bit',
+        'terse',
         'trace',
         'unit_testing_mode',
         'upload_test_report',
