@@ -1422,6 +1422,70 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertIn("name = 'ExifTool'", read_file(test_ec))
         remove_file(test_ec)
 
+    def test_copy_ec_from_commit(self):
+        """Test combination of --copy-ec with --from-commit."""
+        # note: --from-commit does not involve using GitHub API, so no GitHub token required
+
+        # using easyconfigs commit to add EasyBuild-4.8.2.eb
+        test_commit = '7c83a553950c233943c7b0189762f8c05cfea852'
+
+        test_dir = os.path.join(self.test_prefix, 'from_commit')
+        mkdir(test_dir, parents=True)
+        args = ['--copy-ec', '--from-commit=%s' % test_commit, test_dir]
+        try:
+            stdout = self.mocked_main(args)
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
+
+        pattern = "_%s/e/EasyBuild/EasyBuild-4.8.2.eb copied to " % test_commit
+        self.assertIn(pattern, stdout)
+        copied_ecs = os.listdir(test_dir)
+        self.assertEqual(copied_ecs, ['EasyBuild-4.8.2.eb'])
+
+        # cleanup
+        remove_dir(test_dir)
+        mkdir(test_dir)
+
+        # test again, using extra argument (name of file to copy), without specifying target directory
+        # (should copy to current directory)
+        cwd = change_dir(test_dir)
+        args = ['--copy-ec', '--from-commit=%s' % test_commit, "EasyBuild-4.8.2.eb"]
+        try:
+            stdout = self.mocked_main(args)
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
+
+        self.assertIn(pattern, stdout)
+        copied_ecs = os.listdir(test_dir)
+        self.assertEqual(copied_ecs, ['EasyBuild-4.8.2.eb'])
+
+        # cleanup
+        change_dir(cwd)
+        remove_dir(test_dir)
+        mkdir(test_dir)
+
+        # test with commit that touches a bunch of easyconfigs
+        test_commit = '49c887397b1a948e1909fc24bc905fdc1ad38388'
+        expected_ecs = [
+            'gompi-2023b.eb',
+            'gfbf-2023b.eb',
+            'ScaLAPACK-2.2.0-gompi-2023b-fb.eb',
+            'foss-2023b.eb',
+            'HPL-2.3-foss-2023b.eb',
+            'FFTW.MPI-3.3.10-gompi-2023b.eb',
+            'SciPy-bundle-2023.11-gfbf-2023b.eb',
+            'OSU-Micro-Benchmarks-7.2-gompi-2023b.eb',
+        ]
+        args = ['--copy-ec', '--from-commit=%s' % test_commit, test_dir]
+        try:
+            stdout = self.mocked_main(args)
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
+
+        copied_ecs = os.listdir(test_dir)
+        for ec in expected_ecs:
+            self.assertIn(ec, copied_ecs)
+
     def test_dry_run(self):
         """Test dry run (long format)."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -2010,6 +2074,92 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr_x" % err)
+
+    def test_from_commit(self):
+        """Test for --from-commit."""
+        # note: --from-commit does not involve using GitHub API, so no GitHub token required
+
+        # easyconfigs commit to add EasyBuild-4.8.2.eb
+        test_commit = '7c83a553950c233943c7b0189762f8c05cfea852'
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        tmpdir = tempfile.mkdtemp()
+        args = [
+            '--from-commit=%s' % test_commit,
+            '--dry-run',
+            '--tmpdir=%s' % tmpdir,
+        ]
+        try:
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            modules = [
+                (tmpdir, 'EasyBuild/4.8.2'),
+            ]
+            for path_prefix, module in modules:
+                ec_fn = "%s.eb" % '-'.join(module.split('/'))
+                path = '.*%s' % os.path.dirname(path_prefix)
+                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
+                self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+            # make sure that *only* these modules are listed, no others
+            regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
+            self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
+
+            pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_commit_%s' % test_commit)
+            regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)
+            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_from_commit" % err)
+            shutil.rmtree(tmpdir)
+
+    # must be run after test for --list-easyblocks, hence the '_xxx_'
+    # cleaning up the imported easyblocks is quite difficult...
+    def test_xxx_include_easyblocks_from_commit(self):
+        """Test for --include-easyblocks-from-commit."""
+        # note: --include-easyblocks-from-commit does not involve using GitHub API, so no GitHub token required
+
+        orig_local_sys_path = sys.path[:]
+        # easyblocks commit only touching Binary easyblock
+        test_commit = '94d28c556947bd96d0978df775b15a50a4600c6f'
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        tmpdir = tempfile.mkdtemp()
+        args = [
+            '--include-easyblocks-from-commit=%s' % test_commit,
+            '--dry-run',
+            '--tmpdir=%s' % tmpdir,
+            'toy-0.0.eb',  # test easyconfig
+        ]
+        try:
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+
+            # 'undo' import of foo easyblock
+            del sys.modules['easybuild.easyblocks.generic.binary']
+            sys.path[:] = orig_local_sys_path
+            import easybuild.easyblocks
+            reload(easybuild.easyblocks)
+            import easybuild.easyblocks.generic
+            reload(easybuild.easyblocks.generic)
+
+            pattern = "== easyblock binary.py included from comit %s" % test_commit
+            self.assertEqual(stderr, '')
+            self.assertIn(pattern, stdout)
+
+            regex = re.compile(r"^ \* \[.\] .*/toy-0.0.eb \(module: toy/0.0\)$", re.M)
+            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_include_easyblocks_from_commit" % err)
+            shutil.rmtree(tmpdir)
 
     def test_no_such_software(self):
         """Test using no arguments."""

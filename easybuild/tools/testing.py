@@ -336,6 +336,14 @@ def post_pr_test_report(pr_nrs, repo_type, test_report, msg, init_session_state,
 
     comment_lines = ["Test report by @%s" % github_user]
 
+    if build_option('include_easyblocks_from_commit'):
+        if repo_type == GITHUB_EASYCONFIGS_REPO:
+            easyblocks_commit = build_option('include_easyblocks_from_commit')
+            url = 'https://github.com/%s/%s/commit/%s' % (pr_target_account, GITHUB_EASYBLOCKS_REPO, easyblocks_commit)
+            comment_lines.append("Using easyblocks from %s" % url)
+        else:
+            raise EasyBuildError("Don't know how to submit test reports to repo %s.", repo_type)
+
     if build_option('include_easyblocks_from_pr'):
         if repo_type == GITHUB_EASYCONFIGS_REPO:
             easyblocks_pr_nrs = [int(x) for x in build_option('include_easyblocks_from_pr')]

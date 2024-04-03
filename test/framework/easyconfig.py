@@ -733,6 +733,40 @@ class EasyConfigTest(EnhancedTestCase):
         # cleanup
         os.remove(tweaked_fn)
 
+    def test_alt_easyconfig_paths(self):
+        """Test alt_easyconfig_paths function that collects list of additional paths for easyconfig files."""
+
+        tweaked_ecs_path, extra_ecs_path = alt_easyconfig_paths(self.test_prefix)
+        self.assertEqual(tweaked_ecs_path, None)
+        self.assertEqual(extra_ecs_path, [])
+
+        tweaked_ecs_path, extra_ecs_path = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
+        self.assertTrue(tweaked_ecs_path)
+        self.assertTrue(isinstance(tweaked_ecs_path, tuple))
+        self.assertEqual(len(tweaked_ecs_path), 2)
+        self.assertEqual(tweaked_ecs_path[0], os.path.join(self.test_prefix, 'tweaked_easyconfigs'))
+        self.assertEqual(tweaked_ecs_path[1], os.path.join(self.test_prefix, 'tweaked_dep_easyconfigs'))
+        self.assertEqual(extra_ecs_path, [])
+
+        tweaked_ecs_path, extra_ecs_path = alt_easyconfig_paths(self.test_prefix, from_prs=[123, 456])
+        self.assertEqual(tweaked_ecs_path, None)
+        self.assertTrue(extra_ecs_path)
+        self.assertTrue(isinstance(extra_ecs_path, list))
+        self.assertEqual(len(extra_ecs_path), 2)
+        self.assertEqual(extra_ecs_path[0], os.path.join(self.test_prefix, 'files_pr123'))
+        self.assertEqual(extra_ecs_path[1], os.path.join(self.test_prefix, 'files_pr456'))
+
+        tweaked_ecs_path, extra_ecs_path = alt_easyconfig_paths(self.test_prefix, from_prs=[123, 456],
+                                                                review_pr=789, from_commit='c0ff33')
+        self.assertEqual(tweaked_ecs_path, None)
+        self.assertTrue(extra_ecs_path)
+        self.assertTrue(isinstance(extra_ecs_path, list))
+        self.assertEqual(len(extra_ecs_path), 4)
+        self.assertEqual(extra_ecs_path[0], os.path.join(self.test_prefix, 'files_pr123'))
+        self.assertEqual(extra_ecs_path[1], os.path.join(self.test_prefix, 'files_pr456'))
+        self.assertEqual(extra_ecs_path[2], os.path.join(self.test_prefix, 'files_pr789'))
+        self.assertEqual(extra_ecs_path[3], os.path.join(self.test_prefix, 'files_commit_c0ff33'))
+
     def test_tweak_multiple_tcs(self):
         """Test that tweaking variables of ECs from multiple toolchains works"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')

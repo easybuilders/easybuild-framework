@@ -329,7 +329,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     if options.copy_ec:
         # figure out list of files to copy + target location (taking into account --from-pr)
-        eb_args, target_path = det_copy_ec_specs(eb_args, from_pr_list)
+        eb_args, target_path = det_copy_ec_specs(eb_args, from_pr=from_pr_list, from_commit=options.from_commit)
 
     categorized_paths = categorize_files_by_type(eb_args)
 
@@ -765,8 +765,14 @@ def prepare_main(args=None, logfile=None, testing=None):
 
 
 if __name__ == "__main__":
-    init_session_state, eb_go, cfg_settings = prepare_main()
+    # take into account that EasyBuildError may be raised when parsing the EasyBuild configuration
+    try:
+        init_session_state, eb_go, cfg_settings = prepare_main()
+    except EasyBuildError as err:
+        print_error(err.msg)
+
     hooks = load_hooks(eb_go.options.hooks)
+
     try:
         main(prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
     except EasyBuildError as err:
