@@ -385,7 +385,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                     regex = re.compile(question.encode())
                     res = regex.search(stdout)
                     if res:
-                        _log.debug(f"Found match for question pattern '{question}' at end of: {stdout}")
+                        _log.debug(f"Found match for question pattern '{question}' at end of stdout: {stdout[:1000]}")
                         # if answer is specified as a list, we take the first item as current answer,
                         # and add it to the back of the list (so we cycle through answers)
                         if isinstance(answers, list):
@@ -414,8 +414,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                         pattern += r'[\s\n]*$'
                         regex = re.compile(pattern.encode())
                         if regex.search(stdout):
-                            _log.info(f"Found match for question wait pattern '{pattern}'")
-                            _log.debug(f"Found match for question wait pattern '{pattern}' at end of: {stdout}")
+                            _log.info(f"Found match for wait pattern '{pattern}'")
+                            _log.debug(f"Found match for wait pattern '{pattern}' at end of stdout: {stdout[:1000]}")
                             time_no_match = 0
                             match_found = True
                             break
@@ -423,7 +423,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                         _log.info("No match found for question wait patterns")
 
                 if not match_found:
-                    _log.debug(f"No match found in question or wait patterns at end of current output: {stdout}")
+                    _log.debug(f"No match found in question/wait patterns at end of stdout: {stdout[:1000]}")
                     # this will only run if the for loop above was *not* stopped by the break statement
                     time_no_match += check_interval_secs
                     if time_no_match > qa_timeout:
