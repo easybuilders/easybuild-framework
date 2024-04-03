@@ -243,9 +243,6 @@ class ModuleGenerator(object):
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
-        paths = self._filter_paths(key, paths)
-        if paths is None:
-            return ''
         return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
 
     def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
@@ -257,10 +254,21 @@ class ModuleGenerator(object):
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
+        return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
+
+    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+        """
+        Generate append/prepend-path statements for the given list of paths.
+
+        :param key: environment variable to append paths to
+        :param paths: list of paths to append
+        :param allow_abs: allow providing of absolute paths
+        :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        """
         paths = self._filter_paths(key, paths)
         if paths is None:
             return ''
-        return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
+        return self._update_paths(key, paths, prepend, allow_abs, expand_relpaths)
 
     def _modulerc_check_module_version(self, module_version):
         """
@@ -551,7 +559,7 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def _update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
         """
         Generate prepend-path or append-path statements for the given list of paths.
 
@@ -955,7 +963,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         print_cmd = "puts stderr %s" % quote_str(msg, tcl=True)
         return '\n'.join(['', self.conditional_statement("module-info mode unload", print_cmd, indent=False)])
 
-    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def _update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
         """
         Generate prepend-path or append-path statements for the given list of paths.
 
@@ -981,7 +989,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         abspaths = []
         for path in paths:
             if os.path.isabs(path) and not allow_abs:
-                raise EasyBuildError("Absolute path %s passed to update_paths which only expects relative paths.",
+                raise EasyBuildError("Absolute path %s passed to _update_paths which only expects relative paths.",
                                      path)
             elif not os.path.isabs(path):
                 # prepend/append $root (= installdir) for (non-empty) relative paths
@@ -1426,7 +1434,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         return super(ModuleGeneratorLua, self).modulerc(module_version=module_version, filepath=filepath,
                                                         modulerc_txt=modulerc_txt)
 
-    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def _update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
         """
         Generate prepend_path or append_path statements for the given list of paths
 
@@ -1455,7 +1463,7 @@ class ModuleGeneratorLua(ModuleGenerator):
                 if allow_abs:
                     abspaths.append(quote_str(path))
                 else:
-                    raise EasyBuildError("Absolute path %s passed to update_paths which only expects relative paths.",
+                    raise EasyBuildError("Absolute path %s passed to _update_paths which only expects relative paths.",
                                          path)
             else:
                 # use pathJoin for (non-empty) relative paths
