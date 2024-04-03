@@ -360,7 +360,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
         exit_code = None
         stdout, stderr = b'', b''
-        check_interval_secs = 0.001
+        check_interval_secs = 0.1
         time_no_match = 0
 
         # collect output piece-wise, while checking for questions to answer (if qa_patterns is provided)
@@ -431,7 +431,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                         error_msg += f"giving up after {qa_timeout} seconds!"
                         raise EasyBuildError(error_msg)
                     else:
-                        _log.debug(f"{time_no_match} seconds without match in output of interactive shell command")
+                        _log.debug(f"{time_no_match:0.1f} seconds without match in output of interactive shell command")
 
             time.sleep(check_interval_secs)
 

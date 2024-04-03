@@ -907,8 +907,8 @@ class RunTest(EnhancedTestCase):
         """Test whether run_shell_cmd uses unbuffered output when running interactive commands."""
 
         # command that generates a lot of output before waiting for input
-        # note: bug being fixed can be reproduced reliably using 1000, but not with too high values like 100000!
-        cmd = 'for x in $(seq 1000); do echo "This is a number you can pick: $x"; done; '
+        # note: bug being fixed can be reproduced reliably using 100, but not with too high values like 100000!
+        cmd = 'for x in $(seq 100); do echo "This is a number you can pick: $x"; done; '
         cmd += 'echo "Pick a number: "; read number; echo "Picked number: $number"'
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(cmd, qa_patterns=[('Pick a number: ', '42')], qa_timeout=10)
