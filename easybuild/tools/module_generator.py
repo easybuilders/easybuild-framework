@@ -268,7 +268,7 @@ class ModuleGenerator(object):
         paths = self._filter_paths(key, paths)
         if paths is None:
             return ''
-        if key == 'PYTHONPATH':
+        if key == 'PYTHONPATH' and build_option('prefer_ebpythonprefix_over_pythonpath'):
             # Special condition for PYTHONPATHs that match the standard pattern,
             # replace with EBPYTHONPREFIX which is added to python sys path at runtime
             python_paths = {path for path in paths if re.match(r'lib/python\d+\.\d+/site-packages', path)}
@@ -1000,7 +1000,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         abspaths = []
         for path in paths:
             if os.path.isabs(path) and not allow_abs:
-                raise EasyBuildError("Absolute path %s passed to _update_paths which only expects relative paths.",
+                raise EasyBuildError("Absolute path %s passed to update_paths which only expects relative paths.",
                                      path)
             elif not os.path.isabs(path):
                 # prepend/append $root (= installdir) for (non-empty) relative paths
@@ -1474,7 +1474,7 @@ class ModuleGeneratorLua(ModuleGenerator):
                 if allow_abs:
                     abspaths.append(quote_str(path))
                 else:
-                    raise EasyBuildError("Absolute path %s passed to _update_paths which only expects relative paths.",
+                    raise EasyBuildError("Absolute path %s passed to update_paths which only expects relative paths.",
                                          path)
             else:
                 # use pathJoin for (non-empty) relative paths

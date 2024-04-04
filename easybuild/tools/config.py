@@ -330,6 +330,7 @@ BUILD_OPTIONS_CMDLINE = {
         'map_toolchains',
         'modules_tool_version_check',
         'mpi_tests',
+        'prefer_ebpythonprefix_over_pythonpath',
         'pre_create_installdir',
         'show_progress_bar',
         'trace',
