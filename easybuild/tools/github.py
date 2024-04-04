@@ -848,6 +848,9 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     # figure out commit message to use
     if commit_msg:
+        if pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']:
+            raise EasyBuildError("A PR commit msg (--pr-commit-msg) should not be used for the easyconfigs repo when "
+                                 "adding new files. The PR title will be automatically generated.")
         cnt = len(file_info['paths_in_repo'])
         _log.debug("Using specified commit message for all %d new/modified files at once: %s", cnt, commit_msg)
     elif pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']:
