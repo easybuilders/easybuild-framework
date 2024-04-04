@@ -593,7 +593,7 @@ class EasyBuildOptions(GeneralOption):
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
             'module-depends-on': ("Use depends_on (Lmod 7.6.1+) for dependencies in all generated modules "
                                   "(implies recursive unloading of modules).",
-                                  None, 'store_true', False),
+                                  None, 'store_true', True),
             'module-extensions': ("Include 'extensions' statement in generated module file (Lua syntax only)",
                                   None, 'store_true', True),
             'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
