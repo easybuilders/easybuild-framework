@@ -1,5 +1,5 @@
 #
-# Copyright 2011-2023 Ghent University
+# Copyright 2011-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -147,10 +147,10 @@ def _env_to_boolean(varname, default=False):
       >>> _env_to_boolean('NO_FOOBAR')
       False
     """
-    if varname not in os.environ:
+    try:
+        return os.environ[varname].lower() in ('1', 'yes', 'true', 'y')
+    except KeyError:
         return default
-    else:
-        return os.environ.get(varname).lower() in ('1', 'yes', 'true', 'y')
 
 
 OPTIMIZED_ANSWER = "not available in optimized mode"
@@ -286,7 +286,7 @@ class FancyLogger(logging.getLoggerClass()):
         overwrite make record to use a fancy record (with more options)
         """
         logrecordcls = logging.LogRecord
-        if hasattr(self, 'fancyrecord') and self.fancyrecord:
+        if getattr(self, 'fancyrecord', None):
             logrecordcls = FancyLogRecord
         try:
             new_msg = str(msg)
@@ -911,16 +911,15 @@ logging.setLoggerClass(FancyLogger)
 _default_logTo = None
 if 'FANCYLOG_SERVER' in os.environ:
     server = os.environ['FANCYLOG_SERVER']
-    port = DEFAULT_UDP_PORT
     if ':' in server:
         server, port = server.split(':')
+    else:
+        port = DEFAULT_UDP_PORT
 
     # maybe the port was specified in the FANCYLOG_SERVER_PORT env var. this takes precedence
-    if 'FANCYLOG_SERVER_PORT' in os.environ:
-        port = int(os.environ['FANCYLOG_SERVER_PORT'])
-    port = int(port)
+    port = os.environ.get('FANCYLOG_SERVER_PORT', port)
 
-    logToUDP(server, port)
+    logToUDP(server, int(port))
     _default_logTo = logToUDP
 else:
     # log to screen by default

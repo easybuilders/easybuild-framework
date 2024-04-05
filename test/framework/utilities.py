@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -207,8 +207,7 @@ class EnhancedTestCase(TestCase):
 
     def allow_deprecated_behaviour(self):
         """Restore EasyBuild version to what it was originally, to allow triggering deprecated behaviour."""
-        if 'EASYBUILD_DEPRECATED' in os.environ:
-            del os.environ['EASYBUILD_DEPRECATED']
+        os.environ.pop('EASYBUILD_DEPRECATED', None)
         eb_build_log.CURRENT_VERSION = self.orig_current_version
 
     @contextmanager
@@ -278,8 +277,7 @@ class EnhancedTestCase(TestCase):
         # make very sure $MODULEPATH is totally empty
         # some paths may be left behind, e.g. when they contain environment variables
         # example: "module unuse Modules/$MODULE_VERSION/modulefiles" may not yield the desired result
-        if 'MODULEPATH' in os.environ:
-            del os.environ['MODULEPATH']
+        os.environ.pop('MODULEPATH', None)
         for modpath in modpaths:
             self.modtool.add_module_path(modpath, set_mod_paths=False)
         self.modtool.set_mod_paths()

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -220,6 +220,7 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_env_vars',
         'filter_rpath_sanity_libs',
         'force_download',
+        'from_commit',
         'git_working_dirs_path',
         'github_user',
         'github_org',
@@ -229,6 +230,7 @@ BUILD_OPTIONS_CMDLINE = {
         'http_header_fields_urlpat',
         'hooks',
         'ignore_dirs',
+        'include_easyblocks_from_commit',
         'insecure_download',
         'job_backend_config',
         'job_cores',
@@ -307,6 +309,7 @@ BUILD_OPTIONS_CMDLINE = {
         'skip_test_cases',
         'skip_test_step',
         'sticky_bit',
+        'terse',
         'trace',
         'unit_testing_mode',
         'upload_test_report',
@@ -403,7 +406,7 @@ BUILD_OPTIONS_OTHER = {
         'build_specs',
         'command_line',
         'external_modules_metadata',
-        'pr_paths',
+        'extra_ec_paths',
         'robot_path',
         'valid_module_classes',
         'valid_stops',
@@ -574,7 +577,7 @@ def init_build_options(build_options=None, cmdline_options=None):
             cmdline_options.accept_eula_for = cmdline_options.accept_eula
 
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]
-        active_build_options.update(dict([(key, getattr(cmdline_options, key)) for key in cmdline_build_option_names]))
+        active_build_options.update({key: getattr(cmdline_options, key) for key in cmdline_build_option_names})
         # other options which can be derived but have no perfectly matching cmdline option
         active_build_options.update({
             'check_osdeps': not cmdline_options.ignore_osdeps,
@@ -597,7 +600,7 @@ def init_build_options(build_options=None, cmdline_options=None):
                 for opt in build_options_by_default[default]:
                     bo[opt] = []
             else:
-                bo.update(dict([(opt, default) for opt in build_options_by_default[default]]))
+                bo.update({opt: default for opt in build_options_by_default[default]})
     bo.update(active_build_options)
 
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -50,7 +50,8 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_MERGEABLE_STATE_CLEAN
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
-from easybuild.tools.github import det_pr_title, is_patch_for, pick_default_branch
+from easybuild.tools.github import det_pr_title, fetch_easyconfigs_from_commit, fetch_files_from_commit
+from easybuild.tools.github import is_patch_for, pick_default_branch
 from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
@@ -536,6 +537,65 @@ class GithubTest(EnhancedTestCase):
         res = gh.fetch_easyblocks_from_pr(12345, tmpdir)
         self.assertEqual(sorted(pr12345_files), sorted(res))
 
+    def test_fetch_files_from_commit(self):
+        """Test fetch_files_from_commit function."""
+
+        # easyconfigs commit to add EasyBuild-4.8.2.eb
+        test_commit = '7c83a553950c233943c7b0189762f8c05cfea852'
+
+        # without specifying any files/repo, default is to use easybuilders/easybuilld-easyconfigs
+        # and determine which files were changed in the commit
+        res = fetch_files_from_commit(test_commit)
+        self.assertEqual(len(res), 1)
+        ec_path = res[0]
+        expected_path = 'ecs_commit_7c83a553950c233943c7b0189762f8c05cfea852/e/EasyBuild/EasyBuild-4.8.2.eb'
+        self.assertTrue(ec_path.endswith(expected_path))
+        self.assertTrue(os.path.exists(ec_path))
+        self.assertIn("version = '4.8.2'", read_file(ec_path))
+
+        # also test downloading a specific file from easyblocks repo
+        # commit that enables use_pip & co in PythonPackage easyblock
+        test_commit = 'd6f0cd7b586108e40f7cf1f1054bb07e16718caf'
+        res = fetch_files_from_commit(test_commit, files=['pythonpackage.py'],
+                                      github_account='easybuilders', github_repo='easybuild-easyblocks')
+        self.assertEqual(len(res), 1)
+        self.assertIn("'use_pip': [True,", read_file(res[0]))
+
+        # test downloading with short commit, download_repo currently enforces using long commit
+        error_pattern = r"Specified commit SHA 7c83a55 for downloading easybuilders/easybuild-easyconfigs "
+        error_pattern += r"is not valid, must be full SHA-1 \(40 chars\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, fetch_files_from_commit, '7c83a55')
+
+        # test downloading of non-existing commit
+        error_pattern = r"Failed to download diff for commit c0ff33c0ff33 of easybuilders/easybuild-easyconfigs"
+        self.assertErrorRegex(EasyBuildError, error_pattern, fetch_files_from_commit, 'c0ff33c0ff33')
+
+    def test_fetch_easyconfigs_from_commit(self):
+        """Test fetch_easyconfigs_from_commit function."""
+
+        # commit in which easyconfigs for PyTables 3.9.2 + dependencies were added
+        test_commit = '6515b44cd84a20fe7876cb4bdaf3c0080e688566'
+
+        # without specifying any files/repo, default is to determine which files were changed in the commit
+        res = fetch_easyconfigs_from_commit(test_commit)
+        self.assertEqual(len(res), 5)
+        expected_ec_filenames = ['Blosc-1.21.5-GCCcore-13.2.0.eb', 'Blosc2-2.13.2-GCCcore-13.2.0.eb',
+                                 'PyTables-3.9.2-foss-2023b.eb', 'PyTables-3.9.2_fix-find-blosc2-dep.patch',
+                                 'py-cpuinfo-9.0.0-GCCcore-13.2.0.eb']
+        self.assertEqual(sorted([os.path.basename(f) for f in res]), expected_ec_filenames)
+        for ec_path in res:
+            self.assertTrue(os.path.exists(ec_path))
+            if ec_path.endswith('.eb'):
+                self.assertIn("version =", read_file(ec_path))
+            else:
+                self.assertTrue(ec_path.endswith('.patch'))
+
+        # merge commit for release of EasyBuild v4.9.0
+        test_commit = 'bdcc586189fcb3e5a340cddebb50d0e188c63cdc'
+        res = fetch_easyconfigs_from_commit(test_commit, files=['RELEASE_NOTES'], path=self.test_prefix)
+        self.assertEqual(len(res), 1)
+        self.assertIn("v4.9.0 (30 December 2023)", read_file(res[0]))
+
     def test_github_fetch_latest_commit_sha(self):
         """Test fetch_latest_commit_sha function."""
         if self.skip_github_tests:
@@ -589,6 +649,34 @@ class GithubTest(EnhancedTestCase):
         self.assertIn('easybuild', os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
         self.assertExists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py'))
+
+    def test_github_download_repo_commit(self):
+        """Test downloading repo at specific commit (which does not require any GitHub token)"""
+
+        # commit bdcc586189fcb3e5a340cddebb50d0e188c63cdc corresponds to easybuild-easyconfigs release v4.9.0
+        test_commit = 'bdcc586189fcb3e5a340cddebb50d0e188c63cdc'
+        gh.download_repo(path=self.test_prefix, commit=test_commit)
+        repo_path = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-' + test_commit)
+        self.assertTrue(os.path.exists(repo_path))
+
+        setup_py_txt = read_file(os.path.join(repo_path, 'setup.py'))
+        self.assertTrue("VERSION = '4.9.0'" in setup_py_txt)
+
+        # also check downloading non-default forked repo
+        test_commit = '434151c3dbf88b2382e8ead8655b4b2c01b92617'
+        gh.download_repo(path=self.test_prefix, account='boegel', repo='easybuild-framework', commit=test_commit)
+        repo_path = os.path.join(self.test_prefix, 'boegel', 'easybuild-framework-' + test_commit)
+        self.assertTrue(os.path.exists(repo_path))
+
+        release_notes_txt = read_file(os.path.join(repo_path, 'RELEASE_NOTES'))
+        self.assertTrue("v4.9.0 (30 December 2023)" in release_notes_txt)
+
+        # short commit doesn't work, must be full commit ID
+        self.assertErrorRegex(EasyBuildError, "Specified commit SHA bdcc586 .* is not valid", gh.download_repo,
+                              path=self.test_prefix, commit='bdcc586')
+
+        self.assertErrorRegex(EasyBuildError, "Failed to download tarball .* commit", gh.download_repo,
+                              path=self.test_prefix, commit='0000000000000000000000000000000000000000')
 
     def test_install_github_token(self):
         """Test for install_github_token function."""

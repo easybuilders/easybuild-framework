@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -163,13 +163,13 @@ class Toolchain(object):
         """see if this class can provide support for toolchain named name"""
         # TODO report later in the initialization the found version
         if name:
-            if hasattr(cls, 'NAME') and name == cls.NAME:
-                return True
-            else:
+            try:
+                return name == cls.NAME
+            except AttributeError:
                 return False
         else:
             # is no name is supplied, check whether class can be used as a toolchain
-            return hasattr(cls, 'NAME') and cls.NAME
+            return bool(getattr(cls, 'NAME', None))
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
@@ -330,10 +330,12 @@ class Toolchain(object):
         if key not in self.CLASS_CONSTANT_COPIES:
             self.CLASS_CONSTANT_COPIES[key] = {}
             for cst in self.CLASS_CONSTANTS_TO_RESTORE:
-                if hasattr(self, cst):
-                    self.CLASS_CONSTANT_COPIES[key][cst] = copy.deepcopy(getattr(self, cst))
-                else:
+                try:
+                    value = getattr(self, cst)
+                except AttributeError:
                     raise EasyBuildError("Class constant '%s' to be restored does not exist in %s", cst, self)
+                else:
+                    self.CLASS_CONSTANT_COPIES[key][cst] = copy.deepcopy(value)
 
             self.log.devel("Copied class constants: %s", self.CLASS_CONSTANT_COPIES[key])
 
@@ -342,10 +344,12 @@ class Toolchain(object):
         key = self.__class__
         for cst in self.CLASS_CONSTANT_COPIES[key]:
             newval = copy.deepcopy(self.CLASS_CONSTANT_COPIES[key][cst])
-            if hasattr(self, cst):
-                self.log.devel("Restoring class constant '%s' to %s (was: %s)", cst, newval, getattr(self, cst))
-            else:
+            try:
+                oldval = getattr(self, cst)
+            except AttributeError:
                 self.log.devel("Restoring (currently undefined) class constant '%s' to %s", cst, newval)
+            else:
+                self.log.devel("Restoring class constant '%s' to %s (was: %s)", cst, newval, oldval)
 
             setattr(self, cst, newval)
 
@@ -941,10 +945,11 @@ class Toolchain(object):
         """
         Check whether command at specified location already is an RPATH wrapper script rather than the actual command
         """
-        in_rpath_wrappers_dir = os.path.basename(os.path.dirname(os.path.dirname(path))) == RPATH_WRAPPERS_SUBDIR
+        if os.path.basename(os.path.dirname(os.path.dirname(path))) != RPATH_WRAPPERS_SUBDIR:
+            return False
+        # Check if `rpath_args`` is called in the file
         # need to use binary mode to read the file, since it may be an actual compiler command (which is a binary file)
-        calls_rpath_args = b'rpath_args.py $CMD' in read_file(path, mode='rb')
-        return in_rpath_wrappers_dir and calls_rpath_args
+        return b'rpath_args.py $CMD' in read_file(path, mode='rb')
 
     def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None):
         """

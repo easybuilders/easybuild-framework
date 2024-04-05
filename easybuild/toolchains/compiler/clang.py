@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2024 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -98,6 +98,7 @@ class Clang(Compiler):
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
+        (systemtools.RISCV64, systemtools.RISCV): 'march=rv64gc -mabi=lp64d',  # default for -mabi is system-dependent
         (systemtools.X86_64, systemtools.AMD): 'march=x86-64 -mtune=generic',
         (systemtools.X86_64, systemtools.INTEL): 'march=x86-64 -mtune=generic',
     }

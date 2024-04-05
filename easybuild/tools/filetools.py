@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -161,7 +161,7 @@ EXTRACT_CMDS = {
     # tar.Z: using compress (LZW), but can be handled with gzip so use 'z'
     '.tar.z': "tar xzf %(filepath)s",
     # shell scripts don't need to be unpacked, just copy there
-    '.sh': "cp -a %(filepath)s .",
+    '.sh': "cp -dR %(filepath)s .",
 }
 
 ZIPPED_PATCH_EXTS = ('.bz2', '.gz', '.xz')
@@ -966,11 +966,12 @@ def load_index(path, ignore_dirs=None):
         # check whether index is still valid
         if valid_ts:
             curr_ts = datetime.datetime.now()
+            terse = build_option('terse')
             if curr_ts > valid_ts:
-                print_warning("Index for %s is no longer valid (too old), so ignoring it...", path)
+                print_warning("Index for %s is no longer valid (too old), so ignoring it...", path, silent=terse)
                 index = None
             else:
-                print_msg("found valid index for %s, so using it...", path)
+                print_msg("found valid index for %s, so using it...", path, silent=terse)
 
     return index or None
 
@@ -2668,7 +2669,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
     clone_cmd.append('%s/%s.git' % (url, repo_name))
 
     if clone_into:
-        clone_cmd.append('%s' % clone_into)
+        clone_cmd.append(clone_into)
 
     tmpdir = tempfile.mkdtemp()
     cwd = change_dir(tmpdir)

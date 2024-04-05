@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -306,7 +306,7 @@ def avail_easyconfig_licenses_md():
     lics = sorted(EASYCONFIG_LICENSES_DICT.items())
     table_values = [
         ["``%s``" % lic().name for _, lic in lics],
-        ["%s" % lic().description for _, lic in lics],
+        [lic().description or '' for _, lic in lics],
         ["``%s``" % lic().version for _, lic in lics],
     ]
 
@@ -1091,12 +1091,9 @@ def list_toolchains(output_format=FORMAT_TXT):
     """Show list of known toolchains."""
     _, all_tcs = search_toolchain('')
 
-    # filter deprecated 'dummy' toolchain
-    all_tcs = [x for x in all_tcs if x.NAME != DUMMY_TOOLCHAIN_NAME]
-    all_tcs_names = [x.NAME for x in all_tcs]
-
     # start with dict that maps toolchain name to corresponding subclass of Toolchain
-    tcs = dict(zip(all_tcs_names, all_tcs))
+    # filter deprecated 'dummy' toolchain
+    tcs = {tc.NAME: tc for tc in all_tcs if tc.NAME != DUMMY_TOOLCHAIN_NAME}
 
     for tcname in sorted(tcs):
         tcc = tcs[tcname]
@@ -1250,10 +1247,9 @@ def avail_toolchain_opts(name, output_format=FORMAT_TXT):
 
     tc_dict = {}
     for cst in ['COMPILER_SHARED_OPTS', 'COMPILER_UNIQUE_OPTS', 'MPI_SHARED_OPTS', 'MPI_UNIQUE_OPTS']:
-        if hasattr(tc, cst):
-            opts = getattr(tc, cst)
-            if opts is not None:
-                tc_dict.update(opts)
+        opts = getattr(tc, cst, None)
+        if opts is not None:
+            tc_dict.update(opts)
 
     return generate_doc('avail_toolchain_opts_%s' % output_format, [name, tc_dict])
 
@@ -1267,7 +1263,7 @@ def avail_toolchain_opts_md(name, tc_dict):
     tc_items = sorted(tc_dict.items())
     table_values = [
         ['``%s``' % val[0] for val in tc_items],
-        ['%s' % val[1][1] for val in tc_items],
+        [val[1][1] for val in tc_items],
         ['``%s``' % val[1][0] for val in tc_items],
     ]
 
@@ -1285,7 +1281,7 @@ def avail_toolchain_opts_rst(name, tc_dict):
     tc_items = sorted(tc_dict.items())
     table_values = [
         ['``%s``' % val[0] for val in tc_items],
-        ['%s' % val[1][1] for val in tc_items],
+        [val[1][1] for val in tc_items],
         ['``%s``' % val[1][0] for val in tc_items],
     ]
 

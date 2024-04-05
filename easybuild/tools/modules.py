@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -307,9 +307,9 @@ class ModulesTool(object):
         """Check whether selected module tool matches 'module' function definition."""
         if self.testing:
             # grab 'module' function definition from environment if it's there; only during testing
-            if 'module' in os.environ:
+            try:
                 out, ec = os.environ['module'], 0
-            else:
+            except KeyError:
                 out, ec = None, 1
         else:
             cmd = "type module"
@@ -851,6 +851,8 @@ class ModulesTool(object):
             # this needs to be taken into account when updating the environment via produced output, see below
 
             # keep track of current values of select env vars, so we can correct the adjusted values below
+            # Identical to `{key: os.environ.get(key, '').split(os.pathsep)[::-1] for key in LD_ENV_VAR_KEYS}`
+            # but Python 2 treats that as a local function and refused the `exec` below
             prev_ld_values = dict([(key, os.environ.get(key, '').split(os.pathsep)[::-1]) for key in LD_ENV_VAR_KEYS])
 
             # Change the environment
@@ -1126,7 +1128,7 @@ class ModulesTool(object):
 
         if modpath_exts is None:
             # only retain dependencies that have a non-empty lists of $MODULEPATH extensions
-            modpath_exts = dict([(k, v) for k, v in self.modpath_extensions_for(deps).items() if v])
+            modpath_exts = {k: v for k, v in self.modpath_extensions_for(deps).items() if v}
             self.log.debug("Non-empty lists of module path extensions for dependencies: %s" % modpath_exts)
 
         mods_to_top = []
@@ -1157,7 +1159,7 @@ class ModulesTool(object):
         path = mods_to_top[:]
         if mods_to_top:
             # remove retained dependencies from the list, since we're climbing up the module tree
-            remaining_modpath_exts = dict([m for m in modpath_exts.items() if not m[0] in mods_to_top])
+            remaining_modpath_exts = {m: v for m, v in modpath_exts.items() if m not in mods_to_top}
 
             self.log.debug("Path to top from %s extended to %s, so recursing to find way to the top",
                            mod_name, mods_to_top)
@@ -1283,14 +1285,14 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
         return super(EnvironmentModulesTcl, self).run_module(*args, **kwargs)
 
-    def available(self, mod_name=None):
+    def available(self, mod_name=None, extra_args=None):
         """
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
         :param mod_name: a (partial) module name for filtering (default: None)
         """
-        mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name)
+        mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name, extra_args=extra_args)
         # strip off slash at beginning, if it's there
         # under certain circumstances, 'modulecmd.tcl avail' (DEISA variant) spits out available modules like this
         clean_mods = [mod.lstrip(os.path.sep) for mod in mods]
@@ -1326,7 +1328,9 @@ class EnvironmentModules(EnvironmentModulesTcl):
     COMMAND_ENVIRONMENT = 'MODULES_CMD'
     REQ_VERSION = '4.0.0'
     MAX_VERSION = None
-    VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d\S*)\s'
+    VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d[^+\s]*)(\+\S*)?\s'
+
+    SHOW_HIDDEN_OPTION = '--all'
 
     def __init__(self, *args, **kwargs):
         """Constructor, set Environment Modules-specific class variable values."""
@@ -1382,6 +1386,21 @@ class EnvironmentModules(EnvironmentModulesTcl):
             raise EasyBuildError("Failed module command detected: %s (stdout: %s, stderr: %s)", cmd, stdout, stderr)
         else:
             self.log.debug("No errors detected when running module command '%s'", cmd)
+
+    def available(self, mod_name=None, extra_args=None):
+        """
+        Return a list of available modules for the given (partial) module name;
+        use None to obtain a list of all available modules.
+
+        :param mod_name: a (partial) module name for filtering (default: None)
+        """
+        if extra_args is None:
+            extra_args = []
+        # make hidden modules visible (requires Environment Modules 4.6.0)
+        if StrictVersion(self.version) >= StrictVersion('4.6.0'):
+            extra_args.append(self.SHOW_HIDDEN_OPTION)
+
+        return super(EnvironmentModules, self).available(mod_name=mod_name, extra_args=extra_args)
 
     def get_setenv_value_from_modulefile(self, mod_name, var_name):
         """
@@ -1636,9 +1655,7 @@ def get_software_root(name, with_env_var=False):
     """
     env_var = get_software_root_env_var_name(name)
 
-    root = None
-    if env_var in os.environ:
-        root = os.getenv(env_var)
+    root = os.getenv(env_var)
 
     if with_env_var:
         res = (root, env_var)
@@ -1706,9 +1723,7 @@ def get_software_version(name):
     """
     env_var = get_software_version_env_var_name(name)
 
-    version = None
-    if env_var in os.environ:
-        version = os.getenv(env_var)
+    version = os.getenv(env_var)
 
     return version
 
@@ -1737,7 +1752,7 @@ def avail_modules_tools():
     """
     Return all known modules tools.
     """
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(ModulesTool)])
+    class_dict = {x.__name__: x for x in get_subclasses(ModulesTool)}
     # filter out legacy Modules class
     if 'Modules' in class_dict:
         del class_dict['Modules']

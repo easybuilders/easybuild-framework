@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -733,6 +733,40 @@ class EasyConfigTest(EnhancedTestCase):
         # cleanup
         os.remove(tweaked_fn)
 
+    def test_alt_easyconfig_paths(self):
+        """Test alt_easyconfig_paths function that collects list of additional paths for easyconfig files."""
+
+        tweaked_ecs_path, extra_ecs_path = alt_easyconfig_paths(self.test_prefix)
+        self.assertEqual(tweaked_ecs_path, None)
+        self.assertEqual(extra_ecs_path, [])
+
+        tweaked_ecs_path, extra_ecs_path = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
+        self.assertTrue(tweaked_ecs_path)
+        self.assertTrue(isinstance(tweaked_ecs_path, tuple))
+        self.assertEqual(len(tweaked_ecs_path), 2)
+        self.assertEqual(tweaked_ecs_path[0], os.path.join(self.test_prefix, 'tweaked_easyconfigs'))
+        self.assertEqual(tweaked_ecs_path[1], os.path.join(self.test_prefix, 'tweaked_dep_easyconfigs'))
+        self.assertEqual(extra_ecs_path, [])
+
+        tweaked_ecs_path, extra_ecs_path = alt_easyconfig_paths(self.test_prefix, from_prs=[123, 456])
+        self.assertEqual(tweaked_ecs_path, None)
+        self.assertTrue(extra_ecs_path)
+        self.assertTrue(isinstance(extra_ecs_path, list))
+        self.assertEqual(len(extra_ecs_path), 2)
+        self.assertEqual(extra_ecs_path[0], os.path.join(self.test_prefix, 'files_pr123'))
+        self.assertEqual(extra_ecs_path[1], os.path.join(self.test_prefix, 'files_pr456'))
+
+        tweaked_ecs_path, extra_ecs_path = alt_easyconfig_paths(self.test_prefix, from_prs=[123, 456],
+                                                                review_pr=789, from_commit='c0ff33')
+        self.assertEqual(tweaked_ecs_path, None)
+        self.assertTrue(extra_ecs_path)
+        self.assertTrue(isinstance(extra_ecs_path, list))
+        self.assertEqual(len(extra_ecs_path), 4)
+        self.assertEqual(extra_ecs_path[0], os.path.join(self.test_prefix, 'files_pr123'))
+        self.assertEqual(extra_ecs_path[1], os.path.join(self.test_prefix, 'files_pr456'))
+        self.assertEqual(extra_ecs_path[2], os.path.join(self.test_prefix, 'files_pr789'))
+        self.assertEqual(extra_ecs_path[3], os.path.join(self.test_prefix, 'files_commit_c0ff33'))
+
     def test_tweak_multiple_tcs(self):
         """Test that tweaking variables of ECs from multiple toolchains works"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -1151,6 +1185,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'R: %%(rver)s, %%(rmajver)s, %%(rminver)s, %%(rshortver)s',
             ]),
             'modextrapaths = {"PI_MOD_NAME": "%%(module_name)s"}',
+            'modextrapaths_append = {"PATH_APPEND": "appended_path"}',
             'license_file = HOME + "/licenses/PI/license.txt"',
             "github_account = 'easybuilders'",
         ]) % inp
@@ -1191,6 +1226,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['modloadmsg'], expected)
         self.assertEqual(ec['modunloadmsg'], expected)
         self.assertEqual(ec['modextrapaths'], {'PI_MOD_NAME': 'PI/3.04-Python-2.7.10'})
+        self.assertEqual(ec['modextrapaths_append'], {'PATH_APPEND': 'appended_path'})
         self.assertEqual(ec['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
@@ -3621,7 +3657,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_det_subtoolchain_version(self):
         """Test det_subtoolchain_version function"""
         _, all_tc_classes = search_toolchain('')
-        subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
+        subtoolchains = {tc_class.NAME: getattr(tc_class, 'SUBTOOLCHAIN', None) for tc_class in all_tc_classes}
         optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
 
         current_tc = {'name': 'fosscuda', 'version': '2018a'}

@@ -1,5 +1,5 @@
 #
-# Copyright 2011-2023 Ghent University
+# Copyright 2011-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -90,7 +90,7 @@ def set_columns(cols=None):
                 pass
 
     if cols is not None:
-        os.environ['COLUMNS'] = "%s" % cols
+        os.environ['COLUMNS'] = str(cols)
 
 
 def what_str_list_tuple(name):
@@ -199,7 +199,8 @@ class ExtOption(CompleterOption):
     ALWAYS_TYPED_ACTIONS = Option.ALWAYS_TYPED_ACTIONS + EXTOPTION_EXTRA_OPTIONS
 
     TYPE_STRLIST = ['%s%s' % (name, klass) for klass in ['list', 'tuple'] for name in ['str', 'path']]
-    TYPE_CHECKER = dict([(x, check_str_list_tuple) for x in TYPE_STRLIST] + list(Option.TYPE_CHECKER.items()))
+    TYPE_CHECKER = {x: check_str_list_tuple for x in TYPE_STRLIST}
+    TYPE_CHECKER.update(Option.TYPE_CHECKER)
     TYPES = tuple(TYPE_STRLIST + list(Option.TYPES))
     BOOLEAN_ACTIONS = ('store_true', 'store_false',) + EXTOPTION_LOG
 
@@ -807,7 +808,7 @@ class ExtOptionParser(OptionParser):
         epilogprefixtxt += "eg. --some-opt is same as setting %(prefix)s_SOME_OPT in the environment."
         self.epilog.append(epilogprefixtxt % {'prefix': self.envvar_prefix})
 
-        candidates = dict([(k, v) for k, v in os.environ.items() if k.startswith("%s_" % self.envvar_prefix)])
+        candidates = {k: v for k, v in os.environ.items() if k.startswith("%s_" % self.envvar_prefix)}
 
         for opt in self._get_all_options():
             if opt._long_opts is None:
@@ -822,8 +823,8 @@ class ExtOptionParser(OptionParser):
                         self.environment_arguments.append("%s=%s" % (lo, val))
                     else:
                         # interpretation of values: 0/no/false means: don't set it
-                        if ("%s" % val).lower() not in ("0", "no", "false",):
-                            self.environment_arguments.append("%s" % lo)
+                        if str(val).lower() not in ("0", "no", "false",):
+                            self.environment_arguments.append(str(lo))
                 else:
                     self.log.debug("Environment variable %s is not set" % env_opt_name)
 
@@ -1031,7 +1032,7 @@ class GeneralOption(object):
         # make_init is deprecated
         if hasattr(self, 'make_init'):
             self.log.debug('main_options: make_init is deprecated. Rename function to main_options.')
-            getattr(self, 'make_init')()
+            self.make_init()
         else:
             # function names which end with _options and do not start with main or _
             reg_main_options = re.compile("^(?!_|main).*_options$")
@@ -1189,7 +1190,7 @@ class GeneralOption(object):
                 for extra_detail in details[4:]:
                     if isinstance(extra_detail, (list, tuple,)):
                         # choices
-                        nameds['choices'] = ["%s" % x for x in extra_detail]  # force to strings
+                        nameds['choices'] = [str(x) for x in extra_detail]  # force to strings
                         hlp += ' (choices: %s)' % ', '.join(nameds['choices'])
                     elif isinstance(extra_detail, string_type) and len(extra_detail) == 1:
                         args.insert(0, "-%s" % extra_detail)
