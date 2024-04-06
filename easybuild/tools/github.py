@@ -637,7 +637,7 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
         diff_url = os.path.join(GITHUB_URL, github_account, github_repo, 'commit', commit + '.diff')
         diff_fn = os.path.basename(diff_url)
         diff_filepath = os.path.join(path, diff_fn)
-        if download_file(diff_fn, diff_url, diff_filepath, forced=True):
+        if download_file(diff_fn, diff_url, diff_filepath, forced=True, trace=False):
             diff_txt = read_file(diff_filepath)
             _log.debug("Diff for commit %s:\n%s", commit, diff_txt)
 
