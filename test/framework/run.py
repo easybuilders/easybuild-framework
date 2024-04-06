@@ -771,6 +771,106 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(out.startswith("question\nanswer\nfoo "))
         self.assertTrue(out.endswith('bar'))
 
+        # test handling of output that is not actually a question
+        cmd = ';'.join([
+            "echo not-a-question-but-a-statement",
+            "sleep 3",
+            "echo question",
+            "read x",
+            "echo $x",
+        ])
+        qa = {'question': 'answer'}
+
+        # fails because non-question is encountered
+        error_pattern = "Max nohits 1 reached: end of output not-a-question-but-a-statement"
+        self.assertErrorRegex(EasyBuildError, error_pattern, run_cmd_qa, cmd, qa, maxhits=1, trace=False)
+
+        (out, ec) = run_cmd_qa(cmd, qa, no_qa=["not-a-question-but-a-statement"], maxhits=1, trace=False)
+        self.assertEqual(out, "not-a-question-but-a-statement\nquestion\nanswer\n")
+        self.assertEqual(ec, 0)
+
+    def test_run_shell_cmd_qa(self):
+        """Basic test for Q&A support in run_shell_cmd function."""
+
+        cmd = '; '.join([
+            "echo question1",
+            "read x",
+            "echo $x",
+            "echo question2",
+            "read y",
+            "echo $y",
+        ])
+        qa = [
+            ('question1', 'answer1'),
+            ('question2', 'answer2'),
+        ]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa)
+        self.assertEqual(res.output, "question1\nanswer1\nquestion2\nanswer2\n")
+        # no reason echo hello could fail
+        self.assertEqual(res.exit_code, 0)
+
+        # test running command that emits non-UTF8 characters
+        # this is constructed to reproduce errors like:
+        # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe2
+        test_file = os.path.join(self.test_prefix, 'foo.txt')
+        write_file(test_file, b"foo \xe2 bar")
+        cmd += "; cat %s" % test_file
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa)
+        self.assertEqual(res.exit_code, 0)
+        self.assertTrue(res.output.startswith("question1\nanswer1\nquestion2\nanswer2\nfoo "))
+        self.assertTrue(res.output.endswith('bar'))
+
+        # check type check on qa_patterns
+        error_pattern = "qa_patterns passed to run_shell_cmd should be a list of 2-tuples!"
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns={'foo': 'bar'})
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=('foo', 'bar'))
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=(('foo', 'bar'),))
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns='foo:bar')
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=['foo:bar'])
+
+        # validate use of qa_timeout to give up if there's no matching question for too long
+        cmd = "sleep 3; echo 'question'; read a; echo $a"
+        error_pattern = "No matching questions found for current command output, giving up after 1 seconds!"
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=qa, qa_timeout=1)
+
+        # check using answer that is completed via pattern extracted from question
+        cmd = ';'.join([
+            "echo 'and the magic number is: 42'",
+            "read magic_number",
+            "echo $magic_number",
+        ])
+        qa = [("and the magic number is: (?P<nr>[0-9]+)", "%(nr)s")]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "and the magic number is: 42\n42\n")
+
+        # test handling of output that is not actually a question
+        cmd = ';'.join([
+            "echo not-a-question-but-a-statement",
+            "sleep 3",
+            "echo question",
+            "read x",
+            "echo $x",
+        ])
+        qa = [('question', 'answer')]
+
+        # fails because non-question is encountered
+        error_pattern = "No matching questions found for current command output, giving up after 1 seconds!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=qa, qa_timeout=1,
+                              hidden=True)
+
+        qa_wait_patterns = ["not-a-question-but-a-statement"]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa, qa_wait_patterns=qa_wait_patterns, qa_timeout=1)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "not-a-question-but-a-statement\nquestion\nanswer\n")
+
     def test_run_cmd_qa_buffering(self):
         """Test whether run_cmd_qa uses unbuffered output."""
 
@@ -803,6 +903,38 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(ec, 1)
         self.assertEqual(out, "Hello, I am about to exit\nERROR: I failed\n")
 
+    def test_run_shell_cmd_qa_buffering(self):
+        """Test whether run_shell_cmd uses unbuffered output when running interactive commands."""
+
+        # command that generates a lot of output before waiting for input
+        # note: bug being fixed can be reproduced reliably using 100, but not with too high values like 100000!
+        cmd = 'for x in $(seq 100); do echo "This is a number you can pick: $x"; done; '
+        cmd += 'echo "Pick a number: "; read number; echo "Picked number: $number"'
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=[('Pick a number: ', '42')], qa_timeout=10)
+
+        self.assertEqual(res.exit_code, 0)
+        regex = re.compile("Picked number: 42$")
+        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' found in: {res.output}")
+
+        # also test with script run as interactive command that quickly exits with non-zero exit code;
+        # see https://github.com/easybuilders/easybuild-framework/issues/3593
+        script_txt = '\n'.join([
+            "#/bin/bash",
+            "echo 'Hello, I am about to exit'",
+            "echo 'ERROR: I failed' >&2",
+            "exit 1",
+        ])
+        script = os.path.join(self.test_prefix, 'test.sh')
+        write_file(script, script_txt)
+        adjust_permissions(script, stat.S_IXUSR)
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(script, qa_patterns=[], fail_on_error=False)
+
+        self.assertEqual(res.exit_code, 1)
+        self.assertEqual(res.output, "Hello, I am about to exit\nERROR: I failed\n")
+
     def test_run_cmd_qa_log_all(self):
         """Test run_cmd_qa with log_output enabled"""
         with self.mocked_stdout_stderr():
@@ -816,13 +948,22 @@ class RunTest(EnhancedTestCase):
         extra_pref = "# output for interactive command: echo 'n: '; read n; seq 1 $n\n\n"
         self.assertEqual(run_cmd_log_txt, extra_pref + "n: \n1\n2\n3\n4\n5\n")
 
+    def test_run_shell_cmd_qa_log(self):
+        """Test temporary log file for run_shell_cmd with qa_patterns"""
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd("echo 'n: '; read n; seq 1 $n", qa_patterns=[('n:', '5')])
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "n: \n1\n2\n3\n4\n5\n")
+
+        run_cmd_logs = glob.glob(os.path.join(tempfile.gettempdir(), 'run-shell-cmd-output', 'echo-*', 'out.txt'))
+        self.assertEqual(len(run_cmd_logs), 1)
+        run_cmd_log_txt = read_file(run_cmd_logs[0])
+        self.assertEqual(run_cmd_log_txt, "n: \n1\n2\n3\n4\n5\n")
+
     def test_run_cmd_qa_trace(self):
         """Test run_cmd under --trace"""
-        # replace log.experimental with log.warning to allow experimental code
-        easybuild.tools.utilities._log.experimental = easybuild.tools.utilities._log.warning
 
-        init_config(build_options={'trace': True})
-
+        # --trace is enabled by default
         self.mock_stdout(True)
         self.mock_stderr(True)
         (out, ec) = run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'})
@@ -843,6 +984,37 @@ class RunTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.mock_stderr(True)
         (out, ec) = run_cmd("echo hello", trace=False)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+
+    def test_run_shell_cmd_qa_trace(self):
+        """Test run_shell_cmd with qa_patterns under --trace"""
+
+        # --trace is enabled by default
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        run_shell_cmd("echo 'n: '; read n; seq 1 $n", qa_patterns=[('n: ', '5')])
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stderr, '')
+        pattern = r"^  >> running interactive shell command:\n"
+        pattern += r"\techo \'n: \'; read n; seq 1 \$n\n"
+        pattern += r"\t\[started at: .*\]\n"
+        pattern += r"\t\[working dir: .*\]\n"
+        pattern += r"\t\[output saved to .*\]\n"
+        pattern += r'  >> command completed: exit 0, ran in .*'
+        self.assertTrue(re.search(pattern, stdout), "Pattern '%s' found in: %s" % (pattern, stdout))
+
+        # trace output can be disabled on a per-command basis
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        run_shell_cmd("echo 'n: '; read n; seq 1 $n", qa_patterns=[('n: ', '5')], hidden=True)
         stdout = self.get_stdout()
         stderr = self.get_stderr()
         self.mock_stdout(False)
@@ -874,6 +1046,28 @@ class RunTest(EnhancedTestCase):
             (out, ec) = run_cmd_qa(cmd, {}, std_qa=qa)
         self.assertEqual(out, "question\nanswer1\nquestion\nanswer2\n" * 2)
         self.assertEqual(ec, 0)
+
+    def test_run_shell_cmd_qa_answers(self):
+        """Test providing list of answers for a question in run_shell_cmd."""
+
+        cmd = "echo question; read x; echo $x; " * 2
+        qa = [("question", ["answer1", "answer2"])]
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa)
+        self.assertEqual(res.output, "question\nanswer1\nquestion\nanswer2\n")
+        self.assertEqual(res.exit_code, 0)
+
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, "Unknown type of answers encountered", run_shell_cmd, cmd,
+                                  qa_patterns=[('question', 1)])
+
+        # test cycling of answers
+        cmd = cmd * 2
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa)
+        self.assertEqual(res.output, "question\nanswer1\nquestion\nanswer2\n" * 2)
+        self.assertEqual(res.exit_code, 0)
 
     def test_run_cmd_simple(self):
         """Test return value for run_cmd in 'simple' mode."""
@@ -1003,6 +1197,14 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(read_file(outfile), "This is always echoed\n")
 
         # Q&A commands
+        self.mock_stdout(True)
+        run_shell_cmd("some_qa_cmd", qa_patterns=[('question1', 'answer1')])
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        expected = """  running interactive shell command "some_qa_cmd"\n"""
+        self.assertIn(expected, stdout)
+
         self.mock_stdout(True)
         run_cmd_qa("some_qa_cmd", {'question1': 'answer1'})
         stdout = self.get_stdout()
@@ -1440,6 +1642,17 @@ class RunTest(EnhancedTestCase):
         expected_stdout = '\n'.join([
             "pre-run hook 'make' in %s" % cwd,
             "post-run hook 'echo make' (exit code: 0, output: 'make\n')",
+            '',
+        ])
+        self.assertEqual(stdout, expected_stdout)
+
+        with self.mocked_stdout_stderr():
+            run_shell_cmd("sleep 2; make", qa_patterns=[('q', 'a')])
+            stdout = self.get_stdout()
+
+        expected_stdout = '\n'.join([
+            "pre-run hook interactive 'sleep 2; make' in %s" % cwd,
+            "post-run hook interactive 'sleep 2; echo make' (exit code: 0, output: 'make\n')",
             '',
         ])
         self.assertEqual(stdout, expected_stdout)
