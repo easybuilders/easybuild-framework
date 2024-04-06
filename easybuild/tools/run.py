@@ -425,12 +425,20 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             # -1 means reading until EOF
             read_size = 128 if exit_code is None else -1
 
-            more_stdout = proc.stdout.read1(read_size) or b''
-            stdout += more_stdout
+            # get output as long as output is available;
+            # note: can't use proc.stdout.read without read_size argument,
+            # since that will always wait until EOF
+            more_stdout = True
+            while more_stdout:
+                more_stdout = proc.stdout.read(read_size) or b''
+                stdout += more_stdout
 
             # note: we assume that there won't be any questions in stderr output
             if split_stderr:
-                stderr += proc.stderr.read1(read_size) or b''
+                more_stderr = True
+                while more_stdout:
+                    more_stderr = proc.stderr.read(read_size) or b''
+                    stderr += more_stderr
 
             if qa_patterns:
                 if _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
