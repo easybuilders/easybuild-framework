@@ -223,7 +223,7 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
             elif isinstance(answers, str):
                 answer = answers
             else:
-                raise EasyBuildError(f"Unknown type of answers encountered: {answers}")
+                raise EasyBuildError(f"Unknown type of answers encountered for question ({question}): {answers}")
 
             # answer may need to be completed via pattern extracted from question
             _log.debug(f"Raw answer for question pattern '{question}': {answer}")
@@ -280,8 +280,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     :param task_id: task ID for specified shell command (included in return value)
     :param with_hooks: trigger pre/post run_shell_cmd hooks (if defined)
     :param qa_patterns: list of 2-tuples with patterns for questions + corresponding answers
-    :param qa_wait_patterns: list of 2-tuples with patterns for non-questions
-                             and number of iterations to allow these patterns to match with end out command output
+    :param qa_wait_patterns: list of strings with patterns for non-questions
     :param qa_timeout: amount of seconds to wait until more output is produced when there is no matching question
 
     :return: Named tuple with:
