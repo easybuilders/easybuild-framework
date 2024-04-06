@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -54,7 +54,7 @@ from easybuild.tools.utilities import flatten, nub
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
 
-def det_robot_path(robot_paths_option, tweaked_ecs_paths, pr_paths, auto_robot=False):
+def det_robot_path(robot_paths_option, tweaked_ecs_paths, extra_ec_paths, auto_robot=False):
     """Determine robot path."""
     robot_path = robot_paths_option[:]
     _log.info("Using robot path(s): %s", robot_path)
@@ -70,9 +70,9 @@ def det_robot_path(robot_paths_option, tweaked_ecs_paths, pr_paths, auto_robot=F
         _log.info("Prepended list of robot search paths with %s and appended with %s: %s", tweaked_ecs_path,
                   tweaked_ecs_deps_path, robot_path)
 
-    if pr_paths is not None:
-        robot_path.extend(pr_paths)
-        _log.info("Extended list of robot search paths with %s: %s", pr_paths, robot_path)
+    if extra_ec_paths is not None:
+        robot_path.extend(extra_ec_paths)
+        _log.info("Extended list of robot search paths with %s: %s", extra_ec_paths, robot_path)
 
     return robot_path
 
@@ -288,16 +288,18 @@ def dry_run(easyconfigs, modtool, short=False):
     return '\n'.join(lines)
 
 
-def missing_deps(easyconfigs, modtool):
+def missing_deps(easyconfigs, modtool, terse=False):
     """
     Determine subset of easyconfigs for which no module is installed yet.
     """
     ordered_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True, raise_error_missing_ecs=False)
     missing = skip_available(ordered_ecs, modtool)
 
-    if missing:
+    if terse:
+        lines = [os.path.basename(x['ec'].path) for x in missing]
+    elif missing:
         lines = ['', "%d out of %d required modules missing:" % (len(missing), len(ordered_ecs)), '']
-        for ec in [x['ec'] for x in missing]:
+        for ec in (x['ec'] for x in missing):
             if ec.short_mod_name != ec.full_mod_name:
                 modname = '%s | %s' % (ec.mod_subdir, ec.short_mod_name)
             else:

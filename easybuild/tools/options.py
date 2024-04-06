@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -89,7 +89,7 @@ from easybuild.tools.filetools import move_file, which
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED
 from easybuild.tools.github import GITHUB_PR_STATE_OPEN, GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
-from easybuild.tools.github import fetch_easyblocks_from_pr, fetch_github_token
+from easybuild.tools.github import fetch_easyblocks_from_commit, fetch_easyblocks_from_pr, fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
 from easybuild.tools.job.backend import avail_job_backends
@@ -245,7 +245,7 @@ class EasyBuildOptions(GeneralOption):
         # update or define go_configfiles_initenv in named arguments to pass to parent constructor
         go_cfg_initenv = kwargs.setdefault('go_configfiles_initenv', {})
         for section, constants in self.go_cfg_constants.items():
-            constants = dict([(name, value) for (name, (value, _)) in constants.items()])
+            constants = {name: value for name, (value, _) in constants.items()}
             go_cfg_initenv.setdefault(section, {}).update(constants)
 
         super(EasyBuildOptions, self).__init__(*args, **kwargs)
@@ -696,10 +696,14 @@ class EasyBuildOptions(GeneralOption):
             'check-style': ("Run a style check on the given easyconfigs", None, 'store_true', False),
             'cleanup-easyconfigs': ("Clean up easyconfig files for pull request", None, 'store_true', True),
             'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
+            'from-commit': ("Obtain easyconfigs from specified commit", 'str', 'store',
+                            None, {'metavar': 'commit_SHA'}),
             'from-pr': ("Obtain easyconfigs from specified PR", 'strlist', 'store', [], {'metavar': 'PR#'}),
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
             'github-user': ("GitHub username", str, 'store', None),
             'github-org': ("GitHub organization", str, 'store', None),
+            'include-easyblocks-from-commit': ("Include easyblocks from specified commit", 'str', 'store', None,
+                                               {'metavar': 'commit_SHA'}),
             'include-easyblocks-from-pr': ("Include easyblocks from specified PR", 'strlist', 'store', [],
                                            {'metavar': 'PR#'}),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
@@ -1218,8 +1222,9 @@ class EasyBuildOptions(GeneralOption):
         if self.options.avail_easyconfig_licenses:
             msg += avail_easyconfig_licenses(self.options.output_format)
 
-        # dump available easyblocks (unless including easyblocks from pr, in which case it will be done later)
-        if self.options.list_easyblocks and not self.options.include_easyblocks_from_pr:
+        # dump available easyblocks (unless including easyblocks from commit or PR, in which case it will be done later)
+        easyblocks_from = self.options.include_easyblocks_from_commit or self.options.include_easyblocks_from_pr
+        if self.options.list_easyblocks and not easyblocks_from:
             msg += list_easyblocks(self.options.list_easyblocks, self.options.output_format)
 
         # dump known toolchains
@@ -1263,7 +1268,7 @@ class EasyBuildOptions(GeneralOption):
             print(msg)
 
         # cleanup tmpdir and exit
-        if not self.options.include_easyblocks_from_pr:
+        if not (self.options.include_easyblocks_from_commit or self.options.include_easyblocks_from_pr):
             cleanup_and_exit(self.tmpdir)
 
     def avail_repositories(self):
@@ -1501,6 +1506,19 @@ def parse_options(args=None, with_include=True):
     return eb_go
 
 
+def check_options(options):
+    """
+    Check configuration options, some combinations are not allowed.
+    """
+    if options.from_commit and options.from_pr:
+        raise EasyBuildError("--from-commit and --from-pr should not be used together, pick one")
+
+    if options.include_easyblocks_from_commit and options.include_easyblocks_from_pr:
+        error_msg = "--include-easyblocks-from-commit and --include-easyblocks-from-pr "
+        error_msg += "should not be used together, pick one"
+        raise EasyBuildError(error_msg)
+
+
 def check_root_usage(allow_use_as_root=False):
     """
     Check whether we are running as root, and act accordingly
@@ -1516,6 +1534,69 @@ def check_root_usage(allow_use_as_root=False):
         else:
             raise EasyBuildError("You seem to be running EasyBuild with root privileges which is not wise, "
                                  "so let's end this here.")
+
+
+def handle_include_easyblocks_from(options, log):
+    """
+    Handle --include-easyblocks-from-pr and --include-easyblocks-from-commit
+    """
+    def check_included_multiple(included_easyblocks_from, source):
+        """Check whether easyblock is being included multiple times"""
+        included_multiple = included_easyblocks_from & included_easyblocks
+        if included_multiple:
+            warning_msg = "One or more easyblocks included from multiple locations: %s " \
+                          % ', '.join(included_multiple)
+            warning_msg += "(the one(s) from %s will be used)" % source
+            print_warning(warning_msg)
+
+    if options.include_easyblocks_from_pr or options.include_easyblocks_from_commit:
+
+        if options.include_easyblocks:
+            # check if you are including the same easyblock twice
+            included_paths = expand_glob_paths(options.include_easyblocks)
+            included_easyblocks = set([os.path.basename(eb) for eb in included_paths])
+
+        if options.include_easyblocks_from_pr:
+            try:
+                easyblock_prs = [int(x) for x in options.include_easyblocks_from_pr]
+            except ValueError:
+                raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR #s")
+
+            for easyblock_pr in easyblock_prs:
+                easyblocks_from_pr = fetch_easyblocks_from_pr(easyblock_pr)
+                included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
+
+                if options.include_easyblocks:
+                    check_included_multiple(included_from_pr, "PR #%s" % easyblock_pr)
+                    included_easyblocks |= included_from_pr
+
+                for easyblock in included_from_pr:
+                    print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log)
+
+                include_easyblocks(options.tmpdir, easyblocks_from_pr)
+
+        easyblock_commit = options.include_easyblocks_from_commit
+        if easyblock_commit:
+            easyblocks_from_commit = fetch_easyblocks_from_commit(easyblock_commit)
+            included_from_commit = set([os.path.basename(eb) for eb in easyblocks_from_commit])
+
+            if options.include_easyblocks:
+                check_included_multiple(included_from_commit, "commit %s" % easyblock_commit)
+
+            for easyblock in included_from_commit:
+                print_msg("easyblock %s included from comit %s" % (easyblock, easyblock_commit), log=log)
+
+            include_easyblocks(options.tmpdir, easyblocks_from_commit)
+
+        if options.list_easyblocks:
+            msg = list_easyblocks(options.list_easyblocks, options.output_format)
+            if options.unittest_file:
+                log.info(msg)
+            else:
+                print(msg)
+            # tmpdir is set by option parser via set_tmpdir function
+            tmpdir = tempfile.gettempdir()
+            cleanup_and_exit(tmpdir)
 
 
 def set_up_configuration(args=None, logfile=None, testing=False, silent=False, reconfigure=False):
@@ -1537,6 +1618,8 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
     # parse EasyBuild configuration settings
     eb_go = parse_options(args=args)
     options = eb_go.options
+
+    check_options(options)
 
     # tmpdir is set by option parser via set_tmpdir function
     tmpdir = tempfile.gettempdir()
@@ -1582,10 +1665,11 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
     # determine robot path
     # --try-X, --dep-graph, --search use robot path for searching, so enable it with path of installed easyconfigs
     tweaked_ecs = try_to_generate and build_specs
-    tweaked_ecs_paths, pr_paths = alt_easyconfig_paths(tmpdir, tweaked_ecs=tweaked_ecs, from_prs=from_prs,
-                                                       review_pr=review_pr)
+    tweaked_ecs_paths, extra_ec_paths = alt_easyconfig_paths(tmpdir, tweaked_ecs=tweaked_ecs, from_prs=from_prs,
+                                                             from_commit=eb_go.options.from_commit,
+                                                             review_pr=review_pr)
     auto_robot = try_to_generate or options.check_conflicts or options.dep_graph or search_query
-    robot_path = det_robot_path(options.robot_paths, tweaked_ecs_paths, pr_paths, auto_robot=auto_robot)
+    robot_path = det_robot_path(options.robot_paths, tweaked_ecs_paths, extra_ec_paths, auto_robot=auto_robot)
     log.debug("Full robot path: %s", robot_path)
 
     if not robot_path:
@@ -1599,7 +1683,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
         'build_specs': build_specs,
         'command_line': eb_cmd_line,
         'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
-        'pr_paths': pr_paths,
+        'extra_ec_paths': extra_ec_paths,
         'robot_path': robot_path,
         'silent': testing or new_update_opt,
         'try_to_generate': try_to_generate,
@@ -1625,41 +1709,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
     init_build_options(build_options=build_options, cmdline_options=options)
 
     # done here instead of in _postprocess_include because github integration requires build_options to be initialized
-    if eb_go.options.include_easyblocks_from_pr:
-        try:
-            easyblock_prs = [int(x) for x in eb_go.options.include_easyblocks_from_pr]
-        except ValueError:
-            raise EasyBuildError("Argument to --include-easyblocks-from-pr must be a comma separated list of PR #s.")
-
-        if eb_go.options.include_easyblocks:
-            # check if you are including the same easyblock twice
-            included_paths = expand_glob_paths(eb_go.options.include_easyblocks)
-            included_from_file = set([os.path.basename(eb) for eb in included_paths])
-
-        for easyblock_pr in easyblock_prs:
-            easyblocks_from_pr = fetch_easyblocks_from_pr(easyblock_pr)
-            included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
-
-            if eb_go.options.include_easyblocks:
-                included_twice = included_from_pr & included_from_file
-                if included_twice:
-                    warning_msg = "One or more easyblocks included from multiple locations: %s " \
-                                  % ', '.join(included_twice)
-                    warning_msg += "(the one(s) from PR #%s will be used)" % easyblock_pr
-                    print_warning(warning_msg)
-
-            for easyblock in included_from_pr:
-                print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log)
-
-            include_easyblocks(eb_go.options.tmpdir, easyblocks_from_pr)
-
-        if eb_go.options.list_easyblocks:
-            msg = list_easyblocks(eb_go.options.list_easyblocks, eb_go.options.output_format)
-            if eb_go.options.unittest_file:
-                log.info(msg)
-            else:
-                print(msg)
-            cleanup_and_exit(tmpdir)
+    handle_include_easyblocks_from(eb_go.options, log)
 
     check_python_version()
 

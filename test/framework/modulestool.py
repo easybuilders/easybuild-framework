@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2023 Ghent University
+# Copyright 2014-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -232,8 +232,7 @@ class ModulesToolTest(EnhancedTestCase):
         if self.orig_module is not None:
             os.environ['module'] = self.orig_module
         else:
-            if 'module' in os.environ:
-                del os.environ['module']
+            os.environ.pop('module', None)
 
 
 def suite():

@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -51,9 +51,9 @@ _log = fancylogger.getLogger('easyconfig.format.pyheaderconfigobj', fname=False)
 def build_easyconfig_constants_dict():
     """Make a dictionary with all constants that can be used"""
     all_consts = [
-        ('TEMPLATE_CONSTANTS', dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS])),
-        ('EASYCONFIG_CONSTANTS', dict([(key, val[0]) for key, val in EASYCONFIG_CONSTANTS.items()])),
-        ('EASYCONFIG_LICENSES', dict([(klass().name, name) for name, klass in EASYCONFIG_LICENSES_DICT.items()])),
+        ('TEMPLATE_CONSTANTS', {x[0]: x[1] for x in TEMPLATE_CONSTANTS}),
+        ('EASYCONFIG_CONSTANTS', {key: val[0] for key, val in EASYCONFIG_CONSTANTS.items()}),
+        ('EASYCONFIG_LICENSES', {klass().name: name for name, klass in EASYCONFIG_LICENSES_DICT.items()}),
     ]
     err = []
     const_dict = {}

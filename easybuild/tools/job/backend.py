@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2023 Ghent University
+# Copyright 2015-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -104,7 +104,7 @@ def avail_job_backends(check_usable=True):
     Return all known job execution backends.
     """
     import_available_modules('easybuild.tools.job')
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(JobBackend)])
+    class_dict = {x.__name__: x for x in get_subclasses(JobBackend)}
     return class_dict
 
 

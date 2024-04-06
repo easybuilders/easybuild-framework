@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -900,8 +900,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             # can't have $LMOD_QUIET set when testing with Tcl syntax,
             # otherwise we won't get the output produced by the test module file...
-            if 'LMOD_QUIET' in os.environ:
-                del os.environ['LMOD_QUIET']
+            os.environ.pop('LMOD_QUIET', None)
 
             self.assertEqual('$::env(HOSTNAME)', self.modgen.getenv_cmd('HOSTNAME'))
             self.assertEqual('$::env(HOME)', self.modgen.getenv_cmd('HOME'))
