@@ -436,7 +436,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             # note: we assume that there won't be any questions in stderr output
             if split_stderr:
                 more_stderr = True
-                while more_stdout:
+                while more_stderr:
                     more_stderr = proc.stderr.read(read_size) or b''
                     stderr += more_stderr
 
