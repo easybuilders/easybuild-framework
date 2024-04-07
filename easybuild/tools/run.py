@@ -219,6 +219,7 @@ def save_cmd(cmd_str, work_dir, env, tmpdir):
     cmd_fp = os.path.join(tmpdir, 'cmd.sh')
     with open(cmd_fp, 'w') as fid:
         fid.write('#!/usr/bin/env bash\n')
+        fid.write('# Run this script to replicate the environment that EB used to run the shell command\n')
         fid.write('\n'.join([
             f'\ncd "{work_dir}"',
             'EB_SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )',
