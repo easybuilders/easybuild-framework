@@ -226,7 +226,7 @@ def save_cmd(cmd_str, work_dir, env, tmpdir):
             'echo Use command history, exit to stop',
             'bash --rcfile <(cat $EB_SCRIPT_DIR/env.sh; '
             'echo \'PS1="eb-shell> "\'; '
-            'echo history -s {shlex.quote(cmd_str)})',
+            f'echo history -s {shlex.quote(cmd_str)})',
             ]))
     os.chmod(cmd_fp, 0o775)
 
