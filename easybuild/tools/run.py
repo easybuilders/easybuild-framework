@@ -204,24 +204,31 @@ def fileprefix_from_cmd(cmd, allowed_chars=False):
     return ''.join([c for c in cmd if c in allowed_chars])
 
 
-def save_cmd(cmd_str, work_dir, env, filename):
+def save_cmd(cmd_str, work_dir, env, tmpdir):
+    # Save environment variables in it's own environment file
     full_env = os.environ.copy()
     if env is not None:
         full_env.update(env)
-
-    with open(filename, 'w') as fid:
-        fid.write('#!/usr/bin/env bash\n')
+    env_fp = os.path.join(tmpdir, 'env.sh')
+    with open(env_fp, 'w') as fid:
         # excludes bash functions (environment variables ending with %)
-        fid.write('\n'.join(f'{key}={shlex.quote(value)}' for key, value in full_env.items() if not key.endswith('%')))
+        fid.write('\n'.join(f'export {key}={shlex.quote(value)}' for key, value in full_env.items()
+                            if not key.endswith('%')))
+
+    # Make script that sets up bash shell with given environments set.
+    cmd_fp = os.path.join(tmpdir, 'cmd.sh')
+    with open(cmd_fp, 'w') as fid:
+        fid.write('#!/usr/bin/env bash\n')
         fid.write('\n'.join([
             f'\ncd "{work_dir}"',
-            f'history -s {shlex.quote(cmd_str)}',
+            'EB_SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )',
             f'echo Shell for the command: {shlex.quote(cmd_str)}',
             'echo Use command history, exit to stop',
-            'export PS1="eb-shell> $PS1"',
-            'bash --norc',
+            'bash --rcfile <(cat $EB_SCRIPT_DIR/env.sh; '
+            'echo \'PS1="eb-shell> "\'; '
+            'echo history -s {shlex.quote(cmd_str)})',
             ]))
-    os.chmod(filename, 0o775)
+    os.chmod(cmd_fp, 0o775)
 
 
 def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
@@ -354,9 +361,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         os.makedirs(toptmpdir, exist_ok=True)
         cmd_name = fileprefix_from_cmd(os.path.basename(cmd_str.split(' ')[0]))
         tmpdir = tempfile.mkdtemp(dir=toptmpdir, prefix=f'{cmd_name}-')
-        cmd_log_fp = os.path.join(tmpdir, 'cmd.sh')
-        _log.info(f'run_shell_cmd: command environment of "{cmd_str}" will be saved to {cmd_log_fp}')
-        save_cmd(cmd_str, work_dir, env, cmd_log_fp)
+        _log.info(f'run_shell_cmd: command environment of "{cmd_str}" will be saved to {tmpdir}')
+        save_cmd(cmd_str, work_dir, env, tmpdir)
         cmd_out_fp = os.path.join(tmpdir, 'out.txt')
         _log.info(f'run_shell_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
         if split_stderr:
