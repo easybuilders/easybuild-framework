@@ -210,7 +210,7 @@ def save_cmd(cmd_str, work_dir, env, filename):
         full_env.update(env)
 
     with open(filename, 'w') as fid:
-        fid.write('#!/usr/bin/env bash')
+        fid.write('#!/usr/bin/env bash\n')
         # excludes bash functions (environment variables ending with %)
         fid.write('\n'.join(f'{key}={shlex.quote(value)}' for key, value in full_env.items() if not key.endswith('%')))
         fid.write('\n'.join([
