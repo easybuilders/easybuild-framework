@@ -213,7 +213,7 @@ def save_cmd(cmd_str, work_dir, env, filename):
     with open(filename, 'w') as fid:
         fid.write('#!/usr/bin/env bash')
         # excludes bash functions (environment variables ending with %)
-        fid.write('\n'.join(f'{key}={shlex.quote(value)}' for key, value in full_env.items() if not key.endswith('%'))
+        fid.write('\n'.join(f'{key}={shlex.quote(value)}' for key, value in full_env.items() if not key.endswith('%')))
         fid.write('\n'.join([
             f'\ncd "{work_dir}"',
             f'history -s {shlex.quote(cmd_str)}',
