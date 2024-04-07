@@ -209,7 +209,6 @@ def save_cmd(cmd_str, work_dir, env, filename):
     if env is not None:
         full_env.update(env)
 
-    os.chmod(filename, 0o775)
     with open(filename, 'w') as fid:
         fid.write('#!/usr/bin/env bash')
         # excludes bash functions (environment variables ending with %)
@@ -222,6 +221,7 @@ def save_cmd(cmd_str, work_dir, env, filename):
             'export PS1="eb-shell> $PS1"',
             'bash --norc',
             ]))
+    os.chmod(filename, 0o775)
 
 
 def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
