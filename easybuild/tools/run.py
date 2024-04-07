@@ -212,9 +212,9 @@ def save_cmd(cmd_str, work_dir, env, filename):
     with open(filename, 'w') as fid:
         fid.write('\n'.join(f'{key}={shlex.quote(value)}' for key, value in full_env.items()))
         fid.write('\n'.join([
-            f'cd "{work_dir}"',
-            f'history -s "{shlex.quote(cmd_str)}"',
-            f'echo Shell for the command: "{shlex.quote(cmd_str)}"',
+            f'\ncd "{work_dir}"',
+            f'history -s {shlex.quote(cmd_str)}',
+            f'echo Shell for the command: {shlex.quote(cmd_str)}',
             'echo Use command history, exit to stop',
             'export PS1="eb-shell> $PS1"',
             'bash',
