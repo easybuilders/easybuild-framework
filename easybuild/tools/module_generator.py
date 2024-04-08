@@ -844,7 +844,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        lines.extend(['', "set root %(installdir)s"])
+        lines.extend(['', "set root " + self.app.installdir])
 
         return '\n'.join([''] + lines + [''])
 
@@ -1260,7 +1260,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         for line in self._generate_whatis_lines():
             lines.append("whatis(%s%s%s)" % (self.START_STR, self.check_str(line), self.END_STR))
 
-        lines.extend(['', 'local root = "%(installdir)s"'])
+        lines.extend(['', 'local root = "%s"' % self.app.installdir])
 
         if self.app.cfg['moduleloadnoconflict']:
             self.log.info("Nothing to do to ensure no conflicts can occur on load when using Lua modules files/Lmod")
