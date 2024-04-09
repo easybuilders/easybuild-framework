@@ -53,6 +53,22 @@ class LooseVersion(object):
         """Readonly access to the parsed version (list or None)"""
         return self._version
 
+    def is_prerelease(self, other, markers):
+        """Check if this is a prerelease of other
+
+        Markers is a list of strings that denote a prerelease
+        """
+        if isinstance(other, str):
+            vstring = other
+        else:
+            vstring = other._vstring
+        if self._vstring.startswith(vstring):
+            prerelease = self._vstring[len(vstring):]
+            for marker in markers:
+                if prerelease.startswith(marker):
+                    return True
+        return False
+
     def __str__(self):
         return self._vstring
 

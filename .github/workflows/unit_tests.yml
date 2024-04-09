@@ -13,10 +13,7 @@ jobs:
   setup:
     runs-on: ubuntu-20.04
     outputs:
-        lmod7: Lmod-7.8.22
         lmod8: Lmod-8.7.6
-        modulesTcl: modules-tcl-1.147
-        modules3: modules-3.2.10
         modules4: modules-4.1.4
     steps:
       - run: "true"
@@ -29,10 +26,7 @@ jobs:
         modules_tool:
           # use variables defined by 'setup' job above, see also
           # https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#needs-context
-          - ${{needs.setup.outputs.lmod7}}
           - ${{needs.setup.outputs.lmod8}}
-          - ${{needs.setup.outputs.modulesTcl}}
-          - ${{needs.setup.outputs.modules3}}
           - ${{needs.setup.outputs.modules4}}
         lc_all: [""]
         include:
@@ -46,6 +40,8 @@ jobs:
           - python: '3.10'
             modules_tool: ${{needs.setup.outputs.lmod8}}
           - python: '3.11'
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+          - python: '3.12'
             modules_tool: ${{needs.setup.outputs.lmod8}}
           # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
           # Hence run the tests (again) with LC_ALL=C and Python 3.6 (or any < 3.7)
@@ -89,6 +85,10 @@ jobs:
         pip install --upgrade pip
         pip --version
         pip install -r requirements.txt
+        if ! python -c "import distutils" 2> /dev/null; then
+            # we need setuptools for distutils in Python 3.12+, needed for python setup.py sdist
+            pip install --upgrade setuptools
+        fi
         # git config is required to make actual git commits (cfr. tests for GitRepository)
         git config --global user.name "Travis CI"
         git config --global user.email "travis@travis-ci.org"
@@ -158,11 +158,7 @@ jobs:
           export PYTHONPATH=$PREFIX/lib/python${{matrix.python}}/site-packages:$PYTHONPATH
           eb --version
           # tell EasyBuild which modules tool is available
-          if [[ ${{matrix.modules_tool}} =~ ^modules-tcl- ]]; then
-            export EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
-          elif [[ ${{matrix.modules_tool}} =~ ^modules-3 ]]; then
-            export EASYBUILD_MODULES_TOOL=EnvironmentModulesC
-          elif [[ ${{matrix.modules_tool}} =~ ^modules-4 ]]; then
+          if [[ ${{matrix.modules_tool}} =~ ^modules-4 ]]; then
             export EASYBUILD_MODULES_TOOL=EnvironmentModules
           else
             export EASYBUILD_MODULES_TOOL=Lmod
@@ -176,7 +172,7 @@ jobs:
               echo "Not testing with '${module_syntax}' as module syntax with '${EASYBUILD_MODULES_TOOL}' as modules tool"
               continue
             fi
-            printf '\n\n=====================> Using $module_syntax module syntax <=====================\n\n'
+            printf "\n\n=====================> Using $module_syntax module syntax <=====================\n\n"
             export EASYBUILD_MODULE_SYNTAX="${module_syntax}"
             export TEST_EASYBUILD_MODULE_SYNTAX="${EASYBUILD_MODULE_SYNTAX}"
 

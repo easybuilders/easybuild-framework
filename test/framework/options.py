@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -923,37 +923,46 @@ class CommandLineOptionsTest(EnhancedTestCase):
             logtxt = read_file(self.logfile)
 
             expected = '\n'.join([
-                r'EasyBlock',
-                r'\|-- bar',
-                r'\|-- ConfigureMake',
-                r'\|   \|-- MakeCp',
-                r'\|-- EB_EasyBuildMeta',
-                r'\|-- EB_FFTW',
-                r'\|-- EB_foo',
-                r'\|   \|-- EB_foofoo',
-                r'\|-- EB_GCC',
-                r'\|-- EB_HPL',
-                r'\|-- EB_libtoy',
-                r'\|-- EB_OpenBLAS',
-                r'\|-- EB_OpenMPI',
-                r'\|-- EB_ScaLAPACK',
-                r'\|-- EB_toy_buggy',
-                r'\|-- ExtensionEasyBlock',
-                r'\|   \|-- DummyExtension',
-                r'\|   \|-- EB_toy',
-                r'\|   \|   \|-- EB_toy_eula',
-                r'\|   \|   \|-- EB_toytoy',
-                r'\|   \|-- Toy_Extension',
-                r'\|-- ModuleRC',
-                r'\|-- PythonBundle',
-                r'\|-- Toolchain',
-                r'Extension',
-                r'\|-- ExtensionEasyBlock',
-                r'\|   \|-- DummyExtension',
-                r'\|   \|-- EB_toy',
-                r'\|   \|   \|-- EB_toy_eula',
-                r'\|   \|   \|-- EB_toytoy',
-                r'\|   \|-- Toy_Extension',
+                "EasyBlock",
+                "|-- bar",
+                "|-- ConfigureMake",
+                "|   |-- MakeCp",
+                "|-- EB_EasyBuildMeta",
+                "|-- EB_FFTW",
+                "|-- EB_foo",
+                "|   |-- EB_foofoo",
+                "|-- EB_GCC",
+                "|-- EB_HPL",
+                "|-- EB_libtoy",
+                "|-- EB_OpenBLAS",
+                "|-- EB_OpenMPI",
+                "|-- EB_ScaLAPACK",
+                "|-- EB_toy_buggy",
+                "|-- ExtensionEasyBlock",
+                "|   |-- DummyExtension",
+                "|   |   |-- CustomDummyExtension",
+                "|   |   |   |-- ChildCustomDummyExtension",
+                "|   |   |-- DeprecatedDummyExtension",
+                "|   |   |   |-- ChildDeprecatedDummyExtension",
+                "|   |-- EB_toy",
+                "|   |   |-- EB_toy_eula",
+                "|   |   |-- EB_toytoy",
+                "|   |-- Toy_Extension",
+                "|-- ModuleRC",
+                "|-- PythonBundle",
+                "|-- Toolchain",
+                "Extension",
+                "|-- ExtensionEasyBlock",
+                "|   |-- DummyExtension",
+                "|   |   |-- CustomDummyExtension",
+                "|   |   |   |-- ChildCustomDummyExtension",
+                "|   |   |-- DeprecatedDummyExtension",
+                "|   |   |   |-- ChildDeprecatedDummyExtension",
+                "|   |-- EB_toy",
+                "|   |   |-- EB_toy_eula",
+                "|   |   |-- EB_toytoy",
+                "|   |-- Toy_Extension",
+                "",
             ])
             regex = re.compile(expected, re.M)
             self.assertTrue(regex.search(logtxt), "Pattern '%s' found in: %s" % (regex.pattern, logtxt))
@@ -1444,6 +1453,70 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertIn("name = 'ExifTool'", read_file(test_ec))
         remove_file(test_ec)
 
+    def test_copy_ec_from_commit(self):
+        """Test combination of --copy-ec with --from-commit."""
+        # note: --from-commit does not involve using GitHub API, so no GitHub token required
+
+        # using easyconfigs commit to add EasyBuild-4.8.2.eb
+        test_commit = '7c83a553950c233943c7b0189762f8c05cfea852'
+
+        test_dir = os.path.join(self.test_prefix, 'from_commit')
+        mkdir(test_dir, parents=True)
+        args = ['--copy-ec', '--from-commit=%s' % test_commit, test_dir]
+        try:
+            stdout = self.mocked_main(args)
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
+
+        pattern = "_%s/e/EasyBuild/EasyBuild-4.8.2.eb copied to " % test_commit
+        self.assertIn(pattern, stdout)
+        copied_ecs = os.listdir(test_dir)
+        self.assertEqual(copied_ecs, ['EasyBuild-4.8.2.eb'])
+
+        # cleanup
+        remove_dir(test_dir)
+        mkdir(test_dir)
+
+        # test again, using extra argument (name of file to copy), without specifying target directory
+        # (should copy to current directory)
+        cwd = change_dir(test_dir)
+        args = ['--copy-ec', '--from-commit=%s' % test_commit, "EasyBuild-4.8.2.eb"]
+        try:
+            stdout = self.mocked_main(args)
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
+
+        self.assertIn(pattern, stdout)
+        copied_ecs = os.listdir(test_dir)
+        self.assertEqual(copied_ecs, ['EasyBuild-4.8.2.eb'])
+
+        # cleanup
+        change_dir(cwd)
+        remove_dir(test_dir)
+        mkdir(test_dir)
+
+        # test with commit that touches a bunch of easyconfigs
+        test_commit = '49c887397b1a948e1909fc24bc905fdc1ad38388'
+        expected_ecs = [
+            'gompi-2023b.eb',
+            'gfbf-2023b.eb',
+            'ScaLAPACK-2.2.0-gompi-2023b-fb.eb',
+            'foss-2023b.eb',
+            'HPL-2.3-foss-2023b.eb',
+            'FFTW.MPI-3.3.10-gompi-2023b.eb',
+            'SciPy-bundle-2023.11-gfbf-2023b.eb',
+            'OSU-Micro-Benchmarks-7.2-gompi-2023b.eb',
+        ]
+        args = ['--copy-ec', '--from-commit=%s' % test_commit, test_dir]
+        try:
+            stdout = self.mocked_main(args)
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
+
+        copied_ecs = os.listdir(test_dir)
+        for ec in expected_ecs:
+            self.assertIn(ec, copied_ecs)
+
     def test_dry_run(self):
         """Test dry run (long format)."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -1495,14 +1568,26 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 ])
 
             for opt in ['-M', '--missing-modules']:
-                self.mock_stderr(True)
-                self.mock_stdout(True)
-                self.eb_main(args + [opt], testing=False, raise_error=True)
-                stderr, stdout = self.get_stderr(), self.get_stdout()
-                self.mock_stderr(False)
-                self.mock_stdout(False)
+                with self.mocked_stdout_stderr():
+                    self.eb_main(args + [opt], testing=False, raise_error=True)
+                    stderr, stdout = self.get_stderr(), self.get_stdout()
                 self.assertFalse(stderr)
                 self.assertIn(expected, stdout)
+            # --terse
+            with self.mocked_stdout_stderr():
+                self.eb_main(args + ['-M', '--terse'], testing=False, raise_error=True)
+                stderr, stdout = self.get_stderr(), self.get_stdout()
+            self.assertFalse(stderr)
+            if mns == 'HierarchicalMNS':
+                expected = '\n'.join([
+                    "GCC-4.6.3.eb",
+                    "intel-2018a.eb",
+                    "toy-0.0-deps.eb",
+                    "gzip-1.4-GCC-4.6.3.eb",
+                ])
+            else:
+                expected = 'gzip-1.4-GCC-4.6.3.eb'
+            self.assertEqual(stdout, expected + '\n')
 
     def test_dry_run_short(self):
         """Test dry run (short format)."""
@@ -2046,6 +2131,92 @@ class CommandLineOptionsTest(EnhancedTestCase):
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr_x" % err)
 
+    def test_from_commit(self):
+        """Test for --from-commit."""
+        # note: --from-commit does not involve using GitHub API, so no GitHub token required
+
+        # easyconfigs commit to add EasyBuild-4.8.2.eb
+        test_commit = '7c83a553950c233943c7b0189762f8c05cfea852'
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        tmpdir = tempfile.mkdtemp()
+        args = [
+            '--from-commit=%s' % test_commit,
+            '--dry-run',
+            '--tmpdir=%s' % tmpdir,
+        ]
+        try:
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            modules = [
+                (tmpdir, 'EasyBuild/4.8.2'),
+            ]
+            for path_prefix, module in modules:
+                ec_fn = "%s.eb" % '-'.join(module.split('/'))
+                path = '.*%s' % os.path.dirname(path_prefix)
+                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
+                self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+            # make sure that *only* these modules are listed, no others
+            regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
+            self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
+
+            pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_commit_%s' % test_commit)
+            regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)
+            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_from_commit" % err)
+            shutil.rmtree(tmpdir)
+
+    # must be run after test for --list-easyblocks, hence the '_xxx_'
+    # cleaning up the imported easyblocks is quite difficult...
+    def test_xxx_include_easyblocks_from_commit(self):
+        """Test for --include-easyblocks-from-commit."""
+        # note: --include-easyblocks-from-commit does not involve using GitHub API, so no GitHub token required
+
+        orig_local_sys_path = sys.path[:]
+        # easyblocks commit only touching Binary easyblock
+        test_commit = '94d28c556947bd96d0978df775b15a50a4600c6f'
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        tmpdir = tempfile.mkdtemp()
+        args = [
+            '--include-easyblocks-from-commit=%s' % test_commit,
+            '--dry-run',
+            '--tmpdir=%s' % tmpdir,
+            'toy-0.0.eb',  # test easyconfig
+        ]
+        try:
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+
+            # 'undo' import of foo easyblock
+            del sys.modules['easybuild.easyblocks.generic.binary']
+            sys.path[:] = orig_local_sys_path
+            import easybuild.easyblocks
+            reload(easybuild.easyblocks)
+            import easybuild.easyblocks.generic
+            reload(easybuild.easyblocks.generic)
+
+            pattern = "== easyblock binary.py included from comit %s" % test_commit
+            self.assertEqual(stderr, '')
+            self.assertIn(pattern, stdout)
+
+            regex = re.compile(r"^ \* \[.\] .*/toy-0.0.eb \(module: toy/0.0\)$", re.M)
+            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_include_easyblocks_from_commit" % err)
+            shutil.rmtree(tmpdir)
+
     def test_no_such_software(self):
         """Test using no arguments."""
 
@@ -2230,7 +2401,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(regex.search(outtxt), "OS dependencies are checked, outtxt: %s" % outtxt)
         msg = "One or more OS dependencies were not found: "
         msg += r"\[\('nosuchosdependency',\), \('nosuchdep_option1', 'nosuchdep_option2'\)\]"
-        regex = re.compile(r'%s' % msg, re.M)
+        regex = re.compile(msg, re.M)
         self.assertTrue(regex.search(outtxt), "OS dependencies are honored, outtxt: %s" % outtxt)
 
         # check whether OS dependencies are effectively ignored
@@ -3238,8 +3409,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         home = os.environ['HOME']
         for envvar in ['XDG_CONFIG_DIRS', 'XDG_CONFIG_HOME']:
-            if envvar in os.environ:
-                del os.environ[envvar]
+            os.environ.pop(envvar, None)
         reload(easybuild.tools.options)
 
         args = [
@@ -4018,6 +4188,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.assertNotIn("2016.04", txt)
 
+    def test_set_multiple_pr_opts(self):
+        """Test that passing multiple PR options results in an error"""
+        test_cases = [
+            ['--new-pr', 'dummy.eb', '--preview-pr'],
+            ['--new-pr', 'dummy.eb', '--update-pr', '42'],
+            ['--new-pr', 'dummy.eb', '--sync-pr-with-develop', '42'],
+            ['--new-pr', 'dummy.eb', '--new-pr-from-branch', 'mybranch'],
+        ]
+        for args in test_cases:
+            error_pattern = "The following options are set but incompatible.* " + args[0]
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
+
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
         self.purge_environment()
@@ -4109,6 +4291,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
             '--debug',
+            '--disable-rpath',
         ]
 
         msg_regexs = [
@@ -4892,26 +5075,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(stderr.strip(), expected_stderr)
         self.assertTrue(stdout.strip().endswith(expected_stdout), "'%s' ends with '%s'" % (stdout, expected_stdout))
 
-        # full eligible merged PR, default target branch
+        # full eligible merged PR, default target branch;
+        # note: we frequently need to change to a more recent PR here,
+        #       to avoid that this test starts failing because commit status is set to None for old commits
         del args[-1]
-        args[1] = '17065'
+        # easyconfig PR for EasyBuild v4.8.2
+        args[1] = '19105'
 
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         expected_stdout = '\n'.join([
-            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #17065 for merging...",
+            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #19105 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* last test report is successful: OK",
             "* no pending change requests: OK",
             "* approved review: OK (by SebastianAchilles)",
-            "* milestone is set: OK (4.7.1)",
+            "* milestone is set: OK (4.9.0)",
             "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
             '',
-            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #17065: 'Going in, thanks @boegel!'",
-            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #17065",
+            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #19105: 'Going in, thanks @boegel!'",
+            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #19105",
         ])
         expected_stderr = ''
         self.assertEqual(stderr.strip(), expected_stderr)
@@ -5056,8 +5242,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test --show-config in relation to how configuring across multiple configuration levels interacts with it."""
 
         # make sure default module syntax is used
-        if 'EASYBUILD_MODULE_SYNTAX' in os.environ:
-            del os.environ['EASYBUILD_MODULE_SYNTAX']
+        os.environ.pop('EASYBUILD_MODULE_SYNTAX', None)
 
         # configuring --modules-tool and --module-syntax on different levels should NOT cause problems
         # cfr. bug report https://github.com/easybuilders/easybuild-framework/issues/2564
@@ -5083,8 +5268,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Verify that check for modules tool vs syntax works."""
 
         # make sure default module syntax is used
-        if 'EASYBUILD_MODULE_SYNTAX' in os.environ:
-            del os.environ['EASYBUILD_MODULE_SYNTAX']
+        os.environ.pop('EASYBUILD_MODULE_SYNTAX', None)
 
         # using EnvironmentModulesC modules tool with default module syntax (Lua) is a problem
         os.environ['EASYBUILD_MODULES_TOOL'] = 'EnvironmentModulesC'
@@ -6823,8 +7007,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         mod_ext = '.lua' if get_module_syntax() == 'Lua' else ''
 
         # make sure that $EBROOTLIBTOY is not defined
-        if 'EBROOTLIBTOY' in os.environ:
-            del os.environ['EBROOTLIBTOY']
+        os.environ.pop('EBROOTLIBTOY', None)
 
         # libtoy module should be installed, module file should at least set EBROOTLIBTOY
         mod_dir = os.path.join(self.test_installpath, 'modules', 'all')

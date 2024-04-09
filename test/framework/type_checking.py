@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2023 Ghent University
+# Copyright 2015-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -317,9 +317,9 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, ['gcc', '4', 'False', '7'])
 
         # invalid truth value
-        errstr = "invalid truth value .*"
-        self.assertErrorRegex(ValueError, errstr, to_toolchain_dict, "intel, 2015, foo")
-        self.assertErrorRegex(ValueError, errstr, to_toolchain_dict, ['gcc', '4', '7'])
+        errstr = "Invalid truth value .*"
+        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, "intel, 2015, foo")
+        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, ['gcc', '4', '7'])
 
         # missing keys
         self.assertErrorRegex(EasyBuildError, "Incorrect set of keys", to_toolchain_dict, {'name': 'intel'})

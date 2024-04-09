@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -42,7 +42,7 @@ from unittest import TextTestRunner
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.tools import StrictVersion
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir
@@ -99,8 +99,7 @@ class ModulesTest(EnhancedTestCase):
         testdir = os.path.dirname(os.path.abspath(__file__))
 
         for key in ['EBROOTGCC', 'EBROOTOPENMPI', 'EBROOTOPENBLAS']:
-            if key in os.environ:
-                del os.environ[key]
+            os.environ.pop(key, None)
 
         # arguments can be passed in two ways: multiple arguments, or just 1 list argument
         self.modtool.run_module('load', 'GCC/6.4.0-2.28')
@@ -226,11 +225,18 @@ class ModulesTest(EnhancedTestCase):
 
         # all test modules are accounted for
         ms = self.modtool.available()
+        version = LooseVersion(self.modtool.version)
 
-        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.7.5'):
+        if isinstance(self.modtool, Lmod) and version >= '5.7.5' and not version.is_prerelease('5.7.5', ['rc']):
             # with recent versions of Lmod, also the hidden modules are included in the output of 'avail'
             self.assertEqual(len(ms), TEST_MODULES_COUNT + 3)
             self.assertIn('bzip2/.1.0.6', ms)
+            self.assertIn('toy/.0.0-deps', ms)
+            self.assertIn('OpenMPI/.2.1.2-GCC-6.4.0-2.28', ms)
+        elif (isinstance(self.modtool, EnvironmentModules)
+                and version >= '4.6.0' and not version.is_prerelease('4.6.0', ['-beta'])):
+            # bzip2/.1.0.6 is not there, since that's a module file in Lua syntax
+            self.assertEqual(len(ms), TEST_MODULES_COUNT + 2)
             self.assertIn('toy/.0.0-deps', ms)
             self.assertIn('OpenMPI/.2.1.2-GCC-6.4.0-2.28', ms)
         else:
@@ -308,7 +314,8 @@ class ModulesTest(EnhancedTestCase):
 
         avail_mods = self.modtool.available()
         self.assertIn('Java/1.8.0_181', avail_mods)
-        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
+        version = LooseVersion(self.modtool.version)
+        if isinstance(self.modtool, Lmod) and version >= '7.0' and not version.is_prerelease('7.0', ['rc']):
             self.assertIn('Java/1.8', avail_mods)
             self.assertIn('Java/site_default', avail_mods)
             self.assertIn('JavaAlias', avail_mods)
@@ -368,7 +375,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(self.modtool.exist(['Core/Java/1.8', 'Core/Java/site_default']), [True, True])
 
         # also check with .modulerc.lua for Lmod 7.8 or newer
-        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.8'):
+        if isinstance(self.modtool, Lmod) and version >= '7.8' and not version.is_prerelease('7.8', ['rc']):
             shutil.move(os.path.join(self.test_prefix, 'Core', 'Java'), java_mod_dir)
             reset_module_caches()
 
@@ -400,7 +407,7 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(self.modtool.exist(['Core/Java/site_default']), [True])
 
         # Test alias in home directory .modulerc
-        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
+        if isinstance(self.modtool, Lmod) and version >= '7.0' and not version.is_prerelease('7.0', ['rc']):
             # Required or temporary HOME would be in MODULEPATH already
             self.init_testmods()
             # Sanity check: Module aliases don't exist yet
@@ -461,8 +468,7 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(self.modtool.loaded_modules()[-1], 'GCC/6.4.0-2.28')
 
         # set things up for checking that GCC does *not* get reloaded when requested
-        if 'EBROOTGCC' in os.environ:
-            del os.environ['EBROOTGCC']
+        os.environ.pop('EBROOTGCC', None)
         self.modtool.load(['OpenMPI/2.1.2-GCC-6.4.0-2.28'])
         if isinstance(self.modtool, Lmod):
             # order of loaded modules only changes with Lmod
@@ -1039,8 +1045,7 @@ class ModulesTest(EnhancedTestCase):
         init_config()
 
         # make sure $LMOD_DEFAULT_MODULEPATH, since Lmod picks it up and tweaks $MODULEPATH to match it
-        if 'LMOD_DEFAULT_MODULEPATH' in os.environ:
-            del os.environ['LMOD_DEFAULT_MODULEPATH']
+        os.environ.pop('LMOD_DEFAULT_MODULEPATH', None)
 
         self.reset_modulepath([os.path.join(self.test_prefix, 'Core')])
 
@@ -1062,8 +1067,7 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.load(['OpenMPI/2.1.2'])
         self.modtool.purge()
 
-        if 'LMOD_DEFAULT_MODULEPATH' in os.environ:
-            del os.environ['LMOD_DEFAULT_MODULEPATH']
+        os.environ.pop('LMOD_DEFAULT_MODULEPATH', None)
 
         # reset $MODULEPATH, obtain new ModulesTool instance,
         # which should not remember anything w.r.t. previous $MODULEPATH value
@@ -1537,8 +1541,10 @@ class ModulesTest(EnhancedTestCase):
 
         os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.getenv('PATH'))
 
-        modtool = EnvironmentModulesC()
-        modtool.run_module('load', 'test123')
+        self.allow_deprecated_behaviour()
+        with self.mocked_stdout_stderr():
+            modtool = EnvironmentModulesC()
+            modtool.run_module('load', 'test123')
         self.assertEqual(os.getenv('TEST123'), 'test123')
 
     def test_get_setenv_value_from_modulefile(self):

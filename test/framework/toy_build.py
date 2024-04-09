@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ##
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -298,6 +298,7 @@ class ToyBuildTest(EnhancedTestCase):
         ec_extra = '\n'.join([
             "versionsuffix = '-tweaked'",
             "modextrapaths = {'SOMEPATH': ['foo/bar', 'baz', '']}",
+            "modextrapaths_append = {'SOMEPATH_APPEND': ['qux/fred', 'thud', '']}",
             "modextravars = {'FOO': 'bar'}",
             "modloadmsg =  '%s'" % modloadmsg,
             "modtclfooter = 'puts stderr \"oh hai!\"'",  # ignored when module syntax is Lua
@@ -332,6 +333,9 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root/foo/bar$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root/baz$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^append-path\s*SOMEPATH_APPEND\s*\$root/qux/fred$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^append-path\s*SOMEPATH_APPEND\s*\$root/thud$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^append-path\s*SOMEPATH_APPEND\s*\$root$', toy_module_txt, re.M))
             mod_load_msg = r'module-info mode load.*\n\s*puts stderr\s*.*%s$' % modloadmsg_regex_tcl
             self.assertTrue(re.search(mod_load_msg, toy_module_txt, re.M))
             self.assertTrue(re.search(r'^puts stderr "oh hai!"$', toy_module_txt, re.M))
@@ -339,6 +343,11 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^setenv\("FOO", "bar"\)', toy_module_txt, re.M))
             pattern = r'^prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)$'
             self.assertTrue(re.search(pattern, toy_module_txt, re.M))
+            pattern = r'^append_path\("SOMEPATH_APPEND", pathJoin\(root, "qux/fred"\)\)$'
+            self.assertTrue(re.search(pattern, toy_module_txt, re.M))
+            pattern = r'^append_path\("SOMEPATH_APPEND", pathJoin\(root, "thud"\)\)$'
+            self.assertTrue(re.search(pattern, toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^append_path\("SOMEPATH_APPEND", root\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", root\)$', toy_module_txt, re.M))
             mod_load_msg = r'^if mode\(\) == "load" then\n\s*io.stderr:write\(%s\)$' % modloadmsg_regex_lua
@@ -357,8 +366,7 @@ class ToyBuildTest(EnhancedTestCase):
         expected += "oh hai!"
 
         # setting $LMOD_QUIET results in suppression of printed message with Lmod & module files in Tcl syntax
-        if 'LMOD_QUIET' in os.environ:
-            del os.environ['LMOD_QUIET']
+        os.environ.pop('LMOD_QUIET', None)
 
         self.modtool.use(os.path.join(self.test_installpath, 'modules', 'all'))
         out = self.modtool.run_module('load', 'toy/0.0-tweaked', return_output=True)
@@ -1536,7 +1544,7 @@ class ToyBuildTest(EnhancedTestCase):
             mod_txt_regex_pattern = '\n'.join([
                 r'help\(\[==\[',
                 r'',
-                r'%s' % help_txt,
+                help_txt,
                 r'\]==\]\)',
                 r'',
                 r'whatis\(\[==\[Description: Toy C program, 100% toy.\]==\]\)',
@@ -1559,6 +1567,9 @@ class ToyBuildTest(EnhancedTestCase):
                 r'prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)',
                 r'prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)',
                 r'prepend_path\("SOMEPATH", root\)',
+                r'append_path\("SOMEPATH_APPEND", pathJoin\(root, "qux/fred"\)\)',
+                r'append_path\("SOMEPATH_APPEND", pathJoin\(root, "thud"\)\)',
+                r'append_path\("SOMEPATH_APPEND", root\)',
                 r'',
                 r'if mode\(\) == "load" then',
             ] + modloadmsg_lua + [
@@ -1573,7 +1584,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'proc ModulesHelp { } {',
                 r'    puts stderr {',
                 r'',
-                r'%s' % help_txt,
+                help_txt,
                 r'    }',
                 r'}',
                 r'',
@@ -1597,6 +1608,9 @@ class ToyBuildTest(EnhancedTestCase):
                 r'prepend-path	SOMEPATH		\$root/foo/bar',
                 r'prepend-path	SOMEPATH		\$root/baz',
                 r'prepend-path	SOMEPATH		\$root',
+                r'append-path	SOMEPATH_APPEND		\$root/qux/fred',
+                r'append-path	SOMEPATH_APPEND		\$root/thud',
+                r'append-path	SOMEPATH_APPEND		\$root',
                 r'',
                 r'if { \[ module-info mode load \] } {',
             ] + modloadmsg_tcl + [
@@ -1902,7 +1916,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         args = ['--parallel-extensions-install', '--experimental', '--force', '--parallel=3']
-        stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
+        stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args, raise_error=True)
         self.assertEqual(stderr, '')
 
         # take into account that each of these lines may appear multiple times,
@@ -1921,7 +1935,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # also test skipping of extensions in parallel
         args.append('--skip')
-        stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
+        stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args, raise_error=True)
         self.assertEqual(stderr, '')
 
         # order in which these patterns occur is not fixed, so check them one by one
@@ -1947,7 +1961,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(toy_ext_eb, toy_ext_eb_txt)
 
         args[-1] = '--include-easyblocks=%s' % toy_ext_eb
-        stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
+        stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args, raise_error=True)
         self.assertEqual(stderr, '')
         # take into account that each of these lines may appear multiple times,
         # in case no progress was made between checks
@@ -2414,7 +2428,14 @@ class ToyBuildTest(EnhancedTestCase):
 
         # modify test easyconfig: move lib/libtoy.a to lib64/libtoy.a
         ectxt = re.sub(r"\s*'files'.*", "'files': ['bin/toy', ('lib/libtoy.a', 'lib/libfoo.a')],", ectxt)
-        postinstallcmd = "mkdir %(installdir)s/lib64 && mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/libtoy.a"
+        postinstallcmd = ' && '.join([
+            # remove lib64 symlink (if it's there)
+            "rm -f %(installdir)s/lib64",
+            # create empty lib64 dir
+            "mkdir %(installdir)s/lib64",
+            # move libtoy.a
+            "mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/libtoy.a",
+        ])
         ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
 
         test_ec = os.path.join(self.test_prefix, 'toy-0.0.eb')
@@ -2960,11 +2981,11 @@ class ToyBuildTest(EnhancedTestCase):
             r"^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
             r"^  >> applying patch toy-0\.0_fix-silly-typo-in-printf-statement\.patch$",
             r'\n'.join([
-                r"^  >> running command:",
+                r"^  >> running shell command:",
+                r"\tgcc toy.c -o toy\n"
                 r"\t\[started at: .*\]",
                 r"\t\[working dir: .*\]",
                 r"\t\[output saved to .*\]",
-                r"\tgcc toy.c -o toy\n"
                 r'',
             ]),
             r"  >> command completed: exit 0, ran in .*",
@@ -3829,7 +3850,6 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
 
         test_ec_txt = read_file(toy_ec)
-        test_ec_txt += "\npostinstallcmds += ['mv %(installdir)s/lib %(installdir)s/lib64']"
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
@@ -3842,30 +3862,30 @@ class ToyBuildTest(EnhancedTestCase):
         lib_path = os.path.join(toy_installdir, 'lib')
         lib64_path = os.path.join(toy_installdir, 'lib64')
 
-        # lib64 subdir exists, is not a symlink
-        self.assertExists(lib64_path)
-        self.assertTrue(os.path.isdir(lib64_path))
-        self.assertFalse(os.path.islink(lib64_path))
-
-        # lib subdir is a symlink to lib64 subdir
+        # lib subdir exists, is not a symlink
         self.assertExists(lib_path)
         self.assertTrue(os.path.isdir(lib_path))
-        self.assertTrue(os.path.islink(lib_path))
-        self.assertTrue(os.path.samefile(lib_path, lib64_path))
+        self.assertFalse(os.path.islink(lib_path))
 
-        # lib symlink should point to a relative path
-        self.assertFalse(os.path.isabs(os.readlink(lib_path)))
+        # lib64 subdir is a symlink to lib subdir
+        self.assertExists(lib64_path)
+        self.assertTrue(os.path.isdir(lib64_path))
+        self.assertTrue(os.path.islink(lib64_path))
+        self.assertTrue(os.path.samefile(lib64_path, lib_path))
+
+        # lib64 symlink should point to a relative path
+        self.assertFalse(os.path.isabs(os.readlink(lib64_path)))
 
         # cleanup and try again with --disable-lib-lib64-symlink
         remove_dir(self.test_installpath)
         with self.mocked_stdout_stderr():
-            self._test_toy_build(ec_file=test_ec, extra_args=['--disable-lib-lib64-symlink'])
+            self._test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'])
 
-        self.assertExists(lib64_path)
-        self.assertNotExists(lib_path)
-        self.assertNotIn('lib', os.listdir(toy_installdir))
-        self.assertTrue(os.path.isdir(lib64_path))
-        self.assertFalse(os.path.islink(lib64_path))
+        self.assertExists(lib_path)
+        self.assertNotExists(lib64_path)
+        self.assertNotIn('lib64', os.listdir(toy_installdir))
+        self.assertTrue(os.path.isdir(lib_path))
+        self.assertFalse(os.path.islink(lib_path))
 
     def test_toy_build_sanity_check_linked_libs(self):
         """Test sanity checks for banned/requires libraries."""
@@ -4108,6 +4128,22 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         regex = re.compile(pattern, re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+    def test_toy_failing_test_step(self):
+        """
+        Test behaviour when test step fails, using toy easyconfig.
+        """
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nruntest = "false"'
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        error_pattern = r"shell command 'false \.\.\.' failed in test step"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_test_toy_build_with_output,
+                              ec_file=test_ec, raise_error=True)
 
     def test_eb_crash(self):
         """

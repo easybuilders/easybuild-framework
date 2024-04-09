@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -162,7 +162,7 @@ EXTRACT_CMDS = {
     # tar.Z: using compress (LZW), but can be handled with gzip so use 'z'
     '.tar.z': "tar xzf %(filepath)s",
     # shell scripts don't need to be unpacked, just copy there
-    '.sh': "cp -a %(filepath)s .",
+    '.sh': "cp -dR %(filepath)s .",
 }
 
 ZIPPED_PATCH_EXTS = ('.bz2', '.gz', '.xz')
@@ -954,11 +954,12 @@ def load_index(path, ignore_dirs=None):
         # check whether index is still valid
         if valid_ts:
             curr_ts = datetime.datetime.now()
+            terse = build_option('terse')
             if curr_ts > valid_ts:
-                print_warning("Index for %s is no longer valid (too old), so ignoring it...", path)
+                print_warning("Index for %s is no longer valid (too old), so ignoring it...", path, silent=terse)
                 index = None
             else:
-                print_msg("found valid index for %s, so using it...", path)
+                print_msg("found valid index for %s, so using it...", path, silent=terse)
 
     return index or None
 
@@ -2240,7 +2241,7 @@ def det_size(path):
                 if os.path.exists(fullpath):
                     installsize += os.path.getsize(fullpath)
     except OSError as err:
-        _log.warn("Could not determine install size: %s" % err)
+        _log.warning("Could not determine install size: %s" % err)
 
     return installsize
 
@@ -2540,12 +2541,12 @@ def copy(paths, target_path, force_in_dry_run=False, **kwargs):
             raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
 
 
-def get_source_tarball_from_git(filename, targetdir, git_config):
+def get_source_tarball_from_git(filename, target_dir, git_config):
     """
     Downloads a git repository, at a specific tag or commit, recursively or not, and make an archive with it
 
     :param filename: name of the archive to save the code to (must be .tar.gz)
-    :param targetdir: target directory where to save the archive to
+    :param target_dir: target directory where to save the archive to
     :param git_config: dictionary containing url, repo_name, recursive, and one of tag or commit
     """
     # sanity check on git_config value being passed
@@ -2584,8 +2585,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         raise EasyBuildError("git_config currently only supports filename ending in .tar.gz")
 
     # prepare target directory and clone repository
-    mkdir(targetdir, parents=True)
-    targetpath = os.path.join(targetdir, filename)
+    mkdir(target_dir, parents=True)
 
     # compose 'git clone' command, and run it
     if extra_config_params:
@@ -2668,17 +2668,34 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
             for cmd in cmds:
                 run_shell_cmd(cmd, work_dir=work_dir, hidden=True, verbose_dry_run=True)
 
-    # create an archive and delete the git repo directory
+    # Create archive
+    archive_path = os.path.join(target_dir, filename)
+
     if keep_git_dir:
-        tar_cmd = ['tar', 'cfvz', targetpath, repo_name]
+        # create archive of git repo including .git directory
+        tar_cmd = ['tar', 'cfvz', archive_path, repo_name]
     else:
-        tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
+        # create reproducible archive
+        # see https://reproducible-builds.org/docs/archives/
+        tar_cmd = [
+            # print names of all files and folders excluding .git directory
+            'find', repo_name, '-name ".git"', '-prune', '-o', '-print0',
+            # reset access and modification timestamps
+            '-exec', 'touch', '-t 197001010100', '{}', r'\;', '|',
+            # sort file list
+            'LC_ALL=C', 'sort', '--zero-terminated', '|',
+            # create tarball in GNU format with ownership reset
+            'tar', '--create', '--no-recursion', '--owner=0', '--group=0', '--numeric-owner', '--format=gnu',
+            '--null', '--files-from', '-', '|',
+            # compress tarball with gzip without original file name and timestamp
+            'gzip', '--no-name', '>', archive_path
+        ]
     run_shell_cmd(' '.join(tar_cmd), work_dir=tmpdir, hidden=True, verbose_dry_run=True)
 
     # cleanup (repo_name dir does not exist in dry run mode)
     remove(tmpdir)
 
-    return targetpath
+    return archive_path
 
 
 def move_file(path, target_path, force_in_dry_run=False):

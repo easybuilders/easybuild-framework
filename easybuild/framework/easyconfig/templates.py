@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -97,6 +97,9 @@ TEMPLATE_NAMES_DYNAMIC = [
     ('cuda_cc_cmake', "List of CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+"),
     ('cuda_cc_space_sep', "Space-separated list of CUDA compute capabilities"),
     ('cuda_cc_semicolon_sep', "Semicolon-separated list of CUDA compute capabilities"),
+    ('cuda_int_comma_sep', "Comma-separated list of integer CUDA compute capabilities"),
+    ('cuda_int_space_sep', "Space-separated list of integer CUDA compute capabilities"),
+    ('cuda_int_semicolon_sep', "Semicolon-separated list of integer CUDA compute capabilities"),
     ('cuda_sm_comma_sep', "Comma-separated list of sm_* values that correspond with CUDA compute capabilities"),
     ('cuda_sm_space_sep', "Space-separated list of sm_* values that correspond with CUDA compute capabilities"),
 ]
@@ -254,7 +257,7 @@ def template_constant_dict(config, ignore=None, toolchain=None):
     # step 2: define *ver and *shortver templates
     if TEMPLATE_SOFTWARE_VERSIONS:
 
-        name_to_prefix = dict((name.lower(), pref) for name, pref in TEMPLATE_SOFTWARE_VERSIONS)
+        name_to_prefix = {name.lower(): pref for name, pref in TEMPLATE_SOFTWARE_VERSIONS}
         deps = config.get('dependencies', [])
 
         # also consider build dependencies for *ver and *shortver templates;
@@ -365,6 +368,10 @@ def template_constant_dict(config, ignore=None, toolchain=None):
         template_values['cuda_cc_space_sep'] = ' '.join(cuda_compute_capabilities)
         template_values['cuda_cc_semicolon_sep'] = ';'.join(cuda_compute_capabilities)
         template_values['cuda_cc_cmake'] = ';'.join(cc.replace('.', '') for cc in cuda_compute_capabilities)
+        int_values = [cc.replace('.', '') for cc in cuda_compute_capabilities]
+        template_values['cuda_int_comma_sep'] = ','.join(int_values)
+        template_values['cuda_int_space_sep'] = ' '.join(int_values)
+        template_values['cuda_int_semicolon_sep'] = ';'.join(int_values)
         sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_compute_capabilities]
         template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
         template_values['cuda_sm_space_sep'] = ' '.join(sm_values)

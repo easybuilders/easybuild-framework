@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -150,27 +150,29 @@ class EB_toy(ExtensionEasyBlock):
         else:
             raise EasyBuildError("Dependencies for %s are unknown!", self.name)
 
-    def prerun(self):
+    def pre_install_extension(self):
         """
         Prepare installation of toy as extension.
         """
-        super(EB_toy, self).run(unpack_src=True)
+        super(EB_toy, self).install_extension(unpack_src=True)
         self.configure_step()
 
-    def run(self):
+    def install_extension(self):
         """
         Install toy as extension.
         """
         self.build_step()
 
-    def run_async(self):
+    def install_extension_async(self, thread_pool):
         """
         Asynchronous installation of toy as extension.
         """
         cmd = compose_toy_build_cmd(self.cfg, self.name, self.cfg['prebuildopts'], self.cfg['buildopts'])
-        self.async_cmd_start(cmd)
+        task_id = f'ext_{self.name}_{self.version}'
+        return thread_pool.submit(run_shell_cmd, cmd, asynchronous=True, env=os.environ.copy(),
+                                  fail_on_error=False, task_id=task_id, work_dir=os.getcwd())
 
-    def postrun(self):
+    def post_install_extension(self):
         """
         Wrap up installation of toy as extension.
         """

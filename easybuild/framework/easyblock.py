@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -41,7 +41,7 @@ Authors:
 * Davide Vanzo (Vanderbilt University)
 * Caspar van Leeuwen (SURF)
 """
-
+import concurrent
 import copy
 import glob
 import inspect
@@ -52,7 +52,9 @@ import stat
 import tempfile
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from textwrap import indent
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
@@ -87,7 +89,7 @@ from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTE
 from easybuild.tools.hooks import MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP
 from easybuild.tools.hooks import POSTPROC_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP
 from easybuild.tools.hooks import SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook
-from easybuild.tools.run import RunShellCmdError, check_async_cmd, run_cmd, run_shell_cmd
+from easybuild.tools.run import RunShellCmdError, raise_run_shell_cmd_error, run_shell_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -952,7 +954,8 @@ class EasyBlock(object):
                     if download_instructions is None:
                         download_instructions = self.cfg['download_instructions']
                     if download_instructions is not None and download_instructions != "":
-                        msg = "\nDownload instructions:\n\n" + download_instructions + '\n'
+                        msg = "\nDownload instructions:\n\n" + indent(download_instructions, '    ') + '\n\n'
+                        msg += "Make the files available in the active source path: %s\n" % ':'.join(source_paths())
                         print_msg(msg, prefix=False, stderr=True)
                         error_msg += "please follow the download instructions above, and make the file available "
                         error_msg += "in the active source path (%s)" % ':'.join(source_paths())
@@ -1412,6 +1415,14 @@ class EasyBlock(object):
                                      value, type(value))
             lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
 
+        for (key, value) in self.cfg['modextrapaths_append'].items():
+            if isinstance(value, str):
+                value = [value]
+            elif not isinstance(value, (tuple, list)):
+                raise EasyBuildError("modextrapaths_append dict value %s (type: %s) is not a list or tuple",
+                                     value, type(value))
+            lines.append(self.module_generator.append_paths(key, value, allow_abs=self.cfg['allow_append_abs_path']))
+
         modloadmsg = self.cfg['modloadmsg']
         if modloadmsg:
             # add trailing newline to prevent that shell prompt is 'glued' to module load message
@@ -1810,41 +1821,31 @@ class EasyBlock(object):
         self.log.experimental("Skipping installed extensions in parallel")
         print_msg("skipping installed extensions (in parallel)", log=self.log)
 
-        async_cmd_info_cache = {}
-        running_checks_ids = []
         installed_exts_ids = []
-        exts_queue = list(enumerate(self.ext_instances[:]))
         checked_exts_cnt = 0
         exts_cnt = len(self.ext_instances)
+        cmds = [resolve_exts_filter_template(exts_filter, ext) for ext in self.ext_instances]
 
-        # asynchronously run checks to see whether extensions are already installed
-        while exts_queue or running_checks_ids:
+        with ThreadPoolExecutor(max_workers=self.cfg['parallel']) as thread_pool:
 
-            # first handle completed checks
-            for idx in running_checks_ids[:]:
+            # list of command to run asynchronously
+            async_cmds = [thread_pool.submit(run_shell_cmd, cmd, stdin=stdin, hidden=True, fail_on_error=False,
+                                             asynchronous=True, task_id=idx) for (idx, (cmd, stdin)) in enumerate(cmds)]
+
+            # process result of commands as they have completed running
+            for done_task in concurrent.futures.as_completed(async_cmds):
+                res = done_task.result()
+                idx = res.task_id
                 ext_name = self.ext_instances[idx].name
-                # don't read any output, just check whether command completed
-                async_cmd_info = check_async_cmd(*async_cmd_info_cache[idx], output_read_size=0, fail_on_error=False)
-                if async_cmd_info['done']:
-                    out, ec = async_cmd_info['output'], async_cmd_info['exit_code']
-                    self.log.info("exts_filter result for %s: exit code %s; output: %s", ext_name, ec, out)
-                    running_checks_ids.remove(idx)
-                    if ec == 0:
-                        print_msg("skipping extension %s" % ext_name, log=self.log)
-                        installed_exts_ids.append(idx)
+                self.log.info(f"exts_filter result for {ext_name}: exit code {res.exit_code}; output: {res.output}")
+                if res.exit_code == 0:
+                    print_msg(f"skipping extension {ext_name}", log=self.log)
+                    installed_exts_ids.append(idx)
 
-                    checked_exts_cnt += 1
-                    exts_pbar_label = "skipping installed extensions "
-                    exts_pbar_label += "(%d/%d checked)" % (checked_exts_cnt, exts_cnt)
-                    self.update_exts_progress_bar(exts_pbar_label)
-
-            # start additional checks asynchronously
-            while exts_queue and len(running_checks_ids) < self.cfg['parallel']:
-                idx, ext = exts_queue.pop(0)
-                cmd, stdin = resolve_exts_filter_template(exts_filter, ext)
-                async_cmd_info_cache[idx] = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin,
-                                                    regexp=False, trace=False, asynchronous=True)
-                running_checks_ids.append(idx)
+                checked_exts_cnt += 1
+                exts_pbar_label = "skipping installed extensions "
+                exts_pbar_label += "(%d/%d checked)" % (checked_exts_cnt, exts_cnt)
+                self.update_exts_progress_bar(exts_pbar_label)
 
         # compose new list of extensions, skip over the ones that are already installed;
         # note: original order in extensions list should be preserved!
@@ -1856,7 +1857,15 @@ class EasyBlock(object):
 
         self.ext_instances = retained_ext_instances
 
-    def install_extensions(self, install=True):
+    def install_extensions(self, *args, **kwargs):
+        """[DEPRECATED] Install extensions."""
+        self.log.deprecated(
+            "EasyBlock.install_extensions() is deprecated, use EasyBlock.install_all_extensions() instead.",
+            '6.0',
+        )
+        self.install_all_extensions(*args, **kwargs)
+
+    def install_all_extensions(self, install=True):
         """
         Install extensions.
 
@@ -1920,15 +1929,15 @@ class EasyBlock(object):
                 ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
                                       rpath_filter_dirs=self.rpath_filter_dirs)
 
-            # real work
+            # actual installation of the extension
             if install:
                 try:
-                    ext.prerun()
+                    ext.install_extension_substep("pre_install_extension")
                     with self.module_generator.start_module_creation():
-                        txt = ext.run()
+                        txt = ext.install_extension_substep("install_extension")
                     if txt:
                         self.module_extra_extensions += txt
-                    ext.postrun()
+                    ext.install_extension_substep("post_install_extension")
                 finally:
                     if not self.dry_run:
                         ext_duration = datetime.now() - start_time
@@ -1948,6 +1957,8 @@ class EasyBlock(object):
         :param install: actually install extensions, don't just prepare environment for installing
         """
         self.log.info("Installing extensions in parallel...")
+
+        thread_pool = ThreadPoolExecutor(max_workers=self.cfg['parallel'])
 
         running_exts = []
         installed_ext_names = []
@@ -1985,16 +1996,23 @@ class EasyBlock(object):
 
             # check for extension installations that have completed
             if running_exts:
-                self.log.info("Checking for completed extension installations (%d running)...", len(running_exts))
+                self.log.info(f"Checking for completed extension installations ({len(running_exts)} running)...")
                 for ext in running_exts[:]:
-                    if self.dry_run or ext.async_cmd_check():
-                        self.log.info("Installation of %s completed!", ext.name)
-                        ext.postrun()
-                        running_exts.remove(ext)
-                        installed_ext_names.append(ext.name)
-                        update_exts_progress_bar_helper(running_exts, 1)
+                    if self.dry_run or ext.async_cmd_task.done():
+                        res = ext.async_cmd_task.result()
+                        if res.exit_code == 0:
+                            self.log.info(f"Installation of extension {ext.name} completed!")
+                            # run post-install method for extension from same working dir as installation of extension
+                            cwd = change_dir(res.work_dir)
+                            ext.install_extension_substep("post_install_extension")
+                            change_dir(cwd)
+                            running_exts.remove(ext)
+                            installed_ext_names.append(ext.name)
+                            update_exts_progress_bar_helper(running_exts, 1)
+                        else:
+                            raise_run_shell_cmd_error(res)
                     else:
-                        self.log.debug("Installation of %s is still running...", ext.name)
+                        self.log.debug(f"Installation of extension {ext.name} is still running...")
 
             # try to start as many extension installations as we can, taking into account number of available cores,
             # but only consider first 100 extensions still in the queue
@@ -2060,10 +2078,10 @@ class EasyBlock(object):
                     ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
                                           rpath_filter_dirs=self.rpath_filter_dirs)
                     if install:
-                        ext.prerun()
-                        ext.run_async()
+                        ext.install_extension_substep("pre_install_extension")
+                        ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
                         running_exts.append(ext)
-                        self.log.info("Started installation of extension %s in the background...", ext.name)
+                        self.log.info(f"Started installation of extension {ext.name} in the background...")
                         update_exts_progress_bar_helper(running_exts, 0)
 
             # print progress info after every iteration (unless that info is already shown via progress bar)
@@ -2075,6 +2093,8 @@ class EasyBlock(object):
                 else:
                     running_ext_names = ', '.join(x.name for x in running_exts[:3]) + ", ..."
                 print_msg(msg % (installed_cnt, exts_cnt, queued_cnt, running_cnt, running_ext_names), log=self.log)
+
+        thread_pool.shutdown()
 
     #
     # MISCELLANEOUS UTILITY FUNCTIONS
@@ -2728,7 +2748,10 @@ class EasyBlock(object):
         try:
             self.test_step()
         except RunShellCmdError as err:
-            self.report_test_failure(err)
+            err.print()
+            ec_path = os.path.basename(self.cfg.path)
+            error_msg = f"shell command '{err.cmd_name} ...' failed in test step for {ec_path}"
+            self.report_test_failure(error_msg)
 
     def stage_install_step(self):
         """
@@ -2889,7 +2912,7 @@ class EasyBlock(object):
         if self.skip:
             self.skip_extensions()
 
-        self.install_extensions(install=install)
+        self.install_all_extensions(install=install)
 
         # cleanup (unload fake module, remove fake module dir)
         if fake_mod_data:
@@ -3019,12 +3042,6 @@ class EasyBlock(object):
         - run post install commands if any were specified
         """
 
-        self.run_post_install_commands()
-        self.apply_post_install_patches()
-        self.print_post_install_messages()
-
-        self.fix_shebang()
-
         lib_dir = os.path.join(self.installdir, 'lib')
         lib64_dir = os.path.join(self.installdir, 'lib64')
 
@@ -3044,6 +3061,12 @@ class EasyBlock(object):
             if os.path.exists(lib64_dir) and not os.path.exists(lib_dir):
                 # create *relative* 'lib' symlink to 'lib64';
                 symlink('lib64', lib_dir, use_abspath_source=False)
+
+        self.run_post_install_commands()
+        self.apply_post_install_patches()
+        self.print_post_install_messages()
+
+        self.fix_shebang()
 
     def sanity_check_step(self, *args, **kwargs):
         """
@@ -3164,7 +3187,7 @@ class EasyBlock(object):
                         # check whether RPATH section in 'readelf -d' output is there
                         if check_readelf_rpath:
                             fail_msg = None
-                            res = run_shell_cmd(f"readelf -d {path}", fail_on_error=False)
+                            res = run_shell_cmd(f"readelf -d {path}", fail_on_error=False, hidden=True)
                             if res.exit_code:
                                 fail_msg = f"Failed to run 'readelf -d {path}': {res.output}"
                             elif not readelf_rpath_regex.search(res.output):
@@ -4460,7 +4483,7 @@ def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
         for easyblock_class in inspect.getmro(type(easyblock_instance)):
             easyblock_path = inspect.getsourcefile(easyblock_class)
             # if we reach EasyBlock, Extension or ExtensionEasyBlock class, we are done
-            # (Extension and ExtensionEasyblock are hardcoded to avoid a cyclical import)
+            # (Extension and ExtensionEasyBlock are hardcoded to avoid a cyclical import)
             if easyblock_class.__name__ in [EasyBlock.__name__, 'Extension', 'ExtensionEasyBlock']:
                 break
             else:

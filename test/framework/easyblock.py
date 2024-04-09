@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -643,6 +643,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # also check how absolute paths specified in modexself.contents = '\n'.join([
         self.contents += "\nmodextrapaths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
+        self.contents += "\nmodextrapaths_append = {'TEST_PATH_VAR_APPEND': ['foo', '/test/absolute/path', 'bar']}"
         self.writeEC()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
@@ -656,6 +657,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # allow use of absolute paths, and verify contents of module
         self.contents += "\nallow_prepend_abs_path = True"
+        self.contents += "\nallow_append_abs_path = True"
         self.writeEC()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
@@ -675,6 +677,9 @@ class EasyBlockTest(EnhancedTestCase):
             r"^prepend[-_]path.*TEST_PATH_VAR.*root.*foo",
             r"^prepend[-_]path.*TEST_PATH_VAR.*/test/absolute/path",
             r"^prepend[-_]path.*TEST_PATH_VAR.*root.*bar",
+            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*root.*foo",
+            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*/test/absolute/path",
+            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*root.*bar",
         ]
         for pattern in patterns:
             self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
@@ -1033,6 +1038,64 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
+    def test_extensions_step_deprecations(self):
+        """Test extension install with deprecated substeps."""
+        install_substeps = ["pre_install_extension", "install_extension", "post_install_extension"]
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+            'exts_defaultclass = "DummyExtension"',
+            'exts_list = ["ext1"]',
+            'exts_list = [',
+            '    "dummy_ext",',
+            '    ("custom_ext", "0.0", {"easyblock": "CustomDummyExtension"}),',
+            '    ("deprec_ext", "0.0", {"easyblock": "DeprecatedDummyExtension"}),',
+            '    ("childcustom_ext", "0.0", {"easyblock": "ChildCustomDummyExtension"}),',
+            '    ("childdeprec_ext", "0.0", {"easyblock": "ChildDeprecatedDummyExtension"}),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_txt)
+        ec = process_easyconfig(test_ec)[0]
+        eb = get_easyblock_instance(ec)
+        eb.prepare_for_extensions()
+        eb.init_ext_instances()
+
+        # Default DummyExtension without deprecated or custom install substeps
+        ext = eb.ext_instances[0]
+        self.assertEqual(ext.__class__.__name__, "DummyExtension")
+        for substep in install_substeps:
+            self.assertEqual(ext.install_extension_substep(substep), None)
+        # CustomDummyExtension
+        ext = eb.ext_instances[1]
+        self.assertEqual(ext.__class__.__name__, "CustomDummyExtension")
+        for substep in install_substeps:
+            expected_return = f"Extension installed with custom {substep}()"
+            self.assertEqual(ext.install_extension_substep(substep), expected_return)
+        # DeprecatedDummyExtension
+        ext = eb.ext_instances[2]
+        self.assertEqual(ext.__class__.__name__, "DeprecatedDummyExtension")
+        for substep in install_substeps:
+            expected_error = rf"DEPRECATED \(since v6.0\).*use {substep}\(\) instead.*"
+            self.assertErrorRegex(EasyBuildError, expected_error, ext.install_extension_substep, substep)
+        # ChildCustomDummyExtension
+        ext = eb.ext_instances[3]
+        self.assertEqual(ext.__class__.__name__, "ChildCustomDummyExtension")
+        for substep in install_substeps:
+            expected_return = f"Extension installed with custom {substep}()"
+            self.assertEqual(ext.install_extension_substep(substep), expected_return)
+        # ChildDeprecatedDummyExtension
+        ext = eb.ext_instances[4]
+        self.assertEqual(ext.__class__.__name__, "ChildDeprecatedDummyExtension")
+        for substep in install_substeps:
+            expected_error = rf"DEPRECATED \(since v6.0\).*use {substep}\(\) instead.*"
+            self.assertErrorRegex(EasyBuildError, expected_error, ext.install_extension_substep, substep)
+
     def test_init_extensions(self):
         """Test creating extension instances."""
 
@@ -1180,6 +1243,7 @@ class EasyBlockTest(EnhancedTestCase):
             'PATH': ('xbin', 'pibin'),
             'CPATH': 'pi/include',
         }
+        modextrapaths_append = {'APPEND_PATH': 'append_path'}
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
@@ -1193,6 +1257,7 @@ class EasyBlockTest(EnhancedTestCase):
             "hiddendependencies = [('test', '1.2.3'), ('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             "modextravars = %s" % str(modextravars),
             "modextrapaths = %s" % str(modextrapaths),
+            "modextrapaths_append = %s" % str(modextrapaths_append),
         ])
 
         # test if module is generated correctly
@@ -1264,6 +1329,18 @@ class EasyBlockTest(EnhancedTestCase):
                 # Check for duplicates
                 num_prepends = len(regex.findall(txt))
                 self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
+
+        for (key, vals) in modextrapaths_append.items():
+            if isinstance(vals, str):
+                vals = [vals]
+            for val in vals:
+                if get_module_syntax() == 'Tcl':
+                    regex = re.compile(r'^append-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+                elif get_module_syntax() == 'Lua':
+                    regex = re.compile(r'^append_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
+                else:
+                    self.fail("Unknown module syntax: %s" % get_module_syntax())
+                self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('GCC', '6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
@@ -1563,7 +1640,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
-        self.assertIn("Download instructions:\n\nManual download from example.com required", stderr)
+        self.assertIn("Download instructions:\n\n    Manual download from example.com required", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # create dummy source file
         write_file(os.path.join(os.path.dirname(self.eb_file), 'software_with_missing_sources-0.0.tar.gz'), '')
@@ -1577,7 +1655,8 @@ class EasyBlockTest(EnhancedTestCase):
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertIn("Download instructions:\n\nManual download from example.com required", stderr)
+        self.assertIn("Download instructions:\n\n    Manual download from example.com required", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # wipe top-level download instructions, try again
         self.contents = self.contents.replace(download_instructions, '')
@@ -1606,7 +1685,8 @@ class EasyBlockTest(EnhancedTestCase):
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertIn("Download instructions:\n\nExtension sources must be downloaded via example.com", stderr)
+        self.assertIn("Download instructions:\n\n    Extension sources must be downloaded via example.com", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # download instructions should also be printed if 'source_tmpl' is used to specify extension sources
         self.contents = self.contents.replace(sources, "'source_tmpl': SOURCE_TAR_GZ,")
@@ -1619,7 +1699,8 @@ class EasyBlockTest(EnhancedTestCase):
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertIn("Download instructions:\n\nExtension sources must be downloaded via example.com", stderr)
+        self.assertIn("Download instructions:\n\n    Extension sources must be downloaded via example.com", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # create dummy source file for extension
         write_file(os.path.join(os.path.dirname(self.eb_file), 'ext_with_missing_sources-0.0.tar.gz'), '')
@@ -2082,7 +2163,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.silent = True
         error_pattern = r"Sanity check failed: extensions sanity check failed for 1 extensions: toy\n"
         error_pattern += r"failing sanity check for 'toy' extension: "
-        error_pattern += r'command "thisshouldfail" failed; output:\n/bin/bash:.* thisshouldfail: command not found'
+        error_pattern += r'command "thisshouldfail" failed; output:\n.* thisshouldfail: command not found'
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, eb.run_all_steps, True)
 
@@ -2207,7 +2288,7 @@ class EasyBlockTest(EnhancedTestCase):
             eb.extensions_step(fetch=True, install=False)
             # extract sources of the extension
             ext = eb.ext_instances[-1]
-            ext.run(unpack_src=unpack_src)
+            ext.install_extension(unpack_src=unpack_src)
 
             if expected_start_dir is None:
                 self.assertIsNone(ext.start_dir)

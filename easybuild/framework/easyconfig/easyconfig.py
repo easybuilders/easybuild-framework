@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -121,7 +121,7 @@ def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
         if key in DEPRECATED_PARAMETERS:
             depr_key = key
             key, ver = DEPRECATED_PARAMETERS[depr_key]
-            _log.deprecated("Easyconfig parameter '%s' is deprecated, use '%s' instead." % (depr_key, key), ver)
+            _log.deprecated("Easyconfig parameter '%s' is deprecated, use '%s' instead" % (depr_key, key), ver)
         if key in REPLACED_PARAMETERS:
             _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
         return ec_method(self, key, *args, **kwargs)
@@ -179,7 +179,7 @@ def triage_easyconfig_params(variables, ec):
 
     for key in variables:
         # validations are skipped, just set in the config
-        if key in ec:
+        if key in ec or key in DEPRECATED_PARAMETERS.keys():
             ec_params[key] = variables[key]
             _log.debug("setting config option %s: value %s (type: %s)", key, ec_params[key], type(ec_params[key]))
         elif key in REPLACED_PARAMETERS:
@@ -298,7 +298,7 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     """
     # obtain list of all possible subtoolchains
     _, all_tc_classes = search_toolchain('')
-    subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
+    subtoolchains = {tc_class.NAME: getattr(tc_class, 'SUBTOOLCHAIN', None) for tc_class in all_tc_classes}
     optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
     composite_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if len(tc_class.__bases__) > 1)
 
@@ -658,7 +658,7 @@ class EasyConfig(object):
         with self.disable_templating():
             for key in sorted(params.keys()):
                 # validations are skipped, just set in the config
-                if key in self._config.keys():
+                if key in self._config.keys() or key in DEPRECATED_PARAMETERS.keys():
                     self[key] = params[key]
                     self.log.info("setting easyconfig parameter %s: value %s (type: %s)",
                                   key, self[key], type(self[key]))
@@ -792,7 +792,7 @@ class EasyConfig(object):
             msg = "Use of %d unknown easyconfig parameters detected %s: %s\n" % (cnt, in_fn, unknown_keys_msg)
             msg += "If these are just local variables please rename them to start with '%s', " % LOCAL_VAR_PREFIX
             msg += "or try using --fix-deprecated-easyconfigs to do this automatically.\nFor more information, see "
-            msg += "https://easybuild.readthedocs.io/en/latest/Easyconfig-files-local-variables.html ."
+            msg += "https://docs.easybuild.io/easyconfig-files-local-variables/ ."
 
             # always log a warning if local variable that don't follow recommended naming scheme are found
             self.log.warning(msg)
@@ -830,7 +830,7 @@ class EasyConfig(object):
             depr_maj_ver = int(str(VERSION).split('.')[0]) + 1
             depr_ver = '%s.0' % depr_maj_ver
 
-            more_info_depr_ec = " (see also http://easybuild.readthedocs.org/en/latest/Deprecated-easyconfigs.html)"
+            more_info_depr_ec = " (see also https://docs.easybuild.io/deprecated-easyconfigs)"
 
             self.log.deprecated(depr_msg, depr_ver, more_info=more_info_depr_ec, silent=build_option('silent'))
 
@@ -963,7 +963,7 @@ class EasyConfig(object):
         faulty_deps = []
 
         # obtain reference to original lists, so their elements can be changed in place
-        deps = dict([(key, self.get_ref(key)) for key in ['dependencies', 'builddependencies', 'hiddendependencies']])
+        deps = {key: self.get_ref(key) for key in ('dependencies', 'builddependencies', 'hiddendependencies')}
 
         if 'builddependencies' in self.iterate_options:
             deplists = copy.deepcopy(deps['builddependencies'])
@@ -1207,11 +1207,11 @@ class EasyConfig(object):
         # templated values should be dumped unresolved
         with self.disable_templating():
             # build dict of default values
-            default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
-            default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
+            default_values = {key: DEFAULT_CONFIG[key][0] for key in DEFAULT_CONFIG}
+            default_values.update({key: self.extra_options[key][0] for key in self.extra_options})
 
             self.generate_template_values()
-            templ_const = dict([(quote_py_str(const[1]), const[0]) for const in TEMPLATE_CONSTANTS])
+            templ_const = {quote_py_str(const[1]): const[0] for const in TEMPLATE_CONSTANTS}
 
             # create reverse map of templates, to inject template values where possible
             # longer template values are considered first, shorter template keys get preference over longer ones
@@ -1498,7 +1498,6 @@ class EasyConfig(object):
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
 
-        attr = ['name', 'version', 'versionsuffix', 'toolchain']
         dependency = {
             # full/short module names
             'full_mod_name': None,
@@ -1554,6 +1553,7 @@ class EasyConfig(object):
                     raise EasyBuildError("Incorrect external dependency specification: %s", dep)
             else:
                 # non-external dependency: tuple (or list) that specifies name/version(/versionsuffix(/toolchain))
+                attr = ('name', 'version', 'versionsuffix', 'toolchain')
                 dependency.update(dict(zip(attr, dep)))
 
         else:
@@ -2012,7 +2012,7 @@ def resolve_template(value, tmpl_dict):
         elif isinstance(value, tuple):
             value = tuple(resolve_template(list(value), tmpl_dict))
         elif isinstance(value, dict):
-            value = dict((resolve_template(k, tmpl_dict), resolve_template(v, tmpl_dict)) for k, v in value.items())
+            value = {resolve_template(k, tmpl_dict): resolve_template(v, tmpl_dict) for k, v in value.items()}
 
     return value
 
@@ -2219,7 +2219,7 @@ def verify_easyconfig_filename(path, specs, parsed_ec=None):
     for ec in ecs:
         found_fullver = det_full_ec_version(ec['ec'])
         if ec['ec']['name'] != specs['name'] or found_fullver != fullver:
-            subspec = dict((key, specs[key]) for key in ['name', 'toolchain', 'version', 'versionsuffix'])
+            subspec = {key: specs[key] for key in ('name', 'toolchain', 'version', 'versionsuffix')}
             error_msg = "Contents of %s does not match with filename" % path
             error_msg += "; expected filename based on contents: %s-%s.eb" % (ec['ec']['name'], found_fullver)
             error_msg += "; expected (relevant) parameters based on filename %s: %s" % (os.path.basename(path), subspec)

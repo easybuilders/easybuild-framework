@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2023 Ghent University
+# Copyright 2011-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1339,8 +1339,8 @@ def det_pypkg_version(pkg_name, imported_pkg, import_name=None):
             except pkg_resources.DistributionNotFound as err:
                 _log.debug("%s Python package not found: %s", pkg_name, err)
 
-    if version is None and hasattr(imported_pkg, '__version__'):
-        version = imported_pkg.__version__
+    if version is None:
+        version = getattr(imported_pkg, '__version__', None)
 
     return version
 

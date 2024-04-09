@@ -4,6 +4,41 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.9.1 (5 April 2024)
+---------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - make `is_rpath_wrapper` faster by only checking file contents if file is not located in subdirectory of RPATH wrapper subdirectory (#4406)
+  - add terse support to `--missing-modules` (#4407)
+  - adapt version pattern for EnvironmentModules to allow using development version (#4416)
+  - use `--all` option with EnvironmentModules v4.6+ to get available hidden modules (#4417)
+  - add support for appending to path environment variables via `modextrapaths_append` + add corresponding `allow_append_abs_path` (#4436)
+  - improve output produced by `--check-github` (#4437)
+  - add script for updating local git repos with `develop` branch (#4438)
+  - show error when multiple PR options are passed (#4440)
+  - improve `findPythonDeps` script to recognize non-canonical package names (#4445)
+  - add support for `--from-commit` and `--include-easyblocks-from-commit` (#4468)
+  - improve logging & handling of (empty) `--optarch` values (#4481)
+  - add `--short` option to `findUpdatedEcs` script (#4488)
+  - add generic GCC and Clang compiler flags for RISC-V (#4489)
+- various bug fixes, including:
+  - clean up log file of `EasyBlock` instance in `check_sha256_checksums` (#4452)
+  - fix description of `backup-modules` configuration option (#4456)
+  - replace `'` with `"` for `printf` in CI workflow for running test suite to have bash replace a variable  (#4461)
+  - use `cp -dR` instead of `cp -a` for shell script "extraction" (#4465)
+  - fix link to documentation in `close_pr` message (#4466)
+  - fix `test_github_merge_pr` by using more recent easyconfigs PR (#4470)
+  - add workaround for 404 error when installing packages in CI workflow for testing Apptainer integration (#4472)
+- other changes:
+  - clean up & speed up environment checks (#4409)
+  - use more performant and concise dict construction by using dict comprehensions (#4410)
+  - remove superflous string formatting (#4411)
+  - clean up uses of `getattr` and `hasattr` (#4412)
+  - update copyright lines to 2024 (#4494)
+
+
 v4.9.0 (30 December 2023)
 -------------------------
 

@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2023 Ghent University
+# Copyright 2014-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,7 +36,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.base import fancylogger
-from easybuild.tools import modules, StrictVersion
+from easybuild.tools import modules, LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, which, write_file
 from easybuild.tools.modules import EnvironmentModules, Lmod
@@ -76,7 +76,7 @@ class ModulesToolTest(EnhancedTestCase):
         mmt = MockModulesTool(mod_paths=[], testing=True)
 
         # the version of the MMT is the commandline option
-        self.assertEqual(mmt.version, StrictVersion(MockModulesTool.VERSION_OPTION))
+        self.assertEqual(mmt.version, LooseVersion(MockModulesTool.VERSION_OPTION))
 
         cmd_abspath = which(MockModulesTool.COMMAND)
 
@@ -100,7 +100,7 @@ class ModulesToolTest(EnhancedTestCase):
         bmmt = BrokenMockModulesTool(mod_paths=[], testing=True)
         cmd_abspath = which(MockModulesTool.COMMAND)
 
-        self.assertEqual(bmmt.version, StrictVersion(MockModulesTool.VERSION_OPTION))
+        self.assertEqual(bmmt.version, LooseVersion(MockModulesTool.VERSION_OPTION))
         self.assertEqual(bmmt.cmd, cmd_abspath)
 
         # clean it up
@@ -209,6 +209,21 @@ class ModulesToolTest(EnhancedTestCase):
             mt = EnvironmentModules(testing=True)
             self.assertIsInstance(mt.loaded_modules(), list)  # dummy usage
 
+            # initialize Environment Modules tool with non-official version number
+            # pass (fake) full path to 'modulecmd.tcl' via $MODULES_CMD
+            fake_path = os.path.join(self.test_installpath, 'libexec', 'modulecmd.tcl')
+            fake_modulecmd_txt = '\n'.join([
+                'puts stderr {Modules Release 5.3.1+unload-188-g14b6b59b (2023-10-21)}',
+                "puts {os.environ['FOO'] = 'foo'}",
+            ])
+            write_file(fake_path, fake_modulecmd_txt)
+            os.chmod(fake_path, stat.S_IRUSR | stat.S_IXUSR)
+            os.environ['_module_raw'] = "() {  eval `%s' bash $*`;\n}" % fake_path
+            os.environ['MODULES_CMD'] = fake_path
+            EnvironmentModules.COMMAND = fake_path
+            mt = EnvironmentModules(testing=True)
+            self.assertTrue(os.path.samefile(mt.cmd, fake_path), "%s - %s" % (mt.cmd, fake_path))
+
     def tearDown(self):
         """Testcase cleanup."""
         super(ModulesToolTest, self).tearDown()
@@ -217,8 +232,7 @@ class ModulesToolTest(EnhancedTestCase):
         if self.orig_module is not None:
             os.environ['module'] = self.orig_module
         else:
-            if 'module' in os.environ:
-                del os.environ['module']
+            os.environ.pop('module', None)
 
 
 def suite():

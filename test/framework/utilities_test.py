@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -143,6 +143,10 @@ class UtilitiesTest(EnhancedTestCase):
         # Careful here: 1.0 > 1 !!!
         self.assertGreater(LooseVersion('1.0'), LooseVersion('1'))
         self.assertLess(LooseVersion('1'), LooseVersion('1.0'))
+        # checking prereleases
+        self.assertGreater(LooseVersion('4.0.0-beta'), LooseVersion('4.0.0'))
+        self.assertEqual(LooseVersion('4.0.0-beta').is_prerelease('4.0.0', ['-beta']), True)
+        self.assertEqual(LooseVersion('4.0.0-beta').is_prerelease('4.0.0', ['rc']), False)
 
         # The following test is taken from Python distutils tests
         # licensed under the Python Software Foundation License Version 2

@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -106,7 +106,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.txz', "unset TAPE; unxz test.txz --stdout | tar x"),
             ('test.iso', "7z x test.iso"),
             ('test.tar.Z', "tar xzf test.tar.Z"),
-            ('test.foo.bar.sh', "cp -a test.foo.bar.sh ."),
+            ('test.foo.bar.sh', "cp -dR test.foo.bar.sh ."),
             # check whether extension is stripped correct to determine name of target file
             # cfr. https://github.com/easybuilders/easybuild-framework/pull/3705
             ('testbz2.bz2', "bunzip2 -c testbz2.bz2 > testbz2"),
@@ -322,7 +322,7 @@ class FileToolsTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, error_pattern, ft.verify_checksum, fp, checksum)
 
         # make sure faulty checksums are reported
-        broken_checksums = dict([(typ, val[:-3] + 'foo') for (typ, val) in known_checksums.items()])
+        broken_checksums = {typ: (val[:-3] + 'foo') for typ, val in known_checksums.items()}
         for checksum_type, checksum in broken_checksums.items():
             self.assertFalse(ft.compute_checksum(fp, checksum_type=checksum_type) == checksum)
             self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))
@@ -924,7 +924,7 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertTrue(ft.is_binary(b'\00'))
         self.assertTrue(ft.is_binary(b"File is binary when it includes \00 somewhere"))
-        self.assertTrue(ft.is_binary(ft.read_file('/bin/ls', mode='rb')))
+        self.assertTrue(ft.is_binary(ft.read_file('/bin/bash', mode='rb')))
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""
@@ -1531,8 +1531,7 @@ class FileToolsTest(EnhancedTestCase):
         lic_server = '1234@example.license.server'
 
         # make test robust against environment in which $LM_LICENSE_FILE is defined
-        if 'LM_LICENSE_FILE' in os.environ:
-            del os.environ['LM_LICENSE_FILE']
+        os.environ.pop('LM_LICENSE_FILE', None)
 
         # default return value
         self.assertEqual(ft.find_flexlm_license(), ([], None))
@@ -2290,7 +2289,7 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertNotExists(os.path.join(self.test_prefix, 'toy-0.0'))
-        self.assertTrue(re.search('running command "tar xzf .*/toy-0.0.tar.gz"', txt))
+        self.assertTrue(re.search('running shell command "tar xzf .*/toy-0.0.tar.gz"', txt))
 
         with self.mocked_stdout_stderr():
             path = ft.extract_file(toy_tarball, self.test_prefix, forced=True, change_into_dir=False)
@@ -2314,7 +2313,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
         self.assertFalse(stderr)
-        self.assertTrue("running command" in stdout)
+        self.assertTrue("running shell command" in stdout)
 
         # check whether disabling trace output works
         with self.mocked_stdout_stderr():
@@ -2637,8 +2636,7 @@ class FileToolsTest(EnhancedTestCase):
         """Test find_eb_script function."""
 
         # make sure $EB_SCRIPT_PATH is not set already (used as fallback mechanism in find_eb_script)
-        if 'EB_SCRIPT_PATH' in os.environ:
-            del os.environ['EB_SCRIPT_PATH']
+        os.environ.pop('EB_SCRIPT_PATH', None)
 
         self.assertExists(ft.find_eb_script('rpath_args.py'))
         self.assertExists(ft.find_eb_script('rpath_wrapper_template.sh.in'))
@@ -2798,42 +2796,51 @@ class FileToolsTest(EnhancedTestCase):
             'url': 'git@github.com:easybuilders',
             'tag': 'tag_for_tests',
         }
-        git_repo = {'git_repo': 'git@github.com:easybuilders/testrepository.git'}  # Just to make the below shorter
+        string_args = {
+            'git_repo': 'git@github.com:easybuilders/testrepository.git',
+            'test_prefix': self.test_prefix,
+        }
+        reprod_tar_cmd_pattern = (
+            r' running shell command "find {} -name \".git\" -prune -o -print0 -exec touch -t 197001010100 {{}} \; |'
+            r' LC_ALL=C sort --zero-terminated | tar --create --no-recursion --owner=0 --group=0 --numeric-owner'
+            r' --format=gnu --null --files-from - | gzip --no-name > %(test_prefix)s/target/test.tar.gz'
+        )
+
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch tag_for_tests %(git_repo)s"',
-            r"  \(in /.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in /.*\)",
-        ]) % git_repo
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            reprod_tar_cmd_pattern.format("testrepository"),
+            r"  \(in .*/tmp.*\)",
+        ]) % string_args
         run_check()
 
         git_config['clone_into'] = 'test123'
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch tag_for_tests %(git_repo)s test123"',
-            r"  \(in /.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git test123"',
-            r"  \(in /.*\)",
-        ]) % git_repo
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests %(git_repo)s test123"',
+            r"  \(in .*/tmp.*\)",
+            reprod_tar_cmd_pattern.format("test123"),
+            r"  \(in .*/tmp.*\)",
+        ]) % string_args
         run_check()
         del git_config['clone_into']
 
         git_config['recursive'] = True
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
-            r"  \(in /.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in /.*\)",
-        ]) % git_repo
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            reprod_tar_cmd_pattern.format("testrepository"),
+            r"  \(in .*/tmp.*\)",
+        ]) % string_args
         run_check()
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
         expected = '\n'.join([
-            '  running command "git clone --depth 1 --branch tag_for_tests --recursive'
+            '  running shell command "git clone --depth 1 --branch tag_for_tests --recursive'
             + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in .*/tmp.*\)",
-        ]) % git_repo
+        ]) % string_args
         run_check()
 
         git_config['extra_config_params'] = [
@@ -2841,61 +2848,60 @@ class FileToolsTest(EnhancedTestCase):
             'submodule."sha1".active=false',
         ]
         expected = '\n'.join([
-            '  running command "git -c submodule."fastahack".active=false -c submodule."sha1".active=false'
+            '  running shell command "git -c submodule."fastahack".active=false -c submodule."sha1".active=false'
             + ' clone --depth 1 --branch tag_for_tests --recursive'
             + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in .*/tmp.*\)",
-        ]) % git_repo
+        ]) % string_args
         run_check()
         del git_config['recurse_submodules']
         del git_config['extra_config_params']
 
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
-            r'  running command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
-            r"  \(in /.*\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz testrepository"',
-            r"  \(in /.*\)",
-        ]) % git_repo
+            r'  running shell command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running shell command "tar cfvz .*/target/test.tar.gz testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % string_args
         run_check()
         del git_config['keep_git_dir']
 
         del git_config['tag']
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
-            r'  running command "git clone --no-checkout %(git_repo)s"',
-            r"  \(in /.*\)",
-            r'  running command "git checkout 8456f86 && git submodule update --init --recursive"',
-            r"  \(in /.*/testrepository\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in /.*\)",
-        ]) % git_repo
+            r'  running shell command "git clone --no-checkout %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running shell command "git checkout 8456f86 && git submodule update --init --recursive"',
+            r"  \(in testrepository\)",
+            reprod_tar_cmd_pattern.format("testrepository"),
+            r"  \(in .*/tmp.*\)",
+        ]) % string_args
         run_check()
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
         expected = '\n'.join([
-            r'  running command "git clone --no-checkout %(git_repo)s"',
+            r'  running shell command "git clone --no-checkout %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            '  running command "git checkout 8456f86 && git submodule update --init --recursive'
-            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\'"',
-            r"  \(in /.*/testrepository\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r'  running shell command "git checkout 8456f86"',
+            r"  \(in testrepository\)",
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in .*/tmp.*\)",
-        ]) % git_repo
+        ]) % string_args
         run_check()
 
         del git_config['recursive']
         del git_config['recurse_submodules']
         expected = '\n'.join([
-            r'  running command "git clone --no-checkout %(git_repo)s"',
+            r'  running shell command "git clone --no-checkout %(git_repo)s"',
             r"  \(in /.*\)",
-            r'  running command "git checkout 8456f86"',
+            r'  running shell command "git checkout 8456f86"',
             r"  \(in /.*/testrepository\)",
-            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in /.*\)",
-        ]) % git_repo
+        ]) % string_args
         run_check()
 
         # Test with real data.

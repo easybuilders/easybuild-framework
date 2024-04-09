@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -133,7 +133,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.log.warning(warn_msg)
             print_warning(warn_msg, silent=build_option('silent'))
 
-    def run(self, unpack_src=False):
+    def install_extension(self, unpack_src=False):
         """Common operations for extensions: unpacking sources, patching, ..."""
 
         # unpack file if desired

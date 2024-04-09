@@ -1,5 +1,5 @@
 ##
-# Copyright 2022-2023 Ghent University
+# Copyright 2022-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -53,7 +53,7 @@ class MPItrampoline(Mpi):
     MPI_COMPILER_MPIFC = None
 
     # MPItrampoline reads from CC etc env variables
-    MPI_SHARED_OPTION_MAP = dict([('_opt_%s' % var, '') for var, _ in MPI_COMPILER_VARIABLES])
+    MPI_SHARED_OPTION_MAP = {'_opt_%s' % var: '' for var, _ in MPI_COMPILER_VARIABLES}
 
     MPI_LINK_INFO_OPTION = '-showme:link'
 
