@@ -4246,7 +4246,6 @@ def build_and_install_one(ecdict, init_env):
 
     # restore original environment, and then sanitize it
     _log.info("Resetting environment")
-    run.errors_found_in_log = 0
     restore_env(init_env)
     sanitize_env()
 
@@ -4448,11 +4447,6 @@ def build_and_install_one(ecdict, init_env):
 
     req_time = time2str(end_timestamp - start_timestamp)
     print_msg("%s: Installation %s %s (took %s)" % (summary, ended, succ, req_time), log=_log, silent=silent)
-
-    # check for errors
-    if run.errors_found_in_log > 0:
-        _log.warning("%d possible error(s) were detected in the "
-                     "build logs, please verify the build.", run.errors_found_in_log)
 
     if app.postmsg:
         print_msg("\nWARNING: %s\n" % app.postmsg, log=_log, silent=silent)
