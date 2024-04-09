@@ -433,6 +433,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             more_stdout = True
             while more_stdout:
                 more_stdout = proc.stdout.read(read_size) or b''
+                _log.debug(f"Obtained more stdout: {more_stdout}")
                 stdout += more_stdout
 
             # note: we assume that there won't be any questions in stderr output
