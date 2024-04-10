@@ -694,6 +694,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = append_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual("append-path\tkey\t\t1234@example.com\n", res)
 
+            expected = "append-path\tEBPYTHONPREFIX\t\t$root\nappend-path\tPYTHONPATH\t\t$root/foo\n"
+            res = append_paths('PYTHONPATH', ['lib/python3.12/site-packages', 'foo'])
+            self.assertEqual(expected, res)
         else:
             expected = ''.join([
                 'append_path("key", pathJoin(root, "path1"))\n',
@@ -713,6 +716,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
             res = append_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('append_path("key", "1234@example.com")\n', res)
+
+            expected = 'append_path("EBPYTHONPREFIX", root)\nappend_path("PYTHONPATH", pathJoin(root, "foo"))\n'
+            res = append_paths('PYTHONPATH', ['lib/python3.12/site-packages', 'foo'])
+            self.assertEqual(expected, res)
 
         self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
                                               "which only expects relative paths." % self.modgen.app.installdir,
