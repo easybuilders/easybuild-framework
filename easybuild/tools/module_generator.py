@@ -274,8 +274,8 @@ class ModuleGenerator(object):
             # replace with EBPYTHONPREFIX which is added to python sys path at runtime
             if python_paths and build_option('prefer_ebpythonprefix_over_pythonpath'):
                 python_path = python_paths[0]
-                self.log.info("Replaced PYTHONPATH %s with EBPYTHONPREFIX", python_path)
-                ret = self._update_paths('EBPYTHONPREFIX', [''], prepend, allow_abs, expand_relpaths)
+                self.log.info("Replaced PYTHONPATH %s with EBPYTHONPREFIXES", python_path)
+                ret = self._update_paths('EBPYTHONPREFIXES', [''], prepend, allow_abs, expand_relpaths)
                 paths = [path for path in paths if path != python_path]
                 if paths:
                     ret += self._update_paths(key, paths, prepend, allow_abs, expand_relpaths)

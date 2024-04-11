@@ -694,7 +694,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = append_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual("append-path\tkey\t\t1234@example.com\n", res)
 
-            expected = "append-path\tEBPYTHONPREFIX\t\t$root\nappend-path\tPYTHONPATH\t\t$root/foo\n"
+            expected = "append-path\tEBPYTHONPREFIXES\t\t$root\nappend-path\tPYTHONPATH\t\t$root/foo\n"
             res = append_paths('PYTHONPATH', ['lib/python3.12/site-packages', 'foo'])
             self.assertEqual(expected, res)
         else:
@@ -717,7 +717,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = append_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('append_path("key", "1234@example.com")\n', res)
 
-            expected = 'append_path("EBPYTHONPREFIX", root)\nappend_path("PYTHONPATH", pathJoin(root, "foo"))\n'
+            expected = 'append_path("EBPYTHONPREFIXES", root)\nappend_path("PYTHONPATH", pathJoin(root, "foo"))\n'
             res = append_paths('PYTHONPATH', ['lib/python3.12/site-packages', 'foo'])
             self.assertEqual(expected, res)
 
