@@ -214,6 +214,8 @@ def save_cmd(cmd_str, work_dir, env, tmpdir):
         # excludes bash functions (environment variables ending with %)
         fid.write('\n'.join(f'export {key}={shlex.quote(value)}' for key, value in full_env.items()
                             if not key.endswith('%')))
+        fid.write('\n\nPS1="eb-shell> "')
+        fid.write(f'\nhistory -s {shlex.quote(cmd_str)}')
 
     # Make script that sets up bash shell with given environments set.
     cmd_fp = os.path.join(tmpdir, 'cmd.sh')
@@ -225,9 +227,7 @@ def save_cmd(cmd_str, work_dir, env, tmpdir):
             'EB_SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )',
             f'echo Shell for the command: {shlex.quote(cmd_str)}',
             'echo Use command history, exit to stop',
-            'bash --rcfile <(cat $EB_SCRIPT_DIR/env.sh; '
-            'echo \'PS1="eb-shell> "\'; '
-            f'echo history -s {shlex.quote(cmd_str)})',
+            'bash --rcfile $EB_SCRIPT_DIR/env.sh',
             ]))
     os.chmod(cmd_fp, 0o775)
 
