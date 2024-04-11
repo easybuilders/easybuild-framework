@@ -213,18 +213,10 @@ class ModuleGenerator(object):
             return paths
 
         added_paths = self.added_paths_per_key.setdefault(key, set())
-        # paths can be a string
-        if isinstance(paths, str):
-            if paths in added_paths:
-                filtered_paths = None
-            else:
-                added_paths.add(paths)
-                filtered_paths = paths
-        else:
-            # Coerce any iterable/generator into a list
-            if not isinstance(paths, list):
-                paths = list(paths)
-            filtered_paths = [x for x in paths if x not in added_paths and not added_paths.add(x)]
+        # Coerce any iterable/generator into a list
+        if not isinstance(paths, list):
+            paths = list(paths)
+        filtered_paths = [x for x in paths if x not in added_paths and not added_paths.add(x)]
         if filtered_paths != paths:
             removed_paths = paths if filtered_paths is None else [x for x in paths if x not in filtered_paths]
             print_warning("Suppressed adding the following path(s) to $%s of the module as they were already added: %s",
@@ -265,9 +257,14 @@ class ModuleGenerator(object):
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
+        if isinstance(paths, str):
+            self.log.debug("Wrapping %s into a list before using it for %s", paths, key)
+            paths = [paths]
+
         paths = self._filter_paths(key, paths)
         if paths is None:
             return ''
+
         if key == 'PYTHONPATH':
             python_paths = [path for path in paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
             if len(python_paths) > 1:
@@ -997,10 +994,6 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.info("Not including statement to %s environment variable $%s, as specified", update_type, key)
             return ''
 
-        if isinstance(paths, str):
-            self.log.debug("Wrapping %s into a list before using it to %s path %s", paths, update_type, key)
-            paths = [paths]
-
         abspaths = []
         for path in paths:
             if os.path.isabs(path) and not allow_abs:
@@ -1467,10 +1460,6 @@ class ModuleGeneratorLua(ModuleGenerator):
         if not self.define_env_var(key):
             self.log.info("Not including statement to %s environment variable $%s, as specified", update_type, key)
             return ''
-
-        if isinstance(paths, str):
-            self.log.debug("Wrapping %s into a list before using it to %s path %s", update_type, paths, key)
-            paths = [paths]
 
         abspaths = []
         for path in paths:
