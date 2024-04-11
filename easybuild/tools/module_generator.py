@@ -268,13 +268,14 @@ class ModuleGenerator(object):
         paths = self._filter_paths(key, paths)
         if paths is None:
             return ''
-        if key == 'PYTHONPATH' and build_option('prefer_ebpythonprefix_over_pythonpath'):
+        if key == 'PYTHONPATH':
+            python_paths = [path for path in paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
+            if len(python_paths) > 1:
+                raise EasyBuildError('Found multiple paths for PYTHONPATH: ' + ', '.join(python_paths))
+
             # Special condition for PYTHONPATHs that match the standard pattern,
             # replace with EBPYTHONPREFIX which is added to python sys path at runtime
-            python_paths = [path for path in paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
-            if python_paths:
-                if len(python_paths) > 1:
-                    raise EasyBuildError('Found multiple paths for PYTHONPATH: ' + ', '.join(python_paths))
+            if python_paths and build_option('prefer_ebpythonprefix_over_pythonpath'):
                 python_path = python_paths[0]
                 self.log.info("Replaced PYTHONPATH %s with EBPYTHONPREFIX", python_path)
                 ret = self._update_paths('EBPYTHONPREFIX', [''], prepend, allow_abs, expand_relpaths)
