@@ -2257,11 +2257,8 @@ class EasyBlockTest(EnhancedTestCase):
                 'start_dir': 'nonexistingdir'}),
         ]
         with self.mocked_stdout_stderr():
-            err_pattern = "Failed to change from .*barbar/barbar-0.0 to nonexistingdir.*"
+            err_pattern = r"Provided start dir \(nonexistingdir\) for extension barbar does not exist:.*"
             self.assertErrorRegex(EasyBuildError, err_pattern, check_ext_start_dir, 'whatever')
-            stderr = self.get_stderr()
-        warning_pattern = "WARNING: Provided start dir (nonexistingdir) for extension barbar does not exist"
-        self.assertIn(warning_pattern, stderr)
 
         # No error when using relative path in non-extracted source for some reason
         ec['ec']['exts_list'] = [

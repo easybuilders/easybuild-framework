@@ -123,15 +123,15 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.log.debug("Using extension start dir: %s", ext_start_dir)
             self.cfg['start_dir'] = ext_start_dir
             self.cfg.template_values['start_dir'] = ext_start_dir
-            return ext_start_dir
-
-        if ext_start_dir is None:
+        elif ext_start_dir is None:
             # This may be on purpose, e.g. for Python WHL files which do not get extracted
             self.log.debug("Start dir is not set.")
-        else:
+        elif self.start_dir:
             # non-existing start dir means wrong input from user
-            warn_msg = "Provided start dir (%s) for extension %s does not exist: %s" % (self.start_dir, self.name,
-                                                                                        ext_start_dir)
+            raise EasyBuildError("Provided start dir (%s) for extension %s does not exist: %s",
+                                 self.start_dir, self.name, ext_start_dir)
+        else:
+            warn_msg = 'Failed to determine start dir for extension %s: %s' % (self.name, ext_start_dir)
             self.log.warning(warn_msg)
             print_warning(warn_msg, silent=build_option('silent'))
 
@@ -151,8 +151,8 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # because start_dir value is usually a relative path (if it is set)
             change_dir(self.ext_dir)
 
-        start_dir = self._set_start_dir()
-        if start_dir:
+        self._set_start_dir()
+        if self.start_dir:
             change_dir(self.start_dir)
 
         # patch if needed
