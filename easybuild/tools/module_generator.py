@@ -220,7 +220,7 @@ class ModuleGenerator(object):
         if filtered_paths != paths:
             removed_paths = paths if filtered_paths is None else [x for x in paths if x not in filtered_paths]
             print_warning("Suppressed adding the following path(s) to $%s of the module as they were already added: %s",
-                          key, removed_paths,
+                          key, ', '.join(removed_paths),
                           log=self.log)
             if not filtered_paths:
                 filtered_paths = None
@@ -260,10 +260,6 @@ class ModuleGenerator(object):
         if isinstance(paths, str):
             self.log.debug("Wrapping %s into a list before using it for %s", paths, key)
             paths = [paths]
-
-        paths = self._filter_paths(key, paths)
-        if paths is None:
-            return ''
 
         if key == 'PYTHONPATH':
             python_paths = [path for path in paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
@@ -985,6 +981,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
+        paths = self._filter_paths(key, paths)
+        if paths is None:
+            return ''
+
         if prepend:
             update_type = 'prepend'
         else:
@@ -1452,6 +1452,10 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
+        paths = self._filter_paths(key, paths)
+        if paths is None:
+            return ''
+
         if prepend:
             update_type = 'prepend'
         else:
