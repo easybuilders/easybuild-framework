@@ -46,13 +46,14 @@ import string
 import subprocess
 import sys
 import tempfile
+import time
 from collections import namedtuple
 from datetime import datetime
 
 # import deprecated functions so they can still be imported from easybuild.tools.run, for now
 from easybuild._deprecated import check_async_cmd, check_log_for_errors, complete_cmd, extract_errors_from_log  # noqa
-from easybuild._deprecated import get_output_from_process, parse_cmd_output, parse_log_for_error, run_cmd  # noqa
-from easybuild._deprecated import run_cmd_cache, run_cmd_qa  # noqa
+from easybuild._deprecated import get_output_from_process, parse_cmd_output, parse_log_for_error  # noqa
+from easybuild._deprecated import run_cmd, run_cmd_qa  # noqa
 
 try:
     # get_native_id is only available in Python >= 3.8
@@ -180,9 +181,6 @@ def run_shell_cmd_cache(func):
     cache_aware_func.update_cache = cache.update
 
     return cache_aware_func
-
-
-run_shell_cmd_cache = run_cmd_cache
 
 
 def fileprefix_from_cmd(cmd, allowed_chars=False):
