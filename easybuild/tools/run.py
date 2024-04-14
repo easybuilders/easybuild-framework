@@ -204,13 +204,14 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
     """
     match_found = False
 
+    stdout_end = stdout.decode(errors='ignore')[-1000:]
     for question, answers in qa_patterns:
         # allow extra whitespace at the end
         question += r'[\s\n]*$'
         regex = re.compile(question.encode())
         res = regex.search(stdout)
         if res:
-            _log.debug(f"Found match for question pattern '{question}' at end of stdout: {stdout[:1000]}")
+            _log.debug(f"Found match for question pattern '{question}' at end of stdout: {stdout_end}")
             # if answer is specified as a list, we take the first item as current answer,
             # and add it to the back of the list (so we cycle through answers)
             if isinstance(answers, list):
@@ -244,11 +245,12 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
             regex = re.compile(pattern.encode())
             if regex.search(stdout):
                 _log.info(f"Found match for wait pattern '{pattern}'")
-                _log.debug(f"Found match for wait pattern '{pattern}' at end of stdout: {stdout[:1000]}")
+                _log.debug(f"Found match for wait pattern '{pattern}' at end of stdout: {stdout_end}")
                 match_found = True
                 break
         else:
             _log.info("No match found for question wait patterns")
+            _log.debug(f"No match found in question/wait patterns at end of stdout: {stdout_end}")
 
     return match_found
 
@@ -420,18 +422,26 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             # -1 means reading until EOF
             read_size = 128 if exit_code is None else -1
 
-            more_stdout = proc.stdout.read1(read_size) or b''
-            stdout += more_stdout
+            # get output as long as output is available;
+            # note: can't use proc.stdout.read without read_size argument,
+            # since that will always wait until EOF
+            more_stdout = True
+            while more_stdout:
+                more_stdout = proc.stdout.read(read_size) or b''
+                _log.debug(f"Obtained more stdout: {more_stdout}")
+                stdout += more_stdout
 
             # note: we assume that there won't be any questions in stderr output
             if split_stderr:
-                stderr += proc.stderr.read1(read_size) or b''
+                more_stderr = True
+                while more_stderr:
+                    more_stderr = proc.stderr.read(read_size) or b''
+                    stderr += more_stderr
 
             if qa_patterns:
                 if _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
                     time_no_match = 0
                 else:
-                    _log.debug(f"No match found in question/wait patterns at end of stdout: {stdout[:1000]}")
                     # this will only run if the for loop above was *not* stopped by the break statement
                     time_no_match += check_interval_secs
                     if time_no_match > qa_timeout:
