@@ -47,10 +47,9 @@ from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from urllib import request
-from easybuild.tools import run
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import IGNORE, ERROR, build_option, update_build_option
+from easybuild.tools.config import IGNORE, ERROR, WARN, build_option, update_build_option
 from easybuild.tools.multidiff import multidiff
 
 
@@ -1442,7 +1441,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # passing empty list of substitions is a no-op
         ft.write_file(testfile, testtxt)
-        ft.apply_regex_substitutions(testfile, [], on_missing_match=run.IGNORE)
+        ft.apply_regex_substitutions(testfile, [], on_missing_match=IGNORE)
         new_testtxt = ft.read_file(testfile)
         self.assertEqual(new_testtxt, testtxt)
 
@@ -1452,17 +1451,17 @@ class FileToolsTest(EnhancedTestCase):
         error_pat = 'Nothing found to replace in %s' % testfile
         # Error
         self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, testfile, regex_subs_no_match,
-                              on_missing_match=run.ERROR)
+                              on_missing_match=ERROR)
 
         # Warn
         with self.log_to_testlogfile():
-            ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.WARN)
+            ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=WARN)
         logtxt = ft.read_file(self.logfile)
         self.assertIn('WARNING ' + error_pat, logtxt)
 
         # Ignore
         with self.log_to_testlogfile():
-            ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.IGNORE)
+            ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=IGNORE)
         logtxt = ft.read_file(self.logfile)
         self.assertIn('INFO ' + error_pat, logtxt)
 
