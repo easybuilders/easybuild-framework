@@ -213,17 +213,12 @@ class ModuleGenerator(object):
             return paths
 
         added_paths = self.added_paths_per_key.setdefault(key, set())
-        # Coerce any iterable/generator into a list
-        if not isinstance(paths, list):
-            paths = list(paths)
         filtered_paths = [x for x in paths if x not in added_paths and not added_paths.add(x)]
         if filtered_paths != paths:
             removed_paths = paths if filtered_paths is None else [x for x in paths if x not in filtered_paths]
             print_warning("Suppressed adding the following path(s) to $%s of the module as they were already added: %s",
                           key, ', '.join(removed_paths),
                           log=self.log)
-            if not filtered_paths:
-                filtered_paths = None
         return filtered_paths
 
     def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
@@ -231,7 +226,7 @@ class ModuleGenerator(object):
         Generate append-path statements for the given list of paths.
 
         :param key: environment variable to append paths to
-        :param paths: list of paths to append
+        :param paths: single or list of paths to append
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
@@ -242,7 +237,7 @@ class ModuleGenerator(object):
         Generate prepend-path statements for the given list of paths.
 
         :param key: environment variable to append paths to
-        :param paths: list of paths to append
+        :param paths: single or list of paths to append
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
@@ -253,13 +248,15 @@ class ModuleGenerator(object):
         Generate append/prepend-path statements for the given list of paths.
 
         :param key: environment variable to append paths to
-        :param paths: list of paths to append
+        :param paths: single or list of paths to append
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
         if isinstance(paths, str):
             self.log.debug("Wrapping %s into a list before using it for %s", paths, key)
             paths = [paths]
+        elif not isinstance(paths, list):
+            paths = list(paths)  # coerce any iterator into a list
 
         if key == 'PYTHONPATH':
             python_paths = [path for path in paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
@@ -976,14 +973,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
         Generate prepend-path or append-path statements for the given list of paths.
 
         :param key: environment variable to prepend/append paths to
-        :param paths: list of paths to prepend
+        :param paths: list of paths to prepend/append
         :param prepend: whether to prepend (True) or append (False) paths
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
         paths = self._filter_paths(key, paths)
-        if paths is None:
-            return ''
 
         if prepend:
             update_type = 'prepend'
@@ -1453,8 +1448,6 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
         paths = self._filter_paths(key, paths)
-        if paths is None:
-            return ''
 
         if prepend:
             update_type = 'prepend'
