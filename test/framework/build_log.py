@@ -118,9 +118,9 @@ class BuildLogTest(EnhancedTestCase):
 
         more_info = "see https://docs.easybuild.io/deprecated-functionality/ for more information"
         expected_stderr = '\n\n'.join([
-            "\nWARNING: Deprecated functionality, will no longer work in v10000001: anotherwarning; " + more_info,
-            "\nWARNING: Deprecated functionality, will no longer work in v2.0: onemorewarning",
-            "\nWARNING: Deprecated functionality, will no longer work in v2.0: lastwarning",
+            "\nWARNING: Deprecated functionality, will no longer work in EasyBuild v10000001: anotherwarning; " + more_info,
+            "\nWARNING: Deprecated functionality, will no longer work in EasyBuild v2.0: onemorewarning",
+            "\nWARNING: Deprecated functionality, will no longer work in EasyBuild v2.0: lastwarning",
         ]) + '\n\n'
         self.assertEqual(stderr, expected_stderr)
 
@@ -183,7 +183,7 @@ class BuildLogTest(EnhancedTestCase):
         self.mock_stderr(False)
         logtxt = read_file(tmplog)
         expected_logtxt = '\n'.join([
-            "[WARNING] :: Deprecated functionality, will no longer work in v10000001: ",
+            "[WARNING] :: Deprecated functionality, will no longer work in EasyBuild v10000001: ",
             "this is just a test",
             "(see URLGOESHERE for more information)",
         ])
