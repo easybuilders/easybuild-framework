@@ -73,7 +73,7 @@ jobs:
           python setup.py sdist
           ls dist
           export PREFIX=/tmp/$USER/$GITHUB_SHA
-          pip install --prefix $PREFIX dist/easybuild-framework*tar.gz
+          pip install --prefix $PREFIX dist/easybuild[-_]framework*tar.gz
           pip install --prefix $PREFIX https://github.com/easybuilders/easybuild-easyblocks/archive/develop.tar.gz
 
     - name: run test
