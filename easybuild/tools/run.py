@@ -372,7 +372,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         else:
             cmd_err_fp = None
     else:
-        cmd_out_fp, cmd_err_fp = None, None
+        tmpdir, cmd_out_fp, cmd_err_fp = None, None, None
 
     interactive = bool(qa_patterns)
     interactive_msg = 'interactive ' if interactive else ''
@@ -390,7 +390,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     start_time = datetime.now()
     if not hidden:
-        _cmd_trace_msg(cmd_str, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thread_id, interactive=interactive)
+        _cmd_trace_msg(cmd_str, start_time, work_dir, stdin, tmpdir, thread_id, interactive=interactive)
 
     if stream_output:
         print_msg(f"(streaming) output for command '{cmd_str}':")
@@ -551,7 +551,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     return res
 
 
-def _cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thread_id, interactive=False):
+def _cmd_trace_msg(cmd, start_time, work_dir, stdin, tmpdir, thread_id, interactive=False):
     """
     Helper function to construct and print trace message for command being run
 
@@ -559,8 +559,7 @@ def _cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thr
     :param start_time: datetime object indicating when command was started
     :param work_dir: path of working directory in which command is run
     :param stdin: stdin input value for command
-    :param cmd_out_fp: path to output file for command
-    :param cmd_err_fp: path to errors/warnings output file for command
+    :param tmpdir: path to temporary output directory for command
     :param thread_id: thread ID (None when not running shell command asynchronously)
     :param interactive: boolean indicating whether it is an interactive command, or not
     """
@@ -580,10 +579,8 @@ def _cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thr
     ]
     if stdin:
         lines.append(f"\t[input: {stdin}]")
-    if cmd_out_fp:
-        lines.append(f"\t[output saved to {cmd_out_fp}]")
-    if cmd_err_fp:
-        lines.append(f"\t[errors/warnings saved to {cmd_err_fp}]")
+    if tmpdir:
+        lines.append(f"\t[output and state saved to {tmpdir}]")
 
     trace_msg('\n'.join(lines))
 
