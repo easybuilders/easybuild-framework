@@ -142,6 +142,10 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd(self):
         """Basic test for run_cmd function."""
+
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         with self.mocked_stdout_stderr():
             (out, ec) = run_cmd("echo hello")
         self.assertEqual(out, "hello\n")
@@ -217,6 +221,10 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_log(self):
         """Test logging of executed commands."""
+
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
         os.close(fd)
 
@@ -300,6 +308,10 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_negative_exit_code(self):
         """Test run_cmd function with command that has negative exit code."""
+
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         # define signal handler to call in case run_cmd takes too long
         def handler(signum, _):
             raise RuntimeError("Signal handler called with signal %s" % signum)
@@ -433,6 +445,10 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_bis(self):
         """More 'complex' test for run_cmd function."""
+
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         # a more 'complex' command to run, make sure all required output is there
         with self.mocked_stdout_stderr():
             (out, ec) = run_cmd("for j in `seq 1 3`; do for i in `seq 1 100`; do echo hello; done; sleep 1.4; done")
@@ -453,6 +469,10 @@ class RunTest(EnhancedTestCase):
         """
         Test running command in specific directory with run_cmd function.
         """
+
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         orig_wd = os.getcwd()
         self.assertFalse(os.path.samefile(orig_wd, self.test_prefix))
 
@@ -493,6 +513,10 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_log_output(self):
         """Test run_cmd with log_output enabled"""
+
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         with self.mocked_stdout_stderr():
             (out, ec) = run_cmd("seq 1 100", log_output=True)
         self.assertEqual(ec, 0)
@@ -548,6 +572,9 @@ class RunTest(EnhancedTestCase):
     def test_run_cmd_trace(self):
         """Test run_cmd in trace mode, and with tracing disabled."""
 
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         pattern = [
             r"^  >> running command:",
             r"\t\[started at: .*\]",
@@ -567,7 +594,7 @@ class RunTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.assertEqual(out, 'hello\n')
         self.assertEqual(ec, 0)
-        self.assertEqual(stderr, '')
+        self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
         regex = re.compile('\n'.join(pattern))
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
@@ -582,7 +609,7 @@ class RunTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.assertEqual(out, 'hello\n')
         self.assertEqual(ec, 0)
-        self.assertEqual(stderr, '')
+        self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
         self.assertEqual(stdout, '')
 
         init_config(build_options={'trace': True})
@@ -597,7 +624,7 @@ class RunTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.assertEqual(out, 'hello')
         self.assertEqual(ec, 0)
-        self.assertEqual(stderr, '')
+        self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
         pattern.insert(3, r"\t\[input: hello\]")
         pattern[-2] = "\tcat"
         regex = re.compile('\n'.join(pattern))
@@ -614,7 +641,7 @@ class RunTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.assertEqual(out, 'hello')
         self.assertEqual(ec, 0)
-        self.assertEqual(stderr, '')
+        self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
         self.assertEqual(stdout, '')
 
         # trace output can be disabled on a per-command basis
@@ -631,7 +658,7 @@ class RunTest(EnhancedTestCase):
             self.assertEqual(out, 'hello\n')
             self.assertEqual(ec, 0)
             self.assertEqual(stdout, '')
-            self.assertEqual(stderr, '')
+            self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
 
     def test_run_shell_cmd_trace(self):
         """Test run_shell_cmd function in trace mode, and with tracing disabled."""
@@ -963,6 +990,9 @@ class RunTest(EnhancedTestCase):
     def test_run_cmd_qa_trace(self):
         """Test run_cmd under --trace"""
 
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         # --trace is enabled by default
         self.mock_stdout(True)
         self.mock_stderr(True)
@@ -989,7 +1019,7 @@ class RunTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.mock_stderr(False)
         self.assertEqual(stdout, '')
-        self.assertEqual(stderr, '')
+        self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
 
     def test_run_shell_cmd_qa_trace(self):
         """Test run_shell_cmd with qa_patterns under --trace"""
@@ -1071,12 +1101,20 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_simple(self):
         """Test return value for run_cmd in 'simple' mode."""
+
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         with self.mocked_stdout_stderr():
             self.assertEqual(True, run_cmd("echo hello", simple=True))
             self.assertEqual(False, run_cmd("exit 1", simple=True, log_all=False, log_ok=False))
 
     def test_run_cmd_cache(self):
         """Test caching for run_cmd"""
+
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         with self.mocked_stdout_stderr():
             (first_out, ec) = run_cmd("ulimit -u")
         self.assertEqual(ec, 0)
@@ -1164,6 +1202,10 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_dry_run(self):
         """Test use of run_cmd function under (extended) dry run."""
+
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         build_options = {
             'extended_dry_run': True,
             'silent': False,
@@ -1172,43 +1214,38 @@ class RunTest(EnhancedTestCase):
 
         cmd = "somecommand foo 123 bar"
 
-        self.mock_stdout(True)
-        run_cmd(cmd)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            run_cmd(cmd)
+            stdout = self.get_stdout()
 
         expected = """  running command "somecommand foo 123 bar"\n"""
         self.assertIn(expected, stdout)
 
         # check disabling 'verbose'
-        self.mock_stdout(True)
-        run_cmd("somecommand foo 123 bar", verbose=False)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            run_cmd("somecommand foo 123 bar", verbose=False)
+            stdout = self.get_stdout()
         self.assertNotIn(expected, stdout)
 
         # check forced run_cmd
         outfile = os.path.join(self.test_prefix, 'cmd.out')
         self.assertNotExists(outfile)
-        self.mock_stdout(True)
-        run_cmd("echo 'This is always echoed' > %s" % outfile, force_in_dry_run=True)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            run_cmd("echo 'This is always echoed' > %s" % outfile, force_in_dry_run=True)
         self.assertExists(outfile)
         self.assertEqual(read_file(outfile), "This is always echoed\n")
 
         # Q&A commands
-        self.mock_stdout(True)
-        run_shell_cmd("some_qa_cmd", qa_patterns=[('question1', 'answer1')])
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            run_shell_cmd("some_qa_cmd", qa_patterns=[('question1', 'answer1')])
+            stdout = self.get_stdout()
 
         expected = """  running interactive shell command "some_qa_cmd"\n"""
         self.assertIn(expected, stdout)
 
-        self.mock_stdout(True)
-        run_cmd_qa("some_qa_cmd", {'question1': 'answer1'})
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            run_cmd_qa("some_qa_cmd", {'question1': 'answer1'})
+            stdout = self.get_stdout()
 
         expected = """  running interactive command "some_qa_cmd"\n"""
         self.assertIn(expected, stdout)
@@ -1264,6 +1301,10 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_list(self):
         """Test run_cmd with command specified as a list rather than a string"""
+
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         cmd = ['/bin/sh', '-c', "echo hello"]
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, "When passing cmd as a list then `shell` must be set explictely!",
@@ -1275,6 +1316,10 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_script(self):
         """Testing use of run_cmd with shell=False to call external scripts"""
+
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         py_test_script = os.path.join(self.test_prefix, 'test.py')
         write_file(py_test_script, '\n'.join([
             '#!%s' % sys.executable,
@@ -1313,6 +1358,10 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_stream(self):
         """Test use of run_cmd with streaming output."""
+
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         self.mock_stdout(True)
         self.mock_stderr(True)
         (out, ec) = run_cmd("echo hello", stream_output=True)
@@ -1324,7 +1373,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         self.assertEqual(out, "hello\n")
 
-        self.assertEqual(stderr, '')
+        self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
         expected = [
             "== (streaming) output for command 'echo hello':",
             "hello",
@@ -1369,6 +1418,9 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_async(self):
         """Test asynchronously running of a shell command via run_cmd + complete_cmd."""
+
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
 
         os.environ['TEST'] = 'test123'
 
@@ -1604,6 +1656,10 @@ class RunTest(EnhancedTestCase):
         """
         Test running command with run_cmd with pre/post run_shell_cmd hooks in place.
         """
+
+        # use of run_cmd is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         cwd = os.getcwd()
 
         hooks_file = os.path.join(self.test_prefix, 'my_hooks.py')
