@@ -209,10 +209,14 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
     """
     match_found = False
 
+    space_line_break_pattern = r'[\s\n]+'
+    space_line_break_regex = re.compile(space_line_break_pattern)
+
     stdout_end = stdout.decode(errors='ignore')[-1000:]
     for question, answers in qa_patterns:
-        # allow extra whitespace at the end
-        question += r'[\s\n]*$'
+        # replace spaces/line breaks with regex pattern that matches one or more spaces/line breaks,
+        # and allow extra whitespace at the end
+        question = space_line_break_pattern.join(space_line_break_regex.split(question)) + r'[\s\n]*$'
         regex = re.compile(question.encode())
         res = regex.search(stdout)
         if res:
@@ -245,8 +249,9 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
         # if no match was found among question patterns,
         # take into account patterns for non-questions (qa_wait_patterns)
         for pattern in qa_wait_patterns:
-            # allow extra whitespace at the end
-            pattern += r'[\s\n]*$'
+            # replace spaces/line breaks with regex pattern that matches one or more spaces/line breaks,
+            # and allow extra whitespace at the end
+            pattern = space_line_break_pattern.join(space_line_break_regex.split(pattern)) + r'[\s\n]*$'
             regex = re.compile(pattern.encode())
             if regex.search(stdout):
                 _log.info(f"Found match for wait pattern '{pattern}'")

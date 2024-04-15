@@ -871,6 +871,27 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, "not-a-question-but-a-statement\nquestion\nanswer\n")
 
+        # test multi-line question
+        cmd = ';'.join([
+            "echo please",
+            "echo answer",
+            "read x",
+            "echo $x",
+        ])
+        qa = [("please answer", "42")]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "please\nanswer\n42\n")
+
+        # also test multi-line wait pattern
+        cmd = "echo just; echo wait; sleep 3; " + cmd
+        qa_wait_patterns = ["just wait"]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa, qa_wait_patterns=qa_wait_patterns, qa_timeout=1)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "just\nwait\nplease\nanswer\n42\n")
+
     def test_run_cmd_qa_buffering(self):
         """Test whether run_cmd_qa uses unbuffered output."""
 
