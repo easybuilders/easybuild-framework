@@ -76,6 +76,9 @@ class RunTest(EnhancedTestCase):
     def test_get_output_from_process(self):
         """Test for get_output_from_process utility function."""
 
+        # use of get_output_from_process is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         @contextlib.contextmanager
         def get_proc(cmd, asynchronous=False):
             if asynchronous:
@@ -92,53 +95,58 @@ class RunTest(EnhancedTestCase):
                 subprocess_terminate(proc, timeout=1)
 
         # get all output at once
-        with get_proc("echo hello") as proc:
-            out = get_output_from_process(proc)
-            self.assertEqual(out, 'hello\n')
+        with self.mocked_stdout_stderr():
+            with get_proc("echo hello") as proc:
+                out = get_output_from_process(proc)
+                self.assertEqual(out, 'hello\n')
 
         # first get 100 bytes, then get the rest all at once
-        with get_proc("echo hello") as proc:
-            out = get_output_from_process(proc, read_size=100)
-            self.assertEqual(out, 'hello\n')
-            out = get_output_from_process(proc)
-            self.assertEqual(out, '')
+        with self.mocked_stdout_stderr():
+            with get_proc("echo hello") as proc:
+                out = get_output_from_process(proc, read_size=100)
+                self.assertEqual(out, 'hello\n')
+                out = get_output_from_process(proc)
+                self.assertEqual(out, '')
 
         # get output in small bits, keep trying to get output (which shouldn't fail)
-        with get_proc("echo hello") as proc:
-            out = get_output_from_process(proc, read_size=1)
-            self.assertEqual(out, 'h')
-            out = get_output_from_process(proc, read_size=3)
-            self.assertEqual(out, 'ell')
-            out = get_output_from_process(proc, read_size=2)
-            self.assertEqual(out, 'o\n')
-            out = get_output_from_process(proc, read_size=1)
-            self.assertEqual(out, '')
-            out = get_output_from_process(proc, read_size=10)
-            self.assertEqual(out, '')
-            out = get_output_from_process(proc)
-            self.assertEqual(out, '')
+        with self.mocked_stdout_stderr():
+            with get_proc("echo hello") as proc:
+                out = get_output_from_process(proc, read_size=1)
+                self.assertEqual(out, 'h')
+                out = get_output_from_process(proc, read_size=3)
+                self.assertEqual(out, 'ell')
+                out = get_output_from_process(proc, read_size=2)
+                self.assertEqual(out, 'o\n')
+                out = get_output_from_process(proc, read_size=1)
+                self.assertEqual(out, '')
+                out = get_output_from_process(proc, read_size=10)
+                self.assertEqual(out, '')
+                out = get_output_from_process(proc)
+                self.assertEqual(out, '')
 
         # can also get output asynchronously (read_size is *ignored* in that case)
         async_cmd = "echo hello; read reply; echo $reply"
 
-        with get_proc(async_cmd, asynchronous=True) as proc:
-            out = get_output_from_process(proc, asynchronous=True)
-            self.assertEqual(out, 'hello\n')
-            asyncprocess.send_all(proc, 'test123\n')
-            out = get_output_from_process(proc)
-            self.assertEqual(out, 'test123\n')
+        with self.mocked_stdout_stderr():
+            with get_proc(async_cmd, asynchronous=True) as proc:
+                out = get_output_from_process(proc, asynchronous=True)
+                self.assertEqual(out, 'hello\n')
+                asyncprocess.send_all(proc, 'test123\n')
+                out = get_output_from_process(proc)
+                self.assertEqual(out, 'test123\n')
 
-        with get_proc(async_cmd, asynchronous=True) as proc:
-            out = get_output_from_process(proc, asynchronous=True, read_size=1)
-            # read_size is ignored when getting output asynchronously, we're getting more than 1 byte!
-            self.assertEqual(out, 'hello\n')
-            asyncprocess.send_all(proc, 'test123\n')
-            out = get_output_from_process(proc, read_size=3)
-            self.assertEqual(out, 'tes')
-            out = get_output_from_process(proc, read_size=2)
-            self.assertEqual(out, 't1')
-            out = get_output_from_process(proc)
-            self.assertEqual(out, '23\n')
+        with self.mocked_stdout_stderr():
+            with get_proc(async_cmd, asynchronous=True) as proc:
+                out = get_output_from_process(proc, asynchronous=True, read_size=1)
+                # read_size is ignored when getting output asynchronously, we're getting more than 1 byte!
+                self.assertEqual(out, 'hello\n')
+                asyncprocess.send_all(proc, 'test123\n')
+                out = get_output_from_process(proc, read_size=3)
+                self.assertEqual(out, 'tes')
+                out = get_output_from_process(proc, read_size=2)
+                self.assertEqual(out, 't1')
+                out = get_output_from_process(proc)
+                self.assertEqual(out, '23\n')
 
     def test_run_cmd(self):
         """Basic test for run_cmd function."""
@@ -309,7 +317,7 @@ class RunTest(EnhancedTestCase):
     def test_run_cmd_negative_exit_code(self):
         """Test run_cmd function with command that has negative exit code."""
 
-        # use of run_cmd is deprecated, so we need to allow it here
+        # use of run_cmd/run_cmd_qa is deprecated, so we need to allow it here
         self.allow_deprecated_behaviour()
 
         # define signal handler to call in case run_cmd takes too long
@@ -777,6 +785,9 @@ class RunTest(EnhancedTestCase):
     def test_run_cmd_qa(self):
         """Basic test for run_cmd_qa function."""
 
+        # use of run_cmd_qa is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         cmd = "echo question; read x; echo $x"
         qa = {'question': 'answer'}
         with self.mocked_stdout_stderr():
@@ -812,7 +823,8 @@ class RunTest(EnhancedTestCase):
         error_pattern = "Max nohits 1 reached: end of output not-a-question-but-a-statement"
         self.assertErrorRegex(EasyBuildError, error_pattern, run_cmd_qa, cmd, qa, maxhits=1, trace=False)
 
-        (out, ec) = run_cmd_qa(cmd, qa, no_qa=["not-a-question-but-a-statement"], maxhits=1, trace=False)
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd_qa(cmd, qa, no_qa=["not-a-question-but-a-statement"], maxhits=1, trace=False)
         self.assertEqual(out, "not-a-question-but-a-statement\nquestion\nanswer\n")
         self.assertEqual(ec, 0)
 
@@ -901,6 +913,9 @@ class RunTest(EnhancedTestCase):
     def test_run_cmd_qa_buffering(self):
         """Test whether run_cmd_qa uses unbuffered output."""
 
+        # use of run_cmd_qa is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         # command that generates a lot of output before waiting for input
         # note: bug being fixed can be reproduced reliably using 1000, but not with too high values like 100000!
         cmd = 'for x in $(seq 1000); do echo "This is a number you can pick: $x"; done; '
@@ -964,6 +979,10 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_qa_log_all(self):
         """Test run_cmd_qa with log_output enabled"""
+
+        # use of run_cmd_qa is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         with self.mocked_stdout_stderr():
             (out, ec) = run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'}, log_all=True)
         self.assertEqual(ec, 0)
@@ -990,7 +1009,7 @@ class RunTest(EnhancedTestCase):
     def test_run_cmd_qa_trace(self):
         """Test run_cmd under --trace"""
 
-        # use of run_cmd is deprecated, so we need to allow it here
+        # use of run_cmd/run_cmd_qa is deprecated, so we need to allow it here
         self.allow_deprecated_behaviour()
 
         # --trace is enabled by default
@@ -1001,7 +1020,7 @@ class RunTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertEqual(stderr, '')
+        self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
         pattern = r"^  >> running interactive command:\n"
         pattern += r"\t\[started at: .*\]\n"
         pattern += r"\t\[working dir: .*\]\n"
@@ -1054,6 +1073,10 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_qa_answers(self):
         """Test providing list of answers in run_cmd_qa."""
+
+        # use of run_cmd_qa is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         cmd = "echo question; read x; echo $x; " * 2
         qa = {"question": ["answer1", "answer2"]}
 
@@ -1197,7 +1220,12 @@ class RunTest(EnhancedTestCase):
 
     def test_parse_log_error(self):
         """Test basic parse_log_for_error functionality."""
-        errors = parse_log_for_error("error failed", True)
+
+        # use of parse_log_for_error is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
+        with self.mocked_stdout_stderr():
+            errors = parse_log_for_error("error failed", True)
         self.assertEqual(len(errors), 1)
 
     def test_run_cmd_dry_run(self):
@@ -1419,7 +1447,7 @@ class RunTest(EnhancedTestCase):
     def test_run_cmd_async(self):
         """Test asynchronously running of a shell command via run_cmd + complete_cmd."""
 
-        # use of run_cmd is deprecated, so we need to allow it here
+        # use of run_cmd/check_async_cmd/get_output_from_process is deprecated, so we need to allow it here
         self.allow_deprecated_behaviour()
 
         os.environ['TEST'] = 'test123'
@@ -1453,13 +1481,15 @@ class RunTest(EnhancedTestCase):
 
         # first check, only read first 12 output characters
         # (otherwise we'll be waiting until command is completed)
-        res = check_async_cmd(*cmd_info, output_read_size=12)
+        with self.mocked_stdout_stderr():
+            res = check_async_cmd(*cmd_info, output_read_size=12)
         self.assertEqual(res, {'done': False, 'exit_code': None, 'output': 'sleeping...\n'})
 
         # 2nd check with default output size (1024) gets full output
         # (keep checking until command is fully done)
-        while not res['done']:
-            res = check_async_cmd(*cmd_info, output=res['output'])
+        with self.mocked_stdout_stderr():
+            while not res['done']:
+                res = check_async_cmd(*cmd_info, output=res['output'])
         self.assertEqual(res, {'done': True, 'exit_code': 0, 'output': 'sleeping...\ntest123\n'})
 
         # check asynchronous running of failing command
@@ -1468,14 +1498,16 @@ class RunTest(EnhancedTestCase):
             cmd_info = run_cmd(error_test_cmd, asynchronous=True)
         time.sleep(1)
         error_pattern = 'cmd ".*" exited with exit code 123'
-        self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info)
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info)
 
         with self.mocked_stdout_stderr():
             cmd_info = run_cmd(error_test_cmd, asynchronous=True)
-        res = check_async_cmd(*cmd_info, fail_on_error=False)
+            res = check_async_cmd(*cmd_info, fail_on_error=False)
         # keep checking until command is fully done
-        while not res['done']:
-            res = check_async_cmd(*cmd_info, fail_on_error=False, output=res['output'])
+        with self.mocked_stdout_stderr():
+            while not res['done']:
+                res = check_async_cmd(*cmd_info, fail_on_error=False, output=res['output'])
         self.assertEqual(res, {'done': True, 'exit_code': 123, 'output': "FAIL!\n"})
 
         # also test with a command that produces a lot of output,
@@ -1498,10 +1530,11 @@ class RunTest(EnhancedTestCase):
         ec = proc.poll()
         self.assertEqual(ec, None)
 
-        while ec is None:
-            time.sleep(1)
-            output += get_output_from_process(proc)
-            ec = proc.poll()
+        with self.mocked_stdout_stderr():
+            while ec is None:
+                time.sleep(1)
+                output += get_output_from_process(proc)
+                ec = proc.poll()
 
         with self.mocked_stdout_stderr():
             out, ec = complete_cmd(*cmd_info, simple=False, output=output)
@@ -1514,8 +1547,9 @@ class RunTest(EnhancedTestCase):
             cmd_info = run_cmd(verbose_test_cmd, asynchronous=True)
 
         error_pattern = r"Number of output bytes to read should be a positive integer value \(or zero\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info, output_read_size=-1)
-        self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info, output_read_size='foo')
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info, output_read_size=-1)
+            self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info, output_read_size='foo')
 
         # with output_read_size set to 0, no output is read yet, only status of command is checked
         with self.mocked_stdout_stderr():
@@ -1531,8 +1565,9 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(res['output'].startswith('start\n'))
         self.assertFalse(res['output'].endswith('\ndone\n'))
         # keep checking until command is complete
-        while not res['done']:
-            res = check_async_cmd(*cmd_info, output=res['output'])
+        with self.mocked_stdout_stderr():
+            while not res['done']:
+                res = check_async_cmd(*cmd_info, output=res['output'])
         self.assertEqual(res['done'], True)
         self.assertEqual(res['exit_code'], 0)
         self.assertEqual(len(res['output']), 435661)
@@ -1599,13 +1634,19 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(res.output.endswith('\nfoo501000\ndone\n'))
 
     def test_check_log_for_errors(self):
+        """Test for check_log_for_errors"""
+
+        # use of check_log_for_errors is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
         os.close(fd)
 
-        self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [42])
-        self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [(42, IGNORE)])
-        self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [("42", "invalid-mode")])
-        self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [("42", IGNORE, "")])
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [42])
+            self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [(42, IGNORE)])
+            self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [("42", "invalid-mode")])
+            self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [("42", IGNORE, "")])
 
         input_text = "\n".join([
             "OK",
@@ -1620,20 +1661,24 @@ class RunTest(EnhancedTestCase):
                        r"\tthe process crashed with 0"
 
         # String promoted to list
-        self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
-                              r"\b(error|crashed)\b")
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
+                                  r"\b(error|crashed)\b")
         # List of string(s)
-        self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
-                              [r"\b(error|crashed)\b"])
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
+                                  [r"\b(error|crashed)\b"])
         # List of tuple(s)
-        self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
-                              [(r"\b(error|crashed)\b", ERROR)])
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
+                                  [(r"\b(error|crashed)\b", ERROR)])
 
         expected_msg = "Found 2 potential error(s) in command output:\n"\
                        "\terror found\n"\
                        "\tthe process crashed with 0"
         init_logging(logfile, silent=True)
-        check_log_for_errors(input_text, [(r"\b(error|crashed)\b", WARN)])
+        with self.mocked_stdout_stderr():
+            check_log_for_errors(input_text, [(r"\b(error|crashed)\b", WARN)])
         stop_logging(logfile)
         self.assertIn(expected_msg, read_file(logfile))
 
@@ -1642,12 +1687,13 @@ class RunTest(EnhancedTestCase):
                        r"\ttest failed"
         write_file(logfile, '')
         init_logging(logfile, silent=True)
-        self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text, [
-            r"\berror\b",
-            (r"\ballowed-test failed\b", IGNORE),
-            (r"(?i)\bCRASHED\b", WARN),
-            "fail"
-        ])
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text, [
+                r"\berror\b",
+                (r"\ballowed-test failed\b", IGNORE),
+                (r"(?i)\bCRASHED\b", WARN),
+                "fail"
+            ])
         stop_logging(logfile)
         expected_msg = "Found 1 potential error(s) in command output:\n\tthe process crashed with 0"
         self.assertIn(expected_msg, read_file(logfile))
@@ -1657,7 +1703,7 @@ class RunTest(EnhancedTestCase):
         Test running command with run_cmd with pre/post run_shell_cmd hooks in place.
         """
 
-        # use of run_cmd is deprecated, so we need to allow it here
+        # use of run_cmd/run_cmd_qa is deprecated, so we need to allow it here
         self.allow_deprecated_behaviour()
 
         cwd = os.getcwd()

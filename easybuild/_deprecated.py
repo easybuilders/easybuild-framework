@@ -96,7 +96,7 @@ def run_cmd_cache(func):
     return cache_aware_func
 
 
-def get_output_from_process(proc, read_size=None, asynchronous=False):
+def get_output_from_process(proc, read_size=None, asynchronous=False, print_deprecation_warning=True):
     """
     Get output from running process (that was opened with subprocess.Popen).
 
@@ -104,6 +104,9 @@ def get_output_from_process(proc, read_size=None, asynchronous=False):
     :param read_size: number of bytes of output to read (if None: read all output)
     :param asynchronous: get output asynchronously
     """
+
+    if print_deprecation_warning:
+        _log.deprecated("get_output_from_process is deprecated, you should stop using it", '6.0')
 
     if asynchronous:
         # e=False is set to avoid raising an exception when command has completed;
@@ -256,7 +259,8 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         return (proc, cmd, cwd, start_time, cmd_log)
     else:
         return complete_cmd(proc, cmd, cwd, start_time, cmd_log, log_ok=log_ok, log_all=log_all, simple=simple,
-                            regexp=regexp, stream_output=stream_output, trace=trace, with_hook=with_hooks)
+                            regexp=regexp, stream_output=stream_output, trace=trace, with_hook=with_hooks,
+                            print_deprecation_warning=False)
 
 
 def check_async_cmd(proc, cmd, owd, start_time, cmd_log, fail_on_error=True, output_read_size=1024, output=''):
@@ -275,11 +279,13 @@ def check_async_cmd(proc, cmd, owd, start_time, cmd_log, fail_on_error=True, out
     :result: dict value with result of the check (boolean 'done', 'exit_code', 'output')
     """
 
+    _log.deprecated("check_async_cmd is deprecated, you should stop using it", '6.0')
+
     # use small read size, to avoid waiting for a long time until sufficient output is produced
     if output_read_size:
         if not isinstance(output_read_size, int) or output_read_size < 0:
             raise EasyBuildError("Number of output bytes to read should be a positive integer value (or zero)")
-        add_out = get_output_from_process(proc, read_size=output_read_size)
+        add_out = get_output_from_process(proc, read_size=output_read_size, print_deprecation_warning=False)
         _log.debug("Additional output from asynchronous command '%s': %s" % (cmd, add_out))
         output += add_out
 
@@ -290,7 +296,8 @@ def check_async_cmd(proc, cmd, owd, start_time, cmd_log, fail_on_error=True, out
     else:
         _log.debug("Asynchronous command '%s' completed!", cmd)
         output, _ = complete_cmd(proc, cmd, owd, start_time, cmd_log, output=output,
-                                 simple=False, trace=False, log_ok=fail_on_error)
+                                 simple=False, trace=False, log_ok=fail_on_error,
+                                 print_deprecation_warning=False)
         done = True
 
     res = {
@@ -302,7 +309,8 @@ def check_async_cmd(proc, cmd, owd, start_time, cmd_log, fail_on_error=True, out
 
 
 def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False, simple=False,
-                 regexp=True, stream_output=None, trace=True, output='', with_hook=True):
+                 regexp=True, stream_output=None, trace=True, output='', with_hook=True,
+                 print_deprecation_warning=True):
     """
     Complete running of command represented by passed subprocess.Popen instance.
 
@@ -319,6 +327,10 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
     :param trace: print command being executed as part of trace output
     :param with_hook: trigger post run_shell_cmd hooks (if defined)
     """
+
+    if print_deprecation_warning:
+        _log.deprecated("complete_cmd is deprecated, you should stop using it", '6.0')
+
     # use small read size when streaming output, to make it stream more fluently
     # read size should not be too small though, to avoid too much overhead
     if stream_output:
@@ -333,7 +345,7 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
         while ec is None:
             # need to read from time to time.
             # - otherwise the stdout/stderr buffer gets filled and it all stops working
-            output = get_output_from_process(proc, read_size=read_size)
+            output = get_output_from_process(proc, read_size=read_size, print_deprecation_warning=False)
             if cmd_log:
                 cmd_log.write(output)
             if stream_output:
@@ -342,7 +354,7 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
             ec = proc.poll()
 
         # read remaining data (all of it)
-        output = get_output_from_process(proc)
+        output = get_output_from_process(proc, print_deprecation_warning=False)
     finally:
         proc.stdout.close()
 
@@ -370,7 +382,7 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
     except OSError as err:
         raise EasyBuildError("Failed to return to %s after executing command: %s", owd, err)
 
-    return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
+    return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp, print_deprecation_warning=False)
 
 
 def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None,
@@ -389,6 +401,9 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     :param maxhits: maximum number of cycles (seconds) without being able to find a known question
     :param trace: print command being executed as part of trace output
     """
+
+    _log.deprecated("run_cmd_qa is deprecated, use run_shell_cmd from easybuild.tools.run instead", '6.0')
+
     cwd = os.getcwd()
 
     if not isinstance(cmd, str) and len(cmd) > 1:
@@ -549,7 +564,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             # need to read from time to time.
             # - otherwise the stdout/stderr buffer gets filled and it all stops working
             try:
-                out = get_output_from_process(proc, asynchronous=True)
+                out = get_output_from_process(proc, asynchronous=True, print_deprecation_warning=False)
 
                 if cmd_log:
                     cmd_log.write(out)
@@ -622,7 +637,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         # Process stopped. Read all remaining data
         try:
             if proc.stdout:
-                out = get_output_from_process(proc)
+                out = get_output_from_process(proc, print_deprecation_warning=False)
                 stdout_err += out
                 if cmd_log:
                     cmd_log.write(out)
@@ -644,10 +659,10 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     except OSError as err:
         raise EasyBuildError("Failed to return to %s after executing command: %s", cwd, err)
 
-    return parse_cmd_output(cmd, stdout_err, ec, simple, log_all, log_ok, regexp)
+    return parse_cmd_output(cmd, stdout_err, ec, simple, log_all, log_ok, regexp, print_deprecation_warning=False)
 
 
-def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
+def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp, print_deprecation_warning=True):
     """
     Parse command output and construct return value.
     :param cmd: executed command
@@ -658,6 +673,10 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     :param log_ok: only run output/exit code for failing commands (exit code non-zero)
     :param regexp: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
     """
+
+    if print_deprecation_warning:
+        _log.deprecated("parse_cmd_output is deprecated, you should stop using it", '6.0')
+
     if strictness == IGNORE:
         check_ec = False
         fail_on_error_match = False
@@ -688,7 +707,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
 
     # parse the stdout/stderr for errors when strictness dictates this or when regexp is passed in
     if fail_on_error_match or regexp:
-        res = parse_log_for_error(stdouterr, regexp, stdout=False)
+        res = parse_log_for_error(stdouterr, regexp, stdout=False, print_deprecation_warning=False)
         if res:
             errors = "\n\t" + "\n\t".join([r[0] for r in res])
             error_str = "error" if len(res) == 1 else "errors"
@@ -709,13 +728,17 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
         return (stdouterr, ec)
 
 
-def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
+def parse_log_for_error(txt, regExp=None, stdout=True, msg=None, print_deprecation_warning=True):
     """
     txt is multiline string.
     - in memory
     regExp is a one-line regular expression
     - default
     """
+
+    if print_deprecation_warning:
+        _log.deprecated("parse_log_for_error is deprecated, you should stop using it", '6.0')
+
     global errors_found_in_log
 
     if regExp and isinstance(regExp, bool):
@@ -744,7 +767,7 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     return res
 
 
-def extract_errors_from_log(log_txt, reg_exps):
+def extract_errors_from_log(log_txt, reg_exps, print_deprecation_warning=True):
     """
     Check provided string (command output) for messages matching specified regular expressions,
     and return 2-tuple with list of warnings and errors.
@@ -753,6 +776,10 @@ def extract_errors_from_log(log_txt, reg_exps):
                     or tuple of regular expression and action (any of [IGNORE, WARN, ERROR])
     :return: (warnings, errors) as lists of lines containing a match
     """
+
+    if print_deprecation_warning:
+        _log.deprecated("extract_errors_from_log is deprecated, you should stop using it", '6.0')
+
     actions = (IGNORE, WARN, ERROR)
 
     # promote single string value to list, since code below expects a list
@@ -799,8 +826,11 @@ def check_log_for_errors(log_txt, reg_exps):
     :param reg_exps: List of: regular expressions (as strings) to error on,
                     or tuple of regular expression and action (any of [IGNORE, WARN, ERROR])
     """
+
+    _log.deprecated("check_log_for_errors is deprecated, you should stop using it", '6.0')
+
     global errors_found_in_log
-    warnings, errors = extract_errors_from_log(log_txt, reg_exps)
+    warnings, errors = extract_errors_from_log(log_txt, reg_exps, print_deprecation_warning=False)
 
     errors_found_in_log += len(warnings) + len(errors)
     if warnings:
