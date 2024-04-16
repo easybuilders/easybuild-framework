@@ -821,7 +821,8 @@ class RunTest(EnhancedTestCase):
 
         # fails because non-question is encountered
         error_pattern = "Max nohits 1 reached: end of output not-a-question-but-a-statement"
-        self.assertErrorRegex(EasyBuildError, error_pattern, run_cmd_qa, cmd, qa, maxhits=1, trace=False)
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_cmd_qa, cmd, qa, maxhits=1, trace=False)
 
         with self.mocked_stdout_stderr():
             (out, ec) = run_cmd_qa(cmd, qa, no_qa=["not-a-question-but-a-statement"], maxhits=1, trace=False)
