@@ -74,14 +74,14 @@ class EasyBuildLibTest(TestCase):
 
         error_pattern = r"Undefined build option: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, run_cmd, "echo hello")
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_cmd, "echo hello")
 
         self.configure()
 
         # run_cmd works fine if set_up_configuration was called first
-        self.mock_stdout(True)
-        (out, ec) = run_cmd("echo hello")
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd("echo hello")
         self.assertEqual(ec, 0)
         self.assertEqual(out, 'hello\n')
 

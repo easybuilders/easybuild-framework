@@ -345,7 +345,7 @@ class FancyLogger(logging.getLoggerClass()):
         if loose_cv.version[:depth] >= loose_mv.version[:depth]:
             self.raiseException("DEPRECATED (since v%s) functionality used: %s" % (max_ver, msg), exception=exception)
         else:
-            deprecation_msg = "Deprecated functionality, will no longer work in v%s: %s" % (max_ver, msg)
+            deprecation_msg = "Deprecated functionality, will no longer work in EasyBuild v%s: %s" % (max_ver, msg)
             log_callback(deprecation_msg)
 
     def _handleFunction(self, function, levelno, **kwargs):
