@@ -214,6 +214,8 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
 
     stdout_end = stdout.decode(errors='ignore')[-1000:]
     for question, answers in qa_patterns:
+        # first replace hard spaces by regular spaces, since they would mess up the join/split below
+        question = question.replace(r'\ ', ' ')
         # replace spaces/line breaks with regex pattern that matches one or more spaces/line breaks,
         # and allow extra whitespace at the end
         question = space_line_break_pattern.join(space_line_break_regex.split(question)) + r'[\s\n]*$'
@@ -249,6 +251,8 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
         # if no match was found among question patterns,
         # take into account patterns for non-questions (qa_wait_patterns)
         for pattern in qa_wait_patterns:
+            # first replace hard spaces by regular spaces, since they would mess up the join/split below
+            pattern = pattern.replace(r'\ ', ' ')
             # replace spaces/line breaks with regex pattern that matches one or more spaces/line breaks,
             # and allow extra whitespace at the end
             pattern = space_line_break_pattern.join(space_line_break_regex.split(pattern)) + r'[\s\n]*$'

@@ -892,6 +892,20 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, "just\nwait\nplease\nanswer\n42\n")
 
+        # test multi-line question pattern with hard space
+        cmd = ';'.join([
+            "echo please",
+            "echo answer",
+            "read x",
+            "echo $x",
+        ])
+        # question pattern uses hard space, should get replaced internally by more liberal whitespace regex pattern
+        qa = [(r"please\ answer", "42")]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa, qa_timeout=3)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "please\nanswer\n42\n")
+
     def test_run_cmd_qa_buffering(self):
         """Test whether run_cmd_qa uses unbuffered output."""
 
