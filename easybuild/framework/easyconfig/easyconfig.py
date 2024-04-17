@@ -121,11 +121,11 @@ def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
         # map deprecated parameters to their replacements, issue deprecation warning(/error)
         if key in ALTERNATE_PARAMETERS:
             key = ALTERNATE_PARAMETERS[key]
-        if key in DEPRECATED_PARAMETERS:
+        elif key in DEPRECATED_PARAMETERS:
             depr_key = key
             key, ver = DEPRECATED_PARAMETERS[depr_key]
             _log.deprecated("Easyconfig parameter '%s' is deprecated, use '%s' instead" % (depr_key, key), ver)
-        if key in REPLACED_PARAMETERS:
+        elif key in REPLACED_PARAMETERS:
             _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
         return ec_method(self, key, *args, **kwargs)
 
