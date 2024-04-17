@@ -59,7 +59,7 @@ from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION, retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
-from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
+from easybuild.framework.easyconfig.parser import ALTERNATE_PARAMETERS, DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools import LooseVersion
@@ -118,6 +118,8 @@ def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
     def new_ec_method(self, key, *args, **kwargs):
         """Check whether any replace easyconfig parameters are still used"""
         # map deprecated parameters to their replacements, issue deprecation warning(/error)
+        if key in ALTERNATE_PARAMETERS:
+            key = ALTERNATE_PARAMETERS[key]
         if key in DEPRECATED_PARAMETERS:
             depr_key = key
             key, ver = DEPRECATED_PARAMETERS[depr_key]
@@ -179,7 +181,7 @@ def triage_easyconfig_params(variables, ec):
 
     for key in variables:
         # validations are skipped, just set in the config
-        if key in ec or key in DEPRECATED_PARAMETERS.keys():
+        if any(key in d for d in (ec, DEPRECATED_PARAMETERS.keys(), ALTERNATE_PARAMETERS.keys()):
             ec_params[key] = variables[key]
             _log.debug("setting config option %s: value %s (type: %s)", key, ec_params[key], type(ec_params[key]))
         elif key in REPLACED_PARAMETERS:
