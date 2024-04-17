@@ -182,7 +182,7 @@ def triage_easyconfig_params(variables, ec):
 
     for key in variables:
         # validations are skipped, just set in the config
-        if any(key in d for d in (ec, DEPRECATED_PARAMETERS.keys(), ALTERNATE_PARAMETERS.keys()):
+        if any(key in d for d in (ec, DEPRECATED_PARAMETERS.keys(), ALTERNATE_PARAMETERS.keys())):
             ec_params[key] = variables[key]
             _log.debug("setting config option %s: value %s (type: %s)", key, ec_params[key], type(ec_params[key]))
         elif key in REPLACED_PARAMETERS:
