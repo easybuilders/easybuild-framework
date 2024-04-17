@@ -61,7 +61,7 @@ from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION, retri
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import ALTERNATE_PARAMETERS, DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import ALTERNATE_TEMPLATES, DEPRECATED_TEMPLATES, TEMPLATE_CONSTANTS,
+from easybuild.framework.easyconfig.templates import ALTERNATE_TEMPLATES, DEPRECATED_TEMPLATES, TEMPLATE_CONSTANTS
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
