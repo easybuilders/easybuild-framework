@@ -207,7 +207,7 @@ class EasyBlock(object):
         self.install_subdir = None
 
         # indicates whether build should be performed in installation dir
-        self.build_in_installdir = self.cfg['buildininstalldir']
+        self.build_in_installdir = self.cfg['build_in_install_dir']
 
         # list of locations to include in RPATH filter used by toolchain
         self.rpath_filter_dirs = []
@@ -504,7 +504,7 @@ class EasyBlock(object):
         post_install_patches = []
         if patch_specs is None:
             # if no patch_specs are specified, use all pre-install and post-install patches
-            post_install_patches = self.cfg['postinstallpatches']
+            post_install_patches = self.cfg['post_install_patches']
             patch_specs = self.cfg['patches'] + post_install_patches
 
         patches = []
@@ -567,7 +567,7 @@ class EasyBlock(object):
 
                     # make sure we grab *raw* dict of default options for extension,
                     # since it may use template values like %(name)s & %(version)s
-                    ext_options = copy.deepcopy(self.cfg.get_ref('exts_default_options'))
+                    ext_options = copy.deepcopy(self.cfg.get_ref('exts_default_opts'))
 
                     if len(ext) == 3:
                         if isinstance(ext_options, dict):
@@ -1037,8 +1037,8 @@ class EasyBlock(object):
 
         builddir = os.path.join(os.path.abspath(build_path()), clean_name, self.version, lastdir)
 
-        # make sure build dir is unique if cleanupoldbuild is False or not set
-        if not self.cfg.get('cleanupoldbuild', False):
+        # make sure build dir is unique if clean_up_old_build is False or not set
+        if not self.cfg.get('clean_up_old_build', False):
             uniq_builddir = builddir
             suff = 0
             while os.path.isdir(uniq_builddir):
@@ -1057,36 +1057,36 @@ class EasyBlock(object):
             # self.builddir should be already set by gen_builddir()
             if not self.builddir:
                 raise EasyBuildError("self.builddir not set, make sure gen_builddir() is called first!")
-            self.log.debug("Creating the build directory %s (cleanup: %s)", self.builddir, self.cfg['cleanupoldbuild'])
+            self.log.debug("Creating the build directory %s (cleanup: %s)", self.builddir, self.cfg['clean_up_old_build'])
         else:
-            self.log.info("Overriding 'cleanupoldinstall' (to False), 'cleanupoldbuild' (to True) "
-                          "and 'keeppreviousinstall' because we're building in the installation directory.")
+            self.log.info("Overriding 'clean_up_old_install' (to False), 'clean_up_old_build' (to True) "
+                          "and 'keep_previous_install' because we're building in the installation directory.")
             # force cleanup before installation
             if build_option('module_only'):
-                self.log.debug("Disabling cleanupoldbuild because we run as module-only")
-                self.cfg['cleanupoldbuild'] = False
+                self.log.debug("Disabling clean_up_old_build because we run as module-only")
+                self.cfg['clean_up_old_build'] = False
             else:
-                self.cfg['cleanupoldbuild'] = True
+                self.cfg['clean_up_old_build'] = True
 
-            self.cfg['keeppreviousinstall'] = False
+            self.cfg['keep_previous_install'] = False
             # avoid cleanup after installation
-            self.cfg['cleanupoldinstall'] = False
+            self.cfg['clean_up_old_install'] = False
 
         # always make build dir,
-        # unless we're building in installation directory and we iterating over a list of (pre)config/build/installopts,
+        # unless we're building in installation directory and we iterating over a list of (pre)config/build/install_opts,
         # otherwise we wipe the already partially populated installation directory,
         # see https://github.com/easybuilders/easybuild-framework/issues/2556
         if not (self.build_in_installdir and self.iter_idx > 0):
             # make sure we no longer sit in the build directory before cleaning it.
             change_dir(self.orig_workdir)
-            self.make_dir(self.builddir, self.cfg['cleanupoldbuild'])
+            self.make_dir(self.builddir, self.cfg['clean_up_old_build'])
 
         trace_msg("build dir: %s" % self.builddir)
 
     def reset_env(self):
         """
         Reset environment.
-        When iterating over builddependencies, every time we start a new iteration
+        When iterating over build_deps, every time we start a new iteration
         we need to restore the environment to where it was before the relevant modules
         were loaded.
         """
@@ -1118,19 +1118,19 @@ class EasyBlock(object):
         Create the installation directory.
         """
         self.log.debug("Creating the installation directory %s (cleanup: %s)" % (self.installdir,
-                                                                                 self.cfg['cleanupoldinstall']))
+                                                                                 self.cfg['clean_up_old_install']))
         if self.build_in_installdir:
-            self.cfg['keeppreviousinstall'] = True
-        dontcreate = (dontcreate is None and self.cfg['dontcreateinstalldir']) or dontcreate
-        self.make_dir(self.installdir, self.cfg['cleanupoldinstall'], dontcreateinstalldir=dontcreate)
+            self.cfg['keep_previous_install'] = True
+        dontcreate = (dontcreate is None and self.cfg['dont_create_install_dir']) or dontcreate
+        self.make_dir(self.installdir, self.cfg['clean_up_old_install'], dont_create_install_dir=dontcreate)
 
-    def make_dir(self, dir_name, clean, dontcreateinstalldir=False):
+    def make_dir(self, dir_name, clean, dont_create_install_dir=False):
         """
         Create the directory.
         """
         if os.path.exists(dir_name):
             self.log.info("Found old directory %s" % dir_name)
-            if self.cfg['keeppreviousinstall']:
+            if self.cfg['keep_previous_install']:
                 self.log.info("Keeping old directory %s (hopefully you know what you are doing)", dir_name)
                 return
             elif build_option('module_only'):
@@ -1145,7 +1145,7 @@ class EasyBlock(object):
                 move_file(dir_name, backupdir)
                 self.log.info("Moved old directory %s to %s", dir_name, backupdir)
 
-        if dontcreateinstalldir:
+        if dont_create_install_dir:
             olddir = dir_name
             dir_name = os.path.dirname(dir_name)
             self.log.info("Cleaning only, no actual creation of %s, only verification/defining of dirname %s",
@@ -1201,7 +1201,7 @@ class EasyBlock(object):
 
         load_lines = []
         # capture all the EBDEVEL vars
-        # these should be all the dependencies and we should load them
+        # these should be all the deps and we should load them
         recursive_unload = self.cfg['recursive_module_unload']
         depends_on = self.cfg['module_depends_on']
         for key in os.environ:
@@ -1242,13 +1242,13 @@ class EasyBlock(object):
     def make_module_deppaths(self):
         """
         Add specific 'module use' actions to module file, in order to find
-        dependencies outside the end user's MODULEPATH.
+        deps outside the end user's MODULEPATH.
         """
-        deppaths = self.cfg['moddependpaths']
+        deppaths = self.cfg['modulepath_prepend_paths']
         if not deppaths:
             return ''
         elif not isinstance(deppaths, (str, list, tuple)):
-            raise EasyBuildError("moddependpaths value %s (type: %s) is not a string, list or tuple",
+            raise EasyBuildError("modulepath_prepend_paths value %s (type: %s) is not a string, list or tuple",
                                  deppaths, type(deppaths))
 
         if isinstance(deppaths, str):
@@ -1260,7 +1260,7 @@ class EasyBlock(object):
 
     def make_module_dep(self, unload_info=None):
         """
-        Make the dependencies for the module file.
+        Make the deps for the module file.
 
         :param unload_info: dictionary with full module names as keys and module name to unload first as corr. value
         """
@@ -1279,10 +1279,10 @@ class EasyBlock(object):
             tc_dep_mods = self.toolchain.toolchain_dep_mods
             self.log.debug("Toolchain components to load in generated module (before excluding any): %s", tc_dep_mods)
 
-        # include load/unload statements for dependencies
+        # include load/unload statements for deps
         deps = []
-        self.log.debug("List of deps considered to load in generated module: %s", self.toolchain.dependencies)
-        for dep in self.toolchain.dependencies:
+        self.log.debug("List of deps considered to load in generated module: %s", self.toolchain.deps)
+        for dep in self.toolchain.deps:
             if dep['build_only']:
                 self.log.debug("Skipping build dependency %s", dep)
             else:
@@ -1291,7 +1291,7 @@ class EasyBlock(object):
                 deps.append(modname)
         self.log.debug("List of deps to load in generated module (before excluding any): %s", deps)
 
-        # exclude dependencies that extend $MODULEPATH and form the path to the top of the module tree (if any)
+        # exclude deps that extend $MODULEPATH and form the path to the top of the module tree (if any)
         full_mod_subdir = os.path.join(self.installdir_mod, self.mod_subdir)
         init_modpaths = mns.det_init_modulepaths(self.cfg)
         top_paths = [self.installdir_mod] + [os.path.join(self.installdir_mod, p) for p in init_modpaths]
@@ -1312,7 +1312,7 @@ class EasyBlock(object):
         elif tc_mod is not None:
             deps = [tc_mod] + deps
 
-        # filter dependencies to avoid including loads for toolchain or toolchain components that extend $MODULEPATH
+        # filter deps to avoid including loads for toolchain or toolchain components that extend $MODULEPATH
         # with location to where this module is being installed (full_mod_subdir);
         # if the modules that extend $MODULEPATH are not loaded this module is not available, so there is not
         # point in loading them again (in fact, it may cause problems when reloading this module due to a load storm)
@@ -1323,12 +1323,12 @@ class EasyBlock(object):
 
         for excluded_dep in excluded_deps:
             excluded_dep_deps = dependencies_for(excluded_dep, self.modules_tool)
-            self.log.debug("List of dependencies for excluded dependency %s: %s" % (excluded_dep, excluded_dep_deps))
+            self.log.debug("List of deps for excluded dependency %s: %s" % (excluded_dep, excluded_dep_deps))
             deps = [d for d in deps if d not in excluded_dep_deps]
 
         self.log.debug("List of retained deps to load in generated module: %s", deps)
 
-        # include load statements for retained dependencies
+        # include load statements for retained deps
         recursive_unload = self.cfg['recursive_module_unload']
         depends_on = self.cfg['module_depends_on']
         loads = []
@@ -1341,7 +1341,7 @@ class EasyBlock(object):
                                                            unload_modules=unload_modules))
 
         # force unloading any other modules
-        if self.cfg['moduleforceunload']:
+        if self.cfg['env_mod_force_unload']:
             unloads = [self.module_generator.unload_module(d) for d in deps[::-1]]
             dep_stmts = unloads + loads
         else:
@@ -1404,40 +1404,40 @@ class EasyBlock(object):
         lines.append(self.module_generator.set_environment(devel_path_envvar, devel_path, relpath=True))
 
         lines.append('\n')
-        for (key, value) in self.cfg['modextravars'].items():
+        for (key, value) in self.cfg['env_mod_extra_vars'].items():
             lines.append(self.module_generator.set_environment(key, value))
 
-        for (key, value) in self.cfg['modextrapaths'].items():
+        for (key, value) in self.cfg['env_mod_extra_paths'].items():
             if isinstance(value, str):
                 value = [value]
             elif not isinstance(value, (tuple, list)):
-                raise EasyBuildError("modextrapaths dict value %s (type: %s) is not a list or tuple",
+                raise EasyBuildError("env_mod_extra_paths dict value %s (type: %s) is not a list or tuple",
                                      value, type(value))
             lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
 
-        for (key, value) in self.cfg['modextrapaths_append'].items():
+        for (key, value) in self.cfg['env_mod_extra_paths_append'].items():
             if isinstance(value, str):
                 value = [value]
             elif not isinstance(value, (tuple, list)):
-                raise EasyBuildError("modextrapaths_append dict value %s (type: %s) is not a list or tuple",
+                raise EasyBuildError("env_mod_extra_paths_append dict value %s (type: %s) is not a list or tuple",
                                      value, type(value))
             lines.append(self.module_generator.append_paths(key, value, allow_abs=self.cfg['allow_append_abs_path']))
 
-        modloadmsg = self.cfg['modloadmsg']
-        if modloadmsg:
+        env_mod_load_msg = self.cfg['env_mod_load_msg']
+        if env_mod_load_msg:
             # add trailing newline to prevent that shell prompt is 'glued' to module load message
-            if not modloadmsg.endswith('\n'):
-                modloadmsg += '\n'
-            lines.append(self.module_generator.msg_on_load(modloadmsg))
+            if not env_mod_load_msg.endswith('\n'):
+                env_mod_load_msg += '\n'
+            lines.append(self.module_generator.msg_on_load(env_mod_load_msg))
 
-        modunloadmsg = self.cfg['modunloadmsg']
-        if modunloadmsg:
+        env_mod_unload_msg = self.cfg['env_mod_unload_msg']
+        if env_mod_unload_msg:
             # add trailing newline to prevent that shell prompt is 'glued' to module unload/purge message
-            if not modunloadmsg.endswith('\n'):
-                modunloadmsg += '\n'
-            lines.append(self.module_generator.msg_on_unload(modunloadmsg))
+            if not env_mod_unload_msg.endswith('\n'):
+                env_mod_unload_msg += '\n'
+            lines.append(self.module_generator.msg_on_unload(env_mod_unload_msg))
 
-        for (key, value) in self.cfg['modaliases'].items():
+        for (key, value) in self.cfg['env_mod_aliases'].items():
             lines.append(self.module_generator.set_alias(key, value))
 
         txt = ''.join(lines)
@@ -1475,21 +1475,21 @@ class EasyBlock(object):
             self.log.debug("Including specified footer into module: '%s'" % self.modules_footer)
             footer.append(self.modules_footer)
 
-        if self.cfg['modtclfooter']:
+        if self.cfg['env_mod_tcl_footer']:
             if isinstance(self.module_generator, ModuleGeneratorTcl):
-                self.log.debug("Including Tcl footer in module: %s", self.cfg['modtclfooter'])
-                footer.extend([self.cfg['modtclfooter'], '\n'])
+                self.log.debug("Including Tcl footer in module: %s", self.cfg['env_mod_tcl_footer'])
+                footer.extend([self.cfg['env_mod_tcl_footer'], '\n'])
             else:
                 self.log.warning("Not including footer in Tcl syntax in non-Tcl module file: %s",
-                                 self.cfg['modtclfooter'])
+                                 self.cfg['env_mod_tcl_footer'])
 
-        if self.cfg['modluafooter']:
+        if self.cfg['env_mod_lua_footer']:
             if isinstance(self.module_generator, ModuleGeneratorLua):
-                self.log.debug("Including Lua footer in module: %s", self.cfg['modluafooter'])
-                footer.extend([self.cfg['modluafooter'], '\n'])
+                self.log.debug("Including Lua footer in module: %s", self.cfg['env_mod_lua_footer'])
+                footer.extend([self.cfg['env_mod_lua_footer'], '\n'])
             else:
                 self.log.warning("Not including footer in Lua syntax in non-Lua module file: %s",
-                                 self.cfg['modluafooter'])
+                                 self.cfg['env_mod_lua_footer'])
 
         return ''.join(footer)
 
@@ -1498,7 +1498,7 @@ class EasyBlock(object):
         Include prepend-path statements for extending $MODULEPATH.
         """
         txt = ''
-        if self.cfg['include_modpath_extensions']:
+        if self.cfg['include_modulepath_exts']:
             modpath_exts = ActiveMNS().det_modpath_extensions(self.cfg)
             self.log.debug("Including module path extensions returned by module naming scheme: %s", modpath_exts)
             full_path_modpath_extensions = [os.path.join(self.installdir_mod, ext) for ext in modpath_exts]
@@ -1922,11 +1922,11 @@ class EasyBlock(object):
             # prepare toolchain build environment, but only when not doing a dry run
             # since in that case the build environment is the same as for the parent
             if self.dry_run:
-                self.dry_run_msg("defining build environment based on toolchain (options) and dependencies...")
+                self.dry_run_msg("defining build environment based on toolchain (options) and deps...")
             else:
                 # don't reload modules for toolchain, there is no need since they will be loaded already;
                 # the (fake) module for the parent software gets loaded before installing extensions
-                ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                ext.toolchain.prepare(onlymod=self.cfg['only_toolchain_mod_env'], silent=True, loadmod=False,
                                       rpath_filter_dirs=self.rpath_filter_dirs)
 
             # actual installation of the extension
@@ -2029,13 +2029,13 @@ class EasyBlock(object):
                 required_deps = ext.required_deps
                 if required_deps is None:
                     pending_deps = None
-                    self.log.info("Required dependencies for %s are unknown!", ext.name)
+                    self.log.info("Required deps for %s are unknown!", ext.name)
                 else:
-                    self.log.info("Required dependencies for %s: %s", ext.name, ', '.join(required_deps))
+                    self.log.info("Required deps for %s: %s", ext.name, ', '.join(required_deps))
                     pending_deps = [x for x in required_deps if x not in installed_ext_names]
-                    self.log.info("Missing required dependencies for %s: %s", ext.name, ', '.join(pending_deps))
+                    self.log.info("Missing required deps for %s: %s", ext.name, ', '.join(pending_deps))
 
-                # if required dependencies could not be determined, wait until all preceding extensions are installed
+                # if required deps could not be determined, wait until all preceding extensions are installed
                 if pending_deps is None:
                     if running_exts:
                         # add extension back at top of the queue,
@@ -2053,20 +2053,20 @@ class EasyBlock(object):
                     self.dry_run_msg(msg)
                     running_exts.append(ext)
 
-                # if some of the required dependencies are not installed yet, requeue this extension
+                # if some of the required deps are not installed yet, requeue this extension
                 elif pending_deps:
 
-                    # make sure all required dependencies are actually going to be installed,
+                    # make sure all required deps are actually going to be installed,
                     # to avoid getting stuck in an infinite loop!
                     missing_deps = [x for x in required_deps if x not in all_ext_names]
                     if missing_deps:
-                        raise EasyBuildError("Missing required dependencies for %s are not going to be installed: %s",
+                        raise EasyBuildError("Missing required deps for %s are not going to be installed: %s",
                                              ext.name, ', '.join(missing_deps))
                     else:
-                        self.log.info("Required dependencies missing for extension %s (%s), adding it back to queue...",
+                        self.log.info("Required deps missing for extension %s (%s), adding it back to queue...",
                                       ext.name, ', '.join(pending_deps))
                         # purposely adding extension back in the queue at Nth place rather than at the end,
-                        # since we assume that the required dependencies will be installed soon...
+                        # since we assume that the required deps will be installed soon...
                         exts_queue.insert(max_iter, ext)
 
                 else:
@@ -2075,7 +2075,7 @@ class EasyBlock(object):
 
                     # don't reload modules for toolchain, there is no need since they will be loaded already;
                     # the (fake) module for the parent software gets loaded before installing extensions
-                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                    ext.toolchain.prepare(onlymod=self.cfg['only_toolchain_mod_env'], silent=True, loadmod=False,
                                           rpath_filter_dirs=self.rpath_filter_dirs)
                     if install:
                         ext.install_extension_substep("pre_install_extension")
@@ -2186,7 +2186,7 @@ class EasyBlock(object):
             if self.iter_idx == 0:
                 self.cfg.start_iterating()
 
-            # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
+            # handle configure/build/install options that are specified as lists (+ perhaps build_deps)
             # set first element to be used, keep track of list in self.iter_opts
             # only needs to be done during first iteration, since after that the options won't be lists anymore
             if self.iter_idx == 0:
@@ -2229,11 +2229,11 @@ class EasyBlock(object):
         """Determine iteration count based on configure/build/install options that may be lists."""
         # Using get_ref to avoid resolving templates as their required attributes may not be available yet
         iter_opt_counts = [len(self.cfg.get_ref(opt)) for opt in ITERATE_OPTIONS
-                           if opt not in ['builddependencies'] and isinstance(self.cfg.get_ref(opt), (list, tuple))]
+                           if opt not in ['build_deps'] and isinstance(self.cfg.get_ref(opt), (list, tuple))]
 
-        # we need to take into account that builddependencies is always a list
+        # we need to take into account that build_deps is always a list
         # we're only iterating over it if it's a list of lists
-        builddeps = self.cfg['builddependencies']
+        builddeps = self.cfg['build_deps']
         if all(isinstance(x, list) for x in builddeps):
             iter_opt_counts.append(len(builddeps))
 
@@ -2256,7 +2256,7 @@ class EasyBlock(object):
             par = min(int(par), int(cfg_par))
             self.log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
 
-        par = det_parallelism(par, maxpar=self.cfg['maxparallel'])
+        par = det_parallelism(par, maxpar=self.cfg['max_parallel'])
         self.log.info("Setting parallelism: %s" % par)
         self.cfg['parallel'] = par
 
@@ -2395,7 +2395,7 @@ class EasyBlock(object):
             self.dry_run_msg("\nList of patches:")
 
         # fetch patches
-        if self.cfg['patches'] + self.cfg['postinstallpatches']:
+        if self.cfg['patches'] + self.cfg['post_install_patches']:
             if self.cfg['checksums'] and isinstance(self.cfg['checksums'], (list, tuple)):
                 # if checksums are provided as a list, first entries are assumed to be for sources
                 patches_checksums = self.cfg['checksums'][len(self.cfg['sources']):]
@@ -2580,7 +2580,7 @@ class EasyBlock(object):
         for src in self.src:
             self.log.info("Unpacking source %s" % src['name'])
             srcdir = extract_file(src['path'], self.builddir, cmd=src['cmd'],
-                                  extra_options=self.cfg['unpack_options'], change_into_dir=False)
+                                  extra_options=self.cfg['unpack_opts'], change_into_dir=False)
             change_dir(srcdir)
             if srcdir:
                 self.src[self.src.index(src)]['finalpath'] = srcdir
@@ -2632,10 +2632,10 @@ class EasyBlock(object):
         Pre-configure step. Set's up the builddir just before starting configure
 
         :param start_dir: guess start directory based on unpacked sources
-        :param load_tc_deps_modules: load modules for toolchain and dependencies in build environment
+        :param load_tc_deps_modules: load modules for toolchain and deps in build environment
         """
         if self.dry_run:
-            self.dry_run_msg("Defining build environment, based on toolchain (options) and specified dependencies...\n")
+            self.dry_run_msg("Defining build environment, based on toolchain (options) and specified deps...\n")
 
         # clean environment, undefine any unwanted environment variables that may be harmful
         self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
@@ -2684,7 +2684,7 @@ class EasyBlock(object):
             self.toolchain.reset()
 
         # if active module naming scheme involves any top-level directories in the hierarchy (e.g. Core/ in HMNS)
-        # make sure they are included in $MODULEPATH such that loading of dependencies (with short module names) works
+        # make sure they are included in $MODULEPATH such that loading of deps (with short module names) works
         # https://github.com/easybuilders/easybuild-framework/issues/2186
         init_modpaths = ActiveMNS().det_init_modulepaths(self.cfg)
         curr_modpaths = curr_module_paths()
@@ -2693,8 +2693,8 @@ class EasyBlock(object):
             if os.path.exists(full_mod_path) and full_mod_path not in curr_modpaths:
                 self.modules_tool.prepend_module_path(full_mod_path)
 
-        # prepare toolchain: load toolchain module and dependencies, set up build environment
-        self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
+        # prepare toolchain: load toolchain module and deps, set up build environment
+        self.toolchain.prepare(self.cfg['only_toolchain_mod_env'], deps=self.cfg.dependencies(), silent=self.silent,
                                loadmod=load_tc_deps_modules, rpath_filter_dirs=self.rpath_filter_dirs,
                                rpath_include_dirs=self.rpath_include_dirs)
 
@@ -2707,7 +2707,7 @@ class EasyBlock(object):
                 self.log.info("Found tweaked value for $%s: %s (was: %s)",
                               var, self.tweaked_env_vars[var], self.initial_environ[var])
 
-        # handle allowed system dependencies
+        # handle allowed system deps
         for (name, version) in self.cfg['allow_system_deps']:
             # root is set to name, not an actual path
             env.setvar(get_software_root_env_var_name(name), name)
@@ -2737,7 +2737,7 @@ class EasyBlock(object):
 
     def test_step(self):
         """Run unit tests provided by software (if any)."""
-        unit_test_cmd = self.cfg['runtest']
+        unit_test_cmd = self.cfg['run_test']
         if unit_test_cmd:
             self.log.debug(f"Trying to execute {unit_test_cmd} as a command for running unit tests...")
             res = run_shell_cmd(unit_test_cmd)
@@ -2774,7 +2774,7 @@ class EasyBlock(object):
             return
 
         self.ext_instances = []
-        exts_classmap = self.cfg['exts_classmap']
+        exts_class_map = self.cfg['exts_class_map']
 
         # self.exts may already be populated at this point through collect_exts_file_info;
         # if it's not, we do it lightweight here, by skipping fetching of the files;
@@ -2830,15 +2830,15 @@ class EasyBlock(object):
                 self.log.debug("Failed to use extension-specific class for extension %s: %s", ext_name, err)
 
             # alternative attempt: use class specified in class map (if any)
-            if inst is None and ext_name in exts_classmap:
-                class_name = exts_classmap[ext_name]
+            if inst is None and ext_name in exts_class_map:
+                class_name = exts_class_map[ext_name]
                 mod_path = get_module_path(class_name)
                 try:
                     cls = get_class_for(mod_path, class_name)
-                    self.log.debug("Obtained class %s for extension %s from exts_classmap", cls, ext_name)
+                    self.log.debug("Obtained class %s for extension %s from exts_class_map", cls, ext_name)
                     inst = cls(self, ext)
                 except Exception as err:
-                    raise EasyBuildError("Failed to load specified class %s (from %s) specified via exts_classmap "
+                    raise EasyBuildError("Failed to load specified class %s (from %s) specified via exts_class_map "
                                          "for extension %s: %s",
                                          class_name, mod_path, ext_name, err)
 
@@ -2883,7 +2883,7 @@ class EasyBlock(object):
         fake_mod_data = None
         if install and not self.dry_run:
 
-            # load modules for build dependencies as extra modules
+            # load modules for build deps as extra modules
             build_dep_mods = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
 
             fake_mod_data = self.load_fake_module(purge=True, extra_modules=build_dep_mods)
@@ -2997,27 +2997,27 @@ class EasyBlock(object):
 
     def run_post_install_commands(self, commands=None):
         """
-        Run post install commands that are specified via 'postinstallcmds' easyconfig parameter.
+        Run post install commands that are specified via 'post_install_cmds' easyconfig parameter.
         """
         if commands is None:
-            commands = self.cfg['postinstallcmds']
+            commands = self.cfg['post_install_cmds']
 
         if commands:
             self.log.debug(f"Specified post install commands: {commands}")
 
             # make sure we have a list of commands
             if not isinstance(commands, (list, tuple)):
-                error_msg = f"Invalid value for 'postinstallcmds', should be list or tuple of strings: {commands}"
+                error_msg = f"Invalid value for 'post_install_cmds', should be list or tuple of strings: {commands}"
                 raise EasyBuildError(error_msg)
 
             for cmd in commands:
                 if not isinstance(cmd, str):
-                    raise EasyBuildError(f"Invalid element in 'postinstallcmds', not a string: {cmd}")
+                    raise EasyBuildError(f"Invalid element in 'post_install_cmds', not a string: {cmd}")
                 run_shell_cmd(cmd)
 
     def apply_post_install_patches(self, patches=None):
         """
-        Apply post-install patch files that are specified via the 'postinstallpatches' easyconfig parameter.
+        Apply post-install patch files that are specified via the 'post_install_patches' easyconfig parameter.
         """
         if patches is None:
             patches = [p for p in self.patches if p['postinstall']]
@@ -3025,14 +3025,14 @@ class EasyBlock(object):
         self.log.debug("Post-install patches to apply: %s", patches)
         if patches:
             # self may be inherited from the Bundle easyblock and that patch_step is a no-op
-            # To allow postinstallpatches for Bundle, and derived, easyblocks we directly call EasyBlock.patch_step
+            # To allow post_install_patches for Bundle, and derived, easyblocks we directly call EasyBlock.patch_step
             EasyBlock.patch_step(self, beginpath=self.installdir, patches=patches)
 
     def print_post_install_messages(self):
         """
-        Print post-install messages that are specified via the 'postinstallmsgs' easyconfig parameter.
+        Print post-install messages that are specified via the 'post_install_msgs' easyconfig parameter.
         """
-        msgs = self.cfg['postinstallmsgs'] or []
+        msgs = self.cfg['post_install_msgs'] or []
         for msg in msgs:
             print_msg(msg, log=self.log)
 
@@ -3085,26 +3085,26 @@ class EasyBlock(object):
             self._sanity_check_step(*args, **kwargs)
 
     def _sanity_check_step_multi_deps(self, *args, **kwargs):
-        """Perform sanity check for installations that iterate over a list a versions for particular dependencies."""
+        """Perform sanity check for installations that iterate over a list a versions for particular deps."""
 
         # take into account provided list of extra modules (if any)
         common_extra_modules = kwargs.get('extra_modules') or []
 
-        # if multi_deps was used to do an iterative installation over multiple sets of dependencies,
+        # if multi_deps was used to do an iterative installation over multiple sets of deps,
         # we need to perform the sanity check for each one of these;
-        # this implies iterating over the list of lists of build dependencies again...
+        # this implies iterating over the list of lists of build deps again...
 
-        # get list of (lists of) builddependencies, without templating values
-        builddeps = self.cfg.get_ref('builddependencies')
+        # get list of (lists of) build_deps, without templating values
+        builddeps = self.cfg.get_ref('build_deps')
 
         # start iterating again;
-        # required to ensure build dependencies are taken into account to resolve templates like %(pyver)s
+        # required to ensure build deps are taken into account to resolve templates like %(pyver)s
         self.cfg.iterating = True
 
         for iter_deps in self.cfg.multi_deps:
 
             # need to re-generate template values to get correct values for %(pyver)s and %(pyshortver)s
-            self.cfg['builddependencies'] = iter_deps
+            self.cfg['build_deps'] = iter_deps
             self.cfg.generate_template_values()
 
             extra_modules = common_extra_modules + [d['short_mod_name'] for d in iter_deps]
@@ -3116,8 +3116,8 @@ class EasyBlock(object):
             kwargs['extra_modules'] = extra_modules
             self._sanity_check_step(*args, **kwargs)
 
-        # restore list of lists of build dependencies & stop iterating again
-        self.cfg['builddependencies'] = builddeps
+        # restore list of lists of build deps & stop iterating again
+        self.cfg['build_deps'] = builddeps
         self.cfg.iterating = False
 
     def sanity_check_rpath(self, rpath_dirs=None, check_readelf_rpath=True):
@@ -3362,7 +3362,7 @@ class EasyBlock(object):
         }
 
         enhance_sanity_check = self.cfg['enhance_sanity_check']
-        ec_commands = self.cfg['sanity_check_commands']
+        ec_commands = self.cfg['sanity_check_cmds']
         ec_paths = self.cfg['sanity_check_paths']
 
         # if enhance_sanity_check is not enabled, only sanity_check_paths specified in the easyconfig file are used,
@@ -3418,7 +3418,7 @@ class EasyBlock(object):
                     new_values.append(value)
             values[:] = new_values
 
-        # if enhance_sanity_check is not enabled, only sanity_check_commands specified in the easyconfig file are used,
+        # if enhance_sanity_check is not enabled, only sanity_check_cmds specified in the easyconfig file are used,
         # the ones provided by the easyblock (via custom_commands) are ignored
         if ec_commands and not enhance_sanity_check:
             commands = ec_commands
@@ -3430,7 +3430,7 @@ class EasyBlock(object):
             else:
                 commands = []
 
-            # if enhance_sanity_check is enabled, the sanity_check_commands specified in the easyconfig file
+            # if enhance_sanity_check is enabled, the sanity_check_cmds specified in the easyconfig file
             # are combined with those provided by the easyblock via custom_commands
             if enhance_sanity_check and ec_commands:
                 commands = commands + ec_commands
@@ -3557,7 +3557,7 @@ class EasyBlock(object):
 
             try:
                 # unload all loaded modules before loading fake module
-                # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
+                # this ensures that loading of deps is tested, and avoids conflicts with build deps
                 self.fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules, verbose=True)
                 self.sanity_check_module_loaded = True
             except EasyBuildError as err:
@@ -3669,7 +3669,7 @@ class EasyBlock(object):
 
         # software installed with GCCcore toolchain should not have Fortran module files (.mod),
         # unless that's explicitly allowed
-        if self.toolchain.name in ('GCCcore',) and not self.cfg['skip_mod_files_sanity_check']:
+        if self.toolchain.name in ('GCCcore',) and not self.cfg['skip_fortran_mod_files_sanity_check']:
             mod_files_found_msg = self.sanity_check_mod_files()
             if mod_files_found_msg:
                 if build_option('fail_on_mod_files_gcccore'):
@@ -3934,14 +3934,14 @@ class EasyBlock(object):
         sanity_check_only = build_option('sanity_check_only')
         skip_extensions = build_option('skip_extensions')
         skip_test_step = build_option('skip_test_step')
-        skipsteps = self.cfg['skipsteps']
+        skip_steps = self.cfg['skip_steps']
 
         # under --skip, sanity check is not skipped
         cli_skip = self.skip and step != SANITYCHECK_STEP
 
         # skip step if specified as individual (skippable) step, or if --skip is used
-        if skippable and (cli_skip or step in skipsteps):
-            self.log.info("Skipping %s step (skip: %s, skipsteps: %s)", step, self.skip, skipsteps)
+        if skippable and (cli_skip or step in skip_steps):
+            self.log.info("Skipping %s step (skip: %s, skip_steps: %s)", step, self.skip, skip_steps)
             skip = True
 
         # skip step when only generating module file
@@ -3969,9 +3969,9 @@ class EasyBlock(object):
             skip = True
 
         else:
-            msg = "Not skipping %s step (skippable: %s, skip: %s, skipsteps: %s, module_only: %s, force: %s, "
+            msg = "Not skipping %s step (skippable: %s, skip: %s, skip_steps: %s, module_only: %s, force: %s, "
             msg += "sanity_check_only: %s, skip_extensions: %s, skip_test_step: %s)"
-            self.log.debug(msg, step, skippable, self.skip, skipsteps, module_only, force,
+            self.log.debug(msg, step, skippable, self.skip, skip_steps, module_only, force,
                            sanity_check_only, skip_extensions, skip_test_step)
 
         return skip
@@ -4364,8 +4364,8 @@ def build_and_install_one(ecdict, init_env):
             # collect build stats
             _log.info("Collecting build stats...")
 
-            buildstats = get_build_stats(app, start_time, build_option('command_line'))
-            _log.info("Build stats: %s" % buildstats)
+            build_stats = get_build_stats(app, start_time, build_option('command_line'))
+            _log.info("Build stats: %s" % build_stats)
 
             try:
                 # move the reproducibility files to the final log directory
@@ -4384,12 +4384,12 @@ def build_and_install_one(ecdict, init_env):
 
             try:
                 # upload easyconfig (and patch files) to central repository
-                currentbuildstats = app.cfg['buildstats']
+                currentbuildstats = app.cfg['build_stats']
                 repo = init_repository(get_repository(), get_repositorypath())
                 if 'original_spec' in ecdict:
                     block = det_full_ec_version(app.cfg) + ".block"
-                    repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
-                repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
+                    repo.add_easyconfig(ecdict['original_spec'], app.name, block, build_stats, currentbuildstats)
+                repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), build_stats, currentbuildstats)
                 for patch in app.patches:
                     repo.add_patch(patch['path'], app.name)
                 repo.commit("Built %s" % app.full_mod_name)
@@ -4595,8 +4595,8 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
 
             if app not in build_stopped:
                 # gather build stats
-                buildstats = get_build_stats(app, start_time, build_option('command_line'))
-                succes.append((app, buildstats))
+                build_stats = get_build_stats(app, start_time, build_option('command_line'))
+                succes.append((app, build_stats))
 
     for result in test_results:
         _log.info("%s crashed with an error during fase: %s, error: %s, log file: %s" % result)
@@ -4830,10 +4830,10 @@ def inject_checksums(ecs, checksum_type):
 
                     # make sure we grab *raw* dict of default options for extension,
                     # since it may use template values like %(name)s & %(version)s
-                    exts_default_options = app.cfg.get_ref('exts_default_options')
+                    exts_default_opts = app.cfg.get_ref('exts_default_opts')
 
                     for key, val in sorted(ext_options.items()):
-                        if key != 'checksums' and val != exts_default_options.get(key):
+                        if key != 'checksums' and val != exts_default_opts.get(key):
                             strval = quote_str(val, prefer_single_quotes=True)
                             line = "%s'%s': %s," % (INDENT_4SPACES * 2, key, strval)
                             # fix long lines for list-type values (e.g. patches)

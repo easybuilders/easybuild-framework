@@ -175,7 +175,7 @@ class RepositoryTest(EnhancedTestCase):
             self.assertTrue(ectxt.startswith("# Built with EasyBuild version"))
             self.assertIn("# Build statistics", ectxt)
             ecdict = EasyConfigParser(path).get_config_dict()
-            self.assertEqual(ecdict['buildstats'], expected_buildstats)
+            self.assertEqual(ecdict['build_stats'], expected_buildstats)
 
         toy_eb_file = os.path.join(test_easyconfigs, 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 

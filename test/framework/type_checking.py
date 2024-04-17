@@ -91,9 +91,9 @@ class TypeCheckingTest(EnhancedTestCase):
             self.assertEqual(check_type_of_param_value('toolchain', tcspec, auto_convert=True), (True, toolchain))
 
     def test_check_type_of_param_value_deps(self):
-        """Test check_type_of_param_value function for *dependencies."""
+        """Test check_type_of_param_value function for *deps."""
 
-        # dependencies (type check)
+        # deps (type check)
         inputs = [
             [],
             [{'name': 'foo', 'version': '1.2.3'}],
@@ -103,7 +103,7 @@ class TypeCheckingTest(EnhancedTestCase):
             [{'name': 'foo', 'version': '1.2.3'}, {'name': 'bar', 'version': '3.4.5'}],
         ]
         for inp in inputs:
-            self.assertEqual(check_type_of_param_value('dependencies', inp), (True, inp))
+            self.assertEqual(check_type_of_param_value('deps', inp), (True, inp))
 
         inputs = [
             ['foo'],
@@ -115,33 +115,33 @@ class TypeCheckingTest(EnhancedTestCase):
             [{'name': 'foo', 'version': '1.2.3', 'somekey': 'wrong'}],
         ]
         for inp in inputs:
-            self.assertEqual(check_type_of_param_value('dependencies', inp), (False, None))
+            self.assertEqual(check_type_of_param_value('deps', inp), (False, None))
 
-        # dependencies (auto-convert)
-        self.assertEqual(check_type_of_param_value('dependencies', [{'foo': '1.2.3'}], auto_convert=True),
+        # deps (auto-convert)
+        self.assertEqual(check_type_of_param_value('deps', [{'foo': '1.2.3'}], auto_convert=True),
                          (True, [{'name': 'foo', 'version': '1.2.3'}]))
         # tuple values pass through untouched (are handled later by EasyConfig._parse_dependency)
         inp = [('foo', '1.2.3')]
-        self.assertEqual(check_type_of_param_value('dependencies', inp, auto_convert=True), (True, [('foo', '1.2.3')]))
+        self.assertEqual(check_type_of_param_value('deps', inp, auto_convert=True), (True, [('foo', '1.2.3')]))
         inp = [('foo', '1.2.3'), {'bar': '3.4.5'}, ('baz', '9.8.7')]
         out = (True, [('foo', '1.2.3'), {'name': 'bar', 'version': '3.4.5'}, ('baz', '9.8.7')])
-        self.assertEqual(check_type_of_param_value('dependencies', inp, auto_convert=True), out)
+        self.assertEqual(check_type_of_param_value('deps', inp, auto_convert=True), out)
 
-        # osdependencies (type check)
+        # os_deps (type check)
         inputs = [
             ['zlib'],
             [('openssl-devel', 'libssl-dev', 'libopenssl-devel')],
             ['zlib', ('openssl-devel', 'libssl-dev', 'libopenssl-devel')],
         ]
         for inp in inputs:
-            self.assertEqual(check_type_of_param_value('osdependencies', inp), (True, inp))
+            self.assertEqual(check_type_of_param_value('os_deps', inp), (True, inp))
 
         inp = ['zlib', ['openssl-devel', 'libssl-dev', 'libopenssl-devel']]
-        self.assertEqual(check_type_of_param_value('osdependencies', inp), (False, None))
+        self.assertEqual(check_type_of_param_value('os_deps', inp), (False, None))
 
-        # osdependencies (auto-convert)
+        # os_deps (auto-convert)
         out = ['zlib', ('openssl-devel', 'libssl-dev', 'libopenssl-devel')]
-        self.assertEqual(check_type_of_param_value('osdependencies', inp, auto_convert=True), (True, out))
+        self.assertEqual(check_type_of_param_value('os_deps', inp, auto_convert=True), (True, out))
 
     def test_check_type_of_param_value_sanity_check_paths(self):
         """Test check_type_of_param_value function for sanity_check_paths."""
@@ -461,18 +461,18 @@ class TypeCheckingTest(EnhancedTestCase):
             'extra': 'bar',
         }, DEPENDENCY_DICT))
 
-        # list of dependencies type check
-        dependencies = [
+        # list of deps type check
+        deps = [
             {'name': 'intel', 'version': '2015a'},
             {'name': 'gcc', 'version': '4.1.3'},
             {'name': 'dummy', 'version': 'dummy', 'versionsuffix': 'foo',
              'toolchain': {'name': 'intel', 'version': '2015a'}},
         ]
-        self.assertTrue(is_value_of_type(dependencies, DEPENDENCIES))
+        self.assertTrue(is_value_of_type(deps, DEPENDENCIES))
 
         # string value for toolchain key is not OK
-        dependencies.append({'name': 'foo', 'version': '1.2.3', 'toolchain': 'intel, 2015a'})
-        self.assertFalse(is_value_of_type(dependencies, DEPENDENCIES))
+        deps.append({'name': 'foo', 'version': '1.2.3', 'toolchain': 'intel, 2015a'})
+        self.assertFalse(is_value_of_type(deps, DEPENDENCIES))
 
         # wrong keys (name/version is strictly required)
         self.assertFalse(is_value_of_type([{'a': 'b', 'c': 'd'}], DEPENDENCIES))

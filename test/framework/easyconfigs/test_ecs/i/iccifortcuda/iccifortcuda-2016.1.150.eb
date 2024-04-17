@@ -11,7 +11,7 @@ toolchain = SYSTEM
 local_comp_ver = '2016.1.150'
 local_gccsuff = '-GCC-4.9.3-2.25'
 
-dependencies = [
+deps = [
     ('icc', local_comp_ver, local_gccsuff),
     ('ifort', local_comp_ver, local_gccsuff),
     ('CUDA', '5.5.22', '', ('iccifort', '%s%s' % (local_comp_ver, local_gccsuff))),

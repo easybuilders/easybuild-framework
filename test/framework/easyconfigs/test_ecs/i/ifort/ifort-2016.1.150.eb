@@ -11,7 +11,7 @@ toolchain = SYSTEM
 
 sources = ['l_fcompxe_%s.tgz' % version]
 
-dontcreateinstalldir = 'True'
+dont_create_install_dir = 'True'
 
 license_file = HOME + '/licenses/intel/license.lic'
 

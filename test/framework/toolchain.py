@@ -1741,7 +1741,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertExists(nodesfile.split(' ')[1])
 
     def test_prepare_deps(self):
-        """Test preparing for a toolchain when dependencies are involved."""
+        """Test preparing for a toolchain when deps are involved."""
         tc = self.get_toolchain('GCC', version='6.4.0-2.28')
         deps = [
             {
@@ -1759,7 +1759,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(sorted(m['mod_name'] for m in self.modtool.list()), sorted(mods))
 
     def test_prepare_deps_external(self):
-        """Test preparing for a toolchain when dependencies and external modules are involved."""
+        """Test preparing for a toolchain when deps and external modules are involved."""
         deps = [
             {
                 'name': 'OpenMPI',
@@ -2088,12 +2088,12 @@ class ToolchainTest(EnhancedTestCase):
         for key in ['EBROOTICC', 'EBROOTIFORT', 'EBVERSIONICC', 'EBVERSIONIFORT']:
             self.assertIsNone(os.getenv(key))
 
-        # install fake iccifort module with no dependencies
+        # install fake iccifort module with no deps
         fake_iccifort = os.path.join(self.test_prefix, 'iccifort', '2018.1.163')
         write_file(fake_iccifort, "#%Module")
         self.modtool.use(self.test_prefix)
 
-        # toolchain verification fails because icc/ifort are not dependencies of iccifort modules,
+        # toolchain verification fails because icc/ifort are not deps of iccifort modules,
         # and corresponding environment variables are not set
         error_pattern = "List of toolchain dependency modules and toolchain definition do not match"
         with self.mocked_stdout_stderr():
@@ -2112,7 +2112,7 @@ class ToolchainTest(EnhancedTestCase):
         # toolchain preparation (which includes verification) works fine now
         with self.mocked_stdout_stderr():
             tc.prepare()
-        # no dependencies found in iccifort module
+        # no deps found in iccifort module
         self.assertEqual(tc.toolchain_dep_mods, [])
 
     def test_standalone_iccifortcuda(self):
@@ -2127,12 +2127,12 @@ class ToolchainTest(EnhancedTestCase):
         for key in ['EBROOTICC', 'EBROOTIFORT', 'EBVERSIONICC', 'EBVERSIONIFORT', 'EBROOTCUDA', 'EBVERSIONCUDA']:
             self.assertIsNone(os.getenv(key))
 
-        # install fake iccifortcuda module with no dependencies
+        # install fake iccifortcuda module with no deps
         fake_iccifortcuda = os.path.join(self.test_prefix, 'iccifortcuda', '2018b')
         write_file(fake_iccifortcuda, "#%Module")
         self.modtool.use(self.test_prefix)
 
-        # toolchain verification fails because icc/ifort are not dependencies of iccifortcuda modules,
+        # toolchain verification fails because icc/ifort are not deps of iccifortcuda modules,
         # and corresponding environment variables are not set
         error_pattern = "List of toolchain dependency modules and toolchain definition do not match"
         with self.mocked_stdout_stderr():
@@ -2144,7 +2144,7 @@ class ToolchainTest(EnhancedTestCase):
         # toolchain preparation (which includes verification) works fine now
         with self.mocked_stdout_stderr():
             tc.prepare()
-        # dependencies found in iccifortcuda module
+        # deps found in iccifortcuda module
         self.assertEqual(tc.toolchain_dep_mods, ['iccifort/2019.5.281', 'CUDA/9.1.85'])
 
     def test_independence(self):

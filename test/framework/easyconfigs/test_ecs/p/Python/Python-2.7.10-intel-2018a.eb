@@ -8,7 +8,7 @@ description = """Python is a programming language that lets you work more quickl
 more effectively."""
 
 toolchain = {'name': 'intel', 'version': '2018a'}
-toolchainopts = {'pic': True, 'opt': True, 'optarch': True}
+toolchain_opts = {'pic': True, 'opt': True, 'optarch': True}
 
 local_numpyver = '1.9.2'
 local_scipyver = '0.15.1'
@@ -17,8 +17,8 @@ source_urls = ['http://www.python.org/ftp/%(namelower)s/%(version)s/']
 sources = [SOURCE_TGZ]
 
 # python needs bzip2 to build the bz2 package
-# commented out for testing to avoid having to add them all - dependencies are tested in other files
-dependencies = [
+# commented out for testing to avoid having to add them all - deps are tested in other files
+deps = [
     # ('bzip2', '1.0.6'),
     # ('zlib', '1.2.8'),
     # ('libreadline', '6.3'),
@@ -29,7 +29,7 @@ dependencies = [
     # it's nice to have an up to date openssl for security reasons
 ]
 
-osdependencies = [('openssl-devel', 'libssl-dev', 'libopenssl-devel')]
+os_deps = [('openssl-devel', 'libssl-dev', 'libopenssl-devel')]
 
 # order is important!
 # package versions updated May 28th 2015

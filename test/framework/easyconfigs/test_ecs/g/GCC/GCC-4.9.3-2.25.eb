@@ -13,7 +13,7 @@ description = """The GNU Compiler Collection includes front ends for C, C++, Obj
 
 toolchain = SYSTEM
 
-dependencies = [
+deps = [
     ('GCCcore', version),
     # binutils built on top of GCCcore, which was built on top of (system-built) binutils
     ('binutils', local_binutilsver, '', ('GCCcore', version)),

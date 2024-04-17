@@ -9,7 +9,7 @@ description = """The ScaLAPACK (or Scalable LAPACK) library includes a subset of
 redesigned for distributed memory MIMD parallel computers."""
 
 toolchain = {'name': 'gompi', 'version': '2018a'}
-toolchainopts = {'pic': True}
+toolchain_opts = {'pic': True}
 
 source_urls = [homepage]
 sources = [SOURCELOWER_TGZ]
@@ -19,8 +19,8 @@ local_blasver = '0.2.20'
 
 versionsuffix = "-%s-%s-broken" % (local_blaslib, local_blasver)
 
-builddependencies = [('CMake','2.8.10')]
-dependencies = [(local_blaslib, local_blasver, '')]
+build_deps = [('CMake','2.8.10')]
+deps = [(local_blaslib, local_blasver, '')]
 
 # parallel build tends to fail, so disabling it
 parallel = 1

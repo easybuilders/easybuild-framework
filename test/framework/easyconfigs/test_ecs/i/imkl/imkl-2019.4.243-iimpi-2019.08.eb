@@ -14,7 +14,7 @@ toolchain = {'name': 'iimpi', 'version': '2019.08'}
 
 sources = ['l_mkl_%(version)s.tgz']
 
-dontcreateinstalldir = 'True'
+dont_create_install_dir = 'True'
 
 license_file = HOME + '/licenses/intel/license.lic'
 

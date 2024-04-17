@@ -11,7 +11,7 @@ Intel MPI and Intel MKL"""
 
 toolchain = SYSTEM
 
-dependencies = [
+deps = [
     ('icc', version, versionsuffix),
     ('ifort', version, versionsuffix),
 ]

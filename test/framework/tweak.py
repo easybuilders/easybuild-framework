@@ -242,7 +242,7 @@ class TweakTest(EnhancedTestCase):
                               foss_hierarchy[3], iimpi_hierarchy)
 
     def test_dep_tree_of_toolchain(self):
-        """Test getting list of dependencies of a toolchain (as EasyConfig objects)"""
+        """Test getting list of deps of a toolchain (as EasyConfig objects)"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
             'valid_module_classes': module_classes(),
@@ -368,7 +368,7 @@ class TweakTest(EnhancedTestCase):
         tc_mapping = map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool)
         ec_spec = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb')
         parsed_ec = process_easyconfig(ec_spec)[0]
-        gzip_dep = [dep for dep in parsed_ec['ec']['dependencies'] if dep['name'] == 'gzip'][0]
+        gzip_dep = [dep for dep in parsed_ec['ec']['deps'] if dep['name'] == 'gzip'][0]
         self.assertEqual(gzip_dep['full_mod_name'], 'gzip/1.4-GCC-4.9.3-2.26')
 
         potential_versions = find_potential_version_mappings(gzip_dep, tc_mapping)
@@ -440,10 +440,10 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(value, tweaked_dict[key])
         # Also check that binutils has been mapped
         for key, value in {'name': 'binutils', 'version': '2.25', 'versionsuffix': ''}.items():
-            self.assertIn(key, tweaked_dict['builddependencies'][0])
-            self.assertEqual(tweaked_dict['builddependencies'][0][key], value)
+            self.assertIn(key, tweaked_dict['build_deps'][0])
+            self.assertEqual(tweaked_dict['build_deps'][0][key], value)
 
-        # Now test the case where we try to update the dependencies
+        # Now test the case where we try to update the deps
         init_config(build_options=build_options)
         get_toolchain_hierarchy.clear()
         tweaked_spec = map_easyconfig_to_target_tc_hierarchy(ec_spec, tc_mapping, update_dep_versions=True)
@@ -455,12 +455,12 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(value, tweaked_dict[key])
         # Also check that binutils has been mapped
         for key, value in {'name': 'binutils', 'version': '2.25', 'versionsuffix': ''}.items():
-            self.assertIn(key, tweaked_dict['builddependencies'][0])
-            self.assertEqual(tweaked_dict['builddependencies'][0][key], value)
+            self.assertIn(key, tweaked_dict['build_deps'][0])
+            self.assertEqual(tweaked_dict['build_deps'][0][key], value)
         # Also check that the gzip dependency was upgraded
         for key, value in {'name': 'gzip', 'version': '1.6', 'versionsuffix': ''}.items():
-            self.assertIn(key, tweaked_dict['dependencies'][0])
-            self.assertEqual(tweaked_dict['dependencies'][0][key], value)
+            self.assertIn(key, tweaked_dict['deps'][0])
+            self.assertEqual(tweaked_dict['deps'][0][key], value)
 
         # Make sure there are checksums for our next test
         self.assertTrue(tweaked_dict['checksums'])
@@ -481,12 +481,12 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(tweaked_dict[key], value)
         # Also check that binutils has been mapped
         for key, value in {'name': 'binutils', 'version': '2.25', 'versionsuffix': ''}.items():
-            self.assertIn(key, tweaked_dict['builddependencies'][0])
-            self.assertEqual(tweaked_dict['builddependencies'][0][key], value)
+            self.assertIn(key, tweaked_dict['build_deps'][0])
+            self.assertEqual(tweaked_dict['build_deps'][0][key], value)
         # Also check that the gzip dependency was upgraded
         for key, value in {'name': 'gzip', 'version': '1.6', 'versionsuffix': ''}.items():
-            self.assertIn(key, tweaked_dict['dependencies'][0])
-            self.assertEqual(tweaked_dict['dependencies'][0][key], value)
+            self.assertIn(key, tweaked_dict['deps'][0])
+            self.assertEqual(tweaked_dict['deps'][0][key], value)
 
         # Finally check that the version was upgraded
         key, value = 'version', new_version
@@ -522,7 +522,7 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(hit_extension, 1, "Should only have updated one extension")
 
     def test_list_deps_versionsuffixes(self):
-        """Test listing of dependencies' version suffixes"""
+        """Test listing of deps' version suffixes"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
             'robot_path': [test_easyconfigs],

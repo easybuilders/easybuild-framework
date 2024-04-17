@@ -9,7 +9,7 @@ name = "toy"
 
 homepage = 'https://easybuilders.github.io/easybuild'
 description = "Toy C program, 100% toy."
-docurls = ["https://github.com/easybuilders/easybuild/wiki"]
+doc_urls = ["https://github.com/easybuilders/easybuild/wiki"]
 
 software_license = GPLv2
 software_license_urls = ['https://github.com/easybuilders/easybuild/wiki/License']
@@ -34,7 +34,7 @@ toolchains = foss == 2018a, system == system
 [DEFAULT]
 
 [DEPENDENCIES]
-# various types of (meaningless) dependencies: simply, with toolchain/suffix
+# various types of (meaningless) deps: simply, with toolchain/suffix
 GCC = 6.4.0-2.28
 OpenMPI = 2.1.2; GCC == 6.4.0-2.28
 OpenBLAS = 0.2.20; GCC == 6.4.0-2.28

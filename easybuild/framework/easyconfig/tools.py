@@ -114,7 +114,7 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
 
     :param easyconfigs: list of parsed easyconfigs
     :param avail_modules: list of available modules
-    :param retain_all_deps: retain all dependencies, regardless of whether modules are available for them or not
+    :param retain_all_deps: retain all deps, regardless of whether modules are available for them or not
     """
     ordered_ecs = []
     new_easyconfigs = []
@@ -129,7 +129,7 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
         else:
             easyconfig = easyconfig.copy()
         deps = []
-        for dep in easyconfig['dependencies']:
+        for dep in easyconfig['deps']:
             dep_mod_name = dep.get('full_mod_name', ActiveMNS().det_full_module_name(dep))
 
             # always treat external modules as resolved,
@@ -138,7 +138,7 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
                 _log.debug("Treating dependency marked as external module as resolved: %s", dep_mod_name)
 
             elif retain_all_deps and dep_mod_name not in avail_modules:
-                # if all dependencies should be retained, include dep unless it has been already
+                # if all deps should be retained, include dep unless it has been already
                 _log.debug("Retaining new dep %s in 'retain all deps' mode", dep_mod_name)
                 deps.append(dep)
 
@@ -155,16 +155,16 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
                 _log.debug("No module available for dep %s, retaining it", dep)
                 deps.append(dep)
 
-        # update list of dependencies with only those unresolved
-        easyconfig['dependencies'] = deps
+        # update list of deps with only those unresolved
+        easyconfig['deps'] = deps
 
-        # if all dependencies have been resolved, add module for this easyconfig in the list of available modules
-        if not easyconfig['dependencies']:
+        # if all deps have been resolved, add module for this easyconfig in the list of available modules
+        if not easyconfig['deps']:
             _log.debug("Adding easyconfig %s to final list" % easyconfig['spec'])
             ordered_ecs.append(easyconfig)
             mod_name = easyconfig['full_mod_name']
             avail_modules.append(mod_name)
-            # remove module name from list, so dependencies can be marked as resolved
+            # remove module name from list, so deps can be marked as resolved
             ec_mod_names.remove(mod_name)
 
         else:
@@ -203,7 +203,7 @@ def dep_graph(filename, specs):
         spec['ec']._all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
         all_nodes.update(spec['ec'].all_dependencies)
 
-        # Get the build dependencies for each spec so we can distinguish them later
+        # Get the build deps for each spec so we can distinguish them later
         spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec'].builddependencies()]
         all_nodes.update(spec['ec'].build_dependencies)
 
@@ -314,7 +314,7 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None, from_commit=N
     """Obtain alternative paths for easyconfig files."""
 
     # paths where tweaked easyconfigs will be placed, easyconfigs listed on the command line take priority and will be
-    # prepended to the robot path, tweaked dependencies are also created but these will only be appended to the robot
+    # prepended to the robot path, tweaked deps are also created but these will only be appended to the robot
     # path (and therefore only used if strictly necessary)
     tweaked_ecs_paths = None
     if tweaked_ecs:

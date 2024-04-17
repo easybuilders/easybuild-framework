@@ -23,6 +23,6 @@ sources = [SOURCELOWER_TAR_GZ]
 # languages = ['c', 'c++', 'fortran', 'lto']
 
 # building GCC sometimes fails if make parallelism is too high, so let's limit it
-maxparallel = 4
+max_parallel = 4
 
 moduleclass = 'compiler'

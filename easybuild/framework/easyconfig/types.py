@@ -451,7 +451,7 @@ def to_dependency(dep):
         to
         {'name': 'fftw/3.3.4.1', 'external_module': True, 'version': None}
     """
-    # deal with dependencies coming for .eb easyconfig, typically in tuple format:
+    # deal with deps coming for .eb easyconfig, typically in tuple format:
     #   (name, version[, versionsuffix[, toolchain]])
     if isinstance(dep, dict):
         depspec = {}
@@ -504,8 +504,8 @@ def to_dependency(dep):
 
 def to_dependencies(dep_list):
     """
-    Convert a list of dependencies obtained from parsing a .yeb easyconfig
-    to a list of dependencies in the correct format
+    Convert a list of deps obtained from parsing a .yeb easyconfig
+    to a list of deps in the correct format
     """
     return [to_dependency(dep) for dep in dep_list]
 
@@ -630,15 +630,15 @@ EASY_TYPES = [str, bool, dict, int, list, str, tuple]
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
     'checksums': CHECKSUMS,
-    'docurls': LIST_OF_STRINGS,
+    'doc_urls': LIST_OF_STRINGS,
     'name': str,
-    'osdependencies': STRING_OR_TUPLE_LIST,
+    'os_deps': STRING_OR_TUPLE_LIST,
     'patches': STRING_OR_TUPLE_OR_DICT_LIST,
     'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
     'toolchain': TOOLCHAIN_DICT,
     'version': str,
 }
-# add all dependency types as dependencies
+# add all dependency types as deps
 for dep in DEPENDENCY_PARAMETERS:
     PARAMETER_TYPES[dep] = DEPENDENCIES
 

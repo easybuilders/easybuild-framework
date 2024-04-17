@@ -15,7 +15,7 @@ sources = ['l_mpi_oneapi_p_%(version)s.215_offline.sh']
 checksums = ['d0d4cdd11edaff2e7285e38f537defccff38e37a3067c02f4af43a3629ad4aa3']
 
 # dummy easyconfig, only for use with easybuild-framwork test suite!
-dependencies = [
+deps = [
     # ('UCX', '1.10.0'),
 ]
 

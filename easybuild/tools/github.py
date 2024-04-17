@@ -914,7 +914,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     * push PR branch to GitHub (to account specified by --github-user)
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
-    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param ecs: list of parsed easyconfigs, incl. for deps (if robot is enabled)
     :param start_branch: name of branch to use as base for PR
     :param pr_branch: name of branch to push to GitHub
     :param start_account: name of GitHub account to use as base for PR
@@ -1018,15 +1018,15 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         'new': [],
     }
 
-    # include missing easyconfigs for dependencies, if robot is enabled
+    # include missing easyconfigs for deps, if robot is enabled
     if ecs is not None:
 
         abs_paths = [os.path.realpath(os.path.abspath(path)) for path in ec_paths]
         dep_paths = [ec['spec'] for ec in ecs if os.path.realpath(ec['spec']) not in abs_paths]
-        _log.info("Paths to easyconfigs for missing dependencies: %s", dep_paths)
+        _log.info("Paths to easyconfigs for missing deps: %s", dep_paths)
         all_dep_info = copy_easyconfigs(dep_paths, target_dir)
 
-        # only consider new easyconfig files for dependencies (not updated ones)
+        # only consider new easyconfig files for deps (not updated ones)
         for idx in range(len(all_dep_info['ecs'])):
             if all_dep_info['new'][idx]:
                 for key in dep_info:
@@ -1697,7 +1697,7 @@ def new_branch_github(paths, ecs, commit_msg=None):
     Create new branch on GitHub using specified files
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches, files with .py extension)
-    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param ecs: list of parsed easyconfigs, incl. for deps (if robot is enabled)
     :param commit_msg: commit message to use
     """
     branch_name = build_option('pr_branch_name')
@@ -1922,7 +1922,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     Open new pull request using specified files
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
-    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param ecs: list of parsed easyconfigs, incl. for deps (if robot is enabled)
     :param title: title to use for pull request
     :param descr: description to use for description
     :param commit_msg: commit message to use
@@ -2030,7 +2030,7 @@ def update_branch(branch_name, paths, ecs, github_account=None, commit_msg=None)
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
     :param github_account: GitHub account where branch is located
-    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param ecs: list of parsed easyconfigs, incl. for deps (if robot is enabled)
     :param commit_msg: commit message to use
     """
     if commit_msg is None:
@@ -2062,7 +2062,7 @@ def update_pr(pr_id, paths, ecs, commit_msg=None):
 
     :param pr_id: ID of pull request to update
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
-    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param ecs: list of parsed easyconfigs, incl. for deps (if robot is enabled)
     :param commit_msg: commit message to use
     """
 

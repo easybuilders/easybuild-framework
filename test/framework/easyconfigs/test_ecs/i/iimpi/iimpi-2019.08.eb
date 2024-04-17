@@ -10,7 +10,7 @@ toolchain = SYSTEM
 
 local_compver = '2019.4.243'
 
-dependencies = [
+deps = [
     ('iccifort', local_compver),
     ('impi', '2019.4.243', '', ('iccifort', local_compver)),
 ]

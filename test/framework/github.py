@@ -578,7 +578,7 @@ class GithubTest(EnhancedTestCase):
     def test_fetch_easyconfigs_from_commit(self):
         """Test fetch_easyconfigs_from_commit function."""
 
-        # commit in which easyconfigs for PyTables 3.9.2 + dependencies were added
+        # commit in which easyconfigs for PyTables 3.9.2 + deps were added
         test_commit = '6515b44cd84a20fe7876cb4bdaf3c0080e688566'
 
         # without specifying any files/repo, default is to determine which files were changed in the commit

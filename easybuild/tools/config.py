@@ -545,8 +545,8 @@ def init_build_options(build_options=None, cmdline_options=None):
     active_build_options = {}
 
     if cmdline_options is not None:
-        # building a dependency graph implies force, so that all dependencies are retained
-        # and also skips validation of easyconfigs (e.g. checking os dependencies)
+        # building a dependency graph implies force, so that all deps are retained
+        # and also skips validation of easyconfigs (e.g. checking os deps)
         retain_all_deps = False
         if cmdline_options.dep_graph or cmdline_options.check_conflicts:
             _log.info("Enabling force to generate dependency graph.")
@@ -557,7 +557,7 @@ def init_build_options(build_options=None, cmdline_options=None):
         new_update_opt = new_update_opt or cmdline_options.update_branch_github or cmdline_options.update_pr
 
         if new_update_opt:
-            _log.info("Retaining all dependencies of specified easyconfigs to create/update branch or pull request")
+            _log.info("Retaining all deps of specified easyconfigs to create/update branch or pull request")
             retain_all_deps = True
 
         auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.check_contrib,
@@ -569,7 +569,7 @@ def init_build_options(build_options=None, cmdline_options=None):
                                       cmdline_options.new_pr, cmdline_options.preview_pr,
                                       cmdline_options.update_branch_github, cmdline_options.update_pr]
         if any(auto_ignore_osdeps_options):
-            _log.info("Auto-enabling ignoring of OS dependencies")
+            _log.info("Auto-enabling ignoring of OS deps")
             cmdline_options.ignore_osdeps = True
 
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]

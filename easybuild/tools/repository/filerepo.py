@@ -85,7 +85,7 @@ class FileRepository(Repository):
         full_path = os.path.join(self.wc, self.subdir, name)
 
         extension = EB_FORMAT_EXTENSION
-        prefix = "buildstats = ["
+        prefix = "build_stats = ["
 
         # destination
         dest = os.path.join(full_path, "%s-%s%s" % (name, version, extension))
@@ -139,4 +139,4 @@ class FileRepository(Repository):
             return []
 
         eb = EasyConfig(dest, validate=False)
-        return eb['buildstats']
+        return eb['build_stats']

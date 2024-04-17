@@ -1239,7 +1239,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         }
         test_mns()
 
-        # test determining module name for dependencies (i.e. non-parsed easyconfigs)
+        # test determining module name for deps (i.e. non-parsed easyconfigs)
         # using a module naming scheme that requires all easyconfig parameters
         ec2mod_map['gzip-1.5-foss-2018a.eb'] = 'gzip/.65dc39f92bf634667c478c50e43f0cda96b093a9'
         for dep_ec, dep_spec in [
@@ -1506,7 +1506,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         ]
         self.assertEqual(dependencies_for('foss/2018a', self.modtool), expected)
 
-        # only with depth=0, only direct dependencies are returned
+        # only with depth=0, only direct deps are returned
         self.assertEqual(dependencies_for('foss/2018a', self.modtool, depth=0), expected[:-2])
 
         # Lmod 7.6+ is required to use depends-on

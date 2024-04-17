@@ -24,7 +24,7 @@
 # #
 """
 Module for doing parallel builds. This uses a PBS-like cluster. You should be able to submit jobs (which can have
-dependencies)
+deps)
 
 Support for PBS is provided via the PbsJob class. If you want you could create other job classes and use them here.
 

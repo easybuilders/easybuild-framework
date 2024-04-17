@@ -50,10 +50,10 @@ FORMAT_VERSION_HEADER_TEMPLATE = "# %s %s\n" % (FORMAT_VERSION_KEYWORD, FORMAT_V
 FORMAT_VERSION_REGEXP = re.compile(r'^#\s+%s\s*(?P<major>\d+)\.(?P<minor>\d+)\s*$' % FORMAT_VERSION_KEYWORD, re.M)
 FORMAT_DEFAULT_VERSION = EasyVersion('1.0')
 
-DEPENDENCY_PARAMETERS = ['builddependencies', 'dependencies', 'hiddendependencies']
+DEPENDENCY_PARAMETERS = ['build_deps', 'deps', 'hidden_deps']
 
 # values for these keys will not be templated in dump()
-EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'exts_default_options', 'exts_list',
+EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'exts_default_opts', 'exts_list',
                                    'homepage', 'multi_deps', 'name', 'toolchain', 'version'] + DEPENDENCY_PARAMETERS
 
 # ordered groups of keys to obtain a nice looking easyconfig file
@@ -61,18 +61,18 @@ GROUPED_PARAMS = [
     ['easyblock'],
     ['name', 'version', 'versionprefix', 'versionsuffix'],
     ['homepage', 'description'],
-    ['toolchain', 'toolchainopts'],
+    ['toolchain', 'toolchain_opts'],
     ['source_urls', 'sources', 'patches', 'checksums'],
     DEPENDENCY_PARAMETERS + ['multi_deps'],
-    ['osdependencies'],
-    ['preconfigopts', 'configopts'],
-    ['prebuildopts', 'buildopts'],
-    ['preinstallopts', 'installopts'],
-    ['parallel', 'maxparallel'],
+    ['os_deps'],
+    ['pre_configure_opts', 'configure_opts'],
+    ['pre_build_opts', 'build_opts'],
+    ['pre_install_opts', 'install_opts'],
+    ['parallel', 'max_parallel'],
 ]
-LAST_PARAMS = ['exts_default_options', 'exts_list',
-               'sanity_check_paths', 'sanity_check_commands',
-               'modextrapaths', 'modextrapaths_append', 'modextravars',
+LAST_PARAMS = ['exts_default_opts', 'exts_list',
+               'sanity_check_paths', 'sanity_check_cmds',
+               'env_mod_extra_paths', 'env_mod_extra_paths_append', 'env_mod_extra_vars',
                'moduleclass']
 
 SANITY_CHECK_PATHS_DIRS = 'dirs'
@@ -263,7 +263,7 @@ class EBConfigObj(object):
                 # only supported types of section keys are:
                 # * DEFAULT
                 # * SUPPORTED
-                # * dependencies
+                # * deps
                 # * VersionOperator or ToolchainVersionOperator (e.g. [> 2.0], [goolf > 1])
                 if key in [self.SECTION_MARKER_DEFAULT, self.SECTION_MARKER_SUPPORTED]:
                     # parse value as a section, recursively
@@ -272,11 +272,11 @@ class EBConfigObj(object):
                     current[key] = new_value
 
                 elif key == self.SECTION_MARKER_DEPENDENCIES:
-                    new_key = 'dependencies'
+                    new_key = 'deps'
                     new_value = []
                     for dep_name, dep_val in value.items():
                         if isinstance(dep_val, Section):
-                            raise EasyBuildError("Unsupported nested section '%s' in dependencies section", dep_name)
+                            raise EasyBuildError("Unsupported nested section '%s' in deps section", dep_name)
                         else:
                             # FIXME: parse the dependency specification for version, toolchain, suffix, etc.
                             dep = Dependency(dep_val, name=dep_name)

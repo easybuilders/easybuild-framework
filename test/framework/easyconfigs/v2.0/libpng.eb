@@ -1,13 +1,13 @@
 # EASYCONFIGFORMAT 2.0
 """
-Example easyconfig with dependencies
+Example easyconfig with deps
 @author: Kenneth Hoste (UGent)
 """
 name = 'libpng'
 
 homepage = 'http://www.libpng.org/pub/png/libpng.html'
 description = "libpng is the official PNG reference library"
-docurls = [
+doc_urls = [
     'http://www.libpng.org/pub/png/pngdocs.html',
     'http://www.libpng.org/pub/png/pngintro.html',
 ]
@@ -16,9 +16,9 @@ software_license = Libpng
 software_license_urls = ['http://libpng.org/pub/png/src/libpng-LICENSE.txt']
 
 
-toolchainopts = {'optarch': True}
+toolchain_opts = {'optarch': True}
 
-configopts = "--with-pic"
+configure_opts = "--with-pic"
 
 source_urls = [SOURCEFORGE_SOURCE]
 sources = [SOURCELOWER_TAR_GZ]

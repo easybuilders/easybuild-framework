@@ -11,7 +11,7 @@ toolchain = SYSTEM
 
 local_compver = '2016.1.150'
 local_suff = '-GCC-4.9.3-2.25'
-dependencies = [
+deps = [
     ('icc', local_compver, local_suff),
     ('ifort', local_compver, local_suff),
     ('impi', '5.1.2.150', '', ('iccifort', '%s%s' % (local_compver, local_suff))),

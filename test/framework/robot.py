@@ -134,7 +134,7 @@ class RobotTest(EnhancedTestCase):
         self.modtool = self.orig_modtool
 
     def test_resolve_dependencies(self):
-        """ Test with some basic testcases (also check if he can find dependencies inside the given directory """
+        """ Test with some basic testcases (also check if he can find deps inside the given directory """
         self.install_mock_module()
 
         base_easyconfig_dir = find_full_path(os.path.join('test', 'framework', 'easyconfigs', 'test_ecs'))
@@ -144,7 +144,7 @@ class RobotTest(EnhancedTestCase):
             'spec': '_',
             'full_mod_name': 'name/version',
             'short_mod_name': 'name/version',
-            'dependencies': []
+            'deps': []
         }
         build_options = {
             'allow_modules_tool_mismatch': True,
@@ -166,7 +166,7 @@ class RobotTest(EnhancedTestCase):
             'spec': '_',
             'short_mod_name': 'foo/1.2.3',
             'full_mod_name': 'foo/1.2.3',
-            'dependencies': [{
+            'deps': [{
                 'name': 'gzip',
                 'version': '1.4',
                 'versionsuffix': '',
@@ -184,7 +184,7 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
 
-        # hidden dependencies are found too, but only retained if they're not available (or forced to be retained
+        # hidden deps are found too, but only retained if they're not available (or forced to be retained
         hidden_dep = {
             'name': 'toy',
             'version': '0.0',
@@ -194,8 +194,8 @@ class RobotTest(EnhancedTestCase):
             'hidden': True,
         }
         easyconfig_moredeps = deepcopy(easyconfig_dep)
-        easyconfig_moredeps['dependencies'].append(hidden_dep)
-        easyconfig_moredeps['hiddendependencies'] = [hidden_dep]
+        easyconfig_moredeps['deps'].append(hidden_dep)
+        easyconfig_moredeps['hidden_deps'] = [hidden_dep]
 
         # toy/.0.0-deps is available and thus should be omitted
         res = resolve_dependencies([deepcopy(easyconfig_moredeps)], self.modtool)
@@ -218,16 +218,16 @@ class RobotTest(EnhancedTestCase):
         build_options.update({'robot_path': None})
         init_config(build_options=build_options)
         res = resolve_dependencies(ecs, self.modtool)
-        # all dependencies should be resolved
-        self.assertEqual(0, sum(len(ec['dependencies']) for ec in res))
+        # all deps should be resolved
+        self.assertEqual(0, sum(len(ec['deps']) for ec in res))
 
         # this should not resolve (cannot find gzip-1.4.eb), both with and without robot enabled
         ecs = [deepcopy(easyconfig_dep)]
-        msg = "Missing dependencies"
+        msg = "Missing deps"
         self.assertErrorRegex(EasyBuildError, msg, resolve_dependencies, ecs, self.modtool)
 
-        # test if dependencies of an automatically found file are also loaded
-        easyconfig_dep['dependencies'] = [{
+        # test if deps of an automatically found file are also loaded
+        easyconfig_dep['deps'] = [{
             'name': 'gzip',
             'version': '1.4',
             'versionsuffix': '',
@@ -254,7 +254,7 @@ class RobotTest(EnhancedTestCase):
             'ScaLAPACK/2.0.2-gompi-2018a-OpenBLAS-0.2.20',
         ]
 
-        easyconfig_dep['dependencies'] = [{
+        easyconfig_dep['deps'] = [{
             'name': 'foss',
             'version': '2018a',
             'versionsuffix': '',
@@ -296,7 +296,7 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual('foss/2018a', res[0]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[1]['full_mod_name'])
 
-        # with retain_all_deps enabled, all dependencies ae retained
+        # with retain_all_deps enabled, all deps ae retained
         build_options.update({'retain_all_deps': True})
         init_config(build_options=build_options)
         ecs = [deepcopy(easyconfig_dep)]
@@ -318,7 +318,7 @@ class RobotTest(EnhancedTestCase):
             'FFTW/3.3.7-gompi-2018a',
         ]
 
-        easyconfig_dep['dependencies'] = [{
+        easyconfig_dep['deps'] = [{
             'name': 'foss',
             'version': '2018a',
             'versionsuffix': '',
@@ -365,11 +365,11 @@ class RobotTest(EnhancedTestCase):
                 'spec': '_',
                 'short_mod_name': '%s/%s' % (name, version),
                 'full_mod_name': '%s/%s' % (name, version),
-                'dependencies': [],
+                'deps': [],
                 'parsed': True,
             }
             for depname, depver in deps:
-                spec['dependencies'].append(mkdepspec(depname, depver))
+                spec['deps'].append(mkdepspec(depname, depver))
 
             return spec
 
@@ -398,7 +398,7 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual([x['full_mod_name'] for x in res], expected)
 
     def test_resolve_dependencies_minimal(self):
-        """Test resolved dependencies with minimal toolchain."""
+        """Test resolved deps with minimal toolchain."""
 
         # replace log.experimental with log.warning to allow experimental code
         easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
@@ -423,10 +423,10 @@ class RobotTest(EnhancedTestCase):
             "version = '1.2.3'",
             "homepage = 'http://example.com'",
             "description = 'foo'",
-            # deliberately listing components of toolchain as dependencies without specifying subtoolchains,
-            # to test resolving of dependencies with minimal toolchain
+            # deliberately listing components of toolchain as deps without specifying subtoolchains,
+            # to test resolving of deps with minimal toolchain
             # for each of these, we know test easyconfigs are available (which are required here)
-            "dependencies = [",
+            "deps = [",
             # the use of %(version_minor)s here is mainly to check if templates are being handled correctly
             # (it doesn't make much sense, but it serves the purpose)
             "   ('OpenMPI', '%(version_minor)s.1.2'),",  # available with GCC/6.4.0-2.28
@@ -454,7 +454,7 @@ class RobotTest(EnhancedTestCase):
             'bar/1.2.3-foss-2018a',
         ]
 
-        # no modules available, so all dependencies are retained
+        # no modules available, so all deps are retained
         MockModule.avail_modules = []
         res = resolve_dependencies([bar], self.modtool)
         self.assertEqual(len(res), 10)
@@ -470,13 +470,13 @@ class RobotTest(EnhancedTestCase):
             'SQLite/3.8.10.2-GCC-6.4.0-2.28',
         ]
 
-        # test resolving dependencies with minimal toolchain (rather than using foss/2018a for all of them)
+        # test resolving deps with minimal toolchain (rather than using foss/2018a for all of them)
         # existing modules are *not* taken into account when determining minimal subtoolchain, by default
         res = resolve_dependencies([bar], self.modtool)
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0]['full_mod_name'], bar['ec'].full_mod_name)
 
-        # test retaining all dependencies, regardless of whether modules are available or not
+        # test retaining all deps, regardless of whether modules are available or not
         res = resolve_dependencies([bar], self.modtool, retain_all_deps=True)
         self.assertEqual(len(res), 10)
         mods = [x['full_mod_name'] for x in res]
@@ -526,10 +526,10 @@ class RobotTest(EnhancedTestCase):
             "version = '1.2.3'",
             "homepage = 'http://example.com'",
             "description = 'foo'",
-            # deliberately listing components of toolchain as dependencies without specifying subtoolchains,
-            # to test resolving of dependencies with minimal toolchain
+            # deliberately listing components of toolchain as deps without specifying subtoolchains,
+            # to test resolving of deps with minimal toolchain
             # for each of these, we know test easyconfigs are available (which are required here)
-            "dependencies = [",
+            "deps = [",
             "   ('impi', '5.1.2.150'),",  # has system toolchain
             "   ('gzip', '1.4'),",  # has system toolchain
             "]",
@@ -546,7 +546,7 @@ class RobotTest(EnhancedTestCase):
         self.assertIn('gzip/1.4', mods)
 
     def test_resolve_dependencies_missing(self):
-        """Test handling of missing dependencies in resolve_dependencies function."""
+        """Test handling of missing deps in resolve_dependencies function."""
 
         self.install_mock_module()
         MockModule.avail_modules = []
@@ -565,7 +565,7 @@ class RobotTest(EnhancedTestCase):
             'short_mod_name': 'test/123',
             'full_mod_name': 'test/123',
             'parsed': True,
-            'dependencies': [{
+            'deps': [{
                 'name': 'somedep',
                 'version': '4.5.6',
                 'versionsuffix': '',
@@ -577,7 +577,7 @@ class RobotTest(EnhancedTestCase):
             }],
         }
 
-        error = r"Missing dependencies: somedep/4.5.6 \(no easyconfig file or existing module found\)"
+        error = r"Missing deps: somedep/4.5.6 \(no easyconfig file or existing module found\)"
         self.assertErrorRegex(EasyBuildError, error, resolve_dependencies, [ec], self.modtool)
 
         # check behaviour if only module file is available
@@ -586,7 +586,7 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0]['full_mod_name'], 'test/123')
 
-        error = r"Missing dependencies: somedep/4.5.6 \(no easyconfig file found in robot search path\)"
+        error = r"Missing deps: somedep/4.5.6 \(no easyconfig file found in robot search path\)"
         self.assertErrorRegex(EasyBuildError, error, resolve_dependencies, [ec], self.modtool, retain_all_deps=True)
 
         res = resolve_dependencies([ec], self.modtool, retain_all_deps=True, raise_error_missing_ecs=False)
@@ -1033,7 +1033,7 @@ class RobotTest(EnhancedTestCase):
             'robot_path': [self.test_prefix, test_easyconfigs],
         })
         tc = {'name': 'gompi', 'version': '2018a'}
-        error_msg = "Multiple versions of GCC found in dependencies of toolchain gompi: 4.6.4, 6.4.0-2.28"
+        error_msg = "Multiple versions of GCC found in deps of toolchain gompi: 4.6.4, 6.4.0-2.28"
         self.assertErrorRegex(EasyBuildError, error_msg, get_toolchain_hierarchy, tc)
 
     def test_find_resolved_modules(self):
@@ -1043,7 +1043,7 @@ class RobotTest(EnhancedTestCase):
             'version': '1.2.3',
             'versionsuffix': '',
             'toolchain': {'name': 'system', 'version': 'system'},
-            'dependencies': [],
+            'deps': [],
             'full_mod_name': 'nodeps/1.2.3',
             'spec': 'nodeps-1.2.3.eb',
             'hidden': False,
@@ -1066,7 +1066,7 @@ class RobotTest(EnhancedTestCase):
             'name': 'onedep',
             'version': '3.14',
             'toolchain': {'name': 'foss', 'version': '2018a'},
-            'dependencies': [dep1],
+            'deps': [dep1],
             'full_mod_name': 'onedep/3.14-foss-2018a',
             'spec': 'onedep-3.14-foss-2018a.eb',
         }
@@ -1074,7 +1074,7 @@ class RobotTest(EnhancedTestCase):
             'name': 'threedeps',
             'version': '9.8.7',
             'toolchain': {'name': 'foss', 'version': '2018a'},
-            'dependencies': [dep1, dep2, nodeps],
+            'deps': [dep1, dep2, nodeps],
             'full_mod_name': 'threedeps/9.8.7-foss-2018a',
             'spec': 'threedeps-9.8.7-foss-2018a.eb',
         }
@@ -1087,24 +1087,24 @@ class RobotTest(EnhancedTestCase):
 
         ordered_ecs, new_easyconfigs, new_avail_modules = find_resolved_modules(ecs, mods, self.modtool)
 
-        # all dependencies are resolved for easyconfigs included in ordered_ecs
-        self.assertFalse(any(ec['dependencies'] for ec in ordered_ecs))
+        # all deps are resolved for easyconfigs included in ordered_ecs
+        self.assertFalse(any(ec['deps'] for ec in ordered_ecs))
 
-        # nodeps/ondep easyconfigs have all dependencies resolved
+        # nodeps/ondep easyconfigs have all deps resolved
         self.assertEqual(len(ordered_ecs), 2)
         self.assertEqual(nodeps, ordered_ecs[0])
-        onedep['dependencies'] = []
+        onedep['deps'] = []
         self.assertEqual(onedep, ordered_ecs[1])
 
-        # threedeps has available dependencies (foo, nodeps) filtered out
+        # threedeps has available deps (foo, nodeps) filtered out
         self.assertEqual(len(new_easyconfigs), 1)
         self.assertEqual(new_easyconfigs[0]['full_mod_name'], 'threedeps/9.8.7-foss-2018a')
-        self.assertEqual(len(new_easyconfigs[0]['dependencies']), 1)
-        self.assertEqual(new_easyconfigs[0]['dependencies'][0]['name'], 'bar')
+        self.assertEqual(len(new_easyconfigs[0]['deps']), 1)
+        self.assertEqual(new_easyconfigs[0]['deps'][0]['name'], 'bar')
 
         self.assertTrue(new_avail_modules, mods + ['nodeps/1.2.3', 'onedep/3.14-foss-2018a'])
 
-        # also check results with retaining all dependencies enabled
+        # also check results with retaining all deps enabled
         ordered_ecs, new_easyconfigs, new_avail_modules = find_resolved_modules(ecs, [], self.modtool,
                                                                                 retain_all_deps=True)
 
@@ -1112,14 +1112,14 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual([ec['full_mod_name'] for ec in ordered_ecs], ['nodeps/1.2.3', 'onedep/3.14-foss-2018a'])
 
         self.assertEqual(len(new_easyconfigs), 1)
-        self.assertEqual(len(new_easyconfigs[0]['dependencies']), 2)
-        self.assertEqual([dep['name'] for dep in new_easyconfigs[0]['dependencies']], ['foo', 'bar'])
+        self.assertEqual(len(new_easyconfigs[0]['deps']), 2)
+        self.assertEqual([dep['name'] for dep in new_easyconfigs[0]['deps']], ['foo', 'bar'])
 
         self.assertTrue(new_avail_modules, ['nodeps/1.2.3', 'onedep/3.14-foss-2018a'])
 
     def test_tweak_robotpath(self):
-        """Test that the robot correctly resolves the dependencies of tweaked easyconfigs. Tweaked
-        easyconfigs take priority, but tweaked dependencies are only used on an as-needed basis"""
+        """Test that the robot correctly resolves the deps of tweaked easyconfigs. Tweaked
+        easyconfigs take priority, but tweaked deps are only used on an as-needed basis"""
 
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
@@ -1231,10 +1231,10 @@ class RobotTest(EnhancedTestCase):
             "homepage = 'http://example.com'",
             "description = 'foo'",
             "toolchain = {'name': 'foss', 'version': '2018a'}",
-            # deliberately listing components of toolchain as dependencies without specifying subtoolchains,
-            # to test resolving of dependencies with minimal toolchain
+            # deliberately listing components of toolchain as deps without specifying subtoolchains,
+            # to test resolving of deps with minimal toolchain
             # for each of these, we know test easyconfigs are available (which are required here)
-            "dependencies = [",
+            "deps = [",
             "   ('OpenMPI', '2.1.2'),",  # available with GCC/6.4.0-2.28
             "   ('OpenBLAS', '0.2.20'),",  # available with gompi/2018a
             "   ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.20'),",  # available with gompi/2018a
@@ -1271,7 +1271,7 @@ class RobotTest(EnhancedTestCase):
             'SQLite': '3.8.10.2-GCC-6.4.0-2.28',
         }
 
-        # check that all bar dependencies have been processed as expected
+        # check that all bar deps have been processed as expected
         for dep in bar.dependencies():
             expected_dep_version = expected_dep_versions[dep['name']]
             self.assertEqual(det_full_ec_version(dep), expected_dep_version)
@@ -1434,7 +1434,7 @@ class RobotTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         self.assertTrue(conflicts)
-        self.assertIn("Conflict found for dependencies of foss-2018a: GCC-4.6.4 vs GCC-6.4.0-2.28", stderr)
+        self.assertIn("Conflict found for deps of foss-2018a: GCC-4.6.4 vs GCC-6.4.0-2.28", stderr)
 
         # conflicts between specified easyconfigs are also detected
 
@@ -1449,9 +1449,9 @@ class RobotTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         self.assertTrue(conflicts)
-        self.assertIn("Conflict between (dependencies of) easyconfigs: GCC-4.9.3-2.25 vs GCC-6.4.0-2.28", stderr)
+        self.assertIn("Conflict between (deps of) easyconfigs: GCC-4.9.3-2.25 vs GCC-6.4.0-2.28", stderr)
 
-        # indirect conflict on dependencies
+        # indirect conflict on deps
         ecs, _ = parse_easyconfigs([
             (os.path.join(test_easyconfigs, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'), False),
             (os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'), False),
@@ -1462,7 +1462,7 @@ class RobotTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         self.assertTrue(conflicts)
-        self.assertIn("Conflict between (dependencies of) easyconfigs: GCC-4.9.2 vs GCC-6.4.0-2.28", stderr)
+        self.assertIn("Conflict between (deps of) easyconfigs: GCC-4.9.2 vs GCC-6.4.0-2.28", stderr)
 
         # test use of check_inter_ec_conflicts
         self.assertFalse(check_conflicts(ecs, self.modtool, check_inter_ec_conflicts=False), "No conflicts found")
@@ -1479,7 +1479,7 @@ class RobotTest(EnhancedTestCase):
             "homepage = 'https://example.com'",
             "description = 'Just A Wrapper'",
             "toolchain = SYSTEM",
-            "dependencies = [('toy', '0.0')]",
+            "deps = [('toy', '0.0')]",
         ])
         wrapper_ec = os.path.join(self.test_prefix, 'toy-0.eb')
         write_file(wrapper_ec, wrapper_ec_txt)
@@ -1503,7 +1503,7 @@ class RobotTest(EnhancedTestCase):
         tc_regex = re.compile(r'^toolchain = .*', re.M)
         test_ec_txt = tc_regex.sub("toolchain = SYSTEM", test_ec_txt)
         test_ec_txt += "\nmulti_deps = {'GCC': ['4.9.2', '7.3.0-2.30']}\n"
-        test_ec_txt += "dependencies = [('gzip', '1.4')]\n"
+        test_ec_txt += "deps = [('gzip', '1.4')]\n"
 
         write_file(test_ec, test_ec_txt)
         ecs, _ = parse_easyconfigs([(test_ec, False)])
@@ -1531,7 +1531,7 @@ class RobotTest(EnhancedTestCase):
         test_ectxt = regex.sub(tc_spec, gzip_ectxt)
         write_file(test_ec, test_ectxt)
         ecs, _ = parse_easyconfigs([(test_ec, False)])
-        self.assertErrorRegex(EasyBuildError, "Missing dependencies", resolve_dependencies,
+        self.assertErrorRegex(EasyBuildError, "Missing deps", resolve_dependencies,
                               ecs, self.modtool, retain_all_deps=True)
 
         # --consider-archived-easyconfigs must be used to let robot pick up archived easyconfigs

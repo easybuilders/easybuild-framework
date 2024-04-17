@@ -14,13 +14,13 @@ local_comp = ('GCC', '6.4.0-2.28')
 local_blaslib = 'OpenBLAS'
 local_blasver = '0.2.20'
 
-# toolchain used to build foss dependencies
+# toolchain used to build foss deps
 local_comp_mpi_tc = ('gompi', version)
 
-# compiler toolchain dependencies
-# we need GCC and OpenMPI as explicit dependencies instead of gompi toolchain
+# compiler toolchain deps
+# we need GCC and OpenMPI as explicit deps instead of gompi toolchain
 # because of toolchain preperation functions
-dependencies = [
+deps = [
     local_comp,
     ('OpenMPI', '2.1.2', '', local_comp),  # part of gompi-2018a
     (local_blaslib, local_blasver, '', local_comp),

@@ -606,7 +606,7 @@ class DocsTest(EnhancedTestCase):
         gen_easyblocks_pkg = 'easybuild.easyblocks.generic'
         modules = import_available_modules(gen_easyblocks_pkg)
         common_params = {
-            'ConfigureMake': ['configopts', 'buildopts', 'installopts'],
+            'ConfigureMake': ['configure_opts', 'build_opts', 'install_opts'],
         }
         doc_functions = ['build_step', 'configure_step', 'test_step']
 
@@ -641,9 +641,9 @@ class DocsTest(EnhancedTestCase):
             "====================    ================================================================",
             "easyconfig parameter    description",
             "====================    ================================================================",
-            "configopts              Extra options passed to configure (default already has --prefix)",
-            "buildopts               Extra options passed to make step (default already has -j X)",
-            "installopts             Extra options for installation",
+            "configure_opts              Extra options passed to configure (default already has --prefix)",
+            "build_opts               Extra options passed to make step (default already has -j X)",
+            "install_opts             Extra options for installation",
             "====================    ================================================================",
         ])
 
@@ -688,9 +688,9 @@ class DocsTest(EnhancedTestCase):
             '',
             "easyconfig parameter|description",
             "--------------------|----------------------------------------------------------------",
-            "configopts          |Extra options passed to configure (default already has --prefix)",
-            "buildopts           |Extra options passed to make step (default already has -j X)",
-            "installopts         |Extra options for installation",
+            "configure_opts          |Extra options passed to configure (default already has --prefix)",
+            "build_opts           |Extra options passed to make step (default already has -j X)",
+            "install_opts         |Extra options for installation",
         ])
 
         self.assertIn(check_configuremake, ebdoc)

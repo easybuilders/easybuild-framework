@@ -171,7 +171,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         for key in ['name', 'version', 'homepage', 'toolchain', 'description']:
             self.assertTrue(ec.is_mandatory_param(key))
-        for key in ['buildopts', 'dependencies', 'easyblock', 'sources']:
+        for key in ['build_opts', 'deps', 'easyblock', 'sources']:
             self.assertFalse(ec.is_mandatory_param(key))
 
     def test_validation(self):
@@ -193,8 +193,8 @@ class EasyConfigTest(EnhancedTestCase):
         # this should now not crash
         ec.validate()
 
-        ec['osdependencies'] = ['non-existent-dep']
-        self.assertErrorRegex(EasyBuildError, "OS dependencies were not found", ec.validate)
+        ec['os_deps'] = ['non-existent-dep']
+        self.assertErrorRegex(EasyBuildError, "OS deps were not found", ec.validate)
 
         # system toolchain, installversion == version
         self.assertEqual(det_full_ec_version(ec), "3.14")
@@ -251,7 +251,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['sanity_check_paths']['files'][0], "lib/lib.%s" % get_shared_lib_ext())
 
     def test_dependency(self):
-        """ test all possible ways of specifying dependencies """
+        """ test all possible ways of specifying deps """
         init_config(build_options={'silent': True})
 
         self.contents = '\n'.join([
@@ -262,21 +262,21 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
-            'dependencies = ['
+            'deps = ['
             '   ("first", "1.1"),'
             '   {"name": "second", "version": "2.2"},',
             # funky way of referring to version(suffix), but should work!
             '   ("foo", "%(version)s", versionsuffix),',
             '   ("bar", "1.2.3", "%(versionsuffix)s-123"),',
             ']',
-            'builddependencies = [',
+            'build_deps = [',
             '   ("first", "1.1"),',
             '   {"name": "second", "version": "2.2"},',
             ']',
         ])
         self.prep()
         eb = EasyConfig(self.eb_file)
-        # should include builddependencies
+        # should include build_deps
         self.assertEqual(len(eb.dependencies()), 6)
         self.assertEqual(len(eb.builddependencies()), 2)
 
@@ -291,19 +291,19 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(second['version'], "2.2")
         self.assertEqual(second['versionsuffix'], '')
 
-        self.assertEqual(eb['dependencies'][2]['name'], 'foo')
-        self.assertEqual(eb['dependencies'][2]['version'], '3.14')
-        self.assertEqual(eb['dependencies'][2]['versionsuffix'], '-test')
+        self.assertEqual(eb['deps'][2]['name'], 'foo')
+        self.assertEqual(eb['deps'][2]['version'], '3.14')
+        self.assertEqual(eb['deps'][2]['versionsuffix'], '-test')
 
-        self.assertEqual(eb['dependencies'][3]['name'], 'bar')
-        self.assertEqual(eb['dependencies'][3]['version'], '1.2.3')
-        self.assertEqual(eb['dependencies'][3]['versionsuffix'], '-test-123')
+        self.assertEqual(eb['deps'][3]['name'], 'bar')
+        self.assertEqual(eb['deps'][3]['version'], '1.2.3')
+        self.assertEqual(eb['deps'][3]['versionsuffix'], '-test-123')
 
         self.assertEqual(det_full_ec_version(first), '1.1-GCC-4.6.3')
         self.assertEqual(det_full_ec_version(second), '2.2-GCC-4.6.3')
 
         self.assertEqual(eb.dependency_names(), {'first', 'second', 'foo', 'bar'})
-        # same tests for builddependencies
+        # same tests for build_deps
         self.assertEqual(eb.dependency_names(build_only=True), {'first', 'second'})
         first = eb.builddependencies()[0]
         second = eb.builddependencies()[1]
@@ -329,7 +329,7 @@ class EasyConfigTest(EnhancedTestCase):
         Test use False as dependency version via dict using 'arch=' keys,
         which should result in filtering the dependency.
         """
-        # silence warnings about missing easyconfigs for dependencies, we don't care
+        # silence warnings about missing easyconfigs for deps, we don't care
         init_config(build_options={'silent': True})
 
         arch = get_cpu_architecture()
@@ -342,11 +342,11 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
-            'builddependencies = [',
+            'build_deps = [',
             '   ("first_build", {"arch=%s": False}),' % arch,
             '   ("second_build", "2.0"),',
             ']',
-            'dependencies = ['
+            'deps = ['
             '   ("first", "1.0"),',
             '   ("second", {"arch=%s": False}),' % arch,
             ']',
@@ -368,7 +368,7 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
-            'dependencies = ['
+            'deps = ['
             '   ("not_on_power", {"arch=*": "1.2.3", "arch=POWER": False}),',
             ']',
         ])
@@ -401,8 +401,8 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
-            'toolchainopts = { "static": True}',
-            'dependencies = [("first", "1.1"), {"name": "second", "version": "2.2"}]',
+            'toolchain_opts = { "static": True}',
+            'deps = [("first", "1.1"), {"name": "second", "version": "2.2"}]',
         ])
         self.prep()
         eb = EasyConfig(self.eb_file)
@@ -472,7 +472,7 @@ class EasyConfigTest(EnhancedTestCase):
             homepage = "http://example.com"
             description = "test easyconfig"
             toolchain = SYSTEM
-            exts_default_options = {
+            exts_default_opts = {
                 "source_tmpl": "gzip-1.4.eb", # dummy source template to avoid download fail
                 "source_urls": ["http://example.com/%(name)s/%(version)s"]
             }
@@ -546,10 +546,10 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = SYSTEM',
-            'dependencies = [("Python", "3.6.6")]',
+            'deps = [("Python", "3.6.6")]',
             'exts_defaultclass = "EB_Toy"',
             # bogus, but useful to check whether this get resolved
-            'exts_default_options = {"source_urls": [PYPI_SOURCE]}',
+            'exts_default_opts = {"source_urls": [PYPI_SOURCE]}',
             'exts_list = [',
             '   ("toy", "0.0", {',
             # %(name)s and %(version_major_minor)s should be resolved using name/version of extension (not parent)
@@ -557,8 +557,8 @@ class EasyConfigTest(EnhancedTestCase):
             # %(versionsuffix)s should get resolved with value of parent
             '       "source_tmpl": "%(name)s-%(version_major_minor)s-py%(pymajver)s%(versionsuffix)s.tar.gz",',
             '       "patches": ["%(name)s-%(version)s_fix-silly-typo-in-printf-statement.patch"],',
-            # use hacky prebuildopts that is picked up by 'EB_Toy' easyblock, to check whether templates are resolved
-            '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version)s &&' +
+            # use hacky pre_build_opts that is picked up by 'EB_Toy' easyblock, to check whether templates are resolved
+            '       "pre_build_opts": "gcc -O2 %(name)s.c -o toy-%(version)s &&' +
             ' mv toy-%(version)s toy # echo installdir is %(installdir)s #",',
             '   }),',
             ']',
@@ -591,7 +591,7 @@ class EasyConfigTest(EnhancedTestCase):
         expected_prebuildopts = 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy # echo installdir is %s #' % pi_installdir
         expected = {
             'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
-            'prebuildopts': expected_prebuildopts,
+            'pre_build_opts': expected_prebuildopts,
             'source_tmpl': 'toy-0.0-py3-test.tar.gz',
             'source_urls': ['https://pypi.python.org/packages/source/t/toy'],
         }
@@ -600,7 +600,7 @@ class EasyConfigTest(EnhancedTestCase):
         # also .cfg of Extension instance was updated correctly
         self.assertEqual(toy_ext.cfg['source_urls'], ['https://pypi.python.org/packages/source/t/toy'])
         self.assertEqual(toy_ext.cfg['patches'], [toy_patch_fn])
-        self.assertEqual(toy_ext.cfg['prebuildopts'], expected_prebuildopts)
+        self.assertEqual(toy_ext.cfg['pre_build_opts'], expected_prebuildopts)
 
         # check whether files expected to be installed for 'toy' extension are in place
         self.assertExists(os.path.join(pi_installdir, 'bin', 'toy'))
@@ -621,7 +621,7 @@ class EasyConfigTest(EnhancedTestCase):
             'sourceURLs = ["http://example.com"]',
         ])
         self.prep()
-        self.assertErrorRegex(EasyBuildError, "dependencis -> dependencies", EasyConfig, self.eb_file)
+        self.assertErrorRegex(EasyBuildError, "dependencis -> deps", EasyConfig, self.eb_file)
         self.assertErrorRegex(EasyBuildError, "source_uls -> source_urls", EasyConfig, self.eb_file)
         self.assertErrorRegex(EasyBuildError, "source_URLs -> source_urls", EasyConfig, self.eb_file)
         self.assertErrorRegex(EasyBuildError, "sourceURLs -> source_urls", EasyConfig, self.eb_file)
@@ -661,7 +661,7 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain = {"name": "GCC", "version": "4.6.3"}',
             'patches = %s',
             'parallel = 1',
-            'keepsymlinks = True',
+            'keep_symlinks = True',
         ]) % str(patches)
         self.prep()
 
@@ -679,9 +679,9 @@ class EasyConfigTest(EnhancedTestCase):
             'versionsuffix': versuff,
             'toolchain_version': tcver,
             'patches': new_patches,
-            'keepsymlinks': 'True',  # Don't change this
+            'keep_symlinks': 'True',  # Don't change this
             # It should be possible to overwrite values with True/False/None as they often have special meaning
-            'runtest': 'False',
+            'run_test': 'False',
             'hidden': 'True',
             'parallel': 'None',  # Good example: parallel=None means "Auto detect"
             # Adding new options (added only by easyblock) should also be possible
@@ -698,7 +698,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['versionsuffix'], versuff)
         self.assertEqual(eb['toolchain']['version'], tcver)
         self.assertEqual(eb['patches'], new_patches)
-        self.assertIs(eb['runtest'], False)
+        self.assertIs(eb['run_test'], False)
         self.assertIs(eb['hidden'], True)
         self.assertIsNone(eb['parallel'])
         self.assertEqual(eb['test_none'], 'False')
@@ -993,13 +993,13 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(re.search(pattern, txt, re.M))
         os.remove(res[1])
 
-        # should be able to prepend to list of patches and handle list of dependencies
+        # should be able to prepend to list of patches and handle list of deps
         new_patches = ['two.patch', 'three.patch']
         specs.update({
             'patches': new_patches[:],
-            'builddependencies': [('testbuildonly', '4.9.3-2.25')],
-            'dependencies': [('foo', '1.2.3'), ('bar', '666', '-bleh', ('gompi', '2018a'))],
-            'hiddendependencies': [('test', '3.2.1'), ('testbuildonly', '4.9.3-2.25')],
+            'build_deps': [('testbuildonly', '4.9.3-2.25')],
+            'deps': [('foo', '1.2.3'), ('bar', '666', '-bleh', ('gompi', '2018a'))],
+            'hidden_deps': [('test', '3.2.1'), ('testbuildonly', '4.9.3-2.25')],
         })
         parsed_deps = [
             {
@@ -1060,14 +1060,14 @@ class EasyConfigTest(EnhancedTestCase):
             },
         ]
 
-        # hidden dependencies must be included in list of dependencies
+        # hidden deps must be included in list of deps
         res = obtain_ec_for(specs, [self.test_prefix], None)
         self.assertEqual(res[0], True)
-        error_pattern = r"Hidden deps with visible module names .* not in list of \(build\)dependencies: .*"
+        error_pattern = r"Hidden deps with visible module names .* not in list of \(build\)deps: .*"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, res[1])
         remove_file(res[1])
 
-        specs['dependencies'].append(('test', '3.2.1'))
+        specs['deps'].append(('test', '3.2.1'))
 
         res = obtain_ec_for(specs, [self.test_prefix], None)
         self.assertEqual(res[0], True)
@@ -1075,20 +1075,20 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['patches'], specs['patches'])
         self.assertEqual(ec.dependencies(), parsed_deps)
 
-        # hidden dependencies are filtered from list of (build)dependencies
-        self.assertFalse('test/3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['dependencies']])
-        self.assertTrue('test/.3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hiddendependencies']])
-        self.assertFalse('testbuildonly/4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['builddependencies']])
-        self.assertTrue('testbuildonly/.4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hiddendependencies']])
+        # hidden deps are filtered from list of (build)deps
+        self.assertFalse('test/3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['deps']])
+        self.assertTrue('test/.3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hidden_deps']])
+        self.assertFalse('testbuildonly/4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['build_deps']])
+        self.assertTrue('testbuildonly/.4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hidden_deps']])
         os.remove(res[1])
 
-        # hidden dependencies are also filtered from list of dependencies when validation is skipped
+        # hidden deps are also filtered from list of deps when validation is skipped
         res = obtain_ec_for(specs, [self.test_prefix], None)
         ec = EasyConfig(res[1], validate=False)
-        self.assertFalse('test/3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['dependencies']])
-        self.assertTrue('test/.3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hiddendependencies']])
-        self.assertFalse('testbuildonly/4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['builddependencies']])
-        self.assertTrue('testbuildonly/.4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hiddendependencies']])
+        self.assertFalse('test/3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['deps']])
+        self.assertTrue('test/.3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hidden_deps']])
+        self.assertFalse('testbuildonly/4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['build_deps']])
+        self.assertTrue('testbuildonly/.4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hidden_deps']])
         os.remove(res[1])
 
         # verify append functionality for lists
@@ -1165,31 +1165,31 @@ class EasyConfigTest(EnhancedTestCase):
             '   "files": ["bin/pi_%%(version_major)s_%%(version_minor)s", "lib/python%%(pyshortver)s/site-packages"],',
             '   "dirs": ["libfoo.%%s" %% SHLIB_EXT, "lib/%%(arch)s/" + SYS_PYTHON_VERSION, "include/" + ARCH],',
             '}',
-            'dependencies = [',
+            'deps = [',
             '   ("CUDA", "10.1.105"),'
             '   ("Java", "1.7.80"),'
             '   ("Perl", "5.22.0"),'
             '   ("Python", "2.7.10"),'
             ']',
-            'builddependencies = ['
+            'build_deps = ['
             '   ("R", "3.2.3"),'
             ']',
-            'modloadmsg = "%s"' % '; '.join([
+            'env_mod_load_msg = "%s"' % '; '.join([
                 'CUDA: %%(cudaver)s, %%(cudamajver)s, %%(cudaminver)s, %%(cudashortver)s',
                 'Java: %%(javaver)s, %%(javamajver)s, %%(javaminver)s, %%(javashortver)s',
                 'Python: %%(pyver)s, %%(pymajver)s, %%(pyminver)s, %%(pyshortver)s',
                 'Perl: %%(perlver)s, %%(perlmajver)s, %%(perlminver)s, %%(perlshortver)s',
                 'R: %%(rver)s, %%(rmajver)s, %%(rminver)s, %%(rshortver)s',
             ]),
-            'modunloadmsg = "%s"' % '; '.join([
+            'env_mod_unload_msg = "%s"' % '; '.join([
                 'CUDA: %%(cudaver)s, %%(cudamajver)s, %%(cudaminver)s, %%(cudashortver)s',
                 'Java: %%(javaver)s, %%(javamajver)s, %%(javaminver)s, %%(javashortver)s',
                 'Python: %%(pyver)s, %%(pymajver)s, %%(pyminver)s, %%(pyshortver)s',
                 'Perl: %%(perlver)s, %%(perlmajver)s, %%(perlminver)s, %%(perlshortver)s',
                 'R: %%(rver)s, %%(rmajver)s, %%(rminver)s, %%(rshortver)s',
             ]),
-            'modextrapaths = {"PI_MOD_NAME": "%%(module_name)s"}',
-            'modextrapaths_append = {"PATH_APPEND": "appended_path"}',
+            'env_mod_extra_paths = {"PI_MOD_NAME": "%%(module_name)s"}',
+            'env_mod_extra_paths_append = {"PATH_APPEND": "appended_path"}',
             'license_file = HOME + "/licenses/PI/license.txt"',
             "github_account = 'easybuilders'",
         ]) % inp
@@ -1227,10 +1227,10 @@ class EasyConfigTest(EnhancedTestCase):
                     "Python: 2.7.10, 2, 7, 2.7; "
                     "Perl: 5.22.0, 5, 22, 5.22; "
                     "R: 3.2.3, 3, 2, 3.2")
-        self.assertEqual(ec['modloadmsg'], expected)
-        self.assertEqual(ec['modunloadmsg'], expected)
-        self.assertEqual(ec['modextrapaths'], {'PI_MOD_NAME': 'PI/3.04-Python-2.7.10'})
-        self.assertEqual(ec['modextrapaths_append'], {'PATH_APPEND': 'appended_path'})
+        self.assertEqual(ec['env_mod_load_msg'], expected)
+        self.assertEqual(ec['env_mod_unload_msg'], expected)
+        self.assertEqual(ec['env_mod_extra_paths'], {'PI_MOD_NAME': 'PI/3.04-Python-2.7.10'})
+        self.assertEqual(ec['env_mod_extra_paths_append'], {'PATH_APPEND': 'appended_path'})
         self.assertEqual(ec['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
@@ -1254,11 +1254,11 @@ class EasyConfigTest(EnhancedTestCase):
         write_file(test_ec, read_file(gompi_ec) + "\nsanity_check_commands = ['%(mpi_cmd_prefix)s toy']")
 
         ec = EasyConfig(test_ec)
-        self.assertEqual(ec['sanity_check_commands'], ['mpirun -n 1 toy'])
+        self.assertEqual(ec['sanity_check_cmds'], ['mpirun -n 1 toy'])
 
         init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s  "})
         ec = EasyConfig(test_ec)
-        self.assertEqual(ec['sanity_check_commands'], ['mpiexec -np 1 -- toy'])
+        self.assertEqual(ec['sanity_check_cmds'], ['mpiexec -np 1 -- toy'])
 
     def test_templating_cuda_toolchain(self):
         """Test templates via toolchain component, like setting %(cudaver)s with fosscuda toolchain."""
@@ -1286,7 +1286,7 @@ class EasyConfigTest(EnhancedTestCase):
             "homepage = 'https://example.com'",
             "description = 'fosscuda toolchain'",
             "toolchain = SYSTEM",
-            "dependencies = [('CUDA', '10.1.243')]",
+            "deps = [('CUDA', '10.1.243')]",
         ])
         write_file(fosscuda_ec, fosscuda_ec_txt)
 
@@ -1314,9 +1314,9 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "https://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
-            'dependencies = [("Java", "11", "", SYSTEM)]',
-            'modloadmsg = "Java: %(javaver)s, %(javamajver)s, %(javashortver)s"',
-            'modunloadmsg = "Java: %(javaver)s, %(javamajver)s, %(javashortver)s"',
+            'deps = [("Java", "11", "", SYSTEM)]',
+            'env_mod_load_msg = "Java: %(javaver)s, %(javamajver)s, %(javashortver)s"',
+            'env_mod_unload_msg = "Java: %(javaver)s, %(javamajver)s, %(javashortver)s"',
         ])
         self.prep()
         eb = EasyConfig(self.eb_file)
@@ -1327,8 +1327,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb.template_values['javashortver'], '11')
         self.assertNotIn('javaminver', eb.template_values)
 
-        self.assertEqual(eb['modloadmsg'], "Java: 11, 11, 11")
-        self.assertEqual(eb['modunloadmsg'], "Java: 11, 11, 11")
+        self.assertEqual(eb['env_mod_load_msg'], "Java: 11, 11, 11")
+        self.assertEqual(eb['env_mod_unload_msg'], "Java: 11, 11, 11")
 
     def test_python_whl_templating(self):
         """test templating for Python wheels"""
@@ -1394,15 +1394,15 @@ class EasyConfigTest(EnhancedTestCase):
 
             sources = [SOURCE_TAR_GZ]
 
-            preconfigopts = 'echo start_dir in configure is %(start_dir)s && '
-            prebuildopts = 'echo start_dir in build is %(start_dir)s && '
+            pre_configure_opts = 'echo start_dir in configure is %(start_dir)s && '
+            pre_build_opts = 'echo start_dir in build is %(start_dir)s && '
 
             exts_defaultclass = 'EB_Toy'
             exts_list = [
                ('bar', '0.0', {
                    'sources': ['bar-0.0-local.tar.gz'],
-                   'preconfigopts': 'echo start_dir in extension configure is %(start_dir)s && ',
-                   'prebuildopts': 'echo start_dir in extension build is %(start_dir)s && ',
+                   'pre_configure_opts': 'echo start_dir in extension configure is %(start_dir)s && ',
+                   'pre_build_opts': 'echo start_dir in extension build is %(start_dir)s && ',
                }),
             ]
 
@@ -1438,18 +1438,18 @@ class EasyConfigTest(EnhancedTestCase):
 
         # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
         ec = EasyConfig(test_ec)
-        self.assertEqual(ec['configopts'], "--some-opt=/")
-        self.assertEqual(ec['buildopts'], "--some-opt=/")
-        self.assertEqual(ec['installopts'], "--some-opt=/")
+        self.assertEqual(ec['configure_opts'], "--some-opt=/")
+        self.assertEqual(ec['build_opts'], "--some-opt=/")
+        self.assertEqual(ec['install_opts'], "--some-opt=/")
 
         # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
         # As a test, we'll set the sysroot to self.test_prefix, as it has to be a directory that is guaranteed to exist
         update_build_option('sysroot', self.test_prefix)
 
         ec = EasyConfig(test_ec)
-        self.assertEqual(ec['configopts'], "--some-opt=%s/" % self.test_prefix)
-        self.assertEqual(ec['buildopts'], "--some-opt=%s/" % self.test_prefix)
-        self.assertEqual(ec['installopts'], "--some-opt=%s/" % self.test_prefix)
+        self.assertEqual(ec['configure_opts'], "--some-opt=%s/" % self.test_prefix)
+        self.assertEqual(ec['build_opts'], "--some-opt=%s/" % self.test_prefix)
+        self.assertEqual(ec['install_opts'], "--some-opt=%s/" % self.test_prefix)
 
     def test_constant_doc(self):
         """test constant documentation"""
@@ -1487,47 +1487,47 @@ class EasyConfigTest(EnhancedTestCase):
         self.contents = orig_contents
         self.prep()
 
-        # configopts as string
-        configopts = '--opt1 --opt2=foo'
-        self.contents = orig_contents + "\nconfigopts = '%s'" % configopts
+        # configure_opts as string
+        configure_opts = '--opt1 --opt2=foo'
+        self.contents = orig_contents + "\nconfigopts = '%s'" % configure_opts
         self.prep()
         eb = EasyConfig(self.eb_file)
 
-        self.assertEqual(eb['configopts'], configopts)
+        self.assertEqual(eb['configure_opts'], configure_opts)
 
-        # configopts as list
-        configopts = ['--opt1 --opt2=foo', '--opt1 --opt2=bar']
-        self.contents = orig_contents + "\nconfigopts = %s" % str(configopts)
+        # configure_opts as list
+        configure_opts = ['--opt1 --opt2=foo', '--opt1 --opt2=bar']
+        self.contents = orig_contents + "\nconfigopts = %s" % str(configure_opts)
         self.prep()
         eb = EasyConfig(self.eb_file)
 
-        self.assertEqual(eb['configopts'][0], configopts[0])
-        self.assertEqual(eb['configopts'][1], configopts[1])
+        self.assertEqual(eb['configure_opts'][0], configure_opts[0])
+        self.assertEqual(eb['configure_opts'][1], configure_opts[1])
 
-        # also buildopts and installopts as lists
-        buildopts = ['CC=foo', 'CC=bar']
-        installopts = ['FOO=foo', 'BAR=bar']
+        # also build_opts and install_opts as lists
+        build_opts = ['CC=foo', 'CC=bar']
+        install_opts = ['FOO=foo', 'BAR=bar']
         self.contents = orig_contents + '\n' + '\n'.join([
-            "configopts = %s" % str(configopts),
-            "buildopts = %s" % str(buildopts),
-            "installopts = %s" % str(installopts),
+            "configure_opts = %s" % str(configure_opts),
+            "build_opts = %s" % str(build_opts),
+            "install_opts = %s" % str(install_opts),
         ])
         self.prep()
         eb = EasyConfig(self.eb_file)
 
-        self.assertEqual(eb['configopts'][0], configopts[0])
-        self.assertEqual(eb['configopts'][1], configopts[1])
-        self.assertEqual(eb['buildopts'][0], buildopts[0])
-        self.assertEqual(eb['buildopts'][1], buildopts[1])
-        self.assertEqual(eb['installopts'][0], installopts[0])
-        self.assertEqual(eb['installopts'][1], installopts[1])
+        self.assertEqual(eb['configure_opts'][0], configure_opts[0])
+        self.assertEqual(eb['configure_opts'][1], configure_opts[1])
+        self.assertEqual(eb['build_opts'][0], build_opts[0])
+        self.assertEqual(eb['build_opts'][1], build_opts[1])
+        self.assertEqual(eb['install_opts'][0], install_opts[0])
+        self.assertEqual(eb['install_opts'][1], install_opts[1])
 
         # error should be thrown if lists are not equal
-        installopts = ['FOO=foo', 'BAR=bar', 'BAZ=baz']
+        install_opts = ['FOO=foo', 'BAR=bar', 'BAZ=baz']
         self.contents = orig_contents + '\n' + '\n'.join([
-            "configopts = %s" % str(configopts),
-            "buildopts = %s" % str(buildopts),
-            "installopts = %s" % str(installopts),
+            "configure_opts = %s" % str(configure_opts),
+            "build_opts = %s" % str(build_opts),
+            "install_opts = %s" % str(install_opts),
         ])
         self.prep()
         eb = EasyConfig(self.eb_file, validate=False)
@@ -1535,11 +1535,11 @@ class EasyConfigTest(EnhancedTestCase):
                               eb.validate)
 
         # list with a single element is OK, is treated as a string
-        installopts = ['FOO=foo']
+        install_opts = ['FOO=foo']
         self.contents = orig_contents + '\n' + '\n'.join([
-            "configopts = %s" % str(configopts),
-            "buildopts = %s" % str(buildopts),
-            "installopts = %s" % str(installopts),
+            "configure_opts = %s" % str(configure_opts),
+            "build_opts = %s" % str(build_opts),
+            "install_opts = %s" % str(install_opts),
         ])
         self.prep()
         eb = EasyConfig(self.eb_file)
@@ -1553,7 +1553,7 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = SYSTEM',
-            'buildininstalldir = True',
+            'build_in_install_dir = True',
         ])
         self.prep()
         ec = EasyConfig(self.eb_file)
@@ -1592,7 +1592,7 @@ class EasyConfigTest(EnhancedTestCase):
 
             ec2_dict = ec2.asdict()
             # reset mandatory attributes from format2 that are not defined in format 1 easyconfigs
-            for attr in ['docurls', 'software_license_urls']:
+            for attr in ['doc_urls', 'software_license_urls']:
                 ec2_dict[attr] = None
 
             self.assertEqual(ec1.asdict(), ec2_dict, "Parsed %s is equivalent with %s" % (eb_file1, eb_file2))
@@ -1699,7 +1699,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(det_toolchain_mpi(ec), None)
 
     def test_filter_deps(self):
-        """Test filtered dependencies."""
+        """Test filtered deps."""
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         ec_file = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
         ec = EasyConfig(ec_file)
@@ -1722,7 +1722,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(opts.filter_deps, ['zlib', 'ncurses'])
 
         # make sure --filter-deps is honored when combined with --minimal-toolchains,
-        # i.e. that toolchain for dependencies which are filtered out is not being minized
+        # i.e. that toolchain for deps which are filtered out is not being minized
         build_options = {
             'external_modules_metadata': ConfigObj(),
             'minimal_toolchains': True,
@@ -1753,8 +1753,8 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
         replaced_parameters = {
             'license': ('license_file', '2.0'),
-            'makeopts': ('buildopts', '2.0'),
-            'premakeopts': ('prebuildopts', '2.0'),
+            'makeopts': ('build_opts', '2.0'),
+            'premakeopts': ('pre_build_opts', '2.0'),
         }
         for key, (newkey, ver) in replaced_parameters.items():
             error_regex = "NO LONGER SUPPORTED since v%s.*'%s' is replaced by '%s'" % (ver, key, newkey)
@@ -1867,7 +1867,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_regex, set_ec_key, 'therenosucheasyconfigparameterlikethis')
 
     def test_external_dependencies(self):
-        """Test specifying external (build) dependencies."""
+        """Test specifying external (build) deps."""
         topdir = os.path.dirname(os.path.abspath(__file__))
         ectxt = read_file(os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-deps.eb'))
         toy_ec = os.path.join(self.test_prefix, 'toy-0.0-external-deps.eb')
@@ -2121,7 +2121,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(os.environ.get('EBVERSIONTEST'), '9.7.5')
 
     def test_external_dependencies_templates(self):
-        """Test use of templates for dependencies marked as external modules."""
+        """Test use of templates for deps marked as external modules."""
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
@@ -2130,7 +2130,7 @@ class EasyConfigTest(EnhancedTestCase):
         extra_ectxt = '\n'.join([
             "versionsuffix = '-Python-%(pyver)s-Perl-%(perlshortver)s'",
             '',
-            "dependencies = [",
+            "deps = [",
             "    ('cray-python/3.6.5.7', EXTERNAL_MODULE),",
             "    ('perl/5.30.0-1', EXTERNAL_MODULE),",
             "]",
@@ -2180,19 +2180,19 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(toy_ebfile)
 
         # for string values: append
-        ec.update('unpack_options', '--strip-components=1')
-        self.assertEqual(ec['unpack_options'].strip(), '--strip-components=1')
+        ec.update('unpack_opts', '--strip-components=1')
+        self.assertEqual(ec['unpack_opts'].strip(), '--strip-components=1')
 
         ec.update('description', "- just a test")
         self.assertEqual(ec['description'].strip(), "Toy C program, 100% toy. - just a test")
 
         # spaces in between multiple updates for string values
-        ec.update('configopts', 'CC="$CC"')
-        ec.update('configopts', 'CXX="$CXX"')
-        self.assertTrue(ec['configopts'].strip().endswith('CC="$CC"  CXX="$CXX"'))
+        ec.update('configure_opts', 'CC="$CC"')
+        ec.update('configure_opts', 'CXX="$CXX"')
+        self.assertTrue(ec['configure_opts'].strip().endswith('CC="$CC"  CXX="$CXX"'))
         # spaces in between multiple updates for string values from list
-        ec.update('configopts', ['MORE_VALUE', 'EVEN_MORE'])
-        self.assertTrue(ec['configopts'].strip().endswith('MORE_VALUE  EVEN_MORE'))
+        ec.update('configure_opts', ['MORE_VALUE', 'EVEN_MORE'])
+        self.assertTrue(ec['configure_opts'].strip().endswith('MORE_VALUE  EVEN_MORE'))
 
         # for list values: extend
         ec.update('patches', ['foo.patch', 'bar.patch'])
@@ -2200,12 +2200,12 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['patches'], [toy_patch_fn, ('toy-extra.txt', 'toy-0.0'), 'foo.patch', 'bar.patch'])
 
         # for unallowed duplicates on string values
-        ec.update('configopts', 'SOME_VALUE')
-        configopts_tmp = ec['configopts']
-        ec.update('configopts', 'SOME_VALUE', allow_duplicate=False)
-        self.assertEqual(ec['configopts'], configopts_tmp)
-        ec.update('configopts', ['CC="$CC"', 'SOME_VALUE'], allow_duplicate=False)
-        self.assertEqual(ec['configopts'], configopts_tmp)
+        ec.update('configure_opts', 'SOME_VALUE')
+        configopts_tmp = ec['configure_opts']
+        ec.update('configure_opts', 'SOME_VALUE', allow_duplicate=False)
+        self.assertEqual(ec['configure_opts'], configopts_tmp)
+        ec.update('configure_opts', ['CC="$CC"', 'SOME_VALUE'], allow_duplicate=False)
+        self.assertEqual(ec['configure_opts'], configopts_tmp)
 
         # for unallowed duplicates when a list is used
         ec.update('patches', ['foo2.patch', 'bar2.patch'])
@@ -2218,12 +2218,12 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(ec['sanity_check_paths']['key1'] == 'value1')
 
     def test_hide_hidden_deps(self):
-        """Test use of --hide-deps on hiddendependencies."""
+        """Test use of --hide-deps on hidden_deps."""
         test_dir = os.path.dirname(os.path.abspath(__file__))
         ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
         ec = EasyConfig(ec_file)
-        self.assertEqual(ec['hiddendependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
-        self.assertEqual(ec['dependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
+        self.assertEqual(ec['hidden_deps'][0]['full_mod_name'], 'toy/.0.0-deps')
+        self.assertEqual(ec['deps'][0]['full_mod_name'], 'toy/.0.0-deps')
 
         build_options = {
             'hide_deps': ['toy'],
@@ -2231,8 +2231,8 @@ class EasyConfigTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
         ec = EasyConfig(ec_file)
-        self.assertEqual(ec['hiddendependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
-        self.assertEqual(ec['dependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
+        self.assertEqual(ec['hidden_deps'][0]['full_mod_name'], 'toy/.0.0-deps')
+        self.assertEqual(ec['deps'][0]['full_mod_name'], 'toy/.0.0-deps')
 
     def test_quote_str(self):
         """Test quote_str function."""
@@ -2369,7 +2369,7 @@ class EasyConfigTest(EnhancedTestCase):
             params = [
                 'name',
                 'toolchain',
-                'dependencies',  # checking this is important w.r.t. filtered hidden dependencies being restored in dump
+                'deps',  # checking this is important w.r.t. filtered hidden deps being restored in dump
                 'exts_list',  # exts_lists (in Python easyconfig) use another layer of templating so shouldn't change
             ]
             for param in params:
@@ -2390,7 +2390,7 @@ class EasyConfigTest(EnhancedTestCase):
             sources = [SOURCE_TAR_GZ]
             source_urls = ["http://example.com"]
 
-            dependencies = [
+            deps = [
                 ('toy', '0.0', '', True),
                 ('GCC', '4.9.2', '', SYSTEM),
             ]
@@ -2436,7 +2436,7 @@ class EasyConfigTest(EnhancedTestCase):
             'source_urls = ["http://example.com"]',
             'checksums = ["6af6ab95ce131c2dd467d2ebc8270e9c265cc32496210b069e51d3749f335f3d"]',
             '',
-            "dependencies = [",
+            "deps = [",
             "    ('toy', '0.0', '', ('gompi', '2018a')),",
             "    ('bar', '1.0'),",
             "    ('foobar/1.2.3', EXTERNAL_MODULE),",
@@ -2479,7 +2479,7 @@ class EasyConfigTest(EnhancedTestCase):
             "toolchain = SYSTEM",
             '',
             'checksums = ["6af6ab95ce131c2dd467d2ebc8270e9c265cc32496210b069e51d3749f335f3d"]',
-            "dependencies = [",
+            "deps = [",
             "    ('GCC', '4.6.4', '-test'),",
             "    ('MPICH', '1.8', '', ('GCC', '4.6.4')),",
             "    ('bar', '1.0'),",
@@ -2499,7 +2499,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # make sure regex finds all easyconfig parameters in the order they appear in the easyconfig
         expected = ['homepage', '', 'name', 'versionsuffix', '', 'patches', 'easyblock', '', 'toolchain', '',
-                    'checksums', 'dependencies', 'version', 'description', '', 'source_urls', 'foo_extra1',
+                    'checksums', 'deps', 'version', 'description', '', 'source_urls', 'foo_extra1',
                     '', 'sources', 'moduleclass']
         self.assertEqual(param_regex.findall(rawtxt), expected)
 
@@ -2510,7 +2510,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # easyconfig parameters should be properly ordered/grouped in dumped easyconfig
         expected = ['easyblock', '', 'name', 'version', 'versionsuffix', '', 'homepage', 'description', '',
-                    'toolchain', '', 'source_urls', 'sources', 'patches', 'checksums', '', 'dependencies', '',
+                    'toolchain', '', 'source_urls', 'sources', 'patches', 'checksums', '', 'deps', '',
                     'foo_extra1', '', 'moduleclass', '']
         self.assertEqual(param_regex.findall(ectxt), expected)
 
@@ -2544,7 +2544,7 @@ class EasyConfigTest(EnhancedTestCase):
             '',
             "toolchain = {'name': 'system', 'version': 'system'}",
             '',
-            "dependencies = [",
+            "deps = [",
             "    ('GCC', '4.6.4', '-test'),",
             "    ('MPICH', '1.8', '', ('GCC', '4.6.4')),",
             "    ('bar', '1.0'),",
@@ -2594,14 +2594,14 @@ class EasyConfigTest(EnhancedTestCase):
             "    'foo-1.0.0.tar.gz',",
             ']',
             '',
-            "dependencies = [",
+            "deps = [",
             "    ('bar', '1.2.3', '-test'),",
             ']',
             '',
-            "preconfigopts = '--opt1=%s' % name",
-            "configopts = '--opt2=1.0.0'",
+            "pre_configure_opts = '--opt1=%s' % name",
+            "configure_opts = '--opt2=1.0.0'",
             '',
-            'exts_default_options = {',
+            'exts_default_opts = {',
             "    'source_urls': ['https://example.com/files/1.0.0'],"
             '}',
             'exts_list = [',
@@ -2635,13 +2635,13 @@ class EasyConfigTest(EnhancedTestCase):
             r"homepage = 'http://foo.com/'",
             r'description = "foo description"',  # no templating for description
             r"sources = \[SOURCELOWER_TAR_GZ\]",
-            # use of templates in *dependencies is disabled for now, since it can cause problems
-            # r"dependencies = \[\n    \('bar', '1.2.3', '%\(versionsuffix\)s'\),\n\]",
-            r"preconfigopts = '--opt1=%\(name\)s'",
-            r"configopts = '--opt2=%\(version\)s'",
-            # no %(version)s template used in exts_default_options or exts_list
+            # use of templates in *deps is disabled for now, since it can cause problems
+            # r"deps = \[\n    \('bar', '1.2.3', '%\(versionsuffix\)s'\),\n\]",
+            r"pre_configure_opts = '--opt1=%\(name\)s'",
+            r"configure_opts = '--opt2=%\(version\)s'",
+            # no %(version)s template used in exts_default_opts or exts_list
             # see https://github.com/easybuilders/easybuild-framework/issues/3091
-            r"exts_default_options = {'source_urls': \['https://example.com/files/1\.0\.0'\]}",
+            r"exts_default_opts = {'source_urls': \['https://example.com/files/1\.0\.0'\]}",
             r"\('ext1', '1\.0\.0'\),",
             r"sanity_check_paths = {\n    'files': \['files/%\(namelower\)s/foobar', 'files/x-test'\]",
         ]
@@ -2776,10 +2776,10 @@ class EasyConfigTest(EnhancedTestCase):
             "    'https://anotherexample.com',  # fallback URL",
             "]",
             '',
-            "# this is a multiline comment above dependencies",
+            "# this is a multiline comment above deps",
             "# I said multiline",
             "# multi > 3",
-            "dependencies = [",
+            "deps = [",
             "    # this dependency",
             "# has multiple lines above it",
             "    # some of which without proper indentation...",
@@ -2787,9 +2787,9 @@ class EasyConfigTest(EnhancedTestCase):
             "    ('nocomment', '4.5'),",
             "    # last dependency, I promise",
             "    ('last', '1.2.3'),",
-            "    # trailing comments in dependencies",
+            "    # trailing comments in deps",
             "    # a bit weird, but it happens",
-            "]  # inline comment after closing dependencies",
+            "]  # inline comment after closing deps",
             '',
             "# how about comments above and in a dict value?",
             "sanity_check_paths = {",
@@ -2810,8 +2810,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         # check internal structure to keep track of comments
         self.assertEqual(ec.parser._formatter.comments['above'], {
-            'dependencies': [
-                '# this is a multiline comment above dependencies',
+            'deps': [
+                '# this is a multiline comment above deps',
                 '# I said multiline',
                 '# multi > 3',
             ],
@@ -2836,12 +2836,12 @@ class EasyConfigTest(EnhancedTestCase):
             'name': '  # just a test',
         })
         self.assertEqual(ec.parser._formatter.comments['iterabove'], {
-            'dependencies': {
+            'deps': {
                 "    ('foo', '1.2.3'),": ['# this dependency',
                                           '# has multiple lines above it',
                                           "# some of which without proper indentation..."],
                 "    ('last', '1.2.3'),": ['# last dependency, I promise'],
-                ']': ['# trailing comments in dependencies', '# a bit weird, but it happens'],
+                ']': ['# trailing comments in deps', '# a bit weird, but it happens'],
             },
             'sanity_check_paths': {
                 "    'dirs': [],": ['# no dirs!'],
@@ -2853,9 +2853,9 @@ class EasyConfigTest(EnhancedTestCase):
             },
         })
         self.assertEqual(ec.parser._formatter.comments['iterinline'], {
-            'dependencies': {
+            'deps': {
                 "    ('foo', '1.2.3'),": '  # and an inline comment too',
-                ']': "  # inline comment after closing dependencies",
+                ']': "  # inline comment after closing deps",
             },
             'source_urls': {
                 "    'https://anotherexample.com',": '  # fallback URL',
@@ -2896,10 +2896,10 @@ class EasyConfigTest(EnhancedTestCase):
             # comments above parameter definition
             '\n'.join([
                 r'',
-                r"# this is a multiline comment above dependencies",
+                r"# this is a multiline comment above deps",
                 r"# I said multiline",
                 r"# multi > 3",
-                r"dependencies = ",
+                r"deps = ",
             ]),
             '\n'.join([
                 r'',
@@ -2925,9 +2925,9 @@ class EasyConfigTest(EnhancedTestCase):
             ]),
             '\n'.join([
                 r'',
-                r"    # trailing comments in dependencies",
+                r"    # trailing comments in deps",
                 r"    # a bit weird, but it happens",
-                r"\]  # inline comment after closing dependencies",
+                r"\]  # inline comment after closing deps",
             ]),
             # comments above element of iterable parameter value
             '\n'.join([
@@ -3116,12 +3116,12 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(ec_file)
 
         self.assertEqual(ActiveMNS().det_full_module_name(ec), 'toy/0.0-deps')
-        self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][0]), 'intel/2018a')
-        self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][1]), 'GCC/6.4.0-2.28')
+        self.assertEqual(ActiveMNS().det_full_module_name(ec['deps'][0]), 'intel/2018a')
+        self.assertEqual(ActiveMNS().det_full_module_name(ec['deps'][1]), 'GCC/6.4.0-2.28')
 
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
         ec = EasyConfig(ec_file)
-        hiddendep = ec['hiddendependencies'][0]
+        hiddendep = ec['hidden_deps'][0]
         self.assertEqual(ActiveMNS().det_full_module_name(hiddendep), 'toy/.0.0-deps')
         self.assertEqual(ActiveMNS().det_full_module_name(hiddendep, force_visible=True), 'toy/0.0-deps')
 
@@ -3313,14 +3313,14 @@ class EasyConfigTest(EnhancedTestCase):
             "# Built with EasyBuild version 3.1.2 on 2017-04-25_21-35-15",
             toy_ec_txt,
             "# Build statistics",
-            "buildstats = [{",
+            "build_stats = [{",
             '   "build_time": 8.34,',
             '   "os_type": "Linux",',
             "}]",
         ])
         write_file(toy_ec, toy_ec_txt)
 
-        # copy single easyconfig with buildstats included for running further tests
+        # copy single easyconfig with build_stats included for running further tests
         res = copy_easyconfigs([toy_ec], target_dir)
 
         self.assertEqual([len(x) for x in res.values()], [1, 1, 1, 1, 1, 1])
@@ -3337,7 +3337,7 @@ class EasyConfigTest(EnhancedTestCase):
         regexs = [
             r"# Built with EasyBuild",
             r"# Build statistics",
-            r"buildstats\s*=",
+            r"build_stats\s*=",
         ]
         for regex in regexs:
             regex = re.compile(regex, re.M)
@@ -3346,7 +3346,7 @@ class EasyConfigTest(EnhancedTestCase):
         # make sure copied easyconfig still parses
         ec = EasyConfig(copied_toy_ec)
         self.assertEqual(ec.name, 'toy')
-        self.assertEqual(ec['buildstats'], None)
+        self.assertEqual(ec['build_stats'], None)
 
     def test_template_constant_dict(self):
         """Test template_constant_dict function."""
@@ -3413,14 +3413,14 @@ class EasyConfigTest(EnhancedTestCase):
 
         # add Java dep with version specified using a dict value
         toy_ec_txt += '\n'.join([
-            "dependencies += [",
+            "deps += [",
             "  ('Python', '3.7.2'),"
             "  ('Java', {",
             "    'arch=%s': '1.8.0_221'," % my_arch,
             "    'arch=fooarch': '1.8.0-foo',",
             "  })",
             "]",
-            "builddependencies = [",
+            "build_deps = [",
             "  ('CMake', '3.18.4'),",
             "]",
         ])
@@ -3460,11 +3460,11 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(test_ec)
 
         # CMake should *not* be included, since it's a build-only dependency
-        dep_names = [x['name'] for x in ec['dependencies']]
-        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
+        dep_names = [x['name'] for x in ec['deps']]
+        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of deps: %s" % dep_names)
         res = template_constant_dict(ec)
-        dep_names = [x['name'] for x in ec['dependencies']]
-        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
+        dep_names = [x['name'] for x in ec['deps']]
+        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of deps: %s" % dep_names)
 
         self.assertIn('arch', res)
         arch = res.pop('arch')
@@ -3479,11 +3479,11 @@ class EasyConfigTest(EnhancedTestCase):
         for key in ('bitbucket_account', 'github_account', 'parallel', 'versionprefix'):
             del expected[key]
 
-        dep_names = [x[0] for x in ec['dependencies']]
-        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
+        dep_names = [x[0] for x in ec['deps']]
+        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of deps: %s" % dep_names)
         res = template_constant_dict(ec)
-        dep_names = [x[0] for x in ec['dependencies']]
-        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
+        dep_names = [x[0] for x in ec['deps']]
+        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of deps: %s" % dep_names)
 
         self.assertIn('arch', res)
         arch = res.pop('arch')
@@ -3521,7 +3521,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(res, expected)
 
     def test_parse_deps_templates(self):
-        """Test whether handling of templates defined by dependencies is done correctly."""
+        """Test whether handling of templates defined by deps is done correctly."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         pyec = os.path.join(self.test_prefix, 'Python-2.7.10-foss-2018a.eb')
@@ -3536,7 +3536,7 @@ class EasyConfigTest(EnhancedTestCase):
             "homepage = 'http://example.com'",
             "description = 'test'",
             "toolchain = {'name': 'foss', 'version': '2018a'}",
-            "dependencies = [('Python', '2.7.10'), ('pytest', '1.2.3', versionsuffix)]",
+            "deps = [('Python', '2.7.10'), ('pytest', '1.2.3', versionsuffix)]",
         ])
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, ec_txt)
@@ -3549,7 +3549,7 @@ class EasyConfigTest(EnhancedTestCase):
             "homepage = 'http://example.com'",
             "description = 'test'",
             "toolchain = {'name': 'foss', 'version': '2018a'}",
-            "dependencies = [('Python', '2.7.10')]",
+            "deps = [('Python', '2.7.10')]",
         ])
         write_file(os.path.join(self.test_prefix, 'pytest-1.2.3-foss-2018a-Python-2.7.10.eb'), pytest_ec_txt)
 
@@ -3561,16 +3561,16 @@ class EasyConfigTest(EnhancedTestCase):
         }
         init_config(args=['--module-naming-scheme=HierarchicalMNS'], build_options=build_options)
 
-        # check if parsing of easyconfig & resolving dependencies works correctly
+        # check if parsing of easyconfig & resolving deps works correctly
         ecs, _ = parse_easyconfigs([(test_ec, False)])
         ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
 
-        # verify module names of dependencies, by accessing raw config via _.config
+        # verify module names of deps, by accessing raw config via _.config
         expected = [
             'MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/Python/2.7.10',
             'MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/pytest/1.2.3-Python-2.7.10',
         ]
-        dep_full_mod_names = [d['full_mod_name'] for d in ordered_ecs[-1]['ec']._config['dependencies'][0]]
+        dep_full_mod_names = [d['full_mod_name'] for d in ordered_ecs[-1]['ec']._config['deps'][0]]
         self.assertEqual(dep_full_mod_names, expected)
 
     def test_hidden_toolchain(self):
@@ -3693,10 +3693,10 @@ class EasyConfigTest(EnhancedTestCase):
         cands = [{'name': 'golfc', 'version': '2018a'},
                  {'name': 'golfc', 'version': '2018.01'}]
         self.assertErrorRegex(EasyBuildError,
-                              "No version found for subtoolchain gompic in dependencies of fosscuda",
+                              "No version found for subtoolchain gompic in deps of fosscuda",
                               det_subtoolchain_version, current_tc, 'gompic', optional_toolchains, cands)
         self.assertErrorRegex(EasyBuildError,
-                              "Multiple versions of golfc found in dependencies of toolchain fosscuda: 2018.01, 2018a",
+                              "Multiple versions of golfc found in deps of toolchain fosscuda: 2018.01, 2018a",
                               det_subtoolchain_version, current_tc, 'golfc', optional_toolchains, cands)
 
         # missing candidate for golfc, ok for optional
@@ -4067,7 +4067,7 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec_txt = read_file(toy_ec)
 
         ec = EasyConfig(toy_ec)
-        self.assertEqual(ec['builddependencies'], [])
+        self.assertEqual(ec['build_deps'], [])
         self.assertEqual(ec['multi_deps'], {})
         self.assertEqual(ec.multi_deps, [])
 
@@ -4077,8 +4077,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         ec = EasyConfig(test_ec)
 
-        # builddependencies should now be a non-empty list of lists, each with one entry corresponding to a GCC version
-        builddeps = ec['builddependencies']
+        # build_deps should now be a non-empty list of lists, each with one entry corresponding to a GCC version
+        builddeps = ec['build_deps']
         self.assertTrue(builddeps)
         self.assertIsInstance(builddeps, list)
         self.assertEqual(len(builddeps), 3)
@@ -4096,10 +4096,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(all(bd[0]['name'] == 'GCC' for bd in multi_deps))
         self.assertEqual(sorted(bd[0]['version'] for bd in multi_deps), ['4.6.3', '4.8.3', '7.3.0-2.30'])
 
-        # if builddependencies is also specified, then these build deps are added to each sublist
+        # if build_deps is also specified, then these build deps are added to each sublist
         write_file(test_ec, test_ec_txt + "\nbuilddependencies = [('CMake', '3.12.1'), ('foo', '1.2.3')]")
         ec = EasyConfig(test_ec)
-        builddeps = ec['builddependencies']
+        builddeps = ec['build_deps']
         self.assertTrue(builddeps)
         self.assertIsInstance(builddeps, list)
         self.assertEqual(len(builddeps), 3)
@@ -4123,20 +4123,20 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(all(bd[0]['name'] == 'GCC' for bd in multi_deps))
         self.assertEqual(sorted(bd[0]['version'] for bd in multi_deps), ['4.6.3', '4.8.3', '7.3.0-2.30'])
 
-        # trying to combine multi_deps with a list of lists in builddependencies is not allowed
+        # trying to combine multi_deps with a list of lists in build_deps is not allowed
         write_file(test_ec, test_ec_txt + "\nbuilddependencies = [[('CMake', '3.12.1')], [('CMake', '3.9.1')]]")
-        error_pattern = "Can't combine multi_deps with builddependencies specified as list of lists"
+        error_pattern = "Can't combine multi_deps with build_deps specified as list of lists"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
 
         # test with different number of dependency versions in multi_deps, should result in a clean error
         test_ec_txt = toy_ec_txt + "\nmulti_deps = {'one': ['1.0'], 'two': ['2.0', '2.1']}"
         write_file(test_ec, test_ec_txt)
 
-        error_pattern = "Not all the dependencies listed in multi_deps have the same number of versions!"
+        error_pattern = "Not all the deps listed in multi_deps have the same number of versions!"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
 
     def test_multi_deps_templated_builddeps(self):
-        """Test effect of multi_deps on builddependencies w.r.t. resolving templates like %(pyver)s."""
+        """Test effect of multi_deps on build_deps w.r.t. resolving templates like %(pyver)s."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec)
@@ -4151,7 +4151,7 @@ class EasyConfigTest(EnhancedTestCase):
         # start iteration #0
         eb.handle_iterate_opts()
 
-        builddeps = ec['builddependencies']
+        builddeps = ec['build_deps']
 
         self.assertIsInstance(builddeps, list)
         self.assertEqual(len(builddeps), 2)
@@ -4170,7 +4170,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(builddeps[1]['full_mod_name'], 'SWIG/3.0.12-Python-3.7.2')
 
         eb.handle_iterate_opts()
-        builddeps = ec['builddependencies']
+        builddeps = ec['build_deps']
 
         # 1st listed build dep should be second version of Python (via multi_deps)
         self.assertEqual(builddeps[0]['name'], 'Python')
@@ -4185,7 +4185,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(builddeps[1]['full_mod_name'], 'SWIG/3.0.12-Python-2.7.15')
 
     def test_iter_builddeps_templates(self):
-        """Test whether iterative builddependencies are taken into account to define *ver and *shortver templates."""
+        """Test whether iterative build_deps are taken into account to define *ver and *shortver templates."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec)
@@ -4197,7 +4197,7 @@ class EasyConfigTest(EnhancedTestCase):
         test_ec_txt += '\n'.join([
             '',
             "exts_defaultclass = 'Toy_Extension'",
-            "exts_list = [('bar', '0.0', {'preinstallopts': 'echo \\'py%(pyshortver)s\\' && '})]",
+            "exts_list = [('bar', '0.0', {'pre_install_opts': 'echo \\'py%(pyshortver)s\\' && '})]",
         ])
 
         write_file(test_ec, test_ec_txt)
@@ -4208,13 +4208,13 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertNotIn('pyver', ec.template_values)
         self.assertNotIn('pyshortver', ec.template_values)
 
-        # save reference to original list of lists of build dependencies
-        builddeps = ec['builddependencies']
+        # save reference to original list of lists of build deps
+        builddeps = ec['build_deps']
 
         ec.start_iterating()
 
-        # start with first list of build dependencies (i.e. Python 2.7.15)
-        ec['builddependencies'] = builddeps[0]
+        # start with first list of build deps (i.e. Python 2.7.15)
+        ec['build_deps'] = builddeps[0]
 
         ec.generate_template_values()
         self.assertIn('pyver', ec.template_values)
@@ -4222,8 +4222,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertIn('pyshortver', ec.template_values)
         self.assertEqual(ec.template_values['pyshortver'], '2.7')
 
-        # put next list of build dependencies in place (i.e. Python 3.7.2)
-        ec['builddependencies'] = builddeps[1]
+        # put next list of build deps in place (i.e. Python 3.7.2)
+        ec['build_deps'] = builddeps[1]
 
         ec.generate_template_values()
         self.assertIn('pyver', ec.template_values)
@@ -4237,7 +4237,7 @@ class EasyConfigTest(EnhancedTestCase):
         eb.silent = True
         eb.extensions_step(fetch=True, install=False)
         ext = eb.ext_instances[0]
-        self.assertEqual(ext.cfg['preinstallopts'], "echo 'py3.6' && ")
+        self.assertEqual(ext.cfg['pre_install_opts'], "echo 'py3.6' && ")
 
     def test_fix_deprecated_easyconfigs(self):
         """Test fix_deprecated_easyconfigs function."""
@@ -4253,7 +4253,7 @@ class EasyConfigTest(EnhancedTestCase):
         test_ectxt = toy_ec_txt
         # inject local variables with names that need to be tweaked (or not for single-letter ones)
         regex = re.compile('^(sanity_check_paths)', re.M)
-        # purposely define configopts via local variable 'foo', which has value that also contains 'foo' substring;
+        # purposely define configure_opts via local variable 'foo', which has value that also contains 'foo' substring;
         # that way, we can check whether only the 'foo' variable name is replaced with 'local_foo'
         test_ectxt = regex.sub(r'foo = "--foobar --barfoo --barfoobaz"\nconfigopts = foo\n\n\1', toy_ec_txt)
         regex = re.compile(r'^(toolchain\s*=.*)$', re.M)
@@ -4278,7 +4278,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # parsing now works
         ec = EasyConfig(test_ec)
-        self.assertEqual(ec['configopts'], "--foobar --barfoo --barfoobaz")
+        self.assertEqual(ec['configure_opts'], "--foobar --barfoo --barfoobaz")
         self.assertFalse(stderr)
         stdout = stdout.split('\n')
         self.assertEqual(len(stdout), 6)
@@ -4418,7 +4418,7 @@ class EasyConfigTest(EnhancedTestCase):
             "homepage = 'https://example.com'",
             "description = 'test'",
             "toolchain = SYSTEM",
-            "dependencies = %s" % dep_str,
+            "deps = %s" % dep_str,
         ])
         write_file(test_ec, test_ectxt)
 
@@ -4441,7 +4441,7 @@ class EasyConfigTest(EnhancedTestCase):
                 "homepage = 'https://example.com'",
                 "description = 'test'",
                 "toolchain = SYSTEM",
-                "dependencies = %s" % dep_str,
+                "deps = %s" % dep_str,
             ])
             write_file(test_ec, test_ectxt)
 
@@ -4508,39 +4508,39 @@ class EasyConfigTest(EnhancedTestCase):
             description = 'test'
             toolchain = SYSTEM
             cuda_compute_capabilities = ['5.1', '7.0', '7.1']
-            preconfigopts = 'CUDAARCHS="%(cuda_cc_cmake)s"'
-            configopts = 'comma="%(cuda_sm_comma_sep)s" space="%(cuda_sm_space_sep)s"'
-            prebuildopts = '%(cuda_cc_semicolon_sep)s'
-            buildopts = ('comma="%(cuda_int_comma_sep)s" space="%(cuda_int_space_sep)s" '
+            pre_configure_opts = 'CUDAARCHS="%(cuda_cc_cmake)s"'
+            configure_opts = 'comma="%(cuda_sm_comma_sep)s" space="%(cuda_sm_space_sep)s"'
+            pre_build_opts = '%(cuda_cc_semicolon_sep)s'
+            build_opts = ('comma="%(cuda_int_comma_sep)s" space="%(cuda_int_space_sep)s" '
                          'semi="%(cuda_int_semicolon_sep)s"')
-            preinstallopts = '%(cuda_cc_space_sep)s'
-            installopts = '%(cuda_compute_capabilities)s'
+            pre_install_opts = '%(cuda_cc_space_sep)s'
+            install_opts = '%(cuda_compute_capabilities)s'
         """)
         self.prep()
 
         ec = EasyConfig(self.eb_file)
-        self.assertEqual(ec['preconfigopts'], 'CUDAARCHS="51;70;71"')
-        self.assertEqual(ec['configopts'], 'comma="sm_51,sm_70,sm_71" '
+        self.assertEqual(ec['pre_configure_opts'], 'CUDAARCHS="51;70;71"')
+        self.assertEqual(ec['configure_opts'], 'comma="sm_51,sm_70,sm_71" '
                                            'space="sm_51 sm_70 sm_71"')
-        self.assertEqual(ec['prebuildopts'], '5.1;7.0;7.1')
-        self.assertEqual(ec['buildopts'], 'comma="51,70,71" '
+        self.assertEqual(ec['pre_build_opts'], '5.1;7.0;7.1')
+        self.assertEqual(ec['build_opts'], 'comma="51,70,71" '
                                           'space="51 70 71" '
                                           'semi="51;70;71"')
-        self.assertEqual(ec['preinstallopts'], '5.1 7.0 7.1')
-        self.assertEqual(ec['installopts'], '5.1,7.0,7.1')
+        self.assertEqual(ec['pre_install_opts'], '5.1 7.0 7.1')
+        self.assertEqual(ec['install_opts'], '5.1,7.0,7.1')
 
         # build options overwrite it
         init_config(build_options={'cuda_compute_capabilities': ['4.2', '6.3']})
         ec = EasyConfig(self.eb_file)
-        self.assertEqual(ec['preconfigopts'], 'CUDAARCHS="42;63"')
-        self.assertEqual(ec['configopts'], 'comma="sm_42,sm_63" '
+        self.assertEqual(ec['pre_configure_opts'], 'CUDAARCHS="42;63"')
+        self.assertEqual(ec['configure_opts'], 'comma="sm_42,sm_63" '
                                            'space="sm_42 sm_63"')
-        self.assertEqual(ec['buildopts'], 'comma="42,63" '
+        self.assertEqual(ec['build_opts'], 'comma="42,63" '
                                           'space="42 63" '
                                           'semi="42;63"')
-        self.assertEqual(ec['prebuildopts'], '4.2;6.3')
-        self.assertEqual(ec['preinstallopts'], '4.2 6.3')
-        self.assertEqual(ec['installopts'], '4.2,6.3')
+        self.assertEqual(ec['pre_build_opts'], '4.2;6.3')
+        self.assertEqual(ec['pre_install_opts'], '4.2 6.3')
+        self.assertEqual(ec['install_opts'], '4.2,6.3')
 
     def test_det_copy_ec_specs(self):
         """Test det_copy_ec_specs function."""
@@ -4726,7 +4726,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec_dict = toy_ec.parser.get_config_dict()
         self.assertEqual(ec_dict.get('version'), '0.0')
         self.assertEqual(ec_dict.get('sources'), ['%(name)s-%(version)s.tar.gz'])
-        self.assertEqual(ec_dict.get('exts_default_options'), None)
+        self.assertEqual(ec_dict.get('exts_default_opts'), None)
         self.assertEqual(ec_dict.get('sanity_check_paths'), {'dirs': ['bin'], 'files': [('bin/yot', 'bin/toy')]})
 
         # manipulating easyconfig parameter values should not affect the result of parser.get_config_dict()
@@ -4738,7 +4738,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec_dict_bis = toy_ec.parser.get_config_dict()
         self.assertEqual(ec_dict_bis.get('version'), '0.0')
         self.assertEqual(ec_dict_bis.get('sources'), ['%(name)s-%(version)s.tar.gz'])
-        self.assertEqual(ec_dict_bis.get('exts_default_options'), None)
+        self.assertEqual(ec_dict_bis.get('exts_default_opts'), None)
         self.assertEqual(ec_dict.get('sanity_check_paths'), {'dirs': ['bin'], 'files': [('bin/yot', 'bin/toy')]})
 
     def test_easyconfig_import(self):
@@ -4753,7 +4753,7 @@ class EasyConfigTest(EnhancedTestCase):
         test_ec_txt += '\n' + '\n'.join([
             "import os",
             "local_test = os.getenv('TEST_TOY')",
-            "sanity_check_commands = ['toy | grep %s' % local_test]",
+            "sanity_check_cmds = ['toy | grep %s' % local_test]",
         ])
         write_file(test_ec, test_ec_txt)
 
@@ -4761,7 +4761,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         ec = EasyConfig(test_ec)
 
-        self.assertEqual(ec['sanity_check_commands'], ['toy | grep 123'])
+        self.assertEqual(ec['sanity_check_cmds'], ['toy | grep 123'])
 
         # inject weird stuff, like a class definition that creates a logger instance
         # and a local variable with a list of imported modules, to check clean error handling

@@ -106,10 +106,10 @@ class Extension(object):
 
         name, version = self.ext['name'], self.ext.get('version', None)
 
-        # parent sanity check paths/commands and postinstallcmds are not relevant for extension
-        self.cfg['sanity_check_commands'] = []
+        # parent sanity check paths/commands and post_install_cmds are not relevant for extension
+        self.cfg['sanity_check_cmds'] = []
         self.cfg['sanity_check_paths'] = []
-        self.cfg['postinstallcmds'] = []
+        self.cfg['post_install_cmds'] = []
 
         # construct dict with template values that can be used
         self.cfg.template_values.update(template_constant_dict({'name': name, 'version': version}))
@@ -216,7 +216,7 @@ class Extension(object):
         """
         Stuff to do after installing a extension.
         """
-        self.master.run_post_install_commands(commands=self.cfg.get('postinstallcmds', []))
+        self.master.run_post_install_commands(commands=self.cfg.get('post_install_cmds', []))
 
     def install_extension_substep(self, substep, *args, **kwargs):
         """
@@ -262,8 +262,8 @@ class Extension(object):
 
     @property
     def required_deps(self):
-        """Return list of required dependencies for this extension."""
-        self.log.info("Don't know how to determine required dependencies for extension '%s'", self.name)
+        """Return list of required deps for this extension."""
+        self.log.info("Don't know how to determine required deps for extension '%s'", self.name)
         return None
 
     @property

@@ -5,7 +5,7 @@ homepage = 'https://easybuilders.github.io/easybuild'
 description = "Toy C program, 100% toy."
 
 toolchain = {'name': 'gompi', 'version': '2018a'}
-toolchainopts = {'pic': True, 'opt': True, 'optarch': True}
+toolchain_opts = {'pic': True, 'opt': True, 'optarch': True}
 
 sources = [SOURCE_TAR_GZ]
 checksums = [[
@@ -27,7 +27,7 @@ sanity_check_paths = {
     'dirs': ['bin'],
 }
 
-postinstallcmds = ["echo TOY > %(installdir)s/README"]
+post_install_cmds = ["echo TOY > %(installdir)s/README"]
 
 moduleclass = 'tools'
 # trailing comment, leave this here, it may trigger bugs with extract_comments()

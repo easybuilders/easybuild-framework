@@ -120,7 +120,7 @@ def package_with_fpm(easyblock):
 
     deps.extend(easyblock.cfg.dependencies())
 
-    _log.debug("The dependencies to be added to the package are: %s",
+    _log.debug("The deps to be added to the package are: %s",
                pprint.pformat([easyblock.toolchain.as_dict()] + easyblock.cfg.dependencies()))
     for dep in deps:
         if dep.get('external_module', False):
@@ -155,7 +155,7 @@ def package_with_fpm(easyblock):
 
 
 def check_pkg_support():
-    """Check whether packaging is possible, if required dependencies are available."""
+    """Check whether packaging is possible, if required deps are available."""
     pkgtool = build_option('package_tool')
     pkgtool_path = which(pkgtool)
     if pkgtool_path:

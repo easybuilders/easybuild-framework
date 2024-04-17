@@ -8,7 +8,7 @@ description = """Toolchain using Cray compiler wrapper with gcc module (CPE rele
 
 toolchain = SYSTEM
 
-dependencies = [
+deps = [
    ('PrgEnv-gnu', EXTERNAL_MODULE),
    ('cpe/%(version)s', EXTERNAL_MODULE),
 ]

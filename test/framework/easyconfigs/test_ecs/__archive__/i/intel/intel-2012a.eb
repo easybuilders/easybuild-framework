@@ -9,7 +9,7 @@ description = """Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and
 toolchain = SYSTEM
 
 # fake/empty intel/2012a toolchain, just for testing purposes
-dependencies = [
+deps = [
 #    ('icc', '11.1.073'),
 #    ('ifort', '11.1.073'),
 #    ('impi', '4.0.0.028', '', ('iccifort', compver)),

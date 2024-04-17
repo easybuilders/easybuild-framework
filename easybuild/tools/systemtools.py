@@ -176,18 +176,18 @@ ZYPPER = 'zypper'
 SYSTEM_TOOLS = {
     '7z': "extracting sources (.iso)",
     'bunzip2': "decompressing sources (.bz2, .tbz, .tbz2, ...)",
-    DPKG: "checking OS dependencies (Debian, Ubuntu, ...)",
+    DPKG: "checking OS deps (Debian, Ubuntu, ...)",
     'git': "downloading sources using 'git clone'",
     'gunzip': "decompressing source files (.gz, .tgz, ...)",
     'make': "build tool",
     'patch': "applying patch files",
-    RPM: "checking OS dependencies (CentOS, RHEL, OpenSuSE, SLES, ...)",
+    RPM: "checking OS deps (CentOS, RHEL, OpenSuSE, SLES, ...)",
     'sed': "runtime patching",
     'Slurm': "backend for --job (sbatch command)",
     'tar': "unpacking source files (.tar)",
     'unxz': "decompressing source files (.xz, .txz)",
     'unzip': "decompressing files (.zip)",
-    ZYPPER: "checking OS dependencies (openSUSE)",
+    ZYPPER: "checking OS deps (openSUSE)",
 }
 
 SYSTEM_TOOL_CMDS = {
@@ -865,7 +865,7 @@ def check_os_dependency(dep):
     for pkg_cmd in pkg_cmds:
         if which(pkg_cmd):
             cmd = ' '.join([
-                # unset $LD_LIBRARY_PATH to avoid broken rpm command due to loaded dependencies
+                # unset $LD_LIBRARY_PATH to avoid broken rpm command due to loaded deps
                 # see https://github.com/easybuilders/easybuild-easyconfigs/pull/4179
                 'unset LD_LIBRARY_PATH &&',
                 pkg_cmd,
@@ -1347,7 +1347,7 @@ def det_pypkg_version(pkg_name, imported_pkg, import_name=None):
 
 def check_easybuild_deps(modtool):
     """
-    Check presence and version of required and optional EasyBuild dependencies, and report back to terminal.
+    Check presence and version of required and optional EasyBuild deps, and report back to terminal.
     """
     version_regex = re.compile(r'\s(?P<version>[0-9][0-9.]+[a-z]*)')
 
@@ -1387,12 +1387,12 @@ def check_easybuild_deps(modtool):
 
     checks_data['col_titles'] = ('name', 'version', 'used for')
 
-    req_deps_key = "Required dependencies"
+    req_deps_key = "Required deps"
     checks_data[req_deps_key] = OrderedDict()
     checks_data[req_deps_key]['Python'] = (python_version, None)
     checks_data[req_deps_key]['modules tool:'] = (str(modtool), None)
 
-    opt_deps_key = "Optional dependencies"
+    opt_deps_key = "Optional deps"
     checks_data[opt_deps_key] = {}
 
     for key in opt_dep_versions:

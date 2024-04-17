@@ -11,8 +11,8 @@ toolchain = SYSTEM
 
 local_comp = ('GCC', '6.4.0-2.28')
 
-# compiler toolchain dependencies
-dependencies = [
+# compiler toolchain deps
+deps = [
     local_comp,
     ('OpenBLAS', '0.2.20', '', local_comp),
     ('FFTW', '3.3.7', '-serial', local_comp),

@@ -8,7 +8,7 @@ description = """Toolchain using Cray compiler wrapper, using PrgEnv-cray module
 
 toolchain = SYSTEM
 
-dependencies = [
+deps = [
     ('PrgEnv-cray/' + version, EXTERNAL_MODULE),  # also loads cray-libsci
     ('fftw/3.3.4.0', EXTERNAL_MODULE),
 ]

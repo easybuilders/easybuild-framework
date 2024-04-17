@@ -65,7 +65,7 @@ def det_robot_path(robot_paths_option, tweaked_ecs_paths, extra_ec_paths, auto_r
         tweaked_ecs_path, tweaked_ecs_deps_path = tweaked_ecs_paths
         # easyconfigs listed on the command line (and tweaked) should be found first
         robot_path.insert(0, tweaked_ecs_path)
-        # dependencies are always tweaked but we should only use them if there is no other option (so they come last)
+        # deps are always tweaked but we should only use them if there is no other option (so they come last)
         robot_path.append(tweaked_ecs_deps_path)
         _log.info("Prepended list of robot search paths with %s and appended with %s: %s", tweaked_ecs_path,
                   tweaked_ecs_deps_path, robot_path)
@@ -83,14 +83,14 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
 
     :param easyconfigs: list of easyconfig files (EasyConfig instances) to check for conflicts
     :param modtool: ModulesTool instance to use
-    :param check_inter_ec_conflicts: also check for conflicts between (dependencies of) listed easyconfigs
+    :param check_inter_ec_conflicts: also check for conflicts between (deps of) listed easyconfigs
     :return: True if one or more conflicts were found, False otherwise
     """
 
     ordered_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
 
     def mk_key(spec):
-        """Create key for dictionary with all dependencies."""
+        """Create key for dictionary with all deps."""
         if 'ec' in spec:
             spec = spec['ec']
 
@@ -102,22 +102,22 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
         # easyconfigs using ModuleRC install a 'wrapper' for their dependency
         # these need to be filtered out to avoid reporting false conflicts...
         if ec['ec']['easyblock'] == 'ModuleRC':
-            wrapper_deps[mk_key(ec)] = mk_key(ec['ec']['dependencies'][0])
+            wrapper_deps[mk_key(ec)] = mk_key(ec['ec']['deps'][0])
 
     def mk_dep_keys(deps):
-        """Create keys for given list of dependencies."""
+        """Create keys for given list of deps."""
         res = []
         for dep in deps:
-            # filter out dependencies marked as external module
+            # filter out deps marked as external module
             if not dep.get('external_module', False):
                 key = mk_key(dep)
-                # replace 'wrapper' dependencies with the dependency they're wrapping
+                # replace 'wrapper' deps with the dependency they're wrapping
                 if key in wrapper_deps:
                     key = wrapper_deps[key]
                 res.append(key)
         return res
 
-    # construct a dictionary: (name, installver) tuple to (build) dependencies
+    # construct a dictionary: (name, installver) tuple to (build) deps
     deps_for, dep_of = {}, {}
     for node in ordered_ecs:
         node_key = mk_key(node)
@@ -125,8 +125,8 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
         parsed_build_deps = node['ec'].builddependencies()
 
         # take into account listed multi-deps;
-        # these will be included in the list of build dependencies (see EasyConfig.handle_multi_deps),
-        # but should be filtered out since they're not real build dependencies
+        # these will be included in the list of build deps (see EasyConfig.handle_multi_deps),
+        # but should be filtered out since they're not real build deps
         # we need to iterate over them when checking for conflicts...
         if node['ec']['multi_deps']:
             parsed_multi_deps = node['ec'].get_parsed_multi_deps()
@@ -155,24 +155,24 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
         ec_keys = [k for k in [mk_key(e) for e in easyconfigs] if k not in wrapper_deps]
         deps_for[(None, None)] = ([], ec_keys, [])
 
-    # iteratively expand list of dependencies
+    # iteratively expand list of deps
     last_deps_for = None
     while deps_for != last_deps_for:
         last_deps_for = copy.deepcopy(deps_for)
         # (Automake, _), [], [(Autoconf, _), (GCC, _)]
         for (key, (build_deps, runtime_deps, multi_deps)) in last_deps_for.items():
-            # extend runtime dependencies with non-build dependencies of own runtime dependencies
+            # extend runtime deps with non-build deps of own runtime deps
             # Autoconf
             for dep in runtime_deps:
                 # [], [M4, GCC]
                 deps_for[key][1].extend(deps_for[dep][1])
 
-            # extend multi deps with non-build dependencies of own runtime dependencies
+            # extend multi deps with non-build deps of own runtime deps
             for deplist in multi_deps:
                 for dep in deplist:
                     deps_for[key][2].extend(deps_for[dep][1])
 
-            # extend build dependencies with non-build dependencies of own build dependencies
+            # extend build deps with non-build deps of own build deps
             for dep in build_deps:
                 deps_for[key][0].extend(deps_for[dep][1])
 
@@ -185,13 +185,13 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
 
     def check_conflict(parent, dep1, dep2):
         """
-        Check whether dependencies with given name/(install) version conflict with each other.
+        Check whether deps with given name/(install) version conflict with each other.
 
         :param parent: name & install version of 'parent' software
         :param dep1: name & install version of 1st dependency
         :param dep2: name & install version of 2nd dependency
         """
-        # dependencies with the same name should have the exact same install version
+        # deps with the same name should have the exact same install version
         # if not => CONFLICT!
         conflict = dep1[0] == dep2[0] and dep1[1] != dep2[1]
         if conflict:
@@ -201,14 +201,14 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
                     vs_msg += "\n\t%s-%s as dep of: " % dep + ', '.join('%s-%s' % d for d in sorted(dep_of[dep]))
 
             if parent[0] is None:
-                sys.stderr.write("Conflict between (dependencies of) easyconfigs: %s\n" % vs_msg)
+                sys.stderr.write("Conflict between (deps of) easyconfigs: %s\n" % vs_msg)
             else:
                 specname = '%s-%s' % parent
-                sys.stderr.write("Conflict found for dependencies of %s: %s\n" % (specname, vs_msg))
+                sys.stderr.write("Conflict found for deps of %s: %s\n" % (specname, vs_msg))
 
         return conflict
 
-    # for each of the easyconfigs, check whether the dependencies (incl. build deps) contain any conflicts
+    # for each of the easyconfigs, check whether the deps (incl. build deps) contain any conflicts
     res = False
     for (key, (build_deps, runtime_deps, multi_deps)) in deps_for.items():
 
@@ -220,7 +220,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
             lists_of_runtime_deps = [runtime_deps]
 
         for runtime_deps in lists_of_runtime_deps:
-            # also check whether module itself clashes with any of its dependencies
+            # also check whether module itself clashes with any of its deps
             for i, dep1 in enumerate(build_deps + runtime_deps + [key]):
                 for dep2 in (build_deps + runtime_deps)[i + 1:]:
                     # don't worry about conflicts between module itself and any of its build deps
@@ -246,7 +246,7 @@ def dry_run(easyconfigs, modtool, short=False):
         lines.append("Dry run: printing build status of easyconfigs")
         all_specs = easyconfigs
     else:
-        lines.append("Dry run: printing build status of easyconfigs and dependencies")
+        lines.append("Dry run: printing build status of easyconfigs and deps")
         all_specs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True, raise_error_missing_ecs=False)
 
     unbuilt_specs = skip_available(all_specs, modtool)
@@ -313,16 +313,16 @@ def missing_deps(easyconfigs, modtool, terse=False):
 
 
 def raise_error_missing_deps(missing_deps, extra_msg=None):
-    """Raise error to report missing dependencies."""
+    """Raise error to report missing deps."""
 
-    _log.warning("Missing dependencies (details): %s", missing_deps)
+    _log.warning("Missing deps (details): %s", missing_deps)
 
     mod_names_eb = ', '.join(EasyBuildMNS().det_full_module_name(dep) for dep in missing_deps)
-    _log.warning("Missing dependencies (EasyBuild module names): %s", mod_names_eb)
+    _log.warning("Missing deps (EasyBuild module names): %s", mod_names_eb)
 
     mod_names = ', '.join(ActiveMNS().det_full_module_name(dep) for dep in missing_deps)
 
-    error_msg = "Missing dependencies: %s" % mod_names
+    error_msg = "Missing deps: %s" % mod_names
     if extra_msg:
         error_msg += ' (%s)' % extra_msg
     raise EasyBuildError(error_msg)
@@ -333,25 +333,25 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
     Work through the list of easyconfigs to determine an optimal order
     :param easyconfigs: list of easyconfigs
     :param modtool: ModulesTool instance to use
-    :param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
+    :param retain_all_deps: boolean indicating whether all deps must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
     :param raise_error_missing_ecs: raise an error when one or more easyconfig files could not be found
     """
     robot = build_option('robot_path')
-    # retain all dependencies if specified by either the resp. build option or the dedicated named argument
+    # retain all deps if specified by either the resp. build option or the dedicated named argument
     retain_all_deps = build_option('retain_all_deps') or retain_all_deps
 
     avail_modules = modtool.available()
     if retain_all_deps:
-        # assume that no modules are available when forced, to retain all dependencies
+        # assume that no modules are available when forced, to retain all deps
         avail_modules = []
-        _log.info("Forcing all dependencies to be retained.")
+        _log.info("Forcing all deps to be retained.")
     else:
         if len(avail_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
 
     ordered_ecs = []
-    # all available modules can be used for resolving dependencies except those that will be installed
+    # all available modules can be used for resolving deps except those that will be installed
     being_installed = [p['full_mod_name'] for p in easyconfigs]
     avail_modules = [m for m in avail_modules if m not in being_installed]
 
@@ -359,7 +359,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
 
     totally_missing, missing_easyconfigs = [], []
 
-    # resolve all dependencies, put a safeguard in place to avoid an infinite loop (shouldn't occur though)
+    # resolve all deps, put a safeguard in place to avoid an infinite loop (shouldn't occur though)
     loopcnt = 0
     maxloopcnt = 10000
     while easyconfigs:
@@ -369,7 +369,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
             raise EasyBuildError("Maximum loop cnt %s reached, so quitting (easyconfigs: %s, missing_easyconfigs: %s)",
                                  maxloopcnt, easyconfigs, missing_easyconfigs)
 
-        # first try resolving dependencies without using external dependencies
+        # first try resolving deps without using external deps
         last_processed_count = -1
         while len(avail_modules) > last_processed_count:
             last_processed_count = len(avail_modules)
@@ -381,17 +381,17 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
                 if not ec['full_mod_name'] in ordered_ec_mod_names:
                     ordered_ecs.append(ec)
 
-        # dependencies marked as external modules should be resolved via available modules at this point
-        missing_external_modules = [d['full_mod_name'] for ec in easyconfigs for d in ec['dependencies']
+        # deps marked as external modules should be resolved via available modules at this point
+        missing_external_modules = [d['full_mod_name'] for ec in easyconfigs for d in ec['deps']
                                     if d.get('external_module', False)]
         if missing_external_modules:
-            raise EasyBuildError("Missing modules for dependencies marked as external modules: %s",
+            raise EasyBuildError("Missing modules for deps marked as external modules: %s",
                                  ', '.join(missing_external_modules))
 
-        # robot: look for existing dependencies, add them
+        # robot: look for existing deps, add them
         if robot and easyconfigs:
 
-            # rely on EasyBuild module naming scheme when resolving dependencies, since we know that will
+            # rely on EasyBuild module naming scheme when resolving deps, since we know that will
             # generate sensible module names that include the necessary information for the resolution to work
             # (name, version, toolchain, versionsuffix)
             being_installed = [EasyBuildMNS().det_full_module_name(p['ec']) for p in easyconfigs]
@@ -400,7 +400,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
             for entry in easyconfigs:
                 # do not choose an entry that is being installed in the current run
                 # if they depend, you probably want to rebuild them using the new dependency
-                deps = entry['dependencies']
+                deps = entry['deps']
                 candidates = [d for d in deps if not EasyBuildMNS().det_full_module_name(d) in being_installed]
                 if candidates:
                     cand_dep = candidates[0]
@@ -423,19 +423,19 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
                             _log.debug("Irresolvable dependency found (no easyconfig file): %s", cand_dep)
                             missing_easyconfigs.append(cand_dep)
 
-                        # remove irresolvable dependency from list of dependencies so we can continue
-                        entry['dependencies'].remove(cand_dep)
+                        # remove irresolvable dependency from list of deps so we can continue
+                        entry['deps'].remove(cand_dep)
 
                         # add dummy entry for this dependency, so --dry-run for example can still report the dep
                         additional.append({
-                            'dependencies': [],
+                            'deps': [],
                             'ec': None,
                             'full_mod_name': full_mod_name,
                             'spec': None,
                         })
                     else:
                         _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
-                        # build specs should not be passed down to resolved dependencies,
+                        # build specs should not be passed down to resolved deps,
                         # to avoid that e.g. --try-toolchain trickles down into the used toolchain itself
                         hidden = cand_dep.get('hidden', False)
                         processed_ecs = process_easyconfig(path, validate=not retain_all_deps, hidden=hidden)
@@ -449,15 +449,15 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
                                 _log.debug("Added %s as dependency of %s" % (ec, entry))
                 else:
                     mod_name = EasyBuildMNS().det_full_module_name(entry['ec'])
-                    _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
+                    _log.debug("No more candidate deps to resolve for %s" % mod_name)
 
             # add additional (new) easyconfigs to list of stuff to process
             easyconfigs.extend(additional)
-            _log.debug("Unprocessed dependencies: %s", easyconfigs)
+            _log.debug("Unprocessed deps: %s", easyconfigs)
 
         elif not robot:
-            # no use in continuing if robot is not enabled, dependencies won't be resolved anyway
-            missing_deps = [dep for x in easyconfigs for dep in x['dependencies']]
+            # no use in continuing if robot is not enabled, deps won't be resolved anyway
+            missing_deps = [dep for x in easyconfigs for dep in x['deps']]
             if missing_deps:
                 raise_error_missing_deps(missing_deps, extra_msg="enable dependency resolution via --robot?")
 

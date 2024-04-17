@@ -29,6 +29,6 @@ sources = [
 patches = ['mpfr-3.1.0-changes_fix.patch']
 
 # building GCC sometimes fails if make parallelism is too high, so let's limit it
-maxparallel = 4
+max_parallel = 4
 
 moduleclass = 'compiler'

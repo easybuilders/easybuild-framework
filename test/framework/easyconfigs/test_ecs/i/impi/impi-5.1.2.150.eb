@@ -13,7 +13,7 @@ toolchain = SYSTEM
 
 sources = ['l_mpi_p_%(version)s.tgz']
 
-dontcreateinstalldir = 'True'
+dont_create_install_dir = 'True'
 
 license_file = HOME + '/licenses/intel/license.lic'
 

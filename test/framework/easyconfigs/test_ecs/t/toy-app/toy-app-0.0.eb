@@ -13,18 +13,18 @@ checksums = [
     '9559393c0d747a4940a79be54e82fa8f14dbb0c32979a3e61e9db305f32dad49',  # default (SHA256)
 ]
 
-dependencies = [
+deps = [
     ('libtoy', '0.0')
 ]
 
-buildopts = '-ltoy'
+build_opts = '-ltoy'
 
 sanity_check_paths = {
     'files': [('bin/toy-app')],
     'dirs': ['bin'],
 }
 
-postinstallcmds = ["echo TOY > %(installdir)s/README"]
+post_install_cmds = ["echo TOY > %(installdir)s/README"]
 
 moduleclass = 'tools'
 # trailing comment, leave this here, it may trigger bugs with extract_comments()

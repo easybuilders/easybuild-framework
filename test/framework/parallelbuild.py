@@ -172,7 +172,7 @@ class ParallelBuildTest(EnhancedTestCase):
         self.assertEqual(len(jobs[2].deps), 1)
         self.assertIn('intel-2018a.eb', jobs[2].deps[0].script)
 
-        # dependencies for gzip/1.4-GCC-4.6.3: GCC/4.6.3 (toolchain) + toy/.0.0-deps
+        # deps for gzip/1.4-GCC-4.6.3: GCC/4.6.3 (toolchain) + toy/.0.0-deps
         self.assertIn('gzip-1.4-GCC-4.6.3.eb', jobs[3].script)
         self.assertEqual(len(jobs[3].deps), 2)
         regex = re.compile(r'toy-0.0-deps\.eb.* --hidden')
