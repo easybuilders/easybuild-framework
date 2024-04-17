@@ -61,8 +61,8 @@ from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION, retri
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import ALTERNATE_PARAMETERS, DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import DEPRECATED_TEMPLATES, TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC
-from easybuild.framework.easyconfig.templates import template_constant_dict
+from easybuild.framework.easyconfig.templates import ALTERNATE_TEMPLATES, DEPRECATED_TEMPLATES, TEMPLATE_CONSTANTS,
+from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
@@ -1997,13 +1997,16 @@ def resolve_template(value, tmpl_dict):
             try:
                 value = value % tmpl_dict
             except KeyError:
-                # check if any deprecated templates resolve
+                # check if any alternate or deprecated templates resolve
                 try:
                     orig_value = value
-                    # map old templates to new values
+                    # map old templates to new values for alternate and deprecated templates
+                    alt_map = {old_tmpl: tmpl_dict[new_tmpl] for (old_tmpl, new_tmpl) in
+                               ALTERNATE_TEMPLATES.items() if new_tmpl in tmpl_dict.keys()}
                     depr_map = {old_tmpl: tmpl_dict[new_tmpl] for (old_tmpl, (new_tmpl, ver)) in
                                 DEPRECATED_TEMPLATES.items() if new_tmpl in tmpl_dict.keys()}
-                    value = value % depr_map
+                    # try templating with tmpl_dict, alt_map and depr_map
+                    value = value % {**tmpl_dict, **alt_map, **depr_map}
 
                     for old_tmpl, val in depr_map.items():
                         # check which deprecated templates were replaced, and issue deprecation warnings
