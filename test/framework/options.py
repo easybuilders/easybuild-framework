@@ -4522,7 +4522,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         res = [d for d in res if os.path.basename(d) != os.path.basename(git_working_dir)]
         if len(res) == 1:
             unstaged_file_full = os.path.join(res[0], unstaged_file)
-            self.assertNotExists(unstaged_file_full), "%s not found in %s" % (unstaged_file, res[0])
+            self.assertNotExists(unstaged_file_full)
         else:
             self.fail("Found copy of easybuild-easyconfigs working copy")
 
