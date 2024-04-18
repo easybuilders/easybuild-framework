@@ -440,9 +440,9 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     dry_run_mode = options.dry_run or options.dry_run_short or options.missing_modules
 
     keep_available_modules = any((
-        forced, dry_run_mode, options.extended_dry_run, any_pr_option_set, options.copy_ec, options.inject_checksums,
-        options.sanity_check_only, options.inject_checksums_to_json)
-    )
+        forced, dry_run_mode, any_pr_option_set, options.copy_ec, options.dump_env_script, options.extended_dry_run,
+        options.inject_checksums, options.inject_checksums_to_json, options.sanity_check_only
+    ))
 
     # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
     if not keep_available_modules:

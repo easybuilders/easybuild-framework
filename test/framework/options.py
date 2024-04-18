@@ -5249,6 +5249,45 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         self.assertEqual(out.strip(), expected_out)
 
+    def test_dump_env_script_existing_module(self):
+        toy_ec = 'toy-0.0.eb'
+
+        os.chdir(self.test_prefix)
+        self._run_mock_eb([toy_ec, '--force'], do_build=True)
+        env_script = os.path.join(self.test_prefix, os.path.splitext(toy_ec)[0] + '.env')
+        test_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            test_module += '.lua'
+        self.assertExists(test_module)
+        self.assertNotExists(env_script)
+
+        args = [toy_ec, '--dump-env']
+        os.chdir(self.test_prefix)
+        self._run_mock_eb(args, do_build=True, raise_error=True)
+        self.assertExists(env_script)
+        self.assertExists(test_module)
+        module_content = read_file(test_module)
+        env_file_content = read_file(env_script)
+
+        error_msg = (r"Script\(s\) already exists, not overwriting them \(unless --force is used\): "
+                     + os.path.basename(env_script))
+        os.chdir(self.test_prefix)
+        self.assertErrorRegex(EasyBuildError, error_msg, self._run_mock_eb, args, do_build=True, raise_error=True)
+        self.assertExists(env_script)
+        self.assertExists(test_module)
+        # Unchanged module and env file
+        self.assertEqual(read_file(test_module), module_content)
+        self.assertEqual(read_file(env_script), env_file_content)
+
+        args.append('--force')
+        os.chdir(self.test_prefix)
+        self._run_mock_eb(args, do_build=True, raise_error=True)
+        self.assertExists(env_script)
+        self.assertExists(test_module)
+        # Unchanged module and env file
+        self.assertEqual(read_file(test_module), module_content)
+        self.assertEqual(read_file(env_script), env_file_content)
+
     def test_stop(self):
         """Test use of --stop."""
         args = ['toy-0.0.eb', '--force', '--stop=configure']
