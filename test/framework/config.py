@@ -38,12 +38,11 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 import easybuild.tools.options as eboptions
-from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import ERROR, IGNORE, WARN, BuildOptions, ConfigurationVariables
 from easybuild.tools.config import build_option, build_path, get_build_log_path, get_log_filename, get_repositorypath
 from easybuild.tools.config import install_path, log_file_format, log_path, source_paths
 from easybuild.tools.config import update_build_option, update_build_options
-from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, init_build_options
 from easybuild.tools.filetools import copy_dir, mkdir, write_file
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX
@@ -580,9 +579,9 @@ class EasyBuildConfigTest(EnhancedTestCase):
     def test_strict(self):
         """Test use of --strict."""
         # check default
-        self.assertEqual(build_option('strict'), run.WARN)
+        self.assertEqual(build_option('strict'), WARN)
 
-        for strict_str, strict_val in [('error', run.ERROR), ('ignore', run.IGNORE), ('warn', run.WARN)]:
+        for strict_str, strict_val in [('error', ERROR), ('ignore', IGNORE), ('warn', WARN)]:
             options = init_config(args=['--strict=%s' % strict_str])
             init_config(build_options={'strict': options.strict})
             self.assertEqual(build_option('strict'), strict_val)

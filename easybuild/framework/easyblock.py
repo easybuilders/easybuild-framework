@@ -68,7 +68,7 @@ from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import dump_env_easyblock, get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.framework.extension import Extension, resolve_exts_filter_template
-from easybuild.tools import LooseVersion, config, run
+from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
@@ -4246,7 +4246,6 @@ def build_and_install_one(ecdict, init_env):
 
     # restore original environment, and then sanitize it
     _log.info("Resetting environment")
-    run.errors_found_in_log = 0
     restore_env(init_env)
     sanitize_env()
 
@@ -4448,11 +4447,6 @@ def build_and_install_one(ecdict, init_env):
 
     req_time = time2str(end_timestamp - start_timestamp)
     print_msg("%s: Installation %s %s (took %s)" % (summary, ended, succ, req_time), log=_log, silent=silent)
-
-    # check for errors
-    if run.errors_found_in_log > 0:
-        _log.warning("%d possible error(s) were detected in the "
-                     "build logs, please verify the build.", run.errors_found_in_log)
 
     if app.postmsg:
         print_msg("\nWARNING: %s\n" % app.postmsg, log=_log, silent=silent)
