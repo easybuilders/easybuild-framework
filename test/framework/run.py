@@ -676,7 +676,7 @@ class RunTest(EnhancedTestCase):
             r"\techo hello",
             r"\t\[started at: .*\]",
             r"\t\[working dir: .*\]",
-            r"\t\[output saved to .*\]",
+            r"\t\[output and state saved to .*\]",
             r"  >> command completed: exit 0, ran in .*",
         ]
 
@@ -736,7 +736,7 @@ class RunTest(EnhancedTestCase):
             r"\techo hello",
             r"\t\[started at: [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]\]",
             r"\t\[working dir: .*\]",
-            r"\t\[output saved to .*\]",
+            r"\t\[output and state saved to .*\]",
             r"  >> command completed: exit 0, ran in .*",
         ]
 
@@ -1092,7 +1092,7 @@ class RunTest(EnhancedTestCase):
         pattern += r"\techo \'n: \'; read n; seq 1 \$n\n"
         pattern += r"\t\[started at: .*\]\n"
         pattern += r"\t\[working dir: .*\]\n"
-        pattern += r"\t\[output saved to .*\]\n"
+        pattern += r"\t\[output and state saved to .*\]\n"
         pattern += r'  >> command completed: exit 0, ran in .*'
         self.assertTrue(re.search(pattern, stdout), "Pattern '%s' found in: %s" % (pattern, stdout))
 
