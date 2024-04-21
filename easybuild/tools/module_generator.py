@@ -206,7 +206,7 @@ class ModuleGenerator(object):
 
         return os.path.join(mod_path, mod_path_suffix)
 
-    def _filter_paths(self, key: str, paths: list) -> list:
+    def _filter_paths(self, key: str, paths: List[str]) -> List[str]:
         """Filter out paths already added to key and return the remaining ones"""
         assert isinstance(paths, list)
 
