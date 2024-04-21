@@ -1441,7 +1441,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         return super(ModuleGeneratorLua, self).modulerc(module_version=module_version, filepath=filepath,
                                                         modulerc_txt=modulerc_txt)
 
-    def _update_paths(self, key: str, paths: list, prepend=True, allow_abs=False, expand_relpaths=True) -> str:
+    def _update_paths(self, key: str, paths: List[str], prepend=True, allow_abs=False, expand_relpaths=True) -> str:
         """
         Generate prepend_path or append_path statements for the given list of paths
 
