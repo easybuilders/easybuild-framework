@@ -42,7 +42,7 @@ import tempfile
 from contextlib import contextmanager
 from easybuild.tools import LooseVersion
 from textwrap import wrap
-from typing import Union, Sequence
+from typing import List, Union, Sequence
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_warning
