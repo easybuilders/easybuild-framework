@@ -264,8 +264,8 @@ class ModuleGenerator(object):
                 raise EasyBuildError('Found multiple paths for PYTHONPATH: ' + ', '.join(python_paths))
 
             # Special condition for PYTHONPATHs that match the standard pattern,
-            # replace with EBPYTHONPREFIX which is added to python sys path at runtime
-            if python_paths and build_option('prefer_ebpythonprefix_over_pythonpath'):
+            # replace with EBPYTHONPREFIXES which is added to python sys path at runtime via sitecustomize.py
+            if python_paths and build_option('replace_pythonpath'):
                 python_path = python_paths[0]
                 self.log.info("Replaced PYTHONPATH %s with EBPYTHONPREFIXES", python_path)
                 ret = self._update_paths('EBPYTHONPREFIXES', [''], prepend, allow_abs, expand_relpaths)

@@ -480,8 +480,6 @@ class EasyBuildOptions(GeneralOption):
                          'int', 'store', None),
             'parallel-extensions-install': ("Install list of extensions in parallel (if supported)",
                                             None, 'store_true', False),
-            'prefer-ebpythonprefix-over-pythonpath': ("Replaces PYTHONPATH with EBPYTHONPREFIX when possible",
-                                                      None, 'store_true', True),
             'pre-create-installdir': ("Create installation directory before submitting build jobs",
                                       None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
@@ -491,6 +489,8 @@ class EasyBuildOptions(GeneralOption):
             'remove-ghost-install-dirs': ("Remove ghost installation directories when --force or --rebuild is used, "
                                           "rather than just warning about them",
                                           None, 'store_true', False),
+            'replace-pythonpath': ("Replaces PYTHONPATH with EBPYTHONPREFIXES in modules when possible",
+                                   None, 'store_true', True),
             'required-linked-shared-libs': ("Comma-separated list of shared libraries (names, file names, or paths) "
                                             "which must be linked in all installed binaries/libraries",
                                             'strlist', 'extend', None),
