@@ -42,6 +42,7 @@ import tempfile
 from contextlib import contextmanager
 from easybuild.tools import LooseVersion
 from textwrap import wrap
+from typing import Union, Sequence
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_warning
@@ -205,8 +206,10 @@ class ModuleGenerator(object):
 
         return os.path.join(mod_path, mod_path_suffix)
 
-    def _filter_paths(self, key, paths):
+    def _filter_paths(self, key: str, paths: list) -> list:
         """Filter out paths already added to key and return the remaining ones"""
+        assert isinstance(paths, list)
+
         if self.added_paths_per_key is None:
             # For compatibility this is only a warning for now and we don't filter any paths
             print_warning('Module creation has not been started. Call start_module_creation first!')
@@ -221,7 +224,7 @@ class ModuleGenerator(object):
                           log=self.log)
         return filtered_paths
 
-    def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
+    def append_paths(self, key: str, paths: Union[str, Sequence[str]], allow_abs=False, expand_relpaths=True) -> str:
         """
         Generate append-path statements for the given list of paths.
 
@@ -232,23 +235,24 @@ class ModuleGenerator(object):
         """
         return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
 
-    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
+    def prepend_paths(self, key: str, paths: Union[str, Sequence[str]], allow_abs=False, expand_relpaths=True) -> str:
         """
         Generate prepend-path statements for the given list of paths.
 
         :param key: environment variable to append paths to
-        :param paths: single or list of paths to append
+        :param paths: single or list of paths to prepend
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
         return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
 
-    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def update_paths(self, key: str, paths: Union[str, Sequence[str]], prepend=True, allow_abs=False,
+                     expand_relpaths=True) -> str:
         """
         Generate append/prepend-path statements for the given list of paths.
 
         :param key: environment variable to append paths to
-        :param paths: single or list of paths to append
+        :param paths: single or list of paths to add
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
@@ -564,12 +568,12 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def _update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def _update_paths(self, key: str, paths: list, prepend=True, allow_abs=False, expand_relpaths=True) -> str:
         """
         Generate prepend-path or append-path statements for the given list of paths.
 
         :param key: environment variable to prepend/append paths to
-        :param paths: list of paths to prepend
+        :param paths: list of paths to add
         :param prepend: whether to prepend (True) or append (False) paths
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
@@ -968,12 +972,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
         print_cmd = "puts stderr %s" % quote_str(msg, tcl=True)
         return '\n'.join(['', self.conditional_statement("module-info mode unload", print_cmd, indent=False)])
 
-    def _update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def _update_paths(self, key: str, paths: list, prepend=True, allow_abs=False, expand_relpaths=True) -> str:
         """
         Generate prepend-path or append-path statements for the given list of paths.
 
         :param key: environment variable to prepend/append paths to
-        :param paths: list of paths to prepend/append
+        :param paths: list of paths to add
         :param prepend: whether to prepend (True) or append (False) paths
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
@@ -1437,12 +1441,12 @@ class ModuleGeneratorLua(ModuleGenerator):
         return super(ModuleGeneratorLua, self).modulerc(module_version=module_version, filepath=filepath,
                                                         modulerc_txt=modulerc_txt)
 
-    def _update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def _update_paths(self, key: str, paths: list, prepend=True, allow_abs=False, expand_relpaths=True) -> str:
         """
         Generate prepend_path or append_path statements for the given list of paths
 
         :param key: environment variable to prepend/append paths to
-        :param paths: list of paths to prepend/append
+        :param paths: list of paths to add
         :param prepend: whether to prepend (True) or append (False) paths
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
