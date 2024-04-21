@@ -568,7 +568,7 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def _update_paths(self, key: str, paths: list, prepend=True, allow_abs=False, expand_relpaths=True) -> str:
+    def _update_paths(self, key: str, paths: List[str], prepend=True, allow_abs=False, expand_relpaths=True) -> str:
         """
         Generate prepend-path or append-path statements for the given list of paths.
 
