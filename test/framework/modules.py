@@ -674,10 +674,15 @@ class ModulesTest(EnhancedTestCase):
             os.environ.pop('EBROOT%s' % env_var_name)
             os.environ.pop('EBVERSION%s' % env_var_name)
 
-        # check expected result of get_software_libdir with multiple lib subdirs
+        # if only 'lib' has a library archive, use it
         root = os.path.join(tmpdir, name)
         mkdir(os.path.join(root, 'lib64'))
         os.environ['EBROOT%s' % env_var_name] = root
+        write_file(os.path.join(root, 'lib', 'foo.a'), 'foo')
+        self.assertEqual(get_software_libdir(name), 'lib')
+
+        # check expected result of get_software_libdir with multiple lib subdirs
+        remove_file(os.path.join(root, 'lib', 'foo.a'))
         self.assertErrorRegex(EasyBuildError, "Multiple library subdirectories found.*", get_software_libdir, name)
         self.assertEqual(get_software_libdir(name, only_one=False), ['lib', 'lib64'])
 
