@@ -139,7 +139,7 @@ class EasyConfigTest(EnhancedTestCase):
         """ make sure to remove the temporary file """
         st.get_cpu_architecture = self.orig_get_cpu_architecture
 
-        easyconfig.templates.ALTERNATE_TEMPLATE_CONSTANTS = self.orig_alternate_template_constants
+        easyconfig.templates.ALTERNATE_TEMPLATE_CONSTANTS = self.orig_alternate_constants
         easyconfig.templates.ALTERNATE_TEMPLATES = self.orig_alternate_templates
         easyconfig.templates.DEPRECATED_TEMPLATE_CONSTANTS = self.orig_deprecated_constants
         easyconfig.templates.DEPRECATED_TEMPLATES = self.orig_deprecated_templates
@@ -1477,7 +1477,7 @@ class EasyConfigTest(EnhancedTestCase):
             'installdir': 'alt_install_dir',
             'version_maj_min': 'alt_ver_maj_min',
         }
-        easyconfig.templates.ALTERNATE_TEMPLATES.update(template_test_deprecations)
+        easyconfig.templates.ALTERNATE_TEMPLATES.update(template_test_alternates)
 
         tmpl_str = ("cd %(start_dir)s && make PREFIX=%(installdir)s -Dbuild=%(builddir)s --with-cuda='%(cudaver)s'"
                     " && echo %(installdir)s %(version_maj_min)s")
