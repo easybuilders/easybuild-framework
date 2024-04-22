@@ -120,6 +120,11 @@ class EasyConfigTest(EnhancedTestCase):
         github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
         self.skip_github_tests = github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
 
+        self.orig_alternate_constants = copy.deepcopy(easyconfig.templates.ALTERNATE_TEMPLATE_CONSTANTS)
+        self.orig_alternate_templates = copy.deepcopy(easyconfig.templates.ALTERNATE_TEMPLATES)
+        self.orig_deprecated_constants = copy.deepcopy(easyconfig.templates.DEPRECATED_TEMPLATE_CONSTANTS)
+        self.orig_deprecated_templates = copy.deepcopy(easyconfig.templates.DEPRECATED_TEMPLATES)
+
     def prep(self):
         """Prepare for test."""
         # (re)cleanup last test file
@@ -133,6 +138,13 @@ class EasyConfigTest(EnhancedTestCase):
     def tearDown(self):
         """ make sure to remove the temporary file """
         st.get_cpu_architecture = self.orig_get_cpu_architecture
+
+        easyconfig.templates.ALTERNATE_TEMPLATE_CONSTANTS = self.orig_alternate_template_constants
+        easyconfig.templates.ALTERNATE_TEMPLATES = self.orig_alternate_templates
+        easyconfig.templates.DEPRECATED_TEMPLATE_CONSTANTS = self.orig_deprecated_constants
+        easyconfig.templates.DEPRECATED_TEMPLATES = self.orig_deprecated_templates
+        reload(easyconfig.templates)
+
         super(EasyConfigTest, self).tearDown()
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
@@ -1451,29 +1463,37 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['buildopts'], "--some-opt=%s/" % self.test_prefix)
         self.assertEqual(ec['installopts'], "--some-opt=%s/" % self.test_prefix)
 
-    def test_template_deprecation(self):
-        """Test deprecation of templates"""
+    def test_template_deprecation_and_alternate(self):
+        """Test deprecation of (and alternate) templates"""
 
         template_test_deprecations = {
-            'builddir': ('new_build_dir', '1000000000'),
-            'cudaver': ('new_cuda_ver', '1000000000'),
-            'start_dir': ('new_start_dir', '1000000000'),
+            'builddir': ('depr_build_dir', '1000000000'),
+            'cudaver': ('depr_cuda_ver', '1000000000'),
+            'start_dir': ('depr_start_dir', '1000000000'),
         }
         easyconfig.templates.DEPRECATED_TEMPLATES.update(template_test_deprecations)
 
-        tmpl_str = "cd %(start_dir)s && make PREFIX=%(installdir)s -Dbuild=%(builddir)s --with-cuda='%(cudaver)s'"
+        template_test_alternates = {
+            'installdir': 'alt_install_dir',
+            'version_maj_min': 'alt_ver_maj_min',
+        }
+        easyconfig.templates.ALTERNATE_TEMPLATES.update(template_test_deprecations)
+
+        tmpl_str = ("cd %(start_dir)s && make PREFIX=%(installdir)s -Dbuild=%(builddir)s --with-cuda='%(cudaver)s'"
+                    " && echo %(installdir)s %(version_maj_min)s"
         tmpl_dict = {
-            'new_build_dir': '/example/build_dir',
-            'new_cuda_ver': '12.1.1',
+            'depr_build_dir': '/example/build_dir',
+            'depr_cuda_ver': '12.1.1',
             'installdir': '/example/installdir',
-            'new_start_dir': '/example/build_dir/start_dir',
+            'startdir': '/example/build_dir/start_dir',
+            'alt_version_maj_min': '1.2',
         }
 
         with self.mocked_stdout_stderr() as (_, stderr):
             res = resolve_template(tmpl_str, tmpl_dict)
         stderr = stderr.getvalue()
 
-        for tmpl in ['builddir', 'cudaver', 'installdir', 'start_dir']:
+        for tmpl in [*template_test_deprecations.keys(), *template_test_alternates.keys()]:
             self.assertNotIn("%(" + tmpl + ")s", res)
 
         for old, (new, ver) in template_test_deprecations.items():
