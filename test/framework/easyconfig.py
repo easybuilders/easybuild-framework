@@ -1480,7 +1480,7 @@ class EasyConfigTest(EnhancedTestCase):
         easyconfig.templates.ALTERNATE_TEMPLATES.update(template_test_deprecations)
 
         tmpl_str = ("cd %(start_dir)s && make PREFIX=%(installdir)s -Dbuild=%(builddir)s --with-cuda='%(cudaver)s'"
-                    " && echo %(installdir)s %(version_maj_min)s"
+                    " && echo %(installdir)s %(version_maj_min)s")
         tmpl_dict = {
             'depr_build_dir': '/example/build_dir',
             'depr_cuda_ver': '12.1.1',
