@@ -1997,25 +1997,33 @@ def resolve_template(value, tmpl_dict):
             try:
                 value = value % tmpl_dict
             except KeyError:
-                # check if any alternate or deprecated templates resolve
+                # check if any alternate and/or deprecated templates resolve
                 try:
                     orig_value = value
                     # map old templates to new values for alternate and deprecated templates
                     alt_map = {old_tmpl: tmpl_dict[new_tmpl] for (old_tmpl, new_tmpl) in
                                ALTERNATE_TEMPLATES.items() if new_tmpl in tmpl_dict.keys()}
+                    alt_map2 = {new_tmpl: tmpl_dict[old_tmpl] for (old_tmpl, new_tmpl) in
+                                ALTERNATE_TEMPLATES.items() if old_tmpl in tmpl_dict.keys()}
                     depr_map = {old_tmpl: tmpl_dict[new_tmpl] for (old_tmpl, (new_tmpl, ver)) in
                                 DEPRECATED_TEMPLATES.items() if new_tmpl in tmpl_dict.keys()}
-                    # try templating with tmpl_dict, alt_map and depr_map
-                    value = value % {**tmpl_dict, **alt_map, **depr_map}
+
+                    # try templating with alternate and deprecated templates included
+                    value = value % {**tmpl_dict, **alt_map, **alt_map2, **depr_map}
 
                     for old_tmpl, val in depr_map.items():
                         # check which deprecated templates were replaced, and issue deprecation warnings
                         if old_tmpl in orig_value and val in value:
                             new_tmpl, ver = DEPRECATED_TEMPLATES[old_tmpl]
-                            _log.deprecated("Easyconfig template '%s' is deprecated, use '%s' instead"
-                                            % (old_tmpl, new_tmpl), ver)
+                            _log.deprecated(f"Easyconfig template '{old_tmpl}' is deprecated, use '{new_tmpl}' instead",
+                                            ver)
                 except KeyError:
-                    _log.warning("Unable to resolve template value %s with dict %s", value, tmpl_dict)
+                    _log.warning(f"Unable to resolve template value {value} with dict {tmpl_dict}")
+
+                for key in tmpl_dict:
+                    if key in DEPRECATED_TEMPLATES:
+                        new_key, ver = DEPRECATED_TEMPLATES[key]
+                        _log.deprecated(f"Easyconfig template '{key}' is deprecated, use '{new_key}' instead", ver)
 
     else:
         # this block deals with references to objects and returns other references

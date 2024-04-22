@@ -1475,18 +1475,19 @@ class EasyConfigTest(EnhancedTestCase):
 
         template_test_alternates = {
             'installdir': 'alt_install_dir',
-            'version_maj_min': 'alt_ver_maj_min',
+            'version_major_minor': 'alt_ver_maj_min',
         }
         easyconfig.templates.ALTERNATE_TEMPLATES.update(template_test_alternates)
 
-        tmpl_str = ("cd %(start_dir)s && make PREFIX=%(installdir)s -Dbuild=%(builddir)s --with-cuda='%(cudaver)s'"
-                    " && echo %(installdir)s %(version_maj_min)s")
+        tmpl_str = ("cd %(start_dir)s && make %(namelower)s -Dbuild=%(builddir)s --with-cuda='%(cudaver)s'"
+                    " && echo %(alt_install_dir)s %(version_major_minor)s")
         tmpl_dict = {
             'depr_build_dir': '/example/build_dir',
             'depr_cuda_ver': '12.1.1',
             'installdir': '/example/installdir',
-            'startdir': '/example/build_dir/start_dir',
-            'alt_version_maj_min': '1.2',
+            'start_dir': '/example/build_dir/start_dir',
+            'alt_ver_maj_min': '1.2',
+            'namelower': 'foo',
         }
 
         with self.mocked_stdout_stderr() as (_, stderr):
@@ -1497,8 +1498,8 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertNotIn("%(" + tmpl + ")s", res)
 
         for old, (new, ver) in template_test_deprecations.items():
-            depr_str = (f"WARNING: Deprecated functionality, will no longer work in v{ver}: Easyconfig template '{old}'"
-                        f" is deprecated, use '{new}' instead")
+            depr_str = (f"WARNING: Deprecated functionality, will no longer work in EasyBuild v{ver}: "
+                        f"Easyconfig template '{old}' is deprecated, use '{new}' instead")
             self.assertIn(depr_str, stderr)
 
     def test_constant_doc(self):
