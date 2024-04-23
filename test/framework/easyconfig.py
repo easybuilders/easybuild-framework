@@ -1466,6 +1466,8 @@ class EasyConfigTest(EnhancedTestCase):
     def test_template_deprecation_and_alternate(self):
         """Test deprecation of (and alternate) templates"""
 
+        self.prep()
+
         template_test_deprecations = {
             'builddir': ('depr_build_dir', '1000000000'),
             'cudaver': ('depr_cuda_ver', '1000000000'),
