@@ -44,7 +44,7 @@ from easybuild.tools.filetools import read_file, write_file
 
 # alternate easyconfig parameters, and their non-deprecated equivalents
 ALTERNATE_PARAMETERS = {
-    # <equivalent_param>: <new_param>,
+    # <new_param>: <equivalent_param>,
 }
 
 # deprecated easyconfig parameters, and their replacements
