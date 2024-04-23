@@ -163,7 +163,7 @@ TEMPLATE_CONSTANTS = [
 
 # alternate templates, and their equivalents
 ALTERNATE_TEMPLATES = {
-    # <equivalent_template>: <new_template>,
+    # <new>: <equivalent_template>,
 }
 
 # deprecated templates, and their replacements
@@ -173,7 +173,7 @@ DEPRECATED_TEMPLATES = {
 
 # alternate template constants, and their equivalents
 ALTERNATE_TEMPLATE_CONSTANTS = {
-    # <equivalent_template_constant>: <new_template_constant>,
+    # <new_template_constant>: <equivalent_template_constant>,
 }
 
 # deprecated template constants, and their replacements

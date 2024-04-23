@@ -661,7 +661,7 @@ class EasyConfig(object):
         with self.disable_templating():
             for key in sorted(params.keys()):
                 # validations are skipped, just set in the config
-                if any(key in x.keys() for x in (self._config,ALTERNATE_PARAMTERS, DEPRECATED_PARAMETERS)):
+                if any(key in x.keys() for x in (self._config,ALTERNATE_PARAMETERS, DEPRECATED_PARAMETERS)):
                     self[key] = params[key]
                     self.log.info("setting easyconfig parameter %s: value %s (type: %s)",
                                   key, self[key], type(self[key]))
