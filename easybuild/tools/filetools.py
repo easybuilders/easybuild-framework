@@ -2680,8 +2680,8 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
         tar_cmd = [
             # print names of all files and folders excluding .git directory
             'find', repo_name, '-name ".git"', '-prune', '-o', '-print0',
-            # reset access and modification timestamps
-            '-exec', 'touch', '-t 197001010100', '{}', r'\;', '|',
+            # reset access and modification timestamps to epoch 0
+            '-exec', 'touch', '--date=@0', '{}', r'\;', '|',
             # sort file list
             'LC_ALL=C', 'sort', '--zero-terminated', '|',
             # create tarball in GNU format with ownership reset
