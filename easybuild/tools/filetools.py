@@ -2684,9 +2684,9 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
             '-exec', 'touch', '--date=@0', '{}', r'\;', '|',
             # sort file list
             'LC_ALL=C', 'sort', '--zero-terminated', '|',
-            # create tarball in GNU format with ownership reset
-            'tar', '--create', '--no-recursion', '--owner=0', '--group=0', '--numeric-owner', '--format=gnu',
-            '--null', '--files-from', '-', '|',
+            # create tarball in GNU format with ownership and permissions reset
+            'tar', '--create', '--no-recursion', '--owner=0', '--group=0', '--numeric-owner', '--mode="go+u,go-w"',
+            '--format=gnu', '--null', '--files-from', '-', '|',
             # compress tarball with gzip without original file name and timestamp
             'gzip', '--no-name', '>', archive_path
         ]
