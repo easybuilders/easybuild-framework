@@ -278,6 +278,7 @@ BUILD_OPTIONS_CMDLINE = {
         'debug',
         'debug_lmod',
         'dump_autopep8',
+        'dump_env_script',
         'enforce_checksums',
         'experimental',
         'extended_dry_run',

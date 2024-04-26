@@ -1685,7 +1685,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.patches[1]['level'], 4)
         self.assertEqual(eb.patches[2]['name'], toy_patch)
         self.assertEqual(eb.patches[2]['sourcepath'], 'foobar')
-        self.assertEqual(eb.patches[3]['name'], 'toy-0.0.tar.gz'),
+        self.assertEqual(eb.patches[3]['name'], 'toy-0.0.tar.gz')
         self.assertEqual(eb.patches[3]['copy'], 'some/path')
         self.assertEqual(eb.patches[4]['name'], toy_patch)
         self.assertEqual(eb.patches[4]['level'], 0)
