@@ -1365,7 +1365,7 @@ class EasyBlock(object):
                     multi_dep_mod_names[dep['name']].append(dep['short_mod_name'])
 
             multi_dep_load_defaults = []
-            for depname, depmods in sorted(multi_dep_mod_names.items()):
+            for _, depmods in sorted(multi_dep_mod_names.items()):
                 stmt = self.module_generator.load_module(depmods[0], multi_dep_mods=depmods,
                                                          recursive_unload=recursive_unload,
                                                          depends_on=depends_on)
@@ -1769,10 +1769,7 @@ class EasyBlock(object):
         return ext_sep.join(exts_list)
 
     def prepare_for_extensions(self):
-        """
-        Also do this before (eg to set the template)
-        """
-        pass
+        """Ran before installing extensions (eg to set templates)"""
 
     def skip_extensions(self):
         """
@@ -2198,9 +2195,9 @@ class EasyBlock(object):
                 self.log.info("Current iteration index: %s", self.iter_idx)
 
             # pop first element from all iterative easyconfig parameters as next value to use
-            for opt in self.iter_opts:
-                if len(self.iter_opts[opt]) > self.iter_idx:
-                    self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
+            for opt, value in self.iter_opts.items():
+                if len(value) > self.iter_idx:
+                    self.cfg[opt] = value[self.iter_idx]
                 else:
                     self.cfg[opt] = ''  # empty list => empty option as next value
                 self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
@@ -2212,12 +2209,12 @@ class EasyBlock(object):
         """Restore options that were iterated over"""
         # disable templating, since we're messing about with values in self.cfg
         with self.cfg.disable_templating():
-            for opt in self.iter_opts:
-                self.cfg[opt] = self.iter_opts[opt]
+            for opt, value in self.iter_opts.items():
+                self.cfg[opt] = value
 
                 # also need to take into account extensions, since those were iterated over as well
                 for ext in self.ext_instances:
-                    ext.cfg[opt] = self.iter_opts[opt]
+                    ext.cfg[opt] = value
 
                 self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
 
@@ -2751,10 +2748,7 @@ class EasyBlock(object):
             self.report_test_failure(err)
 
     def stage_install_step(self):
-        """
-        Install in a stage directory before actual installation.
-        """
-        pass
+        """Install in a stage directory before actual installation."""
 
     def install_step(self):
         """Install built software (abstract method)."""
@@ -3248,7 +3242,7 @@ class EasyBlock(object):
         required_libs.extend(self.cfg['required_linked_shared_libs'])
 
         # early return if there are no banned/required libraries
-        if not (banned_libs + required_libs):
+        if not banned_libs + required_libs:
             self.log.info("No banned/required libraries specified")
             return []
         else:
@@ -4463,7 +4457,7 @@ def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
             else:
                 easyblock_paths.add(easyblock_path)
     for easyblock_path in easyblock_paths:
-        easyblock_basedir, easyblock_filename = os.path.split(easyblock_path)
+        easyblock_filename = os.path.basename(easyblock_path)
         copy_file(easyblock_path, os.path.join(reprod_easyblock_dir, easyblock_filename))
         _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_easyblock_dir)
 
@@ -4594,10 +4588,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
 
 
 class StopException(Exception):
-    """
-    StopException class definition.
-    """
-    pass
+    """Exception thrown to stop running steps"""
 
 
 def inject_checksums_to_json(ecs, checksum_type):
@@ -4645,14 +4636,14 @@ def inject_checksums_to_json(ecs, checksum_type):
 
         # actually inject new checksums or overwrite existing ones (if --force)
         existing_checksums = app.get_checksums_from_json(always_read=True)
-        for filename in checksums:
+        for filename, checksum in checksums.items():
             if filename not in existing_checksums:
-                existing_checksums[filename] = checksums[filename]
+                existing_checksums[filename] = checksum
             # don't do anything if the checksum already exist and is the same
-            elif checksums[filename] != existing_checksums[filename]:
+            elif checksum != existing_checksums[filename]:
                 if build_option('force'):
                     print_warning("Found existing checksums for %s, overwriting them (due to --force)..." % ec_fn)
-                    existing_checksums[filename] = checksums[filename]
+                    existing_checksums[filename] = checksum
                 else:
                     raise EasyBuildError("Found existing checksum for %s, use --force to overwrite them" % filename)
 
