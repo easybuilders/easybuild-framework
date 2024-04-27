@@ -263,7 +263,7 @@ class ModuleGenerator(object):
             paths = list(paths)  # coerce any iterator into a list
 
         if key == 'PYTHONPATH':
-            python_paths = [path for path in paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
+            python_paths = [path for path in paths if re.match(r'lib(64)?/python\d+\.\d+/site-packages', path)]
             if len(python_paths) > 1:
                 raise EasyBuildError('Found multiple paths for PYTHONPATH: ' + ', '.join(python_paths))
 
