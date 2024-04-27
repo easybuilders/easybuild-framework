@@ -955,7 +955,7 @@ class EasyBlock(object):
                     error_msg = "Couldn't find file %s anywhere, "
                     if download_instructions is None:
                         download_instructions = self.cfg['download_instructions']
-                    if download_instructions is not None and download_instructions != "":
+                    if download_instructions:
                         msg = "\nDownload instructions:\n\n" + download_instructions + '\n'
                         print_msg(msg, prefix=False, stderr=True)
                         error_msg += "please follow the download instructions above, and make the file available "
