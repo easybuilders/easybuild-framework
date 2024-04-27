@@ -936,15 +936,13 @@ class EasyBlock(object):
                                 downloaded = True
                         except IOError as err:
                             self.log.debug("Failed to download %s from %s: %s" % (filename, url, err))
-                            failedpaths.append(fullurl)
-                            continue
 
-                    if downloaded:
-                        # if fetching from source URL worked, we're done
-                        self.log.info("Successfully downloaded source file %s from %s" % (filename, fullurl))
-                        return targetpath
-                    else:
-                        failedpaths.append(fullurl)
+                        if downloaded:
+                            # if fetching from source URL worked, we're done
+                            self.log.info("Successfully downloaded source file %s from %s" % (filename, fullurl))
+                            return targetpath
+                        else:
+                            failedpaths.append(fullurl)
 
                 if self.dry_run:
                     if dry_run_urls:
