@@ -83,6 +83,7 @@ from easybuild.tools.py2vs3 import python2_is_deprecated
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_easybuild_deps
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
+from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION, different_major_versions
 
 
 _log = None
@@ -617,6 +618,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
     global _log
     (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
      from_pr_list, tweaked_ecs_paths) = cfg_settings
+
+    # compare running Framework and EasyBlocks versions
+    if different_major_versions(FRAMEWORK_VERSION, EASYBLOCKS_VERSION):
+        raise EasyBuildError(f"Framework ({FRAMEWORK_VERSION}) and EasyBlock ({EASYBLOCKS_VERSION}) major versions "
+                             "are different.")
 
     # load hook implementations (if any)
     hooks = load_hooks(options.hooks)

@@ -103,3 +103,16 @@ def this_is_easybuild():
         msg = msg.encode('ascii')
 
     return msg
+
+
+def different_major_versions(v1, v2):
+    """Compare major versions"""
+    # Deal with version instances being either strings or LooseVersion
+    if not isinstance(v1, LooseVersion):
+        v1 = LooseVersion(v1)
+    if not isinstance(v2, LooseVersion):
+        v2 = LooseVersion(v2)
+
+    if v1.version[0] == v2.version[0]:
+        return False
+    return True
