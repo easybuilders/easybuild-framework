@@ -621,7 +621,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
 
     # compare running Framework and EasyBlocks versions
     if 'UNKNOWN' in EASYBLOCKS_VERSION:
-        print_msg('Unable to determine EasyBlocks version, so we'll assume it is not different from Framework')
+        print_msg("Unable to determine EasyBlocks version, so we'll assume it is not different from Framework")
     elif different_major_versions(FRAMEWORK_VERSION, EASYBLOCKS_VERSION):
         raise EasyBuildError("Framework (%s) and EasyBlock (%s) major versions are different." % (FRAMEWORK_VERSION,
                                                                                                   EASYBLOCKS_VERSION))
