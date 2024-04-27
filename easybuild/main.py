@@ -621,8 +621,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
 
     # compare running Framework and EasyBlocks versions
     if different_major_versions(FRAMEWORK_VERSION, EASYBLOCKS_VERSION):
-        raise EasyBuildError(f"Framework ({FRAMEWORK_VERSION}) and EasyBlock ({EASYBLOCKS_VERSION}) major versions "
-                             "are different.")
+        raise EasyBuildError("Framework (%s) and EasyBlock (%s) major versions are different." % (FRAMEWORK_VERSION,
+                                                                                                  EASYBLOCKS_VERSION))
 
     # load hook implementations (if any)
     hooks = load_hooks(options.hooks)
