@@ -894,19 +894,18 @@ class EasyBlock(object):
                 source_urls.append(EASYBUILD_SOURCES_URL + '/' + os.path.join(name_letter, location))
 
                 mkdir(targetdir, parents=True)
+                if extension:
+                    targetpath = os.path.join(targetdir, "extensions", filename)
+                else:
+                    targetpath = os.path.join(targetdir, filename)
+
+                url_filename = download_filename or filename
+                dry_run_urls = []
 
                 for url in source_urls:
-
-                    if extension:
-                        targetpath = os.path.join(targetdir, "extensions", filename)
-                    else:
-                        targetpath = os.path.join(targetdir, filename)
-
-                    url_filename = download_filename or filename
-
                     if isinstance(url, string_type):
                         if url[-1] in ['=', '/']:
-                            fullurl = "%s%s" % (url, url_filename)
+                            fullurl = url + url_filename
                         else:
                             fullurl = "%s/%s" % (url, url_filename)
                     elif isinstance(url, tuple):
@@ -928,19 +927,13 @@ class EasyBlock(object):
                             _log.debug("Failed to derive alternate PyPI URL for %s, so retaining the original", fullurl)
 
                     if self.dry_run:
-                        self.dry_run_msg("  * %s will be downloaded to %s", filename, targetpath)
-                        if extension and urls:
-                            # extensions typically have custom source URLs specified, only mention first
-                            self.dry_run_msg("    (from %s, ...)", fullurl)
-                        downloaded = True
-
+                        dry_run_urls.append(fullurl)
                     else:
                         self.log.debug("Trying to download file %s from %s to %s ..." % (filename, fullurl, targetpath))
                         downloaded = False
                         try:
                             if download_file(filename, fullurl, targetpath):
                                 downloaded = True
-
                         except IOError as err:
                             self.log.debug("Failed to download %s from %s: %s" % (filename, url, err))
                             failedpaths.append(fullurl)
@@ -954,8 +947,12 @@ class EasyBlock(object):
                         failedpaths.append(fullurl)
 
                 if self.dry_run:
-                    self.dry_run_msg("  * %s (MISSING)", filename)
-                    return filename
+                    if dry_run_urls:
+                        self.dry_run_msg("  * %s will be downloaded from %s to %s",
+                                         filename, ' or '.join(fullurl), targetpath)
+                    else:
+                        self.dry_run_msg("  * %s (MISSING)", filename)
+                    return targetpath
                 else:
                     error_msg = "Couldn't find file %s anywhere, "
                     if download_instructions is None:
