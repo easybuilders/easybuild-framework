@@ -587,6 +587,11 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
         else:
             raise EasyBuildError("Couldn't find path to patched file %s", full_path)
 
+    if github_repo == GITHUB_EASYCONFIGS_REPO:
+        print('get ecs version', os.path.join(final_path, 'setup.py'))
+    elif github_repo == GITHUB_EASYBLOCKS_REPO:
+        print('get blocks version', sys.path, final_path)
+
     return files
 
 
