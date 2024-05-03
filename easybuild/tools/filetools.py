@@ -684,9 +684,9 @@ def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_header
         if argline == '' or '#' in argline[0]:
             continue  # permit comment lines: ignore them
 
-        if os.path.isfile(os.path.join(os.getcwd(), argline)):
+        if os.path.isfile(os.path.join(get_cwd(), argline)):
             # expand existing relative path to absolute
-            argline = os.path.join(os.path.join(os.getcwd(), argline))
+            argline = os.path.join(os.path.join(get_cwd(), argline))
         if os.path.isfile(argline):
             # argline is a file path, so read that instead
             _log.debug('File included in parse_http_header_fields_urlpat: %s' % argline)
@@ -1341,14 +1341,14 @@ def find_base_dir():
         # and hidden directories
         ignoredirs = ["easybuild"]
 
-        lst = os.listdir(os.getcwd())
+        lst = os.listdir(get_cwd())
         lst = [d for d in lst if not d.startswith('.') and d not in ignoredirs]
         return lst
 
     lst = get_local_dirs_purged()
-    new_dir = os.getcwd()
+    new_dir = get_cwd()
     while len(lst) == 1:
-        new_dir = os.path.join(os.getcwd(), lst[0])
+        new_dir = os.path.join(get_cwd(), lst[0])
         if not os.path.isdir(new_dir):
             break
 
