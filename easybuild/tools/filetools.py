@@ -406,6 +406,20 @@ def remove(paths):
         else:
             raise EasyBuildError("Specified path to remove is not an existing file or directory: %s", path)
 
+def get_cwd(must_exist=True):
+    """
+    Retrieve current working directory
+    """
+    try:
+        cwd = os.getcwd()
+    except FileNotFoundError as err:
+        if must_exist is True:
+            raise EasyBuildError("Working directory does not exist")
+        else:
+            _log.debug("Failed to determine current working directory, but proceeding anyway: %s", err)
+            cwd = None
+
+    return cwd
 
 def change_dir(path):
     """
