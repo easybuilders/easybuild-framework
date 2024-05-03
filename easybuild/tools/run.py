@@ -315,7 +315,10 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         qa_wait_patterns = []
 
     if work_dir is None:
-        work_dir = os.getcwd()
+        try:
+            work_dir = os.getcwd()
+        except FileNotFoundError:
+            raise EasyBuildError("Working directory does not exist")
 
     cmd_str = to_cmd_str(cmd)
 
