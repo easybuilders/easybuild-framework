@@ -303,8 +303,8 @@ class FileToolsTest(EnhancedTestCase):
             self.assertEqual(ft.compute_checksum(fp, checksum_type=checksum_type), checksum)
             self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum)))
 
-        # default checksum type is MD5
-        self.assertEqual(ft.compute_checksum(fp), known_checksums['md5'])
+        # default checksum type is SHA256
+        self.assertEqual(ft.compute_checksum(fp), known_checksums['sha256'])
 
         # both MD5 and SHA256 checksums can be verified without specifying type
         self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
