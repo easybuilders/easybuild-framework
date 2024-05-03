@@ -65,6 +65,7 @@ except ImportError:
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import build_option
+from easybuild.tools.filetools import get_cwd
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.utilities import trace_msg
 
@@ -315,7 +316,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         qa_wait_patterns = []
 
     if work_dir is None:
-        work_dir = os.getcwd()
+        work_dir = get_cwd()
 
     cmd_str = to_cmd_str(cmd)
 
