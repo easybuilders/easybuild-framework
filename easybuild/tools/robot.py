@@ -45,7 +45,7 @@ from easybuild.framework.easyconfig.easyconfig import robot_find_easyconfig, ver
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import det_common_path_prefix, search_file
+from easybuild.tools.filetools import get_cwd, det_common_path_prefix, search_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.utilities import flatten, nub
@@ -491,7 +491,7 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False, con
     """
     search_path = build_option('robot_path')
     if not search_path:
-        search_path = [os.getcwd()]
+        search_path = [get_cwd()]
     extra_search_paths = build_option('search_paths')
     # If we're returning a list of possible resolutions by the robot, don't include the extra_search_paths
     if extra_search_paths and consider_extra_paths:
