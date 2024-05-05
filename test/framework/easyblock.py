@@ -2656,7 +2656,6 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertEqual(stdout, '')
-        print(stderr.strip())
         self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz\n\n\n"
                                          "WARNING: Ignoring failing checksum verification for toy-0.0.tar.gz")
 
