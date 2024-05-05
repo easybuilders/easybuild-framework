@@ -65,7 +65,7 @@ from easybuild.tools.options import EasyBuildOptions, opts_dict_to_eb_opts, pars
 from easybuild.tools.options import set_up_configuration, set_tmpdir, use_color
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_shell_cmd
-from easybuild.tools.systemtools import HAVE_ARCHSPEC
+from easybuild.tools.systemtools import DARWIN, HAVE_ARCHSPEC, get_os_type
 from easybuild.tools.version import VERSION
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup, init_config
 
@@ -5194,6 +5194,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"installpath\s* \(E\) = " + os.path.join(self.test_prefix, 'tmp.*'),
             r"repositorypath\s* \(D\) = " + os.path.join(default_prefix, 'ebfiles_repo'),
             r"robot-paths\s* \(E\) = " + os.path.join(test_dir, 'easyconfigs', 'test_ecs'),
+            r"rpath\s* \(D\) = " + ('False' if get_os_type() == DARWIN else 'True'),
             r"sourcepath\s* \(E\) = " + os.path.join(test_dir, 'sandbox', 'sources'),
             r"subdir-modules\s* \(F\) = mods",
         ]

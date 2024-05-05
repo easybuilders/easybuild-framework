@@ -1387,7 +1387,8 @@ class EasyBuildOptions(GeneralOption):
 
         # options that should never/always be printed
         ignore_opts = ['show_config', 'show_full_config']
-        include_opts = ['buildpath', 'containerpath', 'installpath', 'repositorypath', 'robot_paths', 'sourcepath']
+        include_opts = ['buildpath', 'containerpath', 'installpath', 'repositorypath', 'robot_paths',
+                        'rpath', 'sourcepath']
         cmdline_opts_dict = self.dict_by_prefix()
 
         def reparse_cfg(args=None, withcfg=True):
