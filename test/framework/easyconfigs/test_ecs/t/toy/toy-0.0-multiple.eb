@@ -11,8 +11,8 @@ toolchain = SYSTEM
 sources = [SOURCE_TAR_GZ]
 patches = ['toy-0.0_fix-silly-typo-in-printf-statement.patch']
 checksums = [
-    ('adler32', '0x998410035'),
-    'a99f2a72cee1689a2f7e3ace0356efb1',
+    '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
+    '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487',
 ]
 
 moduleclass = 'tools'
