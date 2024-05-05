@@ -516,7 +516,7 @@ def to_checksums(checksums):
     for checksum in checksums:
         # each list entry can be:
         # * None (indicates no checksum)
-        # * a string (MD5 or SHA256 checksum)
+        # * a string (SHA256 checksum)
         # * a tuple with 2 elements: checksum type + checksum value
         # * a list of checksums (i.e. multiple checksums for a single file)
         # * a dict (filename to checksum mapping)

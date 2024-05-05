@@ -1192,11 +1192,15 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     Compute checksum of specified file.
 
     :param path: Path of file to compute checksum for
-    :param checksum_type: type(s) of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'sha256', 'sha512', 'size')
+    :param checksum_type: type(s) of checksum ('adler32', 'crc32', 'md5', 'sha1', 'sha256', 'sha512', 'size')
     """
     if checksum_type not in CHECKSUM_FUNCTIONS:
         raise EasyBuildError("Unknown checksum type (%s), supported types are: %s",
                              checksum_type, CHECKSUM_FUNCTIONS.keys())
+
+    if checksum_type in ['adler32', 'crc32', 'md5', 'sha1', 'size']:
+        _log.deprecated("Checksum type %s is deprecated. Use sha256 (default) or sha512 instead" % checksum_type,
+                            '6.0')
 
     try:
         checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
@@ -1235,7 +1239,7 @@ def verify_checksum(path, checksums):
     Verify checksum of specified file.
 
     :param path: path of file to verify checksum of
-    :param checksums: checksum values (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
+    :param checksums: checksum values (and type, optionally, default is sha256), e.g., 'af314', ('sha', '5ec1b')
     """
 
     filename = os.path.basename(path)
@@ -1287,7 +1291,7 @@ def verify_checksum(path, checksums):
                 # no matching checksums
                 return False
         else:
-            raise EasyBuildError("Invalid checksum spec '%s': should be a string (MD5 or SHA256), "
+            raise EasyBuildError("Invalid checksum spec '%s': should be a string (SHA256), "
                                  "2-tuple (type, value), or tuple of alternative checksum specs.",
                                  checksum)
 
