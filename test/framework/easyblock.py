@@ -1536,9 +1536,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(eb.src[0]['path'], toy_source))
         self.assertEqual(eb.src[0]['name'], 'toy-0.0.tar.gz')
         self.assertEqual(eb.src[0]['cmd'], None)
-        self.assertEqual(len(eb.src[0]['checksum']), 7)
-        self.assertEqual(eb.src[0]['checksum'][0], 'be662daa971a640e40be5c804d9d7d10')
-        self.assertEqual(eb.src[0]['checksum'][1], '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc')
+        self.assertEqual(len(eb.src[0]['checksum']), 2)
+        self.assertEqual(eb.src[0]['checksum'][0], '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc')
 
         # reconfigure EasyBuild so we can check 'downloaded' sources
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
@@ -2566,8 +2565,6 @@ class EasyBlockTest(EnhancedTestCase):
         copy_file(toy_ec, self.test_prefix)
         toy_ec = os.path.join(self.test_prefix, os.path.basename(toy_ec))
         ectxt = read_file(toy_ec)
-        # replace MD5 checksum for toy-0.0.tar.gz
-        ectxt = ectxt.replace('be662daa971a640e40be5c804d9d7d10', '00112233445566778899aabbccddeeff')
         # replace SHA256 checksums for source of bar extension
         ectxt = ectxt.replace('f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7', '01234567' * 8)
         write_file(toy_ec, ectxt)

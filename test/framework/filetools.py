@@ -1213,9 +1213,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(lines[8].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "29 %s+ postinstallcmds = " % green
+        expected = "26 %s+ postinstallcmds = " % green
         self.assertTrue(any(line.startswith(expected) for line in lines))
-        expected = "30 %s+%s (1/2) toy-0.0" % (green, endcol)
+        expected = "27 %s+%s (1/2) toy-0.0" % (green, endcol)
         self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
         self.assertEqual(lines[-1], "=====")
 
@@ -1234,9 +1234,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(lines[8].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "29 + postinstallcmds = "
+        expected = "26 + postinstallcmds = "
         self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
-        expected = "30 + (1/2) toy-0.0-"
+        expected = "27 + (1/2) toy-0.0-"
         self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
 
         self.assertEqual(lines[-1], "=====")
