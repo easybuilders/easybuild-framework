@@ -6481,8 +6481,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--debug',
             '--tmp-logdir=%s' % tmp_logdir,
         ]
-        # with self.mocked_stdout_stderr():
-        self.eb_main(args, do_build=True, raise_error=True)
+        with self.mocked_stdout_stderr():
+            self.eb_main(args, do_build=True, raise_error=True)
 
         tmp_logs = os.listdir(tmp_logdir)
         self.assertEqual(len(tmp_logs), 1)
