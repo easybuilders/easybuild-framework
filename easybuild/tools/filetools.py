@@ -1200,7 +1200,7 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
 
     if checksum_type in ['adler32', 'crc32', 'md5', 'sha1', 'size']:
         _log.deprecated("Checksum type %s is deprecated. Use sha256 (default) or sha512 instead" % checksum_type,
-                            '6.0')
+                        '6.0')
 
     try:
         checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
