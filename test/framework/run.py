@@ -500,24 +500,40 @@ class RunTest(EnhancedTestCase):
         """
         Test running shell command in specific directory with run_shell_cmd function.
         """
+        test_dir = os.path.join(self.test_prefix, 'test')
+        test_workdir = os.path.join(self.test_prefix, 'test', 'workdir')
+        for fn in ('foo.txt', 'bar.txt'):
+            write_file(os.path.join(test_workdir, fn), 'test')
+
+        os.chdir(test_dir)
         orig_wd = os.getcwd()
         self.assertFalse(os.path.samefile(orig_wd, self.test_prefix))
 
-        test_dir = os.path.join(self.test_prefix, 'test')
-        for fn in ('foo.txt', 'bar.txt'):
-            write_file(os.path.join(test_dir, fn), 'test')
-
         cmd = "ls | sort"
+
+        # undefined working directory
         with self.mocked_stdout_stderr():
-            res = run_shell_cmd(cmd, work_dir=test_dir)
+            res = run_shell_cmd(cmd)
+
+        self.assertEqual(res.cmd, cmd)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'workdir\n')
+        self.assertEqual(res.stderr, None)
+        self.assertEqual(res.work_dir, orig_wd)
+
+        self.assertTrue(os.path.samefile(orig_wd, os.getcwd()))
+
+        # defined working directory
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, work_dir=test_workdir)
 
         self.assertEqual(res.cmd, cmd)
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, 'bar.txt\nfoo.txt\n')
         self.assertEqual(res.stderr, None)
-        self.assertEqual(res.work_dir, test_dir)
+        self.assertEqual(res.work_dir, test_workdir)
 
-        self.assertTrue(os.path.samefile(orig_wd, os.getcwd()))
+        self.assertTrue(os.path.samefile(test_workdir, os.getcwd()))
 
     def test_run_cmd_log_output(self):
         """Test run_cmd with log_output enabled"""
