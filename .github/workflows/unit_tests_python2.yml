@@ -57,18 +57,6 @@ jobs:
           export PREFIX=/tmp/$USER/$GITHUB_SHA
           python2 -m pip install --prefix $PREFIX dist/easybuild-framework*tar.gz
 
-    - name: install easyblocks
-      run: |
-          cd $HOME
-          # first determine which branch of easybuild-easyblocks repo to install
-          BRANCH=develop
-          if [ "x$GITHUB_BASE_REF" = 'xmain' ]; then BRANCH=main; fi
-          if [ "x$GITHUB_BASE_REF" = 'x4.x' ]; then BRANCH=4.x; fi
-          echo "Using easybuild-easyblocks branch $BRANCH (\$GITHUB_BASE_REF $GITHUB_BASE_REF)"
-          git clone -b $BRANCH --depth 10 --single-branch https://github.com/easybuilders/easybuild-easyblocks.git
-          cd easybuild-easyblocks; git log -n 1; cd -
-          pip install $PWD/easybuild-easyblocks
-
     - name: run test suite
       run: |
           # run tests *outside* of checked out easybuild-framework directory,
