@@ -2351,7 +2351,7 @@ class EasyBlock(object):
                 self.log.info("No module %s found. Not skipping anything." % self.full_mod_name)
 
         # remove existing module file under --force (but only if --skip is not used)
-        elif build_option('force') or build_option('rebuild'):
+        elif (build_option('force') or build_option('rebuild')) and not build_option('dump_env_script'):
             self.remove_module_file()
 
     def fetch_step(self, skip_checksums=False):
@@ -2609,7 +2609,7 @@ class EasyBlock(object):
             copy_patch = 'copy' in patch and 'sourcepath' not in patch
 
             self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s",
-                           srcind, level, srcpathsuffix, copy)
+                           srcind, level, srcpathsuffix, copy_patch)
 
             if beginpath is None:
                 try:
