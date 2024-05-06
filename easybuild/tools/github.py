@@ -617,7 +617,7 @@ def _get_version_for_repo(filename):
 
         _log.debug("PR target version is %s" % res.group(1))
         return res.group(1)
-    except:
+    except Exception:
         raise EasyBuildError("Couldn't determine version of PR from %s" % filename)
 
 
