@@ -2231,7 +2231,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(ft.get_cwd(), toy_dir))
 
         os.rmdir(toy_dir)
-        self.assertErrorRegex(EasyBuildError, "Working directory does not exist", ft.get_cwd)
+        self.assertErrorRegex(EasyBuildError, ft.CWD_NOTFOUND_ERROR, ft.get_cwd)
 
         self.assertEqual(ft.get_cwd(must_exist=False), None)
 

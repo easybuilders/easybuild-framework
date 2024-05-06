@@ -83,6 +83,10 @@ CACHED_COMMANDS = (
     "ulimit -u",  # used in det_parallelism
 )
 
+CWD_NOTFOUND_ERROR = (
+    "Current working directory does not exist! It was either unexpectedly removed "
+    "by an external process to EasyBuild or the filesystem is misbehaving."
+)
 
 RunShellCmdResult = namedtuple('RunShellCmdResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir',
                                                      'out_file', 'err_file', 'thread_id', 'task_id'))
@@ -318,7 +322,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         try:
             work_dir = os.getcwd()
         except FileNotFoundError:
-            raise EasyBuildError("Working directory does not exist")
+            raise EasyBuildError(CWD_NOTFOUND_ERROR)
 
     cmd_str = to_cmd_str(cmd)
 

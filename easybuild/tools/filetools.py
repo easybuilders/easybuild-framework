@@ -66,7 +66,7 @@ from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, pr
 from easybuild.tools.config import ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN, build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.hooks import load_source
-from easybuild.tools.run import run_shell_cmd
+from easybuild.tools.run import CWD_NOTFOUND_ERROR, run_shell_cmd
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars, trace_msg
 
 try:
@@ -415,10 +415,10 @@ def get_cwd(must_exist=True):
         cwd = os.getcwd()
     except FileNotFoundError as err:
         if must_exist is True:
-            raise EasyBuildError("Working directory does not exist")
-        else:
-            _log.debug("Failed to determine current working directory, but proceeding anyway: %s", err)
-            cwd = None
+            raise EasyBuildError(CWD_NOTFOUND_ERROR)
+
+        _log.debug("Failed to determine current working directory, but proceeding anyway: %s", err)
+        cwd = None
 
     return cwd
 
@@ -439,6 +439,7 @@ def change_dir(path):
         raise EasyBuildError("Failed to change from %s to %s: %s", prev_dir, path, err)
 
     # determine final working directory: must exist
+    # stoplight meant to catch filesystems in a faulty state
     get_cwd()
 
     return prev_dir
