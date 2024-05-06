@@ -6227,18 +6227,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertNotIn('checksums = ', toy_ec_txt)
 
         write_file(test_ec, toy_ec_txt)
-        args = [test_ec, '--inject-checksums=md5']
+        args = [test_ec, '--inject-checksums=sha256']
 
         stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
 
         patterns = [
-            r"^== injecting md5 checksums in .*/test\.eb$",
+            r"^== injecting sha256 checksums in .*/test\.eb$",
             r"^== fetching sources & patches for test\.eb\.\.\.$",
             r"^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+\.\.\.$",
-            r"^== injecting md5 checksums for sources & patches in test\.eb\.\.\.$",
-            r"^== \* toy-0.0\.tar\.gz: be662daa971a640e40be5c804d9d7d10$",
-            r"^== \* toy-0\.0_fix-silly-typo-in-printf-statement\.patch: a99f2a72cee1689a2f7e3ace0356efb1$",
-            r"^== \* toy-extra\.txt: 3b0787b3bf36603ae1398c4a49097893$",
+            r"^== injecting sha256 checksums for sources & patches in test\.eb\.\.\.$",
+            r"^== \* toy-0.0\.tar\.gz: 44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc$",
+            r"^== \* toy-0\.0_fix-silly-typo-in-printf-statement\.patch: "  # no comma, continues on next line
+            r"81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487$",
+            r"^== \* toy-extra\.txt: 4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458$",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -6254,9 +6255,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # no parse errors for updated easyconfig file...
         ec = EasyConfigParser(test_ec).get_config_dict()
         checksums = [
-            {'toy-0.0.tar.gz': 'be662daa971a640e40be5c804d9d7d10'},
-            {'toy-0.0_fix-silly-typo-in-printf-statement.patch': 'a99f2a72cee1689a2f7e3ace0356efb1'},
-            {'toy-extra.txt': '3b0787b3bf36603ae1398c4a49097893'},
+            {'toy-0.0.tar.gz': '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'},
+            {'toy-0.0_fix-silly-typo-in-printf-statement.patch':
+             '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'},
+            {'toy-extra.txt': '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'},
         ]
         self.assertEqual(ec['checksums'], checksums)
 

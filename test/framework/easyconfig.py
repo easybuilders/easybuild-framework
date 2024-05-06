@@ -485,7 +485,7 @@ class EasyConfigTest(EnhancedTestCase):
                        # SHA256 checksum for source (gzip-1.4.eb)
                        "6a5abcab719cefa95dca4af0db0d2a9d205d68f775a33b452ec0f2b75b6a3a45",
                        # SHA256 checksum for 'patch' (toy-0.0.eb)
-                       "2d964e0e8f05a7cce0dd83a3e68c9737da14b87b61b8b8b0291d58d4c8d1031c",
+                       "177b34bcdfa1abde96f30354848a01894ebc9c24913bc5145306cd30f78fc8ad",
                    ],
                }),
                # Can use templates in name and version
@@ -509,7 +509,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(exts_sources[1]['version'], '2.0')
         self.assertEqual(exts_sources[1]['options'], {
             'checksums': ['6a5abcab719cefa95dca4af0db0d2a9d205d68f775a33b452ec0f2b75b6a3a45',
-                          '2d964e0e8f05a7cce0dd83a3e68c9737da14b87b61b8b8b0291d58d4c8d1031c'],
+                          '177b34bcdfa1abde96f30354848a01894ebc9c24913bc5145306cd30f78fc8ad'],
             'patches': [('toy-0.0.eb', '.')],
             'source_tmpl': 'gzip-1.4.eb',
             'source_urls': [('http://example.com', 'suffix')],
