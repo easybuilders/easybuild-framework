@@ -1848,26 +1848,39 @@ class RunTest(EnhancedTestCase):
             stdout = self.get_stdout()
 
         expected_stdout = '\n'.join([
-            "pre-run hook 'make' in %s" % cwd,
+            f"pre-run hook 'make' in {cwd}",
             "post-run hook 'echo make' (exit code: 0, output: 'make\n')",
             '',
         ])
         self.assertEqual(stdout, expected_stdout)
 
-        # also check with a command that destroys the directory it's running in
+        # check commands that destroy directories inside initial working directory
+        # 1. test destruction of main working directory
         workdir = os.path.join(self.test_prefix, 'workdir')
         mkdir(workdir)
-
         with self.mocked_stdout_stderr():
-            run_shell_cmd("pwd; rm -rf %(workdir)s; echo '%(workdir)s removed'" % {'workdir': workdir}, path=workdir)
+            cmd_workdir_rm = "echo 'Command that ends up removing working directory' && pwd && "
+            cmd_workdir_rm += f"rm -rf {workdir} && echo 'Working directory removed.'"
+            error_pattern = rf"Failed to return to {workdir} after executing command"
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd_workdir_rm, work_dir=workdir)
+
+        # 2. test destruction of current working (sub)directory inside original working directory
+        sub_workdir = os.path.join(self.test_prefix, 'workdir', 'subworkdir')
+        mkdir(sub_workdir, parents=True)
+        with self.mocked_stdout_stderr():
+            cmd_workdir_rm = "echo 'Command that jumps to working subdir and removes it' && "
+            cmd_workdir_rm += f"cd {sub_workdir} && pwd && rm -rf {sub_workdir} && "
+            cmd_workdir_rm += "echo 'Working directory removed.'"
+            run_shell_cmd(cmd_workdir_rm, work_dir=workdir)
             stdout = self.get_stdout()
 
-        patterns = [
-            r"pre-run hook 'pwd; rm .*/workdir removed'",
-            r"post-run hook 'pwd;\s*rm.*/workdir removed'' \(exit code: 0, output: '.*\n.*/workdir removed\n'\)",
+        expected_stdout_patterns = [
+            rf"pre-run hook '{cmd_workdir_rm}' in {workdir}",
+            (rf"post-run hook '{cmd_workdir_rm}' \(exit code: 0, "
+             rf"output: 'Command that jumps.*\n{sub_workdir}\nWorking directory removed\..*'\)"),
         ]
-        for pattern in patterns:
-            regex = re.compile(pattern, re.M)
+        for pattern in expected_stdout_patterns:
+            regex = re.compile(pattern, re.S)
             self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
