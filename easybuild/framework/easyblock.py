@@ -125,10 +125,6 @@ _log = fancylogger.getLogger('easyblock')
 class EasyBlock(object):
     """Generic support for building and installing software, base class for actual easyblocks."""
 
-    # indicates whether or not this represents an EasyBlock for data or software
-    # set default value as class attribute, allowing custom easyblocks to override it
-    easyblock_type = SOFTWARE
-
     # static class method for extra easyconfig parameter definitions
     # this makes it easy to access the information without needing an instance
     # subclasses of EasyBlock should call this method with a dictionary
@@ -163,6 +159,7 @@ class EasyBlock(object):
         # list of patch/source files, along with checksums
         self.patches = []
         self.src = []
+        self.data_src = []
         self.checksums = []
         self.json_checksums = None
 
@@ -181,11 +178,6 @@ class EasyBlock(object):
         # indicates whether or not this instance represents an extension or not;
         # may be set to True by ExtensionEasyBlock
         self.is_extension = False
-
-        known_easyblock_types = [DATA, SOFTWARE]
-        if self.easyblock_type not in known_easyblock_types:
-            raise EasyBuildError(
-                "EasyBlock type %s is not in list of known types %s", self.easyblock_type, known_easyblock_types)
 
         # easyconfig for this application
         if isinstance(ec, EasyConfig):
@@ -214,9 +206,6 @@ class EasyBlock(object):
 
         # determine install subdirectory, based on module name
         self.install_subdir = None
-
-        # indicates whether build should be performed in installation dir
-        self.build_in_installdir = self.cfg['buildininstalldir']
 
         # list of locations to include in RPATH filter used by toolchain
         self.rpath_filter_dirs = []
@@ -270,6 +259,16 @@ class EasyBlock(object):
         # initialize logger
         self._init_log()
 
+        if self.cfg['sources'] and self.cfg['data_sources']:
+            raise EasyBuildError("Either easyconfig parameter sources or data_sources should be provided, not both.")
+
+        # build_in_installdir indicates whether build should be performed in installation dir
+        if self.cfg['data_sources']:
+            self.build_in_installdir = True
+            self.log.info("Setting build_in_installdir to True for data installations.")
+        else:
+            self.build_in_installdir = self.cfg['buildininstalldir']
+
         # try and use the specified group (if any)
         group_name = build_option('group')
         group_spec = self.cfg['group']
@@ -285,17 +284,6 @@ class EasyBlock(object):
         self.group = None
         if group_name is not None:
             self.group = use_group(group_name)
-
-        if self.easyblock_type == SOFTWARE and self.cfg['data_sources']:
-            raise EasyBuildError(
-                "Easyconfig parameter 'data_sources' not supported for software installations. Use 'sources' instead.")
-        if self.easyblock_type == DATA and self.cfg['sources']:
-            raise EasyBuildError(
-                "Easyconfig parameter 'sources' not supported for data installations. Use 'data_sources' instead.")
-
-        # use 'data_sources' as alias for 'sources'
-        if self.cfg['data_sources']:
-            self.cfg['sources'] = self.cfg['data_sources']
 
         # generate build/install directories
         self.gen_builddir()
@@ -488,11 +476,11 @@ class EasyBlock(object):
         Add a list of source files (can be tarballs, isos, urls).
         All source files will be checked if a file exists (or can be located)
 
-        :param sources: list of sources to fetch (if None, use 'sources' easyconfig parameter)
+        :param sources: list of sources to fetch (if None, use 'sources' or 'data_sources' easyconfig parameter)
         :param checksums: list of checksums for sources
         """
         if sources is None:
-            sources = self.cfg['sources']
+            sources = self.cfg['sources'] or self.cfg['data_sources']
         if checksums is None:
             checksums = self.cfg['checksums']
 
@@ -773,8 +761,10 @@ class EasyBlock(object):
         :param download_instructions: instructions to manually add source (used for complex cases)
         :param alt_location: alternative location to use instead of self.name
         """
-        srcpaths_map = {SOFTWARE: source_paths, DATA: source_paths_data}
-        srcpaths = srcpaths_map[self.easyblock_type]()
+        if self.cfg['data_sources']:
+            srcpaths = source_paths_data()
+        else:
+            srcpaths = source_paths()
 
         update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
 
@@ -986,7 +976,7 @@ class EasyBlock(object):
                         msg = "\nDownload instructions:\n\n" + download_instructions + '\n'
                         print_msg(msg, prefix=False, stderr=True)
                         error_msg += "please follow the download instructions above, and make the file available "
-                        error_msg += "in the active source path (%s)" % ':'.join(srcpaths_map[self.easyblock_type]())
+                        error_msg += "in the active source path (%s)" % ':'.join(source_paths())
                     else:
                         # flatten list to string with '%' characters escaped (literal '%' desired in 'sprintf')
                         failedpaths_msg = ', '.join(failedpaths).replace('%', '%%')
@@ -1128,7 +1118,10 @@ class EasyBlock(object):
         """
         Generate the name of the installation directory.
         """
-        basepath = install_path(self.easyblock_type)
+        if self.cfg['data_sources']:
+            basepath = install_path(DATA)
+        else:
+            basepath = install_path(SOFTWARE)
         if basepath:
             self.install_subdir = ActiveMNS().det_install_subdir(self.cfg)
             self.installdir = os.path.join(os.path.abspath(basepath), self.install_subdir)
@@ -2407,8 +2400,10 @@ class EasyBlock(object):
         # fetch sources
         if self.cfg['sources']:
             self.fetch_sources(self.cfg['sources'], checksums=self.cfg['checksums'])
+        elif self.cfg['data_sources']:
+            self.fetch_sources(self.cfg['data_sources'], checksums=self.cfg['checksums'])
         else:
-            self.log.info('no sources provided')
+            self.log.info('no sources or data_sources provided')
 
         if self.dry_run:
             # actual list of patches is printed via _obtain_file_dry_run method
