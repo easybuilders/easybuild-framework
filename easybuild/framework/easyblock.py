@@ -881,7 +881,7 @@ class EasyBlock(object):
                 source_urls.extend(self.cfg['source_urls'])
 
                 # add https://sources.easybuild.io as fallback source URL
-                source_urls.append(EASYBUILD_SOURCES_URL + '/' + os.path.join(name_letter, location))
+                #source_urls.append(EASYBUILD_SOURCES_URL + '/' + os.path.join(name_letter, location))
 
                 mkdir(targetdir, parents=True)
 
@@ -963,7 +963,7 @@ class EasyBlock(object):
                         error_msg += "Paths attempted (in order): %s " % failedpaths_msg
 
                     if not warning_only:
-                        raise EasyBuildError(error_msg, filename)
+                        raise EasyBuildError(error_msg, filename,exit_code=6)
                     else:
                         self.log.warning(error_msg, filename)
                         return None
@@ -4314,6 +4314,7 @@ def build_and_install_one(ecdict, init_env):
 
     except EasyBuildError as err:
         error_msg = err.msg
+        error_code = err.exit_code
         result = False
 
     ended = 'ended'
@@ -4463,7 +4464,7 @@ def build_and_install_one(ecdict, init_env):
 
     del app
 
-    return (success, application_log, error_msg)
+    return (success, application_log, error_msg, error_code)
 
 
 def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):

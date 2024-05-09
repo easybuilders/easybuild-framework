@@ -826,7 +826,7 @@ def download_file(filename, url, path, forced=False, trace=True):
             if error_re.match(str(err)):
                 switch_to_requests = True
         except Exception as err:
-            raise EasyBuildError("Unexpected error occurred when trying to download %s to %s: %s", url, path, err)
+            raise EasyBuildError("Unexpected error occurred when trying to download %s to %s: %s", url, path, err, exit_code=status_code)
 
         if not downloaded and attempt_cnt < max_attempts:
             _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))

@@ -74,14 +74,15 @@ class EasyBuildError(LoggedException):
     LOC_INFO_LEVEL = 1
     # always include location where error was raised from, even under 'python -O'
     INCLUDE_LOCATION = True
-
-    def __init__(self, msg, *args):
+    def __init__(self, msg,*args,**kwargs):
         """Constructor: initialise EasyBuildError instance."""
         if args:
             msg = msg % args
-        LoggedException.__init__(self, msg)
+        LoggedException.__init__(self, msg,**kwargs)
         self.msg = msg
-
+        if kwargs:
+            self.__dict__.update(kwargs)
+        print("defined at EBerror:", self.__dict__.keys())
     def __str__(self):
         """Return string representation of this EasyBuildError instance."""
         return repr(self.msg)
@@ -345,7 +346,7 @@ def print_error(msg, *args, **kwargs):
     # use 1 as defaut exit code
     if exit_code is None:
         exit_code = 1
-
+        
     log = kwargs.pop('log', None)
     opt_parser = kwargs.pop('opt_parser', None)
     exit_on_error = kwargs.pop('exit_on_error', True)
