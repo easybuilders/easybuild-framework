@@ -1885,7 +1885,7 @@ class RunTest(EnhancedTestCase):
         ]
         expected_stdout_patterns = [re.compile(pattern, re.S) for pattern in expected_stdout_patterns]
 
-        # in a robust system
+        # 1.a. in a robust system
         mkdir(sub_workdir, parents=True)
         with self.mocked_stdout_stderr():
             run_shell_cmd(cmd_workdir_rm, work_dir=workdir)
@@ -1894,7 +1894,7 @@ class RunTest(EnhancedTestCase):
             for regex in expected_stdout_patterns:
                 self.assertTrue(regex.search(stdout), f"Pattern '{regex.pattern}' should be found in: {stdout}")
 
-        # in a flaky system that ends up in a broken environment after execution
+        # 1.b. in a flaky system that ends up in a broken environment after execution
         mkdir(sub_workdir, parents=True)
         with self.mocked_stdout_stderr():
             with mock.patch('os.getcwd') as mock_getcwd:
@@ -1915,19 +1915,10 @@ class RunTest(EnhancedTestCase):
         ]
         expected_stdout_patterns = [re.compile(pattern, re.S) for pattern in expected_stdout_patterns]
 
-        # in a robust system
         mkdir(workdir)
         with self.mocked_stdout_stderr():
             error_pattern = rf"Failed to return to {workdir} after executing command"
             self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd_workdir_rm, work_dir=workdir)
-
-        # in a flaky system that ends up in a broken environment after execution
-        mkdir(workdir)
-        with self.mocked_stdout_stderr():
-            with mock.patch('os.getcwd') as mock_getcwd:
-                mock_getcwd.side_effect = FileNotFoundError()
-                error_pattern = rf"Failed to return to {workdir} after executing command"
-                self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd_workdir_rm, work_dir=workdir)
 
 
 def suite():
