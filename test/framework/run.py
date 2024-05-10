@@ -32,6 +32,7 @@ Unit tests for run.py
 """
 import contextlib
 import glob
+import mock
 import os
 import re
 import signal
@@ -511,7 +512,7 @@ class RunTest(EnhancedTestCase):
 
         cmd = "ls | sort"
 
-        # undefined working directory
+        # working directory is not explicitly defined
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(cmd)
 
@@ -523,7 +524,7 @@ class RunTest(EnhancedTestCase):
 
         self.assertTrue(os.path.samefile(orig_wd, os.getcwd()))
 
-        # defined working directory
+        # working directory is explicitly defined
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(cmd, work_dir=test_workdir)
 
@@ -533,7 +534,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.stderr, None)
         self.assertEqual(res.work_dir, test_workdir)
 
-        self.assertTrue(os.path.samefile(test_workdir, os.getcwd()))
+        self.assertTrue(os.path.samefile(orig_wd, os.getcwd()))
 
     def test_run_cmd_log_output(self):
         """Test run_cmd with log_output enabled"""
@@ -1870,34 +1871,64 @@ class RunTest(EnhancedTestCase):
         ])
         self.assertEqual(stdout, expected_stdout)
 
-        # check commands that destroy directories inside initial working directory
-        # 1. test destruction of main working directory
+        # Test commands that destroy directories inside initial working directory
         workdir = os.path.join(self.test_prefix, 'workdir')
-        mkdir(workdir)
-        with self.mocked_stdout_stderr():
-            cmd_workdir_rm = "echo 'Command that ends up removing working directory' && pwd && "
-            cmd_workdir_rm += f"rm -rf {workdir} && echo 'Working directory removed.'"
-            error_pattern = rf"Failed to return to {workdir} after executing command"
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd_workdir_rm, work_dir=workdir)
+        sub_workdir = os.path.join(workdir, 'subworkdir')
 
-        # 2. test destruction of current working (sub)directory inside original working directory
-        sub_workdir = os.path.join(self.test_prefix, 'workdir', 'subworkdir')
-        mkdir(sub_workdir, parents=True)
-        with self.mocked_stdout_stderr():
-            cmd_workdir_rm = "echo 'Command that jumps to working subdir and removes it' && "
-            cmd_workdir_rm += f"cd {sub_workdir} && pwd && rm -rf {sub_workdir} && "
-            cmd_workdir_rm += "echo 'Working directory removed.'"
-            run_shell_cmd(cmd_workdir_rm, work_dir=workdir)
-            stdout = self.get_stdout()
-
+        # 1. test destruction of CWD which is a subdirectory inside original working directory
+        cmd_workdir_rm = "echo 'Command that jumps to subdir and removes it' && "
+        cmd_workdir_rm += f"cd {sub_workdir} && pwd && rm -rf {sub_workdir} && "
+        cmd_workdir_rm += "echo 'Working sub-directory removed.'"
         expected_stdout_patterns = [
             rf"pre-run hook '{cmd_workdir_rm}' in {workdir}",
             (rf"post-run hook '{cmd_workdir_rm}' \(exit code: 0, "
-             rf"output: 'Command that jumps.*\n{sub_workdir}\nWorking directory removed\..*'\)"),
+             rf"output: 'Command that jumps to subdir.*\n{sub_workdir}\nWorking sub-directory removed\..*'\)"),
         ]
-        for pattern in expected_stdout_patterns:
-            regex = re.compile(pattern, re.S)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        expected_stdout_patterns = [re.compile(pattern, re.S) for pattern in expected_stdout_patterns]
+
+        # in a robust system
+        mkdir(sub_workdir, parents=True)
+        with self.mocked_stdout_stderr():
+            run_shell_cmd(cmd_workdir_rm, work_dir=workdir)
+            stdout = self.get_stdout()
+
+            for regex in expected_stdout_patterns:
+                self.assertTrue(regex.search(stdout), f"Pattern '{regex.pattern}' should be found in: {stdout}")
+
+        # in a flaky system that ends up in a broken environment after execution
+        mkdir(sub_workdir, parents=True)
+        with self.mocked_stdout_stderr():
+            with mock.patch('os.getcwd') as mock_getcwd:
+                mock_getcwd.side_effect = FileNotFoundError()
+                run_shell_cmd(cmd_workdir_rm, work_dir=workdir)
+                stdout = self.get_stdout()
+
+                for regex in expected_stdout_patterns:
+                    self.assertTrue(regex.search(stdout), f"Pattern '{regex.pattern}' should be found in: {stdout}")
+
+        # 2. test destruction of CWD which is main working directory passed to run_shell_cmd
+        cmd_workdir_rm = "echo 'Command that removes working directory' && pwd && "
+        cmd_workdir_rm += f"rm -rf {workdir} && echo 'Working directory removed.'"
+        expected_stdout_patterns = [
+            rf"pre-run hook '{cmd_workdir_rm}' in {workdir}",
+            (rf"post-run hook '{cmd_workdir_rm}' \(exit code: 0, "
+             rf"output: 'Command that removes working.*\n{workdir}\nWorking directory removed\..*'\)"),
+        ]
+        expected_stdout_patterns = [re.compile(pattern, re.S) for pattern in expected_stdout_patterns]
+
+        # in a robust system
+        mkdir(workdir)
+        with self.mocked_stdout_stderr():
+            error_pattern = rf"Failed to return to {workdir} after executing command"
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd_workdir_rm, work_dir=workdir)
+
+        # in a flaky system that ends up in a broken environment after execution
+        mkdir(workdir)
+        with self.mocked_stdout_stderr():
+            with mock.patch('os.getcwd') as mock_getcwd:
+                mock_getcwd.side_effect = FileNotFoundError()
+                error_pattern = rf"Failed to return to {workdir} after executing command"
+                self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd_workdir_rm, work_dir=workdir)
 
 
 def suite():
