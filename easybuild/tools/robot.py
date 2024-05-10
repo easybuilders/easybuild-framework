@@ -325,7 +325,7 @@ def raise_error_missing_deps(missing_deps, extra_msg=None):
     error_msg = "Missing dependencies: %s" % mod_names
     if extra_msg:
         error_msg += ' (%s)' % extra_msg
-    raise EasyBuildError(error_msg)
+    raise EasyBuildError(error_msg, exit_code = 7)
 
 
 def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_error_missing_ecs=True):

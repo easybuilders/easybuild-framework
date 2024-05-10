@@ -1041,7 +1041,7 @@ def locate_files(files, paths, ignore_subdirs=None):
     if files_to_find:
         filenames = ', '.join([f for (_, f) in files_to_find])
         paths = ', '.join(paths)
-        raise EasyBuildError("One or more files not found: %s (search paths: %s)", filenames, paths)
+        raise EasyBuildError("One or more files not found: %s (search paths: %s)", filenames, paths, exit_code = 3)
 
     return [os.path.abspath(f) for f in files]
 
