@@ -32,7 +32,6 @@ Unit tests for run.py
 """
 import contextlib
 import glob
-import mock
 import os
 import re
 import signal
@@ -45,7 +44,7 @@ import textwrap
 import time
 from concurrent.futures import ThreadPoolExecutor
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
-from unittest import TextTestRunner
+from unittest import TextTestRunner, mock
 from easybuild.base.fancylogger import setLogLevelDebug
 
 import easybuild.tools.asyncprocess as asyncprocess
