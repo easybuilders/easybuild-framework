@@ -505,11 +505,20 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         if fail_on_error:
             raise_run_shell_cmd_error(res)
 
-    # return to original work dir after command execution
+    # check that we still are in a sane environment after command execution
+    # safeguard against commands that leave behind the system in a borked state
     try:
-        os.chdir(res.work_dir)
-    except OSError as err:
-        raise EasyBuildError(f"Failed to return to {res.work_dir} after executing command `{cmd_str}`: {err}")
+        os.getcwd()
+    except FileNotFoundError:
+        try:
+            warn_msg = (
+                f"Shell command `{cmd_str}` completed successfully but left system in a broken state. "
+                f"Changing back to initial working directory: {res.work_dir}"
+            )
+            _log.warning(warn_msg)
+            os.chdir(res.work_dir)
+        except OSError as err:
+            raise EasyBuildError(f"Failed to return to {res.work_dir} after executing command `{cmd_str}`: {err}")
 
     if with_hooks:
         run_hook_kwargs = {
