@@ -207,6 +207,9 @@ class EasyBlock(object):
         # determine install subdirectory, based on module name
         self.install_subdir = None
 
+        # indicates whether build should be performed in installation dir
+        self.build_in_installdir = self.cfg['buildininstalldir']
+
         # list of locations to include in RPATH filter used by toolchain
         self.rpath_filter_dirs = []
 
@@ -258,16 +261,6 @@ class EasyBlock(object):
 
         # initialize logger
         self._init_log()
-
-        if self.cfg['sources'] and self.cfg['data_sources']:
-            raise EasyBuildError("Either easyconfig parameter sources or data_sources should be provided, not both.")
-
-        # build_in_installdir indicates whether build should be performed in installation dir
-        if self.cfg['data_sources']:
-            self.build_in_installdir = True
-            self.log.info("Setting build_in_installdir to True for data installations.")
-        else:
-            self.build_in_installdir = self.cfg['buildininstalldir']
 
         # try and use the specified group (if any)
         group_name = build_option('group')

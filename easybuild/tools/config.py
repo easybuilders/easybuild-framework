@@ -446,6 +446,7 @@ DEFAULT_MODULECLASSES = [
     ('chem', "Chemistry, Computational Chemistry and Quantum Chemistry"),
     ('compiler', "Compilers"),
     ('data', "Data management & processing tools"),
+    ('dataset', "Datasets"),
     ('debugger', "Debuggers"),
     ('devel', "Development tools"),
     ('geo', "Earth Sciences"),
