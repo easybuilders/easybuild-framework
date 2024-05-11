@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -94,6 +94,7 @@ class Gcc(Compiler):
         (systemtools.AARCH64, systemtools.ARM): 'mcpu=generic',       # implies -march=armv8-a and -mtune=generic
         (systemtools.POWER, systemtools.POWER): 'mcpu=powerpc64',    # no support for -march on POWER
         (systemtools.POWER, systemtools.POWER_LE): 'mcpu=powerpc64le',    # no support for -march on POWER
+        (systemtools.RISCV64, systemtools.RISCV): 'march=rv64gc -mabi=lp64d',  # default for -mabi is system-dependent
         (systemtools.X86_64, systemtools.AMD): 'march=x86-64 -mtune=generic',
         (systemtools.X86_64, systemtools.INTEL): 'march=x86-64 -mtune=generic',
     }

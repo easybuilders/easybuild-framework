@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -54,7 +54,7 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import apply_patch, copy_dir, copy_easyblocks, copy_framework_files
+from easybuild.tools.filetools import apply_patch, copy_dir, copy_easyblocks, copy_file, copy_framework_files
 from easybuild.tools.filetools import det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import get_easyblock_class_name, mkdir, read_file, symlink, which, write_file
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
@@ -355,16 +355,18 @@ def fetch_latest_commit_sha(repo, account, branch=None, github_user=None, token=
     return res
 
 
-def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, account=GITHUB_EB_MAIN, path=None, github_user=None):
+def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, commit=None, account=GITHUB_EB_MAIN, path=None,
+                  github_user=None):
     """
     Download entire GitHub repo as a tar.gz archive, and extract it into specified path.
     :param repo: repo to download
     :param branch: branch to download
+    :param commit: commit to download
     :param account: GitHub account to download repo from
     :param path: path to extract to
     :param github_user: name of GitHub user to use
     """
-    if branch is None:
+    if branch is None and commit is None:
         branch = pick_default_branch(account)
 
     # make sure path exists, create it if necessary
@@ -375,9 +377,25 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, account=GITHUB_EB_M
     path = os.path.join(path, account)
     mkdir(path, parents=True)
 
-    extracted_dir_name = '%s-%s' % (repo, branch)
-    base_name = '%s.tar.gz' % branch
-    latest_commit_sha = fetch_latest_commit_sha(repo, account, branch, github_user=github_user)
+    if commit:
+        # make sure that full commit SHA is provided
+        commit_sha1_regex = re.compile('[0-9a-f]{40}')
+        if commit_sha1_regex.match(commit):
+            _log.info("Valid commit SHA provided for downloading %s/%s: %s", account, repo, commit)
+        else:
+            error_msg = r"Specified commit SHA %s for downloading %s/%s is not valid, "
+            error_msg += "must be full SHA-1 (40 chars)"
+            raise EasyBuildError(error_msg, commit, account, repo)
+
+        extracted_dir_name = '%s-%s' % (repo, commit)
+        base_name = '%s.tar.gz' % commit
+        latest_commit_sha = commit
+    elif branch:
+        extracted_dir_name = '%s-%s' % (repo, branch)
+        base_name = '%s.tar.gz' % branch
+        latest_commit_sha = fetch_latest_commit_sha(repo, account, branch, github_user=github_user)
+    else:
+        raise EasyBuildError("Either branch or commit should be specified in download_repo")
 
     expected_path = os.path.join(path, extracted_dir_name)
     latest_sha_path = os.path.join(expected_path, 'latest-sha')
@@ -393,19 +411,33 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, account=GITHUB_EB_M
 
     target_path = os.path.join(path, base_name)
     _log.debug("downloading repo %s/%s as archive from %s to %s" % (account, repo, url, target_path))
-    download_file(base_name, url, target_path, forced=True)
-    _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
+    downloaded_path = download_file(base_name, url, target_path, forced=True)
+    if downloaded_path is None:
+        raise EasyBuildError("Failed to download tarball for %s/%s commit %s", account, repo, commit)
+    else:
+        _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
     base_dir = extract_file(target_path, path, forced=True, change_into_dir=False)
     extracted_path = os.path.join(base_dir, extracted_dir_name)
 
     # check if extracted_path exists
     if not os.path.isdir(extracted_path):
-        raise EasyBuildError("%s should exist and contain the repo %s at branch %s", extracted_path, repo, branch)
+        error_msg = "%s should exist and contain the repo %s " % (extracted_path, repo)
+        if branch:
+            error_msg += "at branch " + branch
+        elif commit:
+            error_msg += "at commit " + commit
+        raise EasyBuildError(error_msg)
 
     write_file(latest_sha_path, latest_commit_sha, forced=True)
 
-    _log.debug("Repo %s at branch %s extracted into %s" % (repo, branch, extracted_path))
+    log_msg = "Repo %s at %%s extracted into %s" % (repo, extracted_path)
+    if branch:
+        log_msg = log_msg % ('branch ' + branch)
+    elif commit:
+        log_msg = log_msg % ('commit ' + commit)
+    _log.debug(log_msg)
+
     return extracted_path
 
 
@@ -450,14 +482,15 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
 
     if path is None:
         if github_repo == GITHUB_EASYCONFIGS_REPO:
-            pr_paths = build_option('pr_paths')
-            if pr_paths:
+            extra_ec_paths = build_option('extra_ec_paths')
+            if extra_ec_paths:
                 # figure out directory for this specific PR (see also alt_easyconfig_paths)
-                cands = [p for p in pr_paths if p.endswith('files_pr%s' % pr)]
+                cands = [p for p in extra_ec_paths if p.endswith('files_pr%s' % pr)]
                 if len(cands) == 1:
                     path = cands[0]
                 else:
-                    raise EasyBuildError("Failed to isolate path for PR #%s from list of PR paths: %s", pr, pr_paths)
+                    raise EasyBuildError("Failed to isolate path for PR #%s from list of PR paths: %s",
+                                         pr, extra_ec_paths)
 
         elif github_repo == GITHUB_EASYBLOCKS_REPO:
             path = os.path.join(tempfile.gettempdir(), 'ebs_pr%s' % pr)
@@ -558,13 +591,109 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
 
 
 def fetch_easyblocks_from_pr(pr, path=None, github_user=None):
-    """Fetch patched easyconfig files for a particular PR."""
+    """Fetch patched easyblocks for a particular PR."""
     return fetch_files_from_pr(pr, path, github_user, github_repo=GITHUB_EASYBLOCKS_REPO)
 
 
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     """Fetch patched easyconfig files for a particular PR."""
     return fetch_files_from_pr(pr, path, github_user, github_repo=GITHUB_EASYCONFIGS_REPO)
+
+
+def fetch_files_from_commit(commit, files=None, path=None, github_account=None, github_repo=None):
+    """
+    Fetch files from a specific commit.
+
+    If 'files' is None, all files touched in the commit are used.
+    """
+    if github_account is None:
+        github_account = build_option('pr_target_account')
+
+    if github_repo is None:
+        github_repo = GITHUB_EASYCONFIGS_REPO
+
+    if path is None:
+        if github_repo == GITHUB_EASYCONFIGS_REPO:
+            extra_ec_paths = build_option('extra_ec_paths')
+            if extra_ec_paths:
+                # figure out directory for this specific commit (see also alt_easyconfig_paths)
+                cands = [p for p in extra_ec_paths if p.endswith('files_commit_' + commit)]
+                if len(cands) == 1:
+                    path = cands[0]
+                else:
+                    raise EasyBuildError("Failed to isolate path for commit %s from list of commit paths: %s",
+                                         commit, extra_ec_paths)
+            else:
+                path = os.path.join(tempfile.gettempdir(), 'ecs_commit_' + commit)
+
+        elif github_repo == GITHUB_EASYBLOCKS_REPO:
+            path = os.path.join(tempfile.gettempdir(), 'ebs_commit_' + commit)
+        else:
+            raise EasyBuildError("Unknown repo: %s" % github_repo)
+
+    # if no files are specified, determine which files are touched in commit
+    if not files:
+        diff_url = os.path.join(GITHUB_URL, github_account, github_repo, 'commit', commit + '.diff')
+        diff_fn = os.path.basename(diff_url)
+        diff_filepath = os.path.join(path, diff_fn)
+        if download_file(diff_fn, diff_url, diff_filepath, forced=True):
+            diff_txt = read_file(diff_filepath)
+            _log.debug("Diff for commit %s:\n%s", commit, diff_txt)
+
+            files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
+            _log.debug("List of patched files for commit %s: %s", commit, files)
+        else:
+            raise EasyBuildError("Failed to download diff for commit %s of %s/%s", commit, github_account, github_repo)
+
+    # download tarball for specific commit
+    repo_commit = download_repo(repo=github_repo, commit=commit, account=github_account)
+
+    if github_repo == GITHUB_EASYCONFIGS_REPO:
+        files_subdir = 'easybuild/easyconfigs/'
+    elif github_repo == GITHUB_EASYBLOCKS_REPO:
+        files_subdir = 'easybuild/easyblocks/'
+    else:
+        raise EasyBuildError("Unknown repo: %s" % github_repo)
+
+    # copy specified files to directory where they're expected to be found
+    file_paths = []
+    for file in files:
+
+        # if only filename is specified, we need to determine the file path
+        if file == os.path.basename(file):
+            src_path = None
+            for (dirpath, _, filenames) in os.walk(repo_commit, topdown=True):
+                if file in filenames:
+                    src_path = os.path.join(dirpath, file)
+                    break
+        else:
+            src_path = os.path.join(repo_commit, file)
+
+        # strip of leading subdirectory like easybuild/easyconfigs/ or easybuild/easyblocks/
+        # because that's what expected by robot_find_easyconfig
+        if file.startswith(files_subdir):
+            file = file[len(files_subdir):]
+
+        # if file is found, copy it to dedicated directory;
+        # if not, just skip it (may be an easyconfig file in local directory);
+        if src_path and os.path.exists(src_path):
+            target_path = os.path.join(path, file)
+            copy_file(src_path, target_path)
+            file_paths.append(target_path)
+        else:
+            _log.info("File %s not found in %s, so ignoring it...", file, repo_commit)
+
+    return file_paths
+
+
+def fetch_easyblocks_from_commit(commit, files=None, path=None):
+    """Fetch easyblocks from a specified commit."""
+    return fetch_files_from_commit(commit, files=files, path=path, github_repo=GITHUB_EASYBLOCKS_REPO)
+
+
+def fetch_easyconfigs_from_commit(commit, files=None, path=None):
+    """Fetch specified easyconfig files from a specific commit."""
+    return fetch_files_from_commit(commit, files=files, path=path, github_repo=GITHUB_EASYCONFIGS_REPO)
 
 
 def create_gist(txt, fn, descr=None, github_user=None, github_token=None):

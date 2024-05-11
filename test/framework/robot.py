@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -128,8 +128,7 @@ class RobotTest(EnhancedTestCase):
         config.modules_tool = ORIG_MODULES_TOOL
         ecec.modules_tool = ORIG_ECEC_MODULES_TOOL
         if ORIG_MODULE_FUNCTION is None:
-            if 'module' in os.environ:
-                del os.environ['module']
+            os.environ.pop('module', None)
         else:
             os.environ['module'] = ORIG_MODULE_FUNCTION
         self.modtool = self.orig_modtool
@@ -713,6 +712,47 @@ class RobotTest(EnhancedTestCase):
         regex = re.compile(r"^ \* %s$" % os.path.join(self.test_prefix, test_ec), re.M)
         self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
+    def test_github_det_easyconfig_paths_from_commit(self):
+        """Test det_easyconfig_paths function in combination with --from-commit."""
+        # note: --from-commit does not involve using GitHub API, so no GitHub token required
+
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        commit = '589282cf52609067616fc2a522f8e4b81f809cb7'
+        args = [
+            os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),  # absolute path
+            'toy-0.0-iter.eb',  # relative path, available via robot search path
+            # commit in which ReFrame-4.3.2.eb was added,
+            # see https://github.com/easybuilders/easybuild-easyconfigs/pull/18763/commits
+            '--from-commit', commit,
+            'ReFrame-4.3.2.eb',  # easyconfig included in commit, should be resolved via robot search path
+            '--dry-run',
+            '--robot',
+            '--robot=%s' % test_ecs_path,
+            '--unittest-file=%s' % self.logfile,
+            '--tmpdir=%s' % self.test_prefix,
+        ]
+
+        self.mock_stderr(True)
+        outtxt = self.eb_main(args, raise_error=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+
+        self.assertFalse(stderr)
+
+        # full path doesn't matter (helps to avoid failing tests due to resolved symlinks)
+        test_ecs_path = os.path.join('.*', 'test', 'framework', 'easyconfigs', 'test_ecs')
+
+        modules = [
+            (test_ecs_path, 'toy/0.0'),
+            (test_ecs_path, 'toy/0.0-iter'),
+            (os.path.join(self.test_prefix, '.*', 'files_commit_%s' % commit), 'ReFrame/4.3.2'),
+        ]
+        for path_prefix, module in modules:
+            ec_fn = "%s.eb" % '-'.join(module.split('/'))
+            regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
+            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
     def test_github_det_easyconfig_paths_from_pr(self):
         """Test det_easyconfig_paths function, with --from-pr enabled as well."""
         if self.github_token is None:
@@ -1082,8 +1122,8 @@ class RobotTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         # Create directories to store the tweaked easyconfigs
-        tweaked_ecs_paths, pr_paths = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
-        robot_path = det_robot_path([test_easyconfigs], tweaked_ecs_paths, pr_paths, auto_robot=True)
+        tweaked_ecs_paths, extra_ec_paths = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
+        robot_path = det_robot_path([test_easyconfigs], tweaked_ecs_paths, extra_ec_paths, auto_robot=True)
 
         init_config(build_options={
             'valid_module_classes': module_classes(),

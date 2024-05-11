@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ##
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -353,8 +353,7 @@ class ToyBuildTest(EnhancedTestCase):
         expected += "oh hai!"
 
         # setting $LMOD_QUIET results in suppression of printed message with Lmod & module files in Tcl syntax
-        if 'LMOD_QUIET' in os.environ:
-            del os.environ['LMOD_QUIET']
+        os.environ.pop('LMOD_QUIET', None)
 
         self.modtool.use(os.path.join(self.test_installpath, 'modules', 'all'))
         out = self.modtool.run_module('load', 'toy/0.0-tweaked', return_output=True)

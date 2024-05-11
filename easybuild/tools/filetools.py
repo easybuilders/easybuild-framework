@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -966,11 +966,12 @@ def load_index(path, ignore_dirs=None):
         # check whether index is still valid
         if valid_ts:
             curr_ts = datetime.datetime.now()
+            terse = build_option('terse')
             if curr_ts > valid_ts:
-                print_warning("Index for %s is no longer valid (too old), so ignoring it...", path)
+                print_warning("Index for %s is no longer valid (too old), so ignoring it...", path, silent=terse)
                 index = None
             else:
-                print_msg("found valid index for %s, so using it...", path)
+                print_msg("found valid index for %s, so using it...", path, silent=terse)
 
     return index or None
 

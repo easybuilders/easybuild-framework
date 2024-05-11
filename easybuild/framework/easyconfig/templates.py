@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -258,7 +258,7 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
     # step 2: define *ver and *shortver templates
     if TEMPLATE_SOFTWARE_VERSIONS:
 
-        name_to_prefix = dict((name.lower(), pref) for name, pref in TEMPLATE_SOFTWARE_VERSIONS)
+        name_to_prefix = {name.lower(): pref for name, pref in TEMPLATE_SOFTWARE_VERSIONS}
         deps = config.get('dependencies', [])
 
         # also consider build dependencies for *ver and *shortver templates;

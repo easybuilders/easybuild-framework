@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -69,7 +69,7 @@ class VersionOperator(object):
         '<': op.lt,
         '<=': op.le,
     }
-    REVERSE_OPERATOR_MAP = dict([(v, k) for k, v in OPERATOR_MAP.items()])
+    REVERSE_OPERATOR_MAP = {v: k for k, v in OPERATOR_MAP.items()}
     INCLUDE_OPERATORS = ['==', '>=', '<=']  # these operators *include* the (version) boundary
     ORDERED_OPERATORS = ['==', '>', '>=', '<', '<=']  # ordering by strictness
     OPERATOR_FAMILIES = [['>', '>='], ['<', '<=']]  # similar operators

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -181,8 +181,7 @@ class ToolchainTest(EnhancedTestCase):
         # clean environment
         self.unset_compiler_env_vars()
 
-        if 'PKG_CONFIG_PATH' in os.environ:
-            del os.environ['PKG_CONFIG_PATH']
+        os.environ.pop('PKG_CONFIG_PATH', None)
 
         self.assertEqual(os.getenv('PKG_CONFIG_PATH'), None)
 
@@ -227,8 +226,7 @@ class ToolchainTest(EnhancedTestCase):
         env_vars.extend(['OMPI_%s' % x for x in comp_env_vars])
 
         for key in env_vars:
-            if key in os.environ:
-                del os.environ[key]
+            os.environ.pop(key, None)
 
     def test_toolchain_compiler_env_vars(self):
         """Test whether environment variables for compilers are defined by toolchain mechanism."""
@@ -345,8 +343,7 @@ class ToolchainTest(EnhancedTestCase):
         init_config(build_options={'minimal_build_env': 'CC:gcc,CXX:g++,CFLAGS:-O2,CXXFLAGS:-O3 -g,FC:gfortan'})
 
         for key in ['CFLAGS', 'CXXFLAGS', 'FC']:
-            if key in os.environ:
-                del os.environ[key]
+            os.environ.pop(key, None)
 
         self.mock_stderr(True)
         self.mock_stdout(True)
@@ -2270,8 +2267,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test rpath_args.py script"""
 
         # $LIBRARY_PATH affects result of rpath_args.py, so make sure it's not set
-        if 'LIBRARY_PATH' in os.environ:
-            del os.environ['LIBRARY_PATH']
+        os.environ.pop('LIBRARY_PATH', None)
 
         script = find_eb_script('rpath_args.py')
 

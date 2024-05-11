@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -320,7 +320,7 @@ class FileToolsTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, error_pattern, ft.verify_checksum, fp, checksum)
 
         # make sure faulty checksums are reported
-        broken_checksums = dict([(typ, val[:-3] + 'foo') for (typ, val) in known_checksums.items()])
+        broken_checksums = {typ: (val[:-3] + 'foo') for typ, val in known_checksums.items()}
         for checksum_type, checksum in broken_checksums.items():
             self.assertFalse(ft.compute_checksum(fp, checksum_type=checksum_type) == checksum)
             self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))
@@ -1505,8 +1505,7 @@ class FileToolsTest(EnhancedTestCase):
         lic_server = '1234@example.license.server'
 
         # make test robust against environment in which $LM_LICENSE_FILE is defined
-        if 'LM_LICENSE_FILE' in os.environ:
-            del os.environ['LM_LICENSE_FILE']
+        os.environ.pop('LM_LICENSE_FILE', None)
 
         # default return value
         self.assertEqual(ft.find_flexlm_license(), ([], None))
@@ -2630,8 +2629,7 @@ class FileToolsTest(EnhancedTestCase):
         """Test find_eb_script function."""
 
         # make sure $EB_SCRIPT_PATH is not set already (used as fallback mechanism in find_eb_script)
-        if 'EB_SCRIPT_PATH' in os.environ:
-            del os.environ['EB_SCRIPT_PATH']
+        os.environ.pop('EB_SCRIPT_PATH', None)
 
         self.assertExists(ft.find_eb_script('rpath_args.py'))
         self.assertExists(ft.find_eb_script('rpath_wrapper_template.sh.in'))

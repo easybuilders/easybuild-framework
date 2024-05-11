@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -59,7 +59,7 @@ def avail_module_generators():
     """
     Return all known module syntaxes.
     """
-    return dict([(k.SYNTAX, k) for k in get_subclasses(ModuleGenerator)])
+    return {k.SYNTAX: k for k in get_subclasses(ModuleGenerator)}
 
 
 def module_generator(app, fake=False):
