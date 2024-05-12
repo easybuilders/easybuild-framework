@@ -112,9 +112,13 @@ DEFAULT_CONFIG = {
     'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
                         'cores, active cpuset and restrictions in ulimit)'), BUILD],
     'patches': [[], "List of patches to apply", BUILD],
+    'prebuildcmds': ['', 'Extra commands executed before main build command', BUILD],
     'prebuildopts': ['', 'Extra options prepended to build command', BUILD],
+    'preconfigcmds': ['', 'Extra commands executed before main configure command', BUILD],
     'preconfigopts': ['', 'Extra options prepended to configure command', BUILD],
+    'preinstallcmds': ['', 'Extra commands executed before main install command', BUILD],
     'preinstallopts': ['', 'Extra options prepended to installation command', BUILD],
+    'pretestcmds': ['', 'Extra commands executed before main test command', BUILD],
     'pretestopts': ['', 'Extra options prepended to test command', BUILD],
     'postinstallcmds': [[], 'Commands to run after the install step', BUILD],
     'postinstallpatches': [[], 'Patch files to apply after running the install step', BUILD],
