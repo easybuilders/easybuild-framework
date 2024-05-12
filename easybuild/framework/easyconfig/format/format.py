@@ -67,7 +67,9 @@ GROUPED_PARAMS = [
     ['osdependencies'],
     ['preconfigopts', 'configopts'],
     ['prebuildopts', 'buildopts'],
+    ['pretestopts', 'testopts'],
     ['preinstallopts', 'installopts'],
+    ['postinstallcmds', 'postinstallpatches'],
     ['parallel', 'maxparallel'],
 ]
 LAST_PARAMS = ['exts_default_options', 'exts_list',
