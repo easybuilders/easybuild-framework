@@ -2737,7 +2737,7 @@ class EasyBlock(object):
                 raise EasyBuildError(f"Invalid element in '{caller}', not a string: {cmd}")
             run_shell_cmd(cmd)
 
-    def _run_step_main_action(self, action, step, pre_cmds=None, pre_opts="", post_opts=""):
+    def run_step_main_action(self, action, step, pre_cmds=None, pre_opts="", post_opts=""):
         """Construct main command of step and execute it"""
         if pre_cmds:
             self._run_command_stack(pre_cmds, f"pre{step}cmds")
@@ -2746,12 +2746,28 @@ class EasyBlock(object):
         return run_shell_cmd(step_cmd)
 
     def configure_step(self):
-        """Configure build  (abstract method)."""
-        raise NotImplementedError
+        """Configure build."""
+        if self.cfg['configure_cmd'] is not None:
+            res = self.run_step_main_action(
+                self.cfg['configure_cmd'],
+                "config",
+                self.cfg['preconfigcmds'],
+                self.cfg['preconfigopts'],
+                self.cfg['configopts'],
+            )
+            return res.output
 
     def build_step(self):
-        """Build software  (abstract method)."""
-        raise NotImplementedError
+        """Build software."""
+        if self.cfg['build_cmd'] is not None:
+            res = self.run_step_main_action(
+                self.cfg['build_cmd'],
+                "build",
+                self.cfg['prebuildcmds'],
+                self.cfg['prebuildopts'],
+                self.cfg['buildopts'],
+            )
+            return res.output
 
     def test_step(self):
         """Run unit tests provided by software (if any)."""
@@ -2778,8 +2794,16 @@ class EasyBlock(object):
         pass
 
     def install_step(self):
-        """Install built software (abstract method)."""
-        raise NotImplementedError
+        """Install built software."""
+        if self.cfg['install_cmd'] is not None:
+            res = self.run_step_main_action(
+                self.cfg['install_cmd'],
+                "install",
+                self.cfg['preinstallcmds'],
+                self.cfg['preinstallopts'],
+                self.cfg['installopts'],
+            )
+            return res.output
 
     def init_ext_instances(self):
         """
