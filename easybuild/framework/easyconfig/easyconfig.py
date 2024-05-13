@@ -1886,16 +1886,17 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         try:
             __import__(modulepath, globals(), locals(), [''])
         except ImportError as err:
-            # check if determining module path based on software name would have resulted in a different module path
             _log.debug(f"Failed to import easyblock module '{modulepath}' (derived from easyconfig name): {err}")
-            modulepath_bis = get_module_path(name, generic=False, decode=False)
-            _log.debug(f"Module path determined based on software name: {modulepath_bis}")
-            if modulepath_bis != modulepath:
-                _log.nosupport("Determining module path based on software name", '2.0')
+            # fallback to generic EasyBlock for easyconfigs
+            # without any easyblock specification or no specific easyblock
+            class_name = "EasyBlock"
+            modulepath = "easybuild.framework.easyblock"
+            _log.info(f"Using generic EasyBlock module for software '{name}'")
         else:
-            _log.debug(f"Module path '{modulepath}' found")
+            _log.debug(f"Module path '{modulepath}' found (derived from easyconfig name)")
 
     try:
+        _log.debug(f"Importing easyblock class {class_name} from {modulepath}")
         cls = get_class_for(modulepath, class_name)
     except ImportError as err:
         # when an ImportError occurs, make sure that it's caused by not finding the easyblock module,
