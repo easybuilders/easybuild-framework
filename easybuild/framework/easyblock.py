@@ -2771,10 +2771,18 @@ class EasyBlock(object):
 
     def test_step(self):
         """Run unit tests provided by software (if any)."""
-        unit_test_cmd = self.cfg['runtest']
-        if unit_test_cmd:
-            self.log.debug(f"Trying to execute {unit_test_cmd} as a command for running unit tests...")
-            res = run_shell_cmd(unit_test_cmd)
+        if self.cfg['runtest'] is not None:
+            self.log.deprecated("Easyconfig parameter 'runtest' is deprecated, use 'test_cmd' instead.", "6.0")
+            self.cfg['test_cmd'] = self.cfg['runtest']
+
+        if self.cfg['test_cmd'] is not None:
+            res = self.run_step_main_action(
+                self.cfg['test_cmd'],
+                "test",
+                self.cfg['pretestcmds'],
+                self.cfg['pretestopts'],
+                self.cfg['testopts'],
+            )
             return res.output
 
     def _test_step(self):
