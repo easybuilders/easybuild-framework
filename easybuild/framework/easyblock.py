@@ -2737,6 +2737,14 @@ class EasyBlock(object):
                 raise EasyBuildError(f"Invalid element in '{caller}', not a string: {cmd}")
             run_shell_cmd(cmd)
 
+    def _run_step_main_action(self, action, step, pre_cmds=None, pre_opts="", post_opts=""):
+        """Construct main command of step and execute it"""
+        if pre_cmds:
+            self._run_command_stack(pre_cmds, f"pre{step}cmds")
+
+        step_cmd = f"{pre_opts} {action} {post_opts}"
+        return run_shell_cmd(step_cmd)
+
     def configure_step(self):
         """Configure build  (abstract method)."""
         raise NotImplementedError
