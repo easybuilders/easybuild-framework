@@ -89,8 +89,10 @@ DEFAULT_CONFIG = {
     'bitbucket_account': ['%(namelower)s', "Bitbucket account name to be used to resolve template values in source"
                                            " URLs", BUILD],
     'buildopts': ['', 'Extra options appended to build command', BUILD],
+    'build_cmd': [None, "Main shell command used in the build step", BUILD],
     'checksums': [[], "Checksums for sources and patches", BUILD],
     'configopts': ['', 'Extra options appended to configure command', BUILD],
+    'configure_cmd': [None, "Main shell command used in the configure step", BUILD],
     'cuda_compute_capabilities': [[], "List of CUDA compute capabilities to build with (if supported)", BUILD],
     'download_instructions': ['', "Specify steps to acquire necessary file, if obtaining it is difficult", BUILD],
     'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
@@ -108,6 +110,7 @@ DEFAULT_CONFIG = {
                        BUILD],
     'hidden': [False, "Install module file as 'hidden' by prefixing its version with '.'", BUILD],
     'installopts': ['', 'Extra options appended to installation command', BUILD],
+    'install_cmd': [None, "Main shell command used in the install step", BUILD],
     'maxparallel': [None, 'Max degree of parallelism', BUILD],
     'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
                         'cores, active cpuset and restrictions in ulimit)'), BUILD],
@@ -140,6 +143,7 @@ DEFAULT_CONFIG = {
     'sources': [[], "List of source files", BUILD],
     'stop': [None, 'Keyword to halt the build process after a certain step', BUILD],
     'testopts': ['', 'Extra options appended to test command', BUILD],
+    'test_cmd': [None, "Main shell command used in the test step", BUILD],
     'tests': [[], ("List of test-scripts to run after install. A test script should return a "
                    "non-zero exit status to fail"), BUILD],
     'unpack_options': ['', "Extra options for unpacking source", BUILD],
