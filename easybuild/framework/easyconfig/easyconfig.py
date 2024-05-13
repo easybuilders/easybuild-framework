@@ -103,7 +103,9 @@ try:
     import autopep8
     HAVE_AUTOPEP8 = True
 except ImportError as import_err:
-    _log.warning("Failed to import autopep8, dumping easyconfigs with reformatting enabled will not work: %s", import_err)
+    _log.warning(
+        "Failed to import autopep8, dumping easyconfigs with reformatting enabled will not work: %s", import_err
+    )
     HAVE_AUTOPEP8 = False
 
 

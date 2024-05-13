@@ -2517,7 +2517,7 @@ class EasyConfigTest(EnhancedTestCase):
         # easyconfig parameters should be properly ordered/grouped in dumped easyconfig
         expected = ['easyblock', '', 'name', 'version', 'versionsuffix', '', 'homepage', 'description', '',
                     'toolchain', '', 'source_urls', 'sources', 'patches', 'checksums', '', 'dependencies', '',
-                    'preconfigcmds', '', 'buildopts', '', 'preinstallopts', '', 'postinstallcmds', '', 
+                    'preconfigcmds', '', 'buildopts', '', 'preinstallopts', '', 'postinstallcmds', '',
                     'foo_extra1', '', 'moduleclass', '']
         self.assertEqual(param_regex.findall(ectxt), expected)
 
