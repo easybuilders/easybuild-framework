@@ -1365,9 +1365,9 @@ class EasyBuildOptions(GeneralOption):
                 '',
                 "* GPU:",
             ])
-            for vendor in gpu_info:
+            for vendor, vendor_gpu in gpu_info.items():
                 lines.append("  -> %s" % vendor)
-                for gpu, num in gpu_info[vendor].items():
+                for gpu, num in vendor_gpu.items():
                     lines.append("    -> %sx %s" % (num, gpu))
 
         lines.extend([
