@@ -3663,6 +3663,9 @@ class EasyConfigTest(EnhancedTestCase):
             ('%%(name)s', '%(name)s'),
             ('%%%(name)s', '%FooBar'),
             ('%%%%(name)s', '%%(name)s'),
+            # It doesn't matter what is resolved
+            ('%%(invalid)s', '%(invalid)s'),
+            ('%%%%(invalid)s', '%%(invalid)s'),
         )
         for value, expected in values:
             self.assertEqual(resolve_template(value, tmpl_dict), expected)
@@ -3670,6 +3673,10 @@ class EasyConfigTest(EnhancedTestCase):
             value += ' %(name)s'
             expected += ' FooBar'
             self.assertEqual(resolve_template(value, tmpl_dict), expected)
+
+        # On unknown values the value is returned unchanged
+        for value in ('%(invalid)s', '%(name)s %(invalid)s', '%%%(invalid)s', '% %(invalid)s', '%s %(invalid)s'):
+            self.assertEqual(resolve_template(value, tmpl_dict), value)
 
     def test_det_subtoolchain_version(self):
         """Test det_subtoolchain_version function"""
