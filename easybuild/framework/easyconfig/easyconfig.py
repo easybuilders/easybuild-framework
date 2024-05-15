@@ -899,7 +899,7 @@ class EasyConfig(object):
                 not_found.append(dep)
 
         if not_found:
-            raise EasyBuildError("One or more OS dependencies were not found: %s", not_found,exit_code=2)
+            raise EasyBuildError("One or more OS dependencies were not found: %s", not_found, exit_code = 8)
         else:
             self.log.info("OS dependencies ok: %s" % self['osdependencies'])
 

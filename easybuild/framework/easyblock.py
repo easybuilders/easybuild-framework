@@ -963,7 +963,7 @@ class EasyBlock(object):
                         error_msg += "Paths attempted (in order): %s " % failedpaths_msg
 
                     if not warning_only:
-                        raise EasyBuildError(error_msg, filename,exit_code=6)
+                        raise EasyBuildError(error_msg, filename,exit_code = 9)
                     else:
                         self.log.warning(error_msg, filename)
                         return None
@@ -3622,6 +3622,7 @@ class EasyBlock(object):
                 if not found:
                     sanity_check_fail_msg = "no %s found at %s in %s" % (typ, xs2str(xs), self.installdir)
                     self.sanity_check_fail_msgs.append(sanity_check_fail_msg)
+                    self.exit_code = 10
                     self.log.warning("Sanity check: %s", sanity_check_fail_msg)
 
                 trace_msg("%s %s found: %s" % (typ, xs2str(xs), ('FAILED', 'OK')[found]))
@@ -3647,6 +3648,7 @@ class EasyBlock(object):
             if res.exit_code != 0:
                 fail_msg = f"sanity check command {cmd} exited with code {res.exit_code} (output: {res.output})"
                 self.sanity_check_fail_msgs.append(fail_msg)
+                self.exit_code = res.exit_code
                 self.log.warning(f"Sanity check: {fail_msg}")
             else:
                 self.log.info(f"sanity check command {cmd} ran successfully! (output: {res.output})")
@@ -3689,7 +3691,7 @@ class EasyBlock(object):
 
         # pass or fail
         if self.sanity_check_fail_msgs:
-            raise EasyBuildError("Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs))
+            raise EasyBuildError("Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs), exit_code = self.exit_code)
         else:
             self.log.debug("Sanity check passed!")
 
@@ -4174,7 +4176,7 @@ class EasyBlock(object):
                         err.print()
                         ec_path = os.path.basename(self.cfg.path)
                         error_msg = f"shell command '{err.cmd_name} ...' failed in {step_name} step for {ec_path}"
-                        raise EasyBuildError(error_msg)
+                        raise EasyBuildError(error_msg, exit_code = err.exit_code)
                     finally:
                         if not self.dry_run:
                             step_duration = datetime.now() - start_time
