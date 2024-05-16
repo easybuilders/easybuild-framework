@@ -3793,8 +3793,11 @@ class EasyBlock(object):
                 for line in txt.split('\n'):
                     self.dry_run_msg(INDENT_4SPACES + line)
         else:
-            write_file(mod_filepath, txt)
-            self.log.info("Module file %s written: %s", mod_filepath, txt)
+            try:
+                write_file(mod_filepath, txt)
+                self.log.info("Module file %s written: %s", mod_filepath, txt)
+            except EasyBuildError as err:
+                raise EasyBuildError("Unable to write Module file %s", mod_filepath, exit_code = 11)
 
             # if backup module file is there, print diff with newly generated module file
             if self.mod_file_backup and not fake:
