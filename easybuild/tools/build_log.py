@@ -346,7 +346,6 @@ def print_error(msg, *args, **kwargs):
     # use 1 as defaut exit code
     if exit_code is None:
         exit_code = 1
-        
     log = kwargs.pop('log', None)
     opt_parser = kwargs.pop('opt_parser', None)
     exit_on_error = kwargs.pop('exit_on_error', True)
