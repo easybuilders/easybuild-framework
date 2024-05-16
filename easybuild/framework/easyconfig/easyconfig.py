@@ -899,7 +899,7 @@ class EasyConfig(object):
                 not_found.append(dep)
 
         if not_found:
-            raise EasyBuildError("One or more OS dependencies were not found: %s", not_found, exit_code = 8)
+            raise EasyBuildError("One or more OS dependencies were not found: %s", not_found, exit_code=8)
         else:
             self.log.info("OS dependencies ok: %s" % self['osdependencies'])
 
@@ -1264,7 +1264,7 @@ class EasyConfig(object):
         if values is None:
             values = []
         if self[attr] and self[attr] not in values:
-            raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values, exit_code = 12)
+            raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values, exit_code=12)
 
     def probe_external_module_metadata(self, mod_name, existing_metadata=None):
         """
@@ -1913,9 +1913,9 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                 _log.debug("error regexp for ImportError on '%s' easyblock: %s", modname, error_re.pattern)
                 if error_re.match(str(err)):
                     if error_on_missing_easyblock:
-                        raise EasyBuildError("No software-specific easyblock '%s' found for %s", class_name, name, exit_code = 4)
+                        raise EasyBuildError("No software-specific easyblock '%s' found for %s", class_name, name, exit_code=4)
                 elif error_on_failed_import:
-                    raise EasyBuildError("Failed to import %s easyblock: %s", class_name, err, exit_code = 5)
+                    raise EasyBuildError("Failed to import %s easyblock: %s", class_name, err, exit_code=5)
                 else:
                     _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
 
@@ -1931,7 +1931,7 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         # simply reraise rather than wrapping it into another error
         raise err
     except Exception as err:
-        raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err, exit_code = 6)
+        raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err, exit_code=6)
 
 
 def get_module_path(name, generic=None, decode=True):
@@ -2047,7 +2047,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
         try:
             ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
         except EasyBuildError as err:
-            raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg, exit_code = err.exit_code)
+            raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg, exit_code=err.exit_code)
 
         name = ec['name']
 
