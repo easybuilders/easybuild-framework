@@ -3622,7 +3622,7 @@ class EasyBlock(object):
                 if not found:
                     sanity_check_fail_msg = "no %s found at %s in %s" % (typ, xs2str(xs), self.installdir)
                     self.sanity_check_fail_msgs.append(sanity_check_fail_msg)
-                    self.exit_code =10
+                    self.exit_code = 10
                     self.log.warning("Sanity check: %s", sanity_check_fail_msg)
 
                 trace_msg("%s %s found: %s" % (typ, xs2str(xs), ('FAILED', 'OK')[found]))
@@ -3692,7 +3692,8 @@ class EasyBlock(object):
         # pass or fail
         if self.sanity_check_fail_msgs:
             raise EasyBuildError("Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs), 
-            exit_code=self.exit_code)
+            exit_code=self.exit_code
+            )
         else:
             self.log.debug("Sanity check passed!")
 

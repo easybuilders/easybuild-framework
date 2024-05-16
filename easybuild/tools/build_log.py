@@ -74,8 +74,8 @@ class EasyBuildError(LoggedException):
     LOC_INFO_LEVEL = 1
     # always include location where error was raised from, even under 'python -O'
     INCLUDE_LOCATION = True
-    
-    def __init__(self, msg,*args,**kwargs):
+
+    def __init__(self, msg, *args, **kwargs):
         """Constructor: initialise EasyBuildError instance."""
         if args:
             msg = msg % args
