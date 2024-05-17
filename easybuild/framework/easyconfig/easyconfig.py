@@ -1913,7 +1913,8 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                 _log.debug("error regexp for ImportError on '%s' easyblock: %s", modname, error_re.pattern)
                 if error_re.match(str(err)):
                     if error_on_missing_easyblock:
-                        raise EasyBuildError("No software-specific easyblock '%s' found for %s", class_name, name, exit_code=4)
+                        raise EasyBuildError(
+                                "No software-specific easyblock '%s' found for %s", class_name, name, exit_code=4)
                 elif error_on_failed_import:
                     raise EasyBuildError("Failed to import %s easyblock: %s", class_name, err, exit_code=5)
                 else:
@@ -1931,7 +1932,8 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         # simply reraise rather than wrapping it into another error
         raise err
     except Exception as err:
-        raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err, exit_code=6)
+        raise EasyBuildError(
+                "Failed to obtain class for %s easyblock (not available?): %s", easyblock, err, exit_code=6)
 
 
 def get_module_path(name, generic=None, decode=True):

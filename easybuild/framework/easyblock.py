@@ -3691,9 +3691,8 @@ class EasyBlock(object):
 
         # pass or fail
         if self.sanity_check_fail_msgs:
-            raise EasyBuildError("Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs), 
-            exit_code=self.exit_code
-            )
+            raise EasyBuildError(
+                "Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs), exit_code=self.exit_code)
         else:
             self.log.debug("Sanity check passed!")
 
@@ -3798,7 +3797,7 @@ class EasyBlock(object):
             try:
                 write_file(mod_filepath, txt)
                 self.log.info("Module file %s written: %s", mod_filepath, txt)
-            except EasyBuildError as err:
+            except EasyBuildError:
                 raise EasyBuildError("Unable to write Module file %s", mod_filepath, exit_code=11)
 
             # if backup module file is there, print diff with newly generated module file
