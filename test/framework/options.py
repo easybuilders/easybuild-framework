@@ -65,7 +65,7 @@ from easybuild.tools.options import EasyBuildOptions, opts_dict_to_eb_opts, pars
 from easybuild.tools.options import set_up_configuration, set_tmpdir, use_color
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_shell_cmd
-from easybuild.tools.systemtools import HAVE_ARCHSPEC
+from easybuild.tools.systemtools import DARWIN, HAVE_ARCHSPEC, get_os_type
 from easybuild.tools.version import VERSION
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup, init_config
 
@@ -4630,7 +4630,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         res = [d for d in res if os.path.basename(d) != os.path.basename(git_working_dir)]
         if len(res) == 1:
             unstaged_file_full = os.path.join(res[0], unstaged_file)
-            self.assertNotExists(unstaged_file_full), "%s not found in %s" % (unstaged_file, res[0])
+            self.assertNotExists(unstaged_file_full)
         else:
             self.fail("Found copy of easybuild-easyconfigs working copy")
 
@@ -5194,6 +5194,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"installpath\s* \(E\) = " + os.path.join(self.test_prefix, 'tmp.*'),
             r"repositorypath\s* \(D\) = " + os.path.join(default_prefix, 'ebfiles_repo'),
             r"robot-paths\s* \(E\) = " + os.path.join(test_dir, 'easyconfigs', 'test_ecs'),
+            r"rpath\s* \(D\) = " + ('False' if get_os_type() == DARWIN else 'True'),
             r"sourcepath\s* \(E\) = " + os.path.join(test_dir, 'sandbox', 'sources'),
             r"subdir-modules\s* \(F\) = mods",
         ]
@@ -5359,6 +5360,45 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "FC: gfortran",
         ])
         self.assertEqual(res.output.strip(), expected_out)
+
+    def test_dump_env_script_existing_module(self):
+        toy_ec = 'toy-0.0.eb'
+
+        os.chdir(self.test_prefix)
+        self._run_mock_eb([toy_ec, '--force'], do_build=True)
+        env_script = os.path.join(self.test_prefix, os.path.splitext(toy_ec)[0] + '.env')
+        test_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            test_module += '.lua'
+        self.assertExists(test_module)
+        self.assertNotExists(env_script)
+
+        args = [toy_ec, '--dump-env']
+        os.chdir(self.test_prefix)
+        self._run_mock_eb(args, do_build=True, raise_error=True)
+        self.assertExists(env_script)
+        self.assertExists(test_module)
+        module_content = read_file(test_module)
+        env_file_content = read_file(env_script)
+
+        error_msg = (r"Script\(s\) already exists, not overwriting them \(unless --force is used\): "
+                     + os.path.basename(env_script))
+        os.chdir(self.test_prefix)
+        self.assertErrorRegex(EasyBuildError, error_msg, self._run_mock_eb, args, do_build=True, raise_error=True)
+        self.assertExists(env_script)
+        self.assertExists(test_module)
+        # Unchanged module and env file
+        self.assertEqual(read_file(test_module), module_content)
+        self.assertEqual(read_file(env_script), env_file_content)
+
+        args.append('--force')
+        os.chdir(self.test_prefix)
+        self._run_mock_eb(args, do_build=True, raise_error=True)
+        self.assertExists(env_script)
+        self.assertExists(test_module)
+        # Unchanged module and env file
+        self.assertEqual(read_file(test_module), module_content)
+        self.assertEqual(read_file(env_script), env_file_content)
 
     def test_stop(self):
         """Test use of --stop."""
@@ -6187,18 +6227,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertNotIn('checksums = ', toy_ec_txt)
 
         write_file(test_ec, toy_ec_txt)
-        args = [test_ec, '--inject-checksums=md5']
+        args = [test_ec, '--inject-checksums=sha256']
 
         stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
 
         patterns = [
-            r"^== injecting md5 checksums in .*/test\.eb$",
+            r"^== injecting sha256 checksums in .*/test\.eb$",
             r"^== fetching sources & patches for test\.eb\.\.\.$",
             r"^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+\.\.\.$",
-            r"^== injecting md5 checksums for sources & patches in test\.eb\.\.\.$",
-            r"^== \* toy-0.0\.tar\.gz: be662daa971a640e40be5c804d9d7d10$",
-            r"^== \* toy-0\.0_fix-silly-typo-in-printf-statement\.patch: a99f2a72cee1689a2f7e3ace0356efb1$",
-            r"^== \* toy-extra\.txt: 3b0787b3bf36603ae1398c4a49097893$",
+            r"^== injecting sha256 checksums for sources & patches in test\.eb\.\.\.$",
+            r"^== \* toy-0.0\.tar\.gz: 44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc$",
+            r"^== \* toy-0\.0_fix-silly-typo-in-printf-statement\.patch: "  # no comma, continues on next line
+            r"81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487$",
+            r"^== \* toy-extra\.txt: 4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458$",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -6214,9 +6255,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # no parse errors for updated easyconfig file...
         ec = EasyConfigParser(test_ec).get_config_dict()
         checksums = [
-            {'toy-0.0.tar.gz': 'be662daa971a640e40be5c804d9d7d10'},
-            {'toy-0.0_fix-silly-typo-in-printf-statement.patch': 'a99f2a72cee1689a2f7e3ace0356efb1'},
-            {'toy-extra.txt': '3b0787b3bf36603ae1398c4a49097893'},
+            {'toy-0.0.tar.gz': '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'},
+            {'toy-0.0_fix-silly-typo-in-printf-statement.patch':
+             '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'},
+            {'toy-extra.txt': '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'},
         ]
         self.assertEqual(ec['checksums'], checksums)
 

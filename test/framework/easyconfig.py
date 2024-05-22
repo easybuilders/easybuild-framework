@@ -491,7 +491,7 @@ class EasyConfigTest(EnhancedTestCase):
                        # SHA256 checksum for source (gzip-1.4.eb)
                        "6a5abcab719cefa95dca4af0db0d2a9d205d68f775a33b452ec0f2b75b6a3a45",
                        # SHA256 checksum for 'patch' (toy-0.0.eb)
-                       "2d964e0e8f05a7cce0dd83a3e68c9737da14b87b61b8b8b0291d58d4c8d1031c",
+                       "177b34bcdfa1abde96f30354848a01894ebc9c24913bc5145306cd30f78fc8ad",
                    ],
                }),
                # Can use templates in name and version
@@ -515,7 +515,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(exts_sources[1]['version'], '2.0')
         self.assertEqual(exts_sources[1]['options'], {
             'checksums': ['6a5abcab719cefa95dca4af0db0d2a9d205d68f775a33b452ec0f2b75b6a3a45',
-                          '2d964e0e8f05a7cce0dd83a3e68c9737da14b87b61b8b8b0291d58d4c8d1031c'],
+                          '177b34bcdfa1abde96f30354848a01894ebc9c24913bc5145306cd30f78fc8ad'],
             'patches': [('toy-0.0.eb', '.')],
             'source_tmpl': 'gzip-1.4.eb',
             'source_urls': [('http://example.com', 'suffix')],
@@ -2215,8 +2215,8 @@ class EasyConfigTest(EnhancedTestCase):
             'pyshortver': '3.6',
             'pyver': '3.6.5',
         }
-        for key in expected_template_values:
-            self.assertEqual(ec.template_values[key], expected_template_values[key])
+        for key, expected in expected_template_values.items():
+            self.assertEqual(ec.template_values[key], expected)
 
         self.assertEqual(ec['versionsuffix'], '-Python-3.6.5-Perl-5.30')
 
@@ -2292,8 +2292,8 @@ class EasyConfigTest(EnhancedTestCase):
             'foo\\bar': '"foo\\bar"',
         }
 
-        for t in teststrings:
-            self.assertEqual(quote_str(t), teststrings[t])
+        for t, expected in teststrings.items():
+            self.assertEqual(quote_str(t), expected)
 
         # test escape_newline
         self.assertEqual(quote_str("foo\nbar", escape_newline=False), '"foo\nbar"')
@@ -4862,8 +4862,8 @@ class EasyConfigTest(EnhancedTestCase):
         update_build_option('cuda_compute_capabilities', ['6.5', '7.0'])
         ec = EasyConfig(self.eb_file)
 
-        for key in cuda_template_values:
-            self.assertEqual(ec.get_cuda_cc_template_value(key), cuda_template_values[key])
+        for key, expected in cuda_template_values.items():
+            self.assertEqual(ec.get_cuda_cc_template_value(key), expected)
 
         update_build_option('cuda_compute_capabilities', None)
         ec = EasyConfig(self.eb_file)
@@ -4875,8 +4875,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         ec = EasyConfig(self.eb_file)
 
-        for key in cuda_template_values:
-            self.assertEqual(ec.get_cuda_cc_template_value(key), cuda_template_values[key])
+        for key, expected in cuda_template_values.items():
+            self.assertEqual(ec.get_cuda_cc_template_value(key), expected)
 
     def test_count_files(self):
         """Tests for EasyConfig.count_files method."""

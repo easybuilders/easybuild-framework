@@ -77,12 +77,12 @@ from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, F
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
-from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
+from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
 from easybuild.tools.filetools import compute_checksum, convert_name, copy_file, create_lock, create_patch_info
 from easybuild.tools.filetools import derive_alt_pypi_url, diff_files, dir_contains_files, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file
-from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
+from easybuild.tools.filetools import encode_class_name, extract_file, find_backup_name_candidate
+from easybuild.tools.filetools import get_cwd, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file, symlink
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
@@ -151,7 +151,7 @@ class EasyBlock(object):
         """
 
         # keep track of original working directory, so we can go back there
-        self.orig_workdir = os.getcwd()
+        self.orig_workdir = get_cwd()
 
         # dict of all hooks (mapping of name to function)
         self.hooks = load_hooks(build_option('hooks'))
@@ -666,8 +666,7 @@ class EasyBlock(object):
                         src_path = ext_src['src']
                         src_fn = os.path.basename(src_path)
 
-                        # report both MD5 and SHA256 checksums, since both are valid default checksum types
-                        for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                        for checksum_type in [CHECKSUM_TYPE_SHA256]:
                             src_checksum = compute_checksum(src_path, checksum_type=checksum_type)
                             self.log.info("%s checksum for %s: %s", checksum_type, src_path, src_checksum)
 
@@ -695,9 +694,7 @@ class EasyBlock(object):
                         if verify_checksums:
                             for patch in ext_patches:
                                 patch = patch['path']
-                                # report both MD5 and SHA256 checksums,
-                                # since both are valid default checksum types
-                                for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                                for checksum_type in [CHECKSUM_TYPE_SHA256]:
                                     checksum = compute_checksum(patch, checksum_type=checksum_type)
                                     self.log.info("%s checksum for %s: %s", checksum_type, patch, checksum)
 
@@ -2200,9 +2197,9 @@ class EasyBlock(object):
                 self.log.info("Current iteration index: %s", self.iter_idx)
 
             # pop first element from all iterative easyconfig parameters as next value to use
-            for opt in self.iter_opts:
-                if len(self.iter_opts[opt]) > self.iter_idx:
-                    self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
+            for opt, value in self.iter_opts.items():
+                if len(value) > self.iter_idx:
+                    self.cfg[opt] = value[self.iter_idx]
                 else:
                     self.cfg[opt] = ''  # empty list => empty option as next value
                 self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
@@ -2214,12 +2211,12 @@ class EasyBlock(object):
         """Restore options that were iterated over"""
         # disable templating, since we're messing about with values in self.cfg
         with self.cfg.disable_templating():
-            for opt in self.iter_opts:
-                self.cfg[opt] = self.iter_opts[opt]
+            for opt, value in self.iter_opts.items():
+                self.cfg[opt] = value
 
                 # also need to take into account extensions, since those were iterated over as well
                 for ext in self.ext_instances:
-                    ext.cfg[opt] = self.iter_opts[opt]
+                    ext.cfg[opt] = value
 
                 self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
 
@@ -2351,7 +2348,7 @@ class EasyBlock(object):
                 self.log.info("No module %s found. Not skipping anything." % self.full_mod_name)
 
         # remove existing module file under --force (but only if --skip is not used)
-        elif build_option('force') or build_option('rebuild'):
+        elif (build_option('force') or build_option('rebuild')) and not build_option('dump_env_script'):
             self.remove_module_file()
 
     def fetch_step(self, skip_checksums=False):
@@ -2410,8 +2407,7 @@ class EasyBlock(object):
         # compute checksums for all source and patch files
         if not (skip_checksums or self.dry_run):
             for fil in self.src + self.patches:
-                # report both MD5 and SHA256 checksums, since both are valid default checksum types
-                for checksum_type in [CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256]:
+                for checksum_type in [CHECKSUM_TYPE_SHA256]:
                     fil[checksum_type] = compute_checksum(fil['path'], checksum_type=checksum_type)
                     self.log.info("%s checksum for %s: %s", checksum_type, fil['path'], fil[checksum_type])
 
@@ -2609,7 +2605,7 @@ class EasyBlock(object):
             copy_patch = 'copy' in patch and 'sourcepath' not in patch
 
             self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s",
-                           srcind, level, srcpathsuffix, copy)
+                           srcind, level, srcpathsuffix, copy_patch)
 
             if beginpath is None:
                 try:
@@ -3725,7 +3721,7 @@ class EasyBlock(object):
 
             # make sure we're out of the dir we're removing
             change_dir(self.orig_workdir)
-            self.log.info("Cleaning up builddir %s (in %s)", self.builddir, os.getcwd())
+            self.log.info("Cleaning up builddir %s (in %s)", self.builddir, get_cwd())
 
             try:
                 remove_dir(self.builddir)
@@ -4249,7 +4245,7 @@ def build_and_install_one(ecdict, init_env):
     restore_env(init_env)
     sanitize_env()
 
-    cwd = os.getcwd()
+    cwd = get_cwd()
 
     # load easyblock
     easyblock = build_option('easyblock')
@@ -4554,7 +4550,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
         instance = get_easyblock_instance(ec)
         apps.append(instance)
 
-    base_dir = os.getcwd()
+    base_dir = get_cwd()
 
     # keep track of environment right before initiating builds
     # note: may be different from ORIG_OS_ENVIRON, since EasyBuild may have defined additional env vars itself by now
@@ -4665,14 +4661,14 @@ def inject_checksums_to_json(ecs, checksum_type):
 
         # actually inject new checksums or overwrite existing ones (if --force)
         existing_checksums = app.get_checksums_from_json(always_read=True)
-        for filename in checksums:
+        for filename, checksum in checksums.items():
             if filename not in existing_checksums:
-                existing_checksums[filename] = checksums[filename]
+                existing_checksums[filename] = checksum
             # don't do anything if the checksum already exist and is the same
-            elif checksums[filename] != existing_checksums[filename]:
+            elif checksum != existing_checksums[filename]:
                 if build_option('force'):
                     print_warning("Found existing checksums for %s, overwriting them (due to --force)..." % ec_fn)
-                    existing_checksums[filename] = checksums[filename]
+                    existing_checksums[filename] = checksum
                 else:
                     raise EasyBuildError("Found existing checksum for %s, use --force to overwrite them" % filename)
 

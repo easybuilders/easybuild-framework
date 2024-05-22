@@ -1536,9 +1536,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(eb.src[0]['path'], toy_source))
         self.assertEqual(eb.src[0]['name'], 'toy-0.0.tar.gz')
         self.assertEqual(eb.src[0]['cmd'], None)
-        self.assertEqual(len(eb.src[0]['checksum']), 7)
-        self.assertEqual(eb.src[0]['checksum'][0], 'be662daa971a640e40be5c804d9d7d10')
-        self.assertEqual(eb.src[0]['checksum'][1], '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc')
+        self.assertEqual(len(eb.src[0]['checksum']), 2)
+        self.assertEqual(eb.src[0]['checksum'][0], '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc')
 
         # reconfigure EasyBuild so we can check 'downloaded' sources
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
@@ -1746,7 +1745,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.patches[1]['level'], 4)
         self.assertEqual(eb.patches[2]['name'], toy_patch)
         self.assertEqual(eb.patches[2]['sourcepath'], 'foobar')
-        self.assertEqual(eb.patches[3]['name'], 'toy-0.0.tar.gz'),
+        self.assertEqual(eb.patches[3]['name'], 'toy-0.0.tar.gz')
         self.assertEqual(eb.patches[3]['copy'], 'some/path')
         self.assertEqual(eb.patches[4]['name'], toy_patch)
         self.assertEqual(eb.patches[4]['level'], 0)
@@ -2280,11 +2279,16 @@ class EasyBlockTest(EnhancedTestCase):
         cwd = os.getcwd()
         self.assertExists(cwd)
 
-        def check_ext_start_dir(expected_start_dir, unpack_src=True):
+        def check_ext_start_dir(expected_start_dir, unpack_src=True, parent_startdir=None):
             """Check start dir."""
             # make sure we're in an existing directory at the start
             change_dir(cwd)
+
             eb = EasyBlock(ec['ec'])
+            if not os.path.exists(eb.builddir):
+                eb.make_builddir()  # Required to exist for samefile
+            eb.cfg['start_dir'] = parent_startdir
+
             eb.extensions_step(fetch=True, install=False)
             # extract sources of the extension
             ext = eb.ext_instances[-1]
@@ -2292,6 +2296,8 @@ class EasyBlockTest(EnhancedTestCase):
 
             if expected_start_dir is None:
                 self.assertIsNone(ext.start_dir)
+                # Without a start dir we don't change the CWD
+                self.assertEqual(os.getcwd(), cwd)
             else:
                 self.assertTrue(os.path.isabs(ext.start_dir))
                 if ext.start_dir != os.sep:
@@ -2301,14 +2307,8 @@ class EasyBlockTest(EnhancedTestCase):
                 else:
                     abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
                 self.assertEqual(ext.start_dir, abs_expected_start_dir)
-                if not os.path.exists(eb.builddir):
-                    eb.make_builddir()  # Required to exist for samefile
                 self.assertTrue(os.path.samefile(ext.start_dir, abs_expected_start_dir))
-            if unpack_src:
                 self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
-            else:
-                # When not unpacking we don't change the CWD
-                self.assertEqual(os.getcwd(), cwd)
             remove_dir(eb.builddir)
 
         ec['ec']['exts_defaultclass'] = 'DummyExtension'
@@ -2337,11 +2337,8 @@ class EasyBlockTest(EnhancedTestCase):
                 'start_dir': 'nonexistingdir'}),
         ]
         with self.mocked_stdout_stderr():
-            err_pattern = "Failed to change from .*barbar/barbar-0.0 to nonexistingdir.*"
+            err_pattern = r"Provided start dir \(nonexistingdir\) for extension barbar does not exist:.*"
             self.assertErrorRegex(EasyBuildError, err_pattern, check_ext_start_dir, 'whatever')
-            stderr = self.get_stderr()
-        warning_pattern = "WARNING: Provided start dir (nonexistingdir) for extension barbar does not exist"
-        self.assertIn(warning_pattern, stderr)
 
         # No error when using relative path in non-extracted source for some reason
         ec['ec']['exts_list'] = [
@@ -2369,6 +2366,15 @@ class EasyBlockTest(EnhancedTestCase):
         ]
         with self.mocked_stdout_stderr():
             check_ext_start_dir(os.sep, unpack_src=False)
+            self.assertFalse(self.get_stderr())
+
+        # Go to ECs start dir if nosource is used
+        ec['ec']['exts_list'] = [
+            ('barbar', '0.0', {
+                'nosource': True}),
+        ]
+        with self.mocked_stdout_stderr():
+            check_ext_start_dir(self.test_prefix, parent_startdir=self.test_prefix)
             self.assertFalse(self.get_stderr())
 
     def test_prepare_step(self):
@@ -2566,8 +2572,8 @@ class EasyBlockTest(EnhancedTestCase):
         copy_file(toy_ec, self.test_prefix)
         toy_ec = os.path.join(self.test_prefix, os.path.basename(toy_ec))
         ectxt = read_file(toy_ec)
-        # replace MD5 checksum for toy-0.0.tar.gz
-        ectxt = ectxt.replace('be662daa971a640e40be5c804d9d7d10', '00112233445566778899aabbccddeeff')
+        # replace SHA256 checksum for toy-0.0.tar.gz
+        ectxt = ectxt.replace('44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc', '76543210' * 8)
         # replace SHA256 checksums for source of bar extension
         ectxt = ectxt.replace('f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7', '01234567' * 8)
         write_file(toy_ec, ectxt)
@@ -2657,7 +2663,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertEqual(stdout, '')
-        self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz")
+        self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz\n\n\n"
+                                         "WARNING: Ignoring failing checksum verification for toy-0.0.tar.gz")
 
     def test_check_checksums(self):
         """Test for check_checksums_for and check_checksums methods."""

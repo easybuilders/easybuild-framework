@@ -277,6 +277,7 @@ BUILD_OPTIONS_CMDLINE = {
         'debug',
         'debug_lmod',
         'dump_autopep8',
+        'dump_env_script',
         'enforce_checksums',
         'experimental',
         'extended_dry_run',
@@ -591,12 +592,12 @@ def init_build_options(build_options=None, cmdline_options=None):
     # seed in defaults to make sure all build options are defined, and that build_option() doesn't fail on valid keys
     bo = {}
     for build_options_by_default in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER]:
-        for default in build_options_by_default:
+        for default, options in build_options_by_default.items():
             if default == EMPTY_LIST:
-                for opt in build_options_by_default[default]:
+                for opt in options:
                     bo[opt] = []
             else:
-                bo.update({opt: default for opt in build_options_by_default[default]})
+                bo.update({opt: default for opt in options})
     bo.update(active_build_options)
 
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance

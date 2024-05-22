@@ -830,7 +830,7 @@ class EasyConfig(object):
         if depr_msgs:
             depr_msg = ', '.join(depr_msgs)
 
-            depr_maj_ver = int(str(VERSION).split('.')[0]) + 1
+            depr_maj_ver = int(str(VERSION).split('.', maxsplit=1)[0]) + 1
             depr_ver = '%s.0' % depr_maj_ver
 
             more_info_depr_ec = " (see also https://docs.easybuild.io/deprecated-easyconfigs)"
@@ -845,8 +845,8 @@ class EasyConfig(object):
         - check license
         """
         self.log.info("Validating easyconfig")
-        for attr in self.validations:
-            self._validate(attr, self.validations[attr])
+        for attr, valid_values in self.validations.items():
+            self._validate(attr, valid_values)
 
         if check_osdeps:
             self.log.info("Checking OS dependencies")
@@ -1210,8 +1210,8 @@ class EasyConfig(object):
         # templated values should be dumped unresolved
         with self.disable_templating():
             # build dict of default values
-            default_values = {key: DEFAULT_CONFIG[key][0] for key in DEFAULT_CONFIG}
-            default_values.update({key: self.extra_options[key][0] for key in self.extra_options})
+            default_values = {key: value[0] for key, value in DEFAULT_CONFIG.items()}
+            default_values.update({key: value[0] for key, value in self.extra_options.items()})
 
             self.generate_template_values()
             templ_const = {quote_py_str(const[1]): const[0] for const in TEMPLATE_CONSTANTS}

@@ -62,7 +62,7 @@ import urllib.request as std_urllib
 
 from easybuild.base import fancylogger
 # import build_log must stay, to use of EasyBuildLog
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildError, CWD_NOTFOUND_ERROR, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN, build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.hooks import load_source
@@ -121,7 +121,7 @@ PATH_INDEX_FILENAME = '.eb-path-index'
 
 CHECKSUM_TYPE_MD5 = 'md5'
 CHECKSUM_TYPE_SHA256 = 'sha256'
-DEFAULT_CHECKSUM = CHECKSUM_TYPE_MD5
+DEFAULT_CHECKSUM = CHECKSUM_TYPE_SHA256
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
@@ -407,6 +407,22 @@ def remove(paths):
             raise EasyBuildError("Specified path to remove is not an existing file or directory: %s", path)
 
 
+def get_cwd(must_exist=True):
+    """
+    Retrieve current working directory
+    """
+    try:
+        cwd = os.getcwd()
+    except FileNotFoundError as err:
+        if must_exist is True:
+            raise EasyBuildError(CWD_NOTFOUND_ERROR)
+
+        _log.debug("Failed to determine current working directory, but proceeding anyway: %s", err)
+        cwd = None
+
+    return cwd
+
+
 def change_dir(path):
     """
     Change to directory at specified location.
@@ -414,19 +430,19 @@ def change_dir(path):
     :param path: location to change to
     :return: previous location we were in
     """
-    # determining the current working directory can fail if we're in a non-existing directory
-    try:
-        cwd = os.getcwd()
-    except OSError as err:
-        _log.debug("Failed to determine current working directory (but proceeding anyway: %s", err)
-        cwd = None
+    # determine origin working directory: can fail if non-existent
+    prev_dir = get_cwd(must_exist=False)
 
     try:
         os.chdir(path)
     except OSError as err:
-        raise EasyBuildError("Failed to change from %s to %s: %s", cwd, path, err)
+        raise EasyBuildError("Failed to change from %s to %s: %s", prev_dir, path, err)
 
-    return cwd
+    # determine final working directory: must exist
+    # stoplight meant to catch filesystems in a faulty state
+    get_cwd()
+
+    return prev_dir
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False, change_into_dir=False,
@@ -671,9 +687,9 @@ def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_header
         if argline == '' or '#' in argline[0]:
             continue  # permit comment lines: ignore them
 
-        if os.path.isfile(os.path.join(os.getcwd(), argline)):
+        if os.path.isfile(os.path.join(get_cwd(), argline)):
             # expand existing relative path to absolute
-            argline = os.path.join(os.path.join(os.getcwd(), argline))
+            argline = os.path.join(os.path.join(get_cwd(), argline))
         if os.path.isfile(argline):
             # argline is a file path, so read that instead
             _log.debug('File included in parse_http_header_fields_urlpat: %s' % argline)
@@ -1192,11 +1208,15 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     Compute checksum of specified file.
 
     :param path: Path of file to compute checksum for
-    :param checksum_type: type(s) of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'sha256', 'sha512', 'size')
+    :param checksum_type: type(s) of checksum ('adler32', 'crc32', 'md5', 'sha1', 'sha256', 'sha512', 'size')
     """
     if checksum_type not in CHECKSUM_FUNCTIONS:
         raise EasyBuildError("Unknown checksum type (%s), supported types are: %s",
                              checksum_type, CHECKSUM_FUNCTIONS.keys())
+
+    if checksum_type in ['adler32', 'crc32', 'md5', 'sha1', 'size']:
+        _log.deprecated("Checksum type %s is deprecated. Use sha256 (default) or sha512 instead" % checksum_type,
+                        '6.0')
 
     try:
         checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
@@ -1235,7 +1255,7 @@ def verify_checksum(path, checksums):
     Verify checksum of specified file.
 
     :param path: path of file to verify checksum of
-    :param checksums: checksum values (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
+    :param checksums: checksum values (and type, optionally, default is sha256), e.g., 'af314', ('sha', '5ec1b')
     """
 
     filename = os.path.basename(path)
@@ -1287,7 +1307,7 @@ def verify_checksum(path, checksums):
                 # no matching checksums
                 return False
         else:
-            raise EasyBuildError("Invalid checksum spec '%s': should be a string (MD5 or SHA256), "
+            raise EasyBuildError("Invalid checksum spec '%s': should be a string (SHA256), "
                                  "2-tuple (type, value), or tuple of alternative checksum specs.",
                                  checksum)
 
@@ -1328,14 +1348,14 @@ def find_base_dir():
         # and hidden directories
         ignoredirs = ["easybuild"]
 
-        lst = os.listdir(os.getcwd())
+        lst = os.listdir(get_cwd())
         lst = [d for d in lst if not d.startswith('.') and d not in ignoredirs]
         return lst
 
     lst = get_local_dirs_purged()
-    new_dir = os.getcwd()
+    new_dir = get_cwd()
     while len(lst) == 1:
-        new_dir = os.path.join(os.getcwd(), lst[0])
+        new_dir = os.path.join(get_cwd(), lst[0])
         if not os.path.isdir(new_dir):
             break
 
@@ -2680,13 +2700,15 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
         tar_cmd = [
             # print names of all files and folders excluding .git directory
             'find', repo_name, '-name ".git"', '-prune', '-o', '-print0',
-            # reset access and modification timestamps
-            '-exec', 'touch', '-t 197001010100', '{}', r'\;', '|',
-            # sort file list
+            # reset access and modification timestamps to epoch 0 (equivalent to --mtime in GNU tar)
+            '-exec', 'touch', '--date=@0', '{}', r'\;',
+            # reset file permissions of cloned repo (equivalent to --mode in GNU tar)
+            '-exec', 'chmod', '"go+u,go-w"', '{}', r'\;', '|',
+            # sort file list (equivalent to --sort in GNU tar)
             'LC_ALL=C', 'sort', '--zero-terminated', '|',
-            # create tarball in GNU format with ownership reset
-            'tar', '--create', '--no-recursion', '--owner=0', '--group=0', '--numeric-owner', '--format=gnu',
-            '--null', '--files-from', '-', '|',
+            # create tarball in GNU format with ownership and permissions reset
+            'tar', '--create', '--no-recursion', '--owner=0', '--group=0', '--numeric-owner',
+            '--format=gnu', '--null', '--files-from', '-', '|',
             # compress tarball with gzip without original file name and timestamp
             'gzip', '--no-name', '>', archive_path
         ]

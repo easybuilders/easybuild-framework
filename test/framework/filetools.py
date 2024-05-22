@@ -289,10 +289,6 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(fp, "easybuild\n")
 
         known_checksums = {
-            'adler32': '0x379257805',
-            'crc32': '0x1457143216',
-            'md5': '7167b64b1ca062b9674ffef46f9325db',
-            'sha1': 'db05b79e09a4cc67e9dd30b313b5488813db3190',
             'sha256': '1c49562c4b404f3120a3fa0926c8d09c99ef80e470f7de03ffdfa14047960ea5',
             'sha512': '7610f6ce5e91e56e350d25c917490e4815f7986469fafa41056698aec256733e'
                       'b7297da8b547d5e74b851d7c4e475900cec4744df0f887ae5c05bf1757c224b4',
@@ -303,15 +299,13 @@ class FileToolsTest(EnhancedTestCase):
             self.assertEqual(ft.compute_checksum(fp, checksum_type=checksum_type), checksum)
             self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum)))
 
-        # default checksum type is MD5
-        self.assertEqual(ft.compute_checksum(fp), known_checksums['md5'])
+        # default checksum type is SHA256
+        self.assertEqual(ft.compute_checksum(fp), known_checksums['sha256'])
 
-        # both MD5 and SHA256 checksums can be verified without specifying type
-        self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
+        # SHA256 checksums can be verified without specifying type
         self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
 
-        # providing non-matching MD5 and SHA256 checksums results in failed verification
-        self.assertFalse(ft.verify_checksum(fp, '1c49562c4b404f3120a3fa0926c8d09c'))
+        # providing non-matching SHA256 checksums results in failed verification
         self.assertFalse(ft.verify_checksum(fp, '7167b64b1ca062b9674ffef46f9325db7167b64b1ca062b9674ffef46f9325db'))
 
         # checksum of length 32 is assumed to be MD5, length 64 to be SHA256, other lengths not allowed
@@ -325,23 +319,12 @@ class FileToolsTest(EnhancedTestCase):
         for checksum_type, checksum in broken_checksums.items():
             self.assertFalse(ft.compute_checksum(fp, checksum_type=checksum_type) == checksum)
             self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))
-        # md5 is default
-        self.assertFalse(ft.compute_checksum(fp) == broken_checksums['md5'])
-        self.assertFalse(ft.verify_checksum(fp, broken_checksums['md5']))
+        # sha256 is default
+        self.assertFalse(ft.compute_checksum(fp) == broken_checksums['sha256'])
         self.assertFalse(ft.verify_checksum(fp, broken_checksums['sha256']))
 
         # test specify alternative checksums
         alt_checksums = ('7167b64b1ca062b9674ffef46f9325db7167b64b1ca062b9674ffef46f9325db', known_checksums['sha256'])
-        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
-
-        alt_checksums = ('fecf50db81148786647312bbd3b5c740', '2c829facaba19c0fcd81f9ce96bef712',
-                         '840078aeb4b5d69506e7c8edae1e1b89', known_checksums['md5'])
-        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
-
-        alt_checksums = ('840078aeb4b5d69506e7c8edae1e1b89', known_checksums['md5'], '2c829facaba19c0fcd81f9ce96bef712')
-        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
-
-        alt_checksums = (known_checksums['md5'], '840078aeb4b5d69506e7c8edae1e1b89', '2c829facaba19c0fcd81f9ce96bef712')
         self.assertTrue(ft.verify_checksum(fp, alt_checksums))
 
         alt_checksums = (known_checksums['sha256'],)
@@ -365,15 +348,83 @@ class FileToolsTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum, fp, None)
-        self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
         self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
 
         # Test dictionary-type checksums
-        for checksum in [known_checksums[x] for x in ('md5', 'sha256')]:
+        for checksum in [known_checksums[x] for x in ['sha256']]:
             dict_checksum = {os.path.basename(fp): checksum, 'foo': 'baa'}
             self.assertTrue(ft.verify_checksum(fp, dict_checksum))
             del dict_checksum[os.path.basename(fp)]
             self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum, fp, dict_checksum)
+
+    def test_deprecated_checksums(self):
+        """Test checksum functionality."""
+
+        fp = os.path.join(self.test_prefix, 'test.txt')
+        ft.write_file(fp, "easybuild\n")
+
+        known_checksums = {
+            'adler32': '0x379257805',
+            'crc32': '0x1457143216',
+            'md5': '7167b64b1ca062b9674ffef46f9325db',
+            'sha1': 'db05b79e09a4cc67e9dd30b313b5488813db3190',
+        }
+
+        self.allow_deprecated_behaviour()
+        self.mock_stderr(True)  # just to capture deprecation warning
+
+        # make sure checksums computation/verification is correct
+        for checksum_type, checksum in known_checksums.items():
+            self.assertEqual(ft.compute_checksum(fp, checksum_type=checksum_type), checksum)
+            self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum)))
+
+        # MD5 checksums can be verified without specifying type
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
+
+        # providing non-matching MD5 checksums results in failed verification
+        self.assertFalse(ft.verify_checksum(fp, '1c49562c4b404f3120a3fa0926c8d09c'))
+
+        # checksum of length 32 is assumed to be MD5, length 64 to be SHA256, other lengths not allowed
+        # checksum of length other than 32/64 yields an error
+        error_pattern = r"Length of checksum '.*' \(\d+\) does not match with either MD5 \(32\) or SHA256 \(64\)"
+        for checksum in ['tooshort', 'inbetween32and64charactersisnotgoodeither', known_checksums['md5'] + 'foo']:
+            self.assertErrorRegex(EasyBuildError, error_pattern, ft.verify_checksum, fp, checksum)
+
+        # make sure faulty checksums are reported
+        broken_checksums = {typ: (val[:-3] + 'foo') for typ, val in known_checksums.items()}
+        for checksum_type, checksum in broken_checksums.items():
+            self.assertFalse(ft.compute_checksum(fp, checksum_type=checksum_type) == checksum)
+            self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))
+        self.assertFalse(ft.verify_checksum(fp, broken_checksums['md5']))
+
+        # test specify alternative checksums
+        alt_checksums = ('fecf50db81148786647312bbd3b5c740', '2c829facaba19c0fcd81f9ce96bef712',
+                         '840078aeb4b5d69506e7c8edae1e1b89', known_checksums['md5'])
+        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
+
+        alt_checksums = ('840078aeb4b5d69506e7c8edae1e1b89', known_checksums['md5'], '2c829facaba19c0fcd81f9ce96bef712')
+        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
+
+        alt_checksums = (known_checksums['md5'], '840078aeb4b5d69506e7c8edae1e1b89', '2c829facaba19c0fcd81f9ce96bef712')
+        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
+
+        # check whether missing checksums are enforced
+        build_options = {
+            'enforce_checksums': True,
+        }
+        init_config(build_options=build_options)
+
+        self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum, fp, None)
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
+
+        # Test dictionary-type checksums
+        for checksum in [known_checksums[x] for x in ['md5']]:
+            dict_checksum = {os.path.basename(fp): checksum, 'foo': 'baa'}
+            self.assertTrue(ft.verify_checksum(fp, dict_checksum))
+            del dict_checksum[os.path.basename(fp)]
+            self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum, fp, dict_checksum)
+
+        self.mock_stderr(False)
 
     def test_common_path_prefix(self):
         """Test get common path prefix for a list of paths."""
@@ -1162,9 +1213,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(lines[8].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "29 %s+ postinstallcmds = " % green
+        expected = "26 %s+ postinstallcmds = " % green
         self.assertTrue(any(line.startswith(expected) for line in lines))
-        expected = "30 %s+%s (1/2) toy-0.0" % (green, endcol)
+        expected = "27 %s+%s (1/2) toy-0.0" % (green, endcol)
         self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
         self.assertEqual(lines[-1], "=====")
 
@@ -1183,9 +1234,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(lines[8].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "29 + postinstallcmds = "
+        expected = "26 + postinstallcmds = "
         self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
-        expected = "30 + (1/2) toy-0.0-"
+        expected = "27 + (1/2) toy-0.0-"
         self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
 
         self.assertEqual(lines[-1], "=====")
@@ -2221,6 +2272,19 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'toy', 'toy-0.0.eb')))
         self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'GCC-4.6.3.eb')))
         self.assertEqual(txt, '')
+
+    def test_get_cwd(self):
+        """Test get_cwd"""
+        toy_dir = os.path.join(self.test_prefix, "test_get_cwd_dir")
+        os.mkdir(toy_dir)
+        os.chdir(toy_dir)
+
+        self.assertTrue(os.path.samefile(ft.get_cwd(), toy_dir))
+
+        os.rmdir(toy_dir)
+        self.assertErrorRegex(EasyBuildError, ft.CWD_NOTFOUND_ERROR, ft.get_cwd)
+
+        self.assertEqual(ft.get_cwd(must_exist=False), None)
 
     def test_change_dir(self):
         """Test change_dir"""
