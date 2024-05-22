@@ -120,11 +120,6 @@ class EasyConfigTest(EnhancedTestCase):
         github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
         self.skip_github_tests = github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
 
-        self.orig_alternate_constants = copy.deepcopy(easyconfig.templates.ALTERNATE_TEMPLATE_CONSTANTS)
-        self.orig_alternate_templates = copy.deepcopy(easyconfig.templates.ALTERNATE_TEMPLATES)
-        self.orig_deprecated_constants = copy.deepcopy(easyconfig.templates.DEPRECATED_TEMPLATE_CONSTANTS)
-        self.orig_deprecated_templates = copy.deepcopy(easyconfig.templates.DEPRECATED_TEMPLATES)
-
     def prep(self):
         """Prepare for test."""
         # (re)cleanup last test file
@@ -139,11 +134,10 @@ class EasyConfigTest(EnhancedTestCase):
         """ make sure to remove the temporary file """
         st.get_cpu_architecture = self.orig_get_cpu_architecture
 
-        easyconfig.templates.ALTERNATE_TEMPLATE_CONSTANTS = self.orig_alternate_constants
-        easyconfig.templates.ALTERNATE_TEMPLATES = self.orig_alternate_templates
-        easyconfig.templates.DEPRECATED_TEMPLATE_CONSTANTS = self.orig_deprecated_constants
-        easyconfig.templates.DEPRECATED_TEMPLATES = self.orig_deprecated_templates
+        # reload easyconfig.template module to restore orignal values of DEPRECATED_TEMPLATES & co
         reload(easyconfig.templates)
+        # also reload easyconfig.easyconfig module, which imports from easyconfig.templates
+        reload(easyconfig.easyconfig)
 
         super(EasyConfigTest, self).tearDown()
         if os.path.exists(self.eb_file):
