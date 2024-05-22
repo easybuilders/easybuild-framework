@@ -61,6 +61,11 @@ DRY_RUN_BUILD_DIR = None
 DRY_RUN_SOFTWARE_INSTALL_DIR = None
 DRY_RUN_MODULES_INSTALL_DIR = None
 
+CWD_NOTFOUND_ERROR = (
+    "Current working directory does not exist! It was either unexpectedly removed "
+    "by an external process to EasyBuild or the filesystem is misbehaving."
+)
+
 
 DEVEL_LOG_LEVEL = logging.DEBUG - 1
 logging.addLevelName(DEVEL_LOG_LEVEL, 'DEVEL')

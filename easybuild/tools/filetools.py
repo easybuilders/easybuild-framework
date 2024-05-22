@@ -62,11 +62,11 @@ import urllib.request as std_urllib
 
 from easybuild.base import fancylogger
 # import build_log must stay, to use of EasyBuildLog
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildError, CWD_NOTFOUND_ERROR, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN, build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.hooks import load_source
-from easybuild.tools.run import CWD_NOTFOUND_ERROR, run_shell_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import natural_keys, nub, remove_unwanted_chars, trace_msg
 
 try:
