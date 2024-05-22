@@ -43,6 +43,7 @@ from easybuild.framework.easyblock import get_easyblock_instance
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_repository, get_repositorypath
+from easybuild.tools.filetools import get_cwd
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.job.backend import job_backend
 from easybuild.tools.repository.repository import init_repository
@@ -126,7 +127,7 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     :param testing: If `True`, skip actual job submission
     :param prepare_first: prepare by runnning fetch step first for each easyconfig
     """
-    curdir = os.getcwd()
+    curdir = get_cwd()
 
     # regex pattern for options to ignore (help options can't reach here)
     ignore_opts = re.compile('^--robot$|^--job|^--try-.*$|^--easystack$')

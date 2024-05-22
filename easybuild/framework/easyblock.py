@@ -81,8 +81,8 @@ from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
 from easybuild.tools.filetools import compute_checksum, convert_name, copy_file, create_lock, create_patch_info
 from easybuild.tools.filetools import derive_alt_pypi_url, diff_files, dir_contains_files, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file
-from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
+from easybuild.tools.filetools import encode_class_name, extract_file, find_backup_name_candidate
+from easybuild.tools.filetools import get_cwd, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file, symlink
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
@@ -151,7 +151,7 @@ class EasyBlock(object):
         """
 
         # keep track of original working directory, so we can go back there
-        self.orig_workdir = os.getcwd()
+        self.orig_workdir = get_cwd()
 
         # dict of all hooks (mapping of name to function)
         self.hooks = load_hooks(build_option('hooks'))
@@ -3721,7 +3721,7 @@ class EasyBlock(object):
 
             # make sure we're out of the dir we're removing
             change_dir(self.orig_workdir)
-            self.log.info("Cleaning up builddir %s (in %s)", self.builddir, os.getcwd())
+            self.log.info("Cleaning up builddir %s (in %s)", self.builddir, get_cwd())
 
             try:
                 remove_dir(self.builddir)
@@ -4245,7 +4245,7 @@ def build_and_install_one(ecdict, init_env):
     restore_env(init_env)
     sanitize_env()
 
-    cwd = os.getcwd()
+    cwd = get_cwd()
 
     # load easyblock
     easyblock = build_option('easyblock')
@@ -4550,7 +4550,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
         instance = get_easyblock_instance(ec)
         apps.append(instance)
 
-    base_dir = os.getcwd()
+    base_dir = get_cwd()
 
     # keep track of environment right before initiating builds
     # note: may be different from ORIG_OS_ENVIRON, since EasyBuild may have defined additional env vars itself by now

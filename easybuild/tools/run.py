@@ -63,7 +63,7 @@ except ImportError:
     from threading import get_ident as get_thread_id
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
+from easybuild.tools.build_log import EasyBuildError, CWD_NOTFOUND_ERROR, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.utilities import trace_msg
@@ -82,7 +82,6 @@ CACHED_COMMANDS = (
     "type _module_raw",  # used in EnvironmentModules.check_module_function
     "ulimit -u",  # used in det_parallelism
 )
-
 
 RunShellCmdResult = namedtuple('RunShellCmdResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir',
                                                      'out_file', 'err_file', 'thread_id', 'task_id'))
@@ -315,7 +314,10 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         qa_wait_patterns = []
 
     if work_dir is None:
-        work_dir = os.getcwd()
+        try:
+            work_dir = os.getcwd()
+        except FileNotFoundError:
+            raise EasyBuildError(CWD_NOTFOUND_ERROR)
 
     cmd_str = to_cmd_str(cmd)
 
