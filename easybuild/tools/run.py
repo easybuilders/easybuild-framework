@@ -63,7 +63,7 @@ except ImportError:
     from threading import get_ident as get_thread_id
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
+from easybuild.tools.build_log import EasyBuildError, CWD_NOTFOUND_ERROR, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.utilities import trace_msg
@@ -81,11 +81,6 @@ CACHED_COMMANDS = (
     "type module",  # used in ModulesTool.check_module_function
     "type _module_raw",  # used in EnvironmentModules.check_module_function
     "ulimit -u",  # used in det_parallelism
-)
-
-CWD_NOTFOUND_ERROR = (
-    "Current working directory does not exist! It was either unexpectedly removed "
-    "by an external process to EasyBuild or the filesystem is misbehaving."
 )
 
 RunShellCmdResult = namedtuple('RunShellCmdResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir',
