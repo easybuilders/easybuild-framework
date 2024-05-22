@@ -4320,7 +4320,7 @@ def build_and_install_one(ecdict, init_env):
 
     except EasyBuildError as err:
         error_msg = err.msg
-        error_code = err.exit_code
+        exit_code = err.exit_code
         result = False
 
     ended = 'ended'
@@ -4438,6 +4438,7 @@ def build_and_install_one(ecdict, init_env):
         success = True
         summary = 'COMPLETED'
         succ = 'successfully'
+        exit_code = 0
     else:
         # build failed
         success = False
@@ -4470,7 +4471,7 @@ def build_and_install_one(ecdict, init_env):
 
     del app
 
-    return (success, application_log, error_msg, error_code)
+    return (success, application_log, error_msg, exit_code)
 
 
 def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
