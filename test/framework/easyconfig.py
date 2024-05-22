@@ -120,6 +120,9 @@ class EasyConfigTest(EnhancedTestCase):
         github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
         self.skip_github_tests = github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
 
+        self.orig_easyconfig_DEPRECATED_TEMPLATES = easyconfig.easyconfig.DEPRECATED_TEMPLATES
+        self.orig_easyconfig_ALTERNATE_TEMPLATES = easyconfig.easyconfig.ALTERNATE_TEMPLATES
+
     def prep(self):
         """Prepare for test."""
         # (re)cleanup last test file
@@ -134,14 +137,13 @@ class EasyConfigTest(EnhancedTestCase):
         """ make sure to remove the temporary file """
         st.get_cpu_architecture = self.orig_get_cpu_architecture
 
-        # reload easyconfig.template module to restore orignal values of DEPRECATED_TEMPLATES & co
-        reload(easyconfig.templates)
-        # also reload easyconfig.easyconfig module, which imports from easyconfig.templates
-        reload(easyconfig.easyconfig)
-
         super(EasyConfigTest, self).tearDown()
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
+
+        # restore orignal values of DEPRECATED_TEMPLATES & co in easyconfig.templates
+        easyconfig.easyconfig.DEPRECATED_TEMPLATES = self.orig_easyconfig_DEPRECATED_TEMPLATES
+        easyconfig.easyconfig.ALTERNATE_TEMPLATES = self.orig_easyconfig_ALTERNATE_TEMPLATES
 
     def test_empty(self):
         """ empty files should not parse! """
@@ -1467,13 +1469,13 @@ class EasyConfigTest(EnhancedTestCase):
             'cudaver': ('depr_cuda_ver', '1000000000'),
             'start_dir': ('depr_start_dir', '1000000000'),
         }
-        easyconfig.templates.DEPRECATED_TEMPLATES.update(template_test_deprecations)
+        easyconfig.easyconfig.DEPRECATED_TEMPLATES = template_test_deprecations
 
         template_test_alternates = {
             'installdir': 'alt_install_dir',
             'version_major_minor': 'alt_ver_maj_min',
         }
-        easyconfig.templates.ALTERNATE_TEMPLATES.update(template_test_alternates)
+        easyconfig.easyconfig.ALTERNATE_TEMPLATES = template_test_alternates
 
         tmpl_str = ("cd %(start_dir)s && make %(namelower)s -Dbuild=%(builddir)s --with-cuda='%(cudaver)s'"
                     " && echo %(alt_install_dir)s %(version_major_minor)s")
