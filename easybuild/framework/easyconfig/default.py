@@ -115,6 +115,7 @@ DEFAULT_CONFIG = {
     'patches': [[], "List of patches to apply", BUILD],
     'prebuildopts': ['', 'Extra options pre-passed to build command.', BUILD],
     'preconfigopts': ['', 'Extra options pre-passed to configure.', BUILD],
+    'prefer_ebpythonprefixes': [True, "Prefer EBPYTHONPREFIXES over PYTHONPATH when possible.", BUILD],
     'preinstallopts': ['', 'Extra prefix options for installation.', BUILD],
     'pretestopts': ['', 'Extra prefix options for test.', BUILD],
     'postinstallcmds': [[], 'Commands to run after the install step.', BUILD],

@@ -490,6 +490,8 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'pre-create-installdir': ("Create installation directory before submitting build jobs",
                                       None, 'store_true', True),
+            'prefer-ebpythonprefixes': (("Prefer EBPYTHONPREFIXES over PYTHONPATH when possible"),
+                                        None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                         None, 'store_true', False, 'p'),
             'read-only-installdir': ("Set read-only permissions on installation directory after installation",
