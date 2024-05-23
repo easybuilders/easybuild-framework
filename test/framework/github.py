@@ -36,9 +36,11 @@ import re
 import sys
 import textwrap
 import unittest
+from string import ascii_letters
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from time import gmtime
 from unittest import TextTestRunner
+from urllib.request import HTTPError, URLError
 
 import easybuild.tools.testing
 from easybuild.base.rest import RestClient
@@ -53,7 +55,6 @@ from easybuild.tools.github import VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import det_pr_title, fetch_easyconfigs_from_commit, fetch_files_from_commit
 from easybuild.tools.github import is_patch_for, pick_default_branch
 from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
-from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
 
 try:
@@ -222,7 +223,8 @@ class GithubTest(EnhancedTestCase):
             return
 
         try:
-            fp = self.ghfs.read("a_directory/a_file.txt", api=False)
+            with self.mocked_stdout_stderr():
+                fp = self.ghfs.read("a_directory/a_file.txt", api=False)
             self.assertEqual(read_file(fp).strip(), "this is a line of text")
             os.remove(fp)
         except (IOError, OSError):
@@ -420,7 +422,8 @@ class GithubTest(EnhancedTestCase):
         for pr, all_ebs in [(1964, all_ebs_pr1964), (1967, all_ebs_pr1967), (1949, all_ebs_pr1949)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
-                eb_files = gh.fetch_easyblocks_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+                with self.mocked_stdout_stderr():
+                    eb_files = gh.fetch_easyblocks_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
                 self.assertEqual(sorted(all_ebs), sorted([os.path.basename(f) for f in eb_files]))
             except URLError as err:
                 print("Ignoring URLError '%s' in test_fetch_easyblocks_from_pr" % err)
@@ -471,7 +474,8 @@ class GithubTest(EnhancedTestCase):
         for pr, all_ecs in [(8007, all_ecs_pr8007), (6587, all_ecs_pr6587), (7159, all_ecs_pr7159)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
-                ec_files = gh.fetch_easyconfigs_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+                with self.mocked_stdout_stderr():
+                    ec_files = gh.fetch_easyconfigs_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
                 self.assertEqual(sorted(all_ecs), sorted([os.path.basename(f) for f in ec_files]))
             except URLError as err:
                 print("Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err)
@@ -503,7 +507,8 @@ class GithubTest(EnhancedTestCase):
             'SCOTCH-6.0.6-intel-2018a.eb',
             'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
         ]
-        pr7159_files = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        with self.mocked_stdout_stderr():
+            pr7159_files = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
         self.assertEqual(sorted(pr7159_filenames), sorted(os.path.basename(f) for f in pr7159_files))
 
         # check that cache has been populated for PR 7159
@@ -615,6 +620,7 @@ class GithubTest(EnhancedTestCase):
             return
 
         cwd = os.getcwd()
+        self.mock_stdout(True)
 
         # default: download tarball for master branch of easybuilders/easybuild-easyconfigs repo
         path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
@@ -649,6 +655,7 @@ class GithubTest(EnhancedTestCase):
         self.assertIn('easybuild', os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
         self.assertExists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py'))
+        self.mock_stdout(False)
 
     def test_github_download_repo_commit(self):
         """Test downloading repo at specific commit (which does not require any GitHub token)"""
@@ -745,7 +752,8 @@ class GithubTest(EnhancedTestCase):
         if self.skip_github_tests:
             print("Skipping test_find_easybuild_easyconfig, no GitHub token available?")
             return
-        path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
+        with self.mocked_stdout_stderr():
+            path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
         expected = os.path.join('e', 'EasyBuild', r'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
@@ -773,15 +781,17 @@ class GithubTest(EnhancedTestCase):
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
         self.assertTrue(re.search(reg, txt))
 
+        self.mock_stdout(True)
         self.assertEqual(gh.find_software_name_for_patch('test.patch', []), None)
+        self.mock_stdout(False)
 
-        # check behaviour of find_software_name_for_patch when non-UTF8 patch files are present (only with Python 3)
-        if sys.version_info[0] >= 3:
-            non_utf8_patch = os.path.join(self.test_prefix, 'problem.patch')
-            with open(non_utf8_patch, 'wb') as fp:
-                fp.write(bytes("+  ximage->byte_order=T1_byte_order; /* Set t1lib\xb4s byteorder */\n", 'iso_8859_1'))
+        non_utf8_patch = os.path.join(self.test_prefix, 'problem.patch')
+        with open(non_utf8_patch, 'wb') as fp:
+            fp.write(bytes("+  ximage->byte_order=T1_byte_order; /* Set t1lib\xb4s byteorder */\n", 'iso_8859_1'))
 
-            self.assertEqual(gh.find_software_name_for_patch('test.patch', [self.test_prefix]), None)
+        self.mock_stdout(True)
+        self.assertEqual(gh.find_software_name_for_patch('test.patch', [self.test_prefix]), None)
+        self.mock_stdout(False)
 
     def test_github_det_commit_status(self):
         """Test det_commit_status function."""

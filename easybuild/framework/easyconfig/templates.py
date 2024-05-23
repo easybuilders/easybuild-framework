@@ -38,7 +38,6 @@ import platform
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
 from easybuild.tools.config import build_option
 
@@ -98,6 +97,9 @@ TEMPLATE_NAMES_DYNAMIC = [
     ('cuda_cc_cmake', "List of CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+"),
     ('cuda_cc_space_sep', "Space-separated list of CUDA compute capabilities"),
     ('cuda_cc_semicolon_sep', "Semicolon-separated list of CUDA compute capabilities"),
+    ('cuda_int_comma_sep', "Comma-separated list of integer CUDA compute capabilities"),
+    ('cuda_int_space_sep', "Space-separated list of integer CUDA compute capabilities"),
+    ('cuda_int_semicolon_sep', "Semicolon-separated list of integer CUDA compute capabilities"),
     ('cuda_sm_comma_sep', "Comma-separated list of sm_* values that correspond with CUDA compute capabilities"),
     ('cuda_sm_space_sep', "Space-separated list of sm_* values that correspond with CUDA compute capabilities"),
 ]
@@ -184,13 +186,10 @@ for pyver in ('py2.py3', 'py2', 'py3'):
 # versionmajor, versionminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
 
 
-def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None):
+def template_constant_dict(config, ignore=None, toolchain=None):
     """Create a dict for templating the values in the easyconfigs.
         - config is a dict with the structure of EasyConfig._config
     """
-    if skip_lower is not None:
-        _log.deprecated("Use of 'skip_lower' named argument for template_constant_dict has no effect anymore", '4.0')
-
     # TODO find better name
     # ignore
     if ignore is None:
@@ -313,7 +312,7 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
             else:
                 raise EasyBuildError("Unexpected type for dependency: %s", dep)
 
-            if isinstance(dep_name, string_type) and dep_version:
+            if isinstance(dep_name, str) and dep_version:
                 pref = name_to_prefix.get(dep_name.lower())
                 if pref:
                     dep_version = pick_dep_version(dep_version)
@@ -369,6 +368,10 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
         template_values['cuda_cc_space_sep'] = ' '.join(cuda_compute_capabilities)
         template_values['cuda_cc_semicolon_sep'] = ';'.join(cuda_compute_capabilities)
         template_values['cuda_cc_cmake'] = ';'.join(cc.replace('.', '') for cc in cuda_compute_capabilities)
+        int_values = [cc.replace('.', '') for cc in cuda_compute_capabilities]
+        template_values['cuda_int_comma_sep'] = ','.join(int_values)
+        template_values['cuda_int_space_sep'] = ' '.join(int_values)
+        template_values['cuda_int_semicolon_sep'] = ';'.join(int_values)
         sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_compute_capabilities]
         template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
         template_values['cuda_sm_space_sep'] = ' '.join(sm_values)

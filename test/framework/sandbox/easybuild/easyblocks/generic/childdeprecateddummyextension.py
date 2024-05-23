@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,26 +23,13 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-(buggy) EasyBuild support for building and installing toy, implemented as an easyblock
+Test EasyBlocks building and installing dummy extensions with deprecated methods
 
-@author: Kenneth Hoste (Ghent University)
+@author: Alex Domingo (Vrije Universiteit Brussel)
 """
 
-from easybuild.framework.easyblock import EasyBlock
+from easybuild.easyblocks.generic.deprecateddummyextension import DeprecatedDummyExtension
 
 
-class EB_toy_buggy(EasyBlock):
-    """Support for building/installing toy."""
-
-    def configure_step(self):
-        """Configure build of toy."""
-        pass
-
-    def build_step(self):
-        """Build toy."""
-        # note: import is (purposely) missing, so this will go down hard
-        run_shell_cmd('gcc toy.c -o toy')  # noqa
-
-    def install_step(self):
-        """Install toy."""
-        pass
+class ChildDeprecatedDummyExtension(DeprecatedDummyExtension):
+    """Extension EasyBlock inheriting deprecated install step"""

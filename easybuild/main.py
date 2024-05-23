@@ -70,7 +70,7 @@ from easybuild.tools.github import check_github, close_pr, find_easybuild_easyco
 from easybuild.tools.github import add_pr_labels, install_github_token, list_prs, merge_pr, new_branch_github, new_pr
 from easybuild.tools.github import new_pr_from_branch
 from easybuild.tools.github import sync_branch_with_develop, sync_pr_with_develop, update_branch, update_pr
-from easybuild.tools.hooks import BUILD_AND_INSTALL_LOOP, PRE_PREF, POST_PREF, START, END, CANCEL, FAIL
+from easybuild.tools.hooks import BUILD_AND_INSTALL_LOOP, PRE_PREF, POST_PREF, START, END, CANCEL, CRASH, FAIL
 from easybuild.tools.hooks import load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import opts_dict_to_eb_opts, set_up_configuration, use_color
@@ -79,7 +79,6 @@ from easybuild.tools.output import start_progress_bar, stop_progress_bar, update
 from easybuild.tools.robot import check_conflicts, dry_run, missing_deps, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
-from easybuild.tools.py2vs3 import python2_is_deprecated
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_easybuild_deps
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
@@ -150,11 +149,11 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
         # keep track of success/total count
         if ec_res['success']:
-            test_msg = "Successfully built %s" % ec['spec']
+            test_msg = "Successfully installed %s" % ec['spec']
         else:
-            test_msg = "Build of %s failed" % ec['spec']
+            test_msg = "Installation of %s failed" % os.path.basename(ec['spec'])
             if 'err' in ec_res:
-                test_msg += " (err: %s)" % ec_res['err']
+                test_msg += ": %s" % ec_res['err']
 
         # dump test report next to log file
         test_report_txt = create_test_report(test_msg, [(ec, ec_res)], init_session_state)
@@ -170,8 +169,8 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
                 adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
 
         if not ec_res['success'] and exit_on_failure:
-            if 'traceback' in ec_res:
-                raise EasyBuildError(ec_res['traceback'])
+            if not isinstance(ec_res['err'], EasyBuildError):
+                raise ec_res['err']
             else:
                 raise EasyBuildError(test_msg)
 
@@ -611,9 +610,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
 
     options, orig_paths = eb_go.options, eb_go.args
 
-    if 'python2' not in build_option('silence_deprecation_warnings'):
-        python2_is_deprecated()
-
     global _log
     (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
      from_pr_list, tweaked_ecs_paths) = cfg_settings
@@ -765,20 +761,28 @@ def prepare_main(args=None, logfile=None, testing=None):
     return init_session_state, eb_go, cfg_settings
 
 
-if __name__ == "__main__":
+def main_with_hooks(args=None):
     # take into account that EasyBuildError may be raised when parsing the EasyBuild configuration
     try:
-        init_session_state, eb_go, cfg_settings = prepare_main()
+        init_session_state, eb_go, cfg_settings = prepare_main(args=args)
     except EasyBuildError as err:
         print_error(err.msg)
 
     hooks = load_hooks(eb_go.options.hooks)
 
     try:
-        main(prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
+        main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])
-        print_error(err.msg)
+        print_error(err.msg, exit_on_error=True, exit_code=1)
     except KeyboardInterrupt as err:
         run_hook(CANCEL, hooks, args=[err])
         print_error("Cancelled by user: %s" % err)
+    except Exception as err:
+        run_hook(CRASH, hooks, args=[err])
+        sys.stderr.write("EasyBuild crashed! Please consider reporting a bug, this should not happen...\n\n")
+        raise
+
+
+if __name__ == "__main__":
+    main_with_hooks()

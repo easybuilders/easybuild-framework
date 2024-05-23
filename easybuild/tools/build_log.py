@@ -55,11 +55,16 @@ CURRENT_VERSION = VERSION
 # allow some experimental experimental code
 EXPERIMENTAL = False
 
-DEPRECATED_DOC_URL = 'http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html'
+DEPRECATED_DOC_URL = 'https://docs.easybuild.io/deprecated-functionality/'
 
 DRY_RUN_BUILD_DIR = None
 DRY_RUN_SOFTWARE_INSTALL_DIR = None
 DRY_RUN_MODULES_INSTALL_DIR = None
+
+CWD_NOTFOUND_ERROR = (
+    "Current working directory does not exist! It was either unexpectedly removed "
+    "by an external process to EasyBuild or the filesystem is misbehaving."
+)
 
 
 DEVEL_LOG_LEVEL = logging.DEBUG - 1
@@ -167,7 +172,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""
-        ebmsg = "EasyBuild crashed with an error %s: " % self.caller_info()
+        ebmsg = "EasyBuild encountered an error %s: " % self.caller_info()
         fancylogger.FancyLogger.error(self, ebmsg + msg, *args, **kwargs)
 
     def devel(self, msg, *args, **kwargs):
@@ -335,8 +340,18 @@ def print_error(msg, *args, **kwargs):
     if args:
         msg = msg % args
 
+    # grab exit code, if specified;
+    # also consider deprecated 'exitCode' option
+    exitCode = kwargs.pop('exitCode', None)
+    exit_code = kwargs.pop('exit_code', exitCode)
+    if exitCode is not None:
+        _init_easybuildlog.deprecated("'exitCode' option in print_error function is replaced with 'exit_code'", '6.0')
+
+    # use 1 as defaut exit code
+    if exit_code is None:
+        exit_code = 1
+
     log = kwargs.pop('log', None)
-    exitCode = kwargs.pop('exitCode', 1)
     opt_parser = kwargs.pop('opt_parser', None)
     exit_on_error = kwargs.pop('exit_on_error', True)
     silent = kwargs.pop('silent', False)
@@ -348,7 +363,7 @@ def print_error(msg, *args, **kwargs):
             if opt_parser:
                 opt_parser.print_shorthelp()
             sys.stderr.write("ERROR: %s\n" % msg)
-        sys.exit(exitCode)
+        sys.exit(exit_code)
     elif log is not None:
         raise EasyBuildError(msg)
 

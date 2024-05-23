@@ -45,6 +45,7 @@ import shutil
 import sys
 import tempfile
 import pwd
+from collections import OrderedDict
 
 import easybuild.tools.environment as env
 from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
@@ -55,7 +56,6 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
-from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, get_paths_for
 from easybuild.toolchains.compiler.systemcompiler import TC_CONSTANT_SYSTEM
 from easybuild.tools import LooseVersion, build_log, run  # build_log should always stay there, to ensure EasyBuildLog
@@ -84,8 +84,8 @@ from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_const
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
-from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, expand_glob_paths, install_fake_vsc
-from easybuild.tools.filetools import move_file, which
+from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, expand_glob_paths, get_cwd
+from easybuild.tools.filetools import install_fake_vsc, move_file, which
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED
 from easybuild.tools.github import GITHUB_PR_STATE_OPEN, GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
@@ -97,15 +97,14 @@ from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
-from easybuild.tools.py2vs3 import OrderedDict, string_type
 from easybuild.tools.robot import det_robot_path
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
-from easybuild.tools.systemtools import UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
-from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_system_info
+from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
+from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -131,6 +130,8 @@ DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 DEFAULT_LIST_PR_STATE = GITHUB_PR_STATE_OPEN
 DEFAULT_LIST_PR_ORDER = GITHUB_PR_ORDER_CREATED
 DEFAULT_LIST_PR_DIREC = GITHUB_PR_DIRECTION_DESC
+
+RPATH_DEFAULT = False if get_os_type() == DARWIN else True
 
 _log = fancylogger.getLogger('options', fname=False)
 
@@ -343,12 +344,7 @@ class EasyBuildOptions(GeneralOption):
         all_deprecations = ('python2', 'Lmod6', 'easyconfig', 'toolchain')
 
         opts = OrderedDict({
-            'accept-eula': ("Accept EULA for specified software [DEPRECATED, use --accept-eula-for instead!]",
-                            'strlist', 'store', []),
             'accept-eula-for': ("Accept EULA for specified software", 'strlist', 'store', []),
-            'add-dummy-to-minimal-toolchains': ("Include dummy toolchain in minimal toolchain searches "
-                                                "[DEPRECATED, use --add-system-to-minimal-toolchains instead!]",
-                                                None, 'store_true', False),
             'add-system-to-minimal-toolchains': ("Include system toolchain in minimal toolchain searches",
                                                  None, 'store_true', False),
             'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
@@ -407,6 +403,8 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
                               'strlist', 'extend', None),
+            'fail-on-mod-files-gcccore': ("Fail if .mod files are detected in a GCCcore install", None, 'store_true',
+                                          False),
             'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
                       "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
             'filter-deps': ("List of dependencies that you do *not* want to install with EasyBuild, "
@@ -494,7 +492,7 @@ class EasyBuildOptions(GeneralOption):
             'required-linked-shared-libs': ("Comma-separated list of shared libraries (names, file names, or paths) "
                                             "which must be linked in all installed binaries/libraries",
                                             'strlist', 'extend', None),
-            'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', False),
+            'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', RPATH_DEFAULT),
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
             'rpath-override-dirs': ("Path(s) to be prepended when linking with RPATH (string, colon-separated)",
                                     None, 'store', None),
@@ -514,7 +512,7 @@ class EasyBuildOptions(GeneralOption):
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
-            'trace': ("Provide more information in output to stdout on progress", None, 'store_true', False, 'T'),
+            'trace': ("Provide more information in output to stdout on progress", None, 'store_true', True, 'T'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
             'update-modules-tool-cache': ("Update modules tool cache file(s) after generating module file",
@@ -528,10 +526,6 @@ class EasyBuildOptions(GeneralOption):
                                      None, 'store_true', False),
             'verify-easyconfig-filenames': ("Verify whether filename of specified easyconfigs matches with contents",
                                             None, 'store_true', False),
-            'wait-on-lock': ("Wait for lock to be released; 0 implies no waiting (exit with an error if the lock "
-                             "already exists), non-zero value specified waiting interval [DEPRECATED: "
-                             "use --wait-on-lock-interval and --wait-on-lock-limit instead]",
-                             int, 'store_or_None', None),
             'wait-on-lock-interval': ("Wait interval (in seconds) to use when waiting for existing lock to be removed",
                                       int, 'store', DEFAULT_WAIT_ON_LOCK_INTERVAL),
             'wait-on-lock-limit': ("Maximum amount of time (in seconds) to wait until lock is released (0 means no "
@@ -841,7 +835,7 @@ class EasyBuildOptions(GeneralOption):
             'eb-cmd': ("EasyBuild command to use in jobs", 'str', 'store', DEFAULT_JOB_EB_CMD),
             'max-jobs': ("Maximum number of concurrent jobs (queued and running, 0 = unlimited)", 'int', 'store', 0),
             'max-walltime': ("Maximum walltime for jobs (in hours)", 'int', 'store', 24),
-            'output-dir': ("Output directory for jobs (default: current directory)", None, 'store', os.getcwd()),
+            'output-dir': ("Output directory for jobs (default: current directory)", None, 'store', get_cwd()),
             'polling-interval': ("Interval between polls for status of jobs (in seconds)", float, 'store', 30.0),
             'target-resource': ("Target resource for jobs", None, 'store', None),
         })
@@ -1121,7 +1115,7 @@ class EasyBuildOptions(GeneralOption):
 
         opt_val = getattr(self.options, opt_name)
         if opt_val:
-            if isinstance(opt_val, string_type):
+            if isinstance(opt_val, str):
                 setattr(self.options, opt_name, self.get_cfg_opt_abs_path(opt_name, opt_val))
             elif isinstance(opt_val, list):
                 abs_paths = [self.get_cfg_opt_abs_path(opt_name, p) for p in opt_val]
@@ -1177,11 +1171,11 @@ class EasyBuildOptions(GeneralOption):
             # which makes it susceptible to 'eating' the following argument/option;
             # for example: with 'eb -r foo', 'foo' must be an existing directory (or 'eb foo -r' should be used);
             # when multiple directories are specified, we deliberately do not enforce that all of them exist;
-            # if a single argument is passed to --robot/-r that ends with '.eb' or '.yeb', we assume it's an easyconfig
+            # if a single argument is passed to --robot/-r that ends with '.eb' we assume it's an easyconfig
             if len(self.options.robot) == 1:
                 robot_arg = self.options.robot[0]
                 if not os.path.isdir(robot_arg):
-                    if robot_arg.endswith(EB_FORMAT_EXTENSION) or robot_arg.endswith(YEB_FORMAT_EXTENSION):
+                    if robot_arg.endswith(EB_FORMAT_EXTENSION):
                         info_msg = "Sole --robot argument %s is not an existing directory, "
                         info_msg += "promoting it to a stand-alone argument since it looks like an easyconfig file name"
                         self.log.info(info_msg, robot_arg)
@@ -1377,9 +1371,9 @@ class EasyBuildOptions(GeneralOption):
                 '',
                 "* GPU:",
             ])
-            for vendor in gpu_info:
+            for vendor, vendor_gpu in gpu_info.items():
                 lines.append("  -> %s" % vendor)
-                for gpu, num in gpu_info[vendor].items():
+                for gpu, num in vendor_gpu.items():
                     lines.append("    -> %sx %s" % (num, gpu))
 
         lines.extend([
@@ -1399,7 +1393,8 @@ class EasyBuildOptions(GeneralOption):
 
         # options that should never/always be printed
         ignore_opts = ['show_config', 'show_full_config']
-        include_opts = ['buildpath', 'containerpath', 'installpath', 'repositorypath', 'robot_paths', 'sourcepath']
+        include_opts = ['buildpath', 'containerpath', 'installpath', 'repositorypath', 'robot_paths',
+                        'rpath', 'sourcepath']
         cmdline_opts_dict = self.dict_by_prefix()
 
         def reparse_cfg(args=None, withcfg=True):
@@ -1892,7 +1887,7 @@ def parse_external_modules_metadata(cfgs):
                 unknown_keys.setdefault(mod, []).append(key)
 
         for key in ['name', 'version']:
-            if isinstance(entry.get(key), string_type):
+            if isinstance(entry.get(key), str):
                 entry[key] = [entry[key]]
                 _log.debug("Transformed external module metadata value %s for %s into a single-value list: %s",
                            key, mod, entry[key])
@@ -1958,8 +1953,9 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             fd, tmptest_file = tempfile.mkstemp()
             os.close(fd)
             os.chmod(tmptest_file, 0o700)
-            if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False, force_in_dry_run=True, trace=False,
-                           stream_output=False, with_hooks=False):
+            res = run_shell_cmd(tmptest_file, fail_on_error=False, in_dry_run=True, hidden=True, stream_output=False,
+                                with_hooks=False)
+            if res.exit_code:
                 msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
                 msg += "This can cause problems in the build process, consider using --tmpdir."
                 if raise_error:

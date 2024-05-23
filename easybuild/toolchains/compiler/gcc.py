@@ -114,9 +114,6 @@ class Gcc(Compiler):
     def _set_compiler_vars(self):
         super(Gcc, self)._set_compiler_vars()
 
-        if self.options.get('32bit', None):
-            raise EasyBuildError("_set_compiler_vars: 32bit set, but no support yet for 32bit GCC in EasyBuild")
-
         # to get rid of lots of problems with libgfortranbegin
         # or remove the system gcc-gfortran
         # also used in eg LIBBLAS variable

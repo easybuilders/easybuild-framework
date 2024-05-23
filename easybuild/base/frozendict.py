@@ -21,10 +21,10 @@ frozendict is an immutable wrapper around dictionaries that implements the compl
 It can be used as a drop-in replacement for dictionaries where immutability is desired.
 """
 import operator
+from collections.abc import Mapping
 from functools import reduce
 
 from easybuild.base import fancylogger
-from easybuild.tools.py2vs3 import Mapping
 
 
 # minor adjustments:

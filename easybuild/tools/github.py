@@ -45,6 +45,8 @@ import sys
 import tempfile
 import time
 from datetime import datetime, timedelta
+from string import ascii_letters
+from urllib.request import HTTPError, URLError, urlopen
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
@@ -57,7 +59,6 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, copy_easyblocks, copy_file, copy_framework_files
 from easybuild.tools.filetools import det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import get_easyblock_class_name, mkdir, read_file, symlink, which, write_file
-from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import nub, only_if_module_is_available
 
@@ -242,7 +243,7 @@ class Githubfs(object):
         if not api:
             outfile = tempfile.mkstemp()[1]
             url = '/'.join([GITHUB_RAW, self.githubuser, self.reponame, self.branchname, path])
-            download_file(os.path.basename(path), url, outfile)
+            download_file(os.path.basename(path), url, outfile, trace=False)
             return outfile
         else:
             obj = self.get_path(path).get(ref=self.branchname)[1]
@@ -411,13 +412,13 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, commit=None, accoun
 
     target_path = os.path.join(path, base_name)
     _log.debug("downloading repo %s/%s as archive from %s to %s" % (account, repo, url, target_path))
-    downloaded_path = download_file(base_name, url, target_path, forced=True)
+    downloaded_path = download_file(base_name, url, target_path, forced=True, trace=False)
     if downloaded_path is None:
         raise EasyBuildError("Failed to download tarball for %s/%s commit %s", account, repo, commit)
     else:
-        _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
+        _log.debug("%s downloaded to %s, extracting now", base_name, path)
 
-    base_dir = extract_file(target_path, path, forced=True, change_into_dir=False)
+    base_dir = extract_file(target_path, path, forced=True, change_into_dir=False, trace=False)
     extracted_path = os.path.join(base_dir, extracted_dir_name)
 
     # check if extracted_path exists
@@ -531,7 +532,7 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
     # determine list of changed files via diff
     diff_fn = os.path.basename(pr_data['diff_url'])
     diff_filepath = os.path.join(path, diff_fn)
-    download_file(diff_fn, pr_data['diff_url'], diff_filepath, forced=True)
+    download_file(diff_fn, pr_data['diff_url'], diff_filepath, forced=True, trace=False)
     diff_txt = read_file(diff_filepath)
     _log.debug("Diff for PR #%s:\n%s", pr, diff_txt)
 
@@ -567,7 +568,7 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
             sha = pr_data['head']['sha']
             full_url = URL_SEPARATOR.join([GITHUB_RAW, github_account, github_repo, sha, patched_file])
             _log.info("Downloading %s from %s", fn, full_url)
-            download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
+            download_file(fn, full_url, path=os.path.join(path, fn), forced=True, trace=False)
 
         final_path = path
 
@@ -636,7 +637,7 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
         diff_url = os.path.join(GITHUB_URL, github_account, github_repo, 'commit', commit + '.diff')
         diff_fn = os.path.basename(diff_url)
         diff_filepath = os.path.join(path, diff_fn)
-        if download_file(diff_fn, diff_url, diff_filepath, forced=True):
+        if download_file(diff_fn, diff_url, diff_filepath, forced=True, trace=False):
             diff_txt = read_file(diff_filepath)
             _log.debug("Diff for commit %s:\n%s", commit, diff_txt)
 
@@ -1028,8 +1029,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         # only consider new easyconfig files for dependencies (not updated ones)
         for idx in range(len(all_dep_info['ecs'])):
             if all_dep_info['new'][idx]:
-                for key in dep_info:
-                    dep_info[key].append(all_dep_info[key][idx])
+                for key, values in dep_info.items():
+                    values.append(all_dep_info[key][idx])
 
     # checkout target branch
     if pr_branch is None:
@@ -2306,7 +2307,7 @@ def check_github():
         msg = '\n'.join([
             '',
             "One or more checks FAILed, GitHub configuration not fully complete!",
-            "See http://easybuild.readthedocs.org/en/latest/Integration_with_GitHub.html#configuration for help.",
+            "See https://docs.easybuild.io/integration-with-github/#github_configuration for help.",
             '',
         ])
     print_msg(msg, log=_log, prefix=False)

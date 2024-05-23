@@ -23,26 +23,25 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-(buggy) EasyBuild support for building and installing toy, implemented as an easyblock
+Test EasyBlocks building and installing dummy extensions with deprecated methods
 
-@author: Kenneth Hoste (Ghent University)
+@author: Alex Domingo (Vrije Universiteit Brussel)
 """
 
-from easybuild.framework.easyblock import EasyBlock
+from easybuild.easyblocks.generic.dummyextension import DummyExtension
 
 
-class EB_toy_buggy(EasyBlock):
-    """Support for building/installing toy."""
+class DeprecatedDummyExtension(DummyExtension):
+    """Extension EasyBlock with deprecated install step"""
 
-    def configure_step(self):
-        """Configure build of toy."""
-        pass
+    def prerun(self):
 
-    def build_step(self):
-        """Build toy."""
-        # note: import is (purposely) missing, so this will go down hard
-        run_shell_cmd('gcc toy.c -o toy')  # noqa
+        return "Extension installed with custom prerun()"
 
-    def install_step(self):
-        """Install toy."""
-        pass
+    def run(self):
+
+        return "Extension installed with custom run()"
+
+    def postrun(self):
+
+        return "Extension installed with custom postrun()"

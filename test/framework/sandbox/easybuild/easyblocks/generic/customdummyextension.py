@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2024 Ghent University
+# Copyright 2009-2023 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,28 +23,25 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Support for dummy compiler.
+Test EasyBlocks building and installing dummy extensions with customized methods
 
-Authors:
-
-* Stijn De Weirdt (Ghent University)
-* Kenneth Hoste (Ghent University)
+@author: Alex Domingo (Vrije Universiteit Brussel)
 """
 
-from easybuild.tools.toolchain.compiler import Compiler
+from easybuild.easyblocks.generic.dummyextension import DummyExtension
 
 
-TC_CONSTANT_DUMMY = "DUMMY"
+class CustomDummyExtension(DummyExtension):
+    """Extension EasyBlock with customized install step"""
 
+    def pre_install_extension(self):
 
-class DummyCompiler(Compiler):
-    """Dummy compiler : try not to even use system gcc"""
-    COMPILER_MODULE_NAME = []
-    COMPILER_FAMILY = TC_CONSTANT_DUMMY
+        return "Extension installed with custom pre_install_extension()"
 
-    COMPILER_CC = '%sCC' % TC_CONSTANT_DUMMY
-    COMPILER_CXX = '%sCXX' % TC_CONSTANT_DUMMY
+    def install_extension(self):
 
-    COMPILER_F77 = '%sF77' % TC_CONSTANT_DUMMY
-    COMPILER_F90 = '%sF90' % TC_CONSTANT_DUMMY
-    COMPILER_FC = '%sFC' % TC_CONSTANT_DUMMY
+        return "Extension installed with custom install_extension()"
+
+    def post_install_extension(self):
+
+        return "Extension installed with custom post_install_extension()"

@@ -79,6 +79,9 @@ class HooksTest(EnhancedTestCase):
             '',
             'def fail_hook(err):',
             '    print("EasyBuild FAIL: %s" % err)',
+            '',
+            'def crash_hook(err):',
+            '    print("EasyBuild CRASHED, oh no! => %s" % err)',
         ])
         write_file(self.test_hooks_pymod, test_hooks_pymod_txt)
 
@@ -97,8 +100,9 @@ class HooksTest(EnhancedTestCase):
 
         hooks = load_hooks(self.test_hooks_pymod)
 
-        self.assertEqual(len(hooks), 8)
+        self.assertEqual(len(hooks), 9)
         expected = [
+            'crash_hook',
             'fail_hook',
             'parse_hook',
             'post_configure_hook',
@@ -140,6 +144,7 @@ class HooksTest(EnhancedTestCase):
         pre_single_extension_hook = [hooks[k] for k in hooks if k == 'pre_single_extension_hook'][0]
         start_hook = [hooks[k] for k in hooks if k == 'start_hook'][0]
         pre_run_shell_cmd_hook = [hooks[k] for k in hooks if k == 'pre_run_shell_cmd_hook'][0]
+        crash_hook = [hooks[k] for k in hooks if k == 'crash_hook'][0]
         fail_hook = [hooks[k] for k in hooks if k == 'fail_hook'][0]
         pre_build_and_install_loop_hook = [hooks[k] for k in hooks if k == 'pre_build_and_install_loop_hook'][0]
 
@@ -175,6 +180,10 @@ class HooksTest(EnhancedTestCase):
         self.assertEqual(find_hook('fail', hooks, pre_step_hook=True), None)
         self.assertEqual(find_hook('fail', hooks, post_step_hook=True), None)
 
+        self.assertEqual(find_hook('crash', hooks), crash_hook)
+        self.assertEqual(find_hook('crash', hooks, pre_step_hook=True), None)
+        self.assertEqual(find_hook('crash', hooks, post_step_hook=True), None)
+
         hook_name = 'build_and_install_loop'
         self.assertEqual(find_hook(hook_name, hooks), None)
         self.assertEqual(find_hook(hook_name, hooks, pre_step_hook=True), pre_build_and_install_loop_hook)
@@ -209,6 +218,7 @@ class HooksTest(EnhancedTestCase):
                 run_hook('single_extension', hooks, post_step_hook=True, args=[None])
             run_hook('extensions', hooks, post_step_hook=True, args=[None])
             run_hook('fail', hooks, args=[EasyBuildError('oops')])
+            run_hook('crash', hooks, args=[RuntimeError('boom!')])
             stdout = self.get_stdout()
             stderr = self.get_stderr()
             self.mock_stdout(False)
@@ -244,6 +254,8 @@ class HooksTest(EnhancedTestCase):
             "this is run before installing an extension",
             "== Running fail hook...",
             "EasyBuild FAIL: 'oops'",
+            "== Running crash hook...",
+            "EasyBuild CRASHED, oh no! => boom!",
         ]
         expected_stdout = '\n'.join(expected_stdout_lines)
 

@@ -42,7 +42,7 @@ from unittest import TextTestRunner
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.tools import StrictVersion
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir
@@ -50,7 +50,7 @@ from easybuild.tools.filetools import read_file, remove_dir, remove_file, symlin
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 
 
 # number of modules included for testing purposes
@@ -190,6 +190,21 @@ class ModulesTest(EnhancedTestCase):
         regex = re.compile(r'^os\.environ\[', re.M)
         self.assertFalse(regex.search(out), "Pattern '%s' should not be found in: %s" % (regex.pattern, out))
 
+    def test_list(self):
+        """
+        Test running 'module list' via ModulesTool instance.
+        """
+        # make very sure no modules are currently loaded
+        self.modtool.run_module('purge', '--force')
+
+        out = self.modtool.list()
+        self.assertEqual(out, [])
+
+        mods = ['GCC/7.3.0-2.30']
+        self.modtool.load(mods)
+        out = self.modtool.list()
+        self.assertEqual([x['mod_name'] for x in out], mods)
+
     def test_avail(self):
         """Test if getting a (restricted) list of available modules works."""
         self.init_testmods()
@@ -210,15 +225,16 @@ class ModulesTest(EnhancedTestCase):
 
         # all test modules are accounted for
         ms = self.modtool.available()
+        version = LooseVersion(self.modtool.version)
 
-        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.7.5'):
+        if isinstance(self.modtool, Lmod) and version >= '5.7.5' and not version.is_prerelease('5.7.5', ['rc']):
             # with recent versions of Lmod, also the hidden modules are included in the output of 'avail'
             self.assertEqual(len(ms), TEST_MODULES_COUNT + 3)
             self.assertIn('bzip2/.1.0.6', ms)
             self.assertIn('toy/.0.0-deps', ms)
             self.assertIn('OpenMPI/.2.1.2-GCC-6.4.0-2.28', ms)
         elif (isinstance(self.modtool, EnvironmentModules)
-                and StrictVersion(self.modtool.version) >= StrictVersion('4.6.0')):
+                and version >= '4.6.0' and not version.is_prerelease('4.6.0', ['-beta'])):
             # bzip2/.1.0.6 is not there, since that's a module file in Lua syntax
             self.assertEqual(len(ms), TEST_MODULES_COUNT + 2)
             self.assertIn('toy/.0.0-deps', ms)
@@ -298,7 +314,8 @@ class ModulesTest(EnhancedTestCase):
 
         avail_mods = self.modtool.available()
         self.assertIn('Java/1.8.0_181', avail_mods)
-        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
+        version = LooseVersion(self.modtool.version)
+        if isinstance(self.modtool, Lmod) and version >= '7.0' and not version.is_prerelease('7.0', ['rc']):
             self.assertIn('Java/1.8', avail_mods)
             self.assertIn('Java/site_default', avail_mods)
             self.assertIn('JavaAlias', avail_mods)
@@ -358,7 +375,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(self.modtool.exist(['Core/Java/1.8', 'Core/Java/site_default']), [True, True])
 
         # also check with .modulerc.lua for Lmod 7.8 or newer
-        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.8'):
+        if isinstance(self.modtool, Lmod) and version >= '7.8' and not version.is_prerelease('7.8', ['rc']):
             shutil.move(os.path.join(self.test_prefix, 'Core', 'Java'), java_mod_dir)
             reset_module_caches()
 
@@ -390,7 +407,7 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(self.modtool.exist(['Core/Java/site_default']), [True])
 
         # Test alias in home directory .modulerc
-        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('7.0'):
+        if isinstance(self.modtool, Lmod) and version >= '7.0' and not version.is_prerelease('7.0', ['rc']):
             # Required or temporary HOME would be in MODULEPATH already
             self.init_testmods()
             # Sanity check: Module aliases don't exist yet
@@ -1317,9 +1334,10 @@ class ModulesTest(EnhancedTestCase):
         modulepath = os.environ['MODULEPATH']
         self.assertIn(modules_dir, modulepath)
 
-        out, _ = run_cmd("bash -c 'echo MODULEPATH: $MODULEPATH'", simple=False)
-        self.assertEqual(out.strip(), "MODULEPATH: %s" % modulepath)
-        self.assertIn(modules_dir, out)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd("bash -c 'echo MODULEPATH: $MODULEPATH'")
+        self.assertEqual(res.output.strip(), f"MODULEPATH: {modulepath}")
+        self.assertIn(modules_dir, res.output)
 
     def test_load_in_hierarchy(self):
         """Test whether loading a module in a module hierarchy results in loading the correct module."""
@@ -1523,8 +1541,10 @@ class ModulesTest(EnhancedTestCase):
 
         os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.getenv('PATH'))
 
-        modtool = EnvironmentModulesC()
-        modtool.run_module('load', 'test123')
+        self.allow_deprecated_behaviour()
+        with self.mocked_stdout_stderr():
+            modtool = EnvironmentModulesC()
+            modtool.run_module('load', 'test123')
         self.assertEqual(os.getenv('TEST123'), 'test123')
 
     def test_get_setenv_value_from_modulefile(self):
@@ -1540,7 +1560,8 @@ class ModulesTest(EnhancedTestCase):
         write_file(test_ec, "\nmodextravars = {'FOO': 'value with spaces'}", append=True)
 
         toy_eb = EasyBlock(EasyConfig(test_ec))
-        toy_eb.make_module_step()
+        with self.mocked_stdout_stderr():
+            toy_eb.make_module_step()
 
         expected_root = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
         ebroot = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'EBROOTTOY')

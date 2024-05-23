@@ -45,26 +45,25 @@ import os
 import re
 import sys
 import tempfile
+from collections import OrderedDict
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_info, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
-from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
+from easybuild.tools.filetools import find_easyconfigs, get_cwd, is_patch_file, locate_files
 from easybuild.tools.filetools import read_file, resolve_path, which, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, fetch_easyconfigs_from_commit
 from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_pr_data
 from easybuild.tools.github import fetch_files_from_commit, fetch_files_from_pr
 from easybuild.tools.multidiff import multidiff
-from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
@@ -419,7 +418,7 @@ def parse_easyconfigs(paths, validate=True):
     return easyconfigs, generated_ecs
 
 
-def stats_to_str(stats, isyeb=False):
+def stats_to_str(stats):
     """
     Pretty print build statistics to string.
     """
@@ -429,13 +428,7 @@ def stats_to_str(stats, isyeb=False):
     txt = "{\n"
     pref = "    "
     for key in sorted(stats):
-        if isyeb:
-            val = stats[key]
-            if isinstance(val, tuple):
-                val = list(val)
-            key, val = quote_yaml_special_chars(key), quote_yaml_special_chars(val)
-        else:
-            key, val = quote_str(key), quote_str(stats[key])
+        key, val = quote_str(key), quote_str(stats[key])
         txt += "%s%s: %s,\n" % (pref, key, val)
     txt += "}"
     return txt
@@ -799,14 +792,13 @@ def det_copy_ec_specs(orig_paths, from_pr=None, from_commit=None):
 
     target_path, paths = None, []
 
-    # if only one argument is specified, use current directory as target directory
     if len(orig_paths) == 1:
-        target_path = os.getcwd()
+        # if only one argument is specified, use current directory as target directory
+        target_path = get_cwd()
         paths = orig_paths[:]
-
-    # if multiple arguments are specified, assume that last argument is target location,
-    # and remove that from list of paths to copy
     elif orig_paths:
+        # if multiple arguments are specified, assume that last argument is target location,
+        # and remove that from list of paths to copy
         target_path = orig_paths[-1]
         paths = orig_paths[:-1]
 
@@ -824,7 +816,7 @@ def det_copy_ec_specs(orig_paths, from_pr=None, from_commit=None):
             pr_paths.extend(fetch_files_from_pr(pr=pr, path=tmpdir))
 
         # assume that files need to be copied to current working directory for now
-        target_path = os.getcwd()
+        target_path = get_cwd()
 
         if orig_paths:
             last_path = orig_paths[-1]
@@ -861,7 +853,7 @@ def det_copy_ec_specs(orig_paths, from_pr=None, from_commit=None):
         commit_paths = fetch_files_from_commit(from_commit, path=tmpdir)
 
         # assume that files need to be copied to current working directory for now
-        target_path = os.getcwd()
+        target_path = get_cwd()
 
         if orig_paths:
             last_path = orig_paths[-1]

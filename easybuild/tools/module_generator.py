@@ -48,7 +48,6 @@ from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
-from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import get_subclasses, nub, quote_str
 
 
@@ -215,7 +214,7 @@ class ModuleGenerator(object):
 
         added_paths = self.added_paths_per_key.setdefault(key, set())
         # paths can be a string
-        if isinstance(paths, string_type):
+        if isinstance(paths, str):
             if paths in added_paths:
                 filtered_paths = None
             else:
@@ -388,7 +387,7 @@ class ModuleGenerator(object):
 
         :param mod_names: (list of) module name(s) to check load status for
         """
-        if isinstance(mod_names, string_type):
+        if isinstance(mod_names, str):
             res = self.IS_LOADED_TEMPLATE % mod_names
         else:
             res = [self.IS_LOADED_TEMPLATE % m for m in mod_names]
@@ -416,7 +415,7 @@ class ModuleGenerator(object):
         use_pushenv = False
 
         # value may be specified as a string, or as a dict for special cases
-        if isinstance(env_var_val, string_type):
+        if isinstance(env_var_val, str):
             value = env_var_val
 
         elif isinstance(env_var_val, dict):
@@ -778,7 +777,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param cond_or: combine multiple conditions using 'or' (default is to combine with 'and')
         :param cond_tmpl: template for condition expression (default: '%s')
         """
-        if isinstance(conditions, string_type):
+        if isinstance(conditions, str):
             conditions = [conditions]
 
         if cond_or:
@@ -975,7 +974,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.info("Not including statement to %s environment variable $%s, as specified", update_type, key)
             return ''
 
-        if isinstance(paths, string_type):
+        if isinstance(paths, str):
             self.log.debug("Wrapping %s into a list before using it to %s path %s", paths, update_type, key)
             paths = [paths]
 
@@ -1223,7 +1222,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param cond_or: combine multiple conditions using 'or' (default is to combine with 'and')
         :param cond_tmpl: template for condition expression (default: '%s')
         """
-        if isinstance(conditions, string_type):
+        if isinstance(conditions, str):
             conditions = [conditions]
 
         if cond_or:
@@ -1446,7 +1445,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             self.log.info("Not including statement to %s environment variable $%s, as specified", update_type, key)
             return ''
 
-        if isinstance(paths, string_type):
+        if isinstance(paths, str):
             self.log.debug("Wrapping %s into a list before using it to %s path %s", update_type, paths, key)
             paths = [paths]
 

@@ -60,7 +60,6 @@ from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.robot import resolve_dependencies, robot_find_easyconfig, search_easyconfigs
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES
@@ -348,7 +347,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
         '"None"': 'None',
     }
     for (key, val) in tweaks.items():
-        if isinstance(val, string_type) and val in special_values:
+        if isinstance(val, str) and val in special_values:
             str_val = val
             val = special_values[val]
         else:
@@ -1207,7 +1206,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                         tc_candidate = fetch_parameters_from_easyconfig(read_file(path), ['toolchain'])[0]
                         if isinstance(tc_candidate, dict) and tc_candidate['name'] == SYSTEM_TOOLCHAIN_NAME:
                             cand_paths_filtered += [path]
-                        if isinstance(tc_candidate, string_type) and tc_candidate == TC_CONSTANT_SYSTEM:
+                        if isinstance(tc_candidate, str) and tc_candidate == TC_CONSTANT_SYSTEM:
                             cand_paths_filtered += [path]
 
                     cand_paths = cand_paths_filtered

@@ -112,6 +112,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
     def test_build_easyconfigs_in_parallel_pbs_python(self):
         """Test build_easyconfigs_in_parallel(), using (mocked) pbs_python as backend for --job."""
+        self.mock_stdout(True)
         # put mocked functions in place
         PbsPython__init__ = PbsPython.__init__
         PbsPython_check_version = PbsPython._check_version
@@ -212,6 +213,7 @@ class ParallelBuildTest(EnhancedTestCase):
         PbsPython.connect_to_server = PbsPython_connect_to_server
         PbsPython.ppn = PbsPython_ppn
         pbs_python.PbsJob = pbs_python_PbsJob
+        self.mock_stdout(False)
 
     def test_build_easyconfigs_in_parallel_gc3pie(self):
         """Test build_easyconfigs_in_parallel(), using GC3Pie with local config as backend for --job."""

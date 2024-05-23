@@ -42,7 +42,7 @@ import re
 import shlex
 
 from easybuild.base import fancylogger
-from easybuild.tools import StrictVersion
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
@@ -50,8 +50,7 @@ from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
 from easybuild.tools.filetools import convert_name, mkdir, normalize_path, path_matches, read_file, which, write_file
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
-from easybuild.tools.py2vs3 import subprocess_popen_text
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import get_subclasses, nub
 
 # software root/version environment variable name prefixes
@@ -145,11 +144,11 @@ class ModulesTool(object):
     COMMAND_SHELL = None
     # option to determine the version
     VERSION_OPTION = '--version'
-    # minimal required version (StrictVersion; suffix rc replaced with b (and treated as beta by StrictVersion))
+    # minimal required version (cannot include -beta or rc)
     REQ_VERSION = None
     # deprecated version limit (support for versions below this version is deprecated)
     DEPR_VERSION = None
-    # maximum version allowed (StrictVersion; suffix rc replaced with b (and treated as beta by StrictVersion))
+    # maximum version allowed (cannot include -beta or rc)
     MAX_VERSION = None
     # the regexp, should have a "version" group (multiline search)
     VERSION_REGEXP = None
@@ -240,14 +239,6 @@ class ModulesTool(object):
             if res:
                 self.version = res.group('version')
                 self.log.info("Found %s version %s", self.NAME, self.version)
-
-                # make sure version is a valid StrictVersion (e.g., 5.7.3.1 is invalid),
-                # and replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
-                self.version = self.version.replace('rc', 'b').replace('-beta', 'b1')
-                if len(self.version.split('.')) > 3:
-                    self.version = '.'.join(self.version.split('.')[:3])
-
-                self.log.info("Converted actual version to '%s'" % self.version)
             else:
                 raise EasyBuildError("Failed to determine %s version from option '%s' output: %s",
                                      self.NAME, self.VERSION_OPTION, txt)
@@ -260,9 +251,10 @@ class ModulesTool(object):
         elif build_option('modules_tool_version_check'):
             self.log.debug("Checking whether %s version %s meets requirements", self.NAME, self.version)
 
+            version = LooseVersion(self.version)
             if self.REQ_VERSION is not None:
                 self.log.debug("Required minimum %s version defined: %s", self.NAME, self.REQ_VERSION)
-                if StrictVersion(self.version) < StrictVersion(self.REQ_VERSION):
+                if version < self.REQ_VERSION or version.is_prerelease(self.REQ_VERSION, ['rc', '-beta']):
                     raise EasyBuildError("EasyBuild requires %s >= v%s, found v%s",
                                          self.NAME, self.REQ_VERSION, self.version)
                 else:
@@ -270,18 +262,14 @@ class ModulesTool(object):
 
             if self.DEPR_VERSION is not None:
                 self.log.debug("Deprecated %s version limit defined: %s", self.NAME, self.DEPR_VERSION)
-                if StrictVersion(self.version) < StrictVersion(self.DEPR_VERSION):
+                if version < self.DEPR_VERSION or version.is_prerelease(self.DEPR_VERSION, ['rc', '-beta']):
                     depr_msg = "Support for %s version < %s is deprecated, " % (self.NAME, self.DEPR_VERSION)
                     depr_msg += "found version %s" % self.version
-
-                    if self.version.startswith('6') and 'Lmod6' in build_option('silence_deprecation_warnings'):
-                        self.log.warning(depr_msg)
-                    else:
-                        self.log.deprecated(depr_msg, '5.0')
+                    self.log.deprecated(depr_msg, '6.0')
 
             if self.MAX_VERSION is not None:
                 self.log.debug("Maximum allowed %s version defined: %s", self.NAME, self.MAX_VERSION)
-                if StrictVersion(self.version) > StrictVersion(self.MAX_VERSION):
+                if self.version > self.MAX_VERSION and not version.is_prerelease(self.MAX_VERSION, ['rc', '-beta']):
                     raise EasyBuildError("EasyBuild requires %s <= v%s, found v%s",
                                          self.NAME, self.MAX_VERSION, self.version)
                 else:
@@ -308,31 +296,32 @@ class ModulesTool(object):
         if self.testing:
             # grab 'module' function definition from environment if it's there; only during testing
             try:
-                out, ec = os.environ['module'], 0
+                output, exit_code = os.environ['module'], 0
             except KeyError:
-                out, ec = None, 1
+                output, exit_code = None, 1
         else:
             cmd = "type module"
-            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False, force_in_dry_run=True, trace=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=False, hidden=True, output_file=False)
+            output, exit_code = res.output, res.exit_code
 
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)
         mod_cmd_re = re.compile(regex, re.M)
         mod_details = "pattern '%s' (%s)" % (mod_cmd_re.pattern, self.NAME)
 
-        if ec == 0:
-            if mod_cmd_re.search(out):
+        if exit_code == 0:
+            if mod_cmd_re.search(output):
                 self.log.debug("Found pattern '%s' in defined 'module' function." % mod_cmd_re.pattern)
             else:
                 msg = "%s not found in defined 'module' function.\n" % mod_details
                 msg += "Specify the correct modules tool to avoid weird problems due to this mismatch, "
                 msg += "see the --modules-tool and --avail-modules-tools command line options.\n"
                 if allow_mismatch:
-                    msg += "Obtained definition of 'module' function: %s" % out
+                    msg += "Obtained definition of 'module' function: %s" % output
                     self.log.warning(msg)
                 else:
                     msg += "Or alternatively, use --allow-modules-tool-mismatch to stop treating this as an error. "
-                    msg += "Obtained definition of 'module' function: %s" % out
+                    msg += "Obtained definition of 'module' function: %s" % output
                     raise EasyBuildError(msg)
         else:
             # module function may not be defined (weird, but fine)
@@ -549,18 +538,14 @@ class ModulesTool(object):
 
         return wrapped_mod
 
-    def exist(self, mod_names, mod_exists_regex_template=None, skip_avail=False, maybe_partial=True):
+    def exist(self, mod_names, skip_avail=False, maybe_partial=True):
         """
         Check if modules with specified names exists.
 
         :param mod_names: list of module names
-        :param mod_exists_regex_template: DEPRECATED and unused
         :param skip_avail: skip checking through 'module avail', only check via 'module show'
         :param maybe_partial: indicates if the module name may be a partial module name
         """
-        if mod_exists_regex_template is not None:
-            self.log.deprecated('mod_exists_regex_template is no longer used', '5.0')
-
         def mod_exists_via_show(mod_name):
             """
             Helper function to check whether specified module name exists through 'module show'.
@@ -822,24 +807,23 @@ class ModulesTool(object):
                                key, old_value, new_value)
 
         cmd_list = self.compose_cmd_list(args)
-        full_cmd = ' '.join(cmd_list)
-        self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
-
-        proc = subprocess_popen_text(cmd_list, env=environ)
+        cmd = ' '.join(cmd_list)
+        # note: module commands are always run in dry mode, and are kept hidden in trace and dry run output
+        res = run_shell_cmd(cmd_list, env=environ, fail_on_error=False, use_bash=False, split_stderr=True,
+                            hidden=True, in_dry_run=True, output_file=False)
 
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
-        (stdout, stderr) = proc.communicate()
-        self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
+        stdout, stderr = res.output, res.stderr
+        self.log.debug("Output of module command '%s': stdout: %s; stderr: %s", cmd, stdout, stderr)
 
         # also catch and check exit code
-        exit_code = proc.returncode
-        if kwargs.get('check_exit_code', True) and exit_code != 0:
+        if kwargs.get('check_exit_code', True) and res.exit_code != 0:
             raise EasyBuildError("Module command '%s' failed with exit code %s; stderr: %s; stdout: %s",
-                                 ' '.join(cmd_list), exit_code, stderr, stdout)
+                                 cmd, res.exit_code, stderr, stdout)
 
         if kwargs.get('check_output', True):
-            self.check_module_output(full_cmd, stdout, stderr)
+            self.check_module_output(cmd, stdout, stderr)
 
         if kwargs.get('return_stderr', False):
             return stderr
@@ -956,7 +940,7 @@ class ModulesTool(object):
                     "use the --allow-loaded-modules configuration option.",
                     "To specify action to take when loaded modules are detected, use %s." % opt,
                     '',
-                    "See http://easybuild.readthedocs.io/en/latest/Detecting_loaded_modules.html for more information.",
+                    "See https://docs.easybuild.io/detecting-loaded-modules/ for more information.",
                 ])
 
                 action = build_option('detect_loaded_modules')
@@ -1192,6 +1176,7 @@ class EnvironmentModulesC(ModulesTool):
     COMMAND = "modulecmd"
     REQ_VERSION = '3.2.10'
     MAX_VERSION = '3.99'
+    DEPR_VERSION = '3.999'
     VERSION_REGEXP = r'^\s*(VERSION\s*=\s*)?(?P<version>\d\S*)\s*'
 
     def run_module(self, *args, **kwargs):
@@ -1253,6 +1238,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
     COMMAND_SHELL = ['tclsh']
     VERSION_OPTION = ''
     REQ_VERSION = None
+    DEPR_VERSION = '9999.9'
     VERSION_REGEXP = r'^Modules\s+Release\s+Tcl\s+(?P<version>\d\S*)\s'
 
     def set_path_env_var(self, key, paths):
@@ -1327,6 +1313,7 @@ class EnvironmentModules(EnvironmentModulesTcl):
     COMMAND = os.path.join(os.getenv('MODULESHOME', 'MODULESHOME_NOT_DEFINED'), 'libexec', 'modulecmd.tcl')
     COMMAND_ENVIRONMENT = 'MODULES_CMD'
     REQ_VERSION = '4.0.0'
+    DEPR_VERSION = '4.0.0'  # needs to be set as EnvironmentModules inherits from EnvironmentModulesTcl
     MAX_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d[^+\s]*)(\+\S*)?\s'
 
@@ -1367,7 +1354,8 @@ class EnvironmentModules(EnvironmentModulesTcl):
                 out, ec = None, 1
         else:
             cmd = "type _module_raw"
-            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False, force_in_dry_run=True, trace=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=False, hidden=True, output_file=False)
+            out, ec = res.output, res.exit_code
 
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)
@@ -1397,7 +1385,7 @@ class EnvironmentModules(EnvironmentModulesTcl):
         if extra_args is None:
             extra_args = []
         # make hidden modules visible (requires Environment Modules 4.6.0)
-        if StrictVersion(self.version) >= StrictVersion('4.6.0'):
+        if LooseVersion(self.version) >= LooseVersion('4.6.0'):
             extra_args.append(self.SHOW_HIDDEN_OPTION)
 
         return super(EnvironmentModules, self).available(mod_name=mod_name, extra_args=extra_args)
@@ -1429,9 +1417,8 @@ class Lmod(ModulesTool):
     NAME = "Lmod"
     COMMAND = 'lmod'
     COMMAND_ENVIRONMENT = 'LMOD_CMD'
-    REQ_VERSION = '6.5.1'
-    DEPR_VERSION = '7.0.0'
-    REQ_VERSION_DEPENDS_ON = '7.6.1'
+    REQ_VERSION = '8.0.0'
+    DEPR_VERSION = '8.0.0'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
 
     SHOW_HIDDEN_OPTION = '--show-hidden'
@@ -1448,11 +1435,11 @@ class Lmod(ModulesTool):
         setvar('LMOD_EXTENDED_DEFAULT', 'no', verbose=False)
 
         super(Lmod, self).__init__(*args, **kwargs)
-        version = StrictVersion(self.version)
+        version = LooseVersion(self.version)
 
-        self.supports_depends_on = version >= self.REQ_VERSION_DEPENDS_ON
+        self.supports_depends_on = True
         # See https://lmod.readthedocs.io/en/latest/125_personal_spider_cache.html
-        if version >= '8.7.12':
+        if version >= LooseVersion('8.7.12'):
             self.USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.cache', 'lmod')
         else:
             self.USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
@@ -1517,14 +1504,16 @@ class Lmod(ModulesTool):
 
         if build_option('update_modules_tool_cache'):
             spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
-            cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
-            self.log.debug("Running command '%s'..." % ' '.join(cmd))
+            cmd_list = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
+            cmd = ' '.join(cmd_list)
+            self.log.debug("Running command '%s'...", cmd)
 
-            proc = subprocess_popen_text(cmd, env=os.environ)
-            (stdout, stderr) = proc.communicate()
+            res = run_shell_cmd(cmd_list, env=os.environ, fail_on_error=False, use_bash=False, split_stderr=True,
+                                hidden=True)
+            stdout, stderr = res.output, res.stderr
 
             if stderr:
-                raise EasyBuildError("An error occurred when running '%s': %s", ' '.join(cmd), stderr)
+                raise EasyBuildError("An error occurred when running '%s': %s", cmd, stderr)
 
             if self.testing:
                 # don't actually update local cache when testing, just return the cache contents
@@ -1532,7 +1521,7 @@ class Lmod(ModulesTool):
             else:
                 suffix = build_option('module_cache_suffix') or ''
                 cache_fp = os.path.join(self.USER_CACHE_DIR, 'moduleT%s.lua' % suffix)
-                self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_fp, ' '.join(cmd)))
+                self.log.debug("Updating Lmod spider cache %s with output from '%s'", cache_fp, cmd)
                 cache_dir = os.path.dirname(cache_fp)
                 if not os.path.exists(cache_dir):
                     mkdir(cache_dir, parents=True)
@@ -1607,13 +1596,9 @@ class Lmod(ModulesTool):
         Determine whether a module wrapper with specified name exists.
         First check for wrapper defined in .modulerc.lua, fall back to also checking .modulerc (Tcl syntax).
         """
-        res = None
-
-        # first consider .modulerc.lua with Lmod 7.8 (or newer)
-        if StrictVersion(self.version) >= StrictVersion('7.8'):
-            mod_wrapper_regex_template = r'^module_version\("(?P<wrapped_mod>.*)", "%s"\)$'
-            res = super(Lmod, self).module_wrapper_exists(mod_name, modulerc_fn='.modulerc.lua',
-                                                          mod_wrapper_regex_template=mod_wrapper_regex_template)
+        mod_wrapper_regex_template = r'^module_version\("(?P<wrapped_mod>.*)", "%s"\)$'
+        res = super(Lmod, self).module_wrapper_exists(mod_name, modulerc_fn='.modulerc.lua',
+                                                      mod_wrapper_regex_template=mod_wrapper_regex_template)
 
         # fall back to checking for .modulerc in Tcl syntax
         if res is None:

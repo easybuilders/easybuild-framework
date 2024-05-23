@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2024 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,16 +23,13 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for dummy compiler toolchain.
+Test EasyBlocks building and installing dummy extensions with customized methods
 
-Authors:
-
-* Kenneth Hoste (Ghent University)
+@author: Alex Domingo (Vrije Universiteit Brussel)
 """
 
-from easybuild.toolchains.compiler.dummycompiler import DummyCompiler
+from easybuild.easyblocks.generic.customdummyextension import CustomDummyExtension
 
 
-class Dummy(DummyCompiler):
-    """Dummy toolchain."""
-    NAME = 'dummy'
+class ChildCustomDummyExtension(CustomDummyExtension):
+    """Extension EasyBlock inheriting customized install step"""

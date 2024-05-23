@@ -40,7 +40,9 @@ import copy
 import inspect
 import json
 import os
+from collections import OrderedDict
 from easybuild.tools import LooseVersion
+from string import ascii_lowercase
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
@@ -60,8 +62,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.py2vs3 import OrderedDict, ascii_lowercase
-from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import INDENT_2SPACES, INDENT_4SPACES
 from easybuild.tools.utilities import import_available_modules, mk_md_table, mk_rst_table, nub, quote_str
@@ -806,8 +807,8 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
 
         # rebuild software, only retain entries with a corresponding available module
         software, all_software = {}, software
-        for key in all_software:
-            for entry in all_software[key]:
+        for key, entries in all_software.items():
+            for entry in entries:
                 if entry['mod_name'] in avail_mod_names:
                     software.setdefault(key, []).append(entry)
 
@@ -1093,7 +1094,7 @@ def list_toolchains(output_format=FORMAT_TXT):
 
     # start with dict that maps toolchain name to corresponding subclass of Toolchain
     # filter deprecated 'dummy' toolchain
-    tcs = {tc.NAME: tc for tc in all_tcs if tc.NAME != DUMMY_TOOLCHAIN_NAME}
+    tcs = {tc.NAME: tc for tc in all_tcs}
 
     for tcname in sorted(tcs):
         tcc = tcs[tcname]

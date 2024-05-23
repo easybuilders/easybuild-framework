@@ -31,8 +31,8 @@ Authors:
 * Stijn De Weirdt (Ghent University)
 """
 import time
+from collections import OrderedDict
 from easybuild.tools.filetools import det_size
-from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.systemtools import get_system_info
 from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION
 

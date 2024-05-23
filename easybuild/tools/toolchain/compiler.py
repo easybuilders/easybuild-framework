@@ -34,7 +34,6 @@ Authors:
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
 
@@ -90,7 +89,6 @@ class Compiler(Toolchain):
         'cstd': (None, "Specify C standard"),
         'shared': (False, "Build shared library"),
         'static': (False, "Build static library"),
-        '32bit': (False, "Compile 32bit target"),  # LA, FFTW
         'openmp': (False, "Enable OpenMP"),
         'vectorize': (None, "Enable compiler auto-vectorization, default except for noopt and lowopt"),
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
@@ -105,7 +103,6 @@ class Compiler(Toolchain):
     COMPILER_UNIQUE_OPTION_MAP = None
     COMPILER_SHARED_OPTION_MAP = {
         DEFAULT_OPT_LEVEL: 'O2',
-        '32bit': 'm32',
         'cstd': 'std=%(value)s',
         'debug': 'g',
         'lowopt': 'O1',
@@ -190,10 +187,6 @@ class Compiler(Toolchain):
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
-        is32bit = self.options.get('32bit', None)
-        if is32bit:
-            self.log.debug("_set_compiler_vars: 32bit set: changing compiler definitions")
-
         comp_var_tmpl_dict = {}
 
         # always include empty infix first for non-prefixed compilers (e.g., GCC, Intel, ...)
@@ -215,8 +208,6 @@ class Compiler(Toolchain):
                         self.log.warning("_set_compiler_vars: %s compiler variable %s undefined", infix, var)
 
                 self.variables[pref_var] = value
-                if is32bit:
-                    self.variables.nappend_el(pref_var, self.options.option('32bit'))
 
                 # update dictionary to complete compiler variable template
                 # to produce e.g. 'nvcc -ccbin=icpc' from 'nvcc -ccbin=%(CXX_base)'
@@ -311,7 +302,7 @@ class Compiler(Toolchain):
                                 (--optarch and --optarch=GENERIC still override this value)
         """
         ec_optarch = self.options.get('optarch', False)
-        if isinstance(ec_optarch, string_type):
+        if isinstance(ec_optarch, str):
             if OPTARCH_MAP_CHAR in ec_optarch:
                 error_msg = "When setting optarch in the easyconfig (found %s), " % ec_optarch
                 error_msg += "the <compiler%sflags> syntax is not allowed. " % OPTARCH_MAP_CHAR
@@ -338,7 +329,7 @@ class Compiler(Toolchain):
                 self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.",
                               current_compiler)
 
-        if isinstance(optarch, string_type):
+        if isinstance(optarch, str):
             use_generic = (optarch == OPTARCH_GENERIC)
         elif optarch is None:
             use_generic = False
@@ -366,9 +357,9 @@ class Compiler(Toolchain):
             optarch_flags_str = "%soptarch flags" % ('', 'generic ')[use_generic]
             error_msg = "Don't know how to set %s for %s/%s! " % (optarch_flags_str, self.arch, self.cpu_family)
             error_msg += "Use --optarch='<flags>' to override (see "
-            error_msg += "http://easybuild.readthedocs.io/en/latest/Controlling_compiler_optimization_flags.html "
+            error_msg += "https://docs.easybuild.io/controlling-compiler-optimization-flags/ "
             error_msg += "for details) and consider contributing your settings back (see "
-            error_msg += "http://easybuild.readthedocs.io/en/latest/Contributing.html)."
+            error_msg += "https://docs.easybuild.io/contributing/)."
             raise EasyBuildError(error_msg)
 
     def comp_family(self, prefix=None):
