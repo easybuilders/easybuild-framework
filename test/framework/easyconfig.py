@@ -1825,7 +1825,9 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
 
-        test_ec_txt = read_file(toy_ec).replace('postinstallcmds', 'post_install_cmds').replace('moduleclass', 'env_mod_class')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt = test_ec_txt.replace('postinstallcmds', 'post_install_cmds')
+        test_ec_txt = test_ec_txt.replace('moduleclass', 'env_mod_class')
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
