@@ -40,7 +40,6 @@ import tempfile
 import textwrap
 from collections import OrderedDict
 from easybuild.tools import LooseVersion
-from importlib import reload
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -1849,6 +1848,21 @@ class EasyConfigTest(EnhancedTestCase):
         expected = ['echo TOY > %(installdir)s/README']
         self.assertEqual(ec['postinstallcmds'], expected)
         self.assertEqual(ec['post_install_cmds'], expected)
+
+        # test setting of easyconfig parameter with original & alternate name
+        ec['moduleclass'] = 'test1'
+        self.assertEqual(ec['moduleclass'], 'test1')
+        self.assertEqual(ec['env_mod_class'], 'test1')
+        ec.update('moduleclass', 'test2')
+        self.assertEqual(ec['moduleclass'], 'test1 test2 ')
+        self.assertEqual(ec['env_mod_class'], 'test1 test2 ')
+
+        ec['env_mod_class'] = 'test3'
+        self.assertEqual(ec['moduleclass'], 'test3')
+        self.assertEqual(ec['env_mod_class'], 'test3')
+        ec.update('env_mod_class', 'test4')
+        self.assertEqual(ec['moduleclass'], 'test3 test4 ')
+        self.assertEqual(ec['env_mod_class'], 'test3 test4 ')
 
     def test_deprecated_easyconfig_parameters(self):
         """Test handling of deprecated easyconfig parameters."""
