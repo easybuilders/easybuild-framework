@@ -40,7 +40,6 @@ import tempfile
 import textwrap
 from collections import OrderedDict
 from easybuild.tools import LooseVersion
-from importlib import reload
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -120,6 +119,11 @@ class EasyConfigTest(EnhancedTestCase):
         github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
         self.skip_github_tests = github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
 
+        self.orig_easyconfig_DEPRECATED_PARAMETERS = easyconfig.easyconfig.DEPRECATED_PARAMETERS
+        self.orig_easyconfig_DEPRECATED_TEMPLATES = easyconfig.easyconfig.DEPRECATED_TEMPLATES
+        self.orig_easyconfig_ALTERNATE_PARAMETERS = easyconfig.easyconfig.ALTERNATE_PARAMETERS
+        self.orig_easyconfig_ALTERNATE_TEMPLATES = easyconfig.easyconfig.ALTERNATE_TEMPLATES
+
     def prep(self):
         """Prepare for test."""
         # (re)cleanup last test file
@@ -133,9 +137,16 @@ class EasyConfigTest(EnhancedTestCase):
     def tearDown(self):
         """ make sure to remove the temporary file """
         st.get_cpu_architecture = self.orig_get_cpu_architecture
+
         super(EasyConfigTest, self).tearDown()
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
+
+        # restore orignal values of DEPRECATED_TEMPLATES & co in easyconfig.templates
+        easyconfig.easyconfig.DEPRECATED_PARAMETERS = self.orig_easyconfig_DEPRECATED_PARAMETERS
+        easyconfig.easyconfig.DEPRECATED_TEMPLATES = self.orig_easyconfig_DEPRECATED_TEMPLATES
+        easyconfig.easyconfig.ALTERNATE_PARAMETERS = self.orig_easyconfig_ALTERNATE_PARAMETERS
+        easyconfig.easyconfig.ALTERNATE_TEMPLATES = self.orig_easyconfig_ALTERNATE_TEMPLATES
 
     def test_empty(self):
         """ empty files should not parse! """
@@ -1451,6 +1462,47 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['buildopts'], "--some-opt=%s/" % self.test_prefix)
         self.assertEqual(ec['installopts'], "--some-opt=%s/" % self.test_prefix)
 
+    def test_template_deprecation_and_alternate(self):
+        """Test deprecation of (and alternate) templates"""
+
+        self.prep()
+
+        template_test_deprecations = {
+            'builddir': ('depr_build_dir', '1000000000'),
+            'cudaver': ('depr_cuda_ver', '1000000000'),
+            'start_dir': ('depr_start_dir', '1000000000'),
+        }
+        easyconfig.easyconfig.DEPRECATED_TEMPLATES = template_test_deprecations
+
+        template_test_alternates = {
+            'installdir': 'alt_install_dir',
+            'version_major_minor': 'alt_ver_maj_min',
+        }
+        easyconfig.easyconfig.ALTERNATE_TEMPLATES = template_test_alternates
+
+        tmpl_str = ("cd %(start_dir)s && make %(namelower)s -Dbuild=%(builddir)s --with-cuda='%(cudaver)s'"
+                    " && echo %(alt_install_dir)s %(version_major_minor)s")
+        tmpl_dict = {
+            'depr_build_dir': '/example/build_dir',
+            'depr_cuda_ver': '12.1.1',
+            'installdir': '/example/installdir',
+            'start_dir': '/example/build_dir/start_dir',
+            'alt_ver_maj_min': '1.2',
+            'namelower': 'foo',
+        }
+
+        with self.mocked_stdout_stderr() as (_, stderr):
+            res = resolve_template(tmpl_str, tmpl_dict)
+        stderr = stderr.getvalue()
+
+        for tmpl in [*template_test_deprecations.keys(), *template_test_alternates.keys()]:
+            self.assertNotIn("%(" + tmpl + ")s", res)
+
+        for old, (new, ver) in template_test_deprecations.items():
+            depr_str = (f"WARNING: Deprecated functionality, will no longer work in EasyBuild v{ver}: "
+                        f"Easyconfig template '{old}' is deprecated, use '{new}' instead")
+            self.assertIn(depr_str, stderr)
+
     def test_constant_doc(self):
         """test constant documentation"""
         doc = avail_easyconfig_constants()
@@ -1766,6 +1818,52 @@ class EasyConfigTest(EnhancedTestCase):
 
             self.assertErrorRegex(EasyBuildError, error_regex, foo, key)
 
+    def test_alternate_easyconfig_parameters(self):
+        """Test handling of alternate easyconfig parameters."""
+
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt = test_ec_txt.replace('postinstallcmds', 'post_install_cmds')
+        test_ec_txt = test_ec_txt.replace('moduleclass', 'env_mod_class')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        # post_install_cmds is not accepted unless it's registered as an alternative easyconfig parameter
+        easyconfig.easyconfig.ALTERNATE_PARAMETERS = {}
+        self.assertErrorRegex(EasyBuildError, "post_install_cmds -> postinstallcmds", EasyConfig, test_ec)
+
+        easyconfig.easyconfig.ALTERNATE_PARAMETERS = {
+            'env_mod_class': 'moduleclass',
+            'post_install_cmds': 'postinstallcmds',
+        }
+        ec = EasyConfig(test_ec)
+
+        expected = 'tools'
+        self.assertEqual(ec['moduleclass'], expected)
+        self.assertEqual(ec['env_mod_class'], expected)
+
+        expected = ['echo TOY > %(installdir)s/README']
+        self.assertEqual(ec['postinstallcmds'], expected)
+        self.assertEqual(ec['post_install_cmds'], expected)
+
+        # test setting of easyconfig parameter with original & alternate name
+        ec['moduleclass'] = 'test1'
+        self.assertEqual(ec['moduleclass'], 'test1')
+        self.assertEqual(ec['env_mod_class'], 'test1')
+        ec.update('moduleclass', 'test2')
+        self.assertEqual(ec['moduleclass'], 'test1 test2 ')
+        self.assertEqual(ec['env_mod_class'], 'test1 test2 ')
+
+        ec['env_mod_class'] = 'test3'
+        self.assertEqual(ec['moduleclass'], 'test3')
+        self.assertEqual(ec['env_mod_class'], 'test3')
+        ec.update('env_mod_class', 'test4')
+        self.assertEqual(ec['moduleclass'], 'test3 test4 ')
+        self.assertEqual(ec['env_mod_class'], 'test3 test4 ')
+
     def test_deprecated_easyconfig_parameters(self):
         """Test handling of deprecated easyconfig parameters."""
         os.environ.pop('EASYBUILD_DEPRECATED')
@@ -1775,21 +1873,15 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
 
-        orig_deprecated_parameters = copy.deepcopy(easyconfig.parser.DEPRECATED_PARAMETERS)
-        easyconfig.parser.DEPRECATED_PARAMETERS.update({
+        easyconfig.easyconfig.DEPRECATED_PARAMETERS = {
             'foobar': ('barfoo', '0.0'),  # deprecated since forever
             # won't be actually deprecated for a while;
             # note that we should map foobarbarfoo to a valid easyconfig parameter here,
             # or we'll hit errors when parsing an easyconfig file that uses it
             'foobarbarfoo': ('required_linked_shared_libs', '1000000000'),
-        })
+        }
 
-        # copy classes before reloading, so we can restore them (otherwise isinstance checks fail)
-        orig_EasyConfig = copy.deepcopy(easyconfig.easyconfig.EasyConfig)
-        orig_ActiveMNS = copy.deepcopy(easyconfig.easyconfig.ActiveMNS)
-        reload(easyconfig.parser)
-
-        for key, (newkey, depr_ver) in easyconfig.parser.DEPRECATED_PARAMETERS.items():
+        for key, (newkey, depr_ver) in easyconfig.easyconfig.DEPRECATED_PARAMETERS.items():
             if LooseVersion(depr_ver) <= easybuild.tools.build_log.CURRENT_VERSION:
                 # deprecation error
                 error_regex = "DEPRECATED.*since v%s.*'%s' is deprecated.*use '%s' instead" % (depr_ver, key, newkey)
@@ -1802,12 +1894,13 @@ class EasyConfigTest(EnhancedTestCase):
                 self.assertErrorRegex(EasyBuildError, error_regex, foo, key)
             else:
                 # only deprecation warning, but key is replaced when getting/setting
-                ec[key] = 'test123'
-                self.assertEqual(ec[newkey], 'test123')
-                self.assertEqual(ec[key], 'test123')
-                ec[newkey] = '123test'
-                self.assertEqual(ec[newkey], '123test')
-                self.assertEqual(ec[key], '123test')
+                with self.mocked_stdout_stderr():
+                    ec[key] = 'test123'
+                    self.assertEqual(ec[newkey], 'test123')
+                    self.assertEqual(ec[key], 'test123')
+                    ec[newkey] = '123test'
+                    self.assertEqual(ec[newkey], '123test')
+                    self.assertEqual(ec[key], '123test')
 
         variables = {
             'name': 'example',
@@ -1837,12 +1930,6 @@ class EasyConfigTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             ec = EasyConfig(test_ec)
         self.assertEqual(ec['required_linked_shared_libs'], 'foobarbarfoo')
-
-        easyconfig.parser.DEPRECATED_PARAMETERS = orig_deprecated_parameters
-        reload(easyconfig.parser)
-        reload(easyconfig.easyconfig)
-        easyconfig.easyconfig.EasyConfig = orig_EasyConfig
-        easyconfig.easyconfig.ActiveMNS = orig_ActiveMNS
 
     def test_unknown_easyconfig_parameter(self):
         """Check behaviour when unknown easyconfig parameters are used."""

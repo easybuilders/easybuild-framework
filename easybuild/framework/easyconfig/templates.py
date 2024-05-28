@@ -161,6 +161,26 @@ TEMPLATE_CONSTANTS = [
     ('SHLIB_EXT', get_shared_lib_ext(), 'extension for shared libraries'),
 ]
 
+# alternate templates, and their equivalents
+ALTERNATE_TEMPLATES = {
+    # <new>: <equivalent_template>,
+}
+
+# deprecated templates, and their replacements
+DEPRECATED_TEMPLATES = {
+    # <old_template>: (<new_template>, <deprecation_version>),
+}
+
+# alternate template constants, and their equivalents
+ALTERNATE_TEMPLATE_CONSTANTS = {
+    # <new_template_constant>: <equivalent_template_constant>,
+}
+
+# deprecated template constants, and their replacements
+DEPRECATED_TEMPLATE_CONSTANTS = {
+    # <old_template_constant>: (<new_template_constant>, <deprecation_version>),
+}
+
 extensions = ['tar.gz', 'tar.xz', 'tar.bz2', 'tgz', 'txz', 'tbz2', 'tb2', 'gtgz', 'zip', 'tar', 'xz', 'tar.Z']
 for ext in extensions:
     suffix = ext.replace('.', '_').upper()
