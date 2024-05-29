@@ -165,6 +165,7 @@ TEMPLATE_CONSTANTS = [
 ALTERNATE_TEMPLATES = {
     # <new>: <equivalent_template>,
     'build_dir': 'builddir',
+    'cuda_cc_comma_sep': 'cuda_compute_capabilities',
     'cuda_maj_ver': 'cudamajver',
     'cuda_maj_ver': 'cudamajver',
     'cuda_short_ver': 'cudashortver',
