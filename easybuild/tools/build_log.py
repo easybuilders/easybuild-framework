@@ -83,7 +83,7 @@ class EasyBuildError(LoggedException):
         self.msg = msg
         if kwargs:
             self.__dict__.update(kwargs)
-        print("defined at EBerror:", self.__dict__.keys())
+
     def __str__(self):
         """Return string representation of this EasyBuildError instance."""
         return repr(self.msg)

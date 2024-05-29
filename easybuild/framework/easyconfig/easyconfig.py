@@ -2049,6 +2049,10 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
         try:
             ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
         except EasyBuildError as err:
+            try:
+                err.exit_code
+            except AttributeError:
+                err.exit_code = 1
             raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg, exit_code=err.exit_code)
 
         name = ec['name']

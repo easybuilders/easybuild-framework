@@ -545,7 +545,6 @@ class EasyBlock(object):
         """
         exts_sources = []
         exts_list = self.cfg.get_ref('exts_list')
-
         if verify_checksums and not fetch_files:
             raise EasyBuildError("Can't verify checksums for extension files if they are not being fetched")
 
@@ -1894,7 +1893,6 @@ class EasyBlock(object):
         exts_cnt = len(self.ext_instances)
 
         for idx, ext in enumerate(self.ext_instances):
-
             self.log.info("Starting extension %s", ext.name)
 
             run_hook(SINGLE_EXTENSION, self.hooks, pre_step_hook=True, args=[ext])
@@ -2791,7 +2789,6 @@ class EasyBlock(object):
         exts_cnt = len(self.exts)
 
         self.update_exts_progress_bar("creating internal datastructures for extensions")
-
         for idx, ext in enumerate(self.exts):
             ext_name = ext['name']
             self.log.debug("Creating class instance for extension %s...", ext_name)
@@ -3691,6 +3688,10 @@ class EasyBlock(object):
 
         # pass or fail
         if self.sanity_check_fail_msgs:
+            try:
+                self.exit_code
+            except AttributeError:
+                self.exit_code = 1
             raise EasyBuildError(
                 "Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs), exit_code=self.exit_code)
         else:
@@ -4320,7 +4321,10 @@ def build_and_install_one(ecdict, init_env):
 
     except EasyBuildError as err:
         error_msg = err.msg
-        exit_code = err.exit_code
+        try:
+            exit_code
+        except NameError:
+            exit_code = 1
         result = False
 
     ended = 'ended'
