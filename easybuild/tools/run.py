@@ -205,17 +205,24 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir):
       and with the command in shell history;
     """
     # Save environment variables in env.sh which can be sourced to restore environment
-    full_env = os.environ.copy()
-    if env is not None:
-        full_env.update(env)
+    if env is None:
+        env = os.environ.copy()
+
     env_fp = os.path.join(tmpdir, 'env.sh')
     with open(env_fp, 'w') as fid:
         # excludes bash functions (environment variables ending with %)
-        fid.write('\n'.join(f'export {key}={shlex.quote(value)}' for key, value in sorted(full_env.items())
-                            if not key.endswith('%')))
+        fid.write('\n'.join(f'export {key}={shlex.quote(value)}' for key, value in sorted(env.items())
+                            if not key.endswith('%')) + '\n')
+
+        # unset environment variables in current environment if they're not defined in environment used to run command
+        fid.write('\n'.join(f'unset {key}' for key in os.environ if key not in env and not key.endswith('%')))
+
         fid.write('\n\nPS1="eb-shell> "')
+
         # also change to working directory (to ensure that working directory is correct for interactive bash shell)
         fid.write(f'\ncd "{work_dir}"')
+
+        # reset shell history to only include executed command
         fid.write(f'\nhistory -s {shlex.quote(cmd_str)}')
 
     # Make script that sets up bash shell with specified environment and working directory

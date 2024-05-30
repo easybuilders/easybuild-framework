@@ -247,6 +247,40 @@ class RunTest(EnhancedTestCase):
             self.assertTrue(isinstance(res.output, str))
             self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
 
+    def test_run_shell_cmd_env(self):
+        """Test env option in run_shell_cmd."""
+
+        # use 'env' to define environment in which command should be run;
+        # with a few exceptions (like $_, $PWD) no other environment variables will be defined,
+        # so $HOME and $USER will not be set
+        cmd = "env | sort"
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, env={'FOOBAR': 'foobar', 'PATH': os.getenv('PATH')})
+        self.assertEqual(res.cmd, cmd)
+        self.assertEqual(res.exit_code, 0)
+        self.assertIn("FOOBAR=foobar\n", res.output)
+        self.assertTrue(re.search("^_=.*/env$", res.output, re.M))
+        for var in ('HOME', 'USER'):
+            self.assertFalse(re.search('^' + var + '=.*', res.output, re.M))
+
+        # check on helper scripts that were generated for this command
+        paths = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'run-shell-cmd-output', 'env-*'))
+        self.assertEqual(len(paths), 1)
+        cmd_tmpdir = paths[0]
+
+        env_script = os.path.join(cmd_tmpdir, 'env.sh')
+        self.assertExists(env_script)
+        env_script_txt = read_file(env_script)
+        self.assertTrue(env_script_txt.startswith('export FOOBAR=foobar\nexport PATH'))
+
+        cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
+        self.assertExists(cmd_script)
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(f"{cmd_script} -c 'echo $FOOBAR'", fail_on_error=False)
+        self.assertEqual(res.exit_code, 0)
+        self.assertTrue(res.output.endswith('\nfoobar\n'))
+
     def test_fileprefix_from_cmd(self):
         """test simplifications from fileprefix_from_cmd."""
         cmds = {
