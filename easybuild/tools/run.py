@@ -319,6 +319,17 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         except FileNotFoundError:
             raise EasyBuildError(CWD_NOTFOUND_ERROR)
 
+    if with_hooks:
+        hooks = load_hooks(build_option('hooks'))
+        kwargs = {
+            'interactive': interactive,
+            'work_dir': work_dir,
+        }
+        hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs=kwargs)
+        if hook_res:
+            cmd, old_cmd = hook_res, cmd
+            _log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
+
     cmd_str = to_cmd_str(cmd)
 
     thread_id = None
@@ -377,18 +388,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         executable, shell = bash, True
     else:
         executable, shell = None, False
-
-    if with_hooks:
-        hooks = load_hooks(build_option('hooks'))
-        kwargs = {
-            'interactive': interactive,
-            'work_dir': work_dir,
-        }
-        hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs=kwargs)
-        if hook_res:
-            cmd, old_cmd = hook_res, cmd
-            cmd_str = to_cmd_str(cmd)
-            _log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
 
     stderr = subprocess.PIPE if split_stderr else subprocess.STDOUT
 
