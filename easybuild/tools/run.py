@@ -310,6 +310,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         if not isinstance(qa_patterns, list) or any(not isinstance(x, tuple) or len(x) != 2 for x in qa_patterns):
             raise EasyBuildError("qa_patterns passed to run_shell_cmd should be a list of 2-tuples!")
 
+    interactive = bool(qa_patterns)
+
     if qa_wait_patterns is None:
         qa_wait_patterns = []
 
@@ -358,7 +360,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     else:
         cmd_out_fp, cmd_err_fp = None, None
 
-    interactive = bool(qa_patterns)
     interactive_msg = 'interactive ' if interactive else ''
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless 'hidden' is enabled)
