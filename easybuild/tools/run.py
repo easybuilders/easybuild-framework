@@ -197,30 +197,38 @@ def fileprefix_from_cmd(cmd, allowed_chars=False):
     return ''.join([c for c in cmd if c in allowed_chars])
 
 
-def save_cmd(cmd_str, work_dir, env, tmpdir):
-    # Save environment variables in it's own environment file
+def create_cmd_scripts(cmd_str, work_dir, env, tmpdir):
+    """
+    Create helper scripts for specified command in specified directory:
+    - env.sh which can be sourced to define environment in which command was run;
+    - cmd.sh to create interactive (bash) shell session with working directory and environment,
+      and with the command in shell history;
+    """
+    # Save environment variables in env.sh which can be sourced to restore environment
     full_env = os.environ.copy()
     if env is not None:
         full_env.update(env)
     env_fp = os.path.join(tmpdir, 'env.sh')
     with open(env_fp, 'w') as fid:
         # excludes bash functions (environment variables ending with %)
-        fid.write('\n'.join(f'export {key}={shlex.quote(value)}' for key, value in full_env.items()
+        fid.write('\n'.join(f'export {key}={shlex.quote(value)}' for key, value in sorted(full_env.items())
                             if not key.endswith('%')))
         fid.write('\n\nPS1="eb-shell> "')
+        # also change to working directory (to ensure that working directory is correct for interactive bash shell)
+        fid.write(f'\ncd "{work_dir}"')
         fid.write(f'\nhistory -s {shlex.quote(cmd_str)}')
 
-    # Make script that sets up bash shell with given environments set.
+    # Make script that sets up bash shell with specified environment and working directory
     cmd_fp = os.path.join(tmpdir, 'cmd.sh')
     with open(cmd_fp, 'w') as fid:
         fid.write('#!/usr/bin/env bash\n')
-        fid.write('# Run this script to replicate the environment that EB used to run the shell command\n')
+        fid.write('# Run this script to set up a shell environment that EasyBuild used to run the shell command\n')
         fid.write('\n'.join([
-            f'\ncd "{work_dir}"',
             'EB_SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )',
-            f'echo Shell for the command: {shlex.quote(cmd_str)}',
-            'echo Use command history, exit to stop',
-            'bash --rcfile $EB_SCRIPT_DIR/env.sh',
+            f'echo "# Shell for the command: {shlex.quote(cmd_str)}"',
+            'echo "# Use command history, exit to stop"',
+            # using -i to force interactive shell, so env.sh is also sourced when -c is used to run commands
+            'bash --rcfile $EB_SCRIPT_DIR/env.sh -i "$@"',
             ]))
     os.chmod(cmd_fp, 0o775)
 
@@ -358,14 +366,17 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         _log.info(f"Auto-enabling streaming output of '{cmd_str}' command because logging to stdout is enabled")
         stream_output = True
 
-    # temporary output file(s) for command output
+    # temporary output file(s) for command output, along with helper scripts
     if output_file:
         toptmpdir = os.path.join(tempfile.gettempdir(), 'run-shell-cmd-output')
         os.makedirs(toptmpdir, exist_ok=True)
         cmd_name = fileprefix_from_cmd(os.path.basename(cmd_str.split(' ')[0]))
         tmpdir = tempfile.mkdtemp(dir=toptmpdir, prefix=f'{cmd_name}-')
+
         _log.info(f'run_shell_cmd: command environment of "{cmd_str}" will be saved to {tmpdir}')
-        save_cmd(cmd_str, work_dir, env, tmpdir)
+
+        create_cmd_scripts(cmd_str, work_dir, env, tmpdir)
+
         cmd_out_fp = os.path.join(tmpdir, 'out.txt')
         _log.info(f'run_shell_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
         if split_stderr:

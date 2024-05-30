@@ -179,6 +179,10 @@ class RunTest(EnhancedTestCase):
     def test_run_shell_cmd_basic(self):
         """Basic test for run_shell_cmd function."""
 
+        os.environ['FOOBAR'] = 'foobar'
+
+        cwd = change_dir(self.test_prefix)
+
         with self.mocked_stdout_stderr():
             res = run_shell_cmd("echo hello")
         self.assertEqual(res.output, "hello\n")
@@ -188,6 +192,42 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(isinstance(res.output, str))
         self.assertEqual(res.stderr, None)
         self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
+
+        change_dir(cwd)
+        del os.environ['FOOBAR']
+
+        # check on helper scripts that were generated for this command
+        paths = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'run-shell-cmd-output', 'echo-*'))
+        self.assertEqual(len(paths), 1)
+        cmd_tmpdir = paths[0]
+
+        # check on env.sh script that can be used to set up environment in which command was run
+        env_script = os.path.join(cmd_tmpdir, 'env.sh')
+        self.assertExists(env_script)
+        env_script_txt = read_file(env_script)
+        self.assertIn("export FOOBAR=foobar", env_script_txt)
+        self.assertIn("history -s 'echo hello'", env_script_txt)
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(f"source {env_script}; echo $FOOBAR; history")
+        self.assertEqual(res.exit_code, 0)
+        self.assertTrue(res.output.startswith('foobar\n'))
+        self.assertTrue(res.output.endswith("echo hello\n"))
+
+        # check on cmd.sh script that can be used to create interactive shell environment for command
+        cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
+        self.assertExists(cmd_script)
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(f"{cmd_script} -c 'echo pwd: $PWD; echo $FOOBAR'", fail_on_error=False)
+        self.assertEqual(res.exit_code, 0)
+        self.assertTrue(res.output.endswith('foobar\n'))
+        # check whether working directory is what's expected
+        regex = re.compile('^pwd: .*', re.M)
+        res = regex.findall(res.output)
+        self.assertEqual(len(res), 1)
+        pwd = res[0].strip()[5:]
+        self.assertTrue(os.path.samefile(pwd, self.test_prefix))
 
         # test running command that emits non-UTF-8 characters
         # this is constructed to reproduce errors like:
