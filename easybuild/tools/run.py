@@ -210,12 +210,14 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir):
 
     env_fp = os.path.join(tmpdir, 'env.sh')
     with open(env_fp, 'w') as fid:
+        # unset all environment variables in current environment first to start from a clean slate;
+        # we need to be careful to filter out functions definitions, so first undefine those
+        fid.write("unset -f $(env | grep '%=' | cut -f1 -d'%' | sed 's/BASH_FUNC_//g')\n")
+        fid.write("unset $(env | cut -f1 -d=)\n")
+
         # excludes bash functions (environment variables ending with %)
         fid.write('\n'.join(f'export {key}={shlex.quote(value)}' for key, value in sorted(env.items())
                             if not key.endswith('%')) + '\n')
-
-        # unset environment variables in current environment if they're not defined in environment used to run command
-        fid.write('\n'.join(f'unset {key}' for key in os.environ if key not in env and not key.endswith('%')))
 
         fid.write('\n\nPS1="eb-shell> "')
 
