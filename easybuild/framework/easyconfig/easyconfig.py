@@ -2508,9 +2508,22 @@ def fix_deprecated_easyconfigs(paths):
         # fix use of local variables with a name other than a single letter or 'local_*'
         ec = EasyConfig(path, local_var_naming_check=LOCAL_VAR_NAMING_CHECK_LOG)
         for key in ec.unknown_keys:
-            regexp = re.compile(r'\b(%s)\b' % key)
-            ectxt = regexp.sub(LOCAL_VAR_PREFIX + key, ectxt)
+            regex = re.compile(r'\b(%s)\b' % key)
+            ectxt = regex.sub(LOCAL_VAR_PREFIX + key, ectxt)
             fixed = True
+
+        # replace renamed easyconfig parameters
+        for (new_param, old_param) in ALTERNATE_PARAMETERS.items():
+            # top-level easyconfig parameters
+            regex = re.compile(rf'^{old_param}\s*=\s*', re.M)
+            if regex.search(ectxt):
+                ectxt = regex.sub(rf'{new_param} = ', ectxt)
+                fixed = True
+            # parameters set for extensions
+            regex = re.compile(rf"""^(\s*["']){old_param}(["']\s*:\s*)""", re.M)
+            if regex.search(ectxt):
+                ectxt = regex.sub(rf"\1{new_param}\2", ectxt)
+                fixed = True
 
         if fixed:
             fixed_cnt += 1
