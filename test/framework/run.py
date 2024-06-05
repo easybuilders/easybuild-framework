@@ -1854,6 +1854,32 @@ class RunTest(EnhancedTestCase):
         ])
         self.assertEqual(stdout, expected_stdout)
 
+        # also check in dry run mode, to verify that pre-run_shell_cmd hook is triggered sufficiently early
+        update_build_option('extended_dry_run', True)
+
+        with self.mocked_stdout_stderr():
+            run_shell_cmd("make")
+            stdout = self.get_stdout()
+
+        expected_stdout = '\n'.join([
+            "pre-run hook 'make' in %s" % cwd,
+            '  running shell command "echo make"',
+            '  (in %s)' % cwd,
+            '',
+        ])
+        self.assertEqual(stdout, expected_stdout)
+
+        # also check with trace output enabled
+        update_build_option('extended_dry_run', False)
+        update_build_option('trace', True)
+
+        with self.mocked_stdout_stderr():
+            run_shell_cmd("make")
+            stdout = self.get_stdout()
+
+        regex = re.compile('>> running shell command:\n\techo make', re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
 
 def suite():
     """ returns all the testcases in this module """
