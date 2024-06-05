@@ -47,6 +47,7 @@ from socket import gethostname
 # This causes problems further up the dependency chain...
 VERSION = LooseVersion('4.9.2.dev0')
 UNKNOWN = 'UNKNOWN'
+UNKNOWN_EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'
 
 
 def get_git_revision():
@@ -87,7 +88,7 @@ FRAMEWORK_VERSION = VERBOSE_VERSION
 try:
     from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
 except Exception:
-    EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'  # make sure it is smaller then anything
+    EASYBLOCKS_VERSION = UNKNOWN_EASYBLOCKS_VERSION  # make sure it is smaller then anything
 
 
 def this_is_easybuild():
@@ -103,3 +104,14 @@ def this_is_easybuild():
         msg = msg.encode('ascii')
 
     return msg
+
+
+def different_major_versions(v1, v2):
+    """Compare major versions"""
+    # Deal with version instances being either strings or LooseVersion
+    if isinstance(v1, str):
+        v1 = LooseVersion(v1)
+    if isinstance(v2, str):
+        v2 = LooseVersion(v2)
+
+    return v1.version[0] != v2.version[0]
