@@ -41,6 +41,7 @@ import inspect
 import locale
 import os
 import re
+import shlex
 import shutil
 import string
 import subprocess
@@ -195,6 +196,51 @@ def fileprefix_from_cmd(cmd, allowed_chars=False):
     return ''.join([c for c in cmd if c in allowed_chars])
 
 
+def create_cmd_scripts(cmd_str, work_dir, env, tmpdir):
+    """
+    Create helper scripts for specified command in specified directory:
+    - env.sh which can be sourced to define environment in which command was run;
+    - cmd.sh to create interactive (bash) shell session with working directory and environment,
+      and with the command in shell history;
+    """
+    # Save environment variables in env.sh which can be sourced to restore environment
+    if env is None:
+        env = os.environ.copy()
+
+    env_fp = os.path.join(tmpdir, 'env.sh')
+    with open(env_fp, 'w') as fid:
+        # unset all environment variables in current environment first to start from a clean slate;
+        # we need to be careful to filter out functions definitions, so first undefine those
+        fid.write("unset -f $(env | grep '%=' | cut -f1 -d'%' | sed 's/BASH_FUNC_//g')\n")
+        fid.write("unset $(env | cut -f1 -d=)\n")
+
+        # excludes bash functions (environment variables ending with %)
+        fid.write('\n'.join(f'export {key}={shlex.quote(value)}' for key, value in sorted(env.items())
+                            if not key.endswith('%')) + '\n')
+
+        fid.write('\n\nPS1="eb-shell> "')
+
+        # also change to working directory (to ensure that working directory is correct for interactive bash shell)
+        fid.write(f'\ncd "{work_dir}"')
+
+        # reset shell history to only include executed command
+        fid.write(f'\nhistory -s {shlex.quote(cmd_str)}')
+
+    # Make script that sets up bash shell with specified environment and working directory
+    cmd_fp = os.path.join(tmpdir, 'cmd.sh')
+    with open(cmd_fp, 'w') as fid:
+        fid.write('#!/usr/bin/env bash\n')
+        fid.write('# Run this script to set up a shell environment that EasyBuild used to run the shell command\n')
+        fid.write('\n'.join([
+            'EB_SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )',
+            f'echo "# Shell for the command: {shlex.quote(cmd_str)}"',
+            'echo "# Use command history, exit to stop"',
+            # using -i to force interactive shell, so env.sh is also sourced when -c is used to run commands
+            'bash --rcfile $EB_SCRIPT_DIR/env.sh -i "$@"',
+            ]))
+    os.chmod(cmd_fp, 0o775)
+
+
 def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
     """
     Private helper function to try and answer questions raised in interactive shell commands.
@@ -331,12 +377,17 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         _log.info(f"Auto-enabling streaming output of '{cmd_str}' command because logging to stdout is enabled")
         stream_output = True
 
-    # temporary output file(s) for command output
+    # temporary output file(s) for command output, along with helper scripts
     if output_file:
         toptmpdir = os.path.join(tempfile.gettempdir(), 'run-shell-cmd-output')
         os.makedirs(toptmpdir, exist_ok=True)
         cmd_name = fileprefix_from_cmd(os.path.basename(cmd_str.split(' ')[0]))
         tmpdir = tempfile.mkdtemp(dir=toptmpdir, prefix=f'{cmd_name}-')
+
+        _log.info(f'run_shell_cmd: command environment of "{cmd_str}" will be saved to {tmpdir}')
+
+        create_cmd_scripts(cmd_str, work_dir, env, tmpdir)
+
         cmd_out_fp = os.path.join(tmpdir, 'out.txt')
         _log.info(f'run_shell_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
         if split_stderr:
@@ -345,7 +396,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         else:
             cmd_err_fp = None
     else:
-        cmd_out_fp, cmd_err_fp = None, None
+        tmpdir, cmd_out_fp, cmd_err_fp = None, None, None
 
     interactive = bool(qa_patterns)
     interactive_msg = 'interactive ' if interactive else ''
@@ -363,7 +414,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     start_time = datetime.now()
     if not hidden:
-        _cmd_trace_msg(cmd_str, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thread_id, interactive=interactive)
+        _cmd_trace_msg(cmd_str, start_time, work_dir, stdin, tmpdir, thread_id, interactive=interactive)
 
     if stream_output:
         print_msg(f"(streaming) output for command '{cmd_str}':")
@@ -524,7 +575,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     return res
 
 
-def _cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thread_id, interactive=False):
+def _cmd_trace_msg(cmd, start_time, work_dir, stdin, tmpdir, thread_id, interactive=False):
     """
     Helper function to construct and print trace message for command being run
 
@@ -532,8 +583,7 @@ def _cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thr
     :param start_time: datetime object indicating when command was started
     :param work_dir: path of working directory in which command is run
     :param stdin: stdin input value for command
-    :param cmd_out_fp: path to output file for command
-    :param cmd_err_fp: path to errors/warnings output file for command
+    :param tmpdir: path to temporary output directory for command
     :param thread_id: thread ID (None when not running shell command asynchronously)
     :param interactive: boolean indicating whether it is an interactive command, or not
     """
@@ -553,10 +603,8 @@ def _cmd_trace_msg(cmd, start_time, work_dir, stdin, cmd_out_fp, cmd_err_fp, thr
     ]
     if stdin:
         lines.append(f"\t[input: {stdin}]")
-    if cmd_out_fp:
-        lines.append(f"\t[output saved to {cmd_out_fp}]")
-    if cmd_err_fp:
-        lines.append(f"\t[errors/warnings saved to {cmd_err_fp}]")
+    if tmpdir:
+        lines.append(f"\t[output and state saved to {tmpdir}]")
 
     trace_msg('\n'.join(lines))
 
