@@ -1068,7 +1068,7 @@ class EasyBlock(object):
             self.log.info("Overriding 'cleanupoldinstall' (to False), 'cleanupoldbuild' (to True) "
                           "and 'keeppreviousinstall' because we're building in the installation directory.")
             # force cleanup before installation
-            if build_option('module_only'):
+            if build_option('module_only') or self.cfg['module_only']:
                 self.log.debug("Disabling cleanupoldbuild because we run as module-only")
                 self.cfg['cleanupoldbuild'] = False
             else:
@@ -1139,7 +1139,7 @@ class EasyBlock(object):
             if self.cfg['keeppreviousinstall']:
                 self.log.info("Keeping old directory %s (hopefully you know what you are doing)", dir_name)
                 return
-            elif build_option('module_only'):
+            elif build_option('module_only') or self.cfg['module_only']:
                 self.log.info("Not touching existing directory %s in module-only mode...", dir_name)
             elif clean:
                 remove_dir(dir_name)
@@ -2111,7 +2111,7 @@ class EasyBlock(object):
         start_dir = ''
         # do not use the specified 'start_dir' when running as --module-only as
         # the directory will not exist (extract_step is skipped)
-        if self.start_dir and not build_option('module_only'):
+        if self.start_dir and not build_option('module_only') and not self.cfg['module_only']:
             start_dir = self.start_dir
 
         if not os.path.isabs(start_dir):
@@ -3789,7 +3789,7 @@ class EasyBlock(object):
                 try:
                     self.make_devel_module()
                 except EasyBuildError as error:
-                    if build_option('module_only'):
+                    if build_option('module_only') or self.cfg['module_only']:
                         self.log.info("Using --module-only so can recover from error: %s", error)
                     else:
                         raise error
@@ -3897,7 +3897,7 @@ class EasyBlock(object):
         """Dedice whether or not to skip the specified step."""
         skip = False
         force = build_option('force')
-        module_only = build_option('module_only')
+        module_only = build_option('module_only') or self.cfg['module_only']
         sanity_check_only = build_option('sanity_check_only')
         skip_extensions = build_option('skip_extensions')
         skip_test_step = build_option('skip_test_step')
