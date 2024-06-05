@@ -1992,6 +1992,7 @@ def resolve_template(value, tmpl_dict):
         # '%(name)s' -> '%(name)s'
         # '%%(name)s' -> '%%(name)s'
         if '%' in value:
+            raw_value = value
             value = re.sub(re.compile(r'(%)(?!%*\(\w+\)s)'), r'\1\1', value)
 
             try:
@@ -2019,6 +2020,7 @@ def resolve_template(value, tmpl_dict):
                                             ver)
                 except KeyError:
                     _log.warning(f"Unable to resolve template value {value} with dict {tmpl_dict}")
+                    value = raw_value  # Undo "%"-escaping
 
                 for key in tmpl_dict:
                     if key in DEPRECATED_TEMPLATES:

@@ -1356,7 +1356,7 @@ class EasyBlock(object):
                     multi_dep_mod_names[dep['name']].append(dep['short_mod_name'])
 
             multi_dep_load_defaults = []
-            for depname, depmods in sorted(multi_dep_mod_names.items()):
+            for _, depmods in sorted(multi_dep_mod_names.items()):
                 stmt = self.module_generator.load_module(depmods[0], multi_dep_mods=depmods,
                                                          recursive_unload=recursive_unload,
                                                          depends_on=depends_on)
@@ -1760,10 +1760,7 @@ class EasyBlock(object):
         return ext_sep.join(exts_list)
 
     def prepare_for_extensions(self):
-        """
-        Also do this before (eg to set the template)
-        """
-        pass
+        """Ran before installing extensions (eg to set templates)"""
 
     def skip_extensions(self):
         """
@@ -2750,10 +2747,7 @@ class EasyBlock(object):
             self.report_test_failure(error_msg)
 
     def stage_install_step(self):
-        """
-        Install in a stage directory before actual installation.
-        """
-        pass
+        """Install in a stage directory before actual installation."""
 
     def install_step(self):
         """Install built software (abstract method)."""
@@ -3247,7 +3241,7 @@ class EasyBlock(object):
         required_libs.extend(self.cfg['required_linked_shared_libs'])
 
         # early return if there are no banned/required libraries
-        if not (banned_libs + required_libs):
+        if not banned_libs + required_libs:
             self.log.info("No banned/required libraries specified")
             return []
         else:
@@ -4479,7 +4473,7 @@ def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):
             else:
                 easyblock_paths.add(easyblock_path)
     for easyblock_path in easyblock_paths:
-        easyblock_basedir, easyblock_filename = os.path.split(easyblock_path)
+        easyblock_filename = os.path.basename(easyblock_path)
         copy_file(easyblock_path, os.path.join(reprod_easyblock_dir, easyblock_filename))
         _log.info("Dumped easyblock %s required for reproduction to %s", easyblock_filename, reprod_easyblock_dir)
 
@@ -4610,10 +4604,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
 
 
 class StopException(Exception):
-    """
-    StopException class definition.
-    """
-    pass
+    """Exception thrown to stop running steps"""
 
 
 def inject_checksums_to_json(ecs, checksum_type):
