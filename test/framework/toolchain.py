@@ -50,6 +50,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir
 from easybuild.tools.filetools import read_file, symlink, write_file, which
+from easybuild.tools.modules import EnvironmentModules
 from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -484,6 +485,10 @@ class ToolchainTest(EnhancedTestCase):
         init_config(build_options={'optarch': 'test', 'silent': True})
 
         for tcname in ['CrayGNU', 'CrayCCE', 'CrayIntel']:
+            # Cray* modules do not unload other Cray* modules thus loading a second Cray* module
+            # makes environment inconsistent which is not allowed by Environment Modules tool
+            if isinstance(self.modtool, EnvironmentModules):
+                self.modtool.purge()
             tc = self.get_toolchain(tcname, version='2015.06-XC')
             tc.set_options({'dynamic': True})
             tc.prepare()
@@ -2100,6 +2105,10 @@ class ToolchainTest(EnhancedTestCase):
         # purposely obtain toolchains several times in a row, value for $CFLAGS should not change
         for _ in range(3):
             for tcname, tcversion in toolchains:
+                # Cray* modules do not unload other Cray* modules thus loading a second Cray* module
+                # makes environment inconsistent which is not allowed by Environment Modules tool
+                if isinstance(self.modtool, EnvironmentModules):
+                    self.modtool.purge()
                 tc = get_toolchain({'name': tcname, 'version': tcversion}, {},
                                    mns=ActiveMNS(), modtool=self.modtool)
                 # also check whether correct compiler flag for OpenMP is used while we're at it
