@@ -594,8 +594,8 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
         ver = _get_version_for_repo(os.path.join(final_path, 'easybuild', 'easyblocks', '__init__.py'))
 
     if different_major_versions(FRAMEWORK_VERSION, ver):
-        raise EasyBuildError("Framework (%s) is a different major version than PR target (%s)." % (FRAMEWORK_VERSION,
-                                                                                                   ver))
+        raise EasyBuildError("Framework (%s) is a different major version than used in %s/%s PR #%s (%s)",
+                             FRAMEWORK_VERSION, github_account, github_repo, pr, ver)
 
     return files
 
