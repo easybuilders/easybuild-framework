@@ -3,7 +3,7 @@ on: [push, pull_request]
 jobs:
   build_publish:
     name: End-to-end test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         container:
