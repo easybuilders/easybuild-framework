@@ -1911,8 +1911,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['env_mod_class'], expected)
 
         expected = ['echo TOY > %(installdir)s/README']
-        self.assertEqual(ec['postinstallcmds'], expected)
-        self.assertEqual(ec['post_install_cmds'], expected)
+        with ec.disable_templating():
+            self.assertEqual(ec['postinstallcmds'], expected)
+            self.assertEqual(ec['post_install_cmds'], expected)
 
         # test setting of easyconfig parameter with original & alternative name
         ec['moduleclass'] = 'test1'
@@ -3865,7 +3866,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # On unknown values the value is returned unchanged
         for value in ('%(invalid)s', '%(name)s %(invalid)s', '%%%(invalid)s', '% %(invalid)s', '%s %(invalid)s'):
-            self.assertEqual(resolve_template(value, tmpl_dict), value)
+            self.assertEqual(resolve_template(value, tmpl_dict, expect_resolved=False), value)
 
     def test_det_subtoolchain_version(self):
         """Test det_subtoolchain_version function"""
