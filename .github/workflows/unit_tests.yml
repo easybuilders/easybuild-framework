@@ -37,8 +37,6 @@ jobs:
         lc_all: [""]
         include:
           # Test different Python 3 versions with Lmod 8.x
-          - python: 3.5
-            modules_tool: ${{needs.setup.outputs.lmod8}}
           - python: 3.7
             modules_tool: ${{needs.setup.outputs.lmod8}}
           - python: 3.8

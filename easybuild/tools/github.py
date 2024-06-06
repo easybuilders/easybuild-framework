@@ -60,6 +60,7 @@ from easybuild.tools.filetools import get_easyblock_class_name, mkdir, read_file
 from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters, urlopen
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import nub, only_if_module_is_available
+from easybuild.tools.version import FRAMEWORK_VERSION, different_major_versions
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -587,7 +588,37 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
         else:
             raise EasyBuildError("Couldn't find path to patched file %s", full_path)
 
+    if github_repo == GITHUB_EASYCONFIGS_REPO:
+        ver = _get_version_for_repo(os.path.join(final_path, 'setup.py'))
+    elif github_repo == GITHUB_EASYBLOCKS_REPO:
+        ver = _get_version_for_repo(os.path.join(final_path, 'easybuild', 'easyblocks', '__init__.py'))
+
+    if different_major_versions(FRAMEWORK_VERSION, ver):
+        raise EasyBuildError("Framework (%s) is a different major version than used in %s/%s PR #%s (%s)",
+                             FRAMEWORK_VERSION, github_account, github_repo, pr, ver)
+
     return files
+
+
+def _get_version_for_repo(filename):
+    """Extract version from filename."""
+    _log.debug("Extract version from %s" % filename)
+
+    try:
+        ver_line = ""
+        with open(filename) as f:
+            for line in f.readlines():
+                if line.startswith("VERSION "):
+                    ver_line = line
+                    break
+
+        # version can be a string or LooseVersion
+        res = re.search(r"""^VERSION = .*['"](.*)['"].?$""", ver_line)
+
+        _log.debug("PR target version is %s" % res.group(1))
+        return res.group(1)
+    except Exception:
+        raise EasyBuildError("Couldn't determine version of PR from %s" % filename)
 
 
 def fetch_easyblocks_from_pr(pr, path=None, github_user=None):
