@@ -366,6 +366,25 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertEqual(len(glob.glob(toy_mod_glob)), 1)
 
+        # check use of module_only parameter
+        remove_dir(os.path.join(self.test_installpath, 'modules', 'all', 'toy'))
+        remove_dir(os.path.join(self.test_installpath, 'software', 'toy', '0.0'))
+        args = [
+            test_ec,
+            '--rebuild',
+        ]
+        test_ec_txt += "\nmodule_only = True\n"
+        write_file(test_ec, test_ec_txt)
+        self.eb_main(args, do_build=True, raise_error=True)
+
+        self.assertEqual(len(glob.glob(toy_mod_glob)), 1)
+
+        # check that no software was installed
+        installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        installdir_glob = glob.glob(os.path.join(installdir, '*'))
+        easybuild_dir = os.path.join(installdir, 'easybuild')
+        self.assertEqual(installdir_glob, [easybuild_dir])
+
     def test_skip_test_step(self):
         """Test skipping testing the build (--skip-test-step)."""
 
