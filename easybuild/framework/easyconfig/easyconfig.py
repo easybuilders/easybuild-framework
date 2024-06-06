@@ -2026,12 +2026,14 @@ def resolve_template(value, tmpl_dict):
         # '%(name)s' -> '%(name)s'
         # '%%(name)s' -> '%%(name)s'
         if '%' in value:
+            orig_value = value
             value = re.sub(re.compile(r'(%)(?!%*\(\w+\)s)'), r'\1\1', value)
 
             try:
                 value = value % tmpl_dict
             except KeyError:
                 _log.warning("Unable to resolve template value %s with dict %s", value, tmpl_dict)
+                value = orig_value  # Undo "%"-escaping
     else:
         # this block deals with references to objects and returns other references
         # for reading this is ok, but for self['x'] = {}

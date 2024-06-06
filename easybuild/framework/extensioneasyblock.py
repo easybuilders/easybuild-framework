@@ -126,10 +126,12 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         elif ext_start_dir is None:
             # This may be on purpose, e.g. for Python WHL files which do not get extracted
             self.log.debug("Start dir is not set.")
-        else:
+        elif self.start_dir:
             # non-existing start dir means wrong input from user
-            warn_msg = "Provided start dir (%s) for extension %s does not exist: %s" % (self.start_dir, self.name,
-                                                                                        ext_start_dir)
+            raise EasyBuildError("Provided start dir (%s) for extension %s does not exist: %s",
+                                 self.start_dir, self.name, ext_start_dir)
+        else:
+            warn_msg = 'Failed to determine start dir for extension %s: %s' % (self.name, ext_start_dir)
             self.log.warning(warn_msg)
             print_warning(warn_msg, silent=build_option('silent'))
 
@@ -137,7 +139,10 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         """Common operations for extensions: unpacking sources, patching, ..."""
 
         # unpack file if desired
-        if unpack_src:
+        if self.options.get('nosource', False):
+            # If no source wanted use the start_dir from the main EC
+            self.ext_dir = self.master.start_dir
+        elif unpack_src:
             targetdir = os.path.join(self.master.builddir, remove_unwanted_chars(self.name))
             self.ext_dir = extract_file(self.src, targetdir, extra_options=self.unpack_options,
                                         change_into_dir=False, cmd=self.src_extract_cmd)
@@ -146,10 +151,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # because start_dir value is usually a relative path (if it is set)
             change_dir(self.ext_dir)
 
-            self._set_start_dir()
+        self._set_start_dir()
+        if self.start_dir:
             change_dir(self.start_dir)
-        else:
-            self._set_start_dir()
 
         # patch if needed
         EasyBlock.patch_step(self, beginpath=self.ext_dir)
