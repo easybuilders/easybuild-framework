@@ -3654,6 +3654,30 @@ class EasyConfigTest(EnhancedTestCase):
         # '%(name)' is not a correct template spec (missing trailing 's')
         self.assertEqual(resolve_template('%(name)', tmpl_dict), '%(name)')
 
+        # Correct (un)escaping
+        values = (
+            ('10%', '10%'),
+            ('%of', '%of'),
+            ('10%of', '10%of'),
+            ('%s', '%s'),
+            ('%%(name)s', '%(name)s'),
+            ('%%%(name)s', '%FooBar'),
+            ('%%%%(name)s', '%%(name)s'),
+            # It doesn't matter what is resolved
+            ('%%(invalid)s', '%(invalid)s'),
+            ('%%%%(invalid)s', '%%(invalid)s'),
+        )
+        for value, expected in values:
+            self.assertEqual(resolve_template(value, tmpl_dict), expected)
+            # Templates are resolved
+            value += ' %(name)s'
+            expected += ' FooBar'
+            self.assertEqual(resolve_template(value, tmpl_dict), expected)
+
+        # On unknown values the value is returned unchanged
+        for value in ('%(invalid)s', '%(name)s %(invalid)s', '%%%(invalid)s', '% %(invalid)s', '%s %(invalid)s'):
+            self.assertEqual(resolve_template(value, tmpl_dict), value)
+
     def test_det_subtoolchain_version(self):
         """Test det_subtoolchain_version function"""
         _, all_tc_classes = search_toolchain('')
