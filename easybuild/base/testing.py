@@ -215,6 +215,14 @@ class TestCase(OrigTestCase):
             if mock_stderr:
                 self.mock_stderr(False)
 
+    @contextmanager
+    def mocked_stderr(self):
+        self.mock_stderr(True)
+        try:
+            yield sys.stderr
+        finally:
+            self.mock_stderr(False)
+
     def tearDown(self):
         """Cleanup after running a test."""
         self.mock_stdout(False)

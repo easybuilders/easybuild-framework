@@ -165,7 +165,7 @@ class %(class_name)s(%(parent)s):
         comp_fam = comp_map[self.toolchain.comp_family()]
 
         # enable parallel build
-        par = self.cfg['parallel']
+        par = self.cfg.parallel
         cmd = "build command --parallel %%d --compiler-family %%s" %% (par, comp_fam)
         run_shell_cmd(cmd)
 
