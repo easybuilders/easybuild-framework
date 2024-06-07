@@ -51,6 +51,7 @@ from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, Env
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
 from easybuild.tools.run import run_cmd
+from easybuild.tools.systemtools import get_shared_lib_ext
 
 
 # number of modules included for testing purposes
@@ -678,11 +679,19 @@ class ModulesTest(EnhancedTestCase):
         root = os.path.join(tmpdir, name)
         mkdir(os.path.join(root, 'lib64'))
         os.environ['EBROOT%s' % env_var_name] = root
-        write_file(os.path.join(root, 'lib', 'foo.a'), 'foo')
+        write_file(os.path.join(root, 'lib', 'libfoo.a'), 'foo')
         self.assertEqual(get_software_libdir(name), 'lib')
 
+        remove_file(os.path.join(root, 'lib', 'libfoo.a'))
+
+        # also check vice versa with *shared* library in lib64
+        shlib_ext = get_shared_lib_ext()
+        write_file(os.path.join(root, 'lib64', 'libfoo.' + shlib_ext), 'foo')
+        self.assertEqual(get_software_libdir(name), 'lib64')
+
+        remove_file(os.path.join(root, 'lib64', 'libfoo.' + shlib_ext))
+
         # check expected result of get_software_libdir with multiple lib subdirs
-        remove_file(os.path.join(root, 'lib', 'foo.a'))
         self.assertErrorRegex(EasyBuildError, "Multiple library subdirectories found.*", get_software_libdir, name)
         self.assertEqual(get_software_libdir(name, only_one=False), ['lib', 'lib64'])
 

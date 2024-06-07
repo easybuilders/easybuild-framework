@@ -1706,13 +1706,16 @@ def get_software_libdir(name, only_one=True, fs=None):
             if len(res) == 1:
                 res = res[0]
             else:
-                if fs is None:
-                    # check if only one (exactly) has libraries
+                if fs is None and len(res) == 2:
+                    # if both lib and lib64 were found, check if only one (exactly) has libraries;
                     # this is needed for software with library archives in lib64 but other files/directories in lib
-                    lib_glob = ["*.%s" % ext for ext in ["a", get_shared_lib_ext()]]
-                    haslibs = [any(glob.glob(os.path.join(root, subdir, f)) for f in lib_glob) for subdir in res]
-                    if haslibs[0] != haslibs[1]:
-                        return res[int(not haslibs[0])]
+                    lib_glob = ['*.%s' % ext for ext in ['a', get_shared_lib_ext()]]
+                    has_libs = [any(glob.glob(os.path.join(root, subdir, f)) for f in lib_glob) for subdir in res]
+                    if has_libs[0] and not has_libs[1]:
+                        return res[0]
+                    elif has_libs[1] and not has_libs[0]:
+                        return res[1]
+
                 raise EasyBuildError("Multiple library subdirectories found for %s in %s: %s",
                                      name, root, ', '.join(res))
         return res
