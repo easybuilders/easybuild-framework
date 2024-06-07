@@ -1927,7 +1927,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
-            self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
+            self.assertEqual(sorted(x[1] for x in regex.findall(outtxt)), sorted(x[1] for x in modules))
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr6424')
             regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)
@@ -1962,12 +1962,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
-            self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
+            self.assertEqual(sorted(x[1] for x in regex.findall(outtxt)), sorted(x[1] for x in modules))
 
             for pr in ('12150', '12366'):
                 pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr%s' % pr)
                 regex = re.compile(r"Extended list of robot search paths with .*%s.*:" % pr_tmpdir, re.M)
-                self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+                self.assertTrue(regex.search(outtxt), "Found pattern '%s' in: %s" % (regex.pattern, outtxt))
 
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
@@ -2136,6 +2136,50 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
+
+            pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_commit_%s' % test_commit)
+            regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)
+            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_from_commit" % err)
+            shutil.rmtree(tmpdir)
+
+        easyblock_template = '\n'.join([
+            "from easybuild.framework.easyblock import EasyBlock",
+            "class %s(EasyBlock):",
+            "    pass",
+        ])
+
+        # create fake custom easyblock for CMake that is required by easyconfig used in test below
+        easyblock_file = os.path.join(self.test_prefix, 'easyblocks', 'cmake.py')
+        write_file(easyblock_file, easyblock_template % 'EB_CMake')
+
+        # also test with an easyconfig that requires additional easyconfigs to resolve dependencies,
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/4540;
+        # using commit that adds CMake-3.18.4.eb (which requires ncurses-6.2.eb),
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/13156
+        test_commit = '41eee3fe2e5102f52319481ca8dde16204dab590'
+        args = [
+            '--from-commit=%s' % test_commit,
+            '--dry-run',
+            '--tmpdir=%s' % tmpdir,
+            '--include-easyblocks=' + os.path.join(self.test_prefix, 'easyblocks', '*.py'),
+        ]
+        try:
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            modules = [
+                (tmpdir, 'ncurses/6.2'),
+                (tmpdir, 'CMake/3.18.4'),
+            ]
+            for path_prefix, module in modules:
+                ec_fn = "%s.eb" % '-'.join(module.split('/'))
+                path = '.*%s' % os.path.dirname(path_prefix)
+                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
+                self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+            # make sure that *only* these modules are listed, no others
+            regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
+            self.assertEqual(sorted(x[1] for x in regex.findall(outtxt)), sorted(x[1] for x in modules))
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_commit_%s' % test_commit)
             regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)

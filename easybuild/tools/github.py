@@ -643,6 +643,13 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
     if github_repo is None:
         github_repo = GITHUB_EASYCONFIGS_REPO
 
+    if github_repo == GITHUB_EASYCONFIGS_REPO:
+        easybuild_subdir = os.path.join('easybuild', 'easyconfigs')
+    elif github_repo == GITHUB_EASYBLOCKS_REPO:
+        easybuild_subdir = os.path.join('easybuild', 'easyblocks')
+    else:
+        raise EasyBuildError("Unknown repo: %s", github_repo)
+
     if path is None:
         if github_repo == GITHUB_EASYCONFIGS_REPO:
             extra_ec_paths = build_option('extra_ec_paths')
@@ -685,6 +692,12 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
         files_subdir = 'easybuild/easyblocks/'
     else:
         raise EasyBuildError("Unknown repo: %s" % github_repo)
+
+    # symlink subdirectories of 'easybuild/easy{blocks,configs}' into path that gets added to robot search path
+    mkdir(path, parents=True)
+    dirpath = os.path.join(repo_commit, easybuild_subdir)
+    for subdir in os.listdir(dirpath):
+        symlink(os.path.join(dirpath, subdir), os.path.join(path, subdir))
 
     # copy specified files to directory where they're expected to be found
     file_paths = []
