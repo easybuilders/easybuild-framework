@@ -3676,7 +3676,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # On unknown values the value is returned unchanged
         for value in ('%(invalid)s', '%(name)s %(invalid)s', '%%%(invalid)s', '% %(invalid)s', '%s %(invalid)s'):
-            self.assertEqual(resolve_template(value, tmpl_dict), value)
+            self.assertEqual(resolve_template(value, tmpl_dict, expect_resolved=False), value)
 
     def test_det_subtoolchain_version(self):
         """Test det_subtoolchain_version function"""
