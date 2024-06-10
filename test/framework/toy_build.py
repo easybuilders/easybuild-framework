@@ -2985,7 +2985,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r"\tgcc toy.c -o toy\n"
                 r"\t\[started at: .*\]",
                 r"\t\[working dir: .*\]",
-                r"\t\[output saved to .*\]",
+                r"\t\[output and state saved to .*\]",
                 r'',
             ]),
             r"  >> command completed: exit 0, ran in .*",

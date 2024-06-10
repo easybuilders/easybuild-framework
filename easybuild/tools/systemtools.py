@@ -1367,9 +1367,9 @@ def check_easybuild_deps(modtool):
     python_version = extract_version(sys.executable)
 
     opt_dep_versions = {}
-    for key in EASYBUILD_OPTIONAL_DEPENDENCIES:
+    for key, opt_dep in EASYBUILD_OPTIONAL_DEPENDENCIES.items():
 
-        pkg = EASYBUILD_OPTIONAL_DEPENDENCIES[key][0]
+        pkg = opt_dep[0]
         if pkg is None:
             pkg = key.lower()
 
@@ -1395,8 +1395,8 @@ def check_easybuild_deps(modtool):
     opt_deps_key = "Optional dependencies"
     checks_data[opt_deps_key] = {}
 
-    for key in opt_dep_versions:
-        checks_data[opt_deps_key][key] = (opt_dep_versions[key], EASYBUILD_OPTIONAL_DEPENDENCIES[key][1])
+    for key, version in opt_dep_versions.items():
+        checks_data[opt_deps_key][key] = (version, EASYBUILD_OPTIONAL_DEPENDENCIES[key][1])
 
     sys_tools_key = "System tools"
     checks_data[sys_tools_key] = {}

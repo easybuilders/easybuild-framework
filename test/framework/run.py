@@ -179,6 +179,10 @@ class RunTest(EnhancedTestCase):
     def test_run_shell_cmd_basic(self):
         """Basic test for run_shell_cmd function."""
 
+        os.environ['FOOBAR'] = 'foobar'
+
+        cwd = change_dir(self.test_prefix)
+
         with self.mocked_stdout_stderr():
             res = run_shell_cmd("echo hello")
         self.assertEqual(res.output, "hello\n")
@@ -188,6 +192,43 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(isinstance(res.output, str))
         self.assertEqual(res.stderr, None)
         self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
+
+        change_dir(cwd)
+        del os.environ['FOOBAR']
+
+        # check on helper scripts that were generated for this command
+        paths = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'run-shell-cmd-output', 'echo-*'))
+        self.assertEqual(len(paths), 1)
+        cmd_tmpdir = paths[0]
+
+        # check on env.sh script that can be used to set up environment in which command was run
+        env_script = os.path.join(cmd_tmpdir, 'env.sh')
+        self.assertExists(env_script)
+        env_script_txt = read_file(env_script)
+        self.assertIn("export FOOBAR=foobar", env_script_txt)
+        self.assertIn("history -s 'echo hello'", env_script_txt)
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(f"source {env_script}; echo $USER; echo $FOOBAR; history")
+        self.assertEqual(res.exit_code, 0)
+        user = os.getenv('USER')
+        self.assertTrue(res.output.startswith(f'{user}\nfoobar\n'))
+        self.assertTrue(res.output.endswith("echo hello\n"))
+
+        # check on cmd.sh script that can be used to create interactive shell environment for command
+        cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
+        self.assertExists(cmd_script)
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(f"{cmd_script} -c 'echo pwd: $PWD; echo $FOOBAR'", fail_on_error=False)
+        self.assertEqual(res.exit_code, 0)
+        self.assertTrue(res.output.endswith('foobar\n'))
+        # check whether working directory is what's expected
+        regex = re.compile('^pwd: .*', re.M)
+        res = regex.findall(res.output)
+        self.assertEqual(len(res), 1)
+        pwd = res[0].strip()[5:]
+        self.assertTrue(os.path.samefile(pwd, self.test_prefix))
 
         # test running command that emits non-UTF-8 characters
         # this is constructed to reproduce errors like:
@@ -206,6 +247,45 @@ class RunTest(EnhancedTestCase):
             self.assertTrue(res.output.startswith('foo ') and res.output.endswith(' bar'))
             self.assertTrue(isinstance(res.output, str))
             self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
+
+    def test_run_shell_cmd_env(self):
+        """Test env option in run_shell_cmd."""
+
+        # use 'env' to define environment in which command should be run;
+        # with a few exceptions (like $_, $PWD) no other environment variables will be defined,
+        # so $HOME and $USER will not be set
+        cmd = "env | sort"
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, env={'FOOBAR': 'foobar', 'PATH': os.getenv('PATH')})
+        self.assertEqual(res.cmd, cmd)
+        self.assertEqual(res.exit_code, 0)
+        self.assertIn("FOOBAR=foobar\n", res.output)
+        self.assertTrue(re.search("^_=.*/env$", res.output, re.M))
+        for var in ('HOME', 'USER'):
+            self.assertFalse(re.search('^' + var + '=.*', res.output, re.M))
+
+        # check on helper scripts that were generated for this command
+        paths = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'run-shell-cmd-output', 'env-*'))
+        self.assertEqual(len(paths), 1)
+        cmd_tmpdir = paths[0]
+
+        # set environment variable in current environment,
+        # this should not be set in shell environment produced by scripts
+        os.environ['TEST123'] = 'test123'
+
+        env_script = os.path.join(cmd_tmpdir, 'env.sh')
+        self.assertExists(env_script)
+        env_script_txt = read_file(env_script)
+        self.assertTrue(env_script_txt.startswith('unset -f $('))
+        self.assertIn('\nexport FOOBAR=foobar\nexport PATH', env_script_txt)
+
+        cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
+        self.assertExists(cmd_script)
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(f"{cmd_script} -c 'echo $FOOBAR; echo TEST123:$TEST123'", fail_on_error=False)
+        self.assertEqual(res.exit_code, 0)
+        self.assertTrue(res.output.endswith('\nfoobar\nTEST123:\n'))
 
     def test_fileprefix_from_cmd(self):
         """test simplifications from fileprefix_from_cmd."""
@@ -692,7 +772,7 @@ class RunTest(EnhancedTestCase):
             r"\techo hello",
             r"\t\[started at: .*\]",
             r"\t\[working dir: .*\]",
-            r"\t\[output saved to .*\]",
+            r"\t\[output and state saved to .*\]",
             r"  >> command completed: exit 0, ran in .*",
         ]
 
@@ -752,7 +832,7 @@ class RunTest(EnhancedTestCase):
             r"\techo hello",
             r"\t\[started at: [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]\]",
             r"\t\[working dir: .*\]",
-            r"\t\[output saved to .*\]",
+            r"\t\[output and state saved to .*\]",
             r"  >> command completed: exit 0, ran in .*",
         ]
 
@@ -1108,7 +1188,7 @@ class RunTest(EnhancedTestCase):
         pattern += r"\techo \'n: \'; read n; seq 1 \$n\n"
         pattern += r"\t\[started at: .*\]\n"
         pattern += r"\t\[working dir: .*\]\n"
-        pattern += r"\t\[output saved to .*\]\n"
+        pattern += r"\t\[output and state saved to .*\]\n"
         pattern += r'  >> command completed: exit 0, ran in .*'
         self.assertTrue(re.search(pattern, stdout), "Pattern '%s' found in: %s" % (pattern, stdout))
 
@@ -1869,6 +1949,32 @@ class RunTest(EnhancedTestCase):
             '',
         ])
         self.assertEqual(stdout, expected_stdout)
+
+        # also check in dry run mode, to verify that pre-run_shell_cmd hook is triggered sufficiently early
+        update_build_option('extended_dry_run', True)
+
+        with self.mocked_stdout_stderr():
+            run_shell_cmd("make")
+            stdout = self.get_stdout()
+
+        expected_stdout = '\n'.join([
+            "pre-run hook 'make' in %s" % cwd,
+            '  running shell command "echo make"',
+            '  (in %s)' % cwd,
+            '',
+        ])
+        self.assertEqual(stdout, expected_stdout)
+
+        # also check with trace output enabled
+        update_build_option('extended_dry_run', False)
+        update_build_option('trace', True)
+
+        with self.mocked_stdout_stderr():
+            run_shell_cmd("make")
+            stdout = self.get_stdout()
+
+        regex = re.compile('>> running shell command:\n\techo make', re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         # Test commands that destroy directories inside initial working directory
         workdir = os.path.join(self.test_prefix, 'workdir')
