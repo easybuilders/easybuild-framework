@@ -120,6 +120,12 @@ except ImportError:
             return False
 
 
+# alternative names for EasyBuild configuration options;
+# format: '<new-and-better-name>': '<old-and-soon-to-be-deprecated-name>'
+ALTERNATIVE_EASYBUILD_CONFIGURATION_OPTIONS = {
+    'build-path': 'buildpath',
+}
+
 CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
 
 XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
@@ -205,6 +211,18 @@ def use_color(colorize, stream=sys.stdout):
         assert colorize == fancylogger.Colorize.NEVER, \
             "Argument `colorize` must be one of: %s" % ', '.join(fancylogger.Colorize)
         return False
+
+
+def add_alternate_options(opts):
+    """
+    Add alternative names to provided dictionary of configuration options
+    """
+    rev_map_alt_cfg_opts = {v: k for k, v in ALTERNATIVE_EASYBUILD_CONFIGURATION_OPTIONS.items()}
+    for key in rev_map_alt_cfg_opts:
+        if key in opts:
+            alt_key = rev_map_alt_cfg_opts[key]
+            alt_descr = opts[key][0] + f" (alternative for --{key})"
+            opts[alt_key] = (alt_descr,) + opts[key][1:]
 
 
 class EasyBuildOptions(GeneralOption):
@@ -550,7 +568,7 @@ class EasyBuildOptions(GeneralOption):
                                     None, "store_true", False,),
             'avail-repositories': ("Show all repository types (incl. non-usable)",
                                    None, "store_true", False,),
-            'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
+            'buildpath': ("Path for temporary build directories", None, 'store', mk_full_default_path('buildpath')),
             'containerpath': ("Location where container recipe & image will be stored", None, 'store',
                               mk_full_default_path('containerpath')),
             'envvars-user-modules': ("List of environment variables that hold the base paths for which user-specific "
@@ -624,6 +642,8 @@ class EasyBuildOptions(GeneralOption):
             'tmp-logdir': ("Log directory where temporary log files are stored", None, 'store', None),
             'tmpdir': ('Directory to use for temporary storage', None, 'store', None),
         })
+
+        add_alternate_options(opts)
 
         self.log.debug("config_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
