@@ -107,6 +107,7 @@ import types
 from optparse import OptionParser, Option
 from pprint import pformat
 
+from easybuild.tools.filetools import get_cwd
 from easybuild.tools.utilities import shell_quote
 
 debugfn = None  # for debugging only
@@ -537,7 +538,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
         # Note: this will get filtered properly below.
 
     completer_kwargs = {
-        'pwd': os.getcwd(),
+        'pwd': get_cwd(),
         'cline': cline,
         'cpoint': cpoint,
         'prefix': prefix,

@@ -1029,8 +1029,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         # only consider new easyconfig files for dependencies (not updated ones)
         for idx in range(len(all_dep_info['ecs'])):
             if all_dep_info['new'][idx]:
-                for key in dep_info:
-                    dep_info[key].append(all_dep_info[key][idx])
+                for key, values in dep_info.items():
+                    values.append(all_dep_info[key][idx])
 
     # checkout target branch
     if pr_branch is None:

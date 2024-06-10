@@ -62,7 +62,7 @@ import urllib.request as std_urllib
 
 from easybuild.base import fancylogger
 # import build_log must stay, to use of EasyBuildLog
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildError, CWD_NOTFOUND_ERROR, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN, build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.hooks import load_source
@@ -407,6 +407,22 @@ def remove(paths):
             raise EasyBuildError("Specified path to remove is not an existing file or directory: %s", path)
 
 
+def get_cwd(must_exist=True):
+    """
+    Retrieve current working directory
+    """
+    try:
+        cwd = os.getcwd()
+    except FileNotFoundError as err:
+        if must_exist is True:
+            raise EasyBuildError(CWD_NOTFOUND_ERROR)
+
+        _log.debug("Failed to determine current working directory, but proceeding anyway: %s", err)
+        cwd = None
+
+    return cwd
+
+
 def change_dir(path):
     """
     Change to directory at specified location.
@@ -414,19 +430,19 @@ def change_dir(path):
     :param path: location to change to
     :return: previous location we were in
     """
-    # determining the current working directory can fail if we're in a non-existing directory
-    try:
-        cwd = os.getcwd()
-    except OSError as err:
-        _log.debug("Failed to determine current working directory (but proceeding anyway: %s", err)
-        cwd = None
+    # determine origin working directory: can fail if non-existent
+    prev_dir = get_cwd(must_exist=False)
 
     try:
         os.chdir(path)
     except OSError as err:
-        raise EasyBuildError("Failed to change from %s to %s: %s", cwd, path, err)
+        raise EasyBuildError("Failed to change from %s to %s: %s", prev_dir, path, err)
 
-    return cwd
+    # determine final working directory: must exist
+    # stoplight meant to catch filesystems in a faulty state
+    get_cwd()
+
+    return prev_dir
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False, change_into_dir=False,
@@ -671,9 +687,9 @@ def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_header
         if argline == '' or '#' in argline[0]:
             continue  # permit comment lines: ignore them
 
-        if os.path.isfile(os.path.join(os.getcwd(), argline)):
+        if os.path.isfile(os.path.join(get_cwd(), argline)):
             # expand existing relative path to absolute
-            argline = os.path.join(os.path.join(os.getcwd(), argline))
+            argline = os.path.join(os.path.join(get_cwd(), argline))
         if os.path.isfile(argline):
             # argline is a file path, so read that instead
             _log.debug('File included in parse_http_header_fields_urlpat: %s' % argline)
@@ -1334,14 +1350,14 @@ def find_base_dir():
         # and hidden directories
         ignoredirs = ["easybuild"]
 
-        lst = os.listdir(os.getcwd())
+        lst = os.listdir(get_cwd())
         lst = [d for d in lst if not d.startswith('.') and d not in ignoredirs]
         return lst
 
     lst = get_local_dirs_purged()
-    new_dir = os.getcwd()
+    new_dir = get_cwd()
     while len(lst) == 1:
-        new_dir = os.path.join(os.getcwd(), lst[0])
+        new_dir = os.path.join(get_cwd(), lst[0])
         if not os.path.isdir(new_dir):
             break
 
