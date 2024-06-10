@@ -489,6 +489,8 @@ class EasyBuildOptions(GeneralOption):
             'remove-ghost-install-dirs': ("Remove ghost installation directories when --force or --rebuild is used, "
                                           "rather than just warning about them",
                                           None, 'store_true', False),
+            'replace-pythonpath': ("Replaces PYTHONPATH with EBPYTHONPREFIXES in modules when possible",
+                                   None, 'store_true', True),
             'required-linked-shared-libs': ("Comma-separated list of shared libraries (names, file names, or paths) "
                                             "which must be linked in all installed binaries/libraries",
                                             'strlist', 'extend', None),

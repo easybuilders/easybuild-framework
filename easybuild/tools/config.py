@@ -332,6 +332,7 @@ BUILD_OPTIONS_CMDLINE = {
         'modules_tool_version_check',
         'mpi_tests',
         'pre_create_installdir',
+        'replace_pythonpath',
         'show_progress_bar',
         'trace',
     ],
