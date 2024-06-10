@@ -361,11 +361,14 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     if qa_wait_patterns is None:
         qa_wait_patterns = []
 
+    # keep path to current working dir in case we need to come back to it
+    try:
+        initial_work_dir = os.getcwd()
+    except FileNotFoundError:
+        raise EasyBuildError(CWD_NOTFOUND_ERROR)
+
     if work_dir is None:
-        try:
-            work_dir = os.getcwd()
-        except FileNotFoundError:
-            raise EasyBuildError(CWD_NOTFOUND_ERROR)
+        work_dir = initial_work_dir
 
     if with_hooks:
         hooks = load_hooks(build_option('hooks'))
@@ -559,19 +562,21 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             raise_run_shell_cmd_error(res)
 
     # check that we still are in a sane environment after command execution
-    # safeguard against commands that leave behind the system in a borked state
+    # safeguard against commands that deleted the work dir or missbehaving filesystems
     try:
         os.getcwd()
     except FileNotFoundError:
+        _log.warning(
+            f"Shell command `{cmd_str}` completed successfully but left the system in a unknown working directory. "
+            f"Changing back to initial working directory: {initial_work_dir}"
+        )
         try:
-            warn_msg = (
-                f"Shell command `{cmd_str}` completed successfully but left system in a broken state. "
-                f"Changing back to initial working directory: {res.work_dir}"
-            )
-            _log.warning(warn_msg)
-            os.chdir(res.work_dir)
+            os.chdir(initial_work_dir)
         except OSError as err:
-            raise EasyBuildError(f"Failed to return to {res.work_dir} after executing command `{cmd_str}`: {err}")
+            raise EasyBuildError(f"Failed to return to {initial_work_dir} after executing command `{cmd_str}`: {err}")
+        else:
+            if not os.path.isdir(work_dir):
+                work_dir = initial_work_dir
 
     if with_hooks:
         run_hook_kwargs = {
@@ -579,7 +584,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             'interactive': interactive,
             'output': res.output,
             'stderr': res.stderr,
-            'work_dir': res.work_dir,
+            'work_dir': work_dir,
         }
         run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
 
