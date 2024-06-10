@@ -572,6 +572,8 @@ class EasyBuildOptions(GeneralOption):
                                     None, 'store', None),
             'installpath-software': ("Install path for software (if None, combine --installpath and --subdir-software)",
                                      None, 'store', None),
+            'installpath-data': ("Install path for data (if None, combine --installpath and --subdir-data)",
+                                 None, 'store', None),
             'job-backend': ("Backend to use for submitting jobs", 'choice', 'store',
                             DEFAULT_JOB_BACKEND, sorted(avail_job_backends().keys())),
             # purposely take a copy for the default logfile format
@@ -598,7 +600,7 @@ class EasyBuildOptions(GeneralOption):
                             None, 'store', mk_full_default_path('packagepath')),
             'package-naming-scheme': ("Packaging naming scheme choice",
                                       'choice', 'store', DEFAULT_PNS, sorted(avail_package_naming_schemes().keys())),
-            'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
+            'prefix': (("Change prefix for buildpath, installpath, sourcepath, sourcepath-data, and repositorypath "
                         "(used prefix for defaults %s)" % DEFAULT_PREFIX),
                        None, 'store', None),
             'recursive-module-unload': ("Enable generating of modules that unload recursively.",
@@ -609,11 +611,15 @@ class EasyBuildOptions(GeneralOption):
                                 "(is passed as list of arguments to create the repository instance). "
                                 "For more info, use --avail-repositories."),
                                'strlist', 'store', self.default_repositorypath),
-            'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
+            'sourcepath': ("Path(s) to where software sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
+            'sourcepath-data': ("Path(s) to where data sources should be downloaded (string, colon-separated) "
+                                "(same as sourcepath if not specified)", None, 'store', None),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
             'subdir-software': ("Installpath subdir for software",
                                 None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
+            'subdir-data': ("Installpath subdir for data",
+                            None, 'store', DEFAULT_PATH_SUBDIRS['subdir_data']),
             'subdir-user-modules': ("Base path of user-specific modules relative to --envvars-user-modules",
                                     None, 'store', None),
             'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
@@ -1132,8 +1138,8 @@ class EasyBuildOptions(GeneralOption):
         #   which can be done in variety of formats (git@<url>:<org>/<repo>), https://<url>, etc.)
         #   (see also https://github.com/easybuilders/easybuild-framework/issues/3892);
         path_opt_names = ['buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
-                          'installpath_modules', 'installpath_software', 'prefix', 'packagepath',
-                          'robot_paths', 'sourcepath']
+                          'installpath_modules', 'installpath_software', 'installpath_data', 'prefix', 'packagepath',
+                          'robot_paths', 'sourcepath', 'sourcepath_data']
 
         for opt_name in path_opt_names:
             self._ensure_abs_path(opt_name)
@@ -1142,7 +1148,7 @@ class EasyBuildOptions(GeneralOption):
             # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath in account
             # in the legacy-style configuration, repository is initialised in configuration file itself
             path_opts = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'repository', 'repositorypath',
-                         'sourcepath']
+                         'sourcepath', 'sourcepath_data']
             for dest in path_opts:
                 if not self.options._action_taken.get(dest, False):
                     if dest == 'repository':
