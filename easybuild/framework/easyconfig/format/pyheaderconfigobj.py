@@ -39,7 +39,7 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.format.format import get_format_version, EasyConfigFormat
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
-from easybuild.framework.easyconfig.templates import ALTERNATE_TEMPLATE_CONSTANTS, DEPRECATED_TEMPLATE_CONSTANTS
+from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMPLATE_CONSTANTS, DEPRECATED_EASYCONFIG_TEMPLATE_CONSTANTS
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
@@ -91,10 +91,10 @@ def handle_deprecated_constants(method):
     """Decorator to handle deprecated easyconfig template constants"""
     def wrapper(self, key, *args, **kwargs):
         """Check whether any deprecated constants are used"""
-        alternate = ALTERNATE_TEMPLATE_CONSTANTS
-        deprecated = DEPRECATED_TEMPLATE_CONSTANTS
-        if key in alternate:
-            key = alternate[key]
+        alternative = ALTERNATIVE_EASYCONFIG_TEMPLATE_CONSTANTS
+        deprecated = DEPRECATED_EASYCONFIG_TEMPLATE_CONSTANTS
+        if key in alternative:
+            key = alternative[key]
         elif key in deprecated:
             depr_key = key
             key, ver = deprecated[depr_key]

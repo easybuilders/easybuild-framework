@@ -586,11 +586,11 @@ def normalize_path(path):
 
 
 def is_alt_pypi_url(url):
-    """Determine whether specified URL is already an alternate PyPI URL, i.e. whether it contains a hash."""
+    """Determine whether specified URL is already an alternative PyPI URL, i.e. whether it contains a hash."""
     # example: .../packages/5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
     alt_url_regex = re.compile('/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/[^/]+$')
     res = bool(alt_url_regex.search(url))
-    _log.debug("Checking whether '%s' is an alternate PyPI URL using pattern '%s'...: %s",
+    _log.debug("Checking whether '%s' is an alternative PyPI URL using pattern '%s'...: %s",
                url, alt_url_regex.pattern, res)
     return res
 
@@ -638,7 +638,7 @@ def pypi_source_urls(pkg_name):
 
 
 def derive_alt_pypi_url(url):
-    """Derive alternate PyPI URL for given URL."""
+    """Derive alternative PyPI URL for given URL."""
     alt_pypi_url = None
 
     # example input URL: https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz

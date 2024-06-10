@@ -144,7 +144,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_toolchain_prepare_sysroot(self):
         """Test build environment setup done by Toolchain.prepare in case --sysroot is specified."""
 
-        sysroot = os.path.join(self.test_prefix, 'test', 'alternate', 'sysroot')
+        sysroot = os.path.join(self.test_prefix, 'test', 'alternative', 'sysroot')
         sysroot_pkgconfig = os.path.join(sysroot, 'usr', 'lib', 'pkgconfig')
         mkdir(sysroot_pkgconfig, parents=True)
         init_config(build_options={'sysroot': sysroot})

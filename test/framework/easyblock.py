@@ -310,7 +310,7 @@ class EasyBlockTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
-        # Repeat this but using an alternate envvars (instead of $HOME)
+        # Repeat this but using an alternative envvars (instead of $HOME)
         list_of_envvars = ['SITE_INSTALLS', 'USER_INSTALLS']
 
         build_options = {
@@ -1813,7 +1813,7 @@ class EasyBlockTest(EnhancedTestCase):
             res = eb.obtain_file(toy_tarball)
         self.assertEqual(res, toy_tarball_path)
 
-        # finding a file in the alternate location works
+        # finding a file in the alternative location works
         with self.mocked_stdout_stderr():
             res = eb.obtain_file(toy_tarball, alt_location='alt_toy')
         self.assertEqual(res, alt_toy_tarball_path)
@@ -2720,10 +2720,10 @@ class EasyBlockTest(EnhancedTestCase):
         # no checksum issues
         self.assertEqual(eb.check_checksums(), [])
 
-        # tuple of two alternate SHA256 checksums: OK
+        # tuple of two alternative SHA256 checksums: OK
         eb.cfg['checksums'] = [
             (
-                # two alternate checksums for toy-0.0.tar.gz
+                # two alternative checksums for toy-0.0.tar.gz
                 'a2848f34fcd5d6cf47def00461fcb528a0484d8edef8208d6d2e2909dc61d9cd',
                 '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
             ),

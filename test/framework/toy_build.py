@@ -3954,7 +3954,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
                                   ec_file=test_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
 
-        # check behaviour when alternate subdirectories are specified
+        # check behaviour when alternative subdirectories are specified
         test_ec_txt = read_file(libtoy_ec)
         test_ec_txt += "\nbin_lib_subdirs = ['', 'lib', 'lib64']"
         write_file(test_ec, test_ec_txt)
