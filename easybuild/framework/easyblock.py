@@ -646,6 +646,11 @@ class EasyBlock(object):
                                 # copy 'path' entry to 'src' for use with extensions
                                 'src': src['path'],
                             })
+                            filename = src['name']
+                        else:
+                            filename = source.get('filename')
+                        if filename is not None:
+                            ext_src['sources'] = [filename]
 
                     else:
                         # use default template for name of source file if none is specified
@@ -659,6 +664,7 @@ class EasyBlock(object):
                             error_msg = "source_tmpl value must be a string! (found value of type '%s'): %s"
                             raise EasyBuildError(error_msg, type(src_fn).__name__, src_fn)
 
+                        ext_src['sources'] = [src_fn]
                         if fetch_files:
                             src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
                                                         force_download=force_download,
