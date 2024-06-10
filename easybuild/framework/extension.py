@@ -40,7 +40,7 @@ import os
 
 from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
-from easybuild.tools.build_log import EasyBuildError, raise_nosupport
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, raise_nosupport
 from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import run_shell_cmd
 
@@ -302,7 +302,7 @@ class Extension(object):
             cmd, stdin = resolve_exts_filter_template(exts_filter, self)
             cmd_res = run_shell_cmd(cmd, fail_on_error=False, stdin=stdin)
 
-            if cmd_res.exit_code:
+            if cmd_res.exit_code != EasyBuildExit.SUCCESS:
                 if stdin:
                     fail_msg = 'command "%s" (stdin: "%s") failed' % (cmd, stdin)
                 else:

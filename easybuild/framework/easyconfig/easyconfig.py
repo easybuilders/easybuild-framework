@@ -64,7 +64,7 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parame
 from easybuild.framework.easyconfig.templates import ALTERNATE_TEMPLATES, DEPRECATED_TEMPLATES, TEMPLATE_CONSTANTS
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
 from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
@@ -902,9 +902,12 @@ class EasyConfig(object):
                 not_found.append(dep)
 
         if not_found:
-            raise EasyBuildError("One or more OS dependencies were not found: %s", not_found, exit_code=8)
-        else:
-            self.log.info("OS dependencies ok: %s" % self['osdependencies'])
+            raise EasyBuildError(
+                "One or more OS dependencies were not found: %s", not_found,
+                exit_code=EasyBuildExit.MISS_SYSTEM_DEPENDENCY
+            )
+
+        self.log.info("OS dependencies ok: %s" % self['osdependencies'])
 
         return True
 
@@ -1267,7 +1270,10 @@ class EasyConfig(object):
         if values is None:
             values = []
         if self[attr] and self[attr] not in values:
-            raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values, exit_code=12)
+            raise EasyBuildError(
+                "%s provided '%s' is not valid: %s", attr, self[attr], values,
+                exit_code=EasyBuildExit.SYNTAX_ERROR
+            )
 
     def probe_external_module_metadata(self, mod_name, existing_metadata=None):
         """
@@ -1914,14 +1920,17 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                 modname = modulepath.replace('easybuild.easyblocks.', '')
                 error_re = re.compile(r"No module named '?.*/?%s'?" % modname)
                 _log.debug("error regexp for ImportError on '%s' easyblock: %s", modname, error_re.pattern)
-                if error_re.match(str(err)):
-                    if error_on_missing_easyblock:
-                        raise EasyBuildError(
-                                "No software-specific easyblock '%s' found for %s", class_name, name, exit_code=4)
-                elif error_on_failed_import:
-                    raise EasyBuildError("Failed to import %s easyblock: %s", class_name, err, exit_code=5)
-                else:
-                    _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
+                if error_re.match(str(err)) and error_on_missing_easyblock:
+                    raise EasyBuildError(
+                        "No software-specific easyblock '%s' found for %s", class_name, name,
+                        exit_code=EasyBuildExit.MISS_EASYBLOCK
+                    )
+                if error_on_failed_import:
+                    raise EasyBuildError(
+                        "Failed to import %s easyblock: %s", class_name, err,
+                        exit_code=EasyBuildExit.EASYBLOCK_ERROR
+                    )
+                _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
 
         if cls is not None:
             _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')",
@@ -1936,7 +1945,9 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         raise err
     except Exception as err:
         raise EasyBuildError(
-                "Failed to obtain class for %s easyblock (not available?): %s", easyblock, err, exit_code=6)
+            "Failed to obtain class for %s easyblock (not available?): %s", easyblock, err,
+            exit_code=EasyBuildExit.EASYBLOCK_ERROR
+        )
 
 
 def get_module_path(name, generic=None, decode=True):
@@ -2082,10 +2093,10 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
             ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
         except EasyBuildError as err:
             try:
-                err.exit_code
+                exit_code = err.exit_code
             except AttributeError:
-                err.exit_code = 1
-            raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg, exit_code=err.exit_code)
+                exit_code = EasyBuildExit.EASYCONFIG_ERROR
+            raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg, exit_code=exit_code)
 
         name = ec['name']
 

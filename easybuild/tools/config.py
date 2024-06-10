@@ -50,7 +50,7 @@ from string import ascii_letters
 from easybuild.base import fancylogger
 from easybuild.base.frozendict import FrozenDictKnownKeys
 from easybuild.base.wrapper import create_base_metaclass
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit
 
 try:
     import rich  # noqa
@@ -499,7 +499,10 @@ class ConfigurationVariables(BaseConfigurationVariables):
         """
         missing = [x for x in self.KNOWN_KEYS if x not in self]
         if len(missing) > 0:
-            raise EasyBuildError("Cannot determine value for configuration variables %s. Please specify it.", missing)
+            raise EasyBuildError(
+                "Cannot determine value for configuration variables %s. Please specify it.", missing,
+                exit_code=EasyBuildExit.OPTION_ERROR
+            )
 
         return self.items()
 
@@ -532,7 +535,10 @@ def init(options, config_options_dict):
         tmpdict['sourcepath'] = sourcepath.split(':')
         _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
     elif not isinstance(sourcepath, (tuple, list)):
-        raise EasyBuildError("Value for sourcepath has invalid type (%s): %s", type(sourcepath), sourcepath)
+        raise EasyBuildError(
+            "Value for sourcepath has invalid type (%s): %s", type(sourcepath), sourcepath,
+            exit_code=EasyBuildExit.OPTION_ERROR
+        )
 
     # initialize configuration variables (any future calls to ConfigurationVariables() will yield the same instance
     variables = ConfigurationVariables(tmpdict, ignore_unknown_keys=True)
@@ -616,7 +622,7 @@ def build_option(key, **kwargs):
         error_msg = "Undefined build option: '%s'. " % key
         error_msg += "Make sure you have set up the EasyBuild configuration using set_up_configuration() "
         error_msg += "(from easybuild.tools.options) in case you're not using EasyBuild via the 'eb' CLI."
-        raise EasyBuildError(error_msg)
+        raise EasyBuildError(error_msg, exit_code=EasyBuildExit.OPTION_ERROR)
 
 
 def update_build_option(key, value):
@@ -681,7 +687,10 @@ def install_path(typ=None):
 
     known_types = ['modules', 'software']
     if typ not in known_types:
-        raise EasyBuildError("Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types))
+        raise EasyBuildError(
+            "Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types),
+            exit_code=EasyBuildExit.OPTION_ERROR
+        )
 
     variables = ConfigurationVariables()
 
@@ -773,7 +782,10 @@ def get_output_style():
             output_style = OUTPUT_STYLE_BASIC
 
     if output_style == OUTPUT_STYLE_RICH and not HAVE_RICH:
-        raise EasyBuildError("Can't use '%s' output style, Rich Python package is not available!", OUTPUT_STYLE_RICH)
+        raise EasyBuildError(
+            "Can't use '%s' output style, Rich Python package is not available!", OUTPUT_STYLE_RICH,
+            exit_code=EasyBuildExit.MISS_EB_DEPENDENCY
+        )
 
     return output_style
 
@@ -798,8 +810,10 @@ def log_file_format(return_directory=False, ec=None, date=None, timestamp=None):
 
     logfile_format = ConfigurationVariables()['logfile_format']
     if not isinstance(logfile_format, tuple) or len(logfile_format) != 2:
-        raise EasyBuildError("Incorrect log file format specification, should be 2-tuple (<dir>, <filename>): %s",
-                             logfile_format)
+        raise EasyBuildError(
+            "Incorrect log file format specification, should be 2-tuple (<dir>, <filename>): %s", logfile_format,
+            exit_code=EasyBuildExit.OPTION_ERROR
+        )
 
     idx = int(not return_directory)
     res = ConfigurationVariables()['logfile_format'][idx] % {
@@ -906,7 +920,10 @@ def find_last_log(curlog):
         sorted_paths = [p for (_, p) in sorted(paths)]
 
     except OSError as err:
-        raise EasyBuildError("Failed to locate/select/order log files matching '%s': %s", glob_pattern, err)
+        raise EasyBuildError(
+            "Failed to locate/select/order log files matching '%s': %s", glob_pattern, err,
+            exit_code=EasyBuildExit.OPTION_ERROR
+        )
 
     try:
         # log of current session is typically listed last, should be taken into account

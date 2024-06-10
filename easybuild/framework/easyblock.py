@@ -70,7 +70,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RU
 from easybuild.framework.extension import Extension, resolve_exts_filter_template
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_details import get_build_stats
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
@@ -545,6 +545,7 @@ class EasyBlock(object):
         """
         exts_sources = []
         exts_list = self.cfg.get_ref('exts_list')
+
         if verify_checksums and not fetch_files:
             raise EasyBuildError("Can't verify checksums for extension files if they are not being fetched")
 
@@ -677,7 +678,10 @@ class EasyBlock(object):
                         elif build_option('ignore_checksums'):
                             print_warning("Ignoring failing checksum verification for %s" % src_fn)
                         else:
-                            raise EasyBuildError('Checksum verification for extension source %s failed', src_fn)
+                            raise EasyBuildError(
+                                'Checksum verification for extension source %s failed', src_fn,
+                                exit_code=EasyBuildExit.FAIL_CHECKSUM
+                            )
 
                     # locate extension patches (if any), and verify checksums
                     ext_patches = ext_options.get('patches', [])
@@ -709,8 +713,10 @@ class EasyBlock(object):
                                 elif build_option('ignore_checksums'):
                                     print_warning("Ignoring failing checksum verification for %s" % patch_fn)
                                 else:
-                                    raise EasyBuildError("Checksum verification for extension patch %s failed",
-                                                         patch_fn)
+                                    raise EasyBuildError(
+                                        "Checksum verification for extension patch %s failed", patch_fn,
+                                        exit_code=EasyBuildExit.FAIL_CHECKSUM
+                                    )
                     else:
                         self.log.debug('No patches found for extension %s.' % ext_name)
 
@@ -779,12 +785,11 @@ class EasyBlock(object):
                     return fullpath
 
             except IOError as err:
+                msg = f"Downloading file {filename} from url {url} to {fullpath} failed: {err}"
                 if not warning_only:
-                    raise EasyBuildError("Downloading file %s "
-                                         "from url %s to %s failed: %s", filename, url, fullpath, err)
+                    raise EasyBuildError(msg, exit_code=EasyBuildExit.FAIL_DOWNLOAD)
                 else:
-                    self.log.warning("Downloading file %s "
-                                     "from url %s to %s failed: %s", filename, url, fullpath, err)
+                    self.log.warning(msg)
                     return None
 
         else:
@@ -863,8 +868,11 @@ class EasyBlock(object):
                     return filename
                 else:
                     if not warning_only:
-                        raise EasyBuildError("Couldn't find file %s anywhere, and downloading it is disabled... "
-                                             "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
+                        raise EasyBuildError(
+                            "Couldn't find file %s anywhere, and downloading it is disabled... "
+                            "Paths attempted (in order): %s ", filename, ', '.join(failedpaths),
+                            exit_code=EasyBuildExit.MISS_SOURCES
+                        )
                     else:
                         self.log.warning("Couldn't find file %s anywhere, and downloading it is disabled... "
                                          "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
@@ -962,7 +970,7 @@ class EasyBlock(object):
                         error_msg += "Paths attempted (in order): %s " % failedpaths_msg
 
                     if not warning_only:
-                        raise EasyBuildError(error_msg, filename, exit_code=9)
+                        raise EasyBuildError(error_msg, filename, exit_code=EasyBuildExit.FAIL_DOWNLOAD)
                     else:
                         self.log.warning(error_msg, filename)
                         return None
@@ -1795,7 +1803,7 @@ class EasyBlock(object):
             cmd, stdin = resolve_exts_filter_template(exts_filter, ext_inst)
             res = run_shell_cmd(cmd, stdin=stdin, fail_on_error=False, hidden=True)
             self.log.info(f"exts_filter result for {ext_inst.name}: exit code {res.exit_code}; output: {res.output}")
-            if res.exit_code == 0:
+            if res.exit_code == EasyBuildExit.SUCCESS:
                 print_msg(f"skipping extension {ext_inst.name}", silent=self.silent, log=self.log)
             else:
                 self.log.info(f"Not skipping {ext_inst.name}")
@@ -1831,7 +1839,7 @@ class EasyBlock(object):
                 idx = res.task_id
                 ext_name = self.ext_instances[idx].name
                 self.log.info(f"exts_filter result for {ext_name}: exit code {res.exit_code}; output: {res.output}")
-                if res.exit_code == 0:
+                if res.exit_code == EasyBuildExit.SUCCESS:
                     print_msg(f"skipping extension {ext_name}", log=self.log)
                     installed_exts_ids.append(idx)
 
@@ -1992,7 +2000,7 @@ class EasyBlock(object):
                 for ext in running_exts[:]:
                     if self.dry_run or ext.async_cmd_task.done():
                         res = ext.async_cmd_task.result()
-                        if res.exit_code == 0:
+                        if res.exit_code == EasyBuildExit.SUCCESS:
                             self.log.info(f"Installation of extension {ext.name} completed!")
                             # run post-install method for extension from same working dir as installation of extension
                             cwd = change_dir(res.work_dir)
@@ -2461,7 +2469,10 @@ class EasyBlock(object):
                 elif build_option('ignore_checksums'):
                     print_warning("Ignoring failing checksum verification for %s" % fil['name'])
                 else:
-                    raise EasyBuildError("Checksum verification for %s using %s failed.", fil['path'], fil['checksum'])
+                    raise EasyBuildError(
+                        "Checksum verification for %s using %s failed.", fil['path'], fil['checksum'],
+                        exit_code=EasyBuildExit.FAIL_CHECKSUM
+                    )
 
     def check_checksums_for(self, ent, sub='', source_cnt=None):
         """
@@ -3175,7 +3186,7 @@ class EasyBlock(object):
                         if check_readelf_rpath:
                             fail_msg = None
                             res = run_shell_cmd(f"readelf -d {path}", fail_on_error=False, hidden=True)
-                            if res.exit_code:
+                            if res.exit_code != EasyBuildExit.SUCCESS:
                                 fail_msg = f"Failed to run 'readelf -d {path}': {res.output}"
                             elif not readelf_rpath_regex.search(res.output):
                                 fail_msg = f"No '(RPATH)' found in 'readelf -d' output for {path}: {out}"
@@ -3613,7 +3624,7 @@ class EasyBlock(object):
                 if not found:
                     sanity_check_fail_msg = "no %s found at %s in %s" % (typ, xs2str(xs), self.installdir)
                     self.sanity_check_fail_msgs.append(sanity_check_fail_msg)
-                    self.exit_code = 10
+                    self.exit_code = EasyBuildExit.FAIL_SANITY_CHECK
                     self.log.warning("Sanity check: %s", sanity_check_fail_msg)
 
                 trace_msg("%s %s found: %s" % (typ, xs2str(xs), ('FAILED', 'OK')[found]))
@@ -3636,15 +3647,15 @@ class EasyBlock(object):
             trace_msg(f"running command '{cmd}' ...")
 
             res = run_shell_cmd(cmd, fail_on_error=False, hidden=True)
-            if res.exit_code != 0:
-                fail_msg = f"sanity check command {cmd} exited with code {res.exit_code} (output: {res.output})"
+            if res.exit_code != EasyBuildExit.SUCCESS:
+                fail_msg = f"sanity check command {cmd} failed with exit code {res.exit_code} (output: {res.output})"
                 self.sanity_check_fail_msgs.append(fail_msg)
-                self.exit_code = res.exit_code
+                self.exit_code = EasyBuildExit.FAIL_SANITY_CHECK
                 self.log.warning(f"Sanity check: {fail_msg}")
             else:
                 self.log.info(f"sanity check command {cmd} ran successfully! (output: {res.output})")
 
-            cmd_result_str = ('FAILED', 'OK')[res.exit_code == 0]
+            cmd_result_str = ('FAILED', 'OK')[res.exit_code == EasyBuildExit.SUCCESS]
             trace_msg(f"result for command '{cmd}': {cmd_result_str}")
 
         # also run sanity check for extensions (unless we are an extension ourselves)
@@ -3682,12 +3693,10 @@ class EasyBlock(object):
 
         # pass or fail
         if self.sanity_check_fail_msgs:
-            try:
-                self.exit_code
-            except AttributeError:
-                self.exit_code = 1
             raise EasyBuildError(
-                "Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs), exit_code=self.exit_code)
+                "Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs),
+                exit_code=EasyBuildExit.FAIL_SANITY_CHECK,
+            )
         else:
             self.log.debug("Sanity check passed!")
 
@@ -3793,7 +3802,9 @@ class EasyBlock(object):
                 write_file(mod_filepath, txt)
                 self.log.info("Module file %s written: %s", mod_filepath, txt)
             except EasyBuildError:
-                raise EasyBuildError("Unable to write Module file %s", mod_filepath, exit_code=11)
+                raise EasyBuildError(
+                    "Unable to write Module file %s", mod_filepath, exit_code=EasyBuildExit.FAIL_MODULE_WRITE
+                )
 
             # if backup module file is there, print diff with newly generated module file
             if self.mod_file_backup and not fake:
@@ -4174,8 +4185,9 @@ class EasyBlock(object):
                     except RunShellCmdError as err:
                         err.print()
                         ec_path = os.path.basename(self.cfg.path)
-                        error_msg = f"shell command '{err.cmd_name} ...' failed in {step_name} step for {ec_path}"
-                        raise EasyBuildError(error_msg, exit_code=err.exit_code)
+                        error_msg = f"shell command '{err.cmd_name} ...' failed with exit code {err.exit_code}"
+                        error_msg += f" in {step_name} step for {ec_path}"
+                        raise EasyBuildError(error_msg, exit_code=EasyBuildExit[f"FAIL_{step_name.upper()}_STEP"])
                     finally:
                         if not self.dry_run:
                             step_duration = datetime.now() - start_time
@@ -4316,9 +4328,9 @@ def build_and_install_one(ecdict, init_env):
     except EasyBuildError as err:
         error_msg = err.msg
         try:
-            exit_code
-        except NameError:
-            exit_code = 1
+            exit_code = err.exit_code
+        except AttributeError:
+            exit_code = EasyBuildExit.ERROR
         result = False
 
     ended = 'ended'
@@ -4436,7 +4448,7 @@ def build_and_install_one(ecdict, init_env):
         success = True
         summary = 'COMPLETED'
         succ = 'successfully'
-        exit_code = 0
+        exit_code = EasyBuildExit.SUCCESS
     else:
         # build failed
         success = False

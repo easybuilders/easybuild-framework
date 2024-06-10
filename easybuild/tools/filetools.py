@@ -62,7 +62,7 @@ import urllib.request as std_urllib
 
 from easybuild.base import fancylogger
 # import build_log must stay, to use of EasyBuildLog
-from easybuild.tools.build_log import EasyBuildError, CWD_NOTFOUND_ERROR, dry_run_msg, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUND_ERROR, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN, build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.hooks import load_source
@@ -843,8 +843,9 @@ def download_file(filename, url, path, forced=False, trace=True):
                 switch_to_requests = True
         except Exception as err:
             raise EasyBuildError(
-                    "Unexpected error occurred when trying to download %s to %s: %s", url, path,
-                    err, exit_code=status_code)
+                "Unexpected error occurred when trying to download %s to %s: %s", url, path,
+                err, exit_code=EasyBuildExit.FAIL_DOWNLOAD
+            )
 
         if not downloaded and attempt_cnt < max_attempts:
             _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))
@@ -1059,7 +1060,10 @@ def locate_files(files, paths, ignore_subdirs=None):
     if files_to_find:
         filenames = ', '.join([f for (_, f) in files_to_find])
         paths = ', '.join(paths)
-        raise EasyBuildError("One or more files not found: %s (search paths: %s)", filenames, paths, exit_code=3)
+        raise EasyBuildError(
+            "One or more files not found: %s (search paths: %s)", filenames, paths,
+            exit_code=EasyBuildExit.MISS_EASYCONFIG
+        )
 
     return [os.path.abspath(f) for f in files]
 
@@ -1505,8 +1509,10 @@ def create_patch_info(patch_spec):
             else:
                 patch_info['copy'] = patch_arg
         else:
-            raise EasyBuildError("Wrong patch spec '%s', only int/string are supported as 2nd element",
-                                 str(patch_spec))
+            raise EasyBuildError(
+                "Wrong patch spec '%s', only int/string are supported as 2nd element", str(patch_spec),
+                exit_code=EasyBuildExit.EASYCONFIG_ERROR
+            )
 
     elif isinstance(patch_spec, str):
         validate_patch_spec(patch_spec)
@@ -1517,13 +1523,17 @@ def create_patch_info(patch_spec):
             if key in valid_keys:
                 patch_info[key] = patch_spec[key]
             else:
-                raise EasyBuildError("Wrong patch spec '%s', use of unknown key %s in dict (valid keys are %s)",
-                                     str(patch_spec), key, valid_keys)
+                raise EasyBuildError(
+                    "Wrong patch spec '%s', use of unknown key %s in dict (valid keys are %s)", str(patch_spec), key, valid_keys,
+                    exit_code=EasyBuildExit.EASYCONFIG_ERROR
+                )
 
         # Dict must contain at least the patchfile name
         if 'name' not in patch_info.keys():
-            raise EasyBuildError("Wrong patch spec '%s', when using a dict 'name' entry must be supplied",
-                                 str(patch_spec))
+            raise EasyBuildError(
+                "Wrong patch spec '%s', when using a dict 'name' entry must be supplied", str(patch_spec),
+                exit_code=EasyBuildExit.EASYCONFIG_ERROR
+            )
         if 'copy' not in patch_info.keys():
             validate_patch_spec(patch_info['name'])
         else:
@@ -1532,9 +1542,11 @@ def create_patch_info(patch_spec):
                                      "this implies you want to copy a file to the 'copy' location)",
                                      str(patch_spec))
     else:
-        error_msg = "Wrong patch spec, should be string, 2-tuple with patch name + argument, or a dict " \
-                    "(with possible keys %s): %s" % (valid_keys, patch_spec)
-        raise EasyBuildError(error_msg)
+        error_msg = (
+            "Wrong patch spec, should be string, 2-tuple with patch name + argument, or a dict "
+            f"(with possible keys {valid_keys}): {patch_spec}"
+        )
+        raise EasyBuildError(error_msg, exit_code=EasyBuildExit.EASYCONFIG_ERROR)
 
     return patch_info
 
@@ -1542,8 +1554,10 @@ def create_patch_info(patch_spec):
 def validate_patch_spec(patch_spec):
     allowed_patch_exts = ['.patch' + x for x in ('',) + ZIPPED_PATCH_EXTS]
     if not any(patch_spec.endswith(x) for x in allowed_patch_exts):
-        raise EasyBuildError("Wrong patch spec (%s), extension type should be any of %s." %
-                             (patch_spec, ', '.join(allowed_patch_exts)))
+        raise EasyBuildError(
+            "Wrong patch spec (%s), extension type should be any of %s.", patch_spec, ', '.join(allowed_patch_exts),
+            exit_code=EasyBuildExit.EASYCONFIG_ERROR
+        )
 
 
 def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git=False):
@@ -1634,7 +1648,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git=False
     if res.exit_code:
         msg = f"Couldn't apply patch file {patch_file}. "
         msg += f"Process exited with code {res.exit_code}: {res.output}"
-        raise EasyBuildError(msg)
+        raise EasyBuildError(msg, exit_code=EasyBuildExit.FAIL_PATCH_APPLY)
 
     return True
 
@@ -2665,7 +2679,7 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
         work_dir = os.path.join(tmpdir, repo_name) if repo_name else tmpdir
         res = run_shell_cmd(cmd, fail_on_error=False, work_dir=work_dir, hidden=True, verbose_dry_run=True)
 
-        if res.exit_code != 0 or tag not in res.output.splitlines():
+        if res.exit_code != EasyBuildExit.SUCCESS or tag not in res.output.splitlines():
             msg = f"Tag {tag} was not downloaded in the first try due to {url}/{repo_name} containing a branch"
             msg += f" with the same name. You might want to alert the maintainers of {repo_name} about that issue."
             print_warning(msg)

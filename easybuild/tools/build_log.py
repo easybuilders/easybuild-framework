@@ -40,11 +40,11 @@ import sys
 import tempfile
 from copy import copy
 from datetime import datetime
+from enum import IntEnum
 
 from easybuild.base import fancylogger
 from easybuild.base.exceptions import LoggedException
 from easybuild.tools.version import VERSION, this_is_easybuild
-
 
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
@@ -70,6 +70,54 @@ CWD_NOTFOUND_ERROR = (
 DEVEL_LOG_LEVEL = logging.DEBUG - 1
 logging.addLevelName(DEVEL_LOG_LEVEL, 'DEVEL')
 
+
+class EasyBuildExit(IntEnum):
+    """
+    Table of exit codes
+    """
+    SUCCESS = 0
+    ERROR = 1
+    # core errors
+    OPTION_ERROR = 2
+    SYNTAX_ERROR = 3
+    MISS_EASYCONFIG = 4
+    EASYCONFIG_ERROR = 5
+    MISS_EASYBLOCK = 6
+    EASYBLOCK_ERROR = 7
+    MODULE_ERROR = 8
+    # step errors in order of execution
+    FAIL_FETCH_STEP = 10
+    FAIL_READY_STEP = 11
+    FAIL_SOURCE_STEP = 12
+    FAIL_PATCH_STEP = 13
+    FAIL_PREPARE_STEP = 14
+    FAIL_CONFIGURE_STEP = 15
+    FAIL_BUILD_STEP = 16
+    FAIL_TEST_STEP = 17
+    FAIL_INSTALL_STEP = 18
+    FAIL_EXTENSIONS_STEP = 19
+    FAIL_POSTITER_STEP = 20
+    FAIL_POSTPROC_STEP = 21
+    FAIL_SANITYCHECK_STEP = 22
+    FAIL_CLEANUP_STEP = 23
+    FAIL_MODULE_STEP = 24
+    FAIL_PERMISSIONS_STEP = 25
+    FAIL_PACKAGE_STEP = 26
+    FAIL_TESTCASES_STEP = 27
+    # errors on missing things
+    MISS_SOURCES = 30
+    MISS_DEPENDENCY = 31
+    MISS_SYSTEM_DEPENDENCY = 32
+    MISS_EB_DEPENDENCY = 33
+    # errors on specific task failures
+    FAIL_SYSTEM_CHECK = 40
+    FAIL_DOWNLOAD = 41
+    FAIL_CHECKSUM = 42
+    FAIL_EXTRACT = 43
+    FAIL_PATCH_APPLY = 44
+    FAIL_SANITY_CHECK = 45
+    FAIL_MODULE_WRITE = 46
+    FAIL_GITHUB = 47
 
 class EasyBuildError(LoggedException):
     """
