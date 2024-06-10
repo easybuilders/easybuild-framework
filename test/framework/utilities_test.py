@@ -188,9 +188,12 @@ class UtilitiesTest(EnhancedTestCase):
         self.assertEqual(LooseVersion('2.a5').version, [2, 'a', 5])
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests in this file """
-    return TestLoaderFiltered().loadTestsFromTestCase(UtilitiesTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(UtilitiesTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(UtilitiesTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

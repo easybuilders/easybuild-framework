@@ -162,9 +162,12 @@ class EnvironmentTest(EnhancedTestCase):
         self.assertEqual(os.getenv('LD_PRELOAD'), None)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(EnvironmentTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(EnvironmentTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EnvironmentTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

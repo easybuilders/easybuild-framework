@@ -3014,9 +3014,12 @@ class ToolchainTest(EnhancedTestCase):
             self.assertEqual(tc.get_flag('openmp'), flagstring)
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests"""
-    return TestLoaderFiltered().loadTestsFromTestCase(ToolchainTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(ToolchainTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(ToolchainTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

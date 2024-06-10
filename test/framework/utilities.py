@@ -30,6 +30,7 @@ Various test utility functions.
 """
 import copy
 import fileinput
+import functools
 import os
 import re
 import shutil
@@ -47,7 +48,7 @@ import easybuild.tools.module_naming_scheme.toolchain as mns_toolchain
 from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
-from easybuild.tools import config
+from easybuild.tools import config, LooseVersion
 from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes, update_build_option
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
@@ -66,8 +67,9 @@ for key in os.environ.keys():
     if key.startswith('%s_' % CONFIG_ENV_VAR_PREFIX):
         del os.environ[key]
 
+# Ignore cmdline args as those are meant for the unittest framework
 # ignore any existing configuration files
-go = EasyBuildOptions(go_useconfigfiles=False)
+go = EasyBuildOptions(go_args=[], go_useconfigfiles=False)
 os.environ['EASYBUILD_IGNORECONFIGFILES'] = ','.join(go.options.configfiles)
 
 # redefine $TEST_EASYBUILD_X env vars as $EASYBUILD_X
@@ -467,6 +469,8 @@ def init_config(args=None, build_options=None, with_include=True, clear_caches=T
 
     cleanup(clear_caches=clear_caches)
 
+    if args is None:
+        args = []  # Ignore cmdline args as those are meant for the unittest framework
     # initialize configuration so config.get_modules_tool function works
     eb_go = eboptions.parse_options(args=args, with_include=with_include)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
@@ -514,3 +518,91 @@ def find_full_path(base_path, trim=(lambda x: x)):
             break
 
     return full_path
+
+
+def skip_silently(test_item):
+    """Decorator to turn a test into a no-op"""
+    @functools.wraps(test_item)
+    def skip_wrapper(*args, **kwargs):
+        return
+    return skip_wrapper
+
+
+def skip_never(test_item):
+    """Decorator to not skip a test"""
+    return test_item
+
+
+def skip_silentCI_unless(condition, reason):
+    """Decorator to skip a test if the condition is met.
+
+    On CI the test is turned into a no-op to avoid any output."""
+    if 'CI' in os.environ:
+        return skip_never if condition else skip_silently
+    else:
+        return unittest.skipUnless(condition, reason)
+
+
+def requires_pycodestyle_or_pep8():
+    try:
+        import pycodestyle  # noqa
+        ok = True
+    except ImportError:
+        try:
+            import pep8  # noqa
+            ok = True
+        except ImportError:
+            ok = False
+    return unittest.skipUnless(ok, "no pycodestyle or pep8 available")
+
+
+def requires_autopep8():
+    try:
+        import autopep8  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "autopep8 is not available")
+
+
+def requires_GC3Pie():
+    try:
+        import gc3libs  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    if LooseVersion(sys.version) < '3.11':
+        return unittest.skipUnless(ok, "GC3Pie not available")
+    else:
+        # GC3Pie not available for Python 3.11 so silently skip:
+        # https://github.com/gc3pie/gc3pie/issues/674
+        return skip_silentCI_unless(ok, "GC3Pie not available")
+
+
+def requires_pygraph():
+    try:
+        import pygraph  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "pygraph is not available")
+
+
+def requires_pysvn():
+    try:
+        from pysvn import ClientError  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    # For CI skip silently, not easy enough to install,
+    # see https://github.com/leafvmaple/pysvn/issues/1
+    return skip_silentCI_unless(ok, "PySVN is not available, use e.g. apt-get install python3-svn")
+
+
+def requires_PyYAML():
+    try:
+        import yaml  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "PyYAML is not available")

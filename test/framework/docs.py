@@ -1197,9 +1197,12 @@ class DocsTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
 
 
-def suite():
+def suite(loader=None):
     """ returns all test cases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(DocsTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(DocsTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(DocsTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

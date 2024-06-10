@@ -797,9 +797,12 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(stdout, expected_stdout)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(RunTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(RunTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(RunTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

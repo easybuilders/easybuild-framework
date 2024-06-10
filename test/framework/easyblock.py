@@ -2896,9 +2896,12 @@ class EasyBlockTest(EnhancedTestCase):
         run_sanity_check_step({}, True)
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests in this file """
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyBlockTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(EasyBlockTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyBlockTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
