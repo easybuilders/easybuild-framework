@@ -42,6 +42,7 @@ import struct
 import sys
 import termios
 import warnings
+from collections import OrderedDict
 from ctypes.util import find_library
 from socket import gethostname
 from easybuild.tools.py2vs3 import subprocess_popen_text
@@ -64,7 +65,7 @@ from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import IGNORE
 from easybuild.tools.filetools import is_readable, read_file, which
-from easybuild.tools.py2vs3 import OrderedDict, string_type
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.run import run_cmd
 
 
@@ -735,7 +736,6 @@ def get_os_name():
     # platform.linux_distribution was removed in Python 3.8,
     # see https://docs.python.org/2/library/platform.html#platform.linux_distribution
     if hasattr(platform, 'linux_distribution'):
-        # platform.linux_distribution is more useful, but only available since Python 2.6
         # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=PendingDeprecationWarning)
