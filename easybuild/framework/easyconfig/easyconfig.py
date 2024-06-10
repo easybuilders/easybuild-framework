@@ -59,10 +59,11 @@ from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION, retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
-from easybuild.framework.easyconfig.parser import ALTERNATE_PARAMETERS, DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
-from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import ALTERNATE_TEMPLATES, DEPRECATED_TEMPLATES, TEMPLATE_CONSTANTS
-from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_DYNAMIC, template_constant_dict
+from easybuild.framework.easyconfig.parser import ALTERNATIVE_EASYCONFIG_PARAMETERS, DEPRECATED_EASYCONFIG_PARAMETERS
+from easybuild.framework.easyconfig.parser import REPLACED_PARAMETERS, EasyConfigParser
+from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMPLATES, DEPRECATED_EASYCONFIG_TEMPLATES
+from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
@@ -119,11 +120,11 @@ def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
     def new_ec_method(self, key, *args, **kwargs):
         """Check whether any replace easyconfig parameters are still used"""
         # map deprecated parameters to their replacements, issue deprecation warning(/error)
-        if key in ALTERNATE_PARAMETERS:
-            key = ALTERNATE_PARAMETERS[key]
-        elif key in DEPRECATED_PARAMETERS:
+        if key in ALTERNATIVE_EASYCONFIG_PARAMETERS:
+            key = ALTERNATIVE_EASYCONFIG_PARAMETERS[key]
+        elif key in DEPRECATED_EASYCONFIG_PARAMETERS:
             depr_key = key
-            key, ver = DEPRECATED_PARAMETERS[depr_key]
+            key, ver = DEPRECATED_EASYCONFIG_PARAMETERS[depr_key]
             _log.deprecated("Easyconfig parameter '%s' is deprecated, use '%s' instead" % (depr_key, key), ver)
         elif key in REPLACED_PARAMETERS:
             _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
@@ -182,7 +183,8 @@ def triage_easyconfig_params(variables, ec):
 
     for key in variables:
         # validations are skipped, just set in the config
-        if any(key in d for d in (ec, DEPRECATED_PARAMETERS.keys(), ALTERNATE_PARAMETERS.keys())):
+        if any(key in d for d in (ec, DEPRECATED_EASYCONFIG_PARAMETERS.keys(),
+                                  ALTERNATIVE_EASYCONFIG_PARAMETERS.keys())):
             ec_params[key] = variables[key]
             _log.debug("setting config option %s: value %s (type: %s)", key, ec_params[key], type(ec_params[key]))
         elif key in REPLACED_PARAMETERS:
@@ -661,7 +663,8 @@ class EasyConfig(object):
         with self.disable_templating():
             for key in sorted(params.keys()):
                 # validations are skipped, just set in the config
-                if any(key in x.keys() for x in (self._config, ALTERNATE_PARAMETERS, DEPRECATED_PARAMETERS)):
+                if any(key in x.keys() for x in (self._config, ALTERNATIVE_EASYCONFIG_PARAMETERS,
+                                                 DEPRECATED_EASYCONFIG_PARAMETERS)):
                     self[key] = params[key]
                     self.log.info("setting easyconfig parameter %s: value %s (type: %s)",
                                   key, self[key], type(self[key]))
@@ -1998,24 +2001,24 @@ def resolve_template(value, tmpl_dict):
             try:
                 value = value % tmpl_dict
             except KeyError:
-                # check if any alternate and/or deprecated templates resolve
+                # check if any alternative and/or deprecated templates resolve
                 try:
                     orig_value = value
-                    # map old templates to new values for alternate and deprecated templates
+                    # map old templates to new values for alternative and deprecated templates
                     alt_map = {old_tmpl: tmpl_dict[new_tmpl] for (old_tmpl, new_tmpl) in
-                               ALTERNATE_TEMPLATES.items() if new_tmpl in tmpl_dict.keys()}
+                               ALTERNATIVE_EASYCONFIG_TEMPLATES.items() if new_tmpl in tmpl_dict.keys()}
                     alt_map2 = {new_tmpl: tmpl_dict[old_tmpl] for (old_tmpl, new_tmpl) in
-                                ALTERNATE_TEMPLATES.items() if old_tmpl in tmpl_dict.keys()}
+                                ALTERNATIVE_EASYCONFIG_TEMPLATES.items() if old_tmpl in tmpl_dict.keys()}
                     depr_map = {old_tmpl: tmpl_dict[new_tmpl] for (old_tmpl, (new_tmpl, ver)) in
-                                DEPRECATED_TEMPLATES.items() if new_tmpl in tmpl_dict.keys()}
+                                DEPRECATED_EASYCONFIG_TEMPLATES.items() if new_tmpl in tmpl_dict.keys()}
 
-                    # try templating with alternate and deprecated templates included
+                    # try templating with alternative and deprecated templates included
                     value = value % {**tmpl_dict, **alt_map, **alt_map2, **depr_map}
 
                     for old_tmpl, val in depr_map.items():
                         # check which deprecated templates were replaced, and issue deprecation warnings
                         if old_tmpl in orig_value and val in value:
-                            new_tmpl, ver = DEPRECATED_TEMPLATES[old_tmpl]
+                            new_tmpl, ver = DEPRECATED_EASYCONFIG_TEMPLATES[old_tmpl]
                             _log.deprecated(f"Easyconfig template '{old_tmpl}' is deprecated, use '{new_tmpl}' instead",
                                             ver)
                 except KeyError:
@@ -2023,8 +2026,8 @@ def resolve_template(value, tmpl_dict):
                     value = raw_value  # Undo "%"-escaping
 
                 for key in tmpl_dict:
-                    if key in DEPRECATED_TEMPLATES:
-                        new_key, ver = DEPRECATED_TEMPLATES[key]
+                    if key in DEPRECATED_EASYCONFIG_TEMPLATES:
+                        new_key, ver = DEPRECATED_EASYCONFIG_TEMPLATES[key]
                         _log.deprecated(f"Easyconfig template '{key}' is deprecated, use '{new_key}' instead", ver)
 
     else:

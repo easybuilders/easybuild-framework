@@ -161,8 +161,8 @@ TEMPLATE_CONSTANTS = [
     ('SHLIB_EXT', get_shared_lib_ext(), 'extension for shared libraries'),
 ]
 
-# alternate templates, and their equivalents
-ALTERNATE_TEMPLATES = {
+# alternative templates, and their equivalents
+ALTERNATIVE_EASYCONFIG_TEMPLATES = {
     # <new>: <equivalent_template>,
     'build_dir': 'builddir',
     'cuda_cc_comma_sep': 'cuda_compute_capabilities',
@@ -197,12 +197,12 @@ ALTERNATE_TEMPLATES = {
 }
 
 # deprecated templates, and their replacements
-DEPRECATED_TEMPLATES = {
+DEPRECATED_EASYCONFIG_TEMPLATES = {
     # <old_template>: (<new_template>, <deprecation_version>),
 }
 
-# alternate template constants, and their equivalents
-ALTERNATE_TEMPLATE_CONSTANTS = {
+# alternative template constants, and their equivalents
+ALTERNATIVE_EASYCONFIG_TEMPLATE_CONSTANTS = {
     # <new_template_constant>: <equivalent_template_constant>,
     'APACHE_URL': 'APACHE_SOURCE',
     'BITBUCKET_GET_URL': 'BITBUCKET_SOURCE',
@@ -244,7 +244,7 @@ ALTERNATE_TEMPLATE_CONSTANTS = {
 }
 
 # deprecated template constants, and their replacements
-DEPRECATED_TEMPLATE_CONSTANTS = {
+DEPRECATED_EASYCONFIG_TEMPLATE_CONSTANTS = {
     # <old_template_constant>: (<new_template_constant>, <deprecation_version>),
 }
 

@@ -912,10 +912,11 @@ class EasyBlock(object):
                     if PYPI_PKG_URL_PATTERN in fullurl and not is_alt_pypi_url(fullurl):
                         alt_url = derive_alt_pypi_url(fullurl)
                         if alt_url:
-                            _log.debug("Using alternate PyPI URL for %s: %s", fullurl, alt_url)
+                            _log.debug("Using alternative PyPI URL for %s: %s", fullurl, alt_url)
                             fullurl = alt_url
                         else:
-                            _log.debug("Failed to derive alternate PyPI URL for %s, so retaining the original", fullurl)
+                            _log.debug("Failed to derive alternative PyPI URL for %s, so retaining the original",
+                                       fullurl)
 
                     if self.dry_run:
                         self.dry_run_msg("  * %s will be downloaded to %s", filename, targetpath)

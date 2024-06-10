@@ -1236,7 +1236,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
         (highest_version_ignoring_versionsuffix is not None and highest_version is not None and
          LooseVersion(highest_version_ignoring_versionsuffix) > LooseVersion(highest_version))
 
-    exclude_alternate_versionsuffixes = False
+    exclude_alternative_versionsuffixes = False
     if ignored_versionsuffix_greater:
         if ignore_versionsuffixes:
             highest_version = highest_version_ignoring_versionsuffix
@@ -1247,11 +1247,11 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                     dep['name'], versionsuffix, [d['path'] for d in potential_version_mappings if
                                                  d['version'] == highest_version_ignoring_versionsuffix])
             # exclude candidates with a different versionsuffix
-            exclude_alternate_versionsuffixes = True
+            exclude_alternative_versionsuffixes = True
     else:
         # If the other version suffixes are not greater, then just ignore them
-        exclude_alternate_versionsuffixes = True
-    if exclude_alternate_versionsuffixes:
+        exclude_alternative_versionsuffixes = True
+    if exclude_alternative_versionsuffixes:
         potential_version_mappings = [d for d in potential_version_mappings if d['versionsuffix'] == versionsuffix]
 
     if highest_versions_only and highest_version is not None:

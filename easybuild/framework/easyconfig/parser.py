@@ -42,8 +42,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 
 
-# alternate easyconfig parameters, and their non-deprecated equivalents
-ALTERNATE_PARAMETERS = {
+# alternative easyconfig parameters, and their non-deprecated equivalents
+ALTERNATIVE_EASYCONFIG_PARAMETERS = {
     # <new_param>: <equivalent_param>,
     'build_deps': 'builddependencies',
     'build_in_install_dir': 'buildininstalldir',
@@ -101,7 +101,7 @@ ALTERNATE_PARAMETERS = {
 }
 
 # deprecated easyconfig parameters, and their replacements
-DEPRECATED_PARAMETERS = {
+DEPRECATED_EASYCONFIG_PARAMETERS = {
     # <old_param>: (<new_param>, <deprecation_version>),
 }
 

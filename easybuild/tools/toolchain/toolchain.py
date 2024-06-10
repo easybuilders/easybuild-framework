@@ -1028,7 +1028,7 @@ class Toolchain(object):
 
     def handle_sysroot(self):
         """
-        Extra stuff to be done when alternate system root is specified via --sysroot EasyBuild configuration option.
+        Extra stuff to be done when alternative system root is specified via --sysroot EasyBuild configuration option.
 
         * Update $PKG_CONFIG_PATH to include sysroot location to pkg-config files (*.pc).
         """
