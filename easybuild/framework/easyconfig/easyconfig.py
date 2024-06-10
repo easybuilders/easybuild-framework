@@ -59,10 +59,11 @@ from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION, retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
-from easybuild.framework.easyconfig.parser import ALTERNATIVE_EASYCONFIG_PARAMETERS, DEPRECATED_EASYCONFIG_PARAMETERS, REPLACED_PARAMETERS
-from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMPLATES, DEPRECATED_EASYCONFIG_TEMPLATES, TEMPLATE_CONSTANTS
-from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_DYNAMIC, template_constant_dict
+from easybuild.framework.easyconfig.parser import ALTERNATIVE_EASYCONFIG_PARAMETERS, DEPRECATED_EASYCONFIG_PARAMETERS
+from easybuild.framework.easyconfig.parser import REPLACED_PARAMETERS, EasyConfigParser
+from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMPLATES, DEPRECATED_EASYCONFIG_TEMPLATES
+from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
@@ -182,7 +183,8 @@ def triage_easyconfig_params(variables, ec):
 
     for key in variables:
         # validations are skipped, just set in the config
-        if any(key in d for d in (ec, DEPRECATED_EASYCONFIG_PARAMETERS.keys(), ALTERNATIVE_EASYCONFIG_PARAMETERS.keys())):
+        if any(key in d for d in (ec, DEPRECATED_EASYCONFIG_PARAMETERS.keys(),
+                                  ALTERNATIVE_EASYCONFIG_PARAMETERS.keys())):
             ec_params[key] = variables[key]
             _log.debug("setting config option %s: value %s (type: %s)", key, ec_params[key], type(ec_params[key]))
         elif key in REPLACED_PARAMETERS:
@@ -661,7 +663,8 @@ class EasyConfig(object):
         with self.disable_templating():
             for key in sorted(params.keys()):
                 # validations are skipped, just set in the config
-                if any(key in x.keys() for x in (self._config, ALTERNATIVE_EASYCONFIG_PARAMETERS, DEPRECATED_EASYCONFIG_PARAMETERS)):
+                if any(key in x.keys() for x in (self._config, ALTERNATIVE_EASYCONFIG_PARAMETERS,
+                                                 DEPRECATED_EASYCONFIG_PARAMETERS)):
                     self[key] = params[key]
                     self.log.info("setting easyconfig parameter %s: value %s (type: %s)",
                                   key, self[key], type(self[key]))

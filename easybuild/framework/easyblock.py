@@ -915,7 +915,8 @@ class EasyBlock(object):
                             _log.debug("Using alternative PyPI URL for %s: %s", fullurl, alt_url)
                             fullurl = alt_url
                         else:
-                            _log.debug("Failed to derive alternative PyPI URL for %s, so retaining the original", fullurl)
+                            _log.debug("Failed to derive alternative PyPI URL for %s, so retaining the original",
+                                       fullurl)
 
                     if self.dry_run:
                         self.dry_run_msg("  * %s will be downloaded to %s", filename, targetpath)

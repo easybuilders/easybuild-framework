@@ -39,8 +39,8 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.format.format import get_format_version, EasyConfigFormat
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
-from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMPLATE_CONSTANTS, DEPRECATED_EASYCONFIG_TEMPLATE_CONSTANTS
-from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS
+from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMPLATE_CONSTANTS
+from easybuild.framework.easyconfig.templates import DEPRECATED_EASYCONFIG_TEMPLATE_CONSTANTS, TEMPLATE_CONSTANTS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.systemtools import get_shared_lib_ext
