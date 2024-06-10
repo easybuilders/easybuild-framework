@@ -211,6 +211,14 @@ class EnhancedTestCase(TestCase):
         eb_build_log.CURRENT_VERSION = self.orig_current_version
 
     @contextmanager
+    def temporarily_allow_deprecated_behaviour(self):
+        self.allow_deprecated_behaviour()
+        try:
+            yield
+        finally:
+            self.disallow_deprecated_behaviour()
+
+    @contextmanager
     def log_to_testlogfile(self):
         """Context manager class to capture log output in self.logfile for the scope used. Clears the file first"""
         open(self.logfile, 'w').close()  # Remove all contents

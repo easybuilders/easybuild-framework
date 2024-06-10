@@ -60,7 +60,6 @@ TEMPLATE_NAMES_CONFIG = [
     'bitbucket_account',
     'github_account',
     'name',
-    'parallel',
     'version',
     'versionsuffix',
     'versionprefix',
@@ -100,6 +99,7 @@ TEMPLATE_NAMES_DYNAMIC = [
     ('cuda_cc_semicolon_sep', "Semicolon-separated list of CUDA compute capabilities"),
     ('cuda_sm_comma_sep', "Comma-separated list of sm_* values that correspond with CUDA compute capabilities"),
     ('cuda_sm_space_sep', "Space-separated list of sm_* values that correspond with CUDA compute capabilities"),
+    ('parallel', "Degree of parallelism for e.g. make"),
 ]
 
 # constant templates that can be used in easyconfigs
