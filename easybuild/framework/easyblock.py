@@ -2865,7 +2865,7 @@ class EasyBlock(object):
 
                 self.log.debug("Obtained class %s for extension %s", cls, ext_name)
                 if cls not in (None, EasyBlock):
-                    # extensions need a non-default EasyBlock capable of installing extensions 
+                    # extensions need a non-default EasyBlock capable of installing extensions
                     if not issubclass(cls, Extension):
                         raise EasyBuildError("%s easyblock can not be used to install extensions!", cls.__name__)
 
