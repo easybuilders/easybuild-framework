@@ -1909,9 +1909,8 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         modname = modulepath.replace('easybuild.easyblocks.', '')
         error_re = re.compile(rf"No module named '?.*/?{modname}'?")
         _log.debug(f"Error regexp for ImportError on '{modname}' easyblock: {error_re.pattern}")
-        if error_re.match(str(err)):
-            if error_on_missing_easyblock:
-                raise EasyBuildError(f"No software-specific easyblock '{class_name}' found for {name}")
+        if error_re.match(str(err)) and error_on_missing_easyblock:
+            raise EasyBuildError(f"No software-specific easyblock '{class_name}' found for {name}")
         elif error_on_failed_import:
             raise EasyBuildError(f"Failed to import {class_name} easyblock: {err}")
         else:
