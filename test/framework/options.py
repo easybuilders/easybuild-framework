@@ -4485,7 +4485,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_github_new_pr_from_branch(self):
         """Test --new-pr-from-branch."""
         if self.github_token is None:
-            print("Skipping test_new_pr_from_branch, no GitHub token available?")
+            print("Skipping test_github_new_pr_from_branch, no GitHub token available?")
             return
 
         # see https://github.com/boegel/easybuild-easyconfigs/tree/test_new_pr_from_branch_DO_NOT_REMOVE
@@ -4517,8 +4517,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^\* from: boegel/easybuild-easyconfigs:test_new_pr_from_branch_DO_NOT_REMOVE$",
             r'^\* title: "\{tools\}\[system/system\] toy v0\.0"$',
             r'^"an easyconfig for toy"$',
-            r"^ 1 file changed, 32 insertions\(\+\)$",
-            r"^\* overview of changes:\n  easybuild/easyconfigs/t/toy/toy-0\.0\.eb | 32",
+            r"^ 1 file changed, [0-9]+ insertions\(\+\)$",
+            r"^\* overview of changes:\n  easybuild/easyconfigs/t/toy/toy-0\.0\.eb | [0-9]+",
         ]
         self._assert_regexs(regexs, txt)
 
@@ -4546,7 +4546,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^== fetching branch 'develop' from https://github.com/%s.git\.\.\." % full_repo,
             r"^== copying files to .*/git-working-dir.*/easybuild-easyconfigs...",
             r"^== pushing branch 'develop' to remote '.*' \(git@github.com:%s.git\) \[DRY RUN\]" % full_repo,
-            r"^Overview of changes:\n.*/easyconfigs/t/toy/toy-0.0.eb \| 32",
+            r"^Overview of changes:\n.*/easyconfigs/t/toy/toy-0.0.eb \| [0-9]+",
             r"== pushed updated branch 'develop' to boegel/easybuild-easyconfigs \[DRY RUN\]",
         ]
         self._assert_regexs(regexs, txt)

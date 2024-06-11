@@ -84,8 +84,8 @@ from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_const
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
-from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, expand_glob_paths, install_fake_vsc
-from easybuild.tools.filetools import move_file, which
+from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, expand_glob_paths, get_cwd
+from easybuild.tools.filetools import install_fake_vsc, move_file, which
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED
 from easybuild.tools.github import GITHUB_PR_STATE_OPEN, GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
@@ -829,7 +829,7 @@ class EasyBuildOptions(GeneralOption):
             'eb-cmd': ("EasyBuild command to use in jobs", 'str', 'store', DEFAULT_JOB_EB_CMD),
             'max-jobs': ("Maximum number of concurrent jobs (queued and running, 0 = unlimited)", 'int', 'store', 0),
             'max-walltime': ("Maximum walltime for jobs (in hours)", 'int', 'store', 24),
-            'output-dir': ("Output directory for jobs (default: current directory)", None, 'store', os.getcwd()),
+            'output-dir': ("Output directory for jobs (default: current directory)", None, 'store', get_cwd()),
             'polling-interval': ("Interval between polls for status of jobs (in seconds)", float, 'store', 30.0),
             'target-resource': ("Target resource for jobs", None, 'store', None),
         })
@@ -1365,9 +1365,9 @@ class EasyBuildOptions(GeneralOption):
                 '',
                 "* GPU:",
             ])
-            for vendor in gpu_info:
+            for vendor, vendor_gpu in gpu_info.items():
                 lines.append("  -> %s" % vendor)
-                for gpu, num in gpu_info[vendor].items():
+                for gpu, num in vendor_gpu.items():
                     lines.append("    -> %sx %s" % (num, gpu))
 
         lines.extend([

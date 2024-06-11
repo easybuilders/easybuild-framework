@@ -2273,6 +2273,19 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'GCC-4.6.3.eb')))
         self.assertEqual(txt, '')
 
+    def test_get_cwd(self):
+        """Test get_cwd"""
+        toy_dir = os.path.join(self.test_prefix, "test_get_cwd_dir")
+        os.mkdir(toy_dir)
+        os.chdir(toy_dir)
+
+        self.assertTrue(os.path.samefile(ft.get_cwd(), toy_dir))
+
+        os.rmdir(toy_dir)
+        self.assertErrorRegex(EasyBuildError, ft.CWD_NOTFOUND_ERROR, ft.get_cwd)
+
+        self.assertEqual(ft.get_cwd(must_exist=False), None)
+
     def test_change_dir(self):
         """Test change_dir"""
 
