@@ -37,8 +37,6 @@ jobs:
         lc_all: [""]
         include:
           # Test different Python 3 versions with Lmod 8.x
-          - python: 3.5
-            modules_tool: ${{needs.setup.outputs.lmod8}}
           - python: 3.7
             modules_tool: ${{needs.setup.outputs.lmod8}}
           - python: 3.8
@@ -140,7 +138,7 @@ jobs:
           python setup.py sdist
           ls dist
           export PREFIX=/tmp/$USER/$GITHUB_SHA
-          pip install --prefix $PREFIX dist/easybuild-framework*tar.gz
+          pip install --prefix $PREFIX dist/easybuild[-_]framework*tar.gz
 
     - name: run test suite
       env:

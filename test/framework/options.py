@@ -366,6 +366,25 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertEqual(len(glob.glob(toy_mod_glob)), 1)
 
+        # check use of module_only parameter
+        remove_dir(os.path.join(self.test_installpath, 'modules', 'all', 'toy'))
+        remove_dir(os.path.join(self.test_installpath, 'software', 'toy', '0.0'))
+        args = [
+            test_ec,
+            '--rebuild',
+        ]
+        test_ec_txt += "\nmodule_only = True\n"
+        write_file(test_ec, test_ec_txt)
+        self.eb_main(args, do_build=True, raise_error=True)
+
+        self.assertEqual(len(glob.glob(toy_mod_glob)), 1)
+
+        # check that no software was installed
+        installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        installdir_glob = glob.glob(os.path.join(installdir, '*'))
+        easybuild_dir = os.path.join(installdir, 'easybuild')
+        self.assertEqual(installdir_glob, [easybuild_dir])
+
     def test_skip_test_step(self):
         """Test skipping testing the build (--skip-test-step)."""
 
@@ -1908,7 +1927,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
-            self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
+            self.assertEqual(sorted(x[1] for x in regex.findall(outtxt)), sorted(x[1] for x in modules))
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr6424')
             regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)
@@ -1943,12 +1962,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
-            self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
+            self.assertEqual(sorted(x[1] for x in regex.findall(outtxt)), sorted(x[1] for x in modules))
 
             for pr in ('12150', '12366'):
                 pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr%s' % pr)
                 regex = re.compile(r"Extended list of robot search paths with .*%s.*:" % pr_tmpdir, re.M)
-                self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+                self.assertTrue(regex.search(outtxt), "Found pattern '%s' in: %s" % (regex.pattern, outtxt))
 
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
@@ -2117,6 +2136,50 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
+
+            pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_commit_%s' % test_commit)
+            regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)
+            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+        except URLError as err:
+            print("Ignoring URLError '%s' in test_from_commit" % err)
+            shutil.rmtree(tmpdir)
+
+        easyblock_template = '\n'.join([
+            "from easybuild.framework.easyblock import EasyBlock",
+            "class %s(EasyBlock):",
+            "    pass",
+        ])
+
+        # create fake custom easyblock for CMake that is required by easyconfig used in test below
+        easyblock_file = os.path.join(self.test_prefix, 'easyblocks', 'cmake.py')
+        write_file(easyblock_file, easyblock_template % 'EB_CMake')
+
+        # also test with an easyconfig that requires additional easyconfigs to resolve dependencies,
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/4540;
+        # using commit that adds CMake-3.18.4.eb (which requires ncurses-6.2.eb),
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/13156
+        test_commit = '41eee3fe2e5102f52319481ca8dde16204dab590'
+        args = [
+            '--from-commit=%s' % test_commit,
+            '--dry-run',
+            '--tmpdir=%s' % tmpdir,
+            '--include-easyblocks=' + os.path.join(self.test_prefix, 'easyblocks', '*.py'),
+        ]
+        try:
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            modules = [
+                (tmpdir, 'ncurses/6.2'),
+                (tmpdir, 'CMake/3.18.4'),
+            ]
+            for path_prefix, module in modules:
+                ec_fn = "%s.eb" % '-'.join(module.split('/'))
+                path = '.*%s' % os.path.dirname(path_prefix)
+                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
+                self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+            # make sure that *only* these modules are listed, no others
+            regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
+            self.assertEqual(sorted(x[1] for x in regex.findall(outtxt)), sorted(x[1] for x in modules))
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_commit_%s' % test_commit)
             regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)
@@ -4522,7 +4585,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         res = [d for d in res if os.path.basename(d) != os.path.basename(git_working_dir)]
         if len(res) == 1:
             unstaged_file_full = os.path.join(res[0], unstaged_file)
-            self.assertNotExists(unstaged_file_full), "%s not found in %s" % (unstaged_file, res[0])
+            self.assertNotExists(unstaged_file_full)
         else:
             self.fail("Found copy of easybuild-easyconfigs working copy")
 
@@ -5248,6 +5311,45 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "FC: gfortran",
         ])
         self.assertEqual(out.strip(), expected_out)
+
+    def test_dump_env_script_existing_module(self):
+        toy_ec = 'toy-0.0.eb'
+
+        os.chdir(self.test_prefix)
+        self._run_mock_eb([toy_ec, '--force'], do_build=True)
+        env_script = os.path.join(self.test_prefix, os.path.splitext(toy_ec)[0] + '.env')
+        test_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            test_module += '.lua'
+        self.assertExists(test_module)
+        self.assertNotExists(env_script)
+
+        args = [toy_ec, '--dump-env']
+        os.chdir(self.test_prefix)
+        self._run_mock_eb(args, do_build=True, raise_error=True)
+        self.assertExists(env_script)
+        self.assertExists(test_module)
+        module_content = read_file(test_module)
+        env_file_content = read_file(env_script)
+
+        error_msg = (r"Script\(s\) already exists, not overwriting them \(unless --force is used\): "
+                     + os.path.basename(env_script))
+        os.chdir(self.test_prefix)
+        self.assertErrorRegex(EasyBuildError, error_msg, self._run_mock_eb, args, do_build=True, raise_error=True)
+        self.assertExists(env_script)
+        self.assertExists(test_module)
+        # Unchanged module and env file
+        self.assertEqual(read_file(test_module), module_content)
+        self.assertEqual(read_file(env_script), env_file_content)
+
+        args.append('--force')
+        os.chdir(self.test_prefix)
+        self._run_mock_eb(args, do_build=True, raise_error=True)
+        self.assertExists(env_script)
+        self.assertExists(test_module)
+        # Unchanged module and env file
+        self.assertEqual(read_file(test_module), module_content)
+        self.assertEqual(read_file(env_script), env_file_content)
 
     def test_stop(self):
         """Test use of --stop."""
