@@ -2734,10 +2734,10 @@ class EasyBlock(object):
                 raise EasyBuildError(f"Invalid element in '{caller}', not a string: {cmd}")
             run_shell_cmd(cmd)
 
-    def run_step_main_action(self, action, step, pre_cmds=None, pre_opts="", post_opts=""):
+    def run_step_main_action(self, action, step_name, pre_cmds=None, pre_opts="", post_opts=""):
         """Construct main command of step and execute it"""
         if pre_cmds:
-            self._run_command_stack(pre_cmds, f"pre{step}cmds")
+            self._run_command_stack(pre_cmds, f"pre_{step_name}_cmds")
 
         step_cmd = f"{pre_opts} {action} {post_opts}"
         return run_shell_cmd(step_cmd)
@@ -2747,8 +2747,8 @@ class EasyBlock(object):
         if self.cfg['configure_cmd'] is not None:
             res = self.run_step_main_action(
                 self.cfg['configure_cmd'],
-                "config",
-                self.cfg['preconfigcmds'],
+                "configure",
+                self.cfg['pre_configure_cmds'],
                 self.cfg['preconfigopts'],
                 self.cfg['configopts'],
             )
@@ -2760,7 +2760,7 @@ class EasyBlock(object):
             res = self.run_step_main_action(
                 self.cfg['build_cmd'],
                 "build",
-                self.cfg['prebuildcmds'],
+                self.cfg['pre_build_cmds'],
                 self.cfg['prebuildopts'],
                 self.cfg['buildopts'],
             )
@@ -2776,7 +2776,7 @@ class EasyBlock(object):
             res = self.run_step_main_action(
                 self.cfg['test_cmd'],
                 "test",
-                self.cfg['pretestcmds'],
+                self.cfg['pre_test_cmds'],
                 self.cfg['pretestopts'],
                 self.cfg['testopts'],
             )
@@ -2801,7 +2801,7 @@ class EasyBlock(object):
             res = self.run_step_main_action(
                 self.cfg['install_cmd'],
                 "install",
-                self.cfg['preinstallcmds'],
+                self.cfg['pre_install_cmds'],
                 self.cfg['preinstallopts'],
                 self.cfg['installopts'],
             )

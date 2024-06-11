@@ -2582,7 +2582,7 @@ class EasyConfigTest(EnhancedTestCase):
             'moduleclass = "tools"',
             '',
             'postinstallcmds = ["echo Done"]',
-            'preconfigcmds = ["sed \'1d\' -i test.config"]',
+            'pre_configure_cmds = ["sed \'1d\' -i test.config"]',
             'buildopts = "OPT=foo"',
             'preinstallopts = "VAR=foo"',
         ])
@@ -2592,7 +2592,7 @@ class EasyConfigTest(EnhancedTestCase):
         # make sure regex finds all easyconfig parameters in the order they appear in the easyconfig
         expected = ['homepage', '', 'name', 'versionsuffix', '', 'patches', 'easyblock', '', 'toolchain', '',
                     'checksums', 'dependencies', 'version', 'description', '', 'source_urls', 'foo_extra1',
-                    '', 'sources', 'moduleclass', '', 'postinstallcmds', 'preconfigcmds', 'buildopts',
+                    '', 'sources', 'moduleclass', '', 'postinstallcmds', 'pre_configure_cmds', 'buildopts',
                     'preinstallopts']
         self.assertEqual(param_regex.findall(rawtxt), expected)
 
@@ -2604,7 +2604,7 @@ class EasyConfigTest(EnhancedTestCase):
         # easyconfig parameters should be properly ordered/grouped in dumped easyconfig
         expected = ['easyblock', '', 'name', 'version', 'versionsuffix', '', 'homepage', 'description', '',
                     'toolchain', '', 'source_urls', 'sources', 'patches', 'checksums', '', 'dependencies', '',
-                    'preconfigcmds', '', 'buildopts', '', 'preinstallopts', '', 'postinstallcmds', '',
+                    'pre_configure_cmds', '', 'buildopts', '', 'preinstallopts', '', 'postinstallcmds', '',
                     'foo_extra1', '', 'moduleclass', '']
         self.assertEqual(param_regex.findall(ectxt), expected)
 
