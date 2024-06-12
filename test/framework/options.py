@@ -395,8 +395,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         found_msg = "Running method test_step part of step test"
         found = re.search(found_msg, outtxt)
-        test_run_msg = "execute make_test dummy_cmd as a command for running unit tests"
         self.assertTrue(found, "Message about test step being run is present, outtxt: %s" % outtxt)
+        test_run_msg = 'Output of "make_test dummy_cmd" will be logged'
         found = re.search(test_run_msg, outtxt)
         self.assertTrue(found, "Test execution command is present, outtxt: %s" % outtxt)
 
