@@ -1860,7 +1860,7 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
     _log.nosupport('Use det_full_ec_version from easybuild.tools.module_generator instead of %s' % old_fn, '2.0')
 
 
-def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error_on_missing_easyblock=True, **kwargs):
+def get_easyblock_class(easyblock, name=None, error_on_missing_easyblock=True, **kwargs):
     """
     Get class for a particular easyblock (or use default)
     """
@@ -1909,12 +1909,13 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         modname = modulepath.replace('easybuild.easyblocks.', '')
         error_re = re.compile(rf"No module named '?.*/?{modname}'?")
         _log.debug(f"Error regexp for ImportError on '{modname}' easyblock: {error_re.pattern}")
-        if error_re.match(str(err)) and error_on_missing_easyblock:
-            raise EasyBuildError(f"No software-specific easyblock '{class_name}' found for {name}")
-        elif error_on_failed_import:
-            raise EasyBuildError(f"Failed to import {class_name} easyblock: {err}")
+        if error_re.match(str(err)):
+            if error_on_missing_easyblock:
+                raise EasyBuildError(f"Software-specific easyblock '{class_name}' not found for {name}")
+            else:
+                _log.debug(f"Easyblock for {class_name} not found, but ignoring it: {err}")
         else:
-            _log.debug(f"Failed to import easyblock for {class_name}, but ignoring it: {err}")
+            raise EasyBuildError(f"Failed to import {class_name} easyblock: {err}")
     except EasyBuildError as err:
         # simply reraise rather than wrapping it into another error
         raise err
