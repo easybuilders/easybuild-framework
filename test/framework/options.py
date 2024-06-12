@@ -3665,7 +3665,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(self.logfile, '')
 
         # generic easyblock FooBar is not there initially
-        error_msg = "Failed to obtain class for FooBar easyblock"
+        error_msg = "No software-specific easyblock 'FooBar' found"
         self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
 
         # include extra test easyblocks
@@ -3711,7 +3711,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 if testdir_sandbox not in path:
                     sys.modules[pkg].__path__.remove(path)
 
-        error_msg = "Failed to obtain class for FooBar easyblock"
+        error_msg = "No software-specific easyblock 'FooBar' found"
         self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
 
         # clear log
