@@ -692,7 +692,7 @@ class EasyConfigTest(EnhancedTestCase):
             'patches': new_patches,
             'keepsymlinks': 'True',  # Don't change this
             # It should be possible to overwrite values with True/False/None as they often have special meaning
-            'runtest': 'False',
+            'test_cmd': 'False',
             'hidden': 'True',
             'parallel': 'None',  # Good example: parallel=None means "Auto detect"
             # Adding new options (added only by easyblock) should also be possible
@@ -709,7 +709,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['versionsuffix'], versuff)
         self.assertEqual(eb['toolchain']['version'], tcver)
         self.assertEqual(eb['patches'], new_patches)
-        self.assertIs(eb['runtest'], False)
+        self.assertIs(eb['test_cmd'], False)
         self.assertIs(eb['hidden'], True)
         self.assertIsNone(eb['parallel'])
         self.assertEqual(eb['test_none'], 'False')

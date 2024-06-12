@@ -416,7 +416,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test ignore failing tests (--ignore-test-failure)."""
 
         topdir = os.path.abspath(os.path.dirname(__file__))
-        # This EC uses a `runtest` command which does not exist and hence will make the test step fail
+        # This EC uses a `test_cmd` command which does not exist and hence will make the test step fail
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb')
 
         args = [toy_ec, '--ignore-test-failure', '--force']
