@@ -50,7 +50,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
-from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.framework.easyconfig.parser import ALTERNATIVE_EASYCONFIG_PARAMETERS, EasyConfigParser
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_CONFIG, TEMPLATE_NAMES_DYNAMIC
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, TEMPLATE_NAMES_EASYCONFIG
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPLATE_NAMES_LOWER_TEMPLATE
@@ -315,7 +315,7 @@ def avail_easyconfig_licenses_md():
     return '\n'.join(doc)
 
 
-def avail_easyconfig_params_md(title, grouped_params):
+def avail_easyconfig_params_md(title, grouped_params, alternative_params):
     """
     Compose overview of available easyconfig parameters, in MarkDown format.
     """
@@ -328,13 +328,14 @@ def avail_easyconfig_params_md(title, grouped_params):
     for grpname in grouped_params:
         # group section title
         title = "%s%s parameters" % (grpname[0].upper(), grpname[1:])
-        table_titles = ["**Parameter name**", "**Description**", "**Default value**"]
+        table_titles = ["**Parameter name**", "**Description**", "**Default value**", "**Alternative name**"]
         keys = sorted(grouped_params[grpname].keys())
         values = [grouped_params[grpname][key] for key in keys]
         table_values = [
             ['`%s`' % name for name in keys],  # parameter name
             [x[0].replace('<', '&lt;').replace('>', '&gt;') for x in values],  # description
-            ['`' + str(quote_str(x[1])) + '`' for x in values]  # default value
+            ['`' + str(quote_str(x[1])) + '`' for x in values],  # default value
+            ['`%s`' % alternative_params[name] if name in alternative_params else '' for name in keys],
         ]
 
         doc.extend(md_title_and_table(title, table_titles, table_values, title_level=2))
@@ -343,7 +344,7 @@ def avail_easyconfig_params_md(title, grouped_params):
     return '\n'.join(doc)
 
 
-def avail_easyconfig_params_rst(title, grouped_params):
+def avail_easyconfig_params_rst(title, grouped_params, alternative_params):
     """
     Compose overview of available easyconfig parameters, in RST format.
     """
@@ -357,13 +358,14 @@ def avail_easyconfig_params_rst(title, grouped_params):
     for grpname in grouped_params:
         # group section title
         title = "%s parameters" % grpname
-        table_titles = ["**Parameter name**", "**Description**", "**Default value**"]
+        table_titles = ["**Parameter name**", "**Description**", "**Default value**", "**Alternative name**"]
         keys = sorted(grouped_params[grpname].keys())
         values = [grouped_params[grpname][key] for key in keys]
         table_values = [
             ['``%s``' % name for name in keys],  # parameter name
             [x[0] for x in values],  # description
-            [str(quote_str(x[1])) for x in values]  # default value
+            [str(quote_str(x[1])) for x in values],  # default value
+            ['``%s``' % alternative_params[name] if name in alternative_params else '' for name in keys],
         ]
 
         doc.extend(rst_title_and_table(title, table_titles, table_values))
@@ -372,14 +374,14 @@ def avail_easyconfig_params_rst(title, grouped_params):
     return '\n'.join(doc)
 
 
-def avail_easyconfig_params_json():
+def avail_easyconfig_params_json(*args):
     """
     Compose overview of available easyconfig parameters, in json format.
     """
     raise NotImplementedError("JSON output format not supported for avail_easyconfig_params_json")
 
 
-def avail_easyconfig_params_txt(title, grouped_params):
+def avail_easyconfig_params_txt(title, grouped_params, alternative_params):
     """
     Compose overview of available easyconfig parameters, in plain text format.
     """
@@ -399,7 +401,17 @@ def avail_easyconfig_params_txt(title, grouped_params):
 
         # line by parameter
         for name, (descr, dflt) in sorted(grouped_params[grpname].items()):
-            doc.append("{0:<{nw}}   {1:} [default: {2:}]".format(name, descr, str(quote_str(dflt)), nw=nw))
+            line = ' '.join([
+                '{0:<{nw}}  ',
+                '{1:}',
+                '[default: {2:}]',
+            ]).format(name, descr, str(quote_str(dflt)), nw=nw)
+
+            alternative = alternative_params.get(name)
+            if alternative:
+                line += ' {alternative: %s}' % alternative
+
+            doc.append(line)
         doc.append('')
 
     return '\n'.join(doc)
@@ -417,6 +429,9 @@ def avail_easyconfig_params(easyblock, output_format=FORMAT_TXT):
     if app is not None:
         extra_params = app.extra_options()
     params.update(extra_params)
+
+    # reverse mapping of alternative easyconfig parameter names
+    alternative_params = {v: k for k, v in ALTERNATIVE_EASYCONFIG_PARAMETERS.items()}
 
     # compose title
     title = "Available easyconfig parameters"
@@ -443,7 +458,7 @@ def avail_easyconfig_params(easyblock, output_format=FORMAT_TXT):
             del grouped_params[grpname]
 
     # compose output, according to specified format (txt, rst, ...)
-    return generate_doc('avail_easyconfig_params_%s' % output_format, [title, grouped_params])
+    return generate_doc('avail_easyconfig_params_%s' % output_format, [title, grouped_params, alternative_params])
 
 
 def avail_easyconfig_templates(output_format=FORMAT_TXT):
