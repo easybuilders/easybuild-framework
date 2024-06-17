@@ -50,7 +50,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
-from easybuild.framework.easyconfig.parser import ALTERNATE_PARAMETERS, EasyConfigParser
+from easybuild.framework.easyconfig.parser import ALTERNATIVE_EASYCONFIG_PARAMETERS, EasyConfigParser
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_CONFIG, TEMPLATE_NAMES_DYNAMIC
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, TEMPLATE_NAMES_EASYCONFIG
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPLATE_NAMES_LOWER_TEMPLATE
@@ -431,7 +431,7 @@ def avail_easyconfig_params(easyblock, output_format=FORMAT_TXT):
     params.update(extra_params)
 
     # reverse mapping of alternative easyconfig parameter names
-    alternative_params = {v: k for k, v in ALTERNATE_PARAMETERS.items()}
+    alternative_params = {v: k for k, v in ALTERNATIVE_EASYCONFIG_PARAMETERS.items()}
 
     # compose title
     title = "Available easyconfig parameters"
