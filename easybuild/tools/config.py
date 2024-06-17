@@ -200,6 +200,7 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 # build options that have a perfectly matching command line option, listed by default value
 BUILD_OPTIONS_CMDLINE = {
     None: [
+        'allow_unresolved_templates',
         'aggregate_regtest',
         'backup_modules',
         'banned_linked_shared_libs',

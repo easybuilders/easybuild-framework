@@ -1151,7 +1151,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(EasyConfig(self.eb_file))
 
         error_pattern = r"source_tmpl value must be a string! "
-        error_pattern += r"\(found value of type 'list'\): \['bar-0\.0\.tar\.gz'\]"
+        error_pattern += r"\(found value of type 'list'\): \['%\(name\)s-%\(version\)s.tar.gz'\]"
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
 
         self.contents = self.contents.replace("'source_tmpl': [SOURCE_TAR_GZ]", "'source_tmpl': SOURCE_TAR_GZ")

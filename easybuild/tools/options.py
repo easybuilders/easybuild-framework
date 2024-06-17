@@ -349,6 +349,8 @@ class EasyBuildOptions(GeneralOption):
                                                  None, 'store_true', False),
             'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
                                      'strlist', 'store', DEFAULT_ALLOW_LOADED_MODULES),
+            'allow-unresolved-templates': ("Don't error out when templates such as %(name)s in EasyConfigs "
+                                           "could not be resolved", None, 'store_true', False),
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
                                             None, 'store_true', False),
             'allow-use-as-root-and-accept-consequences': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)",

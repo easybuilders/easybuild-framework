@@ -128,7 +128,10 @@ class Extension(object):
         self.src = resolve_template(self.ext.get('src', []), self.cfg.template_values)
         self.src_extract_cmd = self.ext.get('extract_cmd', None)
         self.patches = resolve_template(self.ext.get('patches', []), self.cfg.template_values)
-        self.options = resolve_template(copy.deepcopy(self.ext.get('options', {})), self.cfg.template_values)
+        # Some options may not be resolvable yet
+        self.options = resolve_template(copy.deepcopy(self.ext.get('options', {})),
+                                        self.cfg.template_values,
+                                        expect_resolved=False)
 
         if extra_params:
             self.cfg.extend_params(extra_params, overwrite=False)
