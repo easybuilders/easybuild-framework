@@ -567,7 +567,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         os.getcwd()
     except FileNotFoundError:
         _log.warning(
-            f"Shell command `{cmd_str}` completed successfully but left the system in a unknown working directory. "
+            f"Shell command `{cmd_str}` completed successfully but left the system in an unknown working directory. "
             f"Changing back to initial working directory: {initial_work_dir}"
         )
         try:
