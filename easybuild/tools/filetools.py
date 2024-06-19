@@ -123,11 +123,23 @@ CHECKSUM_TYPE_MD5 = 'md5'
 CHECKSUM_TYPE_SHA256 = 'sha256'
 DEFAULT_CHECKSUM = CHECKSUM_TYPE_SHA256
 
+
+def _hashlib_md5():
+    """
+    Wrapper function for hashlib.md5,
+    to set usedforsecurity to False when supported (Python >= 3.9)
+    """
+    kwargs = {}
+    if sys.version_info[0] >= 3 and sys.version_info[1] >= 9:
+        kwargs = {'usedforsecurity': False}
+    return hashlib.md5(**kwargs)
+
+
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
     'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
     'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
-    CHECKSUM_TYPE_MD5: lambda p: calc_block_checksum(p, hashlib.md5()),
+    CHECKSUM_TYPE_MD5: lambda p: calc_block_checksum(p, _hashlib_md5()),
     'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
     CHECKSUM_TYPE_SHA256: lambda p: calc_block_checksum(p, hashlib.sha256()),
     'sha512': lambda p: calc_block_checksum(p, hashlib.sha512()),
