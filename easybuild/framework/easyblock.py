@@ -545,7 +545,6 @@ class EasyBlock(object):
         """
         exts_sources = []
         exts_list = self.cfg.get_ref('exts_list')
-
         if verify_checksums and not fetch_files:
             raise EasyBuildError("Can't verify checksums for extension files if they are not being fetched")
 
@@ -964,7 +963,7 @@ class EasyBlock(object):
                         error_msg += "Paths attempted (in order): %s " % failedpaths_msg
 
                     if not warning_only:
-                        raise EasyBuildError(error_msg, filename)
+                        raise EasyBuildError(error_msg, filename, exit_code=9)
                     else:
                         self.log.warning(error_msg, filename)
                         return None
@@ -1892,7 +1891,6 @@ class EasyBlock(object):
         exts_cnt = len(self.ext_instances)
 
         for idx, ext in enumerate(self.ext_instances):
-
             self.log.info("Starting extension %s", ext.name)
 
             run_hook(SINGLE_EXTENSION, self.hooks, pre_step_hook=True, args=[ext])
@@ -2786,7 +2784,6 @@ class EasyBlock(object):
         exts_cnt = len(self.exts)
 
         self.update_exts_progress_bar("creating internal datastructures for extensions")
-
         for idx, ext in enumerate(self.exts):
             ext_name = ext['name']
             self.log.debug("Creating class instance for extension %s...", ext_name)
@@ -3617,6 +3614,7 @@ class EasyBlock(object):
                 if not found:
                     sanity_check_fail_msg = "no %s found at %s in %s" % (typ, xs2str(xs), self.installdir)
                     self.sanity_check_fail_msgs.append(sanity_check_fail_msg)
+                    self.exit_code = 10
                     self.log.warning("Sanity check: %s", sanity_check_fail_msg)
 
                 trace_msg("%s %s found: %s" % (typ, xs2str(xs), ('FAILED', 'OK')[found]))
@@ -3642,6 +3640,7 @@ class EasyBlock(object):
             if res.exit_code != 0:
                 fail_msg = f"sanity check command {cmd} exited with code {res.exit_code} (output: {res.output})"
                 self.sanity_check_fail_msgs.append(fail_msg)
+                self.exit_code = res.exit_code
                 self.log.warning(f"Sanity check: {fail_msg}")
             else:
                 self.log.info(f"sanity check command {cmd} ran successfully! (output: {res.output})")
@@ -3684,7 +3683,12 @@ class EasyBlock(object):
 
         # pass or fail
         if self.sanity_check_fail_msgs:
-            raise EasyBuildError("Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs))
+            try:
+                self.exit_code
+            except AttributeError:
+                self.exit_code = 1
+            raise EasyBuildError(
+                "Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs), exit_code=self.exit_code)
         else:
             self.log.debug("Sanity check passed!")
 
@@ -3786,8 +3790,11 @@ class EasyBlock(object):
                 for line in txt.split('\n'):
                     self.dry_run_msg(INDENT_4SPACES + line)
         else:
-            write_file(mod_filepath, txt)
-            self.log.info("Module file %s written: %s", mod_filepath, txt)
+            try:
+                write_file(mod_filepath, txt)
+                self.log.info("Module file %s written: %s", mod_filepath, txt)
+            except EasyBuildError:
+                raise EasyBuildError("Unable to write Module file %s", mod_filepath, exit_code=11)
 
             # if backup module file is there, print diff with newly generated module file
             if self.mod_file_backup and not fake:
@@ -4169,7 +4176,7 @@ class EasyBlock(object):
                         err.print()
                         ec_path = os.path.basename(self.cfg.path)
                         error_msg = f"shell command '{err.cmd_name} ...' failed in {step_name} step for {ec_path}"
-                        raise EasyBuildError(error_msg)
+                        raise EasyBuildError(error_msg, exit_code=err.exit_code)
                     finally:
                         if not self.dry_run:
                             step_duration = datetime.now() - start_time
@@ -4309,6 +4316,10 @@ def build_and_install_one(ecdict, init_env):
 
     except EasyBuildError as err:
         error_msg = err.msg
+        try:
+            exit_code
+        except NameError:
+            exit_code = 1
         result = False
 
     ended = 'ended'
@@ -4426,6 +4437,7 @@ def build_and_install_one(ecdict, init_env):
         success = True
         summary = 'COMPLETED'
         succ = 'successfully'
+        exit_code = 0
     else:
         # build failed
         success = False
@@ -4458,7 +4470,7 @@ def build_and_install_one(ecdict, init_env):
 
     del app
 
-    return (success, application_log, error_msg)
+    return (success, application_log, error_msg, exit_code)
 
 
 def copy_easyblocks_for_reprod(easyblock_instances, reprod_dir):

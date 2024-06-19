@@ -80,12 +80,14 @@ class EasyBuildError(LoggedException):
     # always include location where error was raised from, even under 'python -O'
     INCLUDE_LOCATION = True
 
-    def __init__(self, msg, *args):
+    def __init__(self, msg, *args, **kwargs):
         """Constructor: initialise EasyBuildError instance."""
         if args:
             msg = msg % args
-        LoggedException.__init__(self, msg)
+        LoggedException.__init__(self, msg, **kwargs)
         self.msg = msg
+        if kwargs:
+            self.__dict__.update(kwargs)
 
     def __str__(self):
         """Return string representation of this EasyBuildError instance."""
