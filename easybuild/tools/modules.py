@@ -37,6 +37,7 @@ Authors:
 * Jens Timmerman (Ghent University)
 * David Brown (Pacific Northwest National Laboratory)
 """
+import glob
 import os
 import re
 import shlex
@@ -51,6 +52,7 @@ from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, un
 from easybuild.tools.filetools import convert_name, mkdir, normalize_path, path_matches, read_file, which, write_file
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_shell_cmd
+from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import get_subclasses, nub
 
 # software root/version environment variable name prefixes
@@ -1656,6 +1658,7 @@ def get_software_libdir(name, only_one=True, fs=None):
 
     Returns the library subdirectory, relative to software root.
     It fails if multiple library subdirs are found, unless only_one is False which yields a list of all library subdirs.
+    If only_one is True and fs is None, select the one subdirectory with shared or static libraries, if possible.
 
     :param name: name of the software package
     :param only_one: indicates whether only one lib path is expected to be found
@@ -1688,6 +1691,16 @@ def get_software_libdir(name, only_one=True, fs=None):
             if len(res) == 1:
                 res = res[0]
             else:
+                if fs is None and len(res) == 2:
+                    # if both lib and lib64 were found, check if only one (exactly) has libraries;
+                    # this is needed for software with library archives in lib64 but other files/directories in lib
+                    lib_glob = ['*.%s' % ext for ext in ['a', get_shared_lib_ext()]]
+                    has_libs = [any(glob.glob(os.path.join(root, subdir, f)) for f in lib_glob) for subdir in res]
+                    if has_libs[0] and not has_libs[1]:
+                        return res[0]
+                    elif has_libs[1] and not has_libs[0]:
+                        return res[1]
+
                 raise EasyBuildError("Multiple library subdirectories found for %s in %s: %s",
                                      name, root, ', '.join(res))
         return res

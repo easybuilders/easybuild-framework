@@ -4,6 +4,28 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.9.2 (12 June 2024)
+---------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - improve behavior when using extension which has 'nosource' enabled (#4506)
+  - enhance 'get_software_libdir' to return 'lib' or 'lib64' if only one of them contains library files (#4513)
+  - implement versions checks to avoid mixing major versions across the EasyBuild components (#4520, #4553)
+  - add support for easyconfig parameter 'module_only' (#4537)
+- various bug fixes, including:
+  - fix typo in patch_step logging (#4505)
+  - consider both 'easybuild-framework*.tar.gz' and 'easybuild_framework*.tar.gz' in CI workflows (#4507)
+  - don't delete existing environment module files when using '--dump-env-script' with '--force' or '--rebuild' (#4512)
+  - fix resolved (template) values in case of failure  (#4532)
+  - also consider '$CRAY_PE_LIBSCI_PREFIX_DIR' to determine installation prefix for cray-libsci (#4551)
+  - symlink downloaded repo at specified commit when using '--from-commit' so easyconfigs for dependencies are found (#4552)
+- other changes:
+  - code cleanup in 'easyblock.py' (#4519)
+  - stop running unit tests on Python 3.5 (#4530)
+
+
 v4.9.1 (5 April 2024)
 ---------------------
 
