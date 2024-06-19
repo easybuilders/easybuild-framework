@@ -574,9 +574,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             os.chdir(initial_work_dir)
         except OSError as err:
             raise EasyBuildError(f"Failed to return to {initial_work_dir} after executing command `{cmd_str}`: {err}")
-        else:
-            if not os.path.isdir(work_dir):
-                work_dir = initial_work_dir
 
     if with_hooks:
         run_hook_kwargs = {
@@ -584,7 +581,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             'interactive': interactive,
             'output': res.output,
             'stderr': res.stderr,
-            'work_dir': work_dir,
+            'work_dir': res.work_dir,
         }
         run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
 
