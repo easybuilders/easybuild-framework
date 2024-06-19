@@ -386,7 +386,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         test_ec_txt += "\nmodule_only = True\n"
         write_file(test_ec, test_ec_txt)
-        self.eb_main(args, do_build=True, raise_error=True)
+        with self.mocked_stdout_stderr():
+            self.eb_main(args, do_build=True, raise_error=True)
 
         self.assertEqual(len(glob.glob(toy_mod_glob)), 1)
 
