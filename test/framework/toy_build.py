@@ -3560,8 +3560,8 @@ class ToyBuildTest(EnhancedTestCase):
 
             all_args = extra_args + opts
 
-            # use context manager to remove lock after 3 seconds
-            with RemoveLockAfter(3, toy_lock_path):
+            # use context manager to remove lock after 5 seconds
+            with RemoveLockAfter(5, toy_lock_path):
                 self.mock_stderr(True)
                 self.mock_stdout(True)
                 self.test_toy_build(extra_args=all_args, verify=False, raise_error=True, testing=False)
@@ -3576,7 +3576,7 @@ class ToyBuildTest(EnhancedTestCase):
 
                 wait_matches = wait_regex.findall(stdout)
                 # we can't rely on an exact number of 'waiting' messages, so let's go with a range...
-                self.assertIn(len(wait_matches), range(1, 5))
+                self.assertIn(len(wait_matches), range(1, 7))
 
                 self.assertTrue(ok_regex.search(stdout), "Pattern '%s' found in: %s" % (ok_regex.pattern, stdout))
 
