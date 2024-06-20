@@ -206,7 +206,7 @@ DEFAULT_CONFIG = {
     'moduleclass': [MODULECLASS_BASE, 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
-    'module_depends_on': [False, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
+    'module_depends_on': [True, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
                           '(implies recursive unloading of modules).', MODULES],
     'recursive_module_unload': [None, "Recursive unload of all dependencies when unloading module "
                                       "(True/False to hard enable/disable; None implies honoring "

@@ -860,9 +860,9 @@ class ToyBuildTest(EnhancedTestCase):
         # check that toolchain load is expanded to loads for toolchain dependencies,
         # except for the ones that extend $MODULEPATH to make the toy module available
         if get_module_syntax() == 'Tcl':
-            load_regex_template = "load %s"
+            load_regex_template = "(load|depends-on) %s"
         elif get_module_syntax() == 'Lua':
-            load_regex_template = r'load\("%s/.*"\)'
+            load_regex_template = r'(load|depends_on)\("%s/.*"\)'
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
@@ -891,7 +891,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # no dependencies or toolchain => no module load statements in module file
         modtxt = read_file(toy_module_path)
-        self.assertFalse(re.search("module load", modtxt))
+        self.assertFalse(re.search("(module load|depends-on)", modtxt))
         os.remove(toy_module_path)
         # test module path with GCC/6.4.0-2.28 build, pretend to be an MPI lib by setting moduleclass
         extra_args = [
@@ -951,7 +951,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # no dependencies or toolchain => no module load statements in module file
         modtxt = read_file(toy_module_path)
-        self.assertFalse(re.search("module load", modtxt))
+        self.assertFalse(re.search("(module load|depends-on)", modtxt))
         os.remove(toy_module_path)
 
         # test module path with system/system build, pretend to be a compiler by setting moduleclass
@@ -1726,8 +1726,10 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included in additional module file generated with --module-only
         modtxt = read_file(toy_mod)
-        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
-        self.assertTrue(re.search('load.*GCC/6.4.0-2.28', modtxt), "load statement for GCC/6.4.0-2.28 found in module")
+        self.assertTrue(re.search('(load|depends[-_]on).*intel/2018a', modtxt),
+                        "load statement for intel/2018a found in module: %s" % modtxt)
+        self.assertTrue(re.search('(load|depends[-_]on).*GCC/6.4.0-2.28', modtxt),
+                        "load statement for GCC/6.4.0-2.28 found in module: %s" % modtxt)
 
         os.remove(toy_mod)
 
@@ -1769,7 +1771,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included
         modtxt = read_file(toy_core_mod)
-        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
+        self.assertTrue(re.search('(load|depends[-_]on).*intel/2018a', modtxt),
+                        "load statement for intel/2018a found in module: %s" % modtxt)
 
         # Test we can create a module even for an installation where we don't have write permissions
         os.remove(toy_core_mod)
@@ -1787,7 +1790,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included
         modtxt = read_file(toy_core_mod)
-        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
+        self.assertTrue(re.search('(load|depends[-_]).*intel/2018a', modtxt),
+                        "load statement for intel/2018a found in module: %s" % modtxt)
 
         os.remove(toy_core_mod)
         os.remove(toy_mod)
@@ -1813,7 +1817,8 @@ class ToyBuildTest(EnhancedTestCase):
 
             # make sure load statements for dependencies are included
             modtxt = read_file(toy_mod + '.lua')
-            self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
+            self.assertTrue(re.search('(load|depends[-_]).*intel/2018a', modtxt),
+                            "load statement for intel/2018a found in module: %s" % modtxt)
 
     def test_module_only_extensions(self):
         """
@@ -2349,7 +2354,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         mod2_txt = read_file(mod2)
 
-        load1_regex = re.compile('load.*toy/0.0-one', re.M)
+        # load statement is (by default) either depends_on (Lua) or depends-on (Tcl)
+        load1_regex = re.compile('(load|depends[-_]on).*toy/0.0-one', re.M)
         self.assertTrue(load1_regex.search(mod2_txt), "Pattern '%s' found in: %s" % (load1_regex.pattern, mod2_txt))
 
         # Check the contents of the dumped env in the reprod dir to ensure it contains the dependency load
@@ -3182,14 +3188,18 @@ class ToyBuildTest(EnhancedTestCase):
         # check whether (guarded) load statement for first version listed in multi_deps is there
         if get_module_syntax() == 'Lua':
             expected = '\n'.join([
-                'if not ( isloaded("GCC/4.6.3") ) and not ( isloaded("GCC/7.3.0-2.30") ) then',
-                '    load("GCC/4.6.3")',
+                'if mode() == "unload" or isloaded("GCC/7.3.0-2.30") then',
+                '    depends_on("GCC")',
+                'else',
+                '    depends_on("GCC/4.6.3")',
                 'end',
             ])
         else:
             expected = '\n'.join([
-                'if { ![ is-loaded GCC/4.6.3 ] && ![ is-loaded GCC/7.3.0-2.30 ] } {',
-                '    module load GCC/4.6.3',
+                'if { [ module-info mode remove ] || [ is-loaded GCC/7.3.0-2.30 ] } {',
+                '    depends-on GCC',
+                '} else {',
+                '    depends-on GCC/4.6.3',
                 '}',
             ])
 
