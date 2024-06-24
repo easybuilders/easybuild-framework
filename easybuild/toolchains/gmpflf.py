@@ -26,7 +26,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gmpflf compiler toolchain (includes GCC, MPICH2, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
+EasyBuild support for gmpflf compiler toolchain (includes GCC, MPICH, FlexiBLAS, LAPACK, ScaLAPACK and FFTW).
 
 Authors:
 
