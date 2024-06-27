@@ -1497,6 +1497,37 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('FC'), 'ifx')
 
         self.modtool.purge()
+        tc = self.get_toolchain('intel-compilers', version='2024.0.0')
+        tc.prepare()
+
+        # by default (for version >= 2024.0.0): oneAPI C/C++ compiler + oneAPI Fortran compiler
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpx')
+        self.assertEqual(os.getenv('F77'), 'ifx')
+        self.assertEqual(os.getenv('F90'), 'ifx')
+        self.assertEqual(os.getenv('FC'), 'ifx')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel-compilers', version='2024.0.0')
+        tc.set_options({'oneapi_fortran': False})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icx')
+        self.assertEqual(os.getenv('CXX'), 'icpx')
+        self.assertEqual(os.getenv('F77'), 'ifort')
+        self.assertEqual(os.getenv('F90'), 'ifort')
+        self.assertEqual(os.getenv('FC'), 'ifort')
+
+        self.modtool.purge()
+        tc = self.get_toolchain('intel-compilers', version='2024.0.0')
+        tc.set_options({'oneapi_c_cxx': False, 'oneapi_fortran': False})
+        tc.prepare()
+        self.assertEqual(os.getenv('CC'), 'icc')
+        self.assertEqual(os.getenv('CXX'), 'icpc')
+        self.assertEqual(os.getenv('F77'), 'ifort')
+        self.assertEqual(os.getenv('F90'), 'ifort')
+        self.assertEqual(os.getenv('FC'), 'ifort')
+
+        self.modtool.purge()
         tc = self.get_toolchain('intel', version='2021b')
         tc.set_options({'oneapi_c_cxx': True})
         tc.prepare()
