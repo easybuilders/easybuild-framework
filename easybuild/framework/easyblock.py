@@ -754,7 +754,9 @@ class EasyBlock(object):
         """
         srcpaths = source_paths()
 
-        update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
+        # We don't account for the checksums file in the progress bar
+        if filename != 'checksum.json':
+            update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
 
         if alt_location is None:
             location = self.name
