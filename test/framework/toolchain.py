@@ -1321,8 +1321,11 @@ class ToolchainTest(EnhancedTestCase):
             ])
             write_file(imkl_fftw_module_path, imkl_fftw_mod_txt)
 
-            subdir = 'mkl/%s/lib/intel64' % imklver
+            # put "latest" symbolic link to short version, used in newer MKL
+            imklshortver = '.'.join(imklver.split('.')[:2])
+            subdir = 'mkl/%s/lib/intel64' % imklshortver
             os.makedirs(os.path.join(imkl_dir, subdir))
+            os.symlink(imklshortver, os.path.join(imkl_dir, 'mkl', 'latest'))
             for fftlib in mkl_libs:
                 write_file(os.path.join(imkl_dir, subdir, 'lib%s.a' % fftlib), 'foo')
             subdir = 'lib'

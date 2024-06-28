@@ -142,6 +142,7 @@ class IntelMKL(LinAlg):
             self.variables.nappend_el('CFLAGS', 'DMKL_ILP64')
 
         # exact paths/linking statements depend on imkl version
+        root = self.get_software_root(self.BLAS_MODULE_NAME)[0]
         found_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
         ver = LooseVersion(found_version)
         if ver < LooseVersion('10.3'):
@@ -156,6 +157,8 @@ class IntelMKL(LinAlg):
                                      found_version)
             else:
                 if ver >= LooseVersion('2021'):
+                    if os.path.islink(os.path.join(root, 'mkl', 'latest')):
+                        found_version = os.readlink(os.path.join(root, 'mkl', 'latest'))
                     basedir = os.path.join('mkl', found_version)
                 else:
                     basedir = 'mkl'
