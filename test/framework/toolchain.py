@@ -1201,7 +1201,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('LIBFFT'), libfft)
         self.assertEqual(tc.get_variable('LIBFFT_MT'), libfft_mt)
 
-        fft_lib_dir = os.path.join(modules.get_software_root('imkl'), 'mkl/2021.4.0/lib/intel64')
+        fft_lib_dir = os.path.join(modules.get_software_root('imkl'), 'mkl/2021.4/lib/intel64')
         self.assertEqual(tc.get_variable('FFT_LIB_DIR'), fft_lib_dir)
 
         tc = self.get_toolchain('intel', version='2021b')
