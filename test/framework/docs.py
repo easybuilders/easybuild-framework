@@ -638,13 +638,13 @@ class DocsTest(EnhancedTestCase):
             "Commonly used easyconfig parameters with ``ConfigureMake`` easyblock",
             "--------------------------------------------------------------------",
             '',
-            "====================    ================================================================",
+            "====================    ==============================================",
             "easyconfig parameter    description",
-            "====================    ================================================================",
-            "configopts              Extra options passed to configure (default already has --prefix)",
-            "buildopts               Extra options passed to make step (default already has -j X)",
-            "installopts             Extra options for installation",
-            "====================    ================================================================",
+            "====================    ==============================================",
+            "configopts              Extra options appended to configure command",
+            "buildopts               Extra options appended to build command",
+            "installopts             Extra options appended to installation command",
+            "====================    ==============================================",
         ])
 
         self.assertIn(check_configuremake, ebdoc)
@@ -687,10 +687,10 @@ class DocsTest(EnhancedTestCase):
             "### Commonly used easyconfig parameters with ``ConfigureMake`` easyblock",
             '',
             "easyconfig parameter|description",
-            "--------------------|----------------------------------------------------------------",
-            "configopts          |Extra options passed to configure (default already has --prefix)",
-            "buildopts           |Extra options passed to make step (default already has -j X)",
-            "installopts         |Extra options for installation",
+            "--------------------|----------------------------------------------",
+            "configopts          |Extra options appended to configure command",
+            "buildopts           |Extra options appended to build command",
+            "installopts         |Extra options appended to installation command",
         ])
 
         self.assertIn(check_configuremake, ebdoc)

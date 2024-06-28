@@ -24,7 +24,7 @@ sanity_check_paths = {
     'dirs': ['bin'],
 }
 
-runtest = "make_test dummy_cmd" # Provide some value which is unique enough to be checked for
+test_cmd = "make_test dummy_cmd" # Provide some value which is unique enough to be checked for
 
 postinstallcmds = ["echo TOY > %(installdir)s/README"]
 
