@@ -2720,16 +2720,16 @@ class EasyBlock(object):
         if start_dir:
             self.guess_start_dir()
 
-    def _run_command_stack(self, commands, caller):
-        """Execute stack of commands in a shell"""
-        self.log.debug(f"Stack of commands to be executed: {commands}")
+    def _run_cmds(self, cmds, caller):
+        """Execute list of shell commands"""
+        self.log.debug(f"List of commands to be executed: {cmds}")
 
         # make sure we have a list of commands
-        if not isinstance(commands, (list, tuple)):
-            error_msg = f"Invalid value for '{caller}', should be list or tuple of strings: {commands}"
+        if not isinstance(cmds, (list, tuple)):
+            error_msg = f"Invalid argument for '{caller}', should be list or tuple of strings: {cmds}"
             raise EasyBuildError(error_msg)
 
-        for cmd in commands:
+        for cmd in cmds:
             if not isinstance(cmd, str):
                 raise EasyBuildError(f"Invalid element in '{caller}', not a string: {cmd}")
             run_shell_cmd(cmd)
@@ -2737,7 +2737,7 @@ class EasyBlock(object):
     def run_step_main_action(self, action, step_name, pre_cmds=None, pre_opts="", post_opts=""):
         """Construct main command of step and execute it"""
         if pre_cmds:
-            self._run_command_stack(pre_cmds, f"pre_{step_name}_cmds")
+            self._run_cmds(pre_cmds, f"pre_{step_name}_cmds")
 
         step_cmd = f"{pre_opts} {action} {post_opts}"
         return run_shell_cmd(step_cmd)
