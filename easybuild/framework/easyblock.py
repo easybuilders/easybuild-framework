@@ -3046,7 +3046,7 @@ class EasyBlock(object):
         if commands is None:
             commands = self.cfg['postinstallcmds']
 
-        self._run_command_stack(commands, "postinstallcmds")
+        self._run_cmds(commands, "run_post_install_commands")
 
     def apply_post_install_patches(self, patches=None):
         """
