@@ -1201,7 +1201,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('LIBFFT'), libfft)
         self.assertEqual(tc.get_variable('LIBFFT_MT'), libfft_mt)
 
-        fft_lib_dir = os.path.join(modules.get_software_root('imkl'), 'mkl/2021.4.0/lib/intel64')
+        fft_lib_dir = os.path.join(modules.get_software_root('imkl'), 'mkl/2021.4/lib/intel64')
         self.assertEqual(tc.get_variable('FFT_LIB_DIR'), fft_lib_dir)
 
         tc = self.get_toolchain('intel', version='2021b')
@@ -1321,8 +1321,11 @@ class ToolchainTest(EnhancedTestCase):
             ])
             write_file(imkl_fftw_module_path, imkl_fftw_mod_txt)
 
-            subdir = 'mkl/%s/lib/intel64' % imklver
+            # put "latest" symbolic link to short version, used in newer MKL
+            imklshortver = '.'.join(imklver.split('.')[:2])
+            subdir = 'mkl/%s/lib/intel64' % imklshortver
             os.makedirs(os.path.join(imkl_dir, subdir))
+            os.symlink(imklshortver, os.path.join(imkl_dir, 'mkl', 'latest'))
             for fftlib in mkl_libs:
                 write_file(os.path.join(imkl_dir, subdir, 'lib%s.a' % fftlib), 'foo')
             subdir = 'lib'
