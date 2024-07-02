@@ -120,6 +120,7 @@ DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PR_TARGET_ACCOUNT = 'easybuilders'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
+DEFAULT_EXTRA_SOURCE_URLS = ('https://sources.easybuild.io/',)
 # Filter these CUDA libraries by default from the RPATH sanity check.
 # These are the only four libraries for which the CUDA toolkit ships stubs. By design, one is supposed to build
 # against the stub versions, but use the libraries that come with the CUDA driver at runtime. That means they should
@@ -132,6 +133,11 @@ DEFAULT_FILTER_RPATH_SANITY_LIBS = (
 )
 DEFAULT_WAIT_ON_LOCK_INTERVAL = 60
 DEFAULT_WAIT_ON_LOCK_LIMIT = 0
+
+EXTRA_SOURCE_URLS_PRIMARY = 'primary'
+EXTRA_SOURCE_URLS_BACKUP = 'backup'
+EXTRA_SOURCE_URLS_PRIORITY_CHOICES = [EXTRA_SOURCE_URLS_PRIMARY, EXTRA_SOURCE_URLS_BACKUP]
+DEFAULT_EXTRA_SOURCE_URLS_PRIORITY = EXTRA_SOURCE_URLS_BACKUP
 
 EBROOT_ENV_VAR_ACTIONS = [ERROR, IGNORE, UNSET, WARN]
 LOADED_MODULES_ACTIONS = [ERROR, IGNORE, PURGE, UNLOAD, WARN]
@@ -213,6 +219,7 @@ BUILD_OPTIONS_CMDLINE = {
         'cuda_compute_capabilities',
         'dump_test_report',
         'easyblock',
+        'extra_source_urls_priority',
         'envvars_user_modules',
         'extra_modules',
         'filter_deps',
@@ -390,6 +397,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     'defaultopt': [
         'default_opt_level',
+    ],
+    DEFAULT_EXTRA_SOURCE_URLS: [
+        'extra_source_urls',
     ],
     DEFAULT_ALLOW_LOADED_MODULES: [
         'allow_loaded_modules',
