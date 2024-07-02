@@ -2770,7 +2770,12 @@ class EasyBlock(object):
         """Run unit tests provided by software (if any)."""
         if self.cfg['runtest'] is not None:
             self.log.deprecated("Easyconfig parameter 'runtest' is deprecated, use 'test_cmd' instead.", "6.0")
-            self.cfg['test_cmd'] = self.cfg['runtest']
+            if self.cfg['test_cmd'] is None:
+                self.cfg['test_cmd'] = self.cfg['runtest']
+            else:
+                self.log.warning(
+                    "Both 'runtest' and 'test_cmd' easyconfig parameters are defined. Ignoring deprecated 'runtest'."
+                )
 
         if self.cfg['test_cmd'] is not None:
             res = self.run_step_main_action(
