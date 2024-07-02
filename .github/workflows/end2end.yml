@@ -3,7 +3,7 @@ on: [push, pull_request]
 jobs:
   build_publish:
     name: End-to-end test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         container:
@@ -20,7 +20,7 @@ jobs:
       image: ghcr.io/easybuilders/${{ matrix.container }}-amd64
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: download and unpack easyblocks and easyconfigs repositories
         run: |
