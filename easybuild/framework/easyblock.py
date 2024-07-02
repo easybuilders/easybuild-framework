@@ -2720,50 +2720,57 @@ class EasyBlock(object):
         if start_dir:
             self.guess_start_dir()
 
-    def _run_cmds(self, cmds, caller):
+    def _run_cmds(self, cmds):
         """Execute list of shell commands"""
         self.log.debug(f"List of commands to be executed: {cmds}")
 
         # make sure we have a list of commands
         if not isinstance(cmds, (list, tuple)):
-            error_msg = f"Invalid argument for '{caller}', should be list or tuple of strings: {cmds}"
-            raise EasyBuildError(error_msg)
+            raise EasyBuildError(
+                f"Invalid argument for EasyBlock._run_cmds, expected list or tuple of strings: {cmds}"
+            )
 
         for cmd in cmds:
             if not isinstance(cmd, str):
-                raise EasyBuildError(f"Invalid element in '{caller}', not a string: {cmd}")
+                raise EasyBuildError(f"Invalid element in command list, not a string: {cmd}")
             run_shell_cmd(cmd)
 
-    def run_step_main_action(self, action, step_name, pre_cmds=None, pre_opts="", post_opts=""):
-        """Construct main command of step and execute it"""
-        if pre_cmds:
-            self._run_cmds(pre_cmds, f"pre_{step_name}_cmds")
+    def run_core_step_cmd(self, step):
+        """Construct main command of core step and execute it"""
 
-        step_cmd = f"{pre_opts} {action} {post_opts}"
+        core_steps = ["configure", "build", "test", "install"]
+        if step not in core_steps:
+            raise EasyBuildError(
+                f"Cannot construct command for step {step}. Supported steps are: {', '.join(core_steps)}."
+            )
+
+        step_cmd_cfgs = {
+            "configure": ('pre_configure_cmds', 'preconfigopts', 'configure_cmd', 'configopts'),
+            "build": ('pre_build_cmds', 'prebuildopts', 'build_cmd', 'buildopts'),
+            "test": ('pre_test_cmds', 'pretestopts', 'test_cmd', 'testopts'),
+            "install": ('pre_install_cmds', 'preinstallopts', 'install_cmd', 'installopts'),
+        }
+
+        pre_step_cmds = self.cfg[step_cmd_cfgs[step][0]]
+        if pre_step_cmds:
+            try:
+                self._run_cmds(pre_step_cmds)
+            except EasyBuildError as err:
+                raise EasyBuildError(f"Failed to execute pre-step commands for step '{step}'. {err}")
+
+        step_cmd = ' '.join(str(self.cfg[cfg_name]) for cfg_name in step_cmd_cfgs[step][1:4])
         return run_shell_cmd(step_cmd)
 
     def configure_step(self):
         """Configure build."""
         if self.cfg['configure_cmd'] is not None:
-            res = self.run_step_main_action(
-                self.cfg['configure_cmd'],
-                "configure",
-                self.cfg['pre_configure_cmds'],
-                self.cfg['preconfigopts'],
-                self.cfg['configopts'],
-            )
+            res = self.run_core_step_cmd("configure")
             return res.output
 
     def build_step(self):
         """Build software."""
         if self.cfg['build_cmd'] is not None:
-            res = self.run_step_main_action(
-                self.cfg['build_cmd'],
-                "build",
-                self.cfg['pre_build_cmds'],
-                self.cfg['prebuildopts'],
-                self.cfg['buildopts'],
-            )
+            res = self.run_core_step_cmd("build")
             return res.output
 
     def test_step(self):
@@ -2778,13 +2785,7 @@ class EasyBlock(object):
                 )
 
         if self.cfg['test_cmd'] is not None:
-            res = self.run_step_main_action(
-                self.cfg['test_cmd'],
-                "test",
-                self.cfg['pre_test_cmds'],
-                self.cfg['pretestopts'],
-                self.cfg['testopts'],
-            )
+            res = self.run_core_step_cmd("test")
             return res.output
 
     def _test_step(self):
@@ -2803,13 +2804,7 @@ class EasyBlock(object):
     def install_step(self):
         """Install built software."""
         if self.cfg['install_cmd'] is not None:
-            res = self.run_step_main_action(
-                self.cfg['install_cmd'],
-                "install",
-                self.cfg['pre_install_cmds'],
-                self.cfg['preinstallopts'],
-                self.cfg['installopts'],
-            )
+            res = self.run_core_step_cmd("install")
             return res.output
 
     def init_ext_instances(self):
@@ -3051,7 +3046,10 @@ class EasyBlock(object):
         if commands is None:
             commands = self.cfg['postinstallcmds']
 
-        self._run_cmds(commands, "run_post_install_commands")
+        try:
+            self._run_cmds(commands)
+        except EasyBuildError as err:
+            raise EasyBuildError(f"Failed to execute post-install commands. {err}")
 
     def apply_post_install_patches(self, patches=None):
         """
