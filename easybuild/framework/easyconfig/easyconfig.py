@@ -1860,11 +1860,18 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
     _log.nosupport('Use det_full_ec_version from easybuild.tools.module_generator instead of %s' % old_fn, '2.0')
 
 
-def get_easyblock_class(easyblock, name=None, error_on_missing_easyblock=True, **kwargs):
+def get_easyblock_class(easyblock, name=None, error_on_failed_import=False, error_on_missing_easyblock=True, **kwargs):
     """
     Get class for a particular easyblock (or use default)
     """
     modulepath, class_name = None, None
+
+    if error_on_failed_import:
+        _log.deprecated(
+            "Use of error_on_failed_import argument in Easyconfig.get_easyblock_class is deprecated, "
+            "use 'error_on_missing_easyblock' instead",
+            "6.0"
+        )
 
     if easyblock:
         # something was specified, lets parse it
@@ -1912,6 +1919,8 @@ def get_easyblock_class(easyblock, name=None, error_on_missing_easyblock=True, *
         if error_re.match(str(err)):
             if error_on_missing_easyblock:
                 raise EasyBuildError(f"Software-specific easyblock '{class_name}' not found for {name}")
+            elif error_on_failed_import:
+                raise EasyBuildError(f"Failed to import '{class_name}' easyblock: {err}")
             else:
                 _log.debug(f"Easyblock for {class_name} not found, but ignoring it: {err}")
         else:
