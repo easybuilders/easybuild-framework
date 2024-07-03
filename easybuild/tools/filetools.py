@@ -1247,7 +1247,11 @@ def verify_checksum(path, checksums, computed_checksums=None):
     Verify checksum of specified file.
 
     :param path: path of file to verify checksum of
-    :param checksums: checksum values (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
+    :param checksums: checksum values to compare to
+                      (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
+    :param computed_checksums: Optional dictionary of (current) checksum(s) for this file
+                               indexed by the checksum type (e.g. 'sha256').
+                               Each existing entry will be used, missing ones will be computed.
     """
 
     filename = os.path.basename(path)
