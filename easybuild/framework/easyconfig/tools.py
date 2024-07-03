@@ -54,7 +54,7 @@ from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
@@ -219,10 +219,12 @@ def dep_graph(filename, specs):
             if dep in spec['ec'].build_dependencies:
                 dgr.add_edge_attributes((spec['module'], dep), attrs=edge_attrs)
 
-    _dep_graph_dump(dgr, filename)
-
-    if not build_option('silent'):
-        print("Wrote dependency graph for %d easyconfigs to %s" % (len(specs), filename))
+    what = "dependency graph for %d easyconfigs to %s" % (len(specs), filename)
+    silent = build_option('silent')
+    if _dep_graph_dump(dgr, filename):
+        print_msg("Wrote " + what, silent=silent)
+    else:
+        print_error("Failed writing " + what, silent=silent)
 
 
 @only_if_module_is_available('pygraph.readwrite.dot', pkgname='python-graph-dot')
@@ -232,9 +234,15 @@ def _dep_graph_dump(dgr, filename):
     dottxt = dot.write(dgr)
     if os.path.splitext(filename)[-1] == '.dot':
         # create .dot file
-        write_file(filename, dottxt)
+        try:
+            write_file(filename, dottxt)
+        except EasyBuildError as e:
+            print(str(e))
+            return False
+        else:
+            return True
     else:
-        _dep_graph_gv(dottxt, filename)
+        return _dep_graph_gv(dottxt, filename)
 
 
 @only_if_module_is_available('gv', pkgname='graphviz-python')
@@ -242,8 +250,8 @@ def _dep_graph_gv(dottxt, filename):
     """Render dependency graph to file using graphviz."""
     # try and render graph in specified file format
     gvv = gv.readstring(dottxt)
-    gv.layout(gvv, 'dot')
-    gv.render(gvv, os.path.splitext(filename)[-1], filename)
+    if gv.layout(gvv, 'dot') is not False:
+        return gv.render(gvv, os.path.splitext(filename)[-1], filename)
 
 
 def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
