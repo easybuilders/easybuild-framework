@@ -45,3 +45,12 @@ class Gmpflf(Gmpich, OpenBLAS, FlexiBLAS,  ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, MPICH, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'gmpflf'
     SUBTOOLCHAIN = [Gmpich.NAME, Golf.NAME, Gfbf.NAME]
+
+    def __init__(self, *args, **kwargs):
+        """Toolchain constructor."""
+        super(Gmpflf, self).__init__(*args, **kwargs)
+        constants = ('BLAS_MODULE_NAME', 'BLAS_LIB', 'BLAS_LIB_MT', 'BLAS_FAMILY',
+                     'LAPACK_MODULE_NAME', 'LAPACK_IS_BLAS', 'LAPACK_FAMILY')
+
+        for constant in constants:
+            setattr(self, constant, getattr(FlexiBLAS, constant))
