@@ -41,6 +41,6 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 
 class Gmpflf(Gmpich, FlexiBLAS,  ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, MPICH, OpenBLAS, ScaLAPACK and FFTW."""
+    """Compiler toolchain with GCC, MPICH, FlexiBLAS, ScaLAPACK and FFTW."""
     NAME = 'gmpflf'
     SUBTOOLCHAIN = [Gmpich.NAME, Gfbf.NAME]
