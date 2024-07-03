@@ -1447,12 +1447,12 @@ class EasyBlock(object):
                 self.cfg['prefer_ebpythonprefixes']
 
             if len(python_paths) > 1 and not use_ebpythonprefixes:
-                raise EasyBuildError('Multiple python paths requires EBPYHONPREFIXES: ' + ', '.join(python_paths))
+                raise EasyBuildError('Multiple python paths requires EBPYTHONPREFIXES: ' + ', '.join(python_paths))
             elif python_paths:
                 if use_ebpythonprefixes:
-                    lines.append(self.module_generator.append_paths('EBPYHONPREFIXES', '.'))
+                    lines.append(self.module_generator.prepend_paths('EBPYTHONPREFIXES', '.'))
                 else:
-                    lines.append(self.module_generator.append_paths('PYTHONPATH', python_paths))
+                    lines.append(self.module_generator.prepend_paths('PYTHONPATH', python_paths))
 
         modloadmsg = self.cfg['modloadmsg']
         if modloadmsg:
