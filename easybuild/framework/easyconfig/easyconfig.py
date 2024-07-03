@@ -104,8 +104,10 @@ LOCAL_VAR_PREFIX = 'local_'
 try:
     import autopep8
     HAVE_AUTOPEP8 = True
-except ImportError as err:
-    _log.warning("Failed to import autopep8, dumping easyconfigs with reformatting enabled will not work: %s", err)
+except ImportError as import_err:
+    _log.warning(
+        "Failed to import autopep8, dumping easyconfigs with reformatting enabled will not work: %s", import_err
+    )
     HAVE_AUTOPEP8 = False
 
 
@@ -1861,83 +1863,81 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
     _log.nosupport('Use det_full_ec_version from easybuild.tools.module_generator instead of %s' % old_fn, '2.0')
 
 
-def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error_on_missing_easyblock=True, **kwargs):
+def get_easyblock_class(easyblock, name=None, error_on_failed_import=False, error_on_missing_easyblock=True, **kwargs):
     """
     Get class for a particular easyblock (or use default)
     """
-    cls = None
+    modulepath, class_name = None, None
+
+    if error_on_failed_import:
+        _log.deprecated(
+            "Use of error_on_failed_import argument in Easyconfig.get_easyblock_class is deprecated, "
+            "use 'error_on_missing_easyblock' instead",
+            "6.0"
+        )
+
+    if easyblock:
+        # something was specified, lets parse it
+        easyblock_spec = easyblock.split('.')
+        class_name = easyblock_spec.pop(-1)
+        # figure out if full path was specified or not
+        if easyblock_spec:
+            modulepath = '.'.join(easyblock_spec)
+            _log.info(
+                f"Assuming a full easyblock module path specification (class: {class_name}, modulepath: {modulepath})"
+            )
+        else:
+            modulepath = get_module_path(easyblock)
+            _log.info(f"Derived full easyblock module path for {class_name}: {modulepath}")
+    else:
+        # if no easyblock specified, try to find if one exists
+        if name is None:
+            name = "UNKNOWN"
+        # The following is a generic way to calculate unique class names for any funny software title
+        class_name = encode_class_name(name)
+        # modulepath will be the namespace + encoded modulename (from the classname)
+        modulepath = get_module_path(class_name, generic=False)
+
+        try:
+            __import__(modulepath, globals(), locals(), [''])
+        except ImportError as err:
+            _log.debug(f"Failed to import easyblock module '{modulepath}' (derived from easyconfig name): {err}")
+            # fallback to generic EasyBlock for easyconfigs
+            # without any easyblock specification or no specific easyblock
+            class_name = "EasyBlock"
+            modulepath = "easybuild.framework.easyblock"
+            _log.info(f"Using generic EasyBlock module for software '{name}'")
+        else:
+            _log.debug(f"Module path '{modulepath}' found (derived from easyconfig name)")
+
     try:
-        if easyblock:
-            # something was specified, lets parse it
-            es = easyblock.split('.')
-            class_name = es.pop(-1)
-            # figure out if full path was specified or not
-            if es:
-                modulepath = '.'.join(es)
-                _log.info("Assuming that full easyblock module path was specified (class: %s, modulepath: %s)",
-                          class_name, modulepath)
-                cls = get_class_for(modulepath, class_name)
+        _log.debug(f"Importing easyblock class {class_name} from {modulepath}")
+        cls = get_class_for(modulepath, class_name)
+    except ImportError as err:
+        # when an ImportError occurs, make sure that it's caused by not finding the easyblock module,
+        # and not because of a broken import statement in the easyblock module
+        modname = modulepath.replace('easybuild.easyblocks.', '')
+        error_re = re.compile(rf"No module named '?.*/?{modname}'?")
+        _log.debug(f"Error regexp for ImportError on '{modname}' easyblock: {error_re.pattern}")
+        if error_re.match(str(err)):
+            if error_on_missing_easyblock:
+                raise EasyBuildError(f"Software-specific easyblock '{class_name}' not found for {name}")
+            elif error_on_failed_import:
+                raise EasyBuildError(f"Failed to import '{class_name}' easyblock: {err}")
             else:
-                modulepath = get_module_path(easyblock)
-                cls = get_class_for(modulepath, class_name)
-                _log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
+                _log.debug(f"Easyblock for {class_name} not found, but ignoring it: {err}")
         else:
-            # if no easyblock specified, try to find if one exists
-            if name is None:
-                name = "UNKNOWN"
-            # The following is a generic way to calculate unique class names for any funny software title
-            class_name = encode_class_name(name)
-            # modulepath will be the namespace + encoded modulename (from the classname)
-            modulepath = get_module_path(class_name, generic=False)
-            modulepath_imported = False
-            try:
-                __import__(modulepath, globals(), locals(), [''])
-                modulepath_imported = True
-            except ImportError as err:
-                _log.debug("Failed to import module '%s': %s" % (modulepath, err))
-
-            # check if determining module path based on software name would have resulted in a different module path
-            if modulepath_imported:
-                _log.debug("Module path '%s' found" % modulepath)
-            else:
-                _log.debug("No module path '%s' found" % modulepath)
-                modulepath_bis = get_module_path(name, generic=False, decode=False)
-                _log.debug("Module path determined based on software name: %s" % modulepath_bis)
-                if modulepath_bis != modulepath:
-                    _log.nosupport("Determining module path based on software name", '2.0')
-
-            # try and find easyblock
-            try:
-                _log.debug("getting class for %s.%s" % (modulepath, class_name))
-                cls = get_class_for(modulepath, class_name)
-                _log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
-            except ImportError as err:
-                # when an ImportError occurs, make sure that it's caused by not finding the easyblock module,
-                # and not because of a broken import statement in the easyblock module
-                modname = modulepath.replace('easybuild.easyblocks.', '')
-                error_re = re.compile(r"No module named '?.*/?%s'?" % modname)
-                _log.debug("error regexp for ImportError on '%s' easyblock: %s", modname, error_re.pattern)
-                if error_re.match(str(err)):
-                    if error_on_missing_easyblock:
-                        raise EasyBuildError("No software-specific easyblock '%s' found for %s", class_name, name)
-                elif error_on_failed_import:
-                    raise EasyBuildError("Failed to import %s easyblock: %s", class_name, err)
-                else:
-                    _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
-
-        if cls is not None:
-            _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')",
-                      cls.__name__, easyblock, name)
-        else:
-            _log.debug("No class found for easyblock '%s' (software name '%s')", easyblock, name)
-
-        return cls
-
+            raise EasyBuildError(f"Failed to import {class_name} easyblock: {err}")
     except EasyBuildError as err:
         # simply reraise rather than wrapping it into another error
         raise err
     except Exception as err:
-        raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err)
+        raise EasyBuildError(f"Failed to obtain class for {easyblock} easyblock (not available?): {err}")
+    else:
+        _log.info(
+            f"Successfully obtained class '{cls.__name__}' for easyblock '{easyblock}' (software name '{name}')"
+        )
+        return cls
 
 
 def get_module_path(name, generic=None, decode=True):

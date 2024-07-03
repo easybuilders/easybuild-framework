@@ -2721,20 +2721,72 @@ class EasyBlock(object):
         if start_dir:
             self.guess_start_dir()
 
+    def _run_cmds(self, cmds):
+        """Execute list of shell commands"""
+        self.log.debug(f"List of commands to be executed: {cmds}")
+
+        # make sure we have a list of commands
+        if not isinstance(cmds, (list, tuple)):
+            raise EasyBuildError(
+                f"Invalid argument for EasyBlock._run_cmds, expected list or tuple of strings: {cmds}"
+            )
+
+        for cmd in cmds:
+            if not isinstance(cmd, str):
+                raise EasyBuildError(f"Invalid element in command list, not a string: {cmd}")
+            run_shell_cmd(cmd)
+
+    def run_core_step_cmd(self, step):
+        """Construct main command of core step and execute it"""
+
+        core_steps = ["configure", "build", "test", "install"]
+        if step not in core_steps:
+            raise EasyBuildError(
+                f"Cannot construct command for step {step}. Supported steps are: {', '.join(core_steps)}."
+            )
+
+        step_cmd_cfgs = {
+            "configure": ('pre_configure_cmds', 'preconfigopts', 'configure_cmd', 'configopts'),
+            "build": ('pre_build_cmds', 'prebuildopts', 'build_cmd', 'buildopts'),
+            "test": ('pre_test_cmds', 'pretestopts', 'test_cmd', 'testopts'),
+            "install": ('pre_install_cmds', 'preinstallopts', 'install_cmd', 'installopts'),
+        }
+
+        pre_step_cmds = self.cfg[step_cmd_cfgs[step][0]]
+        if pre_step_cmds:
+            try:
+                self._run_cmds(pre_step_cmds)
+            except EasyBuildError as err:
+                raise EasyBuildError(f"Failed to execute pre-step commands for step '{step}'. {err}")
+
+        step_cmd = ' '.join(str(self.cfg[cfg_name]) for cfg_name in step_cmd_cfgs[step][1:4])
+        return run_shell_cmd(step_cmd)
+
     def configure_step(self):
-        """Configure build  (abstract method)."""
-        raise NotImplementedError
+        """Configure build."""
+        if self.cfg['configure_cmd'] is not None:
+            res = self.run_core_step_cmd("configure")
+            return res.output
 
     def build_step(self):
-        """Build software  (abstract method)."""
-        raise NotImplementedError
+        """Build software."""
+        if self.cfg['build_cmd'] is not None:
+            res = self.run_core_step_cmd("build")
+            return res.output
 
     def test_step(self):
         """Run unit tests provided by software (if any)."""
-        unit_test_cmd = self.cfg['runtest']
-        if unit_test_cmd:
-            self.log.debug(f"Trying to execute {unit_test_cmd} as a command for running unit tests...")
-            res = run_shell_cmd(unit_test_cmd)
+        if self.cfg['runtest'] is not None:
+            self.log.deprecated("Easyconfig parameter 'runtest' is deprecated, use 'test_cmd' instead.", "6.0")
+            if self.cfg['test_cmd'] is None:
+                self.cfg['test_cmd'] = self.cfg['runtest']
+            else:
+                self.log.warning(
+                    "Both 'runtest' and 'test_cmd' easyconfig parameters are defined. Ignoring deprecated 'runtest'."
+                )
+
+        if self.cfg['test_cmd'] is not None:
+            res = self.run_core_step_cmd("test")
             return res.output
 
     def _test_step(self):
@@ -2751,8 +2803,10 @@ class EasyBlock(object):
         """Install in a stage directory before actual installation."""
 
     def install_step(self):
-        """Install built software (abstract method)."""
-        raise NotImplementedError
+        """Install built software."""
+        if self.cfg['install_cmd'] is not None:
+            res = self.run_core_step_cmd("install")
+            return res.output
 
     def init_ext_instances(self):
         """
@@ -2811,8 +2865,8 @@ class EasyBlock(object):
                                           error_on_missing_easyblock=False)
 
                 self.log.debug("Obtained class %s for extension %s", cls, ext_name)
-                if cls is not None:
-                    # make sure that this easyblock can be used to install extensions
+                if cls not in (None, EasyBlock):
+                    # extensions need a non-default EasyBlock capable of installing extensions
                     if not issubclass(cls, Extension):
                         raise EasyBuildError("%s easyblock can not be used to install extensions!", cls.__name__)
 
@@ -2993,18 +3047,10 @@ class EasyBlock(object):
         if commands is None:
             commands = self.cfg['postinstallcmds']
 
-        if commands:
-            self.log.debug(f"Specified post install commands: {commands}")
-
-            # make sure we have a list of commands
-            if not isinstance(commands, (list, tuple)):
-                error_msg = f"Invalid value for 'postinstallcmds', should be list or tuple of strings: {commands}"
-                raise EasyBuildError(error_msg)
-
-            for cmd in commands:
-                if not isinstance(cmd, str):
-                    raise EasyBuildError(f"Invalid element in 'postinstallcmds', not a string: {cmd}")
-                run_shell_cmd(cmd)
+        try:
+            self._run_cmds(commands)
+        except EasyBuildError as err:
+            raise EasyBuildError(f"Failed to execute post-install commands. {err}")
 
     def apply_post_install_patches(self, patches=None):
         """

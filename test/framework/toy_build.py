@@ -4137,7 +4137,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
 
         test_ec_txt = read_file(toy_ec)
-        test_ec_txt += '\nruntest = "false"'
+        test_ec_txt += '\ntest_cmd = "false"'
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
 

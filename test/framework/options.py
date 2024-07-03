@@ -415,8 +415,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         found_msg = "Running method test_step part of step test"
         found = re.search(found_msg, outtxt)
-        test_run_msg = "execute make_test dummy_cmd as a command for running unit tests"
         self.assertTrue(found, "Message about test step being run is present, outtxt: %s" % outtxt)
+        test_run_msg = 'Output of "make_test dummy_cmd" will be logged'
         found = re.search(test_run_msg, outtxt)
         self.assertTrue(found, "Test execution command is present, outtxt: %s" % outtxt)
 
@@ -436,7 +436,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test ignore failing tests (--ignore-test-failure)."""
 
         topdir = os.path.abspath(os.path.dirname(__file__))
-        # This EC uses a `runtest` command which does not exist and hence will make the test step fail
+        # This EC uses a `test_cmd` command which does not exist and hence will make the test step fail
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb')
 
         args = [toy_ec, '--ignore-test-failure', '--force']
@@ -3729,7 +3729,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(self.logfile, '')
 
         # generic easyblock FooBar is not there initially
-        error_msg = "Failed to obtain class for FooBar easyblock"
+        error_msg = "Software-specific easyblock 'FooBar' not found"
         self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
 
         # include extra test easyblocks
@@ -3775,7 +3775,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 if testdir_sandbox not in path:
                     sys.modules[pkg].__path__.remove(path)
 
-        error_msg = "Failed to obtain class for FooBar easyblock"
+        error_msg = "Software-specific easyblock 'FooBar' not found"
         self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
 
         # clear log

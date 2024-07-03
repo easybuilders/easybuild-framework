@@ -692,7 +692,7 @@ class EasyConfigTest(EnhancedTestCase):
             'patches': new_patches,
             'keepsymlinks': 'True',  # Don't change this
             # It should be possible to overwrite values with True/False/None as they often have special meaning
-            'runtest': 'False',
+            'test_cmd': 'False',
             'hidden': 'True',
             'parallel': 'None',  # Good example: parallel=None means "Auto detect"
             # Adding new options (added only by easyblock) should also be possible
@@ -709,7 +709,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['versionsuffix'], versuff)
         self.assertEqual(eb['toolchain']['version'], tcver)
         self.assertEqual(eb['patches'], new_patches)
-        self.assertIs(eb['runtest'], False)
+        self.assertIs(eb['test_cmd'], False)
         self.assertIs(eb['hidden'], True)
         self.assertIsNone(eb['parallel'])
         self.assertEqual(eb['test_none'], 'False')
@@ -1676,6 +1676,8 @@ class EasyConfigTest(EnhancedTestCase):
         from easybuild.easyblocks.generic.configuremake import ConfigureMake
         from easybuild.easyblocks.generic.toolchain import Toolchain
         from easybuild.easyblocks.toy import EB_toy
+
+        # get easyblocks by easyblock name
         for easyblock, easyblock_class in [
             ('ConfigureMake', ConfigureMake),
             ('easybuild.easyblocks.generic.configuremake.ConfigureMake', ConfigureMake),
@@ -1684,12 +1686,20 @@ class EasyConfigTest(EnhancedTestCase):
         ]:
             self.assertEqual(get_easyblock_class(easyblock), easyblock_class)
 
-        error_pattern = "No software-specific easyblock 'EB_gzip' found"
-        self.assertErrorRegex(EasyBuildError, error_pattern, get_easyblock_class, None, name='gzip')
-        self.assertEqual(get_easyblock_class(None, name='gzip', error_on_missing_easyblock=False), None)
+        err_msg = "Software-specific easyblock 'NON_EXISTENT' not found"
+        self.assertErrorRegex(EasyBuildError, err_msg, get_easyblock_class, 'NON_EXISTENT')
+        self.assertEqual(get_easyblock_class('NON_EXISTENT', error_on_missing_easyblock=False), None)
+
+        # get easyblock by easyconfig name
+        self.assertEqual(get_easyblock_class(None, name=None), EasyBlock)
+        self.assertEqual(get_easyblock_class(None, name='gzip'), EasyBlock)
         self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
-        self.assertErrorRegex(EasyBuildError, "Failed to import EB_TOY", get_easyblock_class, None, name='TOY')
-        self.assertEqual(get_easyblock_class(None, name='TOY', error_on_failed_import=False), None)
+
+        err_msg = "Failed to import EB_TOY easyblock"
+        self.assertErrorRegex(EasyBuildError, err_msg, get_easyblock_class, None, name='TOY')
+        self.assertErrorRegex(
+            EasyBuildError, err_msg, get_easyblock_class, None, name='TOY', error_on_missing_easyblock=False
+        )
 
     def test_letter_dir(self):
         """Test letter_dir_for function."""
@@ -2580,6 +2590,11 @@ class EasyConfigTest(EnhancedTestCase):
             '',
             'sources = [SOURCE_TAR_GZ]',
             'moduleclass = "tools"',
+            '',
+            'postinstallcmds = ["echo Done"]',
+            'pre_configure_cmds = ["sed \'1d\' -i test.config"]',
+            'buildopts = "OPT=foo"',
+            'preinstallopts = "VAR=foo"',
         ])
 
         param_regex = re.compile('^(?P<param>[a-z0-9_]+) = |^$', re.M)
@@ -2587,7 +2602,8 @@ class EasyConfigTest(EnhancedTestCase):
         # make sure regex finds all easyconfig parameters in the order they appear in the easyconfig
         expected = ['homepage', '', 'name', 'versionsuffix', '', 'patches', 'easyblock', '', 'toolchain', '',
                     'checksums', 'dependencies', 'version', 'description', '', 'source_urls', 'foo_extra1',
-                    '', 'sources', 'moduleclass']
+                    '', 'sources', 'moduleclass', '', 'postinstallcmds', 'pre_configure_cmds', 'buildopts',
+                    'preinstallopts']
         self.assertEqual(param_regex.findall(rawtxt), expected)
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
@@ -2598,6 +2614,7 @@ class EasyConfigTest(EnhancedTestCase):
         # easyconfig parameters should be properly ordered/grouped in dumped easyconfig
         expected = ['easyblock', '', 'name', 'version', 'versionsuffix', '', 'homepage', 'description', '',
                     'toolchain', '', 'source_urls', 'sources', 'patches', 'checksums', '', 'dependencies', '',
+                    'pre_configure_cmds', '', 'buildopts', '', 'preinstallopts', '', 'postinstallcmds', '',
                     'foo_extra1', '', 'moduleclass', '']
         self.assertEqual(param_regex.findall(ectxt), expected)
 

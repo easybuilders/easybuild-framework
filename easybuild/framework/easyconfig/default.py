@@ -88,9 +88,11 @@ DEFAULT_CONFIG = {
                                       "to be linked in any installed binary/library", BUILD],
     'bitbucket_account': ['%(namelower)s', "Bitbucket account name to be used to resolve template values in source"
                                            " URLs", BUILD],
-    'buildopts': ['', 'Extra options passed to make step (default already has -j X)', BUILD],
+    'buildopts': ['', 'Extra options appended to build command', BUILD],
+    'build_cmd': [None, "Main shell command used in the build step", BUILD],
     'checksums': [[], "Checksums for sources and patches", BUILD],
-    'configopts': ['', 'Extra options passed to configure (default already has --prefix)', BUILD],
+    'configopts': ['', 'Extra options appended to configure command', BUILD],
+    'configure_cmd': [None, "Main shell command used in the configure step", BUILD],
     'cuda_compute_capabilities': [[], "List of CUDA compute capabilities to build with (if supported)", BUILD],
     'download_instructions': ['', "Specify steps to acquire necessary file, if obtaining it is difficult", BUILD],
     'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
@@ -107,19 +109,24 @@ DEFAULT_CONFIG = {
     'github_account': ['%(namelower)s', "GitHub account name to be used to resolve template values in source URLs",
                        BUILD],
     'hidden': [False, "Install module file as 'hidden' by prefixing its version with '.'", BUILD],
-    'installopts': ['', 'Extra options for installation', BUILD],
+    'installopts': ['', 'Extra options appended to installation command', BUILD],
+    'install_cmd': [None, "Main shell command used in the install step", BUILD],
     'maxparallel': [None, 'Max degree of parallelism', BUILD],
     'module_only': [False, 'Only generate module file', BUILD],
     'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
                         'cores, active cpuset and restrictions in ulimit)'), BUILD],
     'patches': [[], "List of patches to apply", BUILD],
-    'prebuildopts': ['', 'Extra options pre-passed to build command.', BUILD],
-    'preconfigopts': ['', 'Extra options pre-passed to configure.', BUILD],
-    'preinstallopts': ['', 'Extra prefix options for installation.', BUILD],
-    'pretestopts': ['', 'Extra prefix options for test.', BUILD],
-    'postinstallcmds': [[], 'Commands to run after the install step.', BUILD],
-    'postinstallpatches': [[], 'Patch files to apply after running the install step.', BUILD],
-    'postinstallmsgs': [[], 'Messages to print after running the install step.', BUILD],
+    'pre_build_cmds': ['', 'Extra commands executed before main build command', BUILD],
+    'prebuildopts': ['', 'Extra options prepended to build command', BUILD],
+    'pre_configure_cmds': ['', 'Extra commands executed before main configure command', BUILD],
+    'preconfigopts': ['', 'Extra options prepended to configure command', BUILD],
+    'pre_install_cmds': ['', 'Extra commands executed before main install command', BUILD],
+    'preinstallopts': ['', 'Extra options prepended to installation command', BUILD],
+    'pre_test_cmds': ['', 'Extra commands executed before main test command', BUILD],
+    'pretestopts': ['', 'Extra options prepended to test command', BUILD],
+    'postinstallcmds': [[], 'Commands to run after the install step', BUILD],
+    'postinstallpatches': [[], 'Patch files to apply after running the install step', BUILD],
+    'postinstallmsgs': [[], 'Messages to print after running the install step', BUILD],
     'required_linked_shared_libs': [[], "List of shared libraries (names, file names, or paths) which must be "
                                         "linked in all installed binaries/libraries", BUILD],
     'runtest': [None, ('Indicates if a test should be run after make; should specify argument '
@@ -135,8 +142,9 @@ DEFAULT_CONFIG = {
     'skipsteps': [[], "Skip these steps", BUILD],
     'source_urls': [[], "List of URLs for source files", BUILD],
     'sources': [[], "List of source files", BUILD],
-    'stop': [None, 'Keyword to halt the build process after a certain step.', BUILD],
-    'testopts': ['', 'Extra options for test.', BUILD],
+    'stop': [None, 'Keyword to halt the build process after a certain step', BUILD],
+    'testopts': ['', 'Extra options appended to test command', BUILD],
+    'test_cmd': [None, "Main shell command used in the test step", BUILD],
     'tests': [[], ("List of test-scripts to run after install. A test script should return a "
                    "non-zero exit status to fail"), BUILD],
     'unpack_options': ['', "Extra options for unpacking source", BUILD],
@@ -149,9 +157,9 @@ DEFAULT_CONFIG = {
     'buildininstalldir': [False, ('Boolean to build (True) or not build (False) in the installation directory'),
                           FILEMANAGEMENT],
     'cleanupoldbuild': [True, ('Boolean to remove (True) or backup (False) the previous build '
-                               'directory with identical name or not.'), FILEMANAGEMENT],
+                               'directory with identical name or not'), FILEMANAGEMENT],
     'cleanupoldinstall': [True, ('Boolean to remove (True) or backup (False) the previous install '
-                                 'directory with identical name or not.'), FILEMANAGEMENT],
+                                 'directory with identical name or not'), FILEMANAGEMENT],
     'dontcreateinstalldir': [False, ('Boolean to create (False) or not create (True) the install directory'),
                              FILEMANAGEMENT],
     'keeppreviousinstall': [False, ('Boolean to keep the previous installation with identical '
@@ -160,7 +168,7 @@ DEFAULT_CONFIG = {
                              'or if the content of the files pointed to should be copied'),
                      FILEMANAGEMENT],
     'start_dir': [None, ('Path to start the make in. If the path is absolute, use that path. '
-                         'If not, this is added to the guessed path.'), FILEMANAGEMENT],
+                         'If not, this is added to the guessed path'), FILEMANAGEMENT],
 
     # DEPENDENCIES easyconfig parameters
     'allow_system_deps': [[], "Allow listed system dependencies (format: (<name>, <version>))", DEPENDENCIES],

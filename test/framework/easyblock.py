@@ -112,7 +112,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         self.assertEqual(eb.cfg['name'], name)
         self.assertEqual(eb.cfg['version'], version)
-        self.assertRaises(NotImplementedError, eb.run_all_steps, True)
+        self.assertErrorRegex(EasyBuildError, "No default extension class", eb.run_all_steps, True)
         check_extra_options_format(eb.extra_options())
         sys.stdout.close()
         sys.stdout = stdoutorig
