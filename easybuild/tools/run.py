@@ -361,11 +361,14 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     if qa_wait_patterns is None:
         qa_wait_patterns = []
 
+    # keep path to current working dir in case we need to come back to it
+    try:
+        initial_work_dir = os.getcwd()
+    except FileNotFoundError:
+        raise EasyBuildError(CWD_NOTFOUND_ERROR)
+
     if work_dir is None:
-        try:
-            work_dir = os.getcwd()
-        except FileNotFoundError:
-            raise EasyBuildError(CWD_NOTFOUND_ERROR)
+        work_dir = initial_work_dir
 
     if with_hooks:
         hooks = load_hooks(build_option('hooks'))
@@ -557,6 +560,20 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         _log.warning(f"Shell command FAILED (exit code {res.exit_code}, see output above): {cmd_str}")
         if fail_on_error:
             raise_run_shell_cmd_error(res)
+
+    # check that we still are in a sane environment after command execution
+    # safeguard against commands that deleted the work dir or missbehaving filesystems
+    try:
+        os.getcwd()
+    except FileNotFoundError:
+        _log.warning(
+            f"Shell command `{cmd_str}` completed successfully but left the system in an unknown working directory. "
+            f"Changing back to initial working directory: {initial_work_dir}"
+        )
+        try:
+            os.chdir(initial_work_dir)
+        except OSError as err:
+            raise EasyBuildError(f"Failed to return to {initial_work_dir} after executing command `{cmd_str}`: {err}")
 
     if with_hooks:
         run_hook_kwargs = {
