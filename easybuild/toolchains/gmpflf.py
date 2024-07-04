@@ -34,14 +34,12 @@ Authors:
 """
 from easybuild.toolchains.gmpich import Gmpich
 from easybuild.toolchains.gfbf import Gfbf
-from easybuild.toolchains.golf import Golf
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.flexiblas import FlexiBLAS
-from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 
-class Gmpflf(Gmpich, OpenBLAS, FlexiBLAS,  ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, MPICH, OpenBLAS, ScaLAPACK and FFTW."""
+class Gmpflf(Gmpich, FlexiBLAS,  ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, MPICH, FlexiBLAS, ScaLAPACK and FFTW."""
     NAME = 'gmpflf'
-    SUBTOOLCHAIN = [Gmpich.NAME, Golf.NAME, Gfbf.NAME]
+    SUBTOOLCHAIN = [Gmpich.NAME, Gfbf.NAME]
