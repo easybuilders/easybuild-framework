@@ -16,6 +16,7 @@ jobs:
       # CentOS 7.9 container that already includes Lmod & co,
       # see https://github.com/easybuilders/easybuild-containers
       image: ghcr.io/easybuilders/centos-7.9-amd64
+    env: {ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true} # Allow using Node16 actions
     steps:
     - uses: actions/checkout@v3
 
