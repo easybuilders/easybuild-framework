@@ -1441,8 +1441,9 @@ class EasyBlock(object):
         # Add automatic PYTHONPATH or EBPYTHONPREFIXES if they aren't already present
         if 'PYTHONPATH' not in self.module_generator.added_paths_per_key and \
            'EBPYTHONPREFIXES' not in self.module_generator.added_paths_per_key:
-            python_paths = [path for path in glob.glob('lib*/python*/site-packages')
-                            if re.match(r'lib(64)?/python\d+\.\d+/site-packages', path)]
+            python_paths = [path[len(self.installdir)+1:]
+                            for path in glob.glob(f'{self.installdir}/lib*/python*/site-packages')
+                            if re.match(self.installdir + r'/lib(64)?/python\d+\.\d+/site-packages', path)]
             use_ebpythonprefixes = get_software_root('Python') and build_option('prefer_ebpythonprefixes') and \
                 self.cfg['prefer_ebpythonprefixes']
 
