@@ -36,7 +36,6 @@ from easybuild.toolchains.gmpich import Gmpich
 from easybuild.toolchains.gfbf import Gfbf
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.flexiblas import FlexiBLAS
-from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 
