@@ -17,7 +17,8 @@ jobs:
       # see https://github.com/easybuilders/easybuild-containers
       image: ghcr.io/easybuilders/centos-7.9-amd64
     steps:
-    - uses: actions/checkout@v4
+    # stick to actions/checkout@v3 (node.js 16), since newer is not compatible with the CentOS 7.9 container we're using
+    - uses: actions/checkout@v3
 
     - name: install Python packages
       run: |
