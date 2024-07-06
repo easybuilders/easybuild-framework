@@ -1439,21 +1439,20 @@ class EasyBlock(object):
             lines.append(self.module_generator.append_paths(key, value, allow_abs=self.cfg['allow_append_abs_path']))
 
         # Add automatic PYTHONPATH or EBPYTHONPREFIXES if they aren't already present
-        if 'PYTHONPATH' not in self.module_generator.added_paths_per_key and \
-           'EBPYTHONPREFIXES' not in self.module_generator.added_paths_per_key:
-            python_paths = [path[len(self.installdir)+1:]
-                            for path in glob.glob(f'{self.installdir}/lib*/python*/site-packages')
-                            if re.match(self.installdir + r'/lib(64)?/python\d+\.\d+/site-packages', path)]
-            use_ebpythonprefixes = get_software_root('Python') and build_option('prefer_ebpythonprefixes') and \
-                self.cfg['prefer_ebpythonprefixes']
+        python_paths = [path[len(self.installdir)+1:]
+                        for path in glob.glob(f'{self.installdir}/lib*/python*/site-packages')
+                        if re.match(self.installdir + r'/lib(64)?/python\d+\.\d+/site-packages', path)]
+        use_ebpythonprefixes = get_software_root('Python') and build_option('prefer_ebpythonprefixes') and \
+            self.cfg['prefer_ebpythonprefixes']
 
-            if len(python_paths) > 1 and not use_ebpythonprefixes:
-                raise EasyBuildError('Multiple python paths requires EBPYTHONPREFIXES: ' + ', '.join(python_paths))
-            elif python_paths:
-                if use_ebpythonprefixes:
-                    lines.append(self.module_generator.prepend_paths('EBPYTHONPREFIXES', ''))
-                else:
-                    lines.append(self.module_generator.prepend_paths('PYTHONPATH', python_paths))
+        if len(python_paths) > 1 and not use_ebpythonprefixes:
+            raise EasyBuildError('Multiple python paths requires EBPYTHONPREFIXES: ' + ', '.join(python_paths))
+        elif python_paths:
+            # Add paths unless they were already added
+            if use_ebpythonprefixes and '' not in self.module_generator.added_paths_per_key['EBPYTHONPREFIXES']:
+                lines.append(self.module_generator.prepend_paths('EBPYTHONPREFIXES', ''))
+            elif python_paths[0] not in self.module_generator.added_paths_per_key['PYTHONPATH']:
+                lines.append(self.module_generator.prepend_paths('PYTHONPATH', python_paths))
 
         modloadmsg = self.cfg['modloadmsg']
         if modloadmsg:
