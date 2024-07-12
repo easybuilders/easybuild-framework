@@ -1590,7 +1590,7 @@ def handle_include_easyblocks_from(options, log):
                 check_included_multiple(included_from_commit, "commit %s" % easyblock_commit)
 
             for easyblock in included_from_commit:
-                print_msg("easyblock %s included from comit %s" % (easyblock, easyblock_commit), log=log)
+                print_msg("easyblock %s included from commit %s" % (easyblock, easyblock_commit), log=log)
 
             include_easyblocks(options.tmpdir, easyblocks_from_commit)
 

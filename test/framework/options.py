@@ -2225,7 +2225,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             import easybuild.easyblocks.generic
             reload(easybuild.easyblocks.generic)
 
-            pattern = "== easyblock binary.py included from comit %s" % test_commit
+            pattern = "== easyblock binary.py included from commit %s" % test_commit
             self.assertEqual(stderr, '')
             self.assertIn(pattern, stdout)
 
