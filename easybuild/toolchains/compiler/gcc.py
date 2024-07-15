@@ -84,6 +84,8 @@ class Gcc(Compiler):
     if systemtools.get_cpu_family() == systemtools.RISCV:
         COMPILER_UNIQUE_OPTION_MAP['strict'] = []
         COMPILER_UNIQUE_OPTION_MAP['precise'] = []
+        COMPILER_UNIQUE_OPTION_MAP['loose'] = ['fno-math-errno']
+        COMPILER_UNIQUE_OPTION_MAP['verloose'] = ['fno-math-errno']
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
