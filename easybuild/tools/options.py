@@ -410,7 +410,7 @@ class EasyBuildOptions(GeneralOption):
             'extra-modules': ("List of extra modules to load after setting up the build environment",
                               'strlist', 'extend', None),
             "extra-source-urls": ("Specify URLs to fetch sources from in addition to those in the easyconfig",
-                                  "urltuple", "add_flex", DEFAULT_EXTRA_SOURCE_URLS, {'metavar': 'URL[%sURL]' % '|'}),
+                                  "urltuple", "add_flex", DEFAULT_EXTRA_SOURCE_URLS, {'metavar': 'URL[|URL]'}),
             'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
                       "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
             'filter-deps': ("List of dependencies that you do *not* want to install with EasyBuild, "

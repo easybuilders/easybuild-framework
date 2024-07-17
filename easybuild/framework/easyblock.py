@@ -895,13 +895,11 @@ class EasyBlock(object):
                     source_urls = []
                 source_urls.extend(self.cfg['source_urls'])
 
-                # add extra-source-urls CLI as either a first check, or a fallback.
-                self.log.warning("[extra_source_urls] %s", build_option('extra_source_urls'))
+                # Insert --extra-source-urls command line option to the
+                # urls to try to download from.
                 for url in build_option("extra_source_urls"):
                     url += "/" + name_letter + "/" + location
-                    self.log.warning("[extra_source_urls] url is %s", url)
-                    source_urls.extend([url])
-                    self.log.warning("[extra_source_urls] %s", source_urls)
+                    source_urls.append(url)
 
                 mkdir(targetdir, parents=True)
 
