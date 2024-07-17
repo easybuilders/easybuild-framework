@@ -122,7 +122,7 @@ def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
         # map deprecated parameters to their replacements, issue deprecation warning(/error)
         if key == 'parallel':
             _log.deprecated("Easyconfig parameter 'parallel' is deprecated, "
-                            "use 'maxparallel' or the parallel property instead.", '5.0')
+                            "use 'maxparallel' or the parallel property instead.", '5.1')
             # Use a "hidden" property for now to match behavior as closely as possible
             key = '_parallelLegacy'
         elif key in ALTERNATIVE_EASYCONFIG_PARAMETERS:
@@ -149,7 +149,7 @@ def is_local_var_name(name):
     """
     res = False
     if name.startswith(LOCAL_VAR_PREFIX) or name.startswith('_'):
-        # Remove with EasyBuild 5.0
+        # Remove with EasyBuild 5.1
         if name != '_parallelLegacy':
             res = True
     # __builtins__ is always defined as a 'local' variables
@@ -508,7 +508,7 @@ class EasyConfig(object):
 
         # Storage for parallel property. Mark as unset initially
         self._parallel = None
-        # Legacy value, remove with EasyBuild 5.0
+        # Legacy value, remove with EasyBuild 5.1
         self._config['_parallelLegacy'] = [None, '', ('', )]
 
         # parse easyconfig file
@@ -713,7 +713,7 @@ class EasyConfig(object):
 
         if 'parallel' in ec_vars:
             # Replace value and issue better warning for EC params (as opposed to warnings meant for easyblocks)
-            self.log.deprecated("Easyconfig parameter 'parallel' is deprecated, use 'maxparallel' instead.", '5.0')
+            self.log.deprecated("Easyconfig parameter 'parallel' is deprecated, use 'maxparallel' instead.", '5.1')
             ec_vars['_parallelLegacy'] = ec_vars.pop('parallel')
 
         # provide suggestions for typos. Local variable names are excluded from this check
@@ -1242,7 +1242,7 @@ class EasyConfig(object):
         # Update backstorage and template value
         self._parallel = value
         self.template_values['parallel'] = value
-        # Backwards compat only. Remove with EasyBuild 5.0
+        # Backwards compat only. Remove with EasyBuild 5.1
         self._config['_parallelLegacy'][0] = value
 
     def dump(self, fp, always_overwrite=True, backup=False, explicit_toolchains=False):
