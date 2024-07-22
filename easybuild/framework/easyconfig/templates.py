@@ -365,7 +365,7 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
 
     # step 6. CUDA compute capabilities
     #         Use the commandline / easybuild config option if given, else use the value from the EC (as a default)
-    cuda_cc = build_option('cuda_cc') or config.get('cuda_cc')
+    cuda_cc = build_option('cuda_cc') or config.get('cuda_compute_capabilities')
     if cuda_cc:
         template_values['cuda_compute_capabilities'] = ','.join(cuda_cc)
         template_values['cuda_cc_space_sep'] = ' '.join(cuda_cc)
