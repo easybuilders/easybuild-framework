@@ -93,7 +93,7 @@ TEMPLATE_NAMES_DYNAMIC = [
     ('sysroot', "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
      "as specify by the --sysroot configuration option"),
     ('mpi_cmd_prefix', "Prefix command for running MPI programs (with default number of ranks)"),
-    ('cuda_cc', "Comma-separated list of CUDA compute capabilities, as specified via "
+    ('cuda_compute_capabilities', "Comma-separated list of CUDA compute capabilities, as specified via "
      "--cuda-compute-capabilities configuration option or via cuda_cc easyconfig parameter"),
     ('cuda_cc_cmake', "List of CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+"),
     ('cuda_cc_space_sep', "Space-separated list of CUDA compute capabilities"),
