@@ -37,7 +37,3 @@ from easybuild.toolchains.compiler.systemcompiler import SystemCompiler
 class SystemToolchain(SystemCompiler):
     """System toolchain."""
     NAME = SYSTEM_TOOLCHAIN_NAME
-    COMPILER_UNIQUE_OPTS = None
-    COMPILER_SHARED_OPTS = None
-    COMPILER_UNIQUE_OPTION_MAP = None
-    COMPILER_SHARED_OPTION_MAP = None
