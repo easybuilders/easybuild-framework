@@ -4606,7 +4606,7 @@ class EasyConfigTest(EnhancedTestCase):
             toolchain = SYSTEM
             cuda_compute_capabilities = ['5.1', '7.0', '7.1']
             installopts = '%(cuda_compute_capabilities)s'
-            preinstallopts = '%(cuda_cc_space_sep)s'
+            preinstallopts = 'period="%(cuda_cc_space_sep)s" noperiod="%(cuda_cc_space_sep_no_period)s"'
             prebuildopts = '%(cuda_cc_semicolon_sep)s'
             configopts = 'comma="%(cuda_sm_comma_sep)s" space="%(cuda_sm_space_sep)s"'
             preconfigopts = 'CUDAARCHS="%(cuda_cc_cmake)s"'
@@ -4615,7 +4615,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         ec = EasyConfig(self.eb_file)
         self.assertEqual(ec['installopts'], '5.1,7.0,7.1')
-        self.assertEqual(ec['preinstallopts'], '5.1 7.0 7.1')
+        self.assertEqual(ec['preinstallopts'], 'period="5.1 7.0 7.1" noperiod="51 70 71"')
         self.assertEqual(ec['prebuildopts'], '5.1;7.0;7.1')
         self.assertEqual(ec['configopts'], 'comma="sm_51,sm_70,sm_71" '
                                            'space="sm_51 sm_70 sm_71"')
@@ -4625,7 +4625,7 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options={'cuda_compute_capabilities': ['4.2', '6.3']})
         ec = EasyConfig(self.eb_file)
         self.assertEqual(ec['installopts'], '4.2,6.3')
-        self.assertEqual(ec['preinstallopts'], '4.2 6.3')
+        self.assertEqual(ec['preinstallopts'], 'period="4.2 6.3" noperiod="42 63"')
         self.assertEqual(ec['prebuildopts'], '4.2;6.3')
         self.assertEqual(ec['configopts'], 'comma="sm_42,sm_63" '
                                            'space="sm_42 sm_63"')

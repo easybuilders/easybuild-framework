@@ -191,7 +191,7 @@ jobs:
             # run test suite
             python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
             # try and make sure output of running tests is clean (no printed messages/warnings)
-            IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|requires Lmod as modules tool|stty: 'standard input': Inappropriate ioctl for device|CryptographyDeprecationWarning: Python 3.[56]|from cryptography.* import |CryptographyDeprecationWarning: Python 2|Blowfish|GC3Pie not available, skipping test"
+            IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|requires Lmod as modules tool|stty: 'standard input': Inappropriate ioctl for device|CryptographyDeprecationWarning: Python 3.[56]|from cryptography.* import |CryptographyDeprecationWarning: Python 2|Blowfish|GC3Pie not available, skipping test|CryptographyDeprecationWarning: TripleDES has been moved|algorithms.TripleDES"
             # '|| true' is needed to avoid that GitHub Actions stops the job on non-zero exit of grep (i.e. when there are no matches)
             PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
             test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite" && echo "${PRINTED_MSG}" && exit 1)
