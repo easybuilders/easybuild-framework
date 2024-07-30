@@ -2820,7 +2820,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test use of rpath toolchain option
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb'))
+        toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0-gompi-2018a.eb'))
         toy_ec_txt += "\ntoolchainopts = {'rpath': False}\n"
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         write_file(toy_ec, toy_ec_txt)
