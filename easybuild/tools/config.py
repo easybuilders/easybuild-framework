@@ -307,6 +307,7 @@ BUILD_OPTIONS_CMDLINE = {
         'set_gid_bit',
         'silence_hook_trigger',
         'skip_extensions',
+        'skip_sanity_check',
         'skip_test_cases',
         'skip_test_step',
         'sticky_bit',

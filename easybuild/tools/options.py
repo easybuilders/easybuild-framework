@@ -509,6 +509,9 @@ class EasyBuildOptions(GeneralOption):
             'silence-hook-trigger': ("Suppress printing of debug message every time a hook is triggered",
                                      None, 'store_true', False),
             'skip-extensions': ("Skip installation of extensions", None, 'store_true', False),
+            'skip-sanity-check': ("Skip running the sanity check step "
+                                  "(e.g. testing for installed files or running basic commands)",
+                                  None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'skip-test-step': ("Skip running the test step (e.g. unit tests)", None, 'store_true', False),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
