@@ -3493,7 +3493,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '',
             "* user-level: ${XDG_CONFIG_HOME:-$HOME/.config}/easybuild/config.cfg",
             "  -> %s",
-            "* system-level: ${XDG_CONFIG_DIRS:-/etc}/easybuild.d/*.cfg",
+            "* system-level: ${XDG_CONFIG_DIRS:-/etc/xdg}/easybuild.d/*.cfg",
             "  -> %s/easybuild.d/*.cfg => ",
         ])
 
@@ -3508,12 +3508,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
             homecfgfile_str += " => found"
         else:
             homecfgfile_str += " => not found"
-        expected = expected_tmpl % ('(not set)', '(not set)', homecfgfile_str, '{/etc}')
+        expected = expected_tmpl % ('(not set)', '(not set)', homecfgfile_str, '{/etc/xdg}')
         self.assertIn(expected, logtxt)
 
         # to predict the full output, we need to take control over $HOME and $XDG_CONFIG_DIRS
         os.environ['HOME'] = self.test_prefix
-        xdg_config_dirs = os.path.join(self.test_prefix, 'etc')
+        xdg_config_dirs = os.path.join(self.test_prefix, 'etc', 'xdg')
         os.environ['XDG_CONFIG_DIRS'] = xdg_config_dirs
 
         expected_tmpl += '\n'.join([
@@ -3538,12 +3538,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         xdg_config_home = os.path.join(self.test_prefix, 'home')
         os.environ['XDG_CONFIG_HOME'] = xdg_config_home
-        xdg_config_dirs = [os.path.join(self.test_prefix, 'etc'), os.path.join(self.test_prefix, 'moaretc')]
+        xdg_config_dirs = [os.path.join(self.test_prefix, 'etc', 'xdg'), os.path.join(self.test_prefix, 'moaretc')]
         os.environ['XDG_CONFIG_DIRS'] = os.pathsep.join(xdg_config_dirs)
 
         # put various dummy cfgfiles in place
         cfgfiles = [
-            os.path.join(self.test_prefix, 'etc', 'easybuild.d', 'config.cfg'),
+            os.path.join(self.test_prefix, 'etc', 'xdg', 'easybuild.d', 'config.cfg'),
             os.path.join(self.test_prefix, 'moaretc', 'easybuild.d', 'bar.cfg'),
             os.path.join(self.test_prefix, 'moaretc', 'easybuild.d', 'foo.cfg'),
             os.path.join(xdg_config_home, 'easybuild', 'config.cfg'),
