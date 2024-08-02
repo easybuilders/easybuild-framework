@@ -4624,7 +4624,7 @@ class EasyConfigTest(EnhancedTestCase):
             prebuildopts = '%(cuda_cc_semicolon_sep)s'
             buildopts = ('comma="%(cuda_int_comma_sep)s" space="%(cuda_int_space_sep)s" '
                          'semi="%(cuda_int_semicolon_sep)s"')
-            preinstallopts = '%(cuda_cc_space_sep)s'
+            preinstallopts = 'period="%(cuda_cc_space_sep)s" noperiod="%(cuda_cc_space_sep_no_period)s"'
             installopts = '%(cuda_compute_capabilities)s'
         """)
         self.prep()
@@ -4637,7 +4637,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['buildopts'], 'comma="51,70,71" '
                                           'space="51 70 71" '
                                           'semi="51;70;71"')
-        self.assertEqual(ec['preinstallopts'], '5.1 7.0 7.1')
+        self.assertEqual(ec['preinstallopts'], 'period="5.1 7.0 7.1" noperiod="51 70 71"')
         self.assertEqual(ec['installopts'], '5.1,7.0,7.1')
 
         # build options overwrite it
@@ -4650,7 +4650,7 @@ class EasyConfigTest(EnhancedTestCase):
                                           'space="42 63" '
                                           'semi="42;63"')
         self.assertEqual(ec['prebuildopts'], '4.2;6.3')
-        self.assertEqual(ec['preinstallopts'], '4.2 6.3')
+        self.assertEqual(ec['preinstallopts'], 'period="4.2 6.3" noperiod="42 63"')
         self.assertEqual(ec['installopts'], '4.2,6.3')
 
     def test_det_copy_ec_specs(self):
