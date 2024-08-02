@@ -81,6 +81,7 @@ from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, F
 from easybuild.tools.config import PYTHONPATH, SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
+from easybuild.tools.config import get_log_error_path, get_artifact_error_path
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
@@ -90,6 +91,7 @@ from easybuild.tools.filetools import encode_class_name, extract_file, find_back
 from easybuild.tools.filetools import get_cwd, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file, symlink
+from easybuild.tools.filetools import copy_dir, is_parent_path, create_unused_dirs
 from easybuild.tools.hooks import (
     BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, EXTRACT_STEP, FETCH_STEP, INSTALL_STEP, MODULE_STEP,
     MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, PREPARE_STEP, READY_STEP,
@@ -4422,6 +4424,86 @@ def print_dry_run_note(loc, silent=True):
     dry_run_msg(msg, silent=silent)
 
 
+def create_persistence_paths(operation_args):
+    persistence_paths = [target_path for (_, _, target_path, _) in operation_args]
+    persistence_paths = create_unused_dirs(persistence_paths)
+
+    for i, (operation, source, _, msg) in enumerate(operation_args):
+        operation_args[i] = (operation, source, persistence_paths[i], msg)
+
+    return operation_args
+
+
+def execute_and_log_persistence_operation(operation, source_paths, target_dir, msg, silent):
+    for p in source_paths:
+        if os.path.exists(p):
+            operation(p, target_dir)
+    print_msg(msg, log=_log, silent=silent)
+
+
+def persist_failed_compilation_log_and_artifacts(build_successful, application_log, silent, app, easyconfig):
+    if not application_log:
+        return
+
+    # there may be multiple log files, or the file name may be different due to zipping
+    logs = glob.glob(f"{application_log}*")
+    print_msg(
+        "Results of the build can be found in the temporary log file(s): " + ", ".join(logs),
+        log=_log,
+        silent=silent
+    )
+
+    if build_successful:
+        return
+
+    datetime_stamp = time.strftime("%Y%m%d") + '-' + time.strftime("%H%M%S")
+    operation_args = []
+
+    log_error_path = get_log_error_path(easyconfig)
+    if log_error_path:
+        log_error_path = os.path.join(log_error_path, datetime_stamp)
+
+        if is_parent_path(app.builddir, log_error_path):
+            print_warning(
+                "Persistent log directory is subdirectory of build directory; not copying logs.",
+                log=_log,
+                silent=silent
+            )
+        else:
+            operation_args.append(
+                (
+                    copy_file,
+                    logs,
+                    log_error_path,
+                    f"Logs of failed build copied to permanent storage: {log_error_path}"
+                )
+            )
+
+    artifact_error_path = get_artifact_error_path(easyconfig)
+    if artifact_error_path and os.path.isdir(app.builddir):
+        artifact_error_path = os.path.join(artifact_error_path, datetime_stamp)
+
+        if is_parent_path(app.builddir, artifact_error_path):
+            print_warning(
+                "Persistent artifact directory is subdirectory of build directory; not copying artifacts.",
+                log=_log,
+                silent=silent
+            )
+        else:
+            operation_args.append(
+                (
+                    lambda source, destination: copy_dir(source, destination, dirs_exist_ok=True),
+                    [app.builddir],
+                    artifact_error_path,
+                    f"Artifacts of failed build copied to permanent storage: {artifact_error_path}"
+                )
+            )
+
+    operation_args = create_persistence_paths(operation_args)
+    for args in operation_args:
+        execute_and_log_persistence_operation(*args, silent=silent)
+
+
 def build_and_install_one(ecdict, init_env):
     """
     Build the software
@@ -4675,10 +4757,7 @@ def build_and_install_one(ecdict, init_env):
         else:
             dry_run_msg("(no ignored errors during dry run)\n", silent=silent)
 
-    if application_log:
-        # there may be multiple log files, or the file name may be different due to zipping
-        logs = glob.glob('%s*' % application_log)
-        print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=_log, silent=silent)
+    persist_failed_compilation_log_and_artifacts(success, application_log, silent, app, ecdict['ec'])
 
     del app
 

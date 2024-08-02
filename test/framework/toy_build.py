@@ -40,6 +40,8 @@ import stat
 import sys
 import tempfile
 import textwrap
+import pathlib
+import filecmp
 from easybuild.tools import LooseVersion
 from importlib import reload
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup
@@ -158,6 +160,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertExists(devel_module_path)
 
     def _test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
+                        tmp_logdir=None, log_error_dir=None, artifact_error_dir=None,
                         raise_error=False, test_report=None, name='toy', versionsuffix='', testing=True,
                         raise_systemexit=False, force=True, test_report_regexs=None, debug=True):
         """Perform a toy build."""
@@ -181,6 +184,12 @@ class ToyBuildTest(EnhancedTestCase):
             args.append('--tmpdir=%s' % tmpdir)
         if test_report is not None:
             args.append('--dump-test-report=%s' % test_report)
+        if tmp_logdir is not None:
+            args.append('--tmp-logdir=%s' % tmp_logdir)
+        if log_error_dir is not None:
+            args.append('--log-error-path=%s' % log_error_dir)
+        if artifact_error_dir is not None:
+            args.append('--artifact-error-path=%s' % artifact_error_dir)
         args.extend(extra_args)
         myerr = None
         try:
@@ -280,6 +289,217 @@ class ToyBuildTest(EnhancedTestCase):
 
         # cleanup
         shutil.rmtree(tmpdir)
+
+    def detect_log_file(self, tmp_log_path):
+        log_files = list(pathlib.Path(tmp_log_path).glob("**/*.log"))
+
+        self.assertTrue(len(log_files) >= 1, "Log files generated")
+        log_file = log_files[0]
+        self.assertTrue(len(log_files) == 1, f"Single log file expected: {log_files}")
+
+        return log_file
+
+    def assert_build_files_copied(self, buildpath, artifact_error_path):
+        build_dir = pathlib.Path(buildpath)
+        storage_dir = pathlib.Path(artifact_error_path)
+
+        app_build_dir = build_dir / "toy/0.0/system-system"
+        iso_date_pattern = "????????-??????"
+
+        for file in app_build_dir.glob("**/*"):
+            file_relative_path = file.relative_to(app_build_dir)
+            file_copies = list(storage_dir.glob(f"toy-0.0/{iso_date_pattern}/{file_relative_path}"))
+            self.assertTrue(len(file_copies) == 1, f"Unique copy of toy build file '{file}' made")
+            file_copy = file_copies[0]
+
+            if file_copy.is_file():
+                msg = f"File '{file}' copied successfully"
+                self.assertTrue(filecmp.cmp(str(file), str(file_copy), shallow=False), msg)
+
+    def assert_log_files_copied(self, log_file, log_error_path):
+        file_name = log_file.name
+        saved_log_files = list(pathlib.Path(log_error_path).glob(f"**/{file_name}"))
+        self.assertTrue(len(saved_log_files) == 1, f"Unique copy of log file '{log_file}' made")
+        for saved_log_file in saved_log_files:
+            msg = f"Log file '{log_file}' copied successfully"
+            self.assertTrue(filecmp.cmp(str(log_file), str(saved_log_file), shallow=False), msg)
+
+    def assert_error_reported(self, outtxt, output_regexs):
+        for regex_pattern in output_regexs:
+            regex = re.compile(regex_pattern, re.M)
+            self.assertRegex(outtxt, regex)
+
+    def check_errorlog(self, output_regexs, outtxt, tmp_logpath, buildpath, log_error_path, artifact_error_path):
+        log_file = self.detect_log_file(tmp_logpath)
+
+        self.assert_log_files_copied(log_file, log_error_path)
+        self.assert_build_files_copied(buildpath, artifact_error_path)
+        self.assert_error_reported(outtxt, output_regexs)
+
+        with open(f"{log_file}", 'r') as p_log_file:
+            self.assert_error_reported(p_log_file.read(), output_regexs)
+
+    def test_toy_broken_compilation(self):
+        """Test whether log files and the build directory are copied to a permanent location after a failed
+           compilation."""
+        with tempfile.TemporaryDirectory() as base_tmp_dir:
+            base_tmp_path = pathlib.Path(base_tmp_dir)
+
+            tmpdir = base_tmp_path / 'tmp'
+            tmp_log_dir = base_tmp_path / 'log_dir'
+            tmp_log_error_dir = base_tmp_path / 'log_error_dir'
+            tmp_artifact_error_dir = base_tmp_path / 'artifact_error_dir'
+            tmp_easyconfig_dir = base_tmp_path / 'easyconfig_dir'
+
+            base_ec = os.path.join(
+                os.path.dirname(__file__),
+                'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+            base_ec_txt = read_file(base_ec)
+            broken_compilation_ec_txt = re.sub(
+                r'toy-0\.0_fix-silly-typo-in-printf-statement\.patch',
+                r'toy-0.0_add-bug.patch',
+                base_ec_txt)
+            broken_compilation_ec = os.path.join(tmp_easyconfig_dir, 'toy-0.0-buggy.eb')
+            write_file(broken_compilation_ec, broken_compilation_ec_txt)
+
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            outtxt = self._test_toy_build(
+                ec_file=broken_compilation_ec, tmpdir=tmpdir,
+                verify=False, fails=True, verbose=False, raise_error=False, name='toy', versionsuffix='-buggy',
+                tmp_logdir=tmp_log_dir, log_error_dir=tmp_log_error_dir, artifact_error_dir=tmp_artifact_error_dir
+            )
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            output_regexs = [r"^\s*toy\.c:5:44: error: expected (;|.;.) before"]
+
+            self.check_errorlog(output_regexs, outtxt, tmp_log_dir,
+                                self.test_buildpath, tmp_log_error_dir, tmp_artifact_error_dir)
+
+    def assert_persistence_not_overwriting_build_directory(self, outtxt, patterns_presence):
+        for pattern_presence in patterns_presence:
+            regex_pattern, present = pattern_presence
+            regex = re.compile(regex_pattern, re.M)
+            msg_stdout = "Pattern '%s' found in full test report:\n%s" % (regex.pattern, outtxt)
+            if present:
+                self.assertTrue(regex.search(outtxt), msg_stdout)
+            else:
+                self.assertFalse(regex.search(outtxt), msg_stdout)
+
+    def test_toy_persistence_copying_restrictions(self):
+        """
+        Test that EasyBuild refuses to move logs and artifacts inside the build directory in case of failed
+        compilations.
+
+        Moving log files or artifacts inside the build directory modifies the build artifacts, and in the case of
+        build is also copying directories into themselves.
+        """
+        with tempfile.TemporaryDirectory() as base_tmp_dir:
+            base_tmp_path = pathlib.Path(base_tmp_dir)
+
+            tmpdir = base_tmp_path / 'tmp'
+            tmp_log_dir = base_tmp_path / 'log_dir'
+            tmp_easyconfig_dir = base_tmp_path / 'easyconfig_dir'
+
+            base_ec = os.path.join(
+                os.path.dirname(__file__),
+                'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+            base_ec_txt = read_file(base_ec)
+            broken_compilation_ec_txt = re.sub(
+                r'toy-0\.0_fix-silly-typo-in-printf-statement\.patch',
+                r'toy-0.0_add-bug.patch',
+                base_ec_txt)
+            broken_compilation_ec = os.path.join(tmp_easyconfig_dir, 'toy-0.0-buggy.eb')
+            write_file(broken_compilation_ec, broken_compilation_ec_txt)
+
+            def check_overwriting_of_build_directory(tmp_log_error_dir,
+                                                     tmp_artifact_error_dir,
+                                                     copied_log_error_dir,
+                                                     copied_artifact_error_dir):
+                self.mock_stderr(True)
+                self.mock_stdout(True)
+
+                outtxt = self.test_toy_build(
+                    ec_file=broken_compilation_ec, tmpdir=tmpdir,
+                    tmp_logdir=tmp_log_dir, log_error_dir=tmp_log_error_dir, artifact_error_dir=tmp_artifact_error_dir,
+                    verify=False, fails=True, verbose=False, raise_error=False,
+                    name='toy', versionsuffix='-buggy')
+
+                self.assert_persistence_not_overwriting_build_directory(
+                    outtxt=outtxt,
+                    patterns_presence=[
+                        (
+                            "Logs of failed build copied to permanent storage",
+                            copied_log_error_dir
+                        ),
+                        (
+                            "Artifacts of failed build copied to permanent storage",
+                            copied_artifact_error_dir
+                        ),
+                        (
+                            "Persistent log directory is subdirectory of build directory; not copying logs.",
+                            not copied_log_error_dir
+                        ),
+                        (
+                            "Persistent artifact directory is subdirectory of build directory; not copying artifacts.",
+                            not copied_artifact_error_dir
+                        ),
+                    ]
+                )
+
+                shutil.rmtree(tmpdir)
+                shutil.rmtree(tmp_log_dir)
+                shutil.rmtree(self.test_buildpath)
+                if copied_log_error_dir:
+                    shutil.rmtree(tmp_log_error_dir)
+                if copied_artifact_error_dir:
+                    shutil.rmtree(tmp_artifact_error_dir)
+
+                self.mock_stderr(False)
+                self.mock_stdout(False)
+
+            old_buildpath = self.test_buildpath
+            self.test_buildpath = str(base_tmp_path / 'build_dir')
+
+            log_path_outside_build_directory = os.path.join(str(base_tmp_path), 'log_error_dir')
+            log_path_inside_build_directory = os.path.join(self.test_buildpath,
+                                                           'toy', '0.0', 'system-system', 'log_error_dir')
+            artifact_path_outside_build_directory = os.path.join(str(base_tmp_path), 'artifact_error_dir')
+            artifact_path_inside_build_directory = os.path.join(self.test_buildpath,
+                                                                'toy', '0.0', 'system-system', 'artifact_error_dir')
+
+            check_overwriting_of_build_directory(
+                tmp_log_error_dir=log_path_outside_build_directory,
+                tmp_artifact_error_dir=artifact_path_outside_build_directory,
+                copied_log_error_dir=True,
+                copied_artifact_error_dir=True
+            )
+
+            check_overwriting_of_build_directory(
+                tmp_log_error_dir=log_path_inside_build_directory,
+                tmp_artifact_error_dir=artifact_path_outside_build_directory,
+                copied_log_error_dir=False,
+                copied_artifact_error_dir=True
+            )
+
+            check_overwriting_of_build_directory(
+                tmp_log_error_dir=log_path_outside_build_directory,
+                tmp_artifact_error_dir=artifact_path_inside_build_directory,
+                copied_log_error_dir=True,
+                copied_artifact_error_dir=False
+            )
+
+            check_overwriting_of_build_directory(
+                tmp_log_error_dir=log_path_inside_build_directory,
+                tmp_artifact_error_dir=artifact_path_inside_build_directory,
+                copied_log_error_dir=False,
+                copied_artifact_error_dir=False
+            )
+
+            self.test_buildpath = old_buildpath
 
     def test_toy_tweaked(self):
         """Test toy build with tweaked easyconfig, for testing extra easyconfig parameters."""

@@ -576,6 +576,9 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Configuration options", "Configure EasyBuild behavior.")
 
         opts = OrderedDict({
+            'artifact-error-path': ("Location where artifacts are copied in case of an error; "
+                                    "an empty value disables copying the logs.",
+                                    None, 'store', None, {'metavar': "PATH"}),
             'avail-module-naming-schemes': ("Show all supported module naming schemes",
                                             None, 'store_true', False,),
             'avail-modules-tools': ("Show all supported module tools",
@@ -606,6 +609,9 @@ class EasyBuildOptions(GeneralOption):
                                      None, 'store', None),
             'job-backend': ("Backend to use for submitting jobs", 'choice', 'store',
                             DEFAULT_JOB_BACKEND, sorted(avail_job_backends().keys())),
+            'log-error-path': ("Location where logs are copied in case of an error; "
+                               "an empty value disables copying the logs.",
+                               None, 'store', None, {'metavar': "PATH"}),
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
@@ -1218,8 +1224,8 @@ class EasyBuildOptions(GeneralOption):
         # - the <path> could also specify the location of a *remote* (Git( repository,
         #   which can be done in variety of formats (git@<url>:<org>/<repo>), https://<url>, etc.)
         #   (see also https://github.com/easybuilders/easybuild-framework/issues/3892);
-        path_opt_names = ['buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
-                          'installpath_modules', 'installpath_software', 'prefix', 'packagepath',
+        path_opt_names = ['artifact_error_path', 'buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
+                          'installpath_modules', 'installpath_software', 'log_error_path', 'prefix', 'packagepath',
                           'robot_paths', 'sourcepath']
 
         for opt_name in path_opt_names:
@@ -1228,8 +1234,8 @@ class EasyBuildOptions(GeneralOption):
         if self.options.prefix is not None:
             # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath in account
             # in the legacy-style configuration, repository is initialised in configuration file itself
-            path_opts = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'repository', 'repositorypath',
-                         'sourcepath']
+            path_opts = ['artifact_error_path', 'buildpath', 'containerpath', 'installpath', 'log_error_path',
+                         'packagepath', 'repository', 'repositorypath', 'sourcepath']
             for dest in path_opts:
                 if not self.options._action_taken.get(dest, False):
                     if dest == 'repository':

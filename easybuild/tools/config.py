@@ -105,9 +105,11 @@ DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Lua'
 DEFAULT_MODULES_TOOL = 'Lmod'
 DEFAULT_PATH_SUBDIRS = {
+    'artifact_error_path': 'error_artifacts',
     'buildpath': 'build',
     'containerpath': 'containers',
     'installpath': '',
+    'log_error_path': 'error_logs',
     'packagepath': 'packages',
     'repositorypath': 'ebfiles_repo',
     'sourcepath': 'sources',
@@ -490,6 +492,7 @@ class ConfigurationVariables(BaseConfigurationVariables):
 
     # list of known/required keys
     REQUIRED = [
+        'artifact_error_path',
         'buildpath',
         'config',
         'containerpath',
@@ -497,6 +500,7 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'installpath_modules',
         'installpath_software',
         'job_backend',
+        'log_error_path',
         'logfile_format',
         'moduleclasses',
         'module_naming_scheme',
@@ -863,6 +867,48 @@ def log_path(ec=None):
     date = time.strftime("%Y%m%d")
     timestamp = time.strftime("%H%M%S")
     return log_file_format(return_directory=True, ec=ec, date=date, timestamp=timestamp)
+
+
+def get_log_error_path(ec):
+    """
+    Return the 'log_error_path', the location where logs are copied in case of failure
+
+    :param ec:  dict-like value with 'name' and 'version' keys defined
+    """
+    log_error_path = ConfigurationVariables()['log_error_path']
+
+    if not log_error_path:
+        return None
+
+    try:
+        name, version = ec['name'], ec['version']
+    except KeyError:
+        raise EasyBuildError("The 'name' and 'version' keys are required.")
+
+    path = os.path.join(log_error_path, name + '-' + version)
+
+    return path
+
+
+def get_artifact_error_path(ec):
+    """
+    Return the 'artifact_error_path', the location where build directories are copied in case of failure
+
+    :param ec:  dict-like value with 'name' and 'version' keys defined
+    """
+    artifact_error_path = ConfigurationVariables()['artifact_error_path']
+
+    if not artifact_error_path:
+        return None
+
+    try:
+        name, version = ec['name'], ec['version']
+    except KeyError:
+        raise EasyBuildError("The 'name' and 'version' keys are required.")
+
+    path = os.path.join(artifact_error_path, name + '-' + version)
+
+    return path
 
 
 def get_build_log_path():
