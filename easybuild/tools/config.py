@@ -106,6 +106,7 @@ DEFAULT_MODULES_TOOL = 'Lmod'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
     'containerpath': 'containers',
+    'errorlogpath': 'error_log',
     'installpath': '',
     'packagepath': 'packages',
     'repositorypath': 'ebfiles_repo',
@@ -478,6 +479,7 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'buildpath',
         'config',
         'containerpath',
+        'errorlogpath',
         'installpath',
         'installpath_modules',
         'installpath_software',
@@ -841,6 +843,25 @@ def log_path(ec=None):
     date = time.strftime("%Y%m%d")
     timestamp = time.strftime("%H%M%S")
     return log_file_format(return_directory=True, ec=ec, date=date, timestamp=timestamp)
+
+
+def error_log_path(ec=None):
+    """
+    Return the default error log path
+
+    This is a path where file from the build_log_path can be stored permanently
+    :param ec: dict-like value that provides values for %(name)s and %(version)s template values
+    """
+    error_log_path = ConfigurationVariables()['errorlogpath']
+
+    if ec is None:
+        ec = {}
+
+    name, version = ec.get('name', '%(name)s'), ec.get('version', '%(version)s')
+    date = time.strftime("%Y%m%d")
+    timestamp = time.strftime("%H%M%S")
+
+    return '/'.join([error_log_path, name + '-' + version, date + '-' + timestamp])
 
 
 def get_build_log_path():
