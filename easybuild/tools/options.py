@@ -438,11 +438,11 @@ class EasyBuildOptions(GeneralOption):
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
             'hide-toolchains': ("Comma separated list of toolchains that you want automatically hidden, "
                                 "(e.g. --hide-toolchains=GCCcore)", 'strlist', 'extend', None),
-            'http-header-fields-urlpat': ("Set extra HTTP header FIELDs when downloading files from URL PATterns. "
-                                          "To not log sensitive values, specify a file containing newline separated "
-                                          "FIELDs. e.g. \"^https://www.example.com::/path/to/headers.txt\" or "
-                                          "\"client[A-z0-9]*.example.com': ['Authorization: Basic token']\".",
-                                          None, 'append', None, {'metavar': '[URLPAT::][HEADER:]FILE|FIELD'}),
+            'http-header-fields-urlpat': ("Set extra HTTP header FIELD when downloading files from URL PATterns. "
+                                          "Use FILE (to hide sensitive values) and newline separated FIELDs in the "
+                                          "same format. e.g. \"^https://www.example.com::path/to/headers.txt\" or "
+                                          "\"client[A-z0-9]*.example.com:: Authorization: Basic token\".",
+                                          None, 'append', None, {'metavar': '[URLPAT::][HEADER:]FIELDVALUE|FILE'}),
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-test-failure': ("Ignore a failing test step", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
