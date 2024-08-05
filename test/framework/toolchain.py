@@ -3050,7 +3050,7 @@ class ToolchainTest(EnhancedTestCase):
         # export the wrappers to a target location
         target_wrapper_dir = os.path.join(self.test_prefix, 'target')
         export_rpath_wrappers(targetdir=target_wrapper_dir, toolchain_name='gompi', toolchain_version='2018a',
-                              rpath_filter_dirs='/filter_path', rpath_include_dirs='/include_path')
+                              rpath_filter_dirs=['/filter_path'], rpath_include_dirs=['/include_path'])
 
         # check that wrapper was created
         target_wrapper = os.path.join(target_wrapper_dir, 'gxx_wrapper', 'g++')
