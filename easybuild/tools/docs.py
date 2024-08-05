@@ -518,8 +518,8 @@ def avail_easyconfig_templates_txt():
     doc.append('')
 
     doc.append('Template constants that can be used in easyconfigs')
-    for name, (value, doc) in TEMPLATE_CONSTANTS.items():
-        doc.append('%s%s: %s (%s)' % (INDENT_4SPACES, name, doc, value))
+    for name, (value, cur_doc) in TEMPLATE_CONSTANTS.items():
+        doc.append('%s%s: %s (%s)' % (INDENT_4SPACES, name, cur_doc, value))
 
     return '\n'.join(doc)
 

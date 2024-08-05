@@ -550,3 +550,8 @@ def template_documentation():
         doc.append('%s%s: %s (%s)' % (indent_l1, name, cur_doc, value))
 
     return "\n".join(doc)
+
+
+# Add template constants to export list
+globals().update({name: value for name, (value, _) in TEMPLATE_CONSTANTS.items()})
+__all__ = list(TEMPLATE_CONSTANTS.keys())
