@@ -997,9 +997,9 @@ class Toolchain(object):
                 # avoid '+' character in directory name (for example with 'g++' command), which can cause trouble
                 # (see https://github.com/easybuilders/easybuild-easyconfigs/issues/7339)
                 wrapper_dir_name = '%s_wrapper' % cmd.replace('+', 'x')
-                wrappers_dir = os.path.join(wrappers_dir, wrapper_dir_name)
+                wrapper_dir = os.path.join(wrappers_dir, wrapper_dir_name)
 
-                cmd_wrapper = os.path.join(wrappers_dir, cmd)
+                cmd_wrapper = os.path.join(wrapper_dir, cmd)
 
                 # make *very* sure we don't wrap around ourselves and create a fork bomb...
                 if os.path.exists(cmd_wrapper) and os.path.exists(orig_cmd) and os.path.samefile(orig_cmd, cmd_wrapper):
@@ -1019,7 +1019,7 @@ class Toolchain(object):
                     'rpath_filter': rpath_filter,
                     'rpath_include': rpath_include,
                     'rpath_wrapper_log': rpath_wrapper_log,
-                    'wrapper_dir': wrappers_dir,
+                    'wrapper_dir': wrapper_dir,
                 }
                 write_file(cmd_wrapper, cmd_wrapper_txt)
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
