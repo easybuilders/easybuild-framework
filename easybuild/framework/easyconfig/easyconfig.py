@@ -1217,7 +1217,7 @@ class EasyConfig(object):
             default_values.update({key: value[0] for key, value in self.extra_options.items()})
 
             self.generate_template_values()
-            templ_const = {quote_py_str(const[1]): const[0] for const in TEMPLATE_CONSTANTS}
+            templ_const = {quote_py_str(value): name for name, (value, _) in TEMPLATE_CONSTANTS.items()}
 
             # create reverse map of templates, to inject template values where possible
             # longer template values are considered first, shorter template keys get preference over longer ones
@@ -1842,7 +1842,7 @@ class EasyConfig(object):
         Returns user-friendly error message in case neither are defined,
         or if an unknown key is used.
         """
-        if key.startswith('cuda_') and any(x[0] == key for x in TEMPLATE_NAMES_DYNAMIC):
+        if key.startswith('cuda_') and any(x == key for x in TEMPLATE_NAMES_DYNAMIC):
             try:
                 return self.template_values[key]
             except KeyError:

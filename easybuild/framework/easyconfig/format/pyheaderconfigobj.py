@@ -52,8 +52,8 @@ _log = fancylogger.getLogger('easyconfig.format.pyheaderconfigobj', fname=False)
 def build_easyconfig_constants_dict():
     """Make a dictionary with all constants that can be used"""
     all_consts = [
-        ('TEMPLATE_CONSTANTS', {x[0]: x[1] for x in TEMPLATE_CONSTANTS}),
-        ('EASYCONFIG_CONSTANTS', {key: val[0] for key, val in EASYCONFIG_CONSTANTS.items()}),
+        ('TEMPLATE_CONSTANTS', {name: value for name, (value, _) in TEMPLATE_CONSTANTS.items()}),
+        ('EASYCONFIG_CONSTANTS', {name: value for name, (value, _) in EASYCONFIG_CONSTANTS.items()}),
         ('EASYCONFIG_LICENSES', {klass().name: name for name, klass in EASYCONFIG_LICENSES_DICT.items()}),
     ]
     err = []

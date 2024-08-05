@@ -116,7 +116,7 @@ class Extension(object):
 
         # Add install/builddir templates with values from master.
         for key in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-            self.cfg.template_values[key[0]] = str(getattr(self.master, key[0], None))
+            self.cfg.template_values[key] = str(getattr(self.master, key, None))
 
         # We can't inherit the 'start_dir' value from the parent (which will be set, and will most likely be wrong).
         # It should be specified for the extension specifically, or be empty (so it is auto-derived).

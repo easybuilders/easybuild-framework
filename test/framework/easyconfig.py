@@ -1378,7 +1378,7 @@ class EasyConfigTest(EnhancedTestCase):
         # expected length: 1 per constant and 2 extra per constantgroup (title + empty line in between)
         temps = [
             easyconfig.templates.TEMPLATE_NAMES_EASYCONFIG,
-            easyconfig.templates.TEMPLATE_SOFTWARE_VERSIONS * 3,
+            list(easyconfig.templates.TEMPLATE_SOFTWARE_VERSIONS.keys()) * 3,
             easyconfig.templates.TEMPLATE_NAMES_CONFIG,
             easyconfig.templates.TEMPLATE_NAMES_LOWER,
             easyconfig.templates.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,

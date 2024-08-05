@@ -3921,7 +3921,7 @@ class EasyBlock(object):
         """Update the the easyconfig template dictionary with easyconfig.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP names"""
 
         for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-            self.cfg.template_values[name[0]] = str(getattr(self, name[0], None))
+            self.cfg.template_values[name] = str(getattr(self, name, None))
         self.cfg.generate_template_values()
 
     def skip_step(self, step, skippable):
