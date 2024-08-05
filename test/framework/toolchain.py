@@ -3057,6 +3057,8 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(target_wrapper))
         # Make sure it is a wrapper
         self.assertTrue(b'rpath_args.py $CMD' in read_file(target_wrapper, mode='rb'))
+        # Make sure it wraps our fake 'g++'
+        self.assertTrue(fake_gxx.encode(encoding="utf-8") in read_file(target_wrapper, mode='rb'))
         # Make sure the wrapper is not in PATH (we export only)
         self.assertFalse(any(os.path.samefile(x, target_wrapper) for x in which('g++', retain_all=True)))
 
