@@ -931,8 +931,8 @@ class Toolchain(object):
         # need to use binary mode to read the file, since it may be an actual compiler command (which is a binary file)
         return b'rpath_args.py $CMD' in read_file(path, mode='rb')
 
-    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, new_wrapper_dir=None,
-                               disable_wrapper_log=False, cmdDir=None):
+    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, wrappers_dir=None,
+                               disable_wrapper_log=False):
         """
         Put RPATH wrapper script in place for compiler and linker commands
 
@@ -955,10 +955,9 @@ class Toolchain(object):
                 rpath_filter_dirs.append(lib_stubs_pattern)
 
         # directory where all wrappers will be placed
-        if new_wrapper_dir is None:
+        if wrappers_dir is None:
             wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
         else:
-            wrappers_dir = new_wrapper_dir
             if not os.path.exists(wrappers_dir):
                 os.mkdir(wrappers_dir)
 
@@ -985,15 +984,6 @@ class Toolchain(object):
             if cmd is None:
                 continue
             orig_cmd = which(cmd)
-            if cmdDir is not None and os.path.exists(cmdDir):
-                orig_cmd = os.path.join(cmdDir, cmd)
-
-            # TODO: dirty hack to let module-shipped rpath wrappers point to EESSI software layer's ld
-            if cmdDir is not None and "ld" in cmd:
-                orig_cmd = which(cmd, retain_all=True)
-                orig_cmd = [a for a in orig_cmd if "/tmp" not in a][0]
-
-            self.log.debug("orig_cmd: %s", orig_cmd)
 
             if orig_cmd:
                 # bail out early if command already is a wrapped;
@@ -1007,9 +997,9 @@ class Toolchain(object):
                 # avoid '+' character in directory name (for example with 'g++' command), which can cause trouble
                 # (see https://github.com/easybuilders/easybuild-easyconfigs/issues/7339)
                 wrapper_dir_name = '%s_wrapper' % cmd.replace('+', 'x')
-                wrapper_dir = os.path.join(wrappers_dir, wrapper_dir_name)
+                wrappers_dir = os.path.join(wrappers_dir, wrapper_dir_name)
 
-                cmd_wrapper = os.path.join(wrapper_dir, cmd)
+                cmd_wrapper = os.path.join(wrappers_dir, cmd)
 
                 # make *very* sure we don't wrap around ourselves and create a fork bomb...
                 if os.path.exists(cmd_wrapper) and os.path.exists(orig_cmd) and os.path.samefile(orig_cmd, cmd_wrapper):
@@ -1029,19 +1019,18 @@ class Toolchain(object):
                     'rpath_filter': rpath_filter,
                     'rpath_include': rpath_include,
                     'rpath_wrapper_log': rpath_wrapper_log,
-                    'wrapper_dir': wrapper_dir,
+                    'wrapper_dir': wrappers_dir,
                 }
                 write_file(cmd_wrapper, cmd_wrapper_txt)
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
                 # prepend location to this wrapper to $PATH
-                setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
+                setvar('PATH', '%s:%s' % (wrappers_dir, os.getenv('PATH')))
 
                 self.log.info("RPATH wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
             else:
                 self.log.debug("Not installing RPATH wrapper for non-existing command '%s'", cmd)
 
-        return wrappers_dir
 
     def handle_sysroot(self):
         """
