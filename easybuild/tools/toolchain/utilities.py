@@ -157,10 +157,10 @@ def export_rpath_wrappers(targetdir, toolchain_name, toolchain_version, rpath_fi
                           rpath_include_dirs=None):
     tc = get_toolchain({'name': toolchain_name, 'version': toolchain_version}, {})
 
-    wrapperpath = tc.prepare_rpath_wrappers(
-            rpath_filter_dirs=rpath_filter_dirs,
-            rpath_include_dirs=rpath_include_dirs,
-            wrappers_dir=targetdir,
-            disable_wrapper_log=True,
-            )
-    _log.debug("Installed RPATH wrappers in %s" % (str(wrapperpath)))
+    tc.prepare_rpath_wrappers(
+        rpath_filter_dirs=rpath_filter_dirs,
+        rpath_include_dirs=rpath_include_dirs,
+        wrappers_dir=targetdir,
+        disable_wrapper_log=True,
+        )
+    _log.debug("Installed RPATH wrappers in command specific subdirectories of %s" % (str(targetdir)))
