@@ -38,7 +38,6 @@ Authors:
 import copy
 import re
 import sys
-import os
 
 import easybuild.tools.toolchain
 from easybuild.base import fancylogger
