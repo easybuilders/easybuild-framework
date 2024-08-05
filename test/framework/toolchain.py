@@ -3055,7 +3055,8 @@ class ToolchainTest(EnhancedTestCase):
         # check that wrapper was created
         target_wrapper = os.path.join(target_wrapper_dir, 'gxx_wrapper', 'g++')
         self.assertTrue(os.path.exists(target_wrapper))
-        self.assertTrue(tc.is_rpath_wrapper(target_wrapper))
+        # Make sure it is a wrapper
+        self.assertTrue(b'rpath_args.py $CMD' in read_file(target_wrapper, mode='rb'))
         # Make sure the wrapper is not in PATH (we export only)
         self.assertFalse(any(os.path.samefile(x, target_wrapper) for x in which('g++', retain_all=True)))
 
@@ -3073,6 +3074,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd(cmd)
         self.assertEqual(ec, 0)
         expected = ' '.join([
+            '-Wl,-rpath=/include_path',
             '-Wl,--disable-new-dtags',
             '-Wl,-rpath=%s/foo' % self.test_prefix,
             '%(user)s.c',
