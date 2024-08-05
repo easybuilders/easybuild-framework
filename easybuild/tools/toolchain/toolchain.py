@@ -932,7 +932,7 @@ class Toolchain(object):
         return b'rpath_args.py $CMD' in read_file(path, mode='rb')
 
     def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, wrappers_dir=None,
-                               disable_wrapper_log=False):
+                               add_to_path=True, disable_wrapper_log=False):
         """
         Put RPATH wrapper script in place for compiler and linker commands
 
@@ -1025,7 +1025,8 @@ class Toolchain(object):
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
                 # prepend location to this wrapper to $PATH
-                setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
+                if add_to_path:
+                    setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
 
                 self.log.info("RPATH wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
             else:

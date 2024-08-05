@@ -161,6 +161,7 @@ def export_rpath_wrappers(targetdir, toolchain_name, toolchain_version, rpath_fi
         rpath_filter_dirs=rpath_filter_dirs,
         rpath_include_dirs=rpath_include_dirs,
         wrappers_dir=targetdir,
+        add_to_path=False,
         disable_wrapper_log=True,
         )
     _log.debug("Installed RPATH wrappers in command specific subdirectories of %s" % (str(targetdir)))
