@@ -3046,6 +3046,9 @@ class ToolchainTest(EnhancedTestCase):
         # enable --rpath for a toolchain so we test against it
         init_config(build_options={'rpath': True, 'silent': True})
         tc = self.get_toolchain('gompi', version='2018a')
+        tc.set_options({'rpath': True})
+        # allow the underlying toolchain to be in a prepared state (which may include rpath wrapping)
+        tc.prepare()
 
         # export the wrappers to a target location
         target_wrapper_dir = os.path.join(self.test_prefix, 'target')
