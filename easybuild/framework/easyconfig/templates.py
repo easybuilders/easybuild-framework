@@ -277,10 +277,9 @@ for pyver in ('py2.py3', 'py2', 'py3'):
 
 def template_constant_dict(config, ignore=None, toolchain=None):
     """Create a dict for templating the values in the easyconfigs.
-        - config is a dict with the structure of EasyConfig._config
+        - config -- Dict with the structure of EasyConfig._config
+        - ignore -- List of template names to ignore
     """
-    # TODO find better name
-    # ignore
     if ignore is None:
         ignore = []
     # make dict
@@ -296,7 +295,7 @@ def template_constant_dict(config, ignore=None, toolchain=None):
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     for name in TEMPLATE_NAMES_EASYCONFIG:
-        if name in ignore:
+        if name[0] in ignore:
             continue
 
         # check if this template name is already handled
