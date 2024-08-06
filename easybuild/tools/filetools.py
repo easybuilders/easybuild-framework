@@ -42,6 +42,7 @@ Authors:
 """
 import datetime
 import difflib
+import filecmp
 import glob
 import hashlib
 import inspect
@@ -2385,6 +2386,9 @@ def copy_file(path, target_path, force_in_dry_run=False):
             target_exists = os.path.exists(target_path)
             if target_exists and path_exists and os.path.samefile(path, target_path):
                 _log.debug("Not copying %s to %s since files are identical", path, target_path)
+            # Don't copy them if they have the same content
+            elif target_exists and path_exists and os.path.isfile(target_path) and filecmp.cmp(path, target_path):
+                _log.debug("Not copying %s to %s since file contents are identical", path, target_path)
             # if target file exists and is owned by someone else than the current user,
             # try using shutil.copyfile to just copy the file contents
             # since shutil.copy2 will fail when trying to copy over file metadata (since chown requires file ownership)
