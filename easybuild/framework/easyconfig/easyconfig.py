@@ -455,6 +455,8 @@ class EasyConfig(object):
             self.path = path
             self.rawtxt = read_file(path)
             self.log.debug("Raw contents from supplied easyconfig file %s: %s", path, self.rawtxt)
+            if not self.rawtxt.strip():
+                raise EasyBuildError('Easyconfig file is empty')
         else:
             self.rawtxt = rawtxt
             self.log.debug("Supplied raw easyconfig contents: %s" % self.rawtxt)
