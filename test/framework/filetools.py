@@ -1874,7 +1874,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.read_file(toy_ec) == ft.read_file(target_path))
 
         # Test that we don't copy the same file twice
-        # (use the modification timestamp)
+        # (use the metadata timestamp to verify)
         ctime = os.path.getctime(target_path)
         ft.copy_file(toy_ec, target_path)
         new_ctime = os.path.getctime(target_path)
