@@ -1634,6 +1634,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Failed to import EB_TOY", get_easyblock_class, None, name='TOY')
         self.assertEqual(get_easyblock_class(None, name='TOY', error_on_failed_import=False), None)
 
+        # Test passing neither easyblock nor name
+        self.assertErrorRegex(EasyBuildError, "neither name nor easyblock were specified", get_easyblock_class, None)
+        self.assertEqual(get_easyblock_class(None, error_on_missing_easyblock=False), None)
+
         # also test deprecated default_fallback named argument
         self.assertErrorRegex(EasyBuildError, "DEPRECATED", get_easyblock_class, None, name='gzip',
                               default_fallback=False)
