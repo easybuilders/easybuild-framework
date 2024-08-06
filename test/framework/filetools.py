@@ -1873,6 +1873,13 @@ class FileToolsTest(EnhancedTestCase):
         self.assertExists(target_path)
         self.assertTrue(ft.read_file(toy_ec) == ft.read_file(target_path))
 
+        # Test that we don't copy the same file twice
+        # (use the modification timestamp)
+        ctime = os.path.getctime(target_path)
+        ft.copy_file(toy_ec, target_path)
+        new_ctime = os.path.getctime(target_path)
+        self.assertEqual(ctime, new_ctime)
+
         # Make sure it doesn't fail if path is a symlink and target_path is a dir
         toy_link_fn = 'toy-link-0.0.eb'
         toy_link = os.path.join(self.test_prefix, toy_link_fn)
