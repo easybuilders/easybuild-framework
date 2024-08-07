@@ -2482,7 +2482,7 @@ class EasyBlock(object):
         checksum_issues = []
 
         sources = ent.get('sources', [])
-        patches = ent.get('patches', [])
+        patches = ent.get('patches', []) + ent.get('postinstallpatches', [])
         checksums = ent.get('checksums', [])
         # Single source should be re-wrapped as a list, and checksums with it
         if isinstance(sources, dict):
