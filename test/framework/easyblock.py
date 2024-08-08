@@ -2184,7 +2184,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         handle, toy_ec1 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
-        write_file(toy_ec1, toytxt + "\nparallel = 123")
+        write_file(toy_ec1, toytxt + "\nparallel = 13")
 
         handle, toy_ec2 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
@@ -2202,7 +2202,7 @@ class EasyBlockTest(EnhancedTestCase):
         # only 'parallel' easyconfig parameter specified (no 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec1))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 123)
+        self.assertEqual(test_eb.cfg['parallel'], 13)
 
         # both 'parallel' and 'maxparallel' easyconfig parameters specified (no 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec2))

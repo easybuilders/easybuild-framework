@@ -3476,7 +3476,7 @@ class EasyConfigTest(EnhancedTestCase):
         except AttributeError:
             pass  # Ignore if not present
         orig_get_avail_core_count = st.get_avail_core_count
-        st.get_avail_core_count = lambda: 42
+        st.get_avail_core_count = lambda: 12
 
         # also check template values after running check_readiness_step (which runs set_parallel)
         eb = EasyBlock(ec)
@@ -3487,7 +3487,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         res = template_constant_dict(ec)
         res.pop('arch')
-        expected['parallel'] = 42
+        expected['parallel'] = 12
         self.assertEqual(res, expected)
 
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb')
