@@ -3076,8 +3076,8 @@ class ToolchainTest(EnhancedTestCase):
             "'$FOO'",
             '-DX="\\"\\""',
         ])
-        out, ec = run_shell_cmd(cmd)
-        self.assertEqual(ec, 0)
+        res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
         expected = ' '.join([
             '-Wl,-rpath=/include_path',
             '-Wl,--disable-new-dtags',
@@ -3088,7 +3088,7 @@ class ToolchainTest(EnhancedTestCase):
             '$FOO',
             '-DX=""',
         ])
-        self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
+        self.assertEqual(res.output.strip(), expected % {'user': os.getenv('USER')})
 
     def test_prepare_openmpi_tmpdir(self):
         """Test handling of long $TMPDIR path for OpenMPI 2.x"""
