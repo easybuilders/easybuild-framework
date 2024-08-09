@@ -6919,7 +6919,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         robot_regex = re.compile(r'^robot\s*\(C\) = .*', re.M)
 
         self.assertTrue(warning_regex.search(stderr), "Pattern '%s' not found in: %s" % (warning_regex, stderr))
-        self.assertTrue(software_commit_regex.search(stdout), "Pattern '%s' not found in: %s" % (software_commit_regex, stdout))
+        self.assertTrue(software_commit_regex.search(stdout),
+                        "Pattern '%s' not found in: %s" % (software_commit_regex, stdout))
         self.assertFalse(robot_regex.search(stdout), "Pattern '%s' found in: %s" % (robot_regex, stdout))
 
     def test_accept_eula_for(self):
