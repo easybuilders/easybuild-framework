@@ -90,7 +90,7 @@ TEMPLATE_SOFTWARE_VERSIONS = [
 TEMPLATE_NAMES_DYNAMIC = [
     ('arch', "System architecture (e.g. x86_64, aarch64, ppc64le, ...)"),
     ('sysroot', "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
-     "as specify by the --sysroot configuration option"),
+     "as specified by the --sysroot configuration option"),
     ('mpi_cmd_prefix', "Prefix command for running MPI programs (with default number of ranks)"),
     ('cuda_compute_capabilities', "Comma-separated list of CUDA compute capabilities, as specified via "
      "--cuda-compute-capabilities configuration option or via cuda_cc easyconfig parameter"),
@@ -104,6 +104,7 @@ TEMPLATE_NAMES_DYNAMIC = [
     ('cuda_int_semicolon_sep', "Semicolon-separated list of integer CUDA compute capabilities"),
     ('cuda_sm_comma_sep', "Comma-separated list of sm_* values that correspond with CUDA compute capabilities"),
     ('cuda_sm_space_sep', "Space-separated list of sm_* values that correspond with CUDA compute capabilities"),
+    ('software_commit', "Git commit id to use for the software as specified by --software-commit command line option"),
 ]
 
 # constant templates that can be used in easyconfigs
@@ -293,6 +294,9 @@ def template_constant_dict(config, ignore=None, toolchain=None):
 
     # set 'sysroot' template based on 'sysroot' configuration option, using empty string as fallback
     template_values['sysroot'] = build_option('sysroot') or ''
+
+    # set 'software_commit' template based on 'software_commit' configuration option, default to None
+    template_values['software_commit'] = build_option('software_commit') or ''
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     for name in TEMPLATE_NAMES_EASYCONFIG:
