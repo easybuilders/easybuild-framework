@@ -438,40 +438,30 @@ class GithubTest(EnhancedTestCase):
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
 
-        # PR for rename of arrow to Arrow,
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/8007/files
-        all_ecs_pr8007 = [
-            'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb',
-            'bat-0.3.3-fix-pyspark.patch',
-            'bat-0.3.3-intel-2017b-Python-3.6.3.eb',
-        ]
-        # PR where also files are patched in test/
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/6587/files
-        all_ecs_pr6587 = [
-            'WIEN2k-18.1-foss-2018a.eb',
-            'WIEN2k-18.1-gimkl-2017a.eb',
-            'WIEN2k-18.1-intel-2018a.eb',
-            'libxc-4.2.3-foss-2018a.eb',
-            'libxc-4.2.3-gimkl-2017a.eb',
-            'libxc-4.2.3-intel-2018a.eb',
-        ]
-        # PR where files are renamed
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/7159/files
-        all_ecs_pr7159 = [
-            'DOLFIN-2018.1.0.post1-foss-2018a-Python-3.6.4.eb',
-            'OpenFOAM-5.0-20180108-foss-2018a.eb',
-            'OpenFOAM-5.0-20180108-intel-2018a.eb',
-            'OpenFOAM-6-foss-2018b.eb',
-            'OpenFOAM-6-intel-2018a.eb',
-            'OpenFOAM-v1806-foss-2018b.eb',
-            'PETSc-3.9.3-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018b.eb',
-            'SCOTCH-6.0.6-intel-2018a.eb',
-            'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
+        # PR for new easyconfig (polars)
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/20275/files
+        all_ecs_pr20275 = [
+            'polars-0.20.2-gfbf-2023a.eb',
         ]
 
-        for pr, all_ecs in [(8007, all_ecs_pr8007), (6587, all_ecs_pr6587), (7159, all_ecs_pr7159)]:
+        # PR for archiving of old easyconfig (Kent_tools)
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/19933/files
+        all_ecs_pr19933 = [
+            'Kent_tools-20190326-linux.x86_64.eb',
+        ]
+
+        # PR that touches multiple files (moving setuptools_scm from hatchling to Python)
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/19651/files
+        all_ecs_pr19651 = [
+            'hatchling-1.18.0-GCCcore-12.3.0.eb',
+            'hatchling-1.18.0-GCCcore-13.2.0.eb',
+            'Python-bundle-PyPI-2023.06-GCCcore-12.3.0.eb',
+            'Python-bundle-PyPI-2023.10-GCCcore-13.2.0.eb',
+            'Python-3.11.3-GCCcore-12.3.0.eb',
+            'Python-3.11.5-GCCcore-13.2.0.eb',
+        ]
+
+        for pr, all_ecs in [(20275, all_ecs_pr20275), (19933, all_ecs_pr19933), (19651, all_ecs_pr19651)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
                 with self.mocked_stdout_stderr():
@@ -494,36 +484,32 @@ class GithubTest(EnhancedTestCase):
         gh.fetch_files_from_pr.clear_cache()
         self.assertFalse(gh.fetch_files_from_pr._cache)
 
-        pr7159_filenames = [
-            'DOLFIN-2018.1.0.post1-foss-2018a-Python-3.6.4.eb',
-            'OpenFOAM-5.0-20180108-foss-2018a.eb',
-            'OpenFOAM-5.0-20180108-intel-2018a.eb',
-            'OpenFOAM-6-foss-2018b.eb',
-            'OpenFOAM-6-intel-2018a.eb',
-            'OpenFOAM-v1806-foss-2018b.eb',
-            'PETSc-3.9.3-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018b.eb',
-            'SCOTCH-6.0.6-intel-2018a.eb',
-            'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
+        pr19651_filenames = [
+            'hatchling-1.18.0-GCCcore-12.3.0.eb',
+            'hatchling-1.18.0-GCCcore-13.2.0.eb',
+            'Python-bundle-PyPI-2023.06-GCCcore-12.3.0.eb',
+            'Python-bundle-PyPI-2023.10-GCCcore-13.2.0.eb',
+            'Python-3.11.3-GCCcore-12.3.0.eb',
+            'Python-3.11.5-GCCcore-13.2.0.eb',
         ]
-        with self.mocked_stdout_stderr():
-            pr7159_files = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
-        self.assertEqual(sorted(pr7159_filenames), sorted(os.path.basename(f) for f in pr7159_files))
 
-        # check that cache has been populated for PR 7159
+        with self.mocked_stdout_stderr():
+            pr19651_files = gh.fetch_easyconfigs_from_pr(19651, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(sorted(pr19651_filenames), sorted(os.path.basename(f) for f in pr19651_files))
+
+        # check that cache has been populated for PR 19651
         self.assertEqual(len(gh.fetch_files_from_pr._cache.keys()), 1)
 
         # github_account value is None (results in using default 'easybuilders')
-        cache_key = (7159, None, 'easybuild-easyconfigs', self.test_prefix)
+        cache_key = (19651, None, 'easybuild-easyconfigs', self.test_prefix)
         self.assertIn(cache_key, gh.fetch_files_from_pr._cache.keys())
 
         cache_entry = gh.fetch_files_from_pr._cache[cache_key]
-        self.assertEqual(sorted([os.path.basename(f) for f in cache_entry]), sorted(pr7159_filenames))
+        self.assertEqual(sorted([os.path.basename(f) for f in cache_entry]), sorted(pr19651_filenames))
 
         # same query should return result from cache entry
-        res = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, pr7159_files)
+        res = gh.fetch_easyconfigs_from_pr(19651, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, pr19651_files)
 
         # inject entry in cache and check result of matching query
         pr_id = 12345

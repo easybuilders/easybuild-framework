@@ -40,6 +40,34 @@ Authors:
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 
+# alternative toolchain options, and their non-deprecated equivalents
+ALTERNATIVE_TOOLCHAIN_OPTIONS = {
+    # <new_param>: <equivalent_param>,
+}
+
+# deprecated toolchain options, and their replacements
+DEPRECATED_TOOLCHAIN_OPTIONS = {
+    # <old_param>: (<new_param>, <deprecation_version>),
+}
+
+
+def handle_deprecated_and_alternative_toolchain_options(tc_method):
+    """Decorator to handle deprecated/alternative toolchain options."""
+
+    def new_tc_method(self, key, *args, **kwargs):
+        """Check whether any deprecated/alternative toolchain options are used."""
+
+        if key in ALTERNATIVE_TOOLCHAIN_OPTIONS:
+            key = ALTERNATIVE_TOOLCHAIN_OPTIONS[key]
+        elif key in DEPRECATED_TOOLCHAIN_OPTIONS:
+            depr_key = key
+            key, ver = DEPRECATED_TOOLCHAIN_OPTIONS[depr_key]
+            self.log.deprecated(f"Toolchain option '{depr_key}' is deprecated, use '{key}' instead", ver)
+
+        return tc_method(self, key, *args, **kwargs)
+
+    return new_tc_method
+
 
 class ToolchainOptions(dict):
     def __init__(self):
@@ -82,6 +110,34 @@ class ToolchainOptions(dict):
                     raise EasyBuildError("No toolchain option with name %s defined", name)
 
         self.options_map.update(options_map)
+
+    @handle_deprecated_and_alternative_toolchain_options
+    def __contains__(self, key):
+        return super().__contains__(key)
+
+    @handle_deprecated_and_alternative_toolchain_options
+    def __delitem__(self, key):
+        return super().__delitem__(key)
+
+    @handle_deprecated_and_alternative_toolchain_options
+    def __getitem__(self, key):
+        return super().__getitem__(key)
+
+    @handle_deprecated_and_alternative_toolchain_options
+    def __setitem__(self, key, value):
+        return super().__setitem__(key, value)
+
+    def update(self, *args, **kwargs):
+        if args:
+            if isinstance(args[0], dict):
+                for key, value in args[0].items():
+                    self.__setitem__(key, value)
+            else:
+                for key, value in args[0]:
+                    self.__setitem__(key, value)
+
+        for key, value in kwargs.items():
+            self.__setitem__(key, value)
 
     def option(self, name, templatedict=None):
         """Return option value"""
