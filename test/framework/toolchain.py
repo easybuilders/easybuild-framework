@@ -3076,7 +3076,7 @@ class ToolchainTest(EnhancedTestCase):
             "'$FOO'",
             '-DX="\\"\\""',
         ])
-        out, ec = run_cmd(cmd)
+        out, ec = run_shell_cmd(cmd)
         self.assertEqual(ec, 0)
         expected = ' '.join([
             '-Wl,-rpath=/include_path',
