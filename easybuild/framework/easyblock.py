@@ -3901,12 +3901,13 @@ class EasyBlock(object):
         self.cfg.generate_template_values()
 
     def skip_step(self, step, skippable):
-        """Dedice whether or not to skip the specified step."""
+        """Decide whether or not to skip the specified step."""
         skip = False
         force = build_option('force')
         module_only = build_option('module_only') or self.cfg['module_only']
         sanity_check_only = build_option('sanity_check_only')
         skip_extensions = build_option('skip_extensions')
+        skip_sanity_check = build_option('skip_sanity_check')
         skip_test_step = build_option('skip_test_step')
         skipsteps = self.cfg['skipsteps']
 
@@ -3934,6 +3935,10 @@ class EasyBlock(object):
             self.log.info("Skipping %s step because of sanity-check-only mode", step)
             skip = True
 
+        elif skip_sanity_check and step == SANITYCHECK_STEP:
+            self.log.info("Skipping %s step as request via skip-sanity-check", step)
+            skip = True
+
         elif skip_extensions and step == EXTENSIONS_STEP:
             self.log.info("Skipping %s step as requested via skip-extensions", step)
             skip = True
@@ -3944,9 +3949,9 @@ class EasyBlock(object):
 
         else:
             msg = "Not skipping %s step (skippable: %s, skip: %s, skipsteps: %s, module_only: %s, force: %s, "
-            msg += "sanity_check_only: %s, skip_extensions: %s, skip_test_step: %s)"
+            msg += "sanity_check_only: %s, skip_extensions: %s, skip_test_step: %s, skip_sanity_check: %s)"
             self.log.debug(msg, step, skippable, self.skip, skipsteps, module_only, force,
-                           sanity_check_only, skip_extensions, skip_test_step)
+                           sanity_check_only, skip_extensions, skip_test_step, skip_sanity_check)
 
         return skip
 
