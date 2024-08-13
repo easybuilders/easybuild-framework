@@ -895,8 +895,7 @@ class EasyBlock(object):
                     source_urls = []
                 source_urls.extend(self.cfg['source_urls'])
 
-                # Insert --extra-source-urls command line option to the
-                # urls to try to download from.
+                # Add additional URLs as configured.
                 for url in build_option("extra_source_urls") or []:
                     url += "/" + name_letter + "/" + location
                     source_urls.append(url)
