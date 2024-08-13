@@ -444,7 +444,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
     def test_skip_sanity_check(self):
-        """Test ignore failing tests (--ignore-test-failure)."""
+        """Test skipping of sanity check step (--skip-sanity-check)."""
 
         topdir = os.path.abspath(os.path.dirname(__file__))
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
