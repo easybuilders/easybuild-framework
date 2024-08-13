@@ -2237,7 +2237,8 @@ class ToolchainTest(EnhancedTestCase):
                 "#!/bin/bash",
                 "echo 'This is a %s wrapper'" % cache_tool,
                 "NAME=${0##*/}",
-                "comm=$(which -a $NAME | sed 1d)",
+                "comms=($(which -a $NAME))",
+                "comm=${comms[1]}",  # First entry is this wrapper, take 2nd
                 "$comm $@",
                 "exit 0"
             ]
