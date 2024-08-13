@@ -46,8 +46,8 @@ import difflib
 import functools
 import os
 import re
-from contextlib import contextmanager
 from collections import OrderedDict
+from contextlib import contextmanager
 
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
