@@ -6906,6 +6906,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.environ['EASYBUILD_SYSROOT'] = doesnotexist
         self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, ['--show-config'], raise_error=True)
 
+    def test_software_commit(self):
+        """Test use of --software-commit option."""
+
+        software_commit = "23be34"
+        software_commit_arg = '--software-commit=' + software_commit
+        # Add robot to also test that it gets disabled
+        stdout, stderr = self._run_mock_eb([software_commit_arg, '--show-config', '--robot'], raise_error=True)
+
+        warning_regex = re.compile(r'.*WARNING:.*--software-commit robot resolution is being disabled.*', re.M)
+        software_commit_regex = re.compile(r'^software-commit\s*\(C\) = %s$' % software_commit, re.M)
+        robot_regex = re.compile(r'^robot\s*\(C\) = .*', re.M)
+
+        self.assertTrue(warning_regex.search(stderr), "Pattern '%s' not found in: %s" % (warning_regex, stderr))
+        self.assertTrue(software_commit_regex.search(stdout),
+                        "Pattern '%s' not found in: %s" % (software_commit_regex, stdout))
+        self.assertFalse(robot_regex.search(stdout), "Pattern '%s' found in: %s" % (robot_regex, stdout))
+
     def test_accept_eula_for(self):
         """Test --accept-eula-for configuration option."""
 

@@ -1462,6 +1462,35 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['buildopts'], "--some-opt=%s/" % self.test_prefix)
         self.assertEqual(ec['installopts'], "--some-opt=%s/" % self.test_prefix)
 
+    def test_software_commit_template(self):
+        """Test the %(software_commit)s template"""
+
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nconfigopts = "--some-opt=%(software_commit)s"'
+        test_ec_txt += '\nbuildopts = "--some-opt=%(software_commit)s"'
+        test_ec_txt += '\ninstallopts = "--some-opt=%(software_commit)s"'
+        write_file(test_ec, test_ec_txt)
+
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=")
+        self.assertEqual(ec['buildopts'], "--some-opt=")
+        self.assertEqual(ec['installopts'], "--some-opt=")
+
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        # As a test, we'll set the sysroot to self.test_prefix, as it has to be a directory that is guaranteed to exist
+        software_commit = '1234bc'
+        update_build_option('software_commit', software_commit)
+
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=%s" % software_commit)
+        self.assertEqual(ec['buildopts'], "--some-opt=%s" % software_commit)
+        self.assertEqual(ec['installopts'], "--some-opt=%s" % software_commit)
+
     def test_template_deprecation_and_alternative(self):
         """Test deprecation of (and alternative) templates"""
 
@@ -3451,6 +3480,7 @@ class EasyConfigTest(EnhancedTestCase):
             'nameletter': 'g',
             'nameletterlower': 'g',
             'parallel': None,
+            'software_commit': '',
             'sysroot': '',
             'toolchain_name': 'foss',
             'toolchain_version': '2018a',
@@ -3534,6 +3564,7 @@ class EasyConfigTest(EnhancedTestCase):
             'pyminver': '7',
             'pyshortver': '3.7',
             'pyver': '3.7.2',
+            'software_commit': '',
             'sysroot': '',
             'version': '0.01',
             'version_major': '0',
@@ -3599,6 +3630,7 @@ class EasyConfigTest(EnhancedTestCase):
             'namelower': 'foo',
             'nameletter': 'f',
             'nameletterlower': 'f',
+            'software_commit': '',
             'sysroot': '',
             'version': '1.2.3',
             'version_major': '1',
