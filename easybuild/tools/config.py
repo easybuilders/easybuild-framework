@@ -216,7 +216,6 @@ BUILD_OPTIONS_CMDLINE = {
         'easyblock',
         'envvars_user_modules',
         'extra_modules',
-        'extra_source_urls',
         'filter_deps',
         'filter_ecs',
         'filter_env_vars',
@@ -392,6 +391,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     'defaultopt': [
         'default_opt_level',
+    ],
+    DEFAULT_EXTRA_SOURCE_URLS: [
+        'extra_source_urls',
     ],
     DEFAULT_ALLOW_LOADED_MODULES: [
         'allow_loaded_modules',

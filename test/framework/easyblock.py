@@ -1824,7 +1824,7 @@ class EasyBlockTest(EnhancedTestCase):
         """Check whether downloading from fallback source URL https://sources.easybuild.io works."""
         # cfr. https://github.com/easybuilders/easybuild-easyconfigs/issues/11951
 
-        init_config(args=["--sourcepath=%s" % self.test_prefix, "--extra-source-urls=https://sources.easybuild.io/"])
+        init_config(args=["--sourcepath=%s" % self.test_prefix])
 
         udunits_ec = os.path.join(self.test_prefix, 'UDUNITS.eb')
         udunits_ec_txt = '\n'.join([
