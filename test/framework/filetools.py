@@ -3504,9 +3504,12 @@ class FileToolsTest(EnhancedTestCase):
         self.assertExists(path)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(FileToolsTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(FileToolsTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(FileToolsTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
