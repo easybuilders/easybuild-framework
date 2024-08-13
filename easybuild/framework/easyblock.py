@@ -1438,21 +1438,30 @@ class EasyBlock(object):
                                      value, type(value))
             lines.append(self.module_generator.append_paths(key, value, allow_abs=self.cfg['allow_append_abs_path']))
 
-        # Add automatic PYTHONPATH or EBPYTHONPREFIXES if they aren't already present
-        python_paths = [path[len(self.installdir)+1:]
-                        for path in glob.glob(f'{self.installdir}/lib*/python*/site-packages')
-                        if re.match(self.installdir + r'/lib(64)?/python\d+\.\d+/site-packages', path)]
-        use_ebpythonprefixes = get_software_root('Python') and build_option('prefer_ebpythonprefixes') and \
-            self.cfg['prefer_ebpythonprefixes']
+        # Add automatic PYTHONPATH or EBPYTHONPREFIXES if they aren't already present and python paths exist
+        if self.name not in ['Python', 'Miniconda', 'Anaconda']:  # nothing extra needed for base python installations
+            # Exclude symlinks lib -> lib64 or vice verse to avoid duplicates
+            python_paths = []
+            if not os.path.islink(f'{self.installdir}/lib'):
+                python_paths += [path[len(self.installdir)+1:]
+                                 for path in glob.glob(f'{self.installdir}/lib/python*/site-packages')
+                                 if re.match(self.installdir + r'/lib/python\d+\.\d+/site-packages', path)]
+            if not os.path.islink(f'{self.installdir}/lib64'):
+                python_paths += [path[len(self.installdir)+1:]
+                                 for path in glob.glob(f'{self.installdir}/lib64/python*/site-packages')
+                                 if re.match(self.installdir + r'/lib64/python\d+\.\d+/site-packages', path)]
 
-        if len(python_paths) > 1 and not use_ebpythonprefixes:
-            raise EasyBuildError('Multiple python paths requires EBPYTHONPREFIXES: ' + ', '.join(python_paths))
-        elif python_paths:
-            # Add paths unless they were already added
-            if use_ebpythonprefixes and '' not in self.module_generator.added_paths_per_key['EBPYTHONPREFIXES']:
-                lines.append(self.module_generator.prepend_paths('EBPYTHONPREFIXES', ''))
-            elif python_paths[0] not in self.module_generator.added_paths_per_key['PYTHONPATH']:
-                lines.append(self.module_generator.prepend_paths('PYTHONPATH', python_paths))
+            use_ebpythonprefixes = get_software_root('Python') and build_option('prefer_ebpythonprefixes') and \
+                self.cfg['prefer_ebpythonprefixes']
+
+            if len(python_paths) > 1 and not use_ebpythonprefixes:
+                raise EasyBuildError('Multiple python paths requires EBPYTHONPREFIXES: ' + ', '.join(python_paths))
+            elif python_paths:
+                # Add paths unless they were already added
+                if use_ebpythonprefixes and '' not in self.module_generator.added_paths_per_key['EBPYTHONPREFIXES']:
+                    lines.append(self.module_generator.prepend_paths('EBPYTHONPREFIXES', ''))
+                elif python_paths[0] not in self.module_generator.added_paths_per_key['PYTHONPATH']:
+                    lines.append(self.module_generator.prepend_paths('PYTHONPATH', python_paths))
 
         modloadmsg = self.cfg['modloadmsg']
         if modloadmsg:
