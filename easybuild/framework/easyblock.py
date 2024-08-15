@@ -1451,7 +1451,8 @@ class EasyBlock(object):
                                  for path in glob.glob(f'{self.installdir}/lib64/python*/site-packages')
                                  if re.match(self.installdir + r'/lib64/python\d+\.\d+/site-packages', path)]
 
-            use_ebpythonprefixes = 'Python' in self.cfg.dependencies(runtime_only=True) and \
+            runtime_deps = [dep['name'] for dep in self.cfg.dependencies(runtime_only=True)]
+            use_ebpythonprefixes = 'Python' in runtime_deps and \
                 build_option('prefer_ebpythonprefixes') and self.cfg['prefer_ebpythonprefixes']
 
             if python_paths:
