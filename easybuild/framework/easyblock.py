@@ -896,7 +896,7 @@ class EasyBlock(object):
                 source_urls.extend(self.cfg['source_urls'])
 
                 # Add additional URLs as configured.
-                for url in build_option("extra_source_urls") or []:
+                for url in build_option("extra_source_urls"):
                     url += "/" + name_letter + "/" + location
                     source_urls.append(url)
 

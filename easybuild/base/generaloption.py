@@ -97,16 +97,16 @@ def what_str_list_tuple(name):
     """Given name, return separator, class and helptext wrt separator.
         (Currently supports strlist, strtuple, pathlist, pathtuple)
     """
-    sep = ','
-    helpsep = 'comma'
     if name.startswith('path'):
         sep = os.pathsep
         helpsep = 'pathsep'
-
     elif name.startswith('url'):
         # | is one of the only characters not in the grammar for URIs (RFC3986)
         sep = '|'
         helpsep = '|'
+    else:
+        sep = ','
+        helpsep = 'comma'
 
     klass = None
     if name.endswith('list'):
@@ -187,7 +187,7 @@ class ExtOption(CompleterOption):
           - strlist, strtuple : convert comma-separated string in a list resp. tuple of strings
           - pathlist, pathtuple : using os.pathsep, convert pathsep-separated string in a list resp. tuple of strings
               - the path separator is OS-dependent
-          - urllist, urltuple: using '|', convert urlsep separated string in a list resp. tuple of strings
+          - urllist, urltuple: convert string seperated by '|' to a list resp. tuple of strings
     """
     EXTEND_SEPARATOR = ','
 

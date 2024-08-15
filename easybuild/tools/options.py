@@ -73,8 +73,7 @@ from easybuild.tools.config import DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX
 from easybuild.tools.config import DEFAULT_PR_TARGET_ACCOUNT
 from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_WAIT_ON_LOCK_INTERVAL, DEFAULT_WAIT_ON_LOCK_LIMIT
 from easybuild.tools.config import DEFAULT_FILTER_RPATH_SANITY_LIBS
-from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, ERROR
-from easybuild.tools.config import FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE
+from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, ERROR, FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS
 from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN
