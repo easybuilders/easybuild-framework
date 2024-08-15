@@ -1458,8 +1458,9 @@ class EasyBlock(object):
                 raise EasyBuildError('Multiple python paths requires EBPYTHONPREFIXES: ' + ', '.join(python_paths))
             elif python_paths:
                 # Add paths unless they were already added
-                if use_ebpythonprefixes and '' not in self.module_generator.added_paths_per_key['EBPYTHONPREFIXES']:
-                    lines.append(self.module_generator.prepend_paths('EBPYTHONPREFIXES', ''))
+                if use_ebpythonprefixes:
+                    if '' not in self.module_generator.added_paths_per_key['EBPYTHONPREFIXES']:
+                        lines.append(self.module_generator.prepend_paths('EBPYTHONPREFIXES', ''))
                 elif python_paths[0] not in self.module_generator.added_paths_per_key['PYTHONPATH']:
                     lines.append(self.module_generator.prepend_paths('PYTHONPATH', python_paths))
 
