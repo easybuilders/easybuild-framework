@@ -138,7 +138,9 @@ TEMPLATE_CONSTANTS = {
     'GNU_SAVANNAH_SOURCE': ('https://download-mirror.savannah.gnu.org/releases/%(namelower)s',
                             'download.savannah.gnu.org source url'),
     'GNU_SOURCE': ('https://ftpmirror.gnu.org/gnu/%(namelower)s',
-                   'gnu.org source url'),
+                   'gnu.org source url (ftp mirror)'),
+    'GNU_FTP_SOURCE': ('https://ftp.gnu.org/gnu/%(namelower)s',
+                       'gnu.org source url (main ftp)'),
     'GOOGLECODE_SOURCE': ('http://%(namelower)s.googlecode.com/files',
                           'googlecode.com source url'),
     'LAUNCHPAD_SOURCE': ('https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
@@ -219,6 +221,7 @@ ALTERNATIVE_EASYCONFIG_TEMPLATE_CONSTANTS = {
     'GITHUB_RELEASE_URL': 'GITHUB_RELEASE',
     'GITHUB_RELEASE_URL_LOWER': 'GITHUB_LOWER_RELEASE',
     'GNU_SAVANNAH_URL': 'GNU_SAVANNAH_SOURCE',
+    'GNU_FTP_URL': 'GNU_FTP_SOURCE',
     'GNU_URL': 'GNU_SOURCE',
     'GOOGLECODE_URL': 'GOOGLECODE_SOURCE',
     'LAUNCHPAD_URL': 'LAUNCHPAD_SOURCE',
@@ -295,6 +298,9 @@ def template_constant_dict(config, ignore=None, toolchain=None):
 
     # set 'sysroot' template based on 'sysroot' configuration option, using empty string as fallback
     template_values['sysroot'] = build_option('sysroot') or ''
+
+    # set 'software_commit' template based on 'software_commit' configuration option, default to None
+    template_values['software_commit'] = build_option('software_commit') or ''
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     for name in TEMPLATE_NAMES_EASYCONFIG:
