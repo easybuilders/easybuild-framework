@@ -1454,9 +1454,7 @@ class EasyBlock(object):
             use_ebpythonprefixes = 'Python' in self.cfg.dependencies(runtime_only=True) and \
                 build_option('prefer_ebpythonprefixes') and self.cfg['prefer_ebpythonprefixes']
 
-            if len(python_paths) > 1 and not use_ebpythonprefixes:
-                raise EasyBuildError('Multiple python paths requires EBPYTHONPREFIXES: ' + ', '.join(python_paths))
-            elif python_paths:
+            if python_paths:
                 # Add paths unless they were already added
                 if use_ebpythonprefixes:
                     if '' not in self.module_generator.added_paths_per_key['EBPYTHONPREFIXES']:
