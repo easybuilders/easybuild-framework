@@ -974,6 +974,15 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=qa, qa_timeout=1)
 
+        # check use of qa_check_interval
+        cmd = "sleep 0.2; echo 'question1'; read a; echo $a"
+        start = time.time()
+        with self.mocked_stdout_stderr():
+            run_shell_cmd(cmd, qa_patterns=qa, qa_check_interval=2)
+        end = time.time()
+        time_diff = end - start
+        self.assertTrue(time_diff > 1)
+
         # check using answer that is completed via pattern extracted from question
         cmd = ';'.join([
             "echo 'and the magic number is: 42'",

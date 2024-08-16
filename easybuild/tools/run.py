@@ -311,7 +311,7 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
                   hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, use_bash=True,
                   output_file=True, stream_output=None, asynchronous=False, task_id=None, with_hooks=True,
-                  qa_patterns=None, qa_wait_patterns=None, qa_timeout=100):
+                  qa_patterns=None, qa_wait_patterns=None, qa_timeout=100, qa_check_interval=0.1):
     """
     Run specified (interactive) shell command, and capture output + exit code.
 
@@ -332,6 +332,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     :param qa_patterns: list of 2-tuples with patterns for questions + corresponding answers
     :param qa_wait_patterns: list of strings with patterns for non-questions
     :param qa_timeout: amount of seconds to wait until more output is produced when there is no matching question
+    :param qa_check_interval: wait time (in seconds) between checks for matching question pattern in output
 
     :return: Named tuple with:
     - output: command output, stdout+stderr combined if split_stderr is disabled, only stdout otherwise
@@ -475,7 +476,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
         exit_code = None
         stdout, stderr = b'', b''
-        check_interval_secs = 0.1
         time_no_match = 0
 
         # collect output piece-wise, while checking for questions to answer (if qa_patterns is provided)
@@ -506,7 +506,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                     time_no_match = 0
                 else:
                     # this will only run if the for loop above was *not* stopped by the break statement
-                    time_no_match += check_interval_secs
+                    time_no_match += qa_check_interval
                     if time_no_match > qa_timeout:
                         error_msg = "No matching questions found for current command output, "
                         error_msg += f"giving up after {qa_timeout} seconds!"
@@ -514,7 +514,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                     else:
                         _log.debug(f"{time_no_match:0.1f} seconds without match in output of interactive shell command")
 
-            time.sleep(check_interval_secs)
+            time.sleep(qa_check_interval)
 
             exit_code = proc.poll()
 
