@@ -1460,8 +1460,10 @@ class EasyBlock(object):
                 if use_ebpythonprefixes:
                     if '' not in self.module_generator.added_paths_per_key['EBPYTHONPREFIXES']:
                         lines.append(self.module_generator.prepend_paths('EBPYTHONPREFIXES', ''))
-                elif python_paths[0] not in self.module_generator.added_paths_per_key['PYTHONPATH']:
-                    lines.append(self.module_generator.prepend_paths('PYTHONPATH', python_paths))
+                else:
+                    for python_path in python_paths:
+                        if python_path not in self.module_generator.added_paths_per_key['PYTHONPATH']:
+                            lines.append(self.module_generator.prepend_paths('PYTHONPATH', python_path))
 
         modloadmsg = self.cfg['modloadmsg']
         if modloadmsg:
