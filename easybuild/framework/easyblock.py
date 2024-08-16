@@ -1439,7 +1439,7 @@ class EasyBlock(object):
             lines.append(self.module_generator.append_paths(key, value, allow_abs=self.cfg['allow_append_abs_path']))
 
         # Add automatic PYTHONPATH or EBPYTHONPREFIXES if they aren't already present and python paths exist
-        if self.name not in ['Python', 'Miniconda', 'Anaconda']:  # nothing extra needed for base python installations
+        if not os.path.isfile(f'{self.installdir}/bin/python'):  # only needed when not a base python installation
             # Exclude symlinks lib -> lib64 or vice verse to avoid duplicates
             python_paths = []
             if not os.path.islink(f'{self.installdir}/lib'):
