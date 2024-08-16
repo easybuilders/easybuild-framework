@@ -1440,16 +1440,9 @@ class EasyBlock(object):
 
         # Add automatic PYTHONPATH or EBPYTHONPREFIXES if they aren't already present and python paths exist
         if not os.path.isfile(f'{self.installdir}/bin/python'):  # only needed when not a base python installation
-            # Exclude symlinks lib -> lib64 or vice verse to avoid duplicates
-            python_paths = []
-            if not os.path.islink(f'{self.installdir}/lib'):
-                python_paths += [path[len(self.installdir)+1:]
-                                 for path in glob.glob(f'{self.installdir}/lib/python*/site-packages')
-                                 if re.match(self.installdir + r'/lib/python\d+\.\d+/site-packages', path)]
-            if not os.path.islink(f'{self.installdir}/lib64'):
-                python_paths += [path[len(self.installdir)+1:]
-                                 for path in glob.glob(f'{self.installdir}/lib64/python*/site-packages')
-                                 if re.match(self.installdir + r'/lib64/python\d+\.\d+/site-packages', path)]
+            python_paths = [path[len(self.installdir)+1:]
+                            for path in glob.glob(f'{self.installdir}/lib/python*/site-packages')
+                            if re.match(self.installdir + r'/lib/python\d+\.\d+/site-packages', path)]
 
             runtime_deps = [dep['name'] for dep in self.cfg.dependencies(runtime_only=True)]
             use_ebpythonprefixes = 'Python' in runtime_deps and \
