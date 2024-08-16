@@ -196,7 +196,7 @@ def fileprefix_from_cmd(cmd, allowed_chars=False):
     return ''.join([c for c in cmd if c in allowed_chars])
 
 
-def create_cmd_scripts(cmd_str, work_dir, env, tmpdir):
+def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
     """
     Create helper scripts for specified command in specified directory:
     - env.sh which can be sourced to define environment in which command was run;
@@ -219,6 +219,12 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir):
                             if not key.endswith('%')) + '\n')
 
         fid.write('\n\nPS1="eb-shell> "')
+
+        # define $EB_CMD_OUT_FILE to contain path to file with command output
+        fid.write(f'\nEB_CMD_OUT_FILE="{out_file}"')
+        # define $EB_CMD_ERR_FILE to contain path to file with command stderr output (if available)
+        if err_file:
+            fid.write(f'\nEB_CMD_ERR_FILE="{err_file}"')
 
         # also change to working directory (to ensure that working directory is correct for interactive bash shell)
         fid.write(f'\ncd "{work_dir}"')
@@ -402,8 +408,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
         _log.info(f'run_shell_cmd: command environment of "{cmd_str}" will be saved to {tmpdir}')
 
-        create_cmd_scripts(cmd_str, work_dir, env, tmpdir)
-
         cmd_out_fp = os.path.join(tmpdir, 'out.txt')
         _log.info(f'run_shell_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
         if split_stderr:
@@ -411,6 +415,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             _log.info(f'run_shell_cmd: Errors and warnings of "{cmd_str}" will be logged to {cmd_err_fp}')
         else:
             cmd_err_fp = None
+
+        create_cmd_scripts(cmd_str, work_dir, env, tmpdir, cmd_out_fp, cmd_err_fp)
     else:
         tmpdir, cmd_out_fp, cmd_err_fp = None, None, None
 

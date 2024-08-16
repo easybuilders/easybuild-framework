@@ -51,7 +51,7 @@ import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.config import update_build_option
-from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, remove_dir, write_file
 from easybuild.tools.run import RunShellCmdResult, RunShellCmdError, check_async_cmd, check_log_for_errors
 from easybuild.tools.run import complete_cmd, fileprefix_from_cmd, get_output_from_process, parse_log_for_error
 from easybuild.tools.run import run_cmd, run_cmd_qa, run_shell_cmd, subprocess_terminate
@@ -219,10 +219,13 @@ class RunTest(EnhancedTestCase):
         cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
         self.assertExists(cmd_script)
 
+        cmd = f"{cmd_script} -c 'echo pwd: $PWD; echo $FOOBAR; echo $EB_CMD_OUT_FILE; cat $EB_CMD_OUT_FILE'"
         with self.mocked_stdout_stderr():
-            res = run_shell_cmd(f"{cmd_script} -c 'echo pwd: $PWD; echo $FOOBAR'", fail_on_error=False)
+            res = run_shell_cmd(cmd, fail_on_error=False)
         self.assertEqual(res.exit_code, 0)
-        self.assertTrue(res.output.endswith('foobar\n'))
+        regex = re.compile("pwd: .*\nfoobar\n.*/echo-.*/out.txt\nhello$")
+        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
+
         # check whether working directory is what's expected
         regex = re.compile('^pwd: .*', re.M)
         res = regex.findall(res.output)
@@ -667,11 +670,35 @@ class RunTest(EnhancedTestCase):
         self.assertTrue("warning" in output_lines)
         self.assertEqual(res.stderr, None)
 
+        # cleanup of artifacts in between calls to run_shell_cmd
+        remove_dir(self.test_prefix)
+
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(cmd, split_stderr=True)
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.stderr, "warning\n")
         self.assertEqual(res.output, "ok\n")
+
+        # check whether environment variables that point to stdout/stderr output files
+        # are set in environment defined by cmd.sh script
+        paths = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'run-shell-cmd-output', 'echo-*'))
+        self.assertEqual(len(paths), 1)
+        cmd_tmpdir = paths[0]
+        cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
+        self.assertExists(cmd_script)
+
+        cmd_cmd = '; '.join([
+            "echo $EB_CMD_OUT_FILE",
+            "cat $EB_CMD_OUT_FILE",
+            "echo $EB_CMD_ERR_FILE",
+            "cat $EB_CMD_ERR_FILE",
+        ])
+        cmd = f"{cmd_script} -c '{cmd_cmd}'"
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, fail_on_error=False)
+
+        regex = re.compile(".*/echo-.*/out.txt\nok\n.*/echo-.*/err.txt\nwarning$")
+        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
 
     def test_run_cmd_trace(self):
         """Test run_cmd in trace mode, and with tracing disabled."""
