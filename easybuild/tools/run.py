@@ -263,6 +263,7 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
         # replace spaces/line breaks with regex pattern that matches one or more spaces/line breaks,
         # and allow extra whitespace at the end
         question = space_line_break_pattern.join(space_line_break_regex.split(question)) + r'[\s\n]*$'
+        _log.debug(f"Checking for question pattern '{question}'...")
         regex = re.compile(question.encode())
         res = regex.search(stdout)
         if res:
@@ -290,6 +291,8 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
 
             match_found = True
             break
+        else:
+            _log.debug(f"No match for question pattern '{question}' at end of stdout: {stdout_end}")
     else:
         _log.info("No match found for question patterns, considering question wait patterns")
         # if no match was found among question patterns,
@@ -301,14 +304,17 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
             # and allow extra whitespace at the end
             pattern = space_line_break_pattern.join(space_line_break_regex.split(pattern)) + r'[\s\n]*$'
             regex = re.compile(pattern.encode())
+            _log.debug(f"Checking for question wait pattern '{pattern}'...")
             if regex.search(stdout):
-                _log.info(f"Found match for wait pattern '{pattern}'")
-                _log.debug(f"Found match for wait pattern '{pattern}' at end of stdout: {stdout_end}")
+                _log.info(f"Found match for question wait pattern '{pattern}'")
+                _log.debug(f"Found match for question wait pattern '{pattern}' at end of stdout: {stdout_end}")
                 match_found = True
                 break
+            else:
+                _log.debug(f"No match for question wait pattern '{pattern}' at end of stdout: {stdout_end}")
         else:
             _log.info("No match found for question wait patterns")
-            _log.debug(f"No match found in question/wait patterns at end of stdout: {stdout_end}")
+            _log.debug(f"No match found in question (wait) patterns at end of stdout: {stdout_end}")
 
     return match_found
 
