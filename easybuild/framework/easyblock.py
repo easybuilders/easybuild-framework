@@ -4452,26 +4452,21 @@ def build_and_install_one(ecdict, init_env):
         print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=_log, silent=silent)
         err_log_path = error_log_path(ec=ecdict['ec'])
         if err_log_path and not(success):
-            print_msg("Build log and artifacts copied to permanent storage: %s" % err_log_path, log=_log, silent=silent)
             for log_file in logs:
                 target_file = os.path.join(err_log_path, os.path.basename(log_file))
                 copy_file(log_file, target_file)
 
-            name = ecdict['ec'].name
-            version = ecdict['ec'].version
+            relative_build_artifact_log_path = os.path.relpath(app.builddir, build_path())
+            build_artifact_log_path = os.path.join(err_log_path, relative_build_artifact_log_path)
 
-            toolchain_dict = ecdict['ec'].toolchain.as_dict()
-            toolchain_components = [
-                toolchain_dict['name'],
-                toolchain_dict['version'],
-                toolchain_dict['versionsuffix'],
-            ]
-            toolchain_components = [s for s in toolchain_components if len(s) > 0]
-            toolchain = '-'.join(toolchain_components)
-
-            dest_build_path = os.path.join(err_log_path, name, version, toolchain)
             if is_readable(app.builddir):
-                copy_dir(app.builddir, dest_build_path)
+                copy_dir(app.builddir, build_artifact_log_path)
+
+            print_msg(
+                "Build log and any output artifacts copied to permanent storage: %s" % err_log_path,
+                log=_log,
+                silent=silent
+            )
 
     del app
 
