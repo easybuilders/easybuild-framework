@@ -4190,6 +4190,29 @@ def print_dry_run_note(loc, silent=True):
     dry_run_msg(msg, silent=silent)
 
 
+def persists_failed_compilation_log_and_artifacts(success, application_log, log, silent, builddir, err_log_path):
+    if application_log:
+        # there may be multiple log files, or the file name may be different due to zipping
+        logs = glob.glob('%s*' % application_log)
+        print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=log, silent=silent)
+        if err_log_path and not(success):
+            for log_file in logs:
+                target_file = os.path.join(err_log_path, os.path.basename(log_file))
+                copy_file(log_file, target_file)
+
+            relative_build_artifact_log_path = os.path.relpath(builddir, build_path())
+            build_artifact_log_path = os.path.join(err_log_path, relative_build_artifact_log_path)
+
+            if is_readable(builddir):
+                copy_dir(builddir, build_artifact_log_path)
+
+            print_msg(
+                "Build log and any output artifacts copied to permanent storage: %s" % err_log_path,
+                log=_log,
+                silent=silent
+            )
+
+
 def build_and_install_one(ecdict, init_env):
     """
     Build the software
@@ -4446,27 +4469,8 @@ def build_and_install_one(ecdict, init_env):
         else:
             dry_run_msg("(no ignored errors during dry run)\n", silent=silent)
 
-    if application_log:
-        # there may be multiple log files, or the file name may be different due to zipping
-        logs = glob.glob('%s*' % application_log)
-        print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=_log, silent=silent)
-        err_log_path = error_log_path(ec=ecdict['ec'])
-        if err_log_path and not(success):
-            for log_file in logs:
-                target_file = os.path.join(err_log_path, os.path.basename(log_file))
-                copy_file(log_file, target_file)
-
-            relative_build_artifact_log_path = os.path.relpath(app.builddir, build_path())
-            build_artifact_log_path = os.path.join(err_log_path, relative_build_artifact_log_path)
-
-            if is_readable(app.builddir):
-                copy_dir(app.builddir, build_artifact_log_path)
-
-            print_msg(
-                "Build log and any output artifacts copied to permanent storage: %s" % err_log_path,
-                log=_log,
-                silent=silent
-            )
+    err_log_path = error_log_path(ec=ecdict['ec'])
+    persists_failed_compilation_log_and_artifacts(success, application_log, _log, silent, app.builddir, err_log_path)
 
     del app
 
