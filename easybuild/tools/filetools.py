@@ -62,7 +62,8 @@ import urllib.request as std_urllib
 
 from easybuild.base import fancylogger
 # import build_log must stay, to use of EasyBuildLog
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUND_ERROR, dry_run_msg, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildError, CWD_NOTFOUND_ERROR, dry_run_msg, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildExit
 from easybuild.tools.config import ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN, build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.hooks import load_source
@@ -1524,8 +1525,8 @@ def create_patch_info(patch_spec):
                 patch_info[key] = patch_spec[key]
             else:
                 raise EasyBuildError(
-                    "Wrong patch spec '%s', use of unknown key %s in dict (valid keys are %s)", str(patch_spec), key, valid_keys,
-                    exit_code=EasyBuildExit.EASYCONFIG_ERROR
+                    "Wrong patch spec '%s', use of unknown key %s in dict (valid keys are %s)",
+                    str(patch_spec), key, valid_keys, exit_code=EasyBuildExit.EASYCONFIG_ERROR
                 )
 
         # Dict must contain at least the patchfile name
