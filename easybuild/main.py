@@ -766,7 +766,7 @@ def main_with_hooks(args=None):
     try:
         init_session_state, eb_go, cfg_settings = prepare_main(args=args)
     except EasyBuildError as err:
-        print_error(err.msg)
+        print_error(err.msg, exit_code=err.exit_code)
 
     hooks = load_hooks(eb_go.options.hooks)
 

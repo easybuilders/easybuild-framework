@@ -34,7 +34,7 @@ import re
 from functools import reduce
 
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_msg
 from easybuild.tools.filetools import which
 from easybuild.tools.run import run_shell_cmd
 
@@ -77,7 +77,7 @@ def check_tool(tool_name, min_tool_version=None):
 
     version_cmd = f"{tool_name} --version"
     res = run_shell_cmd(version_cmd, hidden=True, in_dry_run=True)
-    if res.exit_code:
+    if res.exit_code != EasyBuildExit.SUCCESS:
         raise EasyBuildError(f"Error running '{version_cmd}' for tool {tool_name} with output: {res.output}")
 
     regex_res = re.search(r"\d+\.\d+(\.\d+)?", res.output.strip())

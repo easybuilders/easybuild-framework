@@ -807,8 +807,8 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
 
         # rebuild software, only retain entries with a corresponding available module
         software, all_software = {}, software
-        for key in all_software:
-            for entry in all_software[key]:
+        for key, entries in all_software.items():
+            for entry in entries:
                 if entry['mod_name'] in avail_mod_names:
                     software.setdefault(key, []).append(entry)
 

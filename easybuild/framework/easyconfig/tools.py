@@ -54,10 +54,10 @@ from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_inf
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
+from easybuild.tools.filetools import find_easyconfigs, get_cwd, is_patch_file, locate_files
 from easybuild.tools.filetools import read_file, resolve_path, which, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, fetch_easyconfigs_from_commit
@@ -401,7 +401,7 @@ def parse_easyconfigs(paths, validate=True):
         # keep track of whether any files were generated
         generated_ecs |= generated
         if not os.path.exists(path):
-            raise EasyBuildError("Can't find path %s", path)
+            raise EasyBuildError("Can't find path %s", path, exit_code=EasyBuildExit.MISS_EASYCONFIG)
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
@@ -792,14 +792,13 @@ def det_copy_ec_specs(orig_paths, from_pr=None, from_commit=None):
 
     target_path, paths = None, []
 
-    # if only one argument is specified, use current directory as target directory
     if len(orig_paths) == 1:
-        target_path = os.getcwd()
+        # if only one argument is specified, use current directory as target directory
+        target_path = get_cwd()
         paths = orig_paths[:]
-
-    # if multiple arguments are specified, assume that last argument is target location,
-    # and remove that from list of paths to copy
     elif orig_paths:
+        # if multiple arguments are specified, assume that last argument is target location,
+        # and remove that from list of paths to copy
         target_path = orig_paths[-1]
         paths = orig_paths[:-1]
 
@@ -817,7 +816,7 @@ def det_copy_ec_specs(orig_paths, from_pr=None, from_commit=None):
             pr_paths.extend(fetch_files_from_pr(pr=pr, path=tmpdir))
 
         # assume that files need to be copied to current working directory for now
-        target_path = os.getcwd()
+        target_path = get_cwd()
 
         if orig_paths:
             last_path = orig_paths[-1]
@@ -854,7 +853,7 @@ def det_copy_ec_specs(orig_paths, from_pr=None, from_commit=None):
         commit_paths = fetch_files_from_commit(from_commit, path=tmpdir)
 
         # assume that files need to be copied to current working directory for now
-        target_path = os.getcwd()
+        target_path = get_cwd()
 
         if orig_paths:
             last_path = orig_paths[-1]
