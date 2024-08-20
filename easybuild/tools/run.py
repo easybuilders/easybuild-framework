@@ -489,6 +489,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         stdout, stderr = b'', b''
         check_interval_secs = 0.1
         time_no_match = 0
+        prev_stdout = ''
 
         # collect output piece-wise, while checking for questions to answer (if qa_patterns is provided)
         while exit_code is None:
@@ -514,8 +515,15 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                     stderr += more_stderr
 
             if qa_patterns:
-                if _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
+                # only check for question patterns if additional output is available
+                # compared to last time a question was answered;
+                # use empty list of question patterns iif no extra output (except for whitespace) is available
+                # we do always need to check for wait patterns though!
+                active_qa_patterns = qa_patterns if stdout.strip() != prev_stdout else []
+
+                if _answer_question(stdout, proc, active_qa_patterns, qa_wait_patterns):
                     time_no_match = 0
+                    prev_stdout = stdout.strip()
                 else:
                     # this will only run if the for loop above was *not* stopped by the break statement
                     time_no_match += check_interval_secs
