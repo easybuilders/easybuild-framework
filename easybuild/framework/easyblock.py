@@ -666,14 +666,16 @@ class EasyBlock(object):
                         src_path = ext_src['src']
                         src_fn = os.path.basename(src_path)
 
+                        src_checksums = {}
                         for checksum_type in [CHECKSUM_TYPE_SHA256]:
                             src_checksum = compute_checksum(src_path, checksum_type=checksum_type)
+                            src_checksums[checksum_type] = src_checksum
                             self.log.info("%s checksum for %s: %s", checksum_type, src_path, src_checksum)
 
                         # verify checksum (if provided)
                         self.log.debug('Verifying checksums for extension source...')
                         fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
-                        if verify_checksum(src_path, fn_checksum):
+                        if verify_checksum(src_path, fn_checksum, src_checksums):
                             self.log.info('Checksum for extension source %s verified', src_fn)
                         elif build_option('ignore_checksums'):
                             print_warning("Ignoring failing checksum verification for %s" % src_fn)
@@ -695,10 +697,13 @@ class EasyBlock(object):
                         ext_src.update({'patches': ext_patches})
 
                         if verify_checksums:
+                            computed_checksums = {}
                             for patch in ext_patches:
                                 patch = patch['path']
+                                computed_checksums[patch] = {}
                                 for checksum_type in [CHECKSUM_TYPE_SHA256]:
                                     checksum = compute_checksum(patch, checksum_type=checksum_type)
+                                    computed_checksums[patch][checksum_type] = checksum
                                     self.log.info("%s checksum for %s: %s", checksum_type, patch, checksum)
 
                             # verify checksum (if provided)
@@ -708,7 +713,7 @@ class EasyBlock(object):
                                 patch_fn = os.path.basename(patch)
 
                                 checksum = self.get_checksum_for(checksums, filename=patch_fn, index=idx+1)
-                                if verify_checksum(patch, checksum):
+                                if verify_checksum(patch, checksum, computed_checksums[patch]):
                                     self.log.info('Checksum for extension patch %s verified', patch_fn)
                                 elif build_option('ignore_checksums'):
                                     print_warning("Ignoring failing checksum verification for %s" % patch_fn)
@@ -749,7 +754,9 @@ class EasyBlock(object):
         """
         srcpaths = source_paths()
 
-        update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
+        # We don't account for the checksums file in the progress bar
+        if filename != 'checksum.json':
+            update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
 
         if alt_location is None:
             location = self.name
@@ -919,10 +926,11 @@ class EasyBlock(object):
                     if PYPI_PKG_URL_PATTERN in fullurl and not is_alt_pypi_url(fullurl):
                         alt_url = derive_alt_pypi_url(fullurl)
                         if alt_url:
-                            _log.debug("Using alternate PyPI URL for %s: %s", fullurl, alt_url)
+                            _log.debug("Using alternative PyPI URL for %s: %s", fullurl, alt_url)
                             fullurl = alt_url
                         else:
-                            _log.debug("Failed to derive alternate PyPI URL for %s, so retaining the original", fullurl)
+                            _log.debug("Failed to derive alternative PyPI URL for %s, so retaining the original",
+                                       fullurl)
 
                     if self.dry_run:
                         self.dry_run_msg("  * %s will be downloaded to %s", filename, targetpath)
@@ -1066,7 +1074,7 @@ class EasyBlock(object):
             self.log.info("Overriding 'cleanupoldinstall' (to False), 'cleanupoldbuild' (to True) "
                           "and 'keeppreviousinstall' because we're building in the installation directory.")
             # force cleanup before installation
-            if build_option('module_only'):
+            if build_option('module_only') or self.cfg['module_only']:
                 self.log.debug("Disabling cleanupoldbuild because we run as module-only")
                 self.cfg['cleanupoldbuild'] = False
             else:
@@ -1137,7 +1145,7 @@ class EasyBlock(object):
             if self.cfg['keeppreviousinstall']:
                 self.log.info("Keeping old directory %s (hopefully you know what you are doing)", dir_name)
                 return
-            elif build_option('module_only'):
+            elif build_option('module_only') or self.cfg['module_only']:
                 self.log.info("Not touching existing directory %s in module-only mode...", dir_name)
             elif clean:
                 remove_dir(dir_name)
@@ -2116,7 +2124,7 @@ class EasyBlock(object):
         start_dir = ''
         # do not use the specified 'start_dir' when running as --module-only as
         # the directory will not exist (extract_step is skipped)
-        if self.start_dir and not build_option('module_only'):
+        if self.start_dir and not build_option('module_only') and not self.cfg['module_only']:
             start_dir = self.start_dir
 
         if not os.path.isabs(start_dir):
@@ -3830,7 +3838,7 @@ class EasyBlock(object):
                 try:
                     self.make_devel_module()
                 except EasyBuildError as error:
-                    if build_option('module_only'):
+                    if build_option('module_only') or self.cfg['module_only']:
                         self.log.info("Using --module-only so can recover from error: %s", error)
                     else:
                         raise error
@@ -3938,7 +3946,7 @@ class EasyBlock(object):
         """Dedice whether or not to skip the specified step."""
         skip = False
         force = build_option('force')
-        module_only = build_option('module_only')
+        module_only = build_option('module_only') or self.cfg['module_only']
         sanity_check_only = build_option('sanity_check_only')
         skip_extensions = build_option('skip_extensions')
         skip_test_step = build_option('skip_test_step')

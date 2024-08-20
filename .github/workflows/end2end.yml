@@ -17,6 +17,7 @@ jobs:
       fail-fast: false
     container:
       image: ghcr.io/easybuilders/${{ matrix.container }}-amd64
+    env: {ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true} # Allow using Node16 actions
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3

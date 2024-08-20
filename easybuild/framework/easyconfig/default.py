@@ -108,7 +108,8 @@ DEFAULT_CONFIG = {
                        BUILD],
     'hidden': [False, "Install module file as 'hidden' by prefixing its version with '.'", BUILD],
     'installopts': ['', 'Extra options for installation', BUILD],
-    'maxparallel': [None, 'Max degree of parallelism', BUILD],
+    'maxparallel': [16, 'Max degree of parallelism', BUILD],
+    'module_only': [False, 'Only generate module file', BUILD],
     'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
                         'cores, active cpuset and restrictions in ulimit)'), BUILD],
     'patches': [[], "List of patches to apply", BUILD],

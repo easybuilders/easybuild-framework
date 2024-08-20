@@ -587,11 +587,11 @@ def normalize_path(path):
 
 
 def is_alt_pypi_url(url):
-    """Determine whether specified URL is already an alternate PyPI URL, i.e. whether it contains a hash."""
+    """Determine whether specified URL is already an alternative PyPI URL, i.e. whether it contains a hash."""
     # example: .../packages/5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
     alt_url_regex = re.compile('/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/[^/]+$')
     res = bool(alt_url_regex.search(url))
-    _log.debug("Checking whether '%s' is an alternate PyPI URL using pattern '%s'...: %s",
+    _log.debug("Checking whether '%s' is an alternative PyPI URL using pattern '%s'...: %s",
                url, alt_url_regex.pattern, res)
     return res
 
@@ -639,7 +639,7 @@ def pypi_source_urls(pkg_name):
 
 
 def derive_alt_pypi_url(url):
-    """Derive alternate PyPI URL for given URL."""
+    """Derive alternative PyPI URL for given URL."""
     alt_pypi_url = None
 
     # example input URL: https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz
@@ -1257,12 +1257,15 @@ def calc_block_checksum(path, algorithm):
     return algorithm.hexdigest()
 
 
-def verify_checksum(path, checksums):
+def verify_checksum(path, checksums, computed_checksums=None):
     """
     Verify checksum of specified file.
 
     :param path: path of file to verify checksum of
     :param checksums: checksum values (and type, optionally, default is sha256), e.g., 'af314', ('sha', '5ec1b')
+    :param computed_checksums: Optional dictionary of (current) checksum(s) for this file
+                               indexed by the checksum type (e.g. 'sha256').
+                               Each existing entry will be used, missing ones will be computed.
     """
 
     filename = os.path.basename(path)
@@ -1318,8 +1321,14 @@ def verify_checksum(path, checksums):
                                  "2-tuple (type, value), or tuple of alternative checksum specs.",
                                  checksum)
 
-        actual_checksum = compute_checksum(path, typ)
-        _log.debug("Computed %s checksum for %s: %s (correct checksum: %s)" % (typ, path, actual_checksum, checksum))
+        if computed_checksums is not None and typ in computed_checksums:
+            actual_checksum = computed_checksums[typ]
+            computed_str = 'Precomputed'
+        else:
+            actual_checksum = compute_checksum(path, typ)
+            computed_str = 'Computed'
+        _log.debug("%s %s checksum for %s: %s (correct checksum: %s)" %
+                   (computed_str, typ, path, actual_checksum, checksum))
 
         if actual_checksum != checksum:
             return False

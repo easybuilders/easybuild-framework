@@ -310,7 +310,7 @@ class EasyBlockTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
-        # Repeat this but using an alternate envvars (instead of $HOME)
+        # Repeat this but using an alternative envvars (instead of $HOME)
         list_of_envvars = ['SITE_INSTALLS', 'USER_INSTALLS']
 
         build_options = {
@@ -1813,7 +1813,7 @@ class EasyBlockTest(EnhancedTestCase):
             res = eb.obtain_file(toy_tarball)
         self.assertEqual(res, toy_tarball_path)
 
-        # finding a file in the alternate location works
+        # finding a file in the alternative location works
         with self.mocked_stdout_stderr():
             res = eb.obtain_file(toy_tarball, alt_location='alt_toy')
         self.assertEqual(res, alt_toy_tarball_path)
@@ -2184,7 +2184,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         handle, toy_ec1 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
-        write_file(toy_ec1, toytxt + "\nparallel = 123")
+        write_file(toy_ec1, toytxt + "\nparallel = 13")
 
         handle, toy_ec2 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
@@ -2202,7 +2202,7 @@ class EasyBlockTest(EnhancedTestCase):
         # only 'parallel' easyconfig parameter specified (no 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec1))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 123)
+        self.assertEqual(test_eb.cfg['parallel'], 13)
 
         # both 'parallel' and 'maxparallel' easyconfig parameters specified (no 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec2))
@@ -2215,20 +2215,20 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(test_eb.cfg['parallel'], False)
 
         # only 'parallel' build option specified
-        init_config(build_options={'parallel': '97', 'validate': False})
+        init_config(build_options={'parallel': '9', 'validate': False})
         test_eb = EasyBlock(EasyConfig(toy_ec))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 97)
+        self.assertEqual(test_eb.cfg['parallel'], 9)
 
         # both 'parallel' build option and easyconfig parameter specified (no 'maxparallel')
         test_eb = EasyBlock(EasyConfig(toy_ec1))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 97)
+        self.assertEqual(test_eb.cfg['parallel'], 9)
 
         # both 'parallel' and 'maxparallel' easyconfig parameters specified + 'parallel' build option
         test_eb = EasyBlock(EasyConfig(toy_ec2))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 67)
+        self.assertEqual(test_eb.cfg['parallel'], 9)
 
         # make sure 'parallel = False' is not overriden (with 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec3))
@@ -2720,10 +2720,10 @@ class EasyBlockTest(EnhancedTestCase):
         # no checksum issues
         self.assertEqual(eb.check_checksums(), [])
 
-        # tuple of two alternate SHA256 checksums: OK
+        # tuple of two alternative SHA256 checksums: OK
         eb.cfg['checksums'] = [
             (
-                # two alternate checksums for toy-0.0.tar.gz
+                # two alternative checksums for toy-0.0.tar.gz
                 'a2848f34fcd5d6cf47def00461fcb528a0484d8edef8208d6d2e2909dc61d9cd',
                 '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
             ),

@@ -3753,7 +3753,9 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec_txt = read_file(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        write_file(test_ec, toy_ec_txt + '\npostinstallcmds = ["sleep 5"]')
+        write_file(test_ec, toy_ec_txt + '\npostinstallcmds = ["sleep 10"]')
+
+        extra_args = ['--locks-dir=%s' % locks_dir, '--wait-on-lock-limit=3', '--wait-on-lock-interval=3']
 
         signums = [
             (signal.SIGABRT, SystemExit),
@@ -3766,7 +3768,7 @@ class ToyBuildTest(EnhancedTestCase):
             # avoid recycling stderr of previous test
             stderr = ''
 
-            with WaitAndSignal(1, signum):
+            with WaitAndSignal(3, signum):
 
                 # change back to original working directory before each test
                 change_dir(orig_wd)
@@ -3774,7 +3776,7 @@ class ToyBuildTest(EnhancedTestCase):
                 self.mock_stderr(True)
                 self.mock_stdout(True)
                 self.assertErrorRegex(exc, '.*', self._test_toy_build, ec_file=test_ec, verify=False,
-                                      raise_error=True, testing=False, raise_systemexit=True)
+                                      extra_args=extra_args, raise_error=True, testing=False, raise_systemexit=True)
 
                 stderr = self.get_stderr().strip()
                 self.mock_stderr(False)
@@ -3954,7 +3956,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
                                   ec_file=test_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
 
-        # check behaviour when alternate subdirectories are specified
+        # check behaviour when alternative subdirectories are specified
         test_ec_txt = read_file(libtoy_ec)
         test_ec_txt += "\nbin_lib_subdirs = ['', 'lib', 'lib64']"
         write_file(test_ec, test_ec_txt)

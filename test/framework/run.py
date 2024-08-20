@@ -24,7 +24,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 """
-Unit tests for filetools.py
+Unit tests for run.py
 
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
@@ -44,14 +44,14 @@ import textwrap
 import time
 from concurrent.futures import ThreadPoolExecutor
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
-from unittest import TextTestRunner
+from unittest import TextTestRunner, mock
 from easybuild.base.fancylogger import setLogLevelDebug
 
 import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.config import update_build_option
-from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, remove_dir, write_file
 from easybuild.tools.run import RunShellCmdResult, RunShellCmdError, check_async_cmd, check_log_for_errors
 from easybuild.tools.run import complete_cmd, fileprefix_from_cmd, get_output_from_process, parse_log_for_error
 from easybuild.tools.run import run_cmd, run_cmd_qa, run_shell_cmd, subprocess_terminate
@@ -219,10 +219,13 @@ class RunTest(EnhancedTestCase):
         cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
         self.assertExists(cmd_script)
 
+        cmd = f"{cmd_script} -c 'echo pwd: $PWD; echo $FOOBAR; echo $EB_CMD_OUT_FILE; cat $EB_CMD_OUT_FILE'"
         with self.mocked_stdout_stderr():
-            res = run_shell_cmd(f"{cmd_script} -c 'echo pwd: $PWD; echo $FOOBAR'", fail_on_error=False)
+            res = run_shell_cmd(cmd, fail_on_error=False)
         self.assertEqual(res.exit_code, 0)
-        self.assertTrue(res.output.endswith('foobar\n'))
+        regex = re.compile("pwd: .*\nfoobar\n.*/echo-.*/out.txt\nhello$")
+        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
+
         # check whether working directory is what's expected
         regex = re.compile('^pwd: .*', re.M)
         res = regex.findall(res.output)
@@ -580,22 +583,38 @@ class RunTest(EnhancedTestCase):
         """
         Test running shell command in specific directory with run_shell_cmd function.
         """
+        test_dir = os.path.join(self.test_prefix, 'test')
+        test_workdir = os.path.join(self.test_prefix, 'test', 'workdir')
+        for fn in ('foo.txt', 'bar.txt'):
+            write_file(os.path.join(test_workdir, fn), 'test')
+
+        os.chdir(test_dir)
         orig_wd = os.getcwd()
         self.assertFalse(os.path.samefile(orig_wd, self.test_prefix))
 
-        test_dir = os.path.join(self.test_prefix, 'test')
-        for fn in ('foo.txt', 'bar.txt'):
-            write_file(os.path.join(test_dir, fn), 'test')
-
         cmd = "ls | sort"
+
+        # working directory is not explicitly defined
         with self.mocked_stdout_stderr():
-            res = run_shell_cmd(cmd, work_dir=test_dir)
+            res = run_shell_cmd(cmd)
+
+        self.assertEqual(res.cmd, cmd)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'workdir\n')
+        self.assertEqual(res.stderr, None)
+        self.assertEqual(res.work_dir, orig_wd)
+
+        self.assertTrue(os.path.samefile(orig_wd, os.getcwd()))
+
+        # working directory is explicitly defined
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, work_dir=test_workdir)
 
         self.assertEqual(res.cmd, cmd)
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, 'bar.txt\nfoo.txt\n')
         self.assertEqual(res.stderr, None)
-        self.assertEqual(res.work_dir, test_dir)
+        self.assertEqual(res.work_dir, test_workdir)
 
         self.assertTrue(os.path.samefile(orig_wd, os.getcwd()))
 
@@ -651,11 +670,35 @@ class RunTest(EnhancedTestCase):
         self.assertTrue("warning" in output_lines)
         self.assertEqual(res.stderr, None)
 
+        # cleanup of artifacts in between calls to run_shell_cmd
+        remove_dir(self.test_prefix)
+
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(cmd, split_stderr=True)
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.stderr, "warning\n")
         self.assertEqual(res.output, "ok\n")
+
+        # check whether environment variables that point to stdout/stderr output files
+        # are set in environment defined by cmd.sh script
+        paths = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'run-shell-cmd-output', 'echo-*'))
+        self.assertEqual(len(paths), 1)
+        cmd_tmpdir = paths[0]
+        cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
+        self.assertExists(cmd_script)
+
+        cmd_cmd = '; '.join([
+            "echo $EB_CMD_OUT_FILE",
+            "cat $EB_CMD_OUT_FILE",
+            "echo $EB_CMD_ERR_FILE",
+            "cat $EB_CMD_ERR_FILE",
+        ])
+        cmd = f"{cmd_script} -c '{cmd_cmd}'"
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, fail_on_error=False)
+
+        regex = re.compile(".*/echo-.*/out.txt\nok\n.*/echo-.*/err.txt\nwarning$")
+        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
 
     def test_run_cmd_trace(self):
         """Test run_cmd in trace mode, and with tracing disabled."""
@@ -1928,7 +1971,7 @@ class RunTest(EnhancedTestCase):
             stdout = self.get_stdout()
 
         expected_stdout = '\n'.join([
-            "pre-run hook 'make' in %s" % cwd,
+            f"pre-run hook 'make' in {cwd}",
             "post-run hook 'echo make' (exit code: 0, output: 'make\n')",
             '',
         ])
@@ -1959,6 +2002,74 @@ class RunTest(EnhancedTestCase):
 
         regex = re.compile('>> running shell command:\n\techo make', re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+    def test_run_shell_cmd_delete_cwd(self):
+        """
+        Test commands that destroy directories inside initial working directory
+        """
+        workdir = os.path.join(self.test_prefix, 'workdir')
+        sub_workdir = os.path.join(workdir, 'subworkdir')
+
+        # 1. test destruction of CWD which is a subdirectory inside original working directory
+        cmd_subworkdir_rm = (
+            "echo 'Command that jumps to subdir and removes it' && "
+            f"cd {sub_workdir} && pwd && rm -rf {sub_workdir} && "
+            "echo 'Working sub-directory removed.'"
+        )
+
+        # 1.a. in a robust system
+        expected_output = (
+            "Command that jumps to subdir and removes it\n"
+            f"{sub_workdir}\n"
+            "Working sub-directory removed.\n"
+        )
+
+        mkdir(sub_workdir, parents=True)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd_subworkdir_rm, work_dir=workdir)
+
+        self.assertEqual(res.cmd, cmd_subworkdir_rm)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, expected_output)
+        self.assertEqual(res.stderr, None)
+        self.assertEqual(res.work_dir, workdir)
+
+        # 1.b. in a flaky system that ends up in an unknown CWD after execution
+        mkdir(sub_workdir, parents=True)
+        fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
+        os.close(fd)
+
+        with self.mocked_stdout_stderr():
+            with mock.patch('os.getcwd') as mock_getcwd:
+                mock_getcwd.side_effect = [
+                    workdir,
+                    FileNotFoundError(),
+                ]
+                init_logging(logfile, silent=True)
+                res = run_shell_cmd(cmd_subworkdir_rm, work_dir=workdir)
+                stop_logging(logfile)
+
+        self.assertEqual(res.cmd, cmd_subworkdir_rm)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, expected_output)
+        self.assertEqual(res.stderr, None)
+        self.assertEqual(res.work_dir, workdir)
+
+        expected_warning = f"Changing back to initial working directory: {workdir}\n"
+        logtxt = read_file(logfile)
+        self.assertTrue(logtxt.endswith(expected_warning))
+
+        # 2. test destruction of CWD which is main working directory passed to run_shell_cmd
+        cmd_workdir_rm = (
+            "echo 'Command that removes working directory' && pwd && "
+            f"rm -rf {workdir} && echo 'Working directory removed.'"
+        )
+
+        error_pattern = rf"Failed to return to {workdir} after executing command"
+
+        mkdir(workdir, parents=True)
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd_workdir_rm, work_dir=workdir)
 
 
 def suite():

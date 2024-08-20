@@ -65,13 +65,20 @@ class LibSci(LinAlg):
         """Get install prefix for specified software name; special treatment for Cray modules."""
         if name == 'cray-libsci':
             # Cray-provided LibSci module
-            env_var = 'CRAY_LIBSCI_PREFIX_DIR'
-            root = os.getenv(env_var, None)
+            root = None
+            # consider both $CRAY_LIBSCI_PREFIX_DIR and $CRAY_PE_LIBSCI_PREFIX_DIR,
+            # cfr. https://github.com/easybuilders/easybuild-framework/issues/4536
+            env_vars = ('CRAY_LIBSCI_PREFIX_DIR', 'CRAY_PE_LIBSCI_PREFIX_DIR')
+            for env_var in env_vars:
+                root = os.getenv(env_var, None)
+                if root is not None:
+                    self.log.debug("Obtained install prefix for %s via $%s: %s", name, env_var, root)
+                    break
+
             if root is None:
                 if required:
-                    raise EasyBuildError("Failed to determine install prefix for %s via $%s", name, env_var)
-            else:
-                self.log.debug("Obtained install prefix for %s via $%s: %s", name, env_var, root)
+                    env_vars_str = ', '.join('$' + e for e in env_vars)
+                    raise EasyBuildError("Failed to determine install prefix for %s via $%s", name, env_vars_str)
         else:
             root = super(LibSci, self)._get_software_root(name, required=required)
 

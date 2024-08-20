@@ -119,10 +119,10 @@ class EasyConfigTest(EnhancedTestCase):
         github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
         self.skip_github_tests = github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
 
-        self.orig_easyconfig_DEPRECATED_PARAMETERS = easyconfig.easyconfig.DEPRECATED_PARAMETERS
-        self.orig_easyconfig_DEPRECATED_TEMPLATES = easyconfig.easyconfig.DEPRECATED_TEMPLATES
-        self.orig_easyconfig_ALTERNATE_PARAMETERS = easyconfig.easyconfig.ALTERNATE_PARAMETERS
-        self.orig_easyconfig_ALTERNATE_TEMPLATES = easyconfig.easyconfig.ALTERNATE_TEMPLATES
+        self.orig_easyconfig_DEPRECATED_EASYCONFIG_PARAMETERS = easyconfig.easyconfig.DEPRECATED_EASYCONFIG_PARAMETERS
+        self.orig_easyconfig_DEPRECATED_EASYCONFIG_TEMPLATES = easyconfig.easyconfig.DEPRECATED_EASYCONFIG_TEMPLATES
+        self.orig_easyconfig_ALTERNATIVE_EASYCONFIG_PARAMETERS = easyconfig.easyconfig.ALTERNATIVE_EASYCONFIG_PARAMETERS
+        self.orig_easyconfig_ALTERNATIVE_EASYCONFIG_TEMPLATES = easyconfig.easyconfig.ALTERNATIVE_EASYCONFIG_TEMPLATES
 
     def prep(self):
         """Prepare for test."""
@@ -142,11 +142,11 @@ class EasyConfigTest(EnhancedTestCase):
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
 
-        # restore orignal values of DEPRECATED_TEMPLATES & co in easyconfig.templates
-        easyconfig.easyconfig.DEPRECATED_PARAMETERS = self.orig_easyconfig_DEPRECATED_PARAMETERS
-        easyconfig.easyconfig.DEPRECATED_TEMPLATES = self.orig_easyconfig_DEPRECATED_TEMPLATES
-        easyconfig.easyconfig.ALTERNATE_PARAMETERS = self.orig_easyconfig_ALTERNATE_PARAMETERS
-        easyconfig.easyconfig.ALTERNATE_TEMPLATES = self.orig_easyconfig_ALTERNATE_TEMPLATES
+        # restore orignal values of DEPRECATED_EASYCONFIG_TEMPLATES & co in easyconfig.templates
+        easyconfig.easyconfig.DEPRECATED_EASYCONFIG_PARAMETERS = self.orig_easyconfig_DEPRECATED_EASYCONFIG_PARAMETERS
+        easyconfig.easyconfig.DEPRECATED_EASYCONFIG_TEMPLATES = self.orig_easyconfig_DEPRECATED_EASYCONFIG_TEMPLATES
+        easyconfig.easyconfig.ALTERNATIVE_EASYCONFIG_PARAMETERS = self.orig_easyconfig_ALTERNATIVE_EASYCONFIG_PARAMETERS
+        easyconfig.easyconfig.ALTERNATIVE_EASYCONFIG_TEMPLATES = self.orig_easyconfig_ALTERNATIVE_EASYCONFIG_TEMPLATES
 
     def test_empty(self):
         """ empty files should not parse! """
@@ -1462,8 +1462,37 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['buildopts'], "--some-opt=%s/" % self.test_prefix)
         self.assertEqual(ec['installopts'], "--some-opt=%s/" % self.test_prefix)
 
-    def test_template_deprecation_and_alternate(self):
-        """Test deprecation of (and alternate) templates"""
+    def test_software_commit_template(self):
+        """Test the %(software_commit)s template"""
+
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nconfigopts = "--some-opt=%(software_commit)s"'
+        test_ec_txt += '\nbuildopts = "--some-opt=%(software_commit)s"'
+        test_ec_txt += '\ninstallopts = "--some-opt=%(software_commit)s"'
+        write_file(test_ec, test_ec_txt)
+
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=")
+        self.assertEqual(ec['buildopts'], "--some-opt=")
+        self.assertEqual(ec['installopts'], "--some-opt=")
+
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        # As a test, we'll set the sysroot to self.test_prefix, as it has to be a directory that is guaranteed to exist
+        software_commit = '1234bc'
+        update_build_option('software_commit', software_commit)
+
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=%s" % software_commit)
+        self.assertEqual(ec['buildopts'], "--some-opt=%s" % software_commit)
+        self.assertEqual(ec['installopts'], "--some-opt=%s" % software_commit)
+
+    def test_template_deprecation_and_alternative(self):
+        """Test deprecation of (and alternative) templates"""
 
         self.prep()
 
@@ -1472,13 +1501,13 @@ class EasyConfigTest(EnhancedTestCase):
             'cudaver': ('depr_cuda_ver', '1000000000'),
             'start_dir': ('depr_start_dir', '1000000000'),
         }
-        easyconfig.easyconfig.DEPRECATED_TEMPLATES = template_test_deprecations
+        easyconfig.easyconfig.DEPRECATED_EASYCONFIG_TEMPLATES = template_test_deprecations
 
-        template_test_alternates = {
+        template_test_alternatives = {
             'installdir': 'alt_install_dir',
             'version_major_minor': 'alt_ver_maj_min',
         }
-        easyconfig.easyconfig.ALTERNATE_TEMPLATES = template_test_alternates
+        easyconfig.easyconfig.ALTERNATIVE_EASYCONFIG_TEMPLATES = template_test_alternatives
 
         tmpl_str = ("cd %(start_dir)s && make %(namelower)s -Dbuild=%(builddir)s --with-cuda='%(cudaver)s'"
                     " && echo %(alt_install_dir)s %(version_major_minor)s")
@@ -1495,7 +1524,7 @@ class EasyConfigTest(EnhancedTestCase):
             res = resolve_template(tmpl_str, tmpl_dict)
         stderr = stderr.getvalue()
 
-        for tmpl in [*template_test_deprecations.keys(), *template_test_alternates.keys()]:
+        for tmpl in [*template_test_deprecations.keys(), *template_test_alternatives.keys()]:
             self.assertNotIn("%(" + tmpl + ")s", res)
 
         for old, (new, ver) in template_test_deprecations.items():
@@ -1818,8 +1847,8 @@ class EasyConfigTest(EnhancedTestCase):
 
             self.assertErrorRegex(EasyBuildError, error_regex, foo, key)
 
-    def test_alternate_easyconfig_parameters(self):
-        """Test handling of alternate easyconfig parameters."""
+    def test_alternative_easyconfig_parameters(self):
+        """Test handling of alternative easyconfig parameters."""
 
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
@@ -1832,10 +1861,10 @@ class EasyConfigTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         # post_install_cmds is not accepted unless it's registered as an alternative easyconfig parameter
-        easyconfig.easyconfig.ALTERNATE_PARAMETERS = {}
+        easyconfig.easyconfig.ALTERNATIVE_EASYCONFIG_PARAMETERS = {}
         self.assertErrorRegex(EasyBuildError, "post_install_cmds -> postinstallcmds", EasyConfig, test_ec)
 
-        easyconfig.easyconfig.ALTERNATE_PARAMETERS = {
+        easyconfig.easyconfig.ALTERNATIVE_EASYCONFIG_PARAMETERS = {
             'env_mod_class': 'moduleclass',
             'post_install_cmds': 'postinstallcmds',
         }
@@ -1849,7 +1878,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['postinstallcmds'], expected)
         self.assertEqual(ec['post_install_cmds'], expected)
 
-        # test setting of easyconfig parameter with original & alternate name
+        # test setting of easyconfig parameter with original & alternative name
         ec['moduleclass'] = 'test1'
         self.assertEqual(ec['moduleclass'], 'test1')
         self.assertEqual(ec['env_mod_class'], 'test1')
@@ -1873,7 +1902,7 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
 
-        easyconfig.easyconfig.DEPRECATED_PARAMETERS = {
+        easyconfig.easyconfig.DEPRECATED_EASYCONFIG_PARAMETERS = {
             'foobar': ('barfoo', '0.0'),  # deprecated since forever
             # won't be actually deprecated for a while;
             # note that we should map foobarbarfoo to a valid easyconfig parameter here,
@@ -1881,7 +1910,7 @@ class EasyConfigTest(EnhancedTestCase):
             'foobarbarfoo': ('required_linked_shared_libs', '1000000000'),
         }
 
-        for key, (newkey, depr_ver) in easyconfig.easyconfig.DEPRECATED_PARAMETERS.items():
+        for key, (newkey, depr_ver) in easyconfig.easyconfig.DEPRECATED_EASYCONFIG_PARAMETERS.items():
             if LooseVersion(depr_ver) <= easybuild.tools.build_log.CURRENT_VERSION:
                 # deprecation error
                 error_regex = "DEPRECATED.*since v%s.*'%s' is deprecated.*use '%s' instead" % (depr_ver, key, newkey)
@@ -3451,6 +3480,7 @@ class EasyConfigTest(EnhancedTestCase):
             'nameletter': 'g',
             'nameletterlower': 'g',
             'parallel': None,
+            'software_commit': '',
             'sysroot': '',
             'toolchain_name': 'foss',
             'toolchain_version': '2018a',
@@ -3476,7 +3506,7 @@ class EasyConfigTest(EnhancedTestCase):
         except AttributeError:
             pass  # Ignore if not present
         orig_get_avail_core_count = st.get_avail_core_count
-        st.get_avail_core_count = lambda: 42
+        st.get_avail_core_count = lambda: 12
 
         # also check template values after running check_readiness_step (which runs set_parallel)
         eb = EasyBlock(ec)
@@ -3487,7 +3517,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         res = template_constant_dict(ec)
         res.pop('arch')
-        expected['parallel'] = 42
+        expected['parallel'] = 12
         self.assertEqual(res, expected)
 
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb')
@@ -3534,6 +3564,7 @@ class EasyConfigTest(EnhancedTestCase):
             'pyminver': '7',
             'pyshortver': '3.7',
             'pyver': '3.7.2',
+            'software_commit': '',
             'sysroot': '',
             'version': '0.01',
             'version_major': '0',
@@ -3599,6 +3630,7 @@ class EasyConfigTest(EnhancedTestCase):
             'namelower': 'foo',
             'nameletter': 'f',
             'nameletterlower': 'f',
+            'software_commit': '',
             'sysroot': '',
             'version': '1.2.3',
             'version_major': '1',
@@ -4624,7 +4656,7 @@ class EasyConfigTest(EnhancedTestCase):
             prebuildopts = '%(cuda_cc_semicolon_sep)s'
             buildopts = ('comma="%(cuda_int_comma_sep)s" space="%(cuda_int_space_sep)s" '
                          'semi="%(cuda_int_semicolon_sep)s"')
-            preinstallopts = '%(cuda_cc_space_sep)s'
+            preinstallopts = 'period="%(cuda_cc_space_sep)s" noperiod="%(cuda_cc_space_sep_no_period)s"'
             installopts = '%(cuda_compute_capabilities)s'
         """)
         self.prep()
@@ -4637,7 +4669,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['buildopts'], 'comma="51,70,71" '
                                           'space="51 70 71" '
                                           'semi="51;70;71"')
-        self.assertEqual(ec['preinstallopts'], '5.1 7.0 7.1')
+        self.assertEqual(ec['preinstallopts'], 'period="5.1 7.0 7.1" noperiod="51 70 71"')
         self.assertEqual(ec['installopts'], '5.1,7.0,7.1')
 
         # build options overwrite it
@@ -4650,7 +4682,7 @@ class EasyConfigTest(EnhancedTestCase):
                                           'space="42 63" '
                                           'semi="42;63"')
         self.assertEqual(ec['prebuildopts'], '4.2;6.3')
-        self.assertEqual(ec['preinstallopts'], '4.2 6.3')
+        self.assertEqual(ec['preinstallopts'], 'period="4.2 6.3" noperiod="42 63"')
         self.assertEqual(ec['installopts'], '4.2,6.3')
 
     def test_det_copy_ec_specs(self):

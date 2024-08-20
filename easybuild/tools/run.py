@@ -197,7 +197,7 @@ def fileprefix_from_cmd(cmd, allowed_chars=False):
     return ''.join([c for c in cmd if c in allowed_chars])
 
 
-def create_cmd_scripts(cmd_str, work_dir, env, tmpdir):
+def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
     """
     Create helper scripts for specified command in specified directory:
     - env.sh which can be sourced to define environment in which command was run;
@@ -220,6 +220,12 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir):
                             if not key.endswith('%')) + '\n')
 
         fid.write('\n\nPS1="eb-shell> "')
+
+        # define $EB_CMD_OUT_FILE to contain path to file with command output
+        fid.write(f'\nEB_CMD_OUT_FILE="{out_file}"')
+        # define $EB_CMD_ERR_FILE to contain path to file with command stderr output (if available)
+        if err_file:
+            fid.write(f'\nEB_CMD_ERR_FILE="{err_file}"')
 
         # also change to working directory (to ensure that working directory is correct for interactive bash shell)
         fid.write(f'\ncd "{work_dir}"')
@@ -258,6 +264,7 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
         # replace spaces/line breaks with regex pattern that matches one or more spaces/line breaks,
         # and allow extra whitespace at the end
         question = space_line_break_pattern.join(space_line_break_regex.split(question)) + r'[\s\n]*$'
+        _log.debug(f"Checking for question pattern '{question}'...")
         regex = re.compile(question.encode())
         res = regex.search(stdout)
         if res:
@@ -285,6 +292,8 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
 
             match_found = True
             break
+        else:
+            _log.debug(f"No match for question pattern '{question}' at end of stdout: {stdout_end}")
     else:
         _log.info("No match found for question patterns, considering question wait patterns")
         # if no match was found among question patterns,
@@ -296,14 +305,17 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
             # and allow extra whitespace at the end
             pattern = space_line_break_pattern.join(space_line_break_regex.split(pattern)) + r'[\s\n]*$'
             regex = re.compile(pattern.encode())
+            _log.debug(f"Checking for question wait pattern '{pattern}'...")
             if regex.search(stdout):
-                _log.info(f"Found match for wait pattern '{pattern}'")
-                _log.debug(f"Found match for wait pattern '{pattern}' at end of stdout: {stdout_end}")
+                _log.info(f"Found match for question wait pattern '{pattern}'")
+                _log.debug(f"Found match for question wait pattern '{pattern}' at end of stdout: {stdout_end}")
                 match_found = True
                 break
+            else:
+                _log.debug(f"No match for question wait pattern '{pattern}' at end of stdout: {stdout_end}")
         else:
             _log.info("No match found for question wait patterns")
-            _log.debug(f"No match found in question/wait patterns at end of stdout: {stdout_end}")
+            _log.debug(f"No match found in question (wait) patterns at end of stdout: {stdout_end}")
 
     return match_found
 
@@ -362,11 +374,14 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     if qa_wait_patterns is None:
         qa_wait_patterns = []
 
+    # keep path to current working dir in case we need to come back to it
+    try:
+        initial_work_dir = os.getcwd()
+    except FileNotFoundError:
+        raise EasyBuildError(CWD_NOTFOUND_ERROR)
+
     if work_dir is None:
-        try:
-            work_dir = os.getcwd()
-        except FileNotFoundError:
-            raise EasyBuildError(CWD_NOTFOUND_ERROR)
+        work_dir = initial_work_dir
 
     if with_hooks:
         hooks = load_hooks(build_option('hooks'))
@@ -400,8 +415,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
         _log.info(f'run_shell_cmd: command environment of "{cmd_str}" will be saved to {tmpdir}')
 
-        create_cmd_scripts(cmd_str, work_dir, env, tmpdir)
-
         cmd_out_fp = os.path.join(tmpdir, 'out.txt')
         _log.info(f'run_shell_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
         if split_stderr:
@@ -409,6 +422,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             _log.info(f'run_shell_cmd: Errors and warnings of "{cmd_str}" will be logged to {cmd_err_fp}')
         else:
             cmd_err_fp = None
+
+        create_cmd_scripts(cmd_str, work_dir, env, tmpdir, cmd_out_fp, cmd_err_fp)
     else:
         tmpdir, cmd_out_fp, cmd_err_fp = None, None, None
 
@@ -558,6 +573,20 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         _log.warning(f"Shell command FAILED (exit code {res.exit_code}, see output above): {cmd_str}")
         if fail_on_error:
             raise_run_shell_cmd_error(res)
+
+    # check that we still are in a sane environment after command execution
+    # safeguard against commands that deleted the work dir or missbehaving filesystems
+    try:
+        os.getcwd()
+    except FileNotFoundError:
+        _log.warning(
+            f"Shell command `{cmd_str}` completed successfully but left the system in an unknown working directory. "
+            f"Changing back to initial working directory: {initial_work_dir}"
+        )
+        try:
+            os.chdir(initial_work_dir)
+        except OSError as err:
+            raise EasyBuildError(f"Failed to return to {initial_work_dir} after executing command `{cmd_str}`: {err}")
 
     if with_hooks:
         run_hook_kwargs = {

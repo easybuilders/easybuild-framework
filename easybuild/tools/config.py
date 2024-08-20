@@ -260,6 +260,7 @@ BUILD_OPTIONS_CMDLINE = {
         'rpath_override_dirs',
         'required_linked_shared_libs',
         'skip',
+        'software_commit',
         'stop',
         'subdir_user_modules',
         'sysroot',
