@@ -1069,6 +1069,28 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, "please\nanswer\n42\n")
 
+        # test interactive command that takes a while before producing more output that includes second question
+        cmd = ';'.join([
+            "echo question1",
+            "read answer1",
+            "sleep 2",
+            "echo question2",
+            "read answer2",
+            # note: delaying additional output (except the actual questions) is important
+            # to verify that this is working as intended
+            "echo $answer1",
+            "echo $answer2",
+        ])
+        qa = [
+            (r'question1', 'answer1'),
+            (r'question2', 'answer2'),
+        ]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa)
+
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "question1\nquestion2\nanswer1\nanswer2\n")
+
     def test_run_cmd_qa_buffering(self):
         """Test whether run_cmd_qa uses unbuffered output."""
 
