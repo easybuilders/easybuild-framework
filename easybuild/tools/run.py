@@ -517,7 +517,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             if qa_patterns:
                 # only check for question patterns if additional output is available
                 # compared to last time a question was answered;
-                # use empty list of question patterns iif no extra output (except for whitespace) is available
+                # use empty list of question patterns if no extra output (except for whitespace) is available
                 # we do always need to check for wait patterns though!
                 active_qa_patterns = qa_patterns if stdout.strip() != prev_stdout else []
 
