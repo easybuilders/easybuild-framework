@@ -1039,8 +1039,8 @@ class EasyBlock(object):
     #
     # DIRECTORY UTILITY FUNCTIONS
     #
-    def gen_builddir(self):
-        """Generate the (unique) name for the builddir"""
+    def get_relative_builddir_base_path(self):
+        """Generate builddir base name relative to build_path"""
         clean_name = remove_unwanted_chars(self.name)
 
         # if a toolchain version starts with a -, remove the - so prevent a -- in the path name
@@ -1048,7 +1048,14 @@ class EasyBlock(object):
         tcversion = tc['version'].lstrip('-')
         lastdir = "%s%s-%s%s" % (self.cfg['versionprefix'], tc['name'], tcversion, self.cfg['versionsuffix'])
 
-        builddir = os.path.join(os.path.abspath(build_path()), clean_name, self.version, lastdir)
+        relative_builddir = os.path.join(clean_name, self.version, lastdir)
+
+        return relative_builddir
+
+    def gen_builddir(self):
+        """Generate the (unique) name for the builddir"""
+        relative_builddir = self.get_relative_builddir_base_path()
+        builddir = os.path.join(os.path.abspath(build_path()), relative_builddir)
 
         # make sure build dir is unique if cleanupoldbuild is False or not set
         if not self.cfg.get('cleanupoldbuild', False):
@@ -4190,20 +4197,24 @@ def print_dry_run_note(loc, silent=True):
     dry_run_msg(msg, silent=silent)
 
 
-def persists_failed_compilation_log_and_artifacts(success, application_log, log, silent, builddir, err_log_path):
+def persists_failed_compilation_log_and_artifacts(success, application_log, silent, app, err_log_path):
     if application_log:
         # there may be multiple log files, or the file name may be different due to zipping
         logs = glob.glob('%s*' % application_log)
-        print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=log, silent=silent)
+        print_msg(
+            "Results of the build can be found in the log file(s) %s" % ', '.join(logs),
+            log=_log,
+            silent=silent
+        )
+
         if err_log_path and not(success):
             for log_file in logs:
                 target_file = os.path.join(err_log_path, os.path.basename(log_file))
                 copy_file(log_file, target_file)
 
-            relative_build_artifact_log_path = os.path.relpath(builddir, build_path())
-            build_artifact_log_path = os.path.join(err_log_path, relative_build_artifact_log_path)
-
+            builddir = app.builddir
             if is_readable(builddir):
+                build_artifact_log_path = os.path.join(err_log_path, app.get_relative_builddir_base_path())
                 copy_dir(builddir, build_artifact_log_path)
 
             print_msg(
@@ -4470,7 +4481,7 @@ def build_and_install_one(ecdict, init_env):
             dry_run_msg("(no ignored errors during dry run)\n", silent=silent)
 
     err_log_path = error_log_path(ec=ecdict['ec'])
-    persists_failed_compilation_log_and_artifacts(success, application_log, _log, silent, app.builddir, err_log_path)
+    persists_failed_compilation_log_and_artifacts(success, application_log, silent, app, err_log_path)
 
     del app
 
