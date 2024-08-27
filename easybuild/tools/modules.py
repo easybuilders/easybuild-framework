@@ -148,6 +148,8 @@ class ModulesTool(object):
     VERSION_OPTION = '--version'
     # minimal required version (cannot include -beta or rc)
     REQ_VERSION = None
+    # minimal required version to use getenv Tcl modulefile command
+    REQ_VERSION_TCL_GETENV = None
     # deprecated version limit (support for versions below this version is deprecated)
     DEPR_VERSION = None
     # maximum version allowed (cannot include -beta or rc)
@@ -209,6 +211,7 @@ class ModulesTool(object):
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
         self.supports_depends_on = False
+        self.supports_tcl_getenv = False
 
     def __str__(self):
         """String representation of this ModulesTool instance."""
@@ -1315,6 +1318,7 @@ class EnvironmentModules(EnvironmentModulesTcl):
     COMMAND = os.path.join(os.getenv('MODULESHOME', 'MODULESHOME_NOT_DEFINED'), 'libexec', 'modulecmd.tcl')
     COMMAND_ENVIRONMENT = 'MODULES_CMD'
     REQ_VERSION = '4.0.0'
+    REQ_VERSION_TCL_GETENV = '4.2.0'
     DEPR_VERSION = '4.0.0'  # needs to be set as EnvironmentModules inherits from EnvironmentModulesTcl
     MAX_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d[^+\s]*)(\+\S*)?\s'
@@ -1343,6 +1347,8 @@ class EnvironmentModules(EnvironmentModulesTcl):
         setvar('MODULES_LIST_TERSE_OUTPUT', '', verbose=False)
 
         super(EnvironmentModules, self).__init__(*args, **kwargs)
+        version = LooseVersion(self.version)
+        self.supports_tcl_getenv = version >= LooseVersion(self.REQ_VERSION_TCL_GETENV)
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
