@@ -757,8 +757,18 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param group: string with the group name
         :param error_msg: error message to print for users outside that group
         """
-        self.log.warning("Can't generate robust check in TCL modules for users belonging to group %s.", group)
-        return ''
+        if self.modules_tool.supports_tcl_check_group:
+            if error_msg is None:
+                error_msg = "You are not part of '%s' group of users that have access to this software; " % group
+                error_msg += "Please consult with user support how to become a member of this group"
+
+            error_msg = 'error "%s"' % error_msg
+            res = self.conditional_statement('module-info usergroups %s' % group, error_msg, negative=True)
+        else:
+            self.log.warning("Can't generate robust check in Tcl modules for users belonging to group %s.", group)
+            res = ''
+
+        return res
 
     def comment(self, msg):
         """Return string containing given message as a comment."""
@@ -1186,21 +1196,12 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param group: string with the group name
         :param error_msg: error message to print for users outside that group
         """
-        lmod_version = self.modules_tool.version
-        min_lmod_version = '6.0.8'
+        if error_msg is None:
+            error_msg = "You are not part of '%s' group of users that have access to this software; " % group
+            error_msg += "Please consult with user support how to become a member of this group"
 
-        if LooseVersion(lmod_version) >= LooseVersion(min_lmod_version):
-            if error_msg is None:
-                error_msg = "You are not part of '%s' group of users that have access to this software; " % group
-                error_msg += "Please consult with user support how to become a member of this group"
-
-            error_msg = 'LmodError("' + error_msg + '")'
-            res = self.conditional_statement('userInGroup("%s")' % group, error_msg, negative=True)
-        else:
-            warn_msg = "Can't generate robust check in Lua modules for users belonging to group %s. "
-            warn_msg += "Lmod version not recent enough (%s), should be >= %s"
-            self.log.warning(warn_msg, group, lmod_version, min_lmod_version)
-            res = ''
+        error_msg = 'LmodError("' + error_msg + '")'
+        res = self.conditional_statement('userInGroup("%s")' % group, error_msg, negative=True)
 
         return res
 

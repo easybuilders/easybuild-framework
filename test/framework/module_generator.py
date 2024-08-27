@@ -1608,6 +1608,28 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # one/1.0 module was swapped for one/1.1
         self.assertEqual(loaded_mods[-2]['mod_name'], 'one/1.1')
 
+    def test_check_group(self):
+        """Test check_group method."""
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            if self.modtool.supports_tcl_check_group:
+                expected = '\n'.join([
+                    "if { ![ module-info usergroups group_name ] } {",
+                    "    error \"mesg\"",
+                    "}",
+                    '',
+                ])
+                self.assertEqual(expected, self.modgen.check_group("group_name", error_msg="mesg"))
+            else:
+                self.assertEqual('', self.modgen.check_group("group_name", error_msg="mesg"))
+        else:
+            expected = '\n'.join([
+                'if not ( userInGroup("group_name") ) then',
+                '    LmodError("mesg")',
+                'end',
+                '',
+            ])
+            self.assertEqual(expected, self.modgen.check_group("group_name", error_msg="mesg"))
+
 
 class TclModuleGeneratorTest(ModuleGeneratorTest):
     """Test for module_generator module for Tcl syntax."""
