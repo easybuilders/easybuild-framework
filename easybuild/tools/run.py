@@ -196,7 +196,7 @@ def fileprefix_from_cmd(cmd, allowed_chars=False):
     return ''.join([c for c in cmd if c in allowed_chars])
 
 
-def create_cmd_scripts(cmd_str, work_dir, env, tmpdir):
+def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
     """
     Create helper scripts for specified command in specified directory:
     - env.sh which can be sourced to define environment in which command was run;
@@ -219,6 +219,12 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir):
                             if not key.endswith('%')) + '\n')
 
         fid.write('\n\nPS1="eb-shell> "')
+
+        # define $EB_CMD_OUT_FILE to contain path to file with command output
+        fid.write(f'\nEB_CMD_OUT_FILE="{out_file}"')
+        # define $EB_CMD_ERR_FILE to contain path to file with command stderr output (if available)
+        if err_file:
+            fid.write(f'\nEB_CMD_ERR_FILE="{err_file}"')
 
         # also change to working directory (to ensure that working directory is correct for interactive bash shell)
         fid.write(f'\ncd "{work_dir}"')
@@ -257,6 +263,7 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
         # replace spaces/line breaks with regex pattern that matches one or more spaces/line breaks,
         # and allow extra whitespace at the end
         question = space_line_break_pattern.join(space_line_break_regex.split(question)) + r'[\s\n]*$'
+        _log.debug(f"Checking for question pattern '{question}'...")
         regex = re.compile(question.encode())
         res = regex.search(stdout)
         if res:
@@ -284,6 +291,8 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
 
             match_found = True
             break
+        else:
+            _log.debug(f"No match for question pattern '{question}' at end of stdout: {stdout_end}")
     else:
         _log.info("No match found for question patterns, considering question wait patterns")
         # if no match was found among question patterns,
@@ -295,14 +304,17 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
             # and allow extra whitespace at the end
             pattern = space_line_break_pattern.join(space_line_break_regex.split(pattern)) + r'[\s\n]*$'
             regex = re.compile(pattern.encode())
+            _log.debug(f"Checking for question wait pattern '{pattern}'...")
             if regex.search(stdout):
-                _log.info(f"Found match for wait pattern '{pattern}'")
-                _log.debug(f"Found match for wait pattern '{pattern}' at end of stdout: {stdout_end}")
+                _log.info(f"Found match for question wait pattern '{pattern}'")
+                _log.debug(f"Found match for question wait pattern '{pattern}' at end of stdout: {stdout_end}")
                 match_found = True
                 break
+            else:
+                _log.debug(f"No match for question wait pattern '{pattern}' at end of stdout: {stdout_end}")
         else:
             _log.info("No match found for question wait patterns")
-            _log.debug(f"No match found in question/wait patterns at end of stdout: {stdout_end}")
+            _log.debug(f"No match found in question (wait) patterns at end of stdout: {stdout_end}")
 
     return match_found
 
@@ -402,8 +414,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
         _log.info(f'run_shell_cmd: command environment of "{cmd_str}" will be saved to {tmpdir}')
 
-        create_cmd_scripts(cmd_str, work_dir, env, tmpdir)
-
         cmd_out_fp = os.path.join(tmpdir, 'out.txt')
         _log.info(f'run_shell_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
         if split_stderr:
@@ -411,6 +421,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             _log.info(f'run_shell_cmd: Errors and warnings of "{cmd_str}" will be logged to {cmd_err_fp}')
         else:
             cmd_err_fp = None
+
+        create_cmd_scripts(cmd_str, work_dir, env, tmpdir, cmd_out_fp, cmd_err_fp)
     else:
         tmpdir, cmd_out_fp, cmd_err_fp = None, None, None
 
@@ -477,6 +489,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         stdout, stderr = b'', b''
         check_interval_secs = 0.1
         time_no_match = 0
+        prev_stdout = ''
 
         # collect output piece-wise, while checking for questions to answer (if qa_patterns is provided)
         while exit_code is None:
@@ -502,8 +515,15 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                     stderr += more_stderr
 
             if qa_patterns:
-                if _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
+                # only check for question patterns if additional output is available
+                # compared to last time a question was answered;
+                # use empty list of question patterns if no extra output (except for whitespace) is available
+                # we do always need to check for wait patterns though!
+                active_qa_patterns = qa_patterns if stdout.strip() != prev_stdout else []
+
+                if _answer_question(stdout, proc, active_qa_patterns, qa_wait_patterns):
                     time_no_match = 0
+                    prev_stdout = stdout.strip()
                 else:
                     # this will only run if the for loop above was *not* stopped by the break statement
                     time_no_match += check_interval_secs

@@ -48,7 +48,8 @@ class IntelCompilers(IntelIccIfort):
         'oneapi': (None, "Use oneAPI compilers icx/icpx/ifx instead of classic compilers"),
         'oneapi_c_cxx': (None, "Use oneAPI C/C++ compilers icx/icpx instead of classic Intel C/C++ compilers "
                                "(auto-enabled for Intel compilers version 2022.2.0, or newer)"),
-        'oneapi_fortran': (False, "Use oneAPI Fortran compiler ifx instead of classic Intel Fortran compiler"),
+        'oneapi_fortran': (None, "Use oneAPI Fortran compiler ifx instead of classic Intel Fortran compiler "
+                                 "(auto-enabled for Intel compilers version 2024.0.0, or newer)"),
     })
 
     def _set_compiler_vars(self):
@@ -75,6 +76,9 @@ class IntelCompilers(IntelIccIfort):
         # auto-enable use of oneAPI C/C++ compilers for sufficiently recent versions of Intel compilers
         comp_ver = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
         if LooseVersion(comp_ver) >= LooseVersion('2022.2.0'):
+            if LooseVersion(comp_ver) >= LooseVersion('2024.0.0'):
+                if self.options.get('oneapi_fortran', None) is None:
+                    self.options['oneapi_fortran'] = True
             if self.options.get('oneapi_c_cxx', None) is None:
                 self.options['oneapi_c_cxx'] = True
 

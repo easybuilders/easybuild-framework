@@ -509,6 +509,9 @@ class EasyBuildOptions(GeneralOption):
             'skip-extensions': ("Skip installation of extensions", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'skip-test-step': ("Skip running the test step (e.g. unit tests)", None, 'store_true', False),
+            'software-commit': (
+                "Git commit to use for the target software build (robot capabilities are automatically disabled)",
+                None, 'store', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
@@ -1092,6 +1095,12 @@ class EasyBuildOptions(GeneralOption):
             else:
                 raise EasyBuildError("Specified sysroot '%s' does not exist!", self.options.sysroot)
 
+        # 'software_commit' is specific to a particular software package and cannot be used with 'robot'
+        if self.options.software_commit:
+            if self.options.robot is not None:
+                print_warning("To allow use of --software-commit robot resolution is being disabled")
+                self.options.robot = None
+
         self.log.info("Checks on configuration options passed")
 
     def get_cfg_opt_abs_path(self, opt_name, path):
@@ -1585,7 +1594,7 @@ def handle_include_easyblocks_from(options, log):
                 check_included_multiple(included_from_commit, "commit %s" % easyblock_commit)
 
             for easyblock in included_from_commit:
-                print_msg("easyblock %s included from comit %s" % (easyblock, easyblock_commit), log=log)
+                print_msg("easyblock %s included from commit %s" % (easyblock, easyblock_commit), log=log)
 
             include_easyblocks(options.tmpdir, easyblocks_from_commit)
 
