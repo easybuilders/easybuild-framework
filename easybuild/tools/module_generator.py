@@ -915,8 +915,13 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         cond_tmpl = None
 
+        # Environment Modules v4+ safely handles automatic module load by not reloading already
+        # loaded module. No safe guard test is required and it should even be avoided to get the
+        # module dependency correctly tracked.
+        safe_auto_load = self.modules_tool.supports_safe_auto_load
+
         if recursive_unload is None:
-            recursive_unload = build_option('recursive_mod_unload') or depends_on
+            recursive_unload = build_option('recursive_mod_unload') or depends_on or safe_auto_load
 
         if recursive_unload:
             # wrapping the 'module load' statement with an 'is-loaded or mode == unload'
@@ -927,7 +932,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # see also http://lmod.readthedocs.io/en/latest/210_load_storms.html
             cond_tmpl = "[ module-info mode remove ] || %s"
 
-        if depends_on:
+        if depends_on or safe_auto_load:
             if multi_dep_mods and len(multi_dep_mods) > 1:
                 parent_mod_name = os.path.dirname(mod_name)
                 guard = self.is_loaded(multi_dep_mods[1:])
