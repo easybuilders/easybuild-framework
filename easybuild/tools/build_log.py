@@ -119,6 +119,7 @@ class EasyBuildExit(IntEnum):
     FAIL_MODULE_WRITE = 46
     FAIL_GITHUB = 47
 
+
 class EasyBuildError(LoggedException):
     """
     EasyBuildError is thrown when EasyBuild runs into something horribly wrong.
