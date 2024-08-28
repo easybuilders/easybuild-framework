@@ -829,6 +829,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
             for line in self._generate_whatis_lines()
         ])
 
+        lines.extend(['', "set root " + self.app.installdir])
+
         if self.app.cfg['moduleloadnoconflict']:
             cond_unload = self.conditional_statement(self.is_loaded('%(name)s'), "module unload %(name)s")
             lines.extend([
@@ -844,9 +846,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        lines.extend(['', "set root " + self.app.installdir])
-
-        return '\n'.join([''] + lines + [''])
+        return '\n'.join(lines + [''])
 
     def getenv_cmd(self, envvar, default=None):
         """
@@ -1279,7 +1279,7 @@ class ModuleGeneratorLua(ModuleGenerator):
                 # https://github.com/TACC/Lmod/issues/428
                 lines.extend(['', self.conditional_statement(self.check_version("8", "2", "8"), extensions_stmt)])
 
-        return '\n'.join([''] + lines + [''])
+        return '\n'.join(lines + [''])
 
     def getenv_cmd(self, envvar, default=None):
         """
