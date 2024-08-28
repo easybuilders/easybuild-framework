@@ -39,7 +39,7 @@ import os
 import subprocess
 import time
 import urllib2 as std_urllib  # noqa
-from collections import Mapping  # noqa
+from collections import Mapping, OrderedDict  # noqa
 from HTMLParser import HTMLParser  # noqa
 from string import letters as ascii_letters  # noqa
 from string import lowercase as ascii_lowercase  # noqa
