@@ -1753,7 +1753,8 @@ class EasyBlock(object):
             if isinstance(ext, str):
                 exts_list.append((resolve_template(ext, self.cfg.template_values), ))
             else:
-                exts_list.append((resolve_template(ext[0], self.cfg.template_values), ext[1]))
+                exts_list.append((resolve_template(ext[0], self.cfg.template_values),
+                                  resolve_template(ext[1], self.cfg.template_values)))
         return exts_list
 
     def make_extension_string(self, name_version_sep='-', ext_sep=', ', sort=True):

@@ -826,19 +826,20 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Generate a description.
         """
-        txt = '\n'.join([
+        lines = [
             "proc ModulesHelp { } {",
             "    puts stderr {%s" % re.sub(r'([{}\[\]])', r'\\\1', self._generate_help_text()),
             "    }",
             '}',
             '',
+        ]
+
+        lines.extend([
+            "module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', line)
+            for line in self._generate_whatis_lines()
         ])
 
-        lines = [
-            '%(whatis_lines)s',
-            '',
-            "set root %(installdir)s",
-        ]
+        lines.extend(['', "set root " + self.app.installdir])
 
         if self.app.cfg['moduleloadnoconflict']:
             cond_unload = self.conditional_statement(self.is_loaded('%(name)s'), "module unload %(name)s")
@@ -855,18 +856,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        whatis_lines = [
-            "module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', line)
-            for line in self._generate_whatis_lines()
-        ]
-        txt += '\n'.join([''] + lines + ['']) % {
-            'name': self.app.name,
-            'version': self.app.version,
-            'whatis_lines': '\n'.join(whatis_lines),
-            'installdir': self.app.installdir,
-        }
-
-        return txt
+        return '\n'.join(lines + [''])
 
     def getenv_cmd(self, envvar, default=None):
         """
@@ -1273,17 +1263,16 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Generate a description.
         """
-        txt = '\n'.join([
+        lines = [
             'help(%s%s' % (self.START_STR, self.check_str(self._generate_help_text())),
             '%s)' % self.END_STR,
             '',
-        ])
-
-        lines = [
-            "%(whatis_lines)s",
-            '',
-            'local root = "%(installdir)s"',
         ]
+
+        for line in self._generate_whatis_lines():
+            lines.append("whatis(%s%s%s)" % (self.START_STR, self.check_str(line), self.END_STR))
+
+        lines.extend(['', 'local root = "%s"' % self.app.installdir])
 
         if self.app.cfg['moduleloadnoconflict']:
             self.log.info("Nothing to do to ensure no conflicts can occur on load when using Lua modules files/Lmod")
@@ -1291,10 +1280,6 @@ class ModuleGeneratorLua(ModuleGenerator):
         elif conflict:
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
-
-        whatis_lines = []
-        for line in self._generate_whatis_lines():
-            whatis_lines.append("whatis(%s%s%s)" % (self.START_STR, self.check_str(line), self.END_STR))
 
         if build_option('module_extensions'):
             extensions_list = self._generate_extensions_list()
@@ -1306,15 +1291,7 @@ class ModuleGeneratorLua(ModuleGenerator):
                 # https://github.com/TACC/Lmod/issues/428
                 lines.extend(['', self.conditional_statement(self.check_version("8", "2", "8"), extensions_stmt)])
 
-        txt += '\n'.join([''] + lines + ['']) % {
-            'name': self.app.name,
-            'version': self.app.version,
-            'whatis_lines': '\n'.join(whatis_lines),
-            'installdir': self.app.installdir,
-            'homepage': self.app.cfg['homepage'],
-        }
-
-        return txt
+        return '\n'.join(lines + [''])
 
     def getenv_cmd(self, envvar, default=None):
         """

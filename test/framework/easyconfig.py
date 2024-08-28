@@ -533,7 +533,8 @@ class EasyConfigTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             modfile = os.path.join(eb.make_module_step(), 'PI', '3.14' + eb.module_generator.MODULE_FILE_EXTENSION)
         modtxt = read_file(modfile)
-        regex = re.compile('EBEXTSLISTPI.*ext1-1.0,ext2-2.0')
+        # verify that templates used for extensions are resolved as they should
+        regex = re.compile('EBEXTSLISTPI.*"ext1-1.0,ext2-2.0,ext-PI-3.14,ext-pi-3.0')
         self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
 
     def test_extensions_templates(self):
