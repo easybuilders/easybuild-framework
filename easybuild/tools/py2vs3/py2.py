@@ -52,7 +52,7 @@ ConfigParser = configparser.SafeConfigParser
 
 
 # reload function (built-in in Python 2)
-reload = reload
+reload = reload  # noqa: F821
 
 # string type that can be used in 'isinstance' calls
 string_type = basestring
@@ -89,9 +89,12 @@ def subprocess_terminate(proc, timeout):
         proc.terminate()
 
 
+# Wrapped in exec to avoid invalid syntax warnings for Python 3
+exec('''
 def raise_with_traceback(exception_class, message, traceback):
     """Raise exception of specified class with given message and traceback."""
     raise exception_class, message, traceback  # noqa: E999
+''')
 
 
 def extract_method_name(method_func):

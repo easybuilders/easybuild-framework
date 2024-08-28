@@ -101,12 +101,12 @@ jobs:
         # and are only run after the PR gets merged
         GITHUB_TOKEN: ${{secrets.CI_UNIT_TESTS_GITHUB_TOKEN}}
       run: |
-        # only install GitHub token when testing with Lmod 8.x + Python 3.6 or 3.9, to avoid hitting GitHub rate limit;
+        # only install GitHub token when testing with Lmod 8.x + Python 3.6 or 3.9, to avoid hitting GitHub rate limit
         # tests that require a GitHub token are skipped automatically when no GitHub token is available
         if [[ "${{matrix.modules_tool}}" =~ 'Lmod-8' ]] && [[ "${{matrix.python}}" =~ 3.[69] ]]; then
           if [ ! -z $GITHUB_TOKEN ]; then
-            SET_KEYRING="import keyrings.alt.file; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
-            python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
+            SET_KEYRING="import keyrings.alt.file; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())"
+            python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
           fi
           echo "GitHub token installed!"
         else
@@ -191,7 +191,17 @@ jobs:
             # run test suite
             python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
             # try and make sure output of running tests is clean (no printed messages/warnings)
-            IGNORE_PATTERNS="no GitHub token available|skipping SvnRepository test|requires Lmod as modules tool|stty: 'standard input': Inappropriate ioctl for device|CryptographyDeprecationWarning: Python 3.[56]|from cryptography.* import |CryptographyDeprecationWarning: Python 2|Blowfish|GC3Pie not available, skipping test|CryptographyDeprecationWarning: TripleDES has been moved|algorithms.TripleDES"
+            IGNORE_PATTERNS="no GitHub token available"
+            IGNORE_PATTERNS+="|skipping SvnRepository test"
+            IGNORE_PATTERNS+="|requires Lmod as modules tool"
+            IGNORE_PATTERNS+="|stty: 'standard input': Inappropriate ioctl for device"
+            IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 3.[56]"
+            IGNORE_PATTERNS+="|from cryptography.* import "
+            IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 2"
+            IGNORE_PATTERNS+="|Blowfish"
+            IGNORE_PATTERNS+="|GC3Pie not available, skipping test"
+            IGNORE_PATTERNS+="|CryptographyDeprecationWarning: TripleDES has been moved"
+            IGNORE_PATTERNS+="|algorithms.TripleDES"
             # '|| true' is needed to avoid that GitHub Actions stops the job on non-zero exit of grep (i.e. when there are no matches)
             PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
             test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite" && echo "${PRINTED_MSG}" && exit 1)

@@ -45,6 +45,7 @@ import os
 import re
 import sys
 import tempfile
+from collections import OrderedDict
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
@@ -64,7 +65,6 @@ from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, f
 from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_pr_data
 from easybuild.tools.github import fetch_files_from_commit, fetch_files_from_pr
 from easybuild.tools.multidiff import multidiff
-from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
