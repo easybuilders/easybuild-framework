@@ -89,9 +89,6 @@ TEMPLATE_SOFTWARE_VERSIONS = {
 # template values which are only generated dynamically
 TEMPLATE_NAMES_DYNAMIC = {
     'arch': 'System architecture (e.g. x86_64, aarch64, ppc64le, ...)',
-    'sysroot': "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
-               "as specify by the --sysroot configuration option",
-    'mpi_cmd_prefix': 'Prefix command for running MPI programs (with default number of ranks)',
     'cuda_compute_capabilities': "Comma-separated list of CUDA compute capabilities, as specified via "
                                  "--cuda-compute-capabilities configuration option or "
                                  "via cuda_compute_capabilities easyconfig parameter",
@@ -105,6 +102,11 @@ TEMPLATE_NAMES_DYNAMIC = {
     'cuda_int_semicolon_sep': 'Semicolon-separated list of integer CUDA compute capabilities',
     'cuda_sm_comma_sep': 'Comma-separated list of sm_* values that correspond with CUDA compute capabilities',
     'cuda_sm_space_sep': 'Space-separated list of sm_* values that correspond with CUDA compute capabilities',
+    'mpi_cmd_prefix': 'Prefix command for running MPI programs (with default number of ranks)',
+    'software_commit': "Git commit id to use for the software as specified by --software-commit command line option",
+    'sysroot': "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
+               "as specify by the --sysroot configuration option",
+
 }
 
 # constant templates that can be used in easyconfigs

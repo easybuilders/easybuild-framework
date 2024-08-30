@@ -604,6 +604,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     r'^``%\(arch\)s``\s+System architecture \(e.g. x86_64, aarch64, ppc64le, ...\)\s*$',
                     r'^``%\(cuda_cc_space_sep\)s``\s+Space-separated list of CUDA compute capabilities\s*$',
                     r'^``SOURCE_TAR_GZ``\s+Source \.tar\.gz bundle\s+``%\(name\)s-%\(version\)s.tar.gz``\s*$',
+                    r'^``%\(software_commit\)s``\s+Git commit id to use for the software as specified '
+                    'by --software-commit command line option',
                 ]
             else:
                 pattern_lines = [
@@ -616,6 +618,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     r'^\s+%\(arch\)s: System architecture \(e.g. x86_64, aarch64, ppc64le, ...\)$',
                     r'^\s+%\(cuda_cc_space_sep\)s: Space-separated list of CUDA compute capabilities$',
                     r'^\s+SOURCE_TAR_GZ: Source \.tar\.gz bundle \(%\(name\)s-%\(version\)s.tar.gz\)$',
+                    r'^\s+%\(software_commit\)s: Git commit id to use for the software as specified '
+                    'by --software-commit command line option',
                 ]
 
             for pattern_line in pattern_lines:
