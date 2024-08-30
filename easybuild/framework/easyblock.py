@@ -3489,10 +3489,7 @@ class EasyBlock(object):
         """Sanity check on extensions (if any)."""
         failed_exts = []
 
-        if build_option('skip_extensions'):
-            self.log.info("Skipping sanity check for extensions since skip-extensions is enabled...")
-            return
-        elif not self.ext_instances:
+        if not self.ext_instances:
             # class instances for extensions may not be initialized yet here,
             # for example when using --module-only or --sanity-check-only
             self.prepare_for_extensions()
@@ -3644,7 +3641,10 @@ class EasyBlock(object):
 
         # also run sanity check for extensions (unless we are an extension ourselves)
         if not extension:
-            self._sanity_check_step_extensions()
+            if build_option('skip_extensions'):
+                self.log.info("Skipping sanity check for extensions since skip-extensions is enabled...")
+            else:
+                self._sanity_check_step_extensions()
 
         linked_shared_lib_fails = self.sanity_check_linked_shared_libs()
         if linked_shared_lib_fails:
