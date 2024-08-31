@@ -864,7 +864,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         name_items = {
-            'modules-tools': ['EnvironmentModulesC', 'Lmod'],
+            'modules-tools': ['EnvironmentModules', 'Lmod'],
             'module-naming-schemes': ['EasyBuildMNS', 'HierarchicalMNS', 'CategorizedHMNS'],
         }
         for (name, items) in name_items.items():
@@ -880,7 +880,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             info_msg = r"INFO List of supported %s:" % words
             self.assertTrue(re.search(info_msg, logtxt), "Info message with list of available %s" % words)
             for item in items:
-                res = re.findall(r"^\s*%s" % item, logtxt, re.M)
+                res = re.findall(r"^\s*%s\n" % item, logtxt, re.M)
                 self.assertTrue(res, "%s is included in list of available %s" % (item, words))
                 # every item should only be mentioned once
                 n = len(res)
@@ -5315,19 +5315,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # configuring --modules-tool and --module-syntax on different levels should NOT cause problems
         # cfr. bug report https://github.com/easybuilders/easybuild-framework/issues/2564
-        os.environ['EASYBUILD_MODULES_TOOL'] = 'EnvironmentModulesC'
+        os.environ['EASYBUILD_MODULES_TOOL'] = 'EnvironmentModules'
         args = [
             '--module-syntax=Tcl',
             '--show-config',
         ]
         # set init_config to False to avoid that eb_main (called by _run_mock_eb) re-initialises configuration
-        # this fails because $EASYBUILD_MODULES_TOOL=EnvironmentModulesC conflicts with default module syntax (Lua)
+        # this fails because $EASYBUILD_MODULES_TOOL=EnvironmentModules conflicts with default module syntax (Lua)
         stdout, _ = self._run_mock_eb(args, raise_error=True, redo_init_config=False)
 
         patterns = [
             r"^# Current EasyBuild configuration",
             r"^module-syntax\s*\(C\) = Tcl",
-            r"^modules-tool\s*\(E\) = EnvironmentModulesC",
+            r"^modules-tool\s*\(E\) = EnvironmentModules",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -5339,8 +5339,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure default module syntax is used
         os.environ.pop('EASYBUILD_MODULE_SYNTAX', None)
 
-        # using EnvironmentModulesC modules tool with default module syntax (Lua) is a problem
-        os.environ['EASYBUILD_MODULES_TOOL'] = 'EnvironmentModulesC'
+        # using EnvironmentModules modules tool with default module syntax (Lua) is a problem
+        os.environ['EASYBUILD_MODULES_TOOL'] = 'EnvironmentModules'
         args = ['--show-full-config']
         error_pattern = "Generating Lua module files requires Lmod as modules tool"
         self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
@@ -5348,10 +5348,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             r"^# Current EasyBuild configuration",
             r"^module-syntax\s*\(C\) = Tcl",
-            r"^modules-tool\s*\(E\) = EnvironmentModulesC",
+            r"^modules-tool\s*\(E\) = EnvironmentModules",
         ]
 
-        # EnvironmentModulesC modules tool + Tcl module syntax is fine
+        # EnvironmentModules modules tool + Tcl module syntax is fine
         args.append('--module-syntax=Tcl')
         stdout, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, redo_init_config=False)
         for pattern in patterns:
