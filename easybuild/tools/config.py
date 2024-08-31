@@ -120,7 +120,8 @@ DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PR_TARGET_ACCOUNT = 'easybuilders'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
-DEFAULT_EXTRA_SOURCE_URLS = ('https://sources.easybuild.io',)
+EASYBUILD_SOURCES_URL = 'https://sources.easybuild.io'
+DEFAULT_EXTRA_SOURCE_URLS = (EASYBUILD_SOURCES_URL,)
 # Filter these CUDA libraries by default from the RPATH sanity check.
 # These are the only four libraries for which the CUDA toolkit ships stubs. By design, one is supposed to build
 # against the stub versions, but use the libraries that come with the CUDA driver at runtime. That means they should
