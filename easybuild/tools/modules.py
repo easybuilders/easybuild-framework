@@ -745,7 +745,7 @@ class ModulesTool(object):
         :param mod_name: module name
         :param strip_ext: strip (.lua) extension from module fileame (if present)"""
         # (possible relative) path is always followed by a ':', and may be prepended by whitespace
-        # this works for both environment modules and Lmod
+        # this works for both Environment Modules and Lmod
         modpath_re = re.compile(r'^\s*(?P<modpath>[^/\n]*/[^\s]+):$', re.M)
         modpath = self.get_value_from_modulefile(mod_name, modpath_re)
 
@@ -1180,7 +1180,7 @@ class ModulesTool(object):
 
 
 class EnvironmentModulesC(ModulesTool):
-    """Interface to (C) environment modules (modulecmd)."""
+    """Interface to (C) Environment Modules (modulecmd)."""
     NAME = "Environment Modules"
     COMMAND = "modulecmd"
     REQ_VERSION = '3.2.10'
@@ -1195,7 +1195,7 @@ class EnvironmentModulesC(ModulesTool):
         if isinstance(args[0], (list, tuple,)):
             args = args[0]
 
-        # some versions of Cray's environment modules tool (3.2.10.x) include a "source */init/bash" command
+        # some versions of Cray's Environment Modules tool (3.2.10.x) include a "source */init/bash" command
         # in the output of some "modulecmd python load" calls, which is not a valid Python command,
         # which must be stripped out to avoid "invalid syntax" errors when evaluating the output
         def tweak_stdout(txt):
@@ -1237,9 +1237,9 @@ class EnvironmentModulesC(ModulesTool):
 
 
 class EnvironmentModulesTcl(EnvironmentModulesC):
-    """Interface to (Tcl) environment modules (modulecmd.tcl)."""
+    """Interface to (ancient Tcl-only) Environment Modules (modulecmd.tcl)."""
     NAME = "ancient Tcl-only Environment Modules"
-    # Tcl environment modules have no --terse (yet),
+    # ancient Tcl-only Environment Modules have no --terse (yet),
     #   -t must be added after the command ('avail', 'list', etc.)
     TERSE_OPTION = (1, '-t')
     COMMAND = 'modulecmd.tcl'
@@ -1253,7 +1253,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
     def set_path_env_var(self, key, paths):
         """Set environment variable with given name to the given list of paths."""
         super(EnvironmentModulesTcl, self).set_path_env_var(key, paths)
-        # for Tcl environment modules, we need to make sure the _modshare env var is kept in sync
+        # for Tcl Environment Modules, we need to make sure the _modshare env var is kept in sync
         setvar('%s_modshare' % key, ':1:'.join(paths), verbose=False)
 
     def run_module(self, *args, **kwargs):
@@ -1317,7 +1317,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
 
 class EnvironmentModules(EnvironmentModulesTcl):
-    """Interface to environment modules 4.0+"""
+    """Interface to Environment Modules 4.0+"""
     NAME = "Environment Modules"
     COMMAND = os.path.join(os.getenv('MODULESHOME', 'MODULESHOME_NOT_DEFINED'), 'libexec', 'modulecmd.tcl')
     COMMAND_ENVIRONMENT = 'MODULES_CMD'
@@ -1786,7 +1786,7 @@ def avail_modules_tools():
 
 def modules_tool(mod_paths=None, testing=False):
     """
-    Return interface to modules tool (environment modules (C, Tcl), or Lmod)
+    Return interface to modules tool (EnvironmentModules, Lmod, ...)
     """
     # get_modules_tool might return none (e.g. if config was not initialized yet)
     modules_tool = get_modules_tool()

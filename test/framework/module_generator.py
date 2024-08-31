@@ -684,7 +684,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # create tiny test Tcl module to make sure that tested modules tools support single-argument swap
         # see https://github.com/easybuilders/easybuild-framework/issues/3396;
-        # this is known to fail with the ancient Tcl-only implementation of environment modules,
+        # this is known to fail with the ancient Tcl-only implementation of Environment Modules,
         # but that's considered to be a non-issue (since this is mostly relevant for Cray systems,
         # which are either using EnvironmentModulesC (3.2.10), EnvironmentModules (4.x) or Lmod...
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl and self.modtool.__class__ != EnvironmentModulesTcl:

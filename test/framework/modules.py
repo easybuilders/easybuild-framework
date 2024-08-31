@@ -460,7 +460,7 @@ class ModulesTest(EnhancedTestCase):
         # if GCC is loaded again, $EBROOTGCC should be set again, and GCC should be listed last
         self.modtool.load(['GCC/6.4.0-2.28'])
 
-        # environment modules v4+ does not reload already loaded modules
+        # Environment Modules v4+ does not reload already loaded modules
         if not isinstance(self.modtool, EnvironmentModules):
             self.assertTrue(os.environ.get('EBROOTGCC'))
 
@@ -1413,7 +1413,7 @@ class ModulesTest(EnhancedTestCase):
         if isinstance(self.modtool, Lmod):
             error_pattern = "Module command '.*load nosuchmoduleavailableanywhere' failed with exit code"
         else:
-            # Tcl implementations exit with 0 even when a non-existing module is loaded...
+            # Environment Modules exits with 0 even when a non-existing module is loaded...
             error_pattern = "Unable to locate a modulefile for 'nosuchmoduleavailableanywhere'"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
 
