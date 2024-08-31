@@ -590,7 +590,8 @@ class ModulesTool(object):
                     self.log.debug("Skipping warning line '%s'", line)
                     continue
 
-                # skip lines that start with 'module-' (like 'module-version'),
+                # skip lines that start with 'module-' (like 'module-version')
+                # that may appear with EnvironmentModulesC or EnvironmentModulesTcl,
                 # see https://github.com/easybuilders/easybuild-framework/issues/3376
                 if line.startswith('module-'):
                     self.log.debug("Skipping line '%s' since it starts with 'module-'", line)

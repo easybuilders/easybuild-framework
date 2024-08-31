@@ -343,12 +343,12 @@ class ModulesTest(EnhancedTestCase):
         easybuild.tools.modules.MODULE_SHOW_CACHE.clear()
         self.assertEqual(self.modtool.exist(['Java/1.8', 'Java/1.8.0_181']), [True, True])
 
-        # mimic more verbose stderr output produced by old Tmod version,
-        # including a warning produced when multiple .modulerc files are being picked up
+        # mimic "module-*" output produced by EnvironmentModulesC or EnvironmentModulesTcl
+        # mimic warning produced by Environment Modules when a symbol is defined multiple times
         # see https://github.com/easybuilders/easybuild-framework/issues/3376
         ml_show_java18_stderr = '\n'.join([
             "module-version    Java/1.8.0_181 1.8",
-            "WARNING: Duplicate version symbol '1.8' found",
+            "WARNING: Symbolic version 'Java/1.8' already defined",
             "module-version  Java/1.8.0_181 1.8",
             "-------------------------------------------------------------------",
             "/modulefiles/lang/Java/1.8.0_181:",

@@ -346,7 +346,7 @@ class ModuleGenerator(object):
 
                 module_version_statement = "module-version %(modname)s %(sym_version)s"
 
-                # for Environment Modules we need to guard the module-version statement,
+                # for EnvironmentModulesC we need to guard the module-version statement,
                 # to avoid "Duplicate version symbol" warning messages where EasyBuild trips over,
                 # which occur because the .modulerc is parsed twice
                 # "module-info version <arg>" returns its argument if that argument is not a symbolic version (yet),
