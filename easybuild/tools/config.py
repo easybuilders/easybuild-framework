@@ -48,7 +48,6 @@ from abc import ABCMeta
 
 from easybuild.base import fancylogger
 from easybuild.base.frozendict import FrozenDictKnownKeys
-from easybuild.framework.easyblock import EASYBUILD_SOURCES_URL
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
 
@@ -121,6 +120,7 @@ DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PR_TARGET_ACCOUNT = 'easybuilders'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
+EASYBUILD_SOURCES_URL = 'https://sources.easybuild.io'
 DEFAULT_EXTRA_SOURCE_URLS = (EASYBUILD_SOURCES_URL,)
 # Filter these CUDA libraries by default from the RPATH sanity check.
 # These are the only four libraries for which the CUDA toolkit ships stubs. By design, one is supposed to build
