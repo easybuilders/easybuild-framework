@@ -284,8 +284,11 @@ class EasyBlockTest(EnhancedTestCase):
         txt = eb.make_module_extend_modpath()
         if module_syntax == 'Tcl':
             regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-            home = r'\[if { \[info exists ::env\(HOME\)\] } { concat \$::env\(HOME\) } '
-            home += r'else { concat "HOME_NOT_DEFINED" } \]'
+            if self.modtool.supports_tcl_getenv:
+                home = r'\[getenv HOME "HOME_NOT_DEFINED"\]'
+            else:
+                home = r'\[if { \[info exists ::env\(HOME\)\] } { concat \$::env\(HOME\) } '
+                home += r'else { concat "HOME_NOT_DEFINED" } \]'
             fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
@@ -327,9 +330,12 @@ class EasyBlockTest(EnhancedTestCase):
         for envvar in list_of_envvars:
             if module_syntax == 'Tcl':
                 regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-                module_envvar = r'\[if \{ \[info exists ::env\(%s\)\] \} ' % envvar
-                module_envvar += r'\{ concat \$::env\(%s\) \} ' % envvar
-                module_envvar += r'else { concat "%s" } \]' % (envvar + '_NOT_DEFINED')
+                if self.modtool.supports_tcl_getenv:
+                    module_envvar = r'\[getenv %s "%s"]' % (envvar, envvar + '_NOT_DEFINED')
+                else:
+                    module_envvar = r'\[if \{ \[info exists ::env\(%s\)\] \} ' % envvar
+                    module_envvar += r'\{ concat \$::env\(%s\) \} ' % envvar
+                    module_envvar += r'else { concat "%s" } \]' % (envvar + '_NOT_DEFINED')
                 fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
                 regexs.extend([
                     # extension for user modules is guarded
