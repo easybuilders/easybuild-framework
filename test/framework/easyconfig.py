@@ -4792,7 +4792,10 @@ class EasyConfigTest(EnhancedTestCase):
             recursive_unload_pat = r'if mode\(\) == "unload" or not \( isloaded\("%(mod)s"\) \) then\n'
             recursive_unload_pat += r'\s*load\("%(mod)s"\)'
         else:
-            guarded_load_pat = r'if { \!\[ is-loaded %(mod)s \] } {\n\s*module load %(mod)s'
+            if self.modtool.supports_safe_auto_load:
+                guarded_load_pat = r'\nmodule load %(mod)s'
+            else:
+                guarded_load_pat = r'if { \!\[ is-loaded %(mod)s \] } {\n\s*module load %(mod)s'
             recursive_unload_pat = r'if { \[ module-info mode remove \] \|\| \!\[ is-loaded %(mod)s \] } {\n'
             recursive_unload_pat += r'\s*module load %(mod)s'
 
@@ -4831,10 +4834,16 @@ class EasyConfigTest(EnhancedTestCase):
             eb_bis.prepare_step()
             eb_bis.make_module_step()
         modtxt = read_file(test_module)
-        fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
-        self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
-        fail_msg = "Pattern '%s' should be found in: %s" % (recursive_unload_regex.pattern, modtxt)
-        self.assertTrue(recursive_unload_regex.search(modtxt), fail_msg)
+        if self.modtool.supports_safe_auto_load:
+            fail_msg = "Pattern '%s' should be found in: %s" % (guarded_load_regex.pattern, modtxt)
+            self.assertTrue(guarded_load_regex.search(modtxt), fail_msg)
+            fail_msg = "Pattern '%s' should not be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+            self.assertFalse(recursive_unload_regex.search(modtxt), fail_msg)
+        else:
+            fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
+            self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
+            fail_msg = "Pattern '%s' should be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+            self.assertTrue(recursive_unload_regex.search(modtxt), fail_msg)
 
         # recursive_mod_unload build option is honored
         update_build_option('recursive_mod_unload', True)
@@ -4844,10 +4853,16 @@ class EasyConfigTest(EnhancedTestCase):
             eb.prepare_step()
             eb.make_module_step()
         modtxt = read_file(test_module)
-        fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
-        self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
-        fail_msg = "Pattern '%s' should be found in: %s" % (recursive_unload_regex.pattern, modtxt)
-        self.assertTrue(recursive_unload_regex.search(modtxt), fail_msg)
+        if self.modtool.supports_safe_auto_load:
+            fail_msg = "Pattern '%s' should be found in: %s" % (guarded_load_regex.pattern, modtxt)
+            self.assertTrue(guarded_load_regex.search(modtxt), fail_msg)
+            fail_msg = "Pattern '%s' should not be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+            self.assertFalse(recursive_unload_regex.search(modtxt), fail_msg)
+        else:
+            fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
+            self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
+            fail_msg = "Pattern '%s' should be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+            self.assertTrue(recursive_unload_regex.search(modtxt), fail_msg)
 
         # disabling via easyconfig parameter works even when recursive_mod_unload build option is enabled
         self.assertTrue(build_option('recursive_mod_unload'))

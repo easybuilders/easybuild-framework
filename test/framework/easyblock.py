@@ -754,21 +754,26 @@ class EasyBlockTest(EnhancedTestCase):
             eb.prepare_step()
 
         if get_module_syntax() == 'Tcl':
-            tc_load = '\n'.join([
-                "if { ![ is-loaded gompi/2018a ] } {",
-                "    module load gompi/2018a",
-                "}",
-            ])
-            fftw_load = '\n'.join([
-                "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
-                "    module load FFTW/3.3.7-gompi-2018a",
-                "}",
-            ])
-            lapack_load = '\n'.join([
-                "if { ![ is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28 ] } {",
-                "    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28",
-                "}",
-            ])
+            if self.modtool.supports_safe_auto_load:
+                tc_load = "module load gompi/2018a"
+                fftw_load = "module load FFTW/3.3.7-gompi-2018a"
+                lapack_load = "module load OpenBLAS/0.2.20-GCC-6.4.0-2.28"
+            else:
+                tc_load = '\n'.join([
+                    "if { ![ is-loaded gompi/2018a ] } {",
+                    "    module load gompi/2018a",
+                    "}",
+                ])
+                fftw_load = '\n'.join([
+                    "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
+                    "    module load FFTW/3.3.7-gompi-2018a",
+                    "}",
+                ])
+                lapack_load = '\n'.join([
+                    "if { ![ is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28 ] } {",
+                    "    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28",
+                    "}",
+                ])
         elif get_module_syntax() == 'Lua':
             tc_load = '\n'.join([
                 'if not ( isloaded("gompi/2018a") ) then',
@@ -798,12 +803,18 @@ class EasyBlockTest(EnhancedTestCase):
         }
 
         if get_module_syntax() == 'Tcl':
-            fftw_load = '\n'.join([
-                "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
-                "    module unload FFTW",
-                "    module load FFTW/3.3.7-gompi-2018a",
-                "}",
-            ])
+            if self.modtool.supports_safe_auto_load:
+                fftw_load = '\n'.join([
+                    "module unload FFTW",
+                    "module load FFTW/3.3.7-gompi-2018a",
+                ])
+            else:
+                fftw_load = '\n'.join([
+                    "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
+                    "    module unload FFTW",
+                    "    module load FFTW/3.3.7-gompi-2018a",
+                    "}",
+                ])
         elif get_module_syntax() == 'Lua':
             fftw_load = '\n'.join([
                 'if not ( isloaded("FFTW/3.3.7-gompi-2018a") ) then',
