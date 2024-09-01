@@ -1317,14 +1317,14 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
             self.set_mod_paths()
 
 
-class EnvironmentModules(EnvironmentModulesTcl):
+class EnvironmentModules(ModulesTool):
     """Interface to Environment Modules 4.0+"""
     NAME = "Environment Modules"
     COMMAND = os.path.join(os.getenv('MODULESHOME', 'MODULESHOME_NOT_DEFINED'), 'libexec', 'modulecmd.tcl')
     COMMAND_ENVIRONMENT = 'MODULES_CMD'
     REQ_VERSION = '4.0.0'
     REQ_VERSION_TCL_GETENV = '4.2.0'
-    DEPR_VERSION = '4.0.0'  # needs to be set as EnvironmentModules inherits from EnvironmentModulesTcl
+    DEPR_VERSION = '4.0.0'
     MAX_VERSION = None
     REQ_VERSION_TCL_CHECK_GROUP = '4.6.0'
     REQ_VERSION_SAFE_AUTO_LOAD = '4.2.4'
@@ -1420,13 +1420,34 @@ class EnvironmentModules(EnvironmentModulesTcl):
         # - line starts with 'setenv'
         # - whitespace (spaces & tabs) around variable name
         # - curly braces around value if it contain spaces
-        value = super(EnvironmentModules, self).get_setenv_value_from_modulefile(mod_name=mod_name,
-                                                                                 var_name=var_name)
+        regex = re.compile(r'^setenv\s+%s\s+(?P<value>.+)' % var_name, re.M)
+        value = self.get_value_from_modulefile(mod_name, regex, strict=False)
 
         if value:
-            value = value.strip('{}')
+            value = value.strip(' {}')
 
         return value
+
+    def remove_module_path(self, path, set_mod_paths=True):
+        """
+        Remove specified module path (using 'module unuse').
+
+        :param path: path to remove from $MODULEPATH via 'unuse'
+        :param set_mod_paths: (re)set self.mod_paths
+        """
+        # remove module path via 'module use' and make sure self.mod_paths is synced
+        # Environment Modules <5.0 keeps track of how often a path was added via 'module use',
+        # so we need to check to make sure it's really removed
+        path = normalize_path(path)
+        while True:
+            try:
+                # Unuse the path that is actually present in the environment
+                module_path = next(p for p in curr_module_paths() if normalize_path(p) == path)
+            except StopIteration:
+                break
+            self.unuse(module_path)
+        if set_mod_paths:
+            self.set_mod_paths()
 
     def update(self):
         """Update after new modules were added."""

@@ -122,10 +122,10 @@ class ModulesTest(EnhancedTestCase):
             error_pattern = "Module command '.*thisdoesnotmakesense' failed with exit code [1-9]"
             self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'thisdoesnotmakesense')
 
-            # we need to use a different error pattern here with EnvironmentModulesC,
+            # we need to use a different error pattern here with Environment Modules,
             # because a load of a non-existing module doesnt' trigger a non-zero exit code...
             # it will still fail though, just differently
-            if isinstance(self.modtool, EnvironmentModulesC):
+            if isinstance(self.modtool, EnvironmentModulesC) or isinstance(self.modtool, EnvironmentModules):
                 error_pattern = "Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
             else:
                 error_pattern = "Module command '.*load nosuchmodule/1.2.3' failed with exit code [1-9]"
@@ -213,10 +213,8 @@ class ModulesTest(EnhancedTestCase):
         # test modules include 3 GCC modules and one GCCcore module
         ms = self.modtool.available('GCC')
         expected = ['GCC/12.3.0', 'GCC/4.6.3', 'GCC/4.6.4', 'GCC/6.4.0-2.28', 'GCC/7.3.0-2.30']
-        # Tcl-only modules tool does an exact match on module name, Lmod & Tcl/C do prefix matching
-        # EnvironmentModules is a subclass of EnvironmentModulesTcl, but Modules 4+ behaves similarly to Tcl/C impl.,
-        # so also append GCCcore/6.2.0 if we are an instance of EnvironmentModules
-        if not isinstance(self.modtool, EnvironmentModulesTcl) or isinstance(self.modtool, EnvironmentModules):
+        # ancient Tcl-only Environment Modules tool does an exact match on module name, others do prefix matching
+        if not isinstance(self.modtool, EnvironmentModulesTcl):
             expected.extend(['GCCcore/12.3.0', 'GCCcore/6.2.0'])
         self.assertEqual(ms, expected)
 

@@ -236,8 +236,9 @@ class ModulesToolTest(EnhancedTestCase):
             # pass (fake) full path to 'modulecmd.tcl' via $MODULES_CMD
             fake_path = os.path.join(self.test_installpath, 'libexec', 'modulecmd.tcl')
             fake_modulecmd_txt = '\n'.join([
-                'puts stderr {Modules Release 5.3.1+unload-188-g14b6b59b (2023-10-21)}',
-                "puts {os.environ['FOO'] = 'foo'}",
+                '#!/bin/bash',
+                'echo "Modules Release 5.3.1+unload-188-g14b6b59b (2023-10-21)" >&2',
+                'echo "os.environ[\'FOO\'] = \'foo\'"',
             ])
             write_file(fake_path, fake_modulecmd_txt)
             os.chmod(fake_path, stat.S_IRUSR | stat.S_IXUSR)
