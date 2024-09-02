@@ -1456,7 +1456,7 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ec_txt)
 
-        error_pattern = r"shell command 'unzip \.\.\.' failed in extensions step for test.eb"
+        error_pattern = r"shell command 'unzip \.\.\.' failed with exit code 9 in extensions step for test.eb"
         with self.mocked_stdout_stderr():
             # for now, we expect subprocess.CalledProcessError, but eventually 'run' function will
             # do proper error reporting
