@@ -1760,7 +1760,8 @@ class EasyBlock(object):
             if isinstance(ext, str):
                 exts_list.append((resolve_template(ext, self.cfg.template_values), ))
             else:
-                exts_list.append((resolve_template(ext[0], self.cfg.template_values), ext[1]))
+                exts_list.append((resolve_template(ext[0], self.cfg.template_values),
+                                  resolve_template(ext[1], self.cfg.template_values)))
         return exts_list
 
     def make_extension_string(self, name_version_sep='-', ext_sep=', ', sort=True):
@@ -3939,7 +3940,7 @@ class EasyBlock(object):
         """Update the the easyconfig template dictionary with easyconfig.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP names"""
 
         for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-            self.cfg.template_values[name[0]] = str(getattr(self, name[0], None))
+            self.cfg.template_values[name] = str(getattr(self, name, None))
         self.cfg.generate_template_values()
 
     def skip_step(self, step, skippable):
