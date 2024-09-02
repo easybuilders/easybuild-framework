@@ -1923,16 +1923,20 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                 modname = modulepath.replace('easybuild.easyblocks.', '')
                 error_re = re.compile(r"No module named '?.*/?%s'?" % modname)
                 _log.debug("error regexp for ImportError on '%s' easyblock: %s", modname, error_re.pattern)
-                if error_re.match(str(err)) and error_on_missing_easyblock:
-                    raise EasyBuildError(
-                        "No software-specific easyblock '%s' found for %s", class_name, name,
-                        exit_code=EasyBuildExit.MISS_EASYBLOCK
-                    )
-                if error_on_failed_import:
-                    raise EasyBuildError(
-                        "Failed to import %s easyblock: %s", class_name, err,
-                        exit_code=EasyBuildExit.EASYBLOCK_ERROR
-                    )
+                if error_re.match(str(err)):
+                    # Missing easyblock type of error
+                    if error_on_missing_easyblock:
+                        raise EasyBuildError(
+                            "No software-specific easyblock '%s' found for %s", class_name, name,
+                            exit_code=EasyBuildExit.MISS_EASYBLOCK
+                        ) from err
+                else:
+                    # Broken import
+                    if error_on_failed_import:
+                        raise EasyBuildError(
+                            "Failed to import %s easyblock: %s", class_name, err,
+                            exit_code=EasyBuildExit.EASYBLOCK_ERROR
+                        ) from err
                 _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
 
         if cls is not None:
