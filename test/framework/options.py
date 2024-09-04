@@ -5497,7 +5497,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # which might trip up the dependency resolution (see #4298)
         for ec in ('toy-0.0.eb', 'toy-0.0-deps.eb'):
             args = [ec, '--fetch']
-            stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
+            stdout, _ = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
 
             patterns = [
                 r"^== fetching files\.\.\.$",
@@ -5509,6 +5509,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             regex = re.compile(r"^== creating build dir, resetting environment\.\.\.$")
             self.assertFalse(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        # --fetch should also verify the checksums
+        tmpdir = tempfile.mkdtemp(prefix='easybuild-sources')
+        write_file(os.path.join(tmpdir, 'toy-0.0.tar.gz'), 'Make checksum check fail')
+        args = ['--sourcepath=%s:%s' % (tmpdir, self.test_sourcepath), '--fetch', 'toy-0.0.eb']
+        with self.mocked_stdout_stderr():
+            pattern = 'Checksum verification for .*/toy-0.0.tar.gz .*failed'
+            self.assertErrorRegex(EasyBuildError, pattern, self.eb_main, args, do_build=True, raise_error=True)
+            # We can avoid that failure by ignoring the checksums
+            args.append('--ignore-checksums')
+            self.eb_main(args, do_build=True, raise_error=True)
 
     def test_parse_external_modules_metadata(self):
         """Test parse_external_modules_metadata function."""
