@@ -216,8 +216,8 @@ class EasyBuildOptions(GeneralOption):
     if 'XDG_CONFIG_DIRS' not in os.environ:
         old_etc_location = os.path.join('/etc', 'easybuild.d')
         if os.path.isdir(old_etc_location) and glob.glob(os.path.join(old_etc_location, '*.cfg')):
-            _log.deprecated(f"Using {old_etc_location} is deprecated. Please use /etc/xdg/easybuild.d "
-                                "instead or add /etc to XDG_CONFIG_DIRS", '6.0')
+            _log.deprecated(f"Using {old_etc_location} is deprecated. Please use "
+                            "/etc/xdg/easybuild.d instead or add /etc to XDG_CONFIG_DIRS", '6.0')
 
     if os.path.exists(DEFAULT_USER_CFGFILE):
         DEFAULT_CONFIGFILES.append(DEFAULT_USER_CFGFILE)
