@@ -4101,7 +4101,7 @@ class EasyBlock(object):
         Build and install this software.
         run_test_cases (bool): run tests after building (e.g.: make test)
         """
-        if self.cfg['stop'] and self.cfg['stop'] == 'cfg':
+        if self.cfg['stop'] == 'cfg':
             return True
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
