@@ -284,8 +284,11 @@ class EasyBlockTest(EnhancedTestCase):
         txt = eb.make_module_extend_modpath()
         if module_syntax == 'Tcl':
             regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-            home = r'\[if { \[info exists ::env\(HOME\)\] } { concat \$::env\(HOME\) } '
-            home += r'else { concat "HOME_NOT_DEFINED" } \]'
+            if self.modtool.supports_tcl_getenv:
+                home = r'\[getenv HOME "HOME_NOT_DEFINED"\]'
+            else:
+                home = r'\[if { \[info exists ::env\(HOME\)\] } { concat \$::env\(HOME\) } '
+                home += r'else { concat "HOME_NOT_DEFINED" } \]'
             fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
@@ -327,9 +330,12 @@ class EasyBlockTest(EnhancedTestCase):
         for envvar in list_of_envvars:
             if module_syntax == 'Tcl':
                 regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-                module_envvar = r'\[if \{ \[info exists ::env\(%s\)\] \} ' % envvar
-                module_envvar += r'\{ concat \$::env\(%s\) \} ' % envvar
-                module_envvar += r'else { concat "%s" } \]' % (envvar + '_NOT_DEFINED')
+                if self.modtool.supports_tcl_getenv:
+                    module_envvar = r'\[getenv %s "%s"]' % (envvar, envvar + '_NOT_DEFINED')
+                else:
+                    module_envvar = r'\[if \{ \[info exists ::env\(%s\)\] \} ' % envvar
+                    module_envvar += r'\{ concat \$::env\(%s\) \} ' % envvar
+                    module_envvar += r'else { concat "%s" } \]' % (envvar + '_NOT_DEFINED')
                 fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
                 regexs.extend([
                     # extension for user modules is guarded
@@ -754,21 +760,26 @@ class EasyBlockTest(EnhancedTestCase):
             eb.prepare_step()
 
         if get_module_syntax() == 'Tcl':
-            tc_load = '\n'.join([
-                "if { ![ is-loaded gompi/2018a ] } {",
-                "    module load gompi/2018a",
-                "}",
-            ])
-            fftw_load = '\n'.join([
-                "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
-                "    module load FFTW/3.3.7-gompi-2018a",
-                "}",
-            ])
-            lapack_load = '\n'.join([
-                "if { ![ is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28 ] } {",
-                "    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28",
-                "}",
-            ])
+            if self.modtool.supports_safe_auto_load:
+                tc_load = "module load gompi/2018a"
+                fftw_load = "module load FFTW/3.3.7-gompi-2018a"
+                lapack_load = "module load OpenBLAS/0.2.20-GCC-6.4.0-2.28"
+            else:
+                tc_load = '\n'.join([
+                    "if { ![ is-loaded gompi/2018a ] } {",
+                    "    module load gompi/2018a",
+                    "}",
+                ])
+                fftw_load = '\n'.join([
+                    "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
+                    "    module load FFTW/3.3.7-gompi-2018a",
+                    "}",
+                ])
+                lapack_load = '\n'.join([
+                    "if { ![ is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28 ] } {",
+                    "    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28",
+                    "}",
+                ])
         elif get_module_syntax() == 'Lua':
             tc_load = '\n'.join([
                 'if not ( isloaded("gompi/2018a") ) then',
@@ -798,12 +809,18 @@ class EasyBlockTest(EnhancedTestCase):
         }
 
         if get_module_syntax() == 'Tcl':
-            fftw_load = '\n'.join([
-                "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
-                "    module unload FFTW",
-                "    module load FFTW/3.3.7-gompi-2018a",
-                "}",
-            ])
+            if self.modtool.supports_safe_auto_load:
+                fftw_load = '\n'.join([
+                    "module unload FFTW",
+                    "module load FFTW/3.3.7-gompi-2018a",
+                ])
+            else:
+                fftw_load = '\n'.join([
+                    "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
+                    "    module unload FFTW",
+                    "    module load FFTW/3.3.7-gompi-2018a",
+                    "}",
+                ])
         elif get_module_syntax() == 'Lua':
             fftw_load = '\n'.join([
                 'if not ( isloaded("FFTW/3.3.7-gompi-2018a") ) then',
