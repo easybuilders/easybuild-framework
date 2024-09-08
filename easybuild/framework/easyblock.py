@@ -4202,7 +4202,7 @@ def persists_failed_compilation_log_and_artifacts(success, application_log, sile
         # there may be multiple log files, or the file name may be different due to zipping
         logs = glob.glob('%s*' % application_log)
         print_msg(
-            "Results of the build can be found in the log file(s) %s" % ', '.join(logs),
+            "Results of the build can be found in the temporary log file(s) %s" % ', '.join(logs),
             log=_log,
             silent=silent
         )
