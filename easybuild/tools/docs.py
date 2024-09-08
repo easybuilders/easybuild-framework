@@ -789,7 +789,7 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
         if isinstance(ec, dict):
             template_values = template_constant_dict(ec)
             for key in keys:
-                if '%(' in info[key]:
+                if info[key] and '%(' in info[key]:
                     try:
                         info[key] = info[key] % template_values
                     except (KeyError, TypeError, ValueError) as err:
