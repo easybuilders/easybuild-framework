@@ -735,7 +735,7 @@ def container_path():
 
 def get_modules_tool():
     """
-    Return modules tool (EnvironmentModulesC, Lmod, ...)
+    Return modules tool (EnvironmentModules, Lmod, ...)
     """
     # 'modules_tool' key will only be present if EasyBuild config is initialized
     return ConfigurationVariables().get('modules_tool', None)

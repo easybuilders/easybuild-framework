@@ -346,7 +346,7 @@ class ModuleGenerator(object):
 
                 module_version_statement = "module-version %(modname)s %(sym_version)s"
 
-                # for Environment Modules we need to guard the module-version statement,
+                # for EnvironmentModulesC we need to guard the module-version statement,
                 # to avoid "Duplicate version symbol" warning messages where EasyBuild trips over,
                 # which occur because the .modulerc is parsed twice
                 # "module-info version <arg>" returns its argument if that argument is not a symbolic version (yet),
@@ -1018,7 +1018,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
     def set_as_default(self, module_dir_path, module_version, mod_symlink_paths=None):
         """
-        Create a .version file inside the package module folder in order to set the default version for TMod
+        Create a .version file inside the package module folder in order to set the default version
 
         :param module_dir_path: module directory path, e.g. $HOME/easybuild/modules/all/Bison
         :param module_version: module version, e.g. 3.0.4
