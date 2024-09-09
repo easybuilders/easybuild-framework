@@ -107,6 +107,7 @@ import types
 from optparse import OptionParser, Option
 from pprint import pformat
 
+from easybuild.tools.filetools import get_cwd
 from easybuild.tools.utilities import shell_quote
 
 debugfn = None  # for debugging only
@@ -512,14 +513,15 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
             if option:
                 if option.nargs > 0:
                     optarg = True
-                    if hasattr(option, 'completer'):
+                    try:
                         completer = option.completer
-                    elif option.choices:
-                        completer = ListCompleter(option.choices)
-                    elif option.type in ('string',):
-                        completer = opt_completer
-                    else:
-                        completer = NoneCompleter()
+                    except AttributeError:
+                        if option.choices:
+                            completer = ListCompleter(option.choices)
+                        elif option.type in ('string',):
+                            completer = opt_completer
+                        else:
+                            completer = NoneCompleter()
                 # Warn user at least, it could help him figure out the problem.
                 elif hasattr(option, 'completer'):
                     msg = "Error: optparse option with a completer does not take arguments: %s" % (option)
@@ -536,7 +538,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
         # Note: this will get filtered properly below.
 
     completer_kwargs = {
-        'pwd': os.getcwd(),
+        'pwd': get_cwd(),
         'cline': cline,
         'cpoint': cpoint,
         'prefix': prefix,
@@ -615,11 +617,9 @@ class CmdComplete(object):
     def autocomplete(self, completer=None):
         parser = OPTIONPARSER_CLASS(self.__doc__.strip())
         if hasattr(self, 'addopts'):
-            fnc = getattr(self, 'addopts')
-            fnc(parser)
+            self.addopts(parser)
 
-        if hasattr(self, 'completer'):
-            completer = getattr(self, 'completer')
+        completer = getattr(self, 'completer', completer)
 
         return autocomplete(parser, completer)
 

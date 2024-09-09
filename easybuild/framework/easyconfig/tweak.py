@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -323,7 +323,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
                     newval = "%s + %s" % (fval, res.group('val'))
                     _log.debug("Prepending %s to %s" % (fval, key))
                 else:
-                    newval = "%s" % fval
+                    newval = str(fval)
                     _log.debug("Overwriting %s with %s" % (key, fval))
                 ectxt = regexp.sub("%s = %s" % (res.group('key'), newval), ectxt)
                 _log.info("Tweaked %s list to '%s'" % (key, newval))
@@ -1236,7 +1236,7 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
         (highest_version_ignoring_versionsuffix is not None and highest_version is not None and
          LooseVersion(highest_version_ignoring_versionsuffix) > LooseVersion(highest_version))
 
-    exclude_alternate_versionsuffixes = False
+    exclude_alternative_versionsuffixes = False
     if ignored_versionsuffix_greater:
         if ignore_versionsuffixes:
             highest_version = highest_version_ignoring_versionsuffix
@@ -1247,11 +1247,11 @@ def find_potential_version_mappings(dep, toolchain_mapping, versionsuffix_mappin
                     dep['name'], versionsuffix, [d['path'] for d in potential_version_mappings if
                                                  d['version'] == highest_version_ignoring_versionsuffix])
             # exclude candidates with a different versionsuffix
-            exclude_alternate_versionsuffixes = True
+            exclude_alternative_versionsuffixes = True
     else:
         # If the other version suffixes are not greater, then just ignore them
-        exclude_alternate_versionsuffixes = True
-    if exclude_alternate_versionsuffixes:
+        exclude_alternative_versionsuffixes = True
+    if exclude_alternative_versionsuffixes:
         potential_version_mappings = [d for d in potential_version_mappings if d['versionsuffix'] == versionsuffix]
 
     if highest_versions_only and highest_version is not None:

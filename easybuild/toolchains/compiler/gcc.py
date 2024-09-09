@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -78,6 +78,15 @@ class Gcc(Compiler):
         COMPILER_UNIQUE_OPTION_MAP['strict'] = no_recip_alternative
         COMPILER_UNIQUE_OPTION_MAP['precise'] = no_recip_alternative
 
+    # gcc on RISC-V does not support -mno-recip, -mieee-fp, -mfno-math-errno...
+    # https://gcc.gnu.org/onlinedocs/gcc/RISC-V-Options.html
+    # there are no good alternatives, so stick to the default flags
+    if systemtools.get_cpu_family() == systemtools.RISCV:
+        COMPILER_UNIQUE_OPTION_MAP['strict'] = []
+        COMPILER_UNIQUE_OPTION_MAP['precise'] = []
+        COMPILER_UNIQUE_OPTION_MAP['loose'] = ['fno-math-errno']
+        COMPILER_UNIQUE_OPTION_MAP['verloose'] = ['fno-math-errno']
+
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
         (systemtools.AARCH32, systemtools.ARM): 'mcpu=native',  # implies -march=native and -mtune=native
@@ -94,6 +103,7 @@ class Gcc(Compiler):
         (systemtools.AARCH64, systemtools.ARM): 'mcpu=generic',       # implies -march=armv8-a and -mtune=generic
         (systemtools.POWER, systemtools.POWER): 'mcpu=powerpc64',    # no support for -march on POWER
         (systemtools.POWER, systemtools.POWER_LE): 'mcpu=powerpc64le',    # no support for -march on POWER
+        (systemtools.RISCV64, systemtools.RISCV): 'march=rv64gc -mabi=lp64d',  # default for -mabi is system-dependent
         (systemtools.X86_64, systemtools.AMD): 'march=x86-64 -mtune=generic',
         (systemtools.X86_64, systemtools.INTEL): 'march=x86-64 -mtune=generic',
     }

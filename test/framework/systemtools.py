@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -341,7 +341,7 @@ def mocked_run_shell_cmd(cmd, **kwargs):
     }
     if cmd in known_cmds:
         return RunShellCmdResult(cmd=cmd, exit_code=0, output=known_cmds[cmd], stderr=None, work_dir=os.getcwd(),
-                                 out_file=None, err_file=None)
+                                 out_file=None, err_file=None, thread_id=None, task_id=None)
     else:
         return run_shell_cmd(cmd, **kwargs)
 
@@ -370,10 +370,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.orig_HAVE_ARCHSPEC = st.HAVE_ARCHSPEC
         self.orig_HAVE_DISTRO = st.HAVE_DISTRO
         self.orig_ETC_OS_RELEASE = st.ETC_OS_RELEASE
-        if hasattr(st, 'archspec_cpu_host'):
-            self.orig_archspec_cpu_host = st.archspec_cpu_host
-        else:
-            self.orig_archspec_cpu_host = None
+        self.orig_archspec_cpu_host = getattr(st, 'archspec_cpu_host', None)
 
     def tearDown(self):
         """Cleanup after systemtools test."""
@@ -777,7 +774,7 @@ class SystemToolsTest(EnhancedTestCase):
         out = "Apple LLVM version 7.0.0 (clang-700.1.76)"
         cwd = os.getcwd()
         mocked_run_res = RunShellCmdResult(cmd="gcc --version", exit_code=0, output=out, stderr=None, work_dir=cwd,
-                                           out_file=None, err_file=None)
+                                           out_file=None, err_file=None, thread_id=None, task_id=None)
         st.run_shell_cmd = lambda *args, **kwargs: mocked_run_res
         self.assertEqual(get_gcc_version(), None)
 
@@ -1036,15 +1033,15 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(check_linked_shared_libs(txt_path), None)
         self.assertEqual(check_linked_shared_libs(broken_symlink_path), None)
 
-        bin_ls_path = which('ls')
+        bin_bash_path = which('bash')
 
         os_type = get_os_type()
         if os_type == LINUX:
             with self.mocked_stdout_stderr():
-                res = run_shell_cmd("ldd %s" % bin_ls_path)
+                res = run_shell_cmd("ldd %s" % bin_bash_path)
         elif os_type == DARWIN:
             with self.mocked_stdout_stderr():
-                res = run_shell_cmd("otool -L %s" % bin_ls_path)
+                res = run_shell_cmd("otool -L %s" % bin_bash_path)
         else:
             raise EasyBuildError("Unknown OS type: %s" % os_type)
 
@@ -1064,7 +1061,7 @@ class SystemToolsTest(EnhancedTestCase):
             self.assertEqual(check_linked_shared_libs(self.test_prefix, **pattern_named_args), None)
             self.assertEqual(check_linked_shared_libs(txt_path, **pattern_named_args), None)
             self.assertEqual(check_linked_shared_libs(broken_symlink_path, **pattern_named_args), None)
-            for path in (bin_ls_path, lib_path):
+            for path in (bin_bash_path, lib_path):
                 # path may not exist, especially for library paths obtained via 'otool -L' on macOS
                 if os.path.exists(path):
                     error_msg = "Check on linked libs should pass for %s with %s" % (path, pattern_named_args)
@@ -1081,7 +1078,7 @@ class SystemToolsTest(EnhancedTestCase):
             self.assertEqual(check_linked_shared_libs(self.test_prefix, **pattern_named_args), None)
             self.assertEqual(check_linked_shared_libs(txt_path, **pattern_named_args), None)
             self.assertEqual(check_linked_shared_libs(broken_symlink_path, **pattern_named_args), None)
-            for path in (bin_ls_path, lib_path):
+            for path in (bin_bash_path, lib_path):
                 error_msg = "Check on linked libs should fail for %s with %s" % (path, pattern_named_args)
                 self.assertFalse(check_linked_shared_libs(path, **pattern_named_args), error_msg)
 

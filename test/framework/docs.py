@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -59,6 +59,10 @@ LIST_EASYBLOCKS_SIMPLE_TXT = """EasyBlock
 |-- EB_toy_buggy
 |-- ExtensionEasyBlock
 |   |-- DummyExtension
+|   |   |-- CustomDummyExtension
+|   |   |   |-- ChildCustomDummyExtension
+|   |   |-- DeprecatedDummyExtension
+|   |   |   |-- ChildDeprecatedDummyExtension
 |   |-- EB_toy
 |   |   |-- EB_toy_eula
 |   |   |-- EB_toytoy
@@ -69,10 +73,14 @@ LIST_EASYBLOCKS_SIMPLE_TXT = """EasyBlock
 Extension
 |-- ExtensionEasyBlock
 |   |-- DummyExtension
+|   |   |-- CustomDummyExtension
+|   |   |   |-- ChildCustomDummyExtension
+|   |   |-- DeprecatedDummyExtension
+|   |   |   |-- ChildDeprecatedDummyExtension
 |   |-- EB_toy
 |   |   |-- EB_toy_eula
 |   |   |-- EB_toytoy
-|   |-- Toy_Extension"""
+|   |-- Toy_Extension"""  # noqa
 
 LIST_EASYBLOCKS_DETAILED_TXT = """EasyBlock (easybuild.framework.easyblock)
 |-- bar (easybuild.easyblocks.generic.bar @ %(topdir)s/generic/bar.py)
@@ -91,6 +99,10 @@ LIST_EASYBLOCKS_DETAILED_TXT = """EasyBlock (easybuild.framework.easyblock)
 |-- EB_toy_buggy (easybuild.easyblocks.toy_buggy @ %(topdir)s/t/toy_buggy.py)
 |-- ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
 |   |-- DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+|   |   |-- CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ %(topdir)s/generic/customdummyextension.py)
+|   |   |   |-- ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ %(topdir)s/generic/childcustomdummyextension.py)
+|   |   |-- DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
+|   |   |   |-- ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
 |   |-- EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
 |   |   |-- EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
 |   |   |-- EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
@@ -101,10 +113,14 @@ LIST_EASYBLOCKS_DETAILED_TXT = """EasyBlock (easybuild.framework.easyblock)
 Extension (easybuild.framework.extension)
 |-- ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
 |   |-- DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+|   |   |-- CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ %(topdir)s/generic/customdummyextension.py)
+|   |   |   |-- ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ %(topdir)s/generic/childcustomdummyextension.py)
+|   |   |-- DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
+|   |   |   |-- ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
 |   |-- EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
 |   |   |-- EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
 |   |   |-- EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
-|   |-- Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)"""
+|   |-- Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)"""  # noqa
 
 LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
 
@@ -129,6 +145,16 @@ LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
   * ExtensionEasyBlock
 
     * DummyExtension
+
+      * CustomDummyExtension
+
+        * ChildCustomDummyExtension
+
+      * DeprecatedDummyExtension
+
+        * ChildDeprecatedDummyExtension
+
+
     * EB_toy
 
       * EB_toy_eula
@@ -145,6 +171,16 @@ LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
   * ExtensionEasyBlock
 
     * DummyExtension
+
+      * CustomDummyExtension
+
+        * ChildCustomDummyExtension
+
+      * DeprecatedDummyExtension
+
+        * ChildDeprecatedDummyExtension
+
+
     * EB_toy
 
       * EB_toy_eula
@@ -152,7 +188,7 @@ LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
 
     * Toy_Extension
 
-"""
+"""  # noqa
 
 LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock)
 
@@ -177,6 +213,16 @@ LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock
   * ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
 
     * DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+
+      * CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ %(topdir)s/generic/customdummyextension.py)
+
+        * ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ %(topdir)s/generic/childcustomdummyextension.py)
+
+      * DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
+
+        * ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
+
+
     * EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
 
       * EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
@@ -193,6 +239,16 @@ LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock
   * ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
 
     * DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+
+      * CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ %(topdir)s/generic/customdummyextension.py)
+
+        * ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ %(topdir)s/generic/childcustomdummyextension.py)
+
+      * DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
+
+        * ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
+
+
     * EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
 
       * EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
@@ -200,7 +256,7 @@ LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock
 
     * Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)
 
-"""
+"""  # noqa
 
 LIST_EASYBLOCKS_SIMPLE_MD = """- **EasyBlock**
   - bar
@@ -219,6 +275,10 @@ LIST_EASYBLOCKS_SIMPLE_MD = """- **EasyBlock**
   - EB_toy_buggy
   - ExtensionEasyBlock
     - DummyExtension
+      - CustomDummyExtension
+        - ChildCustomDummyExtension
+      - DeprecatedDummyExtension
+        - ChildDeprecatedDummyExtension
     - EB_toy
       - EB_toy_eula
       - EB_toytoy
@@ -229,10 +289,14 @@ LIST_EASYBLOCKS_SIMPLE_MD = """- **EasyBlock**
 - **Extension**
   - ExtensionEasyBlock
     - DummyExtension
+      - CustomDummyExtension
+        - ChildCustomDummyExtension
+      - DeprecatedDummyExtension
+        - ChildDeprecatedDummyExtension
     - EB_toy
       - EB_toy_eula
       - EB_toytoy
-    - Toy_Extension"""
+    - Toy_Extension"""  # noqa
 
 LIST_EASYBLOCKS_DETAILED_MD = """- **EasyBlock** (easybuild.framework.easyblock)
   - bar (easybuild.easyblocks.generic.bar @ %(topdir)s/generic/bar.py)
@@ -251,6 +315,10 @@ LIST_EASYBLOCKS_DETAILED_MD = """- **EasyBlock** (easybuild.framework.easyblock)
   - EB_toy_buggy (easybuild.easyblocks.toy_buggy @ %(topdir)s/t/toy_buggy.py)
   - ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
     - DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+      - CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ %(topdir)s/generic/customdummyextension.py)
+        - ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ %(topdir)s/generic/childcustomdummyextension.py)
+      - DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
+        - ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
     - EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
       - EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
       - EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
@@ -261,14 +329,18 @@ LIST_EASYBLOCKS_DETAILED_MD = """- **EasyBlock** (easybuild.framework.easyblock)
 - **Extension** (easybuild.framework.extension)
   - ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
     - DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+      - CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ %(topdir)s/generic/customdummyextension.py)
+        - ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ %(topdir)s/generic/childcustomdummyextension.py)
+      - DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
+        - ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
     - EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
       - EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
       - EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
-    - Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)"""
+    - Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)"""  # noqa
 
 LIST_SOFTWARE_SIMPLE_TXT = """
 * GCC
-* gzip"""
+* gzip"""  # noqa
 
 GCC_DESCR = "The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada, "
 GCC_DESCR += "as well as libraries for these languages (libstdc++, libgcj,...)."
@@ -291,7 +363,7 @@ homepage: http://www.gzip.org/
 
   * gzip v1.4: GCC/4.6.3, system
   * gzip v1.5: foss/2018a, intel/2018a
-""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}  # noqa
 
 LIST_SOFTWARE_SIMPLE_RST = """List of supported software
 ==========================
@@ -307,7 +379,7 @@ EasyBuild |version| supports 2 different software packages (incl. toolchains, bu
 ---
 
 * GCC
-* gzip"""
+* gzip"""  # noqa
 
 LIST_SOFTWARE_DETAILED_RST = """List of supported software
 ==========================
@@ -357,7 +429,7 @@ version    toolchain
 ``1.4``    ``GCC/4.6.3``, ``system``
 ``1.5``    ``foss/2018a``, ``intel/2018a``
 =======    ===============================
-""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}  # noqa
 
 LIST_SOFTWARE_SIMPLE_MD = """# List of supported software
 
@@ -369,7 +441,7 @@ EasyBuild supports 2 different software packages (incl. toolchains, bundles):
 ## G
 
 * GCC
-* gzip"""
+* gzip"""  # noqa
 
 LIST_SOFTWARE_DETAILED_MD = """# List of supported software
 
@@ -403,7 +475,7 @@ version  |toolchain
 version|toolchain
 -------|-------------------------------
 ``1.4``|``GCC/4.6.3``, ``system``
-``1.5``|``foss/2018a``, ``intel/2018a``""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+``1.5``|``foss/2018a``, ``intel/2018a``""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}  # noqa
 
 LIST_SOFTWARE_SIMPLE_MD = """# List of supported software
 
@@ -415,7 +487,7 @@ EasyBuild supports 2 different software packages (incl. toolchains, bundles):
 ## G
 
 * GCC
-* gzip"""
+* gzip"""  # noqa
 
 LIST_SOFTWARE_DETAILED_MD = """# List of supported software
 
@@ -449,7 +521,7 @@ version  |toolchain
 version|toolchain
 -------|-------------------------------
 ``1.4``|``GCC/4.6.3``, ``system``
-``1.5``|``foss/2018a``, ``intel/2018a``""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+``1.5``|``foss/2018a``, ``intel/2018a``""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}  # noqa
 
 LIST_SOFTWARE_SIMPLE_JSON = """[
 {
@@ -458,7 +530,7 @@ LIST_SOFTWARE_SIMPLE_JSON = """[
 {
     "name": "gzip"
 }
-]"""
+]"""  # noqa
 
 LIST_SOFTWARE_DETAILED_JSON = """[
 {
@@ -501,7 +573,7 @@ LIST_SOFTWARE_DETAILED_JSON = """[
     "version": "1.5",
     "versionsuffix": ""
 }
-]""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+]""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}  # noqa
 
 
 class DocsTest(EnhancedTestCase):
@@ -513,8 +585,20 @@ class DocsTest(EnhancedTestCase):
         # result should correspond with test easyblocks in test/framework/sandbox/easybuild/easyblocks/generic
         eb_classes = get_easyblock_classes('easybuild.easyblocks.generic')
         eb_names = [x.__name__ for x in eb_classes]
-        expected = ['ConfigureMake', 'DummyExtension', 'MakeCp', 'ModuleRC',
-                    'PythonBundle', 'Toolchain', 'Toy_Extension', 'bar']
+        expected = [
+            'ChildCustomDummyExtension',
+            'ChildDeprecatedDummyExtension',
+            'ConfigureMake',
+            'CustomDummyExtension',
+            'DeprecatedDummyExtension',
+            'DummyExtension',
+            'MakeCp',
+            'ModuleRC',
+            'PythonBundle',
+            'Toolchain',
+            'Toy_Extension',
+            'bar',
+        ]
         self.assertEqual(sorted(eb_names), expected)
 
     def test_gen_easyblocks_overview(self):

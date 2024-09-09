@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -221,6 +221,7 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_env_vars',
         'filter_rpath_sanity_libs',
         'force_download',
+        'from_commit',
         'git_working_dirs_path',
         'github_user',
         'github_org',
@@ -230,6 +231,7 @@ BUILD_OPTIONS_CMDLINE = {
         'http_header_fields_urlpat',
         'hooks',
         'ignore_dirs',
+        'include_easyblocks_from_commit',
         'insecure_download',
         'job_backend_config',
         'job_cores',
@@ -258,6 +260,7 @@ BUILD_OPTIONS_CMDLINE = {
         'rpath_override_dirs',
         'required_linked_shared_libs',
         'skip',
+        'software_commit',
         'stop',
         'subdir_user_modules',
         'sysroot',
@@ -275,9 +278,11 @@ BUILD_OPTIONS_CMDLINE = {
         'debug',
         'debug_lmod',
         'dump_autopep8',
+        'dump_env_script',
         'enforce_checksums',
         'experimental',
         'extended_dry_run',
+        'fail_on_mod_files_gcccore',
         'force',
         'generate_devel_module',
         'group_writable_installdir',
@@ -289,7 +294,6 @@ BUILD_OPTIONS_CMDLINE = {
         'install_latest_eb_release',
         'logtostdout',
         'minimal_toolchains',
-        'module_extensions',
         'module_only',
         'package',
         'parallel_extensions_install',
@@ -306,6 +310,7 @@ BUILD_OPTIONS_CMDLINE = {
         'skip_test_cases',
         'skip_test_step',
         'sticky_bit',
+        'terse',
         'unit_testing_mode',
         'upload_test_report',
         'update_modules_tool_cache',
@@ -324,6 +329,7 @@ BUILD_OPTIONS_CMDLINE = {
         'lib64_fallback_sanity_check',
         'lib64_lib_symlink',
         'map_toolchains',
+        'module_extensions',
         'modules_tool_version_check',
         'mpi_tests',
         'pre_create_installdir',
@@ -402,7 +408,7 @@ BUILD_OPTIONS_OTHER = {
         'build_specs',
         'command_line',
         'external_modules_metadata',
-        'pr_paths',
+        'extra_ec_paths',
         'robot_path',
         'valid_module_classes',
         'valid_stops',
@@ -569,7 +575,7 @@ def init_build_options(build_options=None, cmdline_options=None):
             cmdline_options.ignore_osdeps = True
 
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]
-        active_build_options.update(dict([(key, getattr(cmdline_options, key)) for key in cmdline_build_option_names]))
+        active_build_options.update({key: getattr(cmdline_options, key) for key in cmdline_build_option_names})
         # other options which can be derived but have no perfectly matching cmdline option
         active_build_options.update({
             'check_osdeps': not cmdline_options.ignore_osdeps,
@@ -587,12 +593,12 @@ def init_build_options(build_options=None, cmdline_options=None):
     # seed in defaults to make sure all build options are defined, and that build_option() doesn't fail on valid keys
     bo = {}
     for build_options_by_default in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER]:
-        for default in build_options_by_default:
+        for default, options in build_options_by_default.items():
             if default == EMPTY_LIST:
-                for opt in build_options_by_default[default]:
+                for opt in options:
                     bo[opt] = []
             else:
-                bo.update(dict([(opt, default) for opt in build_options_by_default[default]]))
+                bo.update({opt: default for opt in options})
     bo.update(active_build_options)
 
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
@@ -729,7 +735,7 @@ def container_path():
 
 def get_modules_tool():
     """
-    Return modules tool (EnvironmentModulesC, Lmod, ...)
+    Return modules tool (EnvironmentModules, Lmod, ...)
     """
     # 'modules_tool' key will only be present if EasyBuild config is initialized
     return ConfigurationVariables().get('modules_tool', None)

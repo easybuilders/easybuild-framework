@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -55,11 +55,16 @@ CURRENT_VERSION = VERSION
 # allow some experimental experimental code
 EXPERIMENTAL = False
 
-DEPRECATED_DOC_URL = 'http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html'
+DEPRECATED_DOC_URL = 'https://docs.easybuild.io/deprecated-functionality/'
 
 DRY_RUN_BUILD_DIR = None
 DRY_RUN_SOFTWARE_INSTALL_DIR = None
 DRY_RUN_MODULES_INSTALL_DIR = None
+
+CWD_NOTFOUND_ERROR = (
+    "Current working directory does not exist! It was either unexpectedly removed "
+    "by an external process to EasyBuild or the filesystem is misbehaving."
+)
 
 
 DEVEL_LOG_LEVEL = logging.DEBUG - 1

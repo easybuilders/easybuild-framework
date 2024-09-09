@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,10 +40,9 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.repository.filerepo import FileRepository
 from easybuild.tools.repository.gitrepo import GitRepository
-from easybuild.tools.repository.hgrepo import HgRepository
 from easybuild.tools.repository.svnrepo import SvnRepository
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.version import VERSION
 
 
@@ -95,10 +94,10 @@ class RepositoryTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp()
         cmd = "cd %s && git clone --bare %s" % (tmpdir, test_repo_url)
         with self.mocked_stdout_stderr():
-            _, ec = run_cmd(cmd, simple=False, log_all=False, log_ok=False)
+            res = run_shell_cmd(cmd, fail_on_error=False)
 
         # skip remainder of test if creating bare git repo didn't work
-        if ec == 0:
+        if res.exit_code == 0:
             repo = GitRepository(os.path.join(tmpdir, 'testrepository.git'))
             repo.init()
             toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
@@ -127,27 +126,6 @@ class RepositoryTest(EnhancedTestCase):
         repo = SvnRepository(test_repo_url)
         repo.init()
         self.assertExists(os.path.join(repo.wc, 'trunk', 'README.md'))
-        shutil.rmtree(repo.wc)
-
-    # this test is disabled because it fails in Travis as a result of bitbucket disabling TLS 1.0/1.1
-    # we can consider re-enabling it when moving to a more recent Ubuntu version in the Travis config
-    # (which implies dropping support for Python 2.6)
-    # cfr. https://github.com/easybuilders/easybuild-framework/pull/2678
-    def DISABLED_test_hgrepo(self):
-        """Test using HgRepository."""
-        # only run this test if pysvn Python module is available
-        try:
-            import hglib  # noqa
-        except ImportError:
-            print("(skipping HgRepository test)")
-            return
-
-        # GitHub also supports SVN
-        test_repo_url = 'https://kehoste@bitbucket.org/kehoste/testrepository'
-
-        repo = HgRepository(test_repo_url)
-        repo.init()
-        self.assertExists(os.path.join(repo.wc, 'README'))
         shutil.rmtree(repo.wc)
 
     def test_init_repository(self):

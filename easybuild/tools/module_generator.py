@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -58,7 +58,7 @@ def avail_module_generators():
     """
     Return all known module syntaxes.
     """
-    return dict([(k.SYNTAX, k) for k in get_subclasses(ModuleGenerator)])
+    return {k.SYNTAX: k for k in get_subclasses(ModuleGenerator)}
 
 
 def module_generator(app, fake=False):
@@ -346,7 +346,7 @@ class ModuleGenerator(object):
 
                 module_version_statement = "module-version %(modname)s %(sym_version)s"
 
-                # for Environment Modules we need to guard the module-version statement,
+                # for EnvironmentModulesC we need to guard the module-version statement,
                 # to avoid "Duplicate version symbol" warning messages where EasyBuild trips over,
                 # which occur because the .modulerc is parsed twice
                 # "module-info version <arg>" returns its argument if that argument is not a symbolic version (yet),
@@ -757,8 +757,18 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param group: string with the group name
         :param error_msg: error message to print for users outside that group
         """
-        self.log.warning("Can't generate robust check in TCL modules for users belonging to group %s.", group)
-        return ''
+        if self.modules_tool.supports_tcl_check_group:
+            if error_msg is None:
+                error_msg = "You are not part of '%s' group of users that have access to this software; " % group
+                error_msg += "Please consult with user support how to become a member of this group"
+
+            error_msg = 'error "%s"' % error_msg
+            res = self.conditional_statement('module-info usergroups %s' % group, error_msg, negative=True)
+        else:
+            self.log.warning("Can't generate robust check in Tcl modules for users belonging to group %s.", group)
+            res = ''
+
+        return res
 
     def comment(self, msg):
         """Return string containing given message as a comment."""
@@ -816,19 +826,20 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Generate a description.
         """
-        txt = '\n'.join([
+        lines = [
             "proc ModulesHelp { } {",
             "    puts stderr {%s" % re.sub(r'([{}\[\]])', r'\\\1', self._generate_help_text()),
             "    }",
             '}',
             '',
+        ]
+
+        lines.extend([
+            "module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', line)
+            for line in self._generate_whatis_lines()
         ])
 
-        lines = [
-            '%(whatis_lines)s',
-            '',
-            "set root %(installdir)s",
-        ]
+        lines.extend(['', "set root " + self.app.installdir])
 
         if self.app.cfg['moduleloadnoconflict']:
             cond_unload = self.conditional_statement(self.is_loaded('%(name)s'), "module unload %(name)s")
@@ -845,31 +856,26 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        whatis_lines = [
-            "module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', line)
-            for line in self._generate_whatis_lines()
-        ]
-        txt += '\n'.join([''] + lines + ['']) % {
-            'name': self.app.name,
-            'version': self.app.version,
-            'whatis_lines': '\n'.join(whatis_lines),
-            'installdir': self.app.installdir,
-        }
-
-        return txt
+        return '\n'.join(lines + [''])
 
     def getenv_cmd(self, envvar, default=None):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
         if default is None:
-            cmd = '$::env(%s)' % envvar
+            if self.modules_tool.supports_tcl_getenv:
+                cmd = '[getenv %s]' % envvar
+            else:
+                cmd = '$::env(%s)' % envvar
         else:
-            values = {
-                'default': default,
-                'envvar': '::env(%s)' % envvar,
-            }
-            cmd = '[if { [info exists %(envvar)s] } { concat $%(envvar)s } else { concat "%(default)s" } ]' % values
+            if self.modules_tool.supports_tcl_getenv:
+                cmd = '[getenv %s "%s"]' % (envvar, default)
+            else:
+                values = {
+                    'default': default,
+                    'envvar': '::env(%s)' % envvar,
+                }
+                cmd = '[if { [info exists %(envvar)s] } { concat $%(envvar)s } else { concat "%(default)s" } ]' % values
         return cmd
 
     def load_module(self, mod_name, recursive_unload=None, depends_on=False, unload_modules=None, multi_dep_mods=None):
@@ -899,8 +905,13 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         cond_tmpl = None
 
+        # Environment Modules v4+ safely handles automatic module load by not reloading already
+        # loaded module. No safe guard test is required and it should even be avoided to get the
+        # module dependency correctly tracked.
+        safe_auto_load = self.modules_tool.supports_safe_auto_load
+
         if recursive_unload is None:
-            recursive_unload = build_option('recursive_mod_unload') or depends_on
+            recursive_unload = build_option('recursive_mod_unload') or depends_on or safe_auto_load
 
         if recursive_unload:
             # wrapping the 'module load' statement with an 'is-loaded or mode == unload'
@@ -911,7 +922,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # see also http://lmod.readthedocs.io/en/latest/210_load_storms.html
             cond_tmpl = "[ module-info mode remove ] || %s"
 
-        if depends_on:
+        if depends_on or safe_auto_load:
             if multi_dep_mods and len(multi_dep_mods) > 1:
                 parent_mod_name = os.path.dirname(mod_name)
                 guard = self.is_loaded(multi_dep_mods[1:])
@@ -1007,7 +1018,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
     def set_as_default(self, module_dir_path, module_version, mod_symlink_paths=None):
         """
-        Create a .version file inside the package module folder in order to set the default version for TMod
+        Create a .version file inside the package module folder in order to set the default version
 
         :param module_dir_path: module directory path, e.g. $HOME/easybuild/modules/all/Bison
         :param module_version: module version, e.g. 3.0.4
@@ -1180,21 +1191,12 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param group: string with the group name
         :param error_msg: error message to print for users outside that group
         """
-        lmod_version = self.modules_tool.version
-        min_lmod_version = '6.0.8'
+        if error_msg is None:
+            error_msg = "You are not part of '%s' group of users that have access to this software; " % group
+            error_msg += "Please consult with user support how to become a member of this group"
 
-        if LooseVersion(lmod_version) >= LooseVersion(min_lmod_version):
-            if error_msg is None:
-                error_msg = "You are not part of '%s' group of users that have access to this software; " % group
-                error_msg += "Please consult with user support how to become a member of this group"
-
-            error_msg = 'LmodError("' + error_msg + '")'
-            res = self.conditional_statement('userInGroup("%s")' % group, error_msg, negative=True)
-        else:
-            warn_msg = "Can't generate robust check in Lua modules for users belonging to group %s. "
-            warn_msg += "Lmod version not recent enough (%s), should be >= %s"
-            self.log.warning(warn_msg, group, lmod_version, min_lmod_version)
-            res = ''
+        error_msg = 'LmodError("' + error_msg + '")'
+        res = self.conditional_statement('userInGroup("%s")' % group, error_msg, negative=True)
 
         return res
 
@@ -1261,17 +1263,16 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Generate a description.
         """
-        txt = '\n'.join([
+        lines = [
             'help(%s%s' % (self.START_STR, self.check_str(self._generate_help_text())),
             '%s)' % self.END_STR,
             '',
-        ])
-
-        lines = [
-            "%(whatis_lines)s",
-            '',
-            'local root = "%(installdir)s"',
         ]
+
+        for line in self._generate_whatis_lines():
+            lines.append("whatis(%s%s%s)" % (self.START_STR, self.check_str(line), self.END_STR))
+
+        lines.extend(['', 'local root = "%s"' % self.app.installdir])
 
         if self.app.cfg['moduleloadnoconflict']:
             self.log.info("Nothing to do to ensure no conflicts can occur on load when using Lua modules files/Lmod")
@@ -1280,29 +1281,17 @@ class ModuleGeneratorLua(ModuleGenerator):
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
 
-        whatis_lines = []
-        for line in self._generate_whatis_lines():
-            whatis_lines.append("whatis(%s%s%s)" % (self.START_STR, self.check_str(line), self.END_STR))
-
         if build_option('module_extensions'):
             extensions_list = self._generate_extensions_list()
 
             if extensions_list:
-                extensions_stmt = 'extensions("%s")' % ','.join(['%s' % x for x in extensions_list])
+                extensions_stmt = 'extensions("%s")' % ','.join([str(x) for x in extensions_list])
                 # put this behind a Lmod version check as 'extensions' is only (well) supported since Lmod 8.2.8,
                 # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions and
                 # https://github.com/TACC/Lmod/issues/428
                 lines.extend(['', self.conditional_statement(self.check_version("8", "2", "8"), extensions_stmt)])
 
-        txt += '\n'.join([''] + lines + ['']) % {
-            'name': self.app.name,
-            'version': self.app.version,
-            'whatis_lines': '\n'.join(whatis_lines),
-            'installdir': self.app.installdir,
-            'homepage': self.app.cfg['homepage'],
-        }
-
-        return txt
+        return '\n'.join(lines + [''])
 
     def getenv_cmd(self, envvar, default=None):
         """

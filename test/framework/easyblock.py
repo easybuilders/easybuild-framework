@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -284,8 +284,11 @@ class EasyBlockTest(EnhancedTestCase):
         txt = eb.make_module_extend_modpath()
         if module_syntax == 'Tcl':
             regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-            home = r'\[if { \[info exists ::env\(HOME\)\] } { concat \$::env\(HOME\) } '
-            home += r'else { concat "HOME_NOT_DEFINED" } \]'
+            if self.modtool.supports_tcl_getenv:
+                home = r'\[getenv HOME "HOME_NOT_DEFINED"\]'
+            else:
+                home = r'\[if { \[info exists ::env\(HOME\)\] } { concat \$::env\(HOME\) } '
+                home += r'else { concat "HOME_NOT_DEFINED" } \]'
             fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
@@ -310,7 +313,7 @@ class EasyBlockTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
-        # Repeat this but using an alternate envvars (instead of $HOME)
+        # Repeat this but using an alternative envvars (instead of $HOME)
         list_of_envvars = ['SITE_INSTALLS', 'USER_INSTALLS']
 
         build_options = {
@@ -327,9 +330,12 @@ class EasyBlockTest(EnhancedTestCase):
         for envvar in list_of_envvars:
             if module_syntax == 'Tcl':
                 regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-                module_envvar = r'\[if \{ \[info exists ::env\(%s\)\] \} ' % envvar
-                module_envvar += r'\{ concat \$::env\(%s\) \} ' % envvar
-                module_envvar += r'else { concat "%s" } \]' % (envvar + '_NOT_DEFINED')
+                if self.modtool.supports_tcl_getenv:
+                    module_envvar = r'\[getenv %s "%s"]' % (envvar, envvar + '_NOT_DEFINED')
+                else:
+                    module_envvar = r'\[if \{ \[info exists ::env\(%s\)\] \} ' % envvar
+                    module_envvar += r'\{ concat \$::env\(%s\) \} ' % envvar
+                    module_envvar += r'else { concat "%s" } \]' % (envvar + '_NOT_DEFINED')
                 fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
                 regexs.extend([
                     # extension for user modules is guarded
@@ -643,6 +649,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # also check how absolute paths specified in modexself.contents = '\n'.join([
         self.contents += "\nmodextrapaths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
+        self.contents += "\nmodextrapaths_append = {'TEST_PATH_VAR_APPEND': ['foo', '/test/absolute/path', 'bar']}"
         self.writeEC()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
@@ -656,6 +663,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # allow use of absolute paths, and verify contents of module
         self.contents += "\nallow_prepend_abs_path = True"
+        self.contents += "\nallow_append_abs_path = True"
         self.writeEC()
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
@@ -675,6 +683,9 @@ class EasyBlockTest(EnhancedTestCase):
             r"^prepend[-_]path.*TEST_PATH_VAR.*root.*foo",
             r"^prepend[-_]path.*TEST_PATH_VAR.*/test/absolute/path",
             r"^prepend[-_]path.*TEST_PATH_VAR.*root.*bar",
+            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*root.*foo",
+            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*/test/absolute/path",
+            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*root.*bar",
         ]
         for pattern in patterns:
             self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
@@ -749,21 +760,26 @@ class EasyBlockTest(EnhancedTestCase):
             eb.prepare_step()
 
         if get_module_syntax() == 'Tcl':
-            tc_load = '\n'.join([
-                "if { ![ is-loaded gompi/2018a ] } {",
-                "    module load gompi/2018a",
-                "}",
-            ])
-            fftw_load = '\n'.join([
-                "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
-                "    module load FFTW/3.3.7-gompi-2018a",
-                "}",
-            ])
-            lapack_load = '\n'.join([
-                "if { ![ is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28 ] } {",
-                "    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28",
-                "}",
-            ])
+            if self.modtool.supports_safe_auto_load:
+                tc_load = "module load gompi/2018a"
+                fftw_load = "module load FFTW/3.3.7-gompi-2018a"
+                lapack_load = "module load OpenBLAS/0.2.20-GCC-6.4.0-2.28"
+            else:
+                tc_load = '\n'.join([
+                    "if { ![ is-loaded gompi/2018a ] } {",
+                    "    module load gompi/2018a",
+                    "}",
+                ])
+                fftw_load = '\n'.join([
+                    "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
+                    "    module load FFTW/3.3.7-gompi-2018a",
+                    "}",
+                ])
+                lapack_load = '\n'.join([
+                    "if { ![ is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28 ] } {",
+                    "    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28",
+                    "}",
+                ])
         elif get_module_syntax() == 'Lua':
             tc_load = '\n'.join([
                 'if not ( isloaded("gompi/2018a") ) then',
@@ -793,12 +809,18 @@ class EasyBlockTest(EnhancedTestCase):
         }
 
         if get_module_syntax() == 'Tcl':
-            fftw_load = '\n'.join([
-                "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
-                "    module unload FFTW",
-                "    module load FFTW/3.3.7-gompi-2018a",
-                "}",
-            ])
+            if self.modtool.supports_safe_auto_load:
+                fftw_load = '\n'.join([
+                    "module unload FFTW",
+                    "module load FFTW/3.3.7-gompi-2018a",
+                ])
+            else:
+                fftw_load = '\n'.join([
+                    "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
+                    "    module unload FFTW",
+                    "    module load FFTW/3.3.7-gompi-2018a",
+                    "}",
+                ])
         elif get_module_syntax() == 'Lua':
             fftw_load = '\n'.join([
                 'if not ( isloaded("FFTW/3.3.7-gompi-2018a") ) then',
@@ -1033,6 +1055,64 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
+    def test_extensions_step_deprecations(self):
+        """Test extension install with deprecated substeps."""
+        install_substeps = ["pre_install_extension", "install_extension", "post_install_extension"]
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+            'exts_defaultclass = "DummyExtension"',
+            'exts_list = ["ext1"]',
+            'exts_list = [',
+            '    "dummy_ext",',
+            '    ("custom_ext", "0.0", {"easyblock": "CustomDummyExtension"}),',
+            '    ("deprec_ext", "0.0", {"easyblock": "DeprecatedDummyExtension"}),',
+            '    ("childcustom_ext", "0.0", {"easyblock": "ChildCustomDummyExtension"}),',
+            '    ("childdeprec_ext", "0.0", {"easyblock": "ChildDeprecatedDummyExtension"}),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_txt)
+        ec = process_easyconfig(test_ec)[0]
+        eb = get_easyblock_instance(ec)
+        eb.prepare_for_extensions()
+        eb.init_ext_instances()
+
+        # Default DummyExtension without deprecated or custom install substeps
+        ext = eb.ext_instances[0]
+        self.assertEqual(ext.__class__.__name__, "DummyExtension")
+        for substep in install_substeps:
+            self.assertEqual(ext.install_extension_substep(substep), None)
+        # CustomDummyExtension
+        ext = eb.ext_instances[1]
+        self.assertEqual(ext.__class__.__name__, "CustomDummyExtension")
+        for substep in install_substeps:
+            expected_return = f"Extension installed with custom {substep}()"
+            self.assertEqual(ext.install_extension_substep(substep), expected_return)
+        # DeprecatedDummyExtension
+        ext = eb.ext_instances[2]
+        self.assertEqual(ext.__class__.__name__, "DeprecatedDummyExtension")
+        for substep in install_substeps:
+            expected_error = rf"DEPRECATED \(since v6.0\).*use {substep}\(\) instead.*"
+            self.assertErrorRegex(EasyBuildError, expected_error, ext.install_extension_substep, substep)
+        # ChildCustomDummyExtension
+        ext = eb.ext_instances[3]
+        self.assertEqual(ext.__class__.__name__, "ChildCustomDummyExtension")
+        for substep in install_substeps:
+            expected_return = f"Extension installed with custom {substep}()"
+            self.assertEqual(ext.install_extension_substep(substep), expected_return)
+        # ChildDeprecatedDummyExtension
+        ext = eb.ext_instances[4]
+        self.assertEqual(ext.__class__.__name__, "ChildDeprecatedDummyExtension")
+        for substep in install_substeps:
+            expected_error = rf"DEPRECATED \(since v6.0\).*use {substep}\(\) instead.*"
+            self.assertErrorRegex(EasyBuildError, expected_error, ext.install_extension_substep, substep)
+
     def test_init_extensions(self):
         """Test creating extension instances."""
 
@@ -1180,6 +1260,7 @@ class EasyBlockTest(EnhancedTestCase):
             'PATH': ('xbin', 'pibin'),
             'CPATH': 'pi/include',
         }
+        modextrapaths_append = {'APPEND_PATH': 'append_path'}
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
@@ -1193,6 +1274,7 @@ class EasyBlockTest(EnhancedTestCase):
             "hiddendependencies = [('test', '1.2.3'), ('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             "modextravars = %s" % str(modextravars),
             "modextrapaths = %s" % str(modextrapaths),
+            "modextrapaths_append = %s" % str(modextrapaths_append),
         ])
 
         # test if module is generated correctly
@@ -1264,6 +1346,18 @@ class EasyBlockTest(EnhancedTestCase):
                 # Check for duplicates
                 num_prepends = len(regex.findall(txt))
                 self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
+
+        for (key, vals) in modextrapaths_append.items():
+            if isinstance(vals, str):
+                vals = [vals]
+            for val in vals:
+                if get_module_syntax() == 'Tcl':
+                    regex = re.compile(r'^append-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+                elif get_module_syntax() == 'Lua':
+                    regex = re.compile(r'^append_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
+                else:
+                    self.fail("Unknown module syntax: %s" % get_module_syntax())
+                self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('GCC', '6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
@@ -1459,9 +1553,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(eb.src[0]['path'], toy_source))
         self.assertEqual(eb.src[0]['name'], 'toy-0.0.tar.gz')
         self.assertEqual(eb.src[0]['cmd'], None)
-        self.assertEqual(len(eb.src[0]['checksum']), 7)
-        self.assertEqual(eb.src[0]['checksum'][0], 'be662daa971a640e40be5c804d9d7d10')
-        self.assertEqual(eb.src[0]['checksum'][1], '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc')
+        self.assertEqual(len(eb.src[0]['checksum']), 2)
+        self.assertEqual(eb.src[0]['checksum'][0], '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc')
 
         # reconfigure EasyBuild so we can check 'downloaded' sources
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
@@ -1563,7 +1656,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
-        self.assertIn("Download instructions:\n\nManual download from example.com required", stderr)
+        self.assertIn("Download instructions:\n\n    Manual download from example.com required", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # create dummy source file
         write_file(os.path.join(os.path.dirname(self.eb_file), 'software_with_missing_sources-0.0.tar.gz'), '')
@@ -1577,7 +1671,8 @@ class EasyBlockTest(EnhancedTestCase):
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertIn("Download instructions:\n\nManual download from example.com required", stderr)
+        self.assertIn("Download instructions:\n\n    Manual download from example.com required", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # wipe top-level download instructions, try again
         self.contents = self.contents.replace(download_instructions, '')
@@ -1606,7 +1701,8 @@ class EasyBlockTest(EnhancedTestCase):
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertIn("Download instructions:\n\nExtension sources must be downloaded via example.com", stderr)
+        self.assertIn("Download instructions:\n\n    Extension sources must be downloaded via example.com", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # download instructions should also be printed if 'source_tmpl' is used to specify extension sources
         self.contents = self.contents.replace(sources, "'source_tmpl': SOURCE_TAR_GZ,")
@@ -1619,7 +1715,8 @@ class EasyBlockTest(EnhancedTestCase):
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertIn("Download instructions:\n\nExtension sources must be downloaded via example.com", stderr)
+        self.assertIn("Download instructions:\n\n    Extension sources must be downloaded via example.com", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # create dummy source file for extension
         write_file(os.path.join(os.path.dirname(self.eb_file), 'ext_with_missing_sources-0.0.tar.gz'), '')
@@ -1665,7 +1762,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.patches[1]['level'], 4)
         self.assertEqual(eb.patches[2]['name'], toy_patch)
         self.assertEqual(eb.patches[2]['sourcepath'], 'foobar')
-        self.assertEqual(eb.patches[3]['name'], 'toy-0.0.tar.gz'),
+        self.assertEqual(eb.patches[3]['name'], 'toy-0.0.tar.gz')
         self.assertEqual(eb.patches[3]['copy'], 'some/path')
         self.assertEqual(eb.patches[4]['name'], toy_patch)
         self.assertEqual(eb.patches[4]['level'], 0)
@@ -1733,7 +1830,7 @@ class EasyBlockTest(EnhancedTestCase):
             res = eb.obtain_file(toy_tarball)
         self.assertEqual(res, toy_tarball_path)
 
-        # finding a file in the alternate location works
+        # finding a file in the alternative location works
         with self.mocked_stdout_stderr():
             res = eb.obtain_file(toy_tarball, alt_location='alt_toy')
         self.assertEqual(res, alt_toy_tarball_path)
@@ -2082,7 +2179,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.silent = True
         error_pattern = r"Sanity check failed: extensions sanity check failed for 1 extensions: toy\n"
         error_pattern += r"failing sanity check for 'toy' extension: "
-        error_pattern += r'command "thisshouldfail" failed; output:\n/bin/bash:.* thisshouldfail: command not found'
+        error_pattern += r'command "thisshouldfail" failed; output:\n.* thisshouldfail: command not found'
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, eb.run_all_steps, True)
 
@@ -2104,7 +2201,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         handle, toy_ec1 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
-        write_file(toy_ec1, toytxt + "\nparallel = 123")
+        write_file(toy_ec1, toytxt + "\nparallel = 13")
 
         handle, toy_ec2 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
@@ -2122,7 +2219,7 @@ class EasyBlockTest(EnhancedTestCase):
         # only 'parallel' easyconfig parameter specified (no 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec1))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 123)
+        self.assertEqual(test_eb.cfg['parallel'], 13)
 
         # both 'parallel' and 'maxparallel' easyconfig parameters specified (no 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec2))
@@ -2135,20 +2232,20 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(test_eb.cfg['parallel'], False)
 
         # only 'parallel' build option specified
-        init_config(build_options={'parallel': '97', 'validate': False})
+        init_config(build_options={'parallel': '9', 'validate': False})
         test_eb = EasyBlock(EasyConfig(toy_ec))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 97)
+        self.assertEqual(test_eb.cfg['parallel'], 9)
 
         # both 'parallel' build option and easyconfig parameter specified (no 'maxparallel')
         test_eb = EasyBlock(EasyConfig(toy_ec1))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 97)
+        self.assertEqual(test_eb.cfg['parallel'], 9)
 
         # both 'parallel' and 'maxparallel' easyconfig parameters specified + 'parallel' build option
         test_eb = EasyBlock(EasyConfig(toy_ec2))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 67)
+        self.assertEqual(test_eb.cfg['parallel'], 9)
 
         # make sure 'parallel = False' is not overriden (with 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec3))
@@ -2199,18 +2296,25 @@ class EasyBlockTest(EnhancedTestCase):
         cwd = os.getcwd()
         self.assertExists(cwd)
 
-        def check_ext_start_dir(expected_start_dir, unpack_src=True):
+        def check_ext_start_dir(expected_start_dir, unpack_src=True, parent_startdir=None):
             """Check start dir."""
             # make sure we're in an existing directory at the start
             change_dir(cwd)
+
             eb = EasyBlock(ec['ec'])
+            if not os.path.exists(eb.builddir):
+                eb.make_builddir()  # Required to exist for samefile
+            eb.cfg['start_dir'] = parent_startdir
+
             eb.extensions_step(fetch=True, install=False)
             # extract sources of the extension
             ext = eb.ext_instances[-1]
-            ext.run(unpack_src=unpack_src)
+            ext.install_extension(unpack_src=unpack_src)
 
             if expected_start_dir is None:
                 self.assertIsNone(ext.start_dir)
+                # Without a start dir we don't change the CWD
+                self.assertEqual(os.getcwd(), cwd)
             else:
                 self.assertTrue(os.path.isabs(ext.start_dir))
                 if ext.start_dir != os.sep:
@@ -2220,14 +2324,8 @@ class EasyBlockTest(EnhancedTestCase):
                 else:
                     abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
                 self.assertEqual(ext.start_dir, abs_expected_start_dir)
-                if not os.path.exists(eb.builddir):
-                    eb.make_builddir()  # Required to exist for samefile
                 self.assertTrue(os.path.samefile(ext.start_dir, abs_expected_start_dir))
-            if unpack_src:
                 self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
-            else:
-                # When not unpacking we don't change the CWD
-                self.assertEqual(os.getcwd(), cwd)
             remove_dir(eb.builddir)
 
         ec['ec']['exts_defaultclass'] = 'DummyExtension'
@@ -2256,11 +2354,8 @@ class EasyBlockTest(EnhancedTestCase):
                 'start_dir': 'nonexistingdir'}),
         ]
         with self.mocked_stdout_stderr():
-            err_pattern = "Failed to change from .*barbar/barbar-0.0 to nonexistingdir.*"
+            err_pattern = r"Provided start dir \(nonexistingdir\) for extension barbar does not exist:.*"
             self.assertErrorRegex(EasyBuildError, err_pattern, check_ext_start_dir, 'whatever')
-            stderr = self.get_stderr()
-        warning_pattern = "WARNING: Provided start dir (nonexistingdir) for extension barbar does not exist"
-        self.assertIn(warning_pattern, stderr)
 
         # No error when using relative path in non-extracted source for some reason
         ec['ec']['exts_list'] = [
@@ -2288,6 +2383,15 @@ class EasyBlockTest(EnhancedTestCase):
         ]
         with self.mocked_stdout_stderr():
             check_ext_start_dir(os.sep, unpack_src=False)
+            self.assertFalse(self.get_stderr())
+
+        # Go to ECs start dir if nosource is used
+        ec['ec']['exts_list'] = [
+            ('barbar', '0.0', {
+                'nosource': True}),
+        ]
+        with self.mocked_stdout_stderr():
+            check_ext_start_dir(self.test_prefix, parent_startdir=self.test_prefix)
             self.assertFalse(self.get_stderr())
 
     def test_prepare_step(self):
@@ -2485,8 +2589,8 @@ class EasyBlockTest(EnhancedTestCase):
         copy_file(toy_ec, self.test_prefix)
         toy_ec = os.path.join(self.test_prefix, os.path.basename(toy_ec))
         ectxt = read_file(toy_ec)
-        # replace MD5 checksum for toy-0.0.tar.gz
-        ectxt = ectxt.replace('be662daa971a640e40be5c804d9d7d10', '00112233445566778899aabbccddeeff')
+        # replace SHA256 checksum for toy-0.0.tar.gz
+        ectxt = ectxt.replace('44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc', '76543210' * 8)
         # replace SHA256 checksums for source of bar extension
         ectxt = ectxt.replace('f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7', '01234567' * 8)
         write_file(toy_ec, ectxt)
@@ -2576,7 +2680,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertEqual(stdout, '')
-        self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz")
+        self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz\n\n\n"
+                                         "WARNING: Ignoring failing checksum verification for toy-0.0.tar.gz")
 
     def test_check_checksums(self):
         """Test for check_checksums_for and check_checksums methods."""
@@ -2632,10 +2737,10 @@ class EasyBlockTest(EnhancedTestCase):
         # no checksum issues
         self.assertEqual(eb.check_checksums(), [])
 
-        # tuple of two alternate SHA256 checksums: OK
+        # tuple of two alternative SHA256 checksums: OK
         eb.cfg['checksums'] = [
             (
-                # two alternate checksums for toy-0.0.tar.gz
+                # two alternative checksums for toy-0.0.tar.gz
                 'a2848f34fcd5d6cf47def00461fcb528a0484d8edef8208d6d2e2909dc61d9cd',
                 '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
             ),

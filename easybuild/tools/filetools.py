@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -62,7 +62,7 @@ import urllib.request as std_urllib
 
 from easybuild.base import fancylogger
 # import build_log must stay, to use of EasyBuildLog
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildError, CWD_NOTFOUND_ERROR, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN, build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.hooks import load_source
@@ -121,13 +121,25 @@ PATH_INDEX_FILENAME = '.eb-path-index'
 
 CHECKSUM_TYPE_MD5 = 'md5'
 CHECKSUM_TYPE_SHA256 = 'sha256'
-DEFAULT_CHECKSUM = CHECKSUM_TYPE_MD5
+DEFAULT_CHECKSUM = CHECKSUM_TYPE_SHA256
+
+
+def _hashlib_md5():
+    """
+    Wrapper function for hashlib.md5,
+    to set usedforsecurity to False when supported (Python >= 3.9)
+    """
+    kwargs = {}
+    if sys.version_info[0] >= 3 and sys.version_info[1] >= 9:
+        kwargs = {'usedforsecurity': False}
+    return hashlib.md5(**kwargs)
+
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
     'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
     'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
-    CHECKSUM_TYPE_MD5: lambda p: calc_block_checksum(p, hashlib.md5()),
+    CHECKSUM_TYPE_MD5: lambda p: calc_block_checksum(p, _hashlib_md5()),
     'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
     CHECKSUM_TYPE_SHA256: lambda p: calc_block_checksum(p, hashlib.sha256()),
     'sha512': lambda p: calc_block_checksum(p, hashlib.sha512()),
@@ -162,7 +174,7 @@ EXTRACT_CMDS = {
     # tar.Z: using compress (LZW), but can be handled with gzip so use 'z'
     '.tar.z': "tar xzf %(filepath)s",
     # shell scripts don't need to be unpacked, just copy there
-    '.sh': "cp -a %(filepath)s .",
+    '.sh': "cp -dR %(filepath)s .",
 }
 
 ZIPPED_PATCH_EXTS = ('.bz2', '.gz', '.xz')
@@ -407,6 +419,22 @@ def remove(paths):
             raise EasyBuildError("Specified path to remove is not an existing file or directory: %s", path)
 
 
+def get_cwd(must_exist=True):
+    """
+    Retrieve current working directory
+    """
+    try:
+        cwd = os.getcwd()
+    except FileNotFoundError as err:
+        if must_exist is True:
+            raise EasyBuildError(CWD_NOTFOUND_ERROR)
+
+        _log.debug("Failed to determine current working directory, but proceeding anyway: %s", err)
+        cwd = None
+
+    return cwd
+
+
 def change_dir(path):
     """
     Change to directory at specified location.
@@ -414,19 +442,19 @@ def change_dir(path):
     :param path: location to change to
     :return: previous location we were in
     """
-    # determining the current working directory can fail if we're in a non-existing directory
-    try:
-        cwd = os.getcwd()
-    except OSError as err:
-        _log.debug("Failed to determine current working directory (but proceeding anyway: %s", err)
-        cwd = None
+    # determine origin working directory: can fail if non-existent
+    prev_dir = get_cwd(must_exist=False)
 
     try:
         os.chdir(path)
     except OSError as err:
-        raise EasyBuildError("Failed to change from %s to %s: %s", cwd, path, err)
+        raise EasyBuildError("Failed to change from %s to %s: %s", prev_dir, path, err)
 
-    return cwd
+    # determine final working directory: must exist
+    # stoplight meant to catch filesystems in a faulty state
+    get_cwd()
+
+    return prev_dir
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False, change_into_dir=False,
@@ -570,11 +598,11 @@ def normalize_path(path):
 
 
 def is_alt_pypi_url(url):
-    """Determine whether specified URL is already an alternate PyPI URL, i.e. whether it contains a hash."""
+    """Determine whether specified URL is already an alternative PyPI URL, i.e. whether it contains a hash."""
     # example: .../packages/5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
     alt_url_regex = re.compile('/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/[^/]+$')
     res = bool(alt_url_regex.search(url))
-    _log.debug("Checking whether '%s' is an alternate PyPI URL using pattern '%s'...: %s",
+    _log.debug("Checking whether '%s' is an alternative PyPI URL using pattern '%s'...: %s",
                url, alt_url_regex.pattern, res)
     return res
 
@@ -622,7 +650,7 @@ def pypi_source_urls(pkg_name):
 
 
 def derive_alt_pypi_url(url):
-    """Derive alternate PyPI URL for given URL."""
+    """Derive alternative PyPI URL for given URL."""
     alt_pypi_url = None
 
     # example input URL: https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz
@@ -671,9 +699,9 @@ def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_header
         if argline == '' or '#' in argline[0]:
             continue  # permit comment lines: ignore them
 
-        if os.path.isfile(os.path.join(os.getcwd(), argline)):
+        if os.path.isfile(os.path.join(get_cwd(), argline)):
             # expand existing relative path to absolute
-            argline = os.path.join(os.path.join(os.getcwd(), argline))
+            argline = os.path.join(os.path.join(get_cwd(), argline))
         if os.path.isfile(argline):
             # argline is a file path, so read that instead
             _log.debug('File included in parse_http_header_fields_urlpat: %s' % argline)
@@ -954,11 +982,12 @@ def load_index(path, ignore_dirs=None):
         # check whether index is still valid
         if valid_ts:
             curr_ts = datetime.datetime.now()
+            terse = build_option('terse')
             if curr_ts > valid_ts:
-                print_warning("Index for %s is no longer valid (too old), so ignoring it...", path)
+                print_warning("Index for %s is no longer valid (too old), so ignoring it...", path, silent=terse)
                 index = None
             else:
-                print_msg("found valid index for %s, so using it...", path)
+                print_msg("found valid index for %s, so using it...", path, silent=terse)
 
     return index or None
 
@@ -1191,11 +1220,15 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     Compute checksum of specified file.
 
     :param path: Path of file to compute checksum for
-    :param checksum_type: type(s) of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'sha256', 'sha512', 'size')
+    :param checksum_type: type(s) of checksum ('adler32', 'crc32', 'md5', 'sha1', 'sha256', 'sha512', 'size')
     """
     if checksum_type not in CHECKSUM_FUNCTIONS:
         raise EasyBuildError("Unknown checksum type (%s), supported types are: %s",
                              checksum_type, CHECKSUM_FUNCTIONS.keys())
+
+    if checksum_type in ['adler32', 'crc32', 'md5', 'sha1', 'size']:
+        _log.deprecated("Checksum type %s is deprecated. Use sha256 (default) or sha512 instead" % checksum_type,
+                        '6.0')
 
     try:
         checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
@@ -1229,12 +1262,15 @@ def calc_block_checksum(path, algorithm):
     return algorithm.hexdigest()
 
 
-def verify_checksum(path, checksums):
+def verify_checksum(path, checksums, computed_checksums=None):
     """
     Verify checksum of specified file.
 
     :param path: path of file to verify checksum of
-    :param checksums: checksum values (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
+    :param checksums: checksum values (and type, optionally, default is sha256), e.g., 'af314', ('sha', '5ec1b')
+    :param computed_checksums: Optional dictionary of (current) checksum(s) for this file
+                               indexed by the checksum type (e.g. 'sha256').
+                               Each existing entry will be used, missing ones will be computed.
     """
 
     filename = os.path.basename(path)
@@ -1286,12 +1322,18 @@ def verify_checksum(path, checksums):
                 # no matching checksums
                 return False
         else:
-            raise EasyBuildError("Invalid checksum spec '%s': should be a string (MD5 or SHA256), "
+            raise EasyBuildError("Invalid checksum spec '%s': should be a string (SHA256), "
                                  "2-tuple (type, value), or tuple of alternative checksum specs.",
                                  checksum)
 
-        actual_checksum = compute_checksum(path, typ)
-        _log.debug("Computed %s checksum for %s: %s (correct checksum: %s)" % (typ, path, actual_checksum, checksum))
+        if computed_checksums is not None and typ in computed_checksums:
+            actual_checksum = computed_checksums[typ]
+            computed_str = 'Precomputed'
+        else:
+            actual_checksum = compute_checksum(path, typ)
+            computed_str = 'Computed'
+        _log.debug("%s %s checksum for %s: %s (correct checksum: %s)" %
+                   (computed_str, typ, path, actual_checksum, checksum))
 
         if actual_checksum != checksum:
             return False
@@ -1327,14 +1369,14 @@ def find_base_dir():
         # and hidden directories
         ignoredirs = ["easybuild"]
 
-        lst = os.listdir(os.getcwd())
+        lst = os.listdir(get_cwd())
         lst = [d for d in lst if not d.startswith('.') and d not in ignoredirs]
         return lst
 
     lst = get_local_dirs_purged()
-    new_dir = os.getcwd()
+    new_dir = get_cwd()
     while len(lst) == 1:
-        new_dir = os.path.join(os.getcwd(), lst[0])
+        new_dir = os.path.join(get_cwd(), lst[0])
         if not os.path.isdir(new_dir):
             break
 
@@ -2240,7 +2282,7 @@ def det_size(path):
                 if os.path.exists(fullpath):
                     installsize += os.path.getsize(fullpath)
     except OSError as err:
-        _log.warn("Could not determine install size: %s" % err)
+        _log.warning("Could not determine install size: %s" % err)
 
     return installsize
 
@@ -2540,12 +2582,12 @@ def copy(paths, target_path, force_in_dry_run=False, **kwargs):
             raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
 
 
-def get_source_tarball_from_git(filename, targetdir, git_config):
+def get_source_tarball_from_git(filename, target_dir, git_config):
     """
     Downloads a git repository, at a specific tag or commit, recursively or not, and make an archive with it
 
     :param filename: name of the archive to save the code to (must be .tar.gz)
-    :param targetdir: target directory where to save the archive to
+    :param target_dir: target directory where to save the archive to
     :param git_config: dictionary containing url, repo_name, recursive, and one of tag or commit
     """
     # sanity check on git_config value being passed
@@ -2584,8 +2626,7 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         raise EasyBuildError("git_config currently only supports filename ending in .tar.gz")
 
     # prepare target directory and clone repository
-    mkdir(targetdir, parents=True)
-    targetpath = os.path.join(targetdir, filename)
+    mkdir(target_dir, parents=True)
 
     # compose 'git clone' command, and run it
     if extra_config_params:
@@ -2668,17 +2709,36 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
             for cmd in cmds:
                 run_shell_cmd(cmd, work_dir=work_dir, hidden=True, verbose_dry_run=True)
 
-    # create an archive and delete the git repo directory
+    # Create archive
+    archive_path = os.path.join(target_dir, filename)
+
     if keep_git_dir:
-        tar_cmd = ['tar', 'cfvz', targetpath, repo_name]
+        # create archive of git repo including .git directory
+        tar_cmd = ['tar', 'cfvz', archive_path, repo_name]
     else:
-        tar_cmd = ['tar', 'cfvz', targetpath, '--exclude', '.git', repo_name]
+        # create reproducible archive
+        # see https://reproducible-builds.org/docs/archives/
+        tar_cmd = [
+            # print names of all files and folders excluding .git directory
+            'find', repo_name, '-name ".git"', '-prune', '-o', '-print0',
+            # reset access and modification timestamps to epoch 0 (equivalent to --mtime in GNU tar)
+            '-exec', 'touch', '--date=@0', '{}', r'\;',
+            # reset file permissions of cloned repo (equivalent to --mode in GNU tar)
+            '-exec', 'chmod', '"go+u,go-w"', '{}', r'\;', '|',
+            # sort file list (equivalent to --sort in GNU tar)
+            'LC_ALL=C', 'sort', '--zero-terminated', '|',
+            # create tarball in GNU format with ownership and permissions reset
+            'tar', '--create', '--no-recursion', '--owner=0', '--group=0', '--numeric-owner',
+            '--format=gnu', '--null', '--files-from', '-', '|',
+            # compress tarball with gzip without original file name and timestamp
+            'gzip', '--no-name', '>', archive_path
+        ]
     run_shell_cmd(' '.join(tar_cmd), work_dir=tmpdir, hidden=True, verbose_dry_run=True)
 
     # cleanup (repo_name dir does not exist in dry run mode)
     remove(tmpdir)
 
-    return targetpath
+    return archive_path
 
 
 def move_file(path, target_path, force_in_dry_run=False):

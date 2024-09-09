@@ -1,5 +1,5 @@
 ##
-# Copyright 2019-2023 Ghent University
+# Copyright 2019-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,3 +40,10 @@ class SystemCompiler(Compiler):
     """System compiler"""
     COMPILER_MODULE_NAME = []
     COMPILER_FAMILY = TC_CONSTANT_SYSTEM
+
+    # The system compiler does not currently support even the shared options
+    # (changing this would require updating set_minimal_build_env() of the toolchain class)
+    COMPILER_UNIQUE_OPTS = None
+    COMPILER_SHARED_OPTS = None
+    COMPILER_UNIQUE_OPTION_MAP = None
+    COMPILER_SHARED_OPTION_MAP = None

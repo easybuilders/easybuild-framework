@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -60,7 +60,7 @@ OTHER = (9, 'other')
 # we use a tuple here so we can sort them based on the numbers
 CATEGORY_NAMES = ['BUILD', 'CUSTOM', 'DEPENDENCIES', 'EXTENSIONS', 'FILEMANAGEMENT', 'HIDDEN',
                   'LICENSE', 'MANDATORY', 'MODULES', 'OTHER', 'TOOLCHAIN']
-ALL_CATEGORIES = dict((name, eval(name)) for name in CATEGORY_NAMES)
+ALL_CATEGORIES = {name: eval(name) for name in CATEGORY_NAMES}
 
 # List of tuples. Each tuple has the following format (key, [default, help text, category])
 DEFAULT_CONFIG = {
@@ -108,7 +108,8 @@ DEFAULT_CONFIG = {
                        BUILD],
     'hidden': [False, "Install module file as 'hidden' by prefixing its version with '.'", BUILD],
     'installopts': ['', 'Extra options for installation', BUILD],
-    'maxparallel': [None, 'Max degree of parallelism', BUILD],
+    'maxparallel': [16, 'Max degree of parallelism', BUILD],
+    'module_only': [False, 'Only generate module file', BUILD],
     'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
                         'cores, active cpuset and restrictions in ulimit)'), BUILD],
     'patches': [[], "List of patches to apply", BUILD],
@@ -130,6 +131,7 @@ DEFAULT_CONFIG = {
     'sanity_check_paths': [{}, ("List of files and directories to check "
                                 "(format: {'files':<list>, 'dirs':<list>})"), BUILD],
     'skip': [False, "Skip existing software", BUILD],
+    'skip_mod_files_sanity_check': [False, "Skip the check for .mod files in a GCCcore level install", BUILD],
     'skipsteps': [[], "Skip these steps", BUILD],
     'source_urls': [[], "List of URLs for source files", BUILD],
     'sources': [[], "List of source files", BUILD],
@@ -189,10 +191,12 @@ DEFAULT_CONFIG = {
     'exts_list': [[], 'List with extensions added to the base installation', EXTENSIONS],
 
     # MODULES easyconfig parameters
+    'allow_append_abs_path': [False, "Allow specifying absolute paths to append in modextrapaths_append", MODULES],
     'allow_prepend_abs_path': [False, "Allow specifying absolute paths to prepend in modextrapaths", MODULES],
     'include_modpath_extensions': [True, "Include $MODULEPATH extensions specified by module naming scheme.", MODULES],
     'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
+    'modextrapaths_append': [{}, "Extra paths to be appended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
     'modloadmsg': [{}, "Message that should be printed when generated module is loaded", MODULES],
     'modunloadmsg': [{}, "Message that should be printed when generated module is unloaded", MODULES],
