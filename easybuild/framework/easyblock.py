@@ -4038,15 +4038,6 @@ class EasyBlock(object):
             return get_step(READY_STEP, "creating build dir, resetting environment", ready_substeps, False,
                             initial=initial)
 
-        source_substeps = [
-            (False, lambda x: x.checksum_step),
-            (True, lambda x: x.extract_step),
-        ]
-
-        def source_step_spec(initial):
-            """Return source step specified."""
-            return get_step(SOURCE_STEP, "unpacking", source_substeps, True, initial=initial)
-
         install_substeps = [
             (False, lambda x: x.stage_install_step),
             (False, lambda x: x.make_installdir),
@@ -4060,6 +4051,7 @@ class EasyBlock(object):
         # format for step specifications: (step_name, description, list of functions, skippable)
 
         # core steps that are part of the iterated loop
+        extract_step_spec = (SOURCE_STEP, "unpacking", [lambda x: x.extract_step], True)
         patch_step_spec = (PATCH_STEP, 'patching', [lambda x: x.patch_step], True)
         prepare_step_spec = (PREPARE_STEP, 'preparing', [lambda x: x.prepare_step], False)
         configure_step_spec = (CONFIGURE_STEP, 'configuring', [lambda x: x.configure_step], True)
@@ -4069,9 +4061,9 @@ class EasyBlock(object):
 
         # part 1: pre-iteration + first iteration
         steps_part1 = [
-            (FETCH_STEP, 'fetching files', [lambda x: x.fetch_step], False),
+            (FETCH_STEP, 'fetching files', [lambda x: x.fetch_step, lambda x: x.checksum_step], False),
             ready_step_spec(True),
-            source_step_spec(True),
+            extract_step_spec,
             patch_step_spec,
             prepare_step_spec,
             configure_step_spec,
@@ -4085,7 +4077,7 @@ class EasyBlock(object):
         # not all parts of all steps need to be rerun (see e.g., ready, prepare)
         steps_part2 = [
             ready_step_spec(False),
-            source_step_spec(False),
+            extract_step_spec,
             patch_step_spec,
             prepare_step_spec,
             configure_step_spec,
