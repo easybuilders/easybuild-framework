@@ -1012,9 +1012,7 @@ class EasyBuildOptions(GeneralOption):
                     if compiler in optarch_dict:
                         raise EasyBuildError(
                             "The optarch option contains duplicated entries for compiler %s: %s",
-                            compiler,
-                            self.options.optarch,
-                            exit_code=EasyBuildExit.OPTION_ERROR
+                            compiler, self.options.optarch, exit_code=EasyBuildExit.OPTION_ERROR
                         )
                     else:
                         optarch_dict[compiler] = compiler_opt
@@ -1036,8 +1034,7 @@ class EasyBuildOptions(GeneralOption):
         if any([reason not in VALID_CLOSE_PR_REASONS.keys() for reason in reasons]):
             raise EasyBuildError(
                 "Argument to --close-pr_reasons must be a comma separated list of valid reasons among %s",
-                VALID_CLOSE_PR_REASONS.keys(),
-                exit_code=EasyBuildExit.OPTION_ERROR
+                VALID_CLOSE_PR_REASONS.keys(), exit_code=EasyBuildExit.OPTION_ERROR
             )
         self.options.close_pr_msg = ", ".join([VALID_CLOSE_PR_REASONS[reason] for reason in reasons])
 
@@ -1117,7 +1114,7 @@ class EasyBuildOptions(GeneralOption):
             if not HAVE_KEYRING:
                 raise EasyBuildError(
                     "Python 'keyring' module required for obtaining GitHub token is not available",
-                    exit_code=EasyBuildExit.MISS_EB_DEPENDENCY
+                    exit_code=EasyBuildExit.MISSING_EB_DEPENDENCY
                 )
             if self.options.github_user is None:
                 raise EasyBuildError(
@@ -1136,7 +1133,7 @@ class EasyBuildOptions(GeneralOption):
             if not HAVE_AUTOPEP8:
                 raise EasyBuildError(
                     "Python 'autopep8' module required to reformat dumped easyconfigs as requested",
-                    exit_code=EasyBuildExit.MISS_EB_DEPENDENCY
+                    exit_code=EasyBuildExit.MISSING_EB_DEPENDENCY
                 )
 
         # if a path is specified to --sysroot, it must exist

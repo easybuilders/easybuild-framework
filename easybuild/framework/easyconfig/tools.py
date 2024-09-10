@@ -409,7 +409,7 @@ def parse_easyconfigs(paths, validate=True):
         # keep track of whether any files were generated
         generated_ecs |= generated
         if not os.path.exists(path):
-            raise EasyBuildError("Can't find path %s", path, exit_code=EasyBuildExit.MISS_EASYCONFIG)
+            raise EasyBuildError("Can't find path %s", path, exit_code=EasyBuildExit.MISSING_EASYCONFIG)
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:

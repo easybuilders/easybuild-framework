@@ -501,7 +501,7 @@ class ConfigurationVariables(BaseConfigurationVariables):
         missing = [x for x in self.KNOWN_KEYS if x not in self]
         if len(missing) > 0:
             raise EasyBuildError(
-                "Cannot determine value for configuration variables %s. Please specify it.", missing,
+                "Cannot determine value for configuration variables %s. Please specify it.", ', '.join(missing),
                 exit_code=EasyBuildExit.OPTION_ERROR
             )
 
@@ -785,7 +785,7 @@ def get_output_style():
     if output_style == OUTPUT_STYLE_RICH and not HAVE_RICH:
         raise EasyBuildError(
             "Can't use '%s' output style, Rich Python package is not available!", OUTPUT_STYLE_RICH,
-            exit_code=EasyBuildExit.MISS_EB_DEPENDENCY
+            exit_code=EasyBuildExit.MISSING_EB_DEPENDENCY
         )
 
     return output_style

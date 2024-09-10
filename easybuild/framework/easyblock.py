@@ -878,7 +878,7 @@ class EasyBlock(object):
                         raise EasyBuildError(
                             "Couldn't find file %s anywhere, and downloading it is disabled... "
                             "Paths attempted (in order): %s ", filename, ', '.join(failedpaths),
-                            exit_code=EasyBuildExit.MISS_SOURCES
+                            exit_code=EasyBuildExit.MISSING_SOURCES
                         )
                     else:
                         self.log.warning("Couldn't find file %s anywhere, and downloading it is disabled... "
@@ -3812,7 +3812,7 @@ class EasyBlock(object):
                 self.log.info("Module file %s written: %s", mod_filepath, txt)
             except EasyBuildError:
                 raise EasyBuildError(
-                    "Unable to write Module file %s", mod_filepath, exit_code=EasyBuildExit.FAIL_MODULE_WRITE
+                    f"Unable to write Module file {mod_filepath}", exit_code=EasyBuildExit.FAIL_MODULE_WRITE
                 )
 
             # if backup module file is there, print diff with newly generated module file

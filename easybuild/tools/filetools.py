@@ -62,8 +62,8 @@ import urllib.request as std_urllib
 
 from easybuild.base import fancylogger
 # import build_log must stay, to use of EasyBuildLog
-from easybuild.tools.build_log import EasyBuildError, CWD_NOTFOUND_ERROR, dry_run_msg, print_msg, print_warning
-from easybuild.tools.build_log import EasyBuildExit
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUND_ERROR
+from easybuild.tools.build_log import dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN, build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.hooks import load_source
@@ -856,8 +856,8 @@ def download_file(filename, url, path, forced=False, trace=True):
                 switch_to_requests = True
         except Exception as err:
             raise EasyBuildError(
-                "Unexpected error occurred when trying to download %s to %s: %s", url, path,
-                err, exit_code=EasyBuildExit.FAIL_DOWNLOAD
+                "Unexpected error occurred when trying to download %s to %s: %s", url, path, err,
+                exit_code=EasyBuildExit.FAIL_DOWNLOAD
             )
 
         if not downloaded and attempt_cnt < max_attempts:
@@ -1075,7 +1075,7 @@ def locate_files(files, paths, ignore_subdirs=None):
         paths = ', '.join(paths)
         raise EasyBuildError(
             "One or more files not found: %s (search paths: %s)", filenames, paths,
-            exit_code=EasyBuildExit.MISS_EASYCONFIG
+            exit_code=EasyBuildExit.MISSING_EASYCONFIG
         )
 
     return [os.path.abspath(f) for f in files]

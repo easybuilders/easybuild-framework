@@ -907,7 +907,7 @@ class EasyConfig(object):
         if not_found:
             raise EasyBuildError(
                 "One or more OS dependencies were not found: %s", not_found,
-                exit_code=EasyBuildExit.MISS_SYSTEM_DEPENDENCY
+                exit_code=EasyBuildExit.MISSING_SYSTEM_DEPENDENCY
             )
 
         self.log.info("OS dependencies ok: %s" % self['osdependencies'])
@@ -1275,7 +1275,7 @@ class EasyConfig(object):
         if self[attr] and self[attr] not in values:
             raise EasyBuildError(
                 "%s provided '%s' is not valid: %s", attr, self[attr], values,
-                exit_code=EasyBuildExit.SYNTAX_ERROR
+                exit_code=EasyBuildExit.VALUE_ERROR
             )
 
     def probe_external_module_metadata(self, mod_name, existing_metadata=None):
@@ -1928,7 +1928,7 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                     if error_on_missing_easyblock:
                         raise EasyBuildError(
                             "No software-specific easyblock '%s' found for %s", class_name, name,
-                            exit_code=EasyBuildExit.MISS_EASYBLOCK
+                            exit_code=EasyBuildExit.MISSING_EASYBLOCK
                         ) from err
                 else:
                     # Broken import
