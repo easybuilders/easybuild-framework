@@ -1861,7 +1861,7 @@ class EasyBlock(object):
                     self.update_exts_progress_bar(exts_pbar_label)
 
             # start additional checks asynchronously
-            while exts_queue and len(running_checks_ids) < self.cfg['parallel']:
+            while exts_queue and len(running_checks_ids) < self.cfg.parallel:
                 idx, ext = exts_queue.pop(0)
                 cmd, stdin = resolve_exts_filter_template(exts_filter, ext)
                 async_cmd_info_cache[idx] = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin,
@@ -2024,7 +2024,7 @@ class EasyBlock(object):
 
             for _ in range(max_iter):
 
-                if not (exts_queue and len(running_exts) < self.cfg['parallel']):
+                if not (exts_queue and len(running_exts) < self.cfg.parallel):
                     break
 
                 # check whether extension at top of the queue is ready to install
@@ -2248,19 +2248,22 @@ class EasyBlock(object):
         """Set 'parallel' easyconfig parameter to determine how many cores can/should be used for parallel builds."""
         # set level of parallelism for build
         par = build_option('parallel')
-        cfg_par = self.cfg['parallel']
-        if cfg_par is None:
+        if par is not None:
             self.log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
-        elif par is None:
-            par = cfg_par
-            self.log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
-        else:
-            par = min(int(par), int(cfg_par))
-            self.log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
+
+        # Transitional only in case some easyblocks still set/change cfg['parallel']
+        # Use _parallelLegacy to avoid deprecation warnings
+        # Remove for EasyBuild 5.0
+        cfg_par = self.cfg['_parallelLegacy']
+        if cfg_par is not None:
+            if par is None:
+                par = cfg_par
+            else:
+                par = min(int(par), int(cfg_par))
 
         par = det_parallelism(par, maxpar=self.cfg['maxparallel'])
         self.log.info("Setting parallelism: %s" % par)
-        self.cfg['parallel'] = par
+        self.cfg.parallel = par
 
     def remove_module_file(self):
         """Remove module file (if it exists), and check for ghost installation directory (and deal with it)."""
