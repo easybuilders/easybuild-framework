@@ -515,6 +515,9 @@ class EasyBuildOptions(GeneralOption):
                                   None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'skip-test-step': ("Skip running the test step (e.g. unit tests)", None, 'store_true', False),
+            'software-commit': (
+                "Git commit to use for the target software build (robot capabilities are automatically disabled)",
+                None, 'store', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
@@ -1102,6 +1105,12 @@ class EasyBuildOptions(GeneralOption):
                 self.log.info("Specified sysroot '%s' exists: OK", self.options.sysroot)
             else:
                 raise EasyBuildError("Specified sysroot '%s' does not exist!", self.options.sysroot)
+
+        # 'software_commit' is specific to a particular software package and cannot be used with 'robot'
+        if self.options.software_commit:
+            if self.options.robot is not None:
+                print_warning("To allow use of --software-commit robot resolution is being disabled")
+                self.options.robot = None
 
         self.log.info("Checks on configuration options passed")
 
