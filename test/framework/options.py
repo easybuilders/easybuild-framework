@@ -293,7 +293,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_skip(self):
         """Test skipping installation of module (--skip, -k)."""
-
         # use toy-0.0.eb easyconfig file that comes with the tests
         topdir = os.path.abspath(os.path.dirname(__file__))
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
@@ -332,13 +331,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, do_build=True, verbose=True)
 
-        found_msg = "Module toy/1.2.3.4.5.6.7.8.9 found."
-        found = re.search(found_msg, outtxt)
-        self.assertTrue(not found, "Module found message not there with --skip for non-existing modules: %s" % outtxt)
+        self.assertNotIn("Module toy/1.2.3.4.5.6.7.8.9 found.", outtxt,
+                         "Module found message should not be there with --skip for non-existing modules")
 
-        not_found_msg = "No module toy/1.2.3.4.5.6.7.8.9 found. Not skipping anything."
-        not_found = re.search(not_found_msg, outtxt)
-        self.assertTrue(not_found, "Module not found message there with --skip for non-existing modules: %s" % outtxt)
+        self.assertIn("No module toy/1.2.3.4.5.6.7.8.9 found. Not skipping anything.", outtxt,
+                      "Module not found message should be there with --skip for non-existing modules")
 
         toy_mod_glob = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '*')
         for toy_mod in glob.glob(toy_mod_glob):
@@ -357,29 +354,26 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--force',
         ]
         error_pattern = "Sanity check failed: no file found at 'bin/nosuchfile'"
-        with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.mocked_main, args, do_build=True, raise_error=True)
 
-        # check use of skipsteps to skip sanity check
-        test_ec_txt += "\nskipsteps = ['sanitycheck']\n"
+    def test_module_only_param(self):
+        """check use of module_only parameter"""
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "\nmodule_only=True\n"
+        test_ec_txt += "\nskipsteps = ['sanitycheck']\n"  # Software does not exist, so sanity check would fail
         write_file(test_ec, test_ec_txt)
-        with self.mocked_stdout_stderr():
-            self.eb_main(args, do_build=True, raise_error=True)
 
-        self.assertEqual(len(glob.glob(toy_mod_glob)), 1)
-
-        # check use of module_only parameter
-        remove_dir(os.path.join(self.test_installpath, 'modules', 'all', 'toy'))
-        remove_dir(os.path.join(self.test_installpath, 'software', 'toy', '0.0'))
         args = [
             test_ec,
             '--rebuild',
         ]
-        test_ec_txt += "\nmodule_only = True\n"
-        write_file(test_ec, test_ec_txt)
-        with self.mocked_stdout_stderr():
-            self.eb_main(args, do_build=True, raise_error=True)
+        self.mocked_main(args, do_build=True, raise_error=True)
 
+        toy_mod_glob = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '*')
         self.assertEqual(len(glob.glob(toy_mod_glob)), 1)
 
         # check that no software was installed
@@ -387,6 +381,38 @@ class CommandLineOptionsTest(EnhancedTestCase):
         installdir_glob = glob.glob(os.path.join(installdir, '*'))
         easybuild_dir = os.path.join(installdir, 'easybuild')
         self.assertEqual(installdir_glob, [easybuild_dir])
+
+    def test_skipsteps(self):
+        """Test skipping of steps using skipsteps."""
+        # use toy-0.0.eb easyconfig file that comes with the tests
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        # make sure that sanity check is *NOT* skipped
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        regex = re.compile(r"sanity_check_paths = \{(.|\n)*\}", re.M)
+        test_ec_txt = regex.sub("sanity_check_paths = {'files': ['bin/nosuchfile'], 'dirs': []}", test_ec_txt)
+        write_file(test_ec, test_ec_txt)
+        args = [
+            test_ec,
+            '--rebuild',
+        ]
+        error_pattern = "Sanity check failed: no file found at 'bin/nosuchfile'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.mocked_main, args, do_build=True, raise_error=True)
+
+        # Verify a wrong step name is caught
+        test_ec_txt += "\nskipsteps = ['wrong-step-name']\n"
+        write_file(test_ec, test_ec_txt)
+        self.assertErrorRegex(EasyBuildError, 'wrong-step-name', self.eb_main, args, do_build=True, raise_error=True)
+        test_ec_txt += "\nskipsteps = ['source']\n"  # Especially the old name -> Replaced by extract
+        write_file(test_ec, test_ec_txt)
+        self.assertErrorRegex(EasyBuildError, 'source', self.eb_main, args, do_build=True, raise_error=True)
+
+        # check use of skipsteps to skip sanity check
+        test_ec_txt += "\nskipsteps = ['sanitycheck']\n"
+        write_file(test_ec, test_ec_txt)
+        self.mocked_main(args, do_build=True, raise_error=True)
 
     def test_skip_test_step(self):
         """Test skipping testing the build (--skip-test-step)."""
@@ -738,8 +764,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "	post_fetch_hook",
             "	pre_ready_hook",
             "	post_ready_hook",
-            "	pre_source_hook",
-            "	post_source_hook",
+            "	pre_extract_hook",
+            "	post_extract_hook",
             "	pre_patch_hook",
             "	post_patch_hook",
             "	pre_prepare_hook",
@@ -1257,12 +1283,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         if not kwargs:
             kwargs = {'raise_error': True}
 
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        self.eb_main(args, **kwargs)
-        stderr, stdout = self.get_stderr(), self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        stdout, stderr = self._run_mock_eb(args, **kwargs)
         self.assertEqual(stderr, '')
         return stdout.strip()
 
@@ -4443,14 +4464,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 self.assertFalse(regex.search(txt), "Pattern '%s' NOT found in: %s" % (regex.pattern, txt))
 
     def _run_mock_eb(self, args, strip=False, **kwargs):
-        """Helper function to mock easybuild runs"""
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        self.eb_main(args, **kwargs)
-        stdout_txt = self.get_stdout()
-        stderr_txt = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        """Helper function to mock easybuild runs
+
+        Return (stdout, stderr) optionally stripped of whitespace at start/end
+        """
+        with self.mocked_stdout_stderr() as (stdout, stderr):
+            self.eb_main(args, **kwargs)
+        stdout_txt = stdout.getvalue()
+        stderr_txt = stderr.getvalue()
         if strip:
             stdout_txt = stdout_txt.strip()
             stderr_txt = stderr_txt.strip()
@@ -5458,6 +5479,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(r"COMPLETED: Installation STOPPED successfully \(took .* secs?\)", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+        args = ['toy-0.0.eb', '--force', '--stop=source']
+        _, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
+        self.assertIn("option --stop: invalid choice", stderr)
+
     def test_fetch(self):
         options = EasyBuildOptions(go_args=['--fetch'])
 
@@ -6462,7 +6487,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             test_ec,
-            '--stop=source',
+            '--stop=fetch',
             '--enforce-checksums',
         ]
 

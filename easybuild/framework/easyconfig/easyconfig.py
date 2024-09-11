@@ -72,7 +72,7 @@ from easybuild.tools.config import Singleton, build_option, get_module_naming_sc
 from easybuild.tools.filetools import convert_name, copy_file, create_index, decode_class_name, encode_class_name
 from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, load_index
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.hooks import PARSE, load_hooks, run_hook
+from easybuild.tools.hooks import STEP_NAMES, PARSE, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -860,9 +860,20 @@ class EasyConfig(object):
             self.log.info("Not checking OS dependencies")
 
         self.log.info("Checking skipsteps")
-        if not isinstance(self._config['skipsteps'][0], (list, tuple,)):
+        skipsteps = self._config['skipsteps'][0]
+        if not isinstance(skipsteps, (list, tuple,)):
             raise EasyBuildError('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)',
-                                 type(self._config['skipsteps'][0]), self._config['skipsteps'][0])
+                                 type(skipsteps), skipsteps)
+        unknown_step_names = [step for step in skipsteps if step not in STEP_NAMES]
+        if unknown_step_names:
+            error_lines = ["Found one or more unknown step names in skipsteps:"]
+            for step in unknown_step_names:
+                error_lines.append("* %s" % step)
+                # try to find close match, may be just a typo in the hook name
+                close_matches = difflib.get_close_matches(step, STEP_NAMES, 2, 0.8)
+                if close_matches:
+                    error_lines[-1] += " (did you mean %s?)" % ', or '.join("'%s'" % s for s in close_matches)
+            raise EasyBuildError('\n'.join(error_lines))
 
         self.log.info("Checking build option lists")
         self.validate_iterate_opts_lists()
