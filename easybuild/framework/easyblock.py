@@ -4207,7 +4207,7 @@ def persists_failed_compilation_log_and_artifacts(success, application_log, sile
             silent=silent
         )
 
-        if err_log_path and not(success):
+        if err_log_path and not success:
             for log_file in logs:
                 target_file = os.path.join(err_log_path, os.path.basename(log_file))
                 copy_file(log_file, target_file)
