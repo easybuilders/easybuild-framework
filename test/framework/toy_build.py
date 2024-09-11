@@ -170,9 +170,6 @@ class ToyBuildTest(EnhancedTestCase):
         full_ver = '0.0%s' % versionsuffix
         args = [
             ec_file,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--unittest-file=%s' % self.logfile,
             '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
         ]
@@ -315,9 +312,6 @@ class ToyBuildTest(EnhancedTestCase):
 
         args = [
             ec_file,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--debug',
             '--force',
         ]
@@ -393,9 +387,6 @@ class ToyBuildTest(EnhancedTestCase):
 
         args = [
             os.path.join(os.path.dirname(__file__), 'easyconfigs', 'v2.0', 'toy.eb'),
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--force',
@@ -429,9 +420,6 @@ class ToyBuildTest(EnhancedTestCase):
 
         args = [
             'toy-0.0-multiple.eb',
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--force',
@@ -465,9 +453,6 @@ class ToyBuildTest(EnhancedTestCase):
         for version, specs in versions.items():
             args = [
                 os.path.join(os.path.dirname(__file__), 'easyconfigs', 'v2.0', 'toy-with-sections.eb'),
-                '--sourcepath=%s' % self.test_sourcepath,
-                '--buildpath=%s' % self.test_buildpath,
-                '--installpath=%s' % self.test_installpath,
                 '--debug',
                 '--unittest-file=%s' % self.logfile,
                 '--force',
@@ -525,9 +510,6 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         args = [
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--force',
@@ -844,9 +826,6 @@ class ToyBuildTest(EnhancedTestCase):
 
         args = [
             os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'),
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--force',
@@ -1047,8 +1026,6 @@ class ToyBuildTest(EnhancedTestCase):
 
         args = [
             os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-2018a.eb'),
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % home,
             '--unittest-file=%s' % self.logfile,
             '--force',
@@ -1216,9 +1193,6 @@ class ToyBuildTest(EnhancedTestCase):
         eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         args = [
             eb_file,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--force',
             '--debug',
             '--suffix-modules-path=foobarbaz',
@@ -1719,9 +1693,6 @@ class ToyBuildTest(EnhancedTestCase):
         # sanity check fails without --force if software is not installed yet
         common_args = [
             ec_file,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--robot=%s' % ec_files_path,
@@ -2001,9 +1972,6 @@ class ToyBuildTest(EnhancedTestCase):
 
         common_args = [
             ec_file,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--robot=%s' % ec_files_path,
@@ -2423,9 +2391,6 @@ class ToyBuildTest(EnhancedTestCase):
 
         args = [
             tweaked_toy_ec,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--force',

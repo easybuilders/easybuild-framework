@@ -301,9 +301,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # check log message with --skip for existing module
         args = [
             toy_ec,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--force',
             '--debug',
         ]
@@ -326,9 +323,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # check log message with --skip for non-existing module
         args = [
             toy_ec,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--try-software-version=1.2.3.4.5.6.7.8.9',
             '--try-amend=sources=toy-0.0.tar.gz,toy-0.0.tar.gz',  # hackish, but fine
             '--force',
@@ -1702,9 +1696,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             eb1,
             eb2,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--debug',
             '--force',
             '--robot=%s' % test_ecs,
@@ -2364,9 +2355,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # check log message with --skip for existing module
         args = [
             eb_file,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--debug',
             '--force',
             '--modules-header=%s' % modules_header,
@@ -2405,9 +2393,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for lastarg in lastargs:
             args = [
                 eb_file,
-                '--sourcepath=%s' % self.test_sourcepath,
-                '--buildpath=%s' % self.test_buildpath,
-                '--installpath=%s' % self.test_installpath,
                 '--debug',
                 '--force',
                 lastarg,
@@ -2439,9 +2424,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # check log message with --skip for existing module
         args = [
             eb_file,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--debug',
             '--tmpdir=%s' % tmpdir,
         ]
@@ -2673,9 +2655,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             tweaked_toy_ec,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--dry-run',
             '--robot=%s' % ecs_path,
         ]
@@ -2753,9 +2732,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             tweaked_toy_ec,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--dry-run',
             '--robot=%s' % ecs_path,
             '--copy-ec',
@@ -2798,9 +2774,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             '--software=GCC,4.10.1',
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--dry-run',
             '--robot=%s:%s' % (ecs_path, self.test_prefix),
         ]
@@ -2821,8 +2794,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             tweaked_toy_ec,
             '--sourcepath=%s' % sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--try-toolchain=gompi,2018a',
             '--robot=%s' % ecs_path,
             '--ignore-osdeps',
@@ -2923,8 +2894,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         args = [
             ec_file,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--robot=%s' % os.path.join(test_dir, 'easyconfigs'),
             '--dry-run',
         ]
@@ -3059,8 +3028,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         args = [
             ec_file,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--robot=%s' % os.path.join(test_dir, 'easyconfigs'),
             '--dry-run',
         ]
@@ -3302,9 +3269,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
             args = [
                 eb_file,
-                '--sourcepath=%s' % self.test_sourcepath,
-                '--buildpath=%s' % self.test_buildpath,
-                '--installpath=%s' % self.test_installpath,
                 '--force',
                 '--debug',
             ]
@@ -4376,9 +4340,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         args = [
             ec_file,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--debug',
             '--disable-rpath',
         ]
@@ -6609,9 +6570,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # check log message with --skip for existing module
         args = [
             toy_ec,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
             '--force',
             '--debug',
             '--tmp-logdir=%s' % tmp_logdir,
