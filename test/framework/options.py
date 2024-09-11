@@ -3542,7 +3542,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         xdg_config_home = os.path.join(self.test_prefix, 'home')
         os.environ['XDG_CONFIG_HOME'] = xdg_config_home
-        xdg_config_dirs = [os.path.join(self.test_prefix, 'etc', 'xdg'), os.path.join(self.test_prefix, 'moaretc')]
+        xdg_config_dirs = [os.path.join(self.test_prefix, 'moaretc'), os.path.join(self.test_prefix, 'etc', 'xdg')]
         os.environ['XDG_CONFIG_DIRS'] = os.pathsep.join(xdg_config_dirs)
 
         # put various dummy cfgfiles in place
@@ -3563,7 +3563,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
         expected = expected_tmpl % (xdg_config_home, os.pathsep.join(xdg_config_dirs),
                                     "%s => found" % os.path.join(xdg_config_home, 'easybuild', 'config.cfg'),
-                                    '{' + ', '.join(xdg_config_dirs) + '}',
+                                    '{' + ', '.join(xdg_config_dirs[::-1]) + '}',
                                     ', '.join(cfgfiles[:-1]), 4, ', '.join(cfgfiles))
         self.assertIn(expected, logtxt)
 
