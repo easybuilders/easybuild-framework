@@ -4198,6 +4198,13 @@ def print_dry_run_note(loc, silent=True):
 
 
 def persists_failed_compilation_log_and_artifacts(build_successful, application_log, silent, app, err_log_path):
+    def do_if_paths_distinct(operation, source, destination):
+        if not os.path.exists(source):
+            return
+        if os.path.realpath(source) == os.path.realpath(destination):
+            return
+        operation(source, destination)
+
     if application_log:
         # there may be multiple log files, or the file name may be different due to zipping
         logs = glob.glob('%s*' % application_log)
@@ -4210,12 +4217,12 @@ def persists_failed_compilation_log_and_artifacts(build_successful, application_
         if err_log_path and not build_successful:
             for log_file in logs:
                 target_file = os.path.join(err_log_path, os.path.basename(log_file))
-                copy_file(log_file, target_file)
+                do_if_paths_distinct(copy_file, log_file, target_file)
 
             builddir = app.builddir
             if is_readable(builddir):
                 build_artifact_log_path = os.path.join(err_log_path, app.get_relative_builddir_base_path())
-                copy_dir(builddir, build_artifact_log_path)
+                do_if_paths_distinct(copy_dir, builddir, build_artifact_log_path)
 
             print_msg(
                 "Build log and any output artifacts copied to permanent storage: %s" % err_log_path,

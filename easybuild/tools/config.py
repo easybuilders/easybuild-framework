@@ -861,7 +861,15 @@ def error_log_path(ec=None):
     date = time.strftime("%Y%m%d")
     timestamp = time.strftime("%H%M%S")
 
-    return '/'.join([error_log_path, name + '-' + version, date + '-' + timestamp])
+    base_path = '/'.join([error_log_path, name + '-' + version, date + '-' + timestamp])
+
+    path = base_path
+    inc_no = 1
+    while os.path.exists(path):
+        path = base_path + '_' + str(inc_no)
+        inc_no += 1
+
+    return path
 
 
 def get_build_log_path():
