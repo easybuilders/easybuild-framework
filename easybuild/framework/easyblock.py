@@ -4197,7 +4197,7 @@ def print_dry_run_note(loc, silent=True):
     dry_run_msg(msg, silent=silent)
 
 
-def persists_failed_compilation_log_and_artifacts(success, application_log, silent, app, err_log_path):
+def persists_failed_compilation_log_and_artifacts(build_successful, application_log, silent, app, err_log_path):
     if application_log:
         # there may be multiple log files, or the file name may be different due to zipping
         logs = glob.glob('%s*' % application_log)
@@ -4207,7 +4207,7 @@ def persists_failed_compilation_log_and_artifacts(success, application_log, sile
             silent=silent
         )
 
-        if err_log_path and not success:
+        if err_log_path and not build_successful:
             for log_file in logs:
                 target_file = os.path.join(err_log_path, os.path.basename(log_file))
                 copy_file(log_file, target_file)
