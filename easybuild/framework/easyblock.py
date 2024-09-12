@@ -4720,7 +4720,7 @@ def inject_checksums(ecs, checksum_type):
 
         # back up easyconfig file before injecting checksums
         ec_backup = back_up_file(ec['spec'])
-        print_msg("backup of easyconfig file saved to %s..." % ec_backup, log=_log)
+        print_msg("backup of easyconfig file saved to %s" % ec_backup, log=_log)
 
         # compute & inject checksums for sources/patches
         print_msg("injecting %s checksums for sources & patches in %s..." % (checksum_type, ec_fn), log=_log)
