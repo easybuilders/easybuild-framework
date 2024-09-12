@@ -3563,8 +3563,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
         expected = expected_tmpl % (xdg_config_home, os.pathsep.join(xdg_config_dirs),
                                     "%s => found" % os.path.join(xdg_config_home, 'easybuild', 'config.cfg'),
-                                    '{' + ', '.join(xdg_config_dirs[::-1]) + '}',
-                                    ', '.join(cfgfiles[:-1]), 4, ', '.join(cfgfiles))
+                                    '{' + ', '.join(xdg_config_dirs) + '}',
+                                    ', '.join(cfgfiles[1:3]+[cfgfiles[0]]), 4, ', '.join(cfgfiles))
         self.assertIn(expected, logtxt)
 
         del os.environ['XDG_CONFIG_DIRS']
