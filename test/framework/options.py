@@ -6070,7 +6070,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             r"^== injecting sha256 checksums in .*/test\.eb$",
             r"^== fetching sources & patches for test\.eb\.\.\.$",
-            r"^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+\.\.\.$",
+            r"^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+$",
             r"^== injecting sha256 checksums for sources & patches in test\.eb\.\.\.$",
             r"^== \* toy-0.0\.tar\.gz: %s$" % toy_source_sha256,
             r"^== \* toy-0\.0_fix-silly-typo-in-printf-statement\.patch: %s$" % toy_patch_sha256,
@@ -6198,7 +6198,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             r"^== injecting md5 checksums in .*/test\.eb$",
             r"^== fetching sources & patches for test\.eb\.\.\.$",
-            r"^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+\.\.\.$",
+            r"^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+$",
             r"^== injecting md5 checksums for sources & patches in test\.eb\.\.\.$",
             r"^== \* toy-0.0\.tar\.gz: be662daa971a640e40be5c804d9d7d10$",
             r"^== \* toy-0\.0_fix-silly-typo-in-printf-statement\.patch: a99f2a72cee1689a2f7e3ace0356efb1$",
