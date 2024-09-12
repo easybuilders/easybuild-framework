@@ -37,6 +37,7 @@ update/bugfix release
   - use Intel's oneAPI Fortran compiler by default for version 2024.0.0 and newer (`oneapi_fortran` toolchain option set to `True`) (#4567)
   - allow using Node 16 actions in CI (#4574)
   - remove a superflous check in `EasyBlock.run_all_steps` (#4623)
+  - remove trailing dots from backup message produced by --inject-checksums (#4632)
 
 
 v4.9.2 (12 June 2024)
