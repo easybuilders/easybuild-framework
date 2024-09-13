@@ -126,6 +126,7 @@ def check_easyconfigs_style(easyconfigs, verbose=False):
     # note that W291 has been replaced by our custom W299
     options.ignore = (
         'W291',  # replaced by W299
+        'E741',  # 'l' is considered an ambiguous name, but we use it often for 'lib'
     )
     options.verbose = int(verbose)
 
