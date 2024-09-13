@@ -85,11 +85,7 @@ from test.framework.utilities import find_full_path
 try:
     import pycodestyle  # noqa
 except ImportError:
-    try:
-        import pep8  # noqa
-    except ImportError:
-        pass
-
+    pass
 
 EXPECTED_DOTTXT_TOY_DEPS = """digraph graphname {
 toy;
@@ -2660,8 +2656,8 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
 
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping test_dump_extra (no pycodestyle or pep8 available)")
+        if 'pycodestyle' not in sys.modules:
+            print("Skipping test_dump_extra pycodestyle is not available")
             return
 
         rawtxt = '\n'.join([
@@ -2703,8 +2699,8 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dump_template(self):
         """ Test EasyConfig's dump() method for files containing templates"""
 
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping test_dump_template (no pycodestyle or pep8 available)")
+        if 'pycodestyle' not in sys.modules:
+            print("Skipping test_dump_template pycodestyle is not available")
             return
 
         rawtxt = '\n'.join([
@@ -2792,8 +2788,8 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dump_comments(self):
         """ Test dump() method for files containing comments """
 
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping test_dump_comments (no pycodestyle or pep8 available)")
+        if 'pycodestyle' not in sys.modules:
+            print("Skipping test_dump_comments pycodestyle is not available")
             return
 
         rawtxt = '\n'.join([
