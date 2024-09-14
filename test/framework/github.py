@@ -816,18 +816,21 @@ class GithubTest(EnhancedTestCase):
         res = gh.det_commit_status('easybuilders', GITHUB_REPO, commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, None)
 
-        # recent commit (2023-04-11) with cancelled checks (GitHub Actions only)
-        commit_sha = 'c074f0bb3110c27d9969c3d0b19dde3eca868bd4'
+        # recent commit with cancelled checks (GitHub Actions only);
+        # to update, use https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Acancelled
+        commit_sha = '52b964c3387d6d6f149ec304f9e23f535e799957'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, 'cancelled')
 
-        # recent commit (2023-04-10) with failing checks (GitHub Actions only)
-        commit_sha = '1b4a45c62d7deaf19125756c46dc8f011fef66e1'
+        # recent commit with failing checks (GitHub Actions only)
+        # to update, use https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Afailure
+        commit_sha = '85e6c2bbc2fd515a1d4dab607b8d43d0a1ed668f'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, 'failure')
 
-        # recent commit (2023-04-10) with successful checks (GitHub Actions only)
-        commit_sha = '56812a347acbaaa87f229fe319425020fe399647'
+        # recent commit with successful checks (GitHub Actions only)
+        # to update, use https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Asuccess
+        commit_sha = 'f82a563b8e1f8118c7c3ab23374d0e28e1691fea'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, 'success')
 
