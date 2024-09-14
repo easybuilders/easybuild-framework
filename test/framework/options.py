@@ -443,6 +443,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_pattern = 'Found both ignore-test-failure and skip-test-step enabled'
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
+    def test_skip_sanity_check(self):
+        """Test skipping of sanity check step (--skip-sanity-check)."""
+
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, read_file(toy_ec) + "\nsanity_check_commands = ['this_will_fail']")
+
+        args = [test_ec, '--rebuild']
+        err_msg = "Sanity check failed"
+        self.assertErrorRegex(EasyBuildError, err_msg, self.eb_main, args, do_build=True, raise_error=True)
+
+        args.append('--skip-sanity-check')
+        outtext = self.eb_main(args, do_build=True, raise_error=True)
+        self.assertNotIn('sanity checking...', outtext)
+
+        # Passing skip and only options is disallowed
+        args.append('--sanity-check-only')
+        error_pattern = 'Found both skip-sanity-check and sanity-check-only enabled'
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
     def test_job(self):
         """Test submitting build as a job."""
 
@@ -591,6 +612,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     r'^``%\(arch\)s``\s+System architecture \(e.g. x86_64, aarch64, ppc64le, ...\)\s*$',
                     r'^``%\(cuda_cc_space_sep\)s``\s+Space-separated list of CUDA compute capabilities\s*$',
                     r'^``SOURCE_TAR_GZ``\s+Source \.tar\.gz bundle\s+``%\(name\)s-%\(version\)s.tar.gz``\s*$',
+                    r'^``%\(software_commit\)s``\s+Git commit id to use for the software as specified '
+                    'by --software-commit command line option',
                 ]
             else:
                 pattern_lines = [
@@ -603,6 +626,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     r'^\s+%\(arch\)s: System architecture \(e.g. x86_64, aarch64, ppc64le, ...\)$',
                     r'^\s+%\(cuda_cc_space_sep\)s: Space-separated list of CUDA compute capabilities$',
                     r'^\s+SOURCE_TAR_GZ: Source \.tar\.gz bundle \(%\(name\)s-%\(version\)s.tar.gz\)$',
+                    r'^\s+%\(software_commit\)s: Git commit id to use for the software as specified '
+                    'by --software-commit command line option',
                 ]
 
             for pattern_line in pattern_lines:
@@ -2225,7 +2250,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             import easybuild.easyblocks.generic
             reload(easybuild.easyblocks.generic)
 
-            pattern = "== easyblock binary.py included from comit %s" % test_commit
+            pattern = "== easyblock binary.py included from commit %s" % test_commit
             self.assertEqual(stderr, '')
             self.assertIn(pattern, stdout)
 
@@ -6045,7 +6070,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             r"^== injecting sha256 checksums in .*/test\.eb$",
             r"^== fetching sources & patches for test\.eb\.\.\.$",
-            r"^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+\.\.\.$",
+            r"^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+$",
             r"^== injecting sha256 checksums for sources & patches in test\.eb\.\.\.$",
             r"^== \* toy-0.0\.tar\.gz: %s$" % toy_source_sha256,
             r"^== \* toy-0\.0_fix-silly-typo-in-printf-statement\.patch: %s$" % toy_patch_sha256,
@@ -6173,7 +6198,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             r"^== injecting md5 checksums in .*/test\.eb$",
             r"^== fetching sources & patches for test\.eb\.\.\.$",
-            r"^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+\.\.\.$",
+            r"^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+$",
             r"^== injecting md5 checksums for sources & patches in test\.eb\.\.\.$",
             r"^== \* toy-0.0\.tar\.gz: be662daa971a640e40be5c804d9d7d10$",
             r"^== \* toy-0\.0_fix-silly-typo-in-printf-statement\.patch: a99f2a72cee1689a2f7e3ace0356efb1$",
@@ -6812,6 +6837,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         os.environ['EASYBUILD_SYSROOT'] = doesnotexist
         self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, ['--show-config'], raise_error=True)
+
+    def test_software_commit(self):
+        """Test use of --software-commit option."""
+
+        software_commit = "23be34"
+        software_commit_arg = '--software-commit=' + software_commit
+        # Add robot to also test that it gets disabled
+        stdout, stderr = self._run_mock_eb([software_commit_arg, '--show-config', '--robot'], raise_error=True)
+
+        warning_regex = re.compile(r'.*WARNING:.*--software-commit robot resolution is being disabled.*', re.M)
+        software_commit_regex = re.compile(r'^software-commit\s*\(C\) = %s$' % software_commit, re.M)
+        robot_regex = re.compile(r'^robot\s*\(C\) = .*', re.M)
+
+        self.assertTrue(warning_regex.search(stderr), "Pattern '%s' not found in: %s" % (warning_regex, stderr))
+        self.assertTrue(software_commit_regex.search(stdout),
+                        "Pattern '%s' not found in: %s" % (software_commit_regex, stdout))
+        self.assertFalse(robot_regex.search(stdout), "Pattern '%s' found in: %s" % (robot_regex, stdout))
 
     def test_accept_eula_for(self):
         """Test --accept-eula-for configuration option."""

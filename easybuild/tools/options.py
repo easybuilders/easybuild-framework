@@ -45,6 +45,7 @@ import shutil
 import sys
 import tempfile
 import pwd
+from collections import OrderedDict
 
 import easybuild.tools.environment as env
 from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
@@ -69,9 +70,9 @@ from easybuild.tools.config import DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE
 from easybuild.tools.config import DEFAULT_JOB_EB_CMD, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
 from easybuild.tools.config import DEFAULT_MINIMAL_BUILD_ENV, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL
-from easybuild.tools.config import DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_PR_TARGET_ACCOUNT
+from easybuild.tools.config import DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_EXTRA_SOURCE_URLS
 from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_WAIT_ON_LOCK_INTERVAL, DEFAULT_WAIT_ON_LOCK_LIMIT
-from easybuild.tools.config import DEFAULT_FILTER_RPATH_SANITY_LIBS
+from easybuild.tools.config import DEFAULT_PR_TARGET_ACCOUNT, DEFAULT_FILTER_RPATH_SANITY_LIBS
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, ERROR, FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS
@@ -97,7 +98,7 @@ from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
-from easybuild.tools.py2vs3 import OrderedDict, string_type
+from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.robot import det_robot_path
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
@@ -407,6 +408,8 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
                               'strlist', 'extend', None),
+            "extra-source-urls": ("Specify URLs to fetch sources from in addition to those in the easyconfig",
+                                  "urltuple", "add_flex", DEFAULT_EXTRA_SOURCE_URLS, {'metavar': 'URL[|URL]'}),
             'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
                       "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
             'filter-deps': ("List of dependencies that you do *not* want to install with EasyBuild, "
@@ -438,11 +441,11 @@ class EasyBuildOptions(GeneralOption):
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
             'hide-toolchains': ("Comma separated list of toolchains that you want automatically hidden, "
                                 "(e.g. --hide-toolchains=GCCcore)", 'strlist', 'extend', None),
-            'http-header-fields-urlpat': ("Set extra HTTP header FIELDs when downloading files from URL PATterns. "
-                                          "To not log sensitive values, specify a file containing newline separated "
-                                          "FIELDs. e.g. \"^https://www.example.com::/path/to/headers.txt\" or "
-                                          "\"client[A-z0-9]*.example.com': ['Authorization: Basic token']\".",
-                                          None, 'append', None, {'metavar': '[URLPAT::][HEADER:]FILE|FIELD'}),
+            'http-header-fields-urlpat': ("Set extra HTTP header FIELD when downloading files from URL PATterns. "
+                                          "Use FILE (to hide sensitive values) and newline separated FIELDs in the "
+                                          "same format. e.g. \"^https://www.example.com::path/to/headers.txt\" or "
+                                          "\"client[A-z0-9]*.example.com:: Authorization: Basic token\".",
+                                          None, 'append', None, {'metavar': '[URLPAT::][HEADER:]FIELDVALUE|FILE'}),
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-test-failure': ("Ignore a failing test step", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
@@ -509,8 +512,14 @@ class EasyBuildOptions(GeneralOption):
             'silence-hook-trigger': ("Suppress printing of debug message every time a hook is triggered",
                                      None, 'store_true', False),
             'skip-extensions': ("Skip installation of extensions", None, 'store_true', False),
+            'skip-sanity-check': ("Skip running the sanity check step "
+                                  "(e.g. testing for installed files or running basic commands)",
+                                  None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'skip-test-step': ("Skip running the test step (e.g. unit tests)", None, 'store_true', False),
+            'software-commit': (
+                "Git commit to use for the target software build (robot capabilities are automatically disabled)",
+                None, 'store', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
@@ -656,7 +665,8 @@ class EasyBuildOptions(GeneralOption):
             'check-conflicts': ("Check for version conflicts in dependency graphs", None, 'store_true', False),
             'check-eb-deps': ("Check presence and version of (required and optional) EasyBuild dependencies",
                               None, 'store_true', False),
-            'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
+            'dep-graph': ("Create dependency graph. Output format depends on <ext>, e.g. 'dot', 'png', 'pdf', 'gv'.",
+                          None, 'store', None, {'metavar': 'depgraph.<ext>'}),
             'dump-env-script': ("Dump source script to set up build environment based on toolchain/dependencies",
                                 None, 'store_true', False),
             'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),
@@ -1097,6 +1107,12 @@ class EasyBuildOptions(GeneralOption):
                 self.log.info("Specified sysroot '%s' exists: OK", self.options.sysroot)
             else:
                 raise EasyBuildError("Specified sysroot '%s' does not exist!", self.options.sysroot)
+
+        # 'software_commit' is specific to a particular software package and cannot be used with 'robot'
+        if self.options.software_commit:
+            if self.options.robot is not None:
+                print_warning("To allow use of --software-commit robot resolution is being disabled")
+                self.options.robot = None
 
         self.log.info("Checks on configuration options passed")
 
@@ -1590,7 +1606,7 @@ def handle_include_easyblocks_from(options, log):
                 check_included_multiple(included_from_commit, "commit %s" % easyblock_commit)
 
             for easyblock in included_from_commit:
-                print_msg("easyblock %s included from comit %s" % (easyblock, easyblock_commit), log=log)
+                print_msg("easyblock %s included from commit %s" % (easyblock, easyblock_commit), log=log)
 
             include_easyblocks(options.tmpdir, easyblocks_from_commit)
 

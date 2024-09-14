@@ -727,9 +727,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
         if options.ignore_test_failure:
             raise EasyBuildError("Found both ignore-test-failure and skip-test-step enabled. "
                                  "Please use only one of them.")
-        else:
-            print_warning("Will not run the test step as requested via skip-test-step. "
-                          "Consider using ignore-test-failure instead and verify the results afterwards")
+        print_warning("Will not run the test step as requested via skip-test-step. "
+                      "Consider using ignore-test-failure instead and verify the results afterwards")
+    if options.skip_sanity_check and options.sanity_check_only:
+        raise EasyBuildError("Found both skip-sanity-check and sanity-check-only enabled. "
+                             "Please use only one of them.")
 
     # if EasyStack file is provided, parse it, and loop over the items in the EasyStack file
     if options.easystack:

@@ -90,16 +90,19 @@ TEMPLATE_SOFTWARE_VERSIONS = [
 # template values which are only generated dynamically
 TEMPLATE_NAMES_DYNAMIC = [
     ('arch', "System architecture (e.g. x86_64, aarch64, ppc64le, ...)"),
-    ('sysroot', "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
-     "as specify by the --sysroot configuration option"),
-    ('mpi_cmd_prefix', "Prefix command for running MPI programs (with default number of ranks)"),
     ('cuda_compute_capabilities', "Comma-separated list of CUDA compute capabilities, as specified via "
      "--cuda-compute-capabilities configuration option or via cuda_compute_capabilities easyconfig parameter"),
     ('cuda_cc_cmake', "List of CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+"),
     ('cuda_cc_space_sep', "Space-separated list of CUDA compute capabilities"),
+    ('cuda_cc_space_sep_no_period',
+     "Space-separated list of CUDA compute capabilities, without periods (e.g. '80 90')."),
     ('cuda_cc_semicolon_sep', "Semicolon-separated list of CUDA compute capabilities"),
     ('cuda_sm_comma_sep', "Comma-separated list of sm_* values that correspond with CUDA compute capabilities"),
     ('cuda_sm_space_sep', "Space-separated list of sm_* values that correspond with CUDA compute capabilities"),
+    ('mpi_cmd_prefix', "Prefix command for running MPI programs (with default number of ranks)"),
+    ('software_commit', "Git commit id to use for the software as specified by --software-commit command line option"),
+    ('sysroot', "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
+     "as specified by the --sysroot configuration option"),
 ]
 
 # constant templates that can be used in easyconfigs
@@ -128,7 +131,9 @@ TEMPLATE_CONSTANTS = [
     ('GNU_SAVANNAH_SOURCE', 'https://download-mirror.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
     ('GNU_SOURCE', 'https://ftpmirror.gnu.org/gnu/%(namelower)s',
-     'gnu.org source url'),
+     'gnu.org source url (ftp mirror)'),
+    ('GNU_FTP_SOURCE', 'https://ftp.gnu.org/gnu/%(namelower)s',
+     'gnu.org source url (main ftp)'),
     ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
      'googlecode.com source url'),
     ('LAUNCHPAD_SOURCE', 'https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
@@ -205,6 +210,9 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
 
     # set 'sysroot' template based on 'sysroot' configuration option, using empty string as fallback
     template_values['sysroot'] = build_option('sysroot') or ''
+
+    # set 'software_commit' template based on 'software_commit' configuration option, default to None
+    template_values['software_commit'] = build_option('software_commit') or ''
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     for name in TEMPLATE_NAMES_EASYCONFIG:
@@ -363,13 +371,14 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
 
     # step 6. CUDA compute capabilities
     #         Use the commandline / easybuild config option if given, else use the value from the EC (as a default)
-    cuda_compute_capabilities = build_option('cuda_compute_capabilities') or config.get('cuda_compute_capabilities')
-    if cuda_compute_capabilities:
-        template_values['cuda_compute_capabilities'] = ','.join(cuda_compute_capabilities)
-        template_values['cuda_cc_space_sep'] = ' '.join(cuda_compute_capabilities)
-        template_values['cuda_cc_semicolon_sep'] = ';'.join(cuda_compute_capabilities)
-        template_values['cuda_cc_cmake'] = ';'.join(cc.replace('.', '') for cc in cuda_compute_capabilities)
-        sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_compute_capabilities]
+    cuda_cc = build_option('cuda_compute_capabilities') or config.get('cuda_compute_capabilities')
+    if cuda_cc:
+        template_values['cuda_compute_capabilities'] = ','.join(cuda_cc)
+        template_values['cuda_cc_space_sep'] = ' '.join(cuda_cc)
+        template_values['cuda_cc_space_sep_no_period'] = ' '.join(cc.replace('.', '') for cc in cuda_cc)
+        template_values['cuda_cc_semicolon_sep'] = ';'.join(cuda_cc)
+        template_values['cuda_cc_cmake'] = ';'.join(cc.replace('.', '') for cc in cuda_cc)
+        sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_cc]
         template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
         template_values['cuda_sm_space_sep'] = ' '.join(sm_values)
 

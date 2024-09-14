@@ -1242,12 +1242,16 @@ def calc_block_checksum(path, algorithm):
     return algorithm.hexdigest()
 
 
-def verify_checksum(path, checksums):
+def verify_checksum(path, checksums, computed_checksums=None):
     """
     Verify checksum of specified file.
 
     :param path: path of file to verify checksum of
-    :param checksums: checksum values (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
+    :param checksums: checksum values to compare to
+                      (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
+    :param computed_checksums: Optional dictionary of (current) checksum(s) for this file
+                               indexed by the checksum type (e.g. 'sha256').
+                               Each existing entry will be used, missing ones will be computed.
     """
 
     filename = os.path.basename(path)
@@ -1303,8 +1307,14 @@ def verify_checksum(path, checksums):
                                  "2-tuple (type, value), or tuple of alternative checksum specs.",
                                  checksum)
 
-        actual_checksum = compute_checksum(path, typ)
-        _log.debug("Computed %s checksum for %s: %s (correct checksum: %s)" % (typ, path, actual_checksum, checksum))
+        if computed_checksums is not None and typ in computed_checksums:
+            actual_checksum = computed_checksums[typ]
+            computed_str = 'Precomputed'
+        else:
+            actual_checksum = compute_checksum(path, typ)
+            computed_str = 'Computed'
+        _log.debug("%s %s checksum for %s: %s (correct checksum: %s)" %
+                   (computed_str, typ, path, actual_checksum, checksum))
 
         if actual_checksum != checksum:
             return False
@@ -2409,12 +2419,16 @@ def copy_file(path, target_path, force_in_dry_run=False):
         try:
             # check whether path to copy exists (we could be copying a broken symlink, which is supported)
             path_exists = os.path.exists(path)
+            # If target is a folder, the target_path will be a file with the same name inside the folder
+            if os.path.isdir(target_path):
+                target_path = os.path.join(target_path, os.path.basename(path))
             target_exists = os.path.exists(target_path)
+
             if target_exists and path_exists and os.path.samefile(path, target_path):
                 _log.debug("Not copying %s to %s since files are identical", path, target_path)
             # if target file exists and is owned by someone else than the current user,
-            # try using shutil.copyfile to just copy the file contents
-            # since shutil.copy2 will fail when trying to copy over file metadata (since chown requires file ownership)
+            # copy just the file contents (shutil.copyfile instead of shutil.copy2)
+            # since copying the file metadata/permissions will fail since chown requires file ownership
             elif target_exists and os.stat(target_path).st_uid != os.getuid():
                 shutil.copyfile(path, target_path)
                 _log.info("Copied contents of file %s to %s", path, target_path)
