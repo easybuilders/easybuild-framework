@@ -1920,6 +1920,19 @@ class FileToolsTest(EnhancedTestCase):
             # printing this message will make test suite fail in Travis/GitHub CI,
             # since we check for unexpected output produced by the tests
             print("Skipping overwrite-file-owned-by-other-user copy_file test (%s is missing)" % test_file_to_overwrite)
+        # Copy a file to a directory owned by some other user, e.g. /tmp (owned by root)
+        # This might be a common choice for e.g. --copy-ec
+        target_file_path = tempfile.mktemp("easybuild", dir="/tmp")
+        test_file_to_copy = os.path.join(self.test_prefix, os.path.basename(target_file_path))
+        ft.write_file(test_file_to_copy, test_file_contents)
+        try:
+            ft.copy_file(test_file_to_copy, '/tmp')
+            self.assertEqual(ft.read_file(target_file_path), test_file_contents)
+        finally:
+            try:
+                os.remove(target_file_path)
+            except FileNotFoundError:
+                pass
 
         # also test behaviour of copy_file under --dry-run
         build_options = {

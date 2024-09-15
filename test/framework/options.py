@@ -455,6 +455,30 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_pattern = 'Found both ignore-test-failure and skip-test-step enabled'
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
+    def test_skip_sanity_check(self):
+        """Test skipping of sanity check step (--skip-sanity-check)."""
+
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, read_file(toy_ec) + "\nsanity_check_commands = ['this_will_fail']")
+
+        args = [test_ec, '--rebuild']
+        err_msg = "Sanity check failed"
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, err_msg, self.eb_main, args, do_build=True, raise_error=True)
+
+        args.append('--skip-sanity-check')
+        with self.mocked_stdout_stderr():
+            outtext = self.eb_main(args, do_build=True, raise_error=True)
+        self.assertNotIn('sanity checking...', outtext)
+
+        # Passing skip and only options is disallowed
+        args.append('--sanity-check-only')
+        error_pattern = 'Found both skip-sanity-check and sanity-check-only enabled'
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+
     def test_job(self):
         """Test submitting build as a job."""
 
@@ -6185,7 +6209,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             r"^== injecting sha256 checksums in .*/test\.eb$",
             r"^== fetching sources & patches for test\.eb\.\.\.$",
-            r"^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+\.\.\.$",
+            r"^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+$",
             r"^== injecting sha256 checksums for sources & patches in test\.eb\.\.\.$",
             r"^== \* toy-0.0\.tar\.gz: %s$" % toy_source_sha256,
             r"^== \* toy-0\.0_fix-silly-typo-in-printf-statement\.patch: %s$" % toy_patch_sha256,
@@ -6313,7 +6337,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             r"^== injecting sha256 checksums in .*/test\.eb$",
             r"^== fetching sources & patches for test\.eb\.\.\.$",
-            r"^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+\.\.\.$",
+            r"^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+_[0-9]+$",
             r"^== injecting sha256 checksums for sources & patches in test\.eb\.\.\.$",
             r"^== \* toy-0.0\.tar\.gz: 44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc$",
             r"^== \* toy-0\.0_fix-silly-typo-in-printf-statement\.patch: "  # no comma, continues on next line
