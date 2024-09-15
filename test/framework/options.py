@@ -465,16 +465,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [test_ec, '--rebuild']
         err_msg = "Sanity check failed"
-        self.assertErrorRegex(EasyBuildError, err_msg, self.eb_main, args, do_build=True, raise_error=True)
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, err_msg, self.eb_main, args, do_build=True, raise_error=True)
 
         args.append('--skip-sanity-check')
-        outtext = self.eb_main(args, do_build=True, raise_error=True)
+        with self.mocked_stdout_stderr():
+            outtext = self.eb_main(args, do_build=True, raise_error=True)
         self.assertNotIn('sanity checking...', outtext)
 
         # Passing skip and only options is disallowed
         args.append('--sanity-check-only')
         error_pattern = 'Found both skip-sanity-check and sanity-check-only enabled'
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
     def test_job(self):
         """Test submitting build as a job."""
