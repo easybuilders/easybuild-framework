@@ -1,8 +1,6 @@
 # keyring is required to provide GitHub token to EasyBuild;
 # for recent versions of keyring, keyrings.alt must be installed too
-# 19.0 dropped Python 2 support
-keyring<19.0; python_version < '3.0'
-keyring; python_version >= '3.0'
+keyring
 keyrings.alt
 
 GitPython
