@@ -2435,8 +2435,15 @@ def copy_file(path, target_path, force_in_dry_run=False):
             else:
                 mkdir(os.path.dirname(target_path), parents=True)
                 if path_exists:
-                    shutil.copy2(path, target_path)
-                    _log.info("%s copied to %s", path, target_path)
+                    try:
+                        # on at least some systems, copying read-only files with shutil.copy2() spits a PermissionError
+                        # but the copy still succeeds
+                        shutil.copy2(path, target_path)
+                        _log.info("%s copied to %s", path, target_path)
+                    except PermissionError as err:
+                        # double-check whether the copy actually succeeded
+                        if not os.path.exists(target_path):
+                            raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
                 elif os.path.islink(path):
                     if os.path.isdir(target_path):
                         target_path = os.path.join(target_path, os.path.basename(path))
