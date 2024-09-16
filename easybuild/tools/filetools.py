@@ -2444,6 +2444,7 @@ def copy_file(path, target_path, force_in_dry_run=False):
                         # double-check whether the copy actually succeeded
                         if not os.path.exists(target_path):
                             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+                        _log.info("%s copied to %s ignoring permissions error: %s", path, target_path, err)
                 elif os.path.islink(path):
                     if os.path.isdir(target_path):
                         target_path = os.path.join(target_path, os.path.basename(path))
