@@ -1037,8 +1037,14 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and all(file_info['new']):
         commit_msg = "adding easyblocks: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
     else:
+        msg = ''
+        modified_files = [os.path.basename(p) for new, p in zip(file_info['new'], file_info['paths_in_repo']) if not new]
+        if modified_files:
+            msg += '\nModified: ' + ', '.join(modified_files)
+        if paths['files_to_delete']:
+            msg += '\nDeleted: ' + ', '.join(paths['files_to_delete'])
         raise EasyBuildError("A meaningful commit message must be specified via --pr-commit-msg when "
-                             "modifying/deleting files or targeting the framework repo.")
+                             "modifying/deleting files or targeting the framework repo." + msg)
 
     # figure out to which software name patches relate, and copy them to the right place
     if paths['patch_files']:
