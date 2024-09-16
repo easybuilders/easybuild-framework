@@ -1038,7 +1038,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         commit_msg = "adding easyblocks: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
     else:
         msg = ''
-        modified_files = [os.path.basename(p) for new, p in zip(file_info['new'], file_info['paths_in_repo']) if not new]
+        modified_files = [os.path.basename(p) for new, p in zip(file_info['new'], file_info['paths_in_repo'])
+                          if not new]
         if modified_files:
             msg += '\nModified: ' + ', '.join(modified_files)
         if paths['files_to_delete']:
@@ -1084,8 +1085,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         # only consider new easyconfig files for dependencies (not updated ones)
         for idx in range(len(all_dep_info['ecs'])):
             if all_dep_info['new'][idx]:
-                for key in dep_info:
-                    dep_info[key].append(all_dep_info[key][idx])
+                for key, info in dep_info.items():
+                    info.append(all_dep_info[key][idx])
 
     # checkout target branch
     if pr_branch is None:
@@ -1698,7 +1699,7 @@ def post_pr_labels(pr, labels):
 
         pr_url = g.repos[pr_target_account][pr_target_repo].issues[pr]
         try:
-            status, data = pr_url.labels.post(body=labels)
+            status, _ = pr_url.labels.post(body=labels)
             if status == HTTP_STATUS_OK:
                 print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
                 return True
@@ -1997,9 +1998,9 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                     patch = patch[0]
                 elif isinstance(patch, dict):
                     patch_info = {}
-                    for key in patch.keys():
-                        patch_info[key] = patch[key]
-                    if 'name' not in patch_info.keys():
+                    for key, cur_patch in patch.items():
+                        patch_info[key] = cur_patch
+                    if 'name' not in patch_info:
                         raise EasyBuildError("Wrong patch spec '%s', when using a dict 'name' entry must be supplied",
                                              str(patch))
                     patch = patch_info['name']
