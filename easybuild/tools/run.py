@@ -138,7 +138,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     """
     Run specified command (in a subshell)
     :param cmd: command to run
-    :param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    :param log_ok: if False do not raise an error for failing commands (exit code non-zero)
     :param log_all: always log command output and exit code
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
     :param inp: the input given to the command via stdin
@@ -313,7 +313,7 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
     :param owd: original working directory
     :param start_time: start time of command (datetime instance)
     :param cmd_log: log file to print command output to
-    :param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    :param log_ok: if False do not raise an error for failing commands (exit code non-zero)
     :param log_all: always log command output and exit code
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
     :param regexp: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
@@ -382,7 +382,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     :param cmd: command to run
     :param qa: dictionary which maps question to answers
     :param no_qa: list of patters that are not questions
-    :param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    :param log_ok: if False do not raise an error for failing commands (exit code non-zero)
     :param log_all: always log command output and exit code
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
     :param regexp: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
@@ -657,7 +657,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     :param ec: exit code of executed command
     :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
     :param log_all: always log command output and exit code
-    :param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    :param log_ok: if False do not raise an error for failing commands (exit code non-zero)
     :param regexp: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
     """
     if strictness == IGNORE:
@@ -678,7 +678,13 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
 
     if ec and (log_all or log_ok):
         # We don't want to error if the user doesn't care
-        if check_ec:
+        # Do not raise an error if we only want to log the command and output (i.e. log_all=True, log_ok=False)
+        # TODO: Refactor this confusing naming of parameters and dependency on strictness with EasyBuild 5.0
+        #       We need a way for the caller to:
+        #           - Never raise an error (e.g. caller handles that)
+        #           - Independently of the exit code log command and output
+        #           - Assure the command completed with no error (i.e. even for strictness=IGNORE)
+        if check_ec and log_ok:
             raise EasyBuildError('cmd "%s" exited with exit code %s and output:\n%s', cmd, ec, stdouterr)
         else:
             _log.warning('cmd "%s" exited with exit code %s and output:\n%s' % (cmd, ec, stdouterr))
