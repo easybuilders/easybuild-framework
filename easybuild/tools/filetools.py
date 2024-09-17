@@ -59,7 +59,7 @@ import zlib
 from functools import partial
 
 from easybuild.base import fancylogger
-from easybuild.tools import run
+from easybuild.tools import LooseVersion, run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
@@ -2440,11 +2440,16 @@ def copy_file(path, target_path, force_in_dry_run=False):
                         # but the copy still succeeds
                         shutil.copy2(path, target_path)
                         _log.info("%s copied to %s", path, target_path)
-                    except PermissionError as err:
+                    except OSError as err:
+                        # catch the more general OSError instead of PermissionError, since python2 doesn't support
+                        # PermissionError
+                        if LooseVersion(platform.python_version()) >= LooseVersion('3'):
+                            if not isinstance(err, PermissionError):
+                                raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
                         # double-check whether the copy actually succeeded
-                        if not os.path.exists(target_path):
+                        if not os.path.exists(target_path) or not os.path.samefile(path, target_path):
                             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
-                        _log.info("%s copied to %s ignoring permissions error: %s", path, target_path, err)
+                        _log.info("%s copied to %s, ignoring permissions error: %s", path, target_path, err)
                 elif os.path.islink(path):
                     if os.path.isdir(target_path):
                         target_path = os.path.join(target_path, os.path.basename(path))
