@@ -404,7 +404,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, commit=None, accoun
         latest_commit_sha = fetch_latest_commit_sha(repo, account, branch, github_user=github_user)
     else:
         raise EasyBuildError(
-            "Either branch or commit should be specified in download_repo", exit_code=EasyBuildExit.OPTION_ERROR
+            "Either branch or commit should be specified in download_repo", exit_code=EasyBuildExit.VALUE_ERROR
         )
 
     expected_path = os.path.join(path, extracted_dir_name)
