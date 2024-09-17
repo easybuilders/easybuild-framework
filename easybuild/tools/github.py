@@ -1991,7 +1991,7 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
             print_msg('\n'.join(msg), log=_log)
         else:
             raise EasyBuildError(
-                "No changes in '%s' branch compared to current 'develop' branch!", branch_name,
+                f"No changes in '{branch_name}' branch compared to current '{pr_target_branch}' branch!",
                 exit_code=EasyBuildExit.FAIL_GITHUB
             )
 
