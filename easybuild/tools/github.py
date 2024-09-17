@@ -2640,7 +2640,7 @@ def find_easybuild_easyconfig(github_user=None):
     if file_versions:
         fn = sorted(file_versions)[-1][1]
     else:
-        raise EasyBuildError("Couldn't find any EasyBuild easyconfigs", exit_code=EasyBuildExit.MISS_EASYCONFIG)
+        raise EasyBuildError("Couldn't find any EasyBuild easyconfigs", exit_code=EasyBuildExit.MISSING_EASYCONFIG)
 
     eb_file = os.path.join(eb_parent_path, fn)
     return eb_file
