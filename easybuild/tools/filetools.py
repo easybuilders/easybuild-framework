@@ -2433,10 +2433,30 @@ def copy_file(path, target_path, force_in_dry_run=False):
                 shutil.copyfile(path, target_path)
                 _log.info("Copied contents of file %s to %s", path, target_path)
             else:
-                mkdir(os.path.dirname(target_path), parents=True)
+                if os.path.isdir(target_path):
+                    target_path = os.path.join(target_path, os.path.basename(path))
+
+                target_parent_dir = os.path.dirname(target_path)
+                if not os.path.exists(target_parent_dir):
+                    mkdir(target_parent_dir, parents=True)
+
                 if path_exists:
-                    shutil.copy2(path, target_path)
-                    _log.info("%s copied to %s", path, target_path)
+                    # always try to copy file contents
+                    shutil.copyfile(path, target_path)
+                    _log.info("File contents of %s copied to %s", path, target_path)
+
+                    # also try to copy metadata, but only log in case of failure;
+                    # there could be various valid reasons that copying of metadata failed,
+                    # like the target file being owned by someone else than the current user
+                    # (since chown required file ownership),
+                    # or the source filesystem having more attributes than the target filesystem
+                    # (cfr. https://github.com/easybuilders/easybuild-framework/issues/3910)
+                    try:
+                        shutil.copystat(path, target_path)
+                        _log.info("Metadata of %s copied to %s", path, target_path)
+                    except Exception as err:
+                        _log.info("Ignoring failure to copy metadata of %s to %s: %s", path, target_path, err)
+
                 elif os.path.islink(path):
                     if os.path.isdir(target_path):
                         target_path = os.path.join(target_path, os.path.basename(path))
