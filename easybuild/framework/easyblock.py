@@ -795,13 +795,11 @@ class EasyBlock(object):
                     return fullpath
 
             except IOError as err:
-                if not warning_only:
-                    raise EasyBuildError("Downloading file %s "
-                                         "from url %s to %s failed: %s", filename, url, fullpath, err)
-                else:
-                    self.log.warning("Downloading file %s "
-                                     "from url %s to %s failed: %s", filename, url, fullpath, err)
+                error_msg = "Downloading file %s from url %s to %s failed: %s" % (filename, url, fullpath, err)
+                if warning_only:
+                    self.log.warning(error_msg)
                     return None
+                raise EasyBuildError(error_msg)
 
         else:
             # try and find file in various locations
@@ -878,13 +876,12 @@ class EasyBlock(object):
                     self.dry_run_msg("  * %s (MISSING)", filename)
                     return filename
                 else:
-                    if not warning_only:
-                        raise EasyBuildError("Couldn't find file %s anywhere, and downloading it is disabled... "
-                                             "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
-                    else:
-                        self.log.warning("Couldn't find file %s anywhere, and downloading it is disabled... "
-                                         "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
+                    error_msg = ("Couldn't find file %s anywhere, and downloading it is disabled... "
+                                 "Paths attempted (in order): %s " % (filename, ', '.join(failedpaths)))
+                    if warning_only:
+                        self.log.warning(error_msg)
                         return None
+                    raise EasyBuildError(error_msg)
             elif git_config:
                 return get_source_tarball_from_git(filename, targetdir, git_config)
             else:
@@ -901,19 +898,18 @@ class EasyBlock(object):
                     source_urls.append(url)
 
                 mkdir(targetdir, parents=True)
+                if extension:
+                    targetpath = os.path.join(targetdir, "extensions", filename)
+                else:
+                    targetpath = os.path.join(targetdir, filename)
+
+                url_filename = download_filename or filename
+                dry_run_urls = []
 
                 for url in source_urls:
-
-                    if extension:
-                        targetpath = os.path.join(targetdir, "extensions", filename)
-                    else:
-                        targetpath = os.path.join(targetdir, filename)
-
-                    url_filename = download_filename or filename
-
                     if isinstance(url, string_type):
                         if url[-1] in ['=', '/']:
-                            fullurl = "%s%s" % (url, url_filename)
+                            fullurl = url + url_filename
                         else:
                             fullurl = "%s/%s" % (url, url_filename)
                     elif isinstance(url, tuple):
@@ -935,54 +931,47 @@ class EasyBlock(object):
                             _log.debug("Failed to derive alternate PyPI URL for %s, so retaining the original", fullurl)
 
                     if self.dry_run:
-                        self.dry_run_msg("  * %s will be downloaded to %s", filename, targetpath)
-                        if extension and urls:
-                            # extensions typically have custom source URLs specified, only mention first
-                            self.dry_run_msg("    (from %s, ...)", fullurl)
-                        downloaded = True
-
+                        dry_run_urls.append(fullurl)
                     else:
                         self.log.debug("Trying to download file %s from %s to %s ..." % (filename, fullurl, targetpath))
                         downloaded = False
                         try:
                             if download_file(filename, fullurl, targetpath):
                                 downloaded = True
-
                         except IOError as err:
                             self.log.debug("Failed to download %s from %s: %s" % (filename, url, err))
-                            failedpaths.append(fullurl)
-                            continue
 
-                    if downloaded:
-                        # if fetching from source URL worked, we're done
-                        self.log.info("Successfully downloaded source file %s from %s" % (filename, fullurl))
-                        return targetpath
-                    else:
-                        failedpaths.append(fullurl)
+                        if downloaded:
+                            # if fetching from source URL worked, we're done
+                            self.log.info("Successfully downloaded source file %s from %s" % (filename, fullurl))
+                            return targetpath
+                        else:
+                            failedpaths.append(fullurl)
 
                 if self.dry_run:
-                    self.dry_run_msg("  * %s (MISSING)", filename)
-                    return filename
+                    if dry_run_urls:
+                        self.dry_run_msg("  * %s will be downloaded from %s to %s",
+                                         filename, ' or '.join(fullurl), targetpath)
+                    else:
+                        self.dry_run_msg("  * %s (MISSING)", filename)
+                    return targetpath
                 else:
-                    error_msg = "Couldn't find file %s anywhere, "
+                    error_msg = "Couldn't find file %s anywhere, " % filename
                     if download_instructions is None:
                         download_instructions = self.cfg['download_instructions']
-                    if download_instructions is not None and download_instructions != "":
+                    if download_instructions:
                         msg = "\nDownload instructions:\n\n" + download_instructions + '\n'
                         print_msg(msg, prefix=False, stderr=True)
                         error_msg += "please follow the download instructions above, and make the file available "
                         error_msg += "in the active source path (%s)" % ':'.join(source_paths())
                     else:
-                        # flatten list to string with '%' characters escaped (literal '%' desired in 'sprintf')
-                        failedpaths_msg = ', '.join(failedpaths).replace('%', '%%')
                         error_msg += "and downloading it didn't work either... "
-                        error_msg += "Paths attempted (in order): %s " % failedpaths_msg
+                        error_msg += "Paths attempted (in order): " + ', '.join(failedpaths)
 
-                    if not warning_only:
-                        raise EasyBuildError(error_msg, filename)
-                    else:
-                        self.log.warning(error_msg, filename)
+                    if warning_only:
+                        self.log.warning(error_msg)
                         return None
+                    raise EasyBuildError(error_msg)
 
     #
     # GETTER/SETTER UTILITY FUNCTIONS
