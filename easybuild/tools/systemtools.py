@@ -202,7 +202,6 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
     'graphviz-python': ('gv', "rendering dependency graph with Graphviz: --dep-graph"),
     'keyring': (None, "storing GitHub token"),
     'pbs-python': ('pbs', "using Torque as --job backend"),
-    'pep8': (None, "fallback for code style checking: --check-style, --check-contrib"),
     'pycodestyle': (None, "code style checking: --check-style, --check-contrib"),
     'pysvn': (None, "using SVN repository as easyconfigs archive"),
     'python-graph-core': ('pygraph.classes.digraph', "creating dependency graph: --dep-graph"),

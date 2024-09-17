@@ -72,10 +72,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, clean
 try:
     import pycodestyle  # noqa
 except ImportError:
-    try:
-        import pep8  # noqa
-    except ImportError:
-        pass
+    pass
 
 
 EXTERNAL_MODULES_METADATA = """[foobar/1.2.3]
@@ -5893,14 +5890,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_check_contrib_style(self):
         """Test style checks performed by --check-contrib + dedicated --check-style option."""
-        try:
-            import pycodestyle  # noqa
-        except ImportError:
-            try:
-                import pep8  # noqa
-            except ImportError:
-                print("Skipping test_check_contrib_style, since pycodestyle or pep8 is not available")
-                return
+        if 'pycodestyle' not in sys.modules:
+            print("Skipping test_check_contrib_style pycodestyle is not available")
+            return
 
         regex = re.compile(r"Running style check on 2 easyconfig\(s\)(.|\n)*>> All style checks PASSed!", re.M)
         args = [
@@ -5953,8 +5945,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_check_contrib_non_style(self):
         """Test non-style checks performed by --check-contrib."""
 
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping test_check_contrib_non_style (no pycodestyle or pep8 available)")
+        if 'pycodestyle' not in sys.modules:
+            print("Skipping test_check_contrib_non_style pycodestyle is not available")
             return
 
         args = [
