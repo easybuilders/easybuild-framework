@@ -504,7 +504,7 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
                 else:
                     raise EasyBuildError(
                         "Failed to isolate path for PR #%s from list of PR paths: %s", pr, extra_ec_paths,
-                        exit_code=EasyBuildExit.OPTION_ERROR
+                        exit_code=EasyBuildExit.FAIL_GITHUB
                     )
 
         elif github_repo == GITHUB_EASYBLOCKS_REPO:
