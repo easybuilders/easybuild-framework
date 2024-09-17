@@ -894,9 +894,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             body.extend([self.unload_module(m).strip() for m in unload_modules])
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6.1+ supports depends-on which does this most nicely:
-        if build_option('mod_depends_on') or depends_on:
-            if not self.modules_tool.supports_depends_on:
-                raise EasyBuildError("depends-on statements in generated module are not supported by modules tool")
+        if (build_option('mod_depends_on') or depends_on) and self.modules_tool.supports_depends_on:
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
 
         body.append(load_template)
@@ -1320,9 +1318,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6+ supports depends_on which does this most nicely:
-        if build_option('mod_depends_on') or depends_on:
-            if not self.modules_tool.supports_depends_on:
-                raise EasyBuildError("depends_on statements in generated module are not supported by modules tool")
+        if (build_option('mod_depends_on') or depends_on) and self.modules_tool.supports_depends_on:
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
 
         body.append(load_template)
