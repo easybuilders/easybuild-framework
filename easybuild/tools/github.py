@@ -685,7 +685,7 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
                 else:
                     raise EasyBuildError(
                         "Failed to isolate path for commit %s from list of commit paths: %s",
-                        commit, extra_ec_paths, exit_code=EasyBuildExit.OPTION_ERROR
+                        commit, extra_ec_paths, exit_code=EasyBuildExit.FAIL_GITHUB
                     )
             else:
                 path = os.path.join(tempfile.gettempdir(), 'ecs_commit_' + commit)
