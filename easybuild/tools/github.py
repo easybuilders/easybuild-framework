@@ -1183,7 +1183,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     diff_stat = git_repo.git.diff(cached=True, stat=True)
     if not diff_stat:
         raise EasyBuildError(
-            "No changed files found when comparing to current develop branch. Refused to make empty pull request.",
+            f"No changed files found when comparing to current {start_branch} branch. "
+            "Refused to make empty pull request.",
             exit_code=EasyBuildExit.FAIL_GITHUB
         )
 
