@@ -829,7 +829,7 @@ def post_comment_in_issue(issue, txt, account=GITHUB_EB_MAIN, repo=GITHUB_EASYCO
         except ValueError as err:
             raise EasyBuildError(
                 "Failed to parse specified pull request number '%s' as an int: %s; ", issue, err,
-                exit_code=EasyBuildExit.FAIL_GITHUB
+                exit_code=EasyBuildExit.OPTION_ERROR
             )
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
