@@ -4196,10 +4196,15 @@ class EasyBlock(object):
                         self.run_step(step_name, step_methods)
                     except RunShellCmdError as err:
                         err.print()
-                        ec_path = os.path.basename(self.cfg.path)
-                        error_msg = f"shell command '{err.cmd_name} ...' failed with exit code {err.exit_code}"
-                        error_msg += f" in {step_name} step for {ec_path}"
-                        raise EasyBuildError(error_msg, exit_code=EasyBuildExit[f"FAIL_{step_name.upper()}_STEP"])
+                        error_msg = (
+                            f"shell command '{err.cmd_name} ...' failed with exit code {err.exit_code} "
+                            f"in {step_name} step for {os.path.basename(self.cfg.path)}"
+                        )
+                        try:
+                            step_exit_code = EasyBuildExit[f"FAIL_{step_name.upper()}_STEP"]
+                        except KeyError:
+                            step_exit_code = EasyBuildExit.ERROR
+                        raise EasyBuildError(error_msg, exit_code=step_exit_code) from err
                     finally:
                         if not self.dry_run:
                             step_duration = datetime.now() - start_time
