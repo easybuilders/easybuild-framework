@@ -399,7 +399,7 @@ class EnhancedTestCase(TestCase):
             src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                         'modules', 'CategorizedHMNS', mod_subdir)
             copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
-        # create empty module file directory to make C/Tcl modules happy
+        # create empty module file directory to make Environment Modules <5.0 happy
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2')
         mkdir(os.path.join(mpi_pref, 'base'))
 

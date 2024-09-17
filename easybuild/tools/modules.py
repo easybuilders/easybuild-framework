@@ -148,8 +148,6 @@ class ModulesTool(object):
     VERSION_OPTION = '--version'
     # minimal required version (cannot include -beta or rc)
     REQ_VERSION = None
-    # minimal required version to use getenv Tcl modulefile command
-    REQ_VERSION_TCL_GETENV = None
     # minimal required version to check user's group in modulefile
     REQ_VERSION_TCL_CHECK_GROUP = None
     # deprecated version limit (support for versions below this version is deprecated)
@@ -590,7 +588,8 @@ class ModulesTool(object):
                     self.log.debug("Skipping warning line '%s'", line)
                     continue
 
-                # skip lines that start with 'module-' (like 'module-version'),
+                # skip lines that start with 'module-' (like 'module-version')
+                # that may appear with EnvironmentModulesC or EnvironmentModulesTcl,
                 # see https://github.com/easybuilders/easybuild-framework/issues/3376
                 if line.startswith('module-'):
                     self.log.debug("Skipping line '%s' since it starts with 'module-'", line)
@@ -745,7 +744,7 @@ class ModulesTool(object):
         :param mod_name: module name
         :param strip_ext: strip (.lua) extension from module fileame (if present)"""
         # (possible relative) path is always followed by a ':', and may be prepended by whitespace
-        # this works for both environment modules and Lmod
+        # this works for both Environment Modules and Lmod
         modpath_re = re.compile(r'^\s*(?P<modpath>[^/\n]*/[^\s]+):$', re.M)
         modpath = self.get_value_from_modulefile(mod_name, modpath_re)
 
@@ -1180,7 +1179,7 @@ class ModulesTool(object):
 
 
 class EnvironmentModulesC(ModulesTool):
-    """Interface to (C) environment modules (modulecmd)."""
+    """Interface to (C) Environment Modules (modulecmd)."""
     NAME = "Environment Modules"
     COMMAND = "modulecmd"
     REQ_VERSION = '3.2.10'
@@ -1195,7 +1194,7 @@ class EnvironmentModulesC(ModulesTool):
         if isinstance(args[0], (list, tuple,)):
             args = args[0]
 
-        # some versions of Cray's environment modules tool (3.2.10.x) include a "source */init/bash" command
+        # some versions of Cray's Environment Modules tool (3.2.10.x) include a "source */init/bash" command
         # in the output of some "modulecmd python load" calls, which is not a valid Python command,
         # which must be stripped out to avoid "invalid syntax" errors when evaluating the output
         def tweak_stdout(txt):
@@ -1237,9 +1236,9 @@ class EnvironmentModulesC(ModulesTool):
 
 
 class EnvironmentModulesTcl(EnvironmentModulesC):
-    """Interface to (Tcl) environment modules (modulecmd.tcl)."""
+    """Interface to (ancient Tcl-only) Environment Modules (modulecmd.tcl)."""
     NAME = "ancient Tcl-only Environment Modules"
-    # Tcl environment modules have no --terse (yet),
+    # ancient Tcl-only Environment Modules have no --terse (yet),
     #   -t must be added after the command ('avail', 'list', etc.)
     TERSE_OPTION = (1, '-t')
     COMMAND = 'modulecmd.tcl'
@@ -1253,7 +1252,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
     def set_path_env_var(self, key, paths):
         """Set environment variable with given name to the given list of paths."""
         super(EnvironmentModulesTcl, self).set_path_env_var(key, paths)
-        # for Tcl environment modules, we need to make sure the _modshare env var is kept in sync
+        # for Tcl Environment Modules, we need to make sure the _modshare env var is kept in sync
         setvar('%s_modshare' % key, ':1:'.join(paths), verbose=False)
 
     def run_module(self, *args, **kwargs):
@@ -1316,17 +1315,15 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
             self.set_mod_paths()
 
 
-class EnvironmentModules(EnvironmentModulesTcl):
-    """Interface to environment modules 4.0+"""
+class EnvironmentModules(ModulesTool):
+    """Interface to Environment Modules 4.0+"""
     NAME = "Environment Modules"
     COMMAND = os.path.join(os.getenv('MODULESHOME', 'MODULESHOME_NOT_DEFINED'), 'libexec', 'modulecmd.tcl')
     COMMAND_ENVIRONMENT = 'MODULES_CMD'
-    REQ_VERSION = '4.0.0'
-    REQ_VERSION_TCL_GETENV = '4.2.0'
-    DEPR_VERSION = '4.0.0'  # needs to be set as EnvironmentModules inherits from EnvironmentModulesTcl
+    REQ_VERSION = '4.3.0'
+    DEPR_VERSION = '4.3.0'
     MAX_VERSION = None
     REQ_VERSION_TCL_CHECK_GROUP = '4.6.0'
-    REQ_VERSION_SAFE_AUTO_LOAD = '4.2.4'
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d[^+\s]*)(\+\S*)?\s'
 
     SHOW_HIDDEN_OPTION = '--all'
@@ -1354,9 +1351,9 @@ class EnvironmentModules(EnvironmentModulesTcl):
 
         super(EnvironmentModules, self).__init__(*args, **kwargs)
         version = LooseVersion(self.version)
-        self.supports_tcl_getenv = version >= LooseVersion(self.REQ_VERSION_TCL_GETENV)
+        self.supports_tcl_getenv = True
         self.supports_tcl_check_group = version >= LooseVersion(self.REQ_VERSION_TCL_CHECK_GROUP)
-        self.supports_safe_auto_load = version >= LooseVersion(self.REQ_VERSION_SAFE_AUTO_LOAD)
+        self.supports_safe_auto_load = True
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
@@ -1419,13 +1416,34 @@ class EnvironmentModules(EnvironmentModulesTcl):
         # - line starts with 'setenv'
         # - whitespace (spaces & tabs) around variable name
         # - curly braces around value if it contain spaces
-        value = super(EnvironmentModules, self).get_setenv_value_from_modulefile(mod_name=mod_name,
-                                                                                 var_name=var_name)
+        regex = re.compile(r'^setenv\s+%s\s+(?P<value>.+)' % var_name, re.M)
+        value = self.get_value_from_modulefile(mod_name, regex, strict=False)
 
         if value:
-            value = value.strip('{}')
+            value = value.strip(' {}')
 
         return value
+
+    def remove_module_path(self, path, set_mod_paths=True):
+        """
+        Remove specified module path (using 'module unuse').
+
+        :param path: path to remove from $MODULEPATH via 'unuse'
+        :param set_mod_paths: (re)set self.mod_paths
+        """
+        # remove module path via 'module use' and make sure self.mod_paths is synced
+        # Environment Modules <5.0 keeps track of how often a path was added via 'module use',
+        # so we need to check to make sure it's really removed
+        path = normalize_path(path)
+        while True:
+            try:
+                # Unuse the path that is actually present in the environment
+                module_path = next(p for p in curr_module_paths() if normalize_path(p) == path)
+            except StopIteration:
+                break
+            self.unuse(module_path)
+        if set_mod_paths:
+            self.set_mod_paths()
 
     def update(self):
         """Update after new modules were added."""
@@ -1786,7 +1804,7 @@ def avail_modules_tools():
 
 def modules_tool(mod_paths=None, testing=False):
     """
-    Return interface to modules tool (environment modules (C, Tcl), or Lmod)
+    Return interface to modules tool (EnvironmentModules, Lmod, ...)
     """
     # get_modules_tool might return none (e.g. if config was not initialized yet)
     modules_tool = get_modules_tool()

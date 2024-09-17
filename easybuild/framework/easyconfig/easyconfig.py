@@ -441,6 +441,8 @@ class EasyConfig(object):
             self.path = path
             self.rawtxt = read_file(path)
             self.log.debug("Raw contents from supplied easyconfig file %s: %s", path, self.rawtxt)
+            if not self.rawtxt.strip():
+                raise EasyBuildError('Easyconfig file is empty')
         else:
             self.rawtxt = rawtxt
             self.log.debug("Supplied raw easyconfig contents: %s" % self.rawtxt)
@@ -1890,7 +1892,9 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         else:
             # if no easyblock specified, try to find if one exists
             if name is None:
-                name = "UNKNOWN"
+                if error_on_missing_easyblock:
+                    raise EasyBuildError("No easyblock found as neither name nor easyblock were specified")
+                return None
             # The following is a generic way to calculate unique class names for any funny software title
             class_name = encode_class_name(name)
             # modulepath will be the namespace + encoded modulename (from the classname)

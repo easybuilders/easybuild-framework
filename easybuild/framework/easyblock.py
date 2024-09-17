@@ -74,6 +74,7 @@ from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg
 from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
+from easybuild.tools.config import EASYBUILD_SOURCES_URL # noqa
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
@@ -105,9 +106,6 @@ from easybuild.tools.systemtools import get_shared_lib_ext, pick_system_specific
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
-
-
-EASYBUILD_SOURCES_URL = 'https://sources.easybuild.io'
 
 DEFAULT_BIN_LIB_SUBDIRS = ('bin', 'lib', 'lib64')
 
@@ -897,8 +895,10 @@ class EasyBlock(object):
                 source_urls = []
             source_urls.extend(self.cfg['source_urls'])
 
-            # add https://sources.easybuild.io as fallback source URL
-            source_urls.append(EASYBUILD_SOURCES_URL + '/' + os.path.join(name_letter, location))
+            # Add additional URLs as configured.
+            for url in build_option("extra_source_urls"):
+                url += "/" + name_letter + "/" + location
+                source_urls.append(url)
 
             mkdir(targetdir, parents=True)
 
@@ -2494,7 +2494,7 @@ class EasyBlock(object):
         checksum_issues = []
 
         sources = ent.get('sources', [])
-        patches = ent.get('patches', [])
+        patches = ent.get('patches', []) + ent.get('postinstallpatches', [])
         checksums = ent.get('checksums', [])
         # Single source should be re-wrapped as a list, and checksums with it
         if isinstance(sources, dict):
@@ -3514,10 +3514,7 @@ class EasyBlock(object):
         """Sanity check on extensions (if any)."""
         failed_exts = []
 
-        if build_option('skip_extensions'):
-            self.log.info("Skipping sanity check for extensions since skip-extensions is enabled...")
-            return
-        elif not self.ext_instances:
+        if not self.ext_instances:
             # class instances for extensions may not be initialized yet here,
             # for example when using --module-only or --sanity-check-only
             self.prepare_for_extensions()
@@ -3672,7 +3669,10 @@ class EasyBlock(object):
 
         # also run sanity check for extensions (unless we are an extension ourselves)
         if not extension:
-            self._sanity_check_step_extensions()
+            if build_option('skip_extensions'):
+                self.log.info("Skipping sanity check for extensions since skip-extensions is enabled...")
+            else:
+                self._sanity_check_step_extensions()
 
         linked_shared_lib_fails = self.sanity_check_linked_shared_libs()
         if linked_shared_lib_fails:
@@ -3947,12 +3947,13 @@ class EasyBlock(object):
         self.cfg.generate_template_values()
 
     def skip_step(self, step, skippable):
-        """Dedice whether or not to skip the specified step."""
+        """Decide whether or not to skip the specified step."""
         skip = False
         force = build_option('force')
         module_only = build_option('module_only') or self.cfg['module_only']
         sanity_check_only = build_option('sanity_check_only')
         skip_extensions = build_option('skip_extensions')
+        skip_sanity_check = build_option('skip_sanity_check')
         skip_test_step = build_option('skip_test_step')
         skipsteps = self.cfg['skipsteps']
 
@@ -3980,6 +3981,10 @@ class EasyBlock(object):
             self.log.info("Skipping %s step because of sanity-check-only mode", step)
             skip = True
 
+        elif skip_sanity_check and step == SANITYCHECK_STEP:
+            self.log.info("Skipping %s step as request via skip-sanity-check", step)
+            skip = True
+
         elif skip_extensions and step == EXTENSIONS_STEP:
             self.log.info("Skipping %s step as requested via skip-extensions", step)
             skip = True
@@ -3990,9 +3995,9 @@ class EasyBlock(object):
 
         else:
             msg = "Not skipping %s step (skippable: %s, skip: %s, skipsteps: %s, module_only: %s, force: %s, "
-            msg += "sanity_check_only: %s, skip_extensions: %s, skip_test_step: %s)"
+            msg += "sanity_check_only: %s, skip_extensions: %s, skip_test_step: %s, skip_sanity_check: %s)"
             self.log.debug(msg, step, skippable, self.skip, skipsteps, module_only, force,
-                           sanity_check_only, skip_extensions, skip_test_step)
+                           sanity_check_only, skip_extensions, skip_test_step, skip_sanity_check)
 
         return skip
 
@@ -4059,15 +4064,6 @@ class EasyBlock(object):
             return get_step(READY_STEP, "creating build dir, resetting environment", ready_substeps, False,
                             initial=initial)
 
-        source_substeps = [
-            (False, lambda x: x.checksum_step),
-            (True, lambda x: x.extract_step),
-        ]
-
-        def source_step_spec(initial):
-            """Return source step specified."""
-            return get_step(SOURCE_STEP, "unpacking", source_substeps, True, initial=initial)
-
         install_substeps = [
             (False, lambda x: x.stage_install_step),
             (False, lambda x: x.make_installdir),
@@ -4081,6 +4077,7 @@ class EasyBlock(object):
         # format for step specifications: (step_name, description, list of functions, skippable)
 
         # core steps that are part of the iterated loop
+        extract_step_spec = (SOURCE_STEP, "unpacking", [lambda x: x.extract_step], True)
         patch_step_spec = (PATCH_STEP, 'patching', [lambda x: x.patch_step], True)
         prepare_step_spec = (PREPARE_STEP, 'preparing', [lambda x: x.prepare_step], False)
         configure_step_spec = (CONFIGURE_STEP, 'configuring', [lambda x: x.configure_step], True)
@@ -4090,9 +4087,9 @@ class EasyBlock(object):
 
         # part 1: pre-iteration + first iteration
         steps_part1 = [
-            (FETCH_STEP, 'fetching files', [lambda x: x.fetch_step], False),
+            (FETCH_STEP, 'fetching files', [lambda x: x.fetch_step, lambda x: x.checksum_step], False),
             ready_step_spec(True),
-            source_step_spec(True),
+            extract_step_spec,
             patch_step_spec,
             prepare_step_spec,
             configure_step_spec,
@@ -4106,7 +4103,7 @@ class EasyBlock(object):
         # not all parts of all steps need to be rerun (see e.g., ready, prepare)
         steps_part2 = [
             ready_step_spec(False),
-            source_step_spec(False),
+            extract_step_spec,
             patch_step_spec,
             prepare_step_spec,
             configure_step_spec,
@@ -4142,7 +4139,7 @@ class EasyBlock(object):
         Build and install this software.
         run_test_cases (bool): run tests after building (e.g.: make test)
         """
-        if self.cfg['stop'] and self.cfg['stop'] == 'cfg':
+        if self.cfg['stop'] == 'cfg':
             return True
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
@@ -4765,7 +4762,7 @@ def inject_checksums(ecs, checksum_type):
 
         # back up easyconfig file before injecting checksums
         ec_backup = back_up_file(ec['spec'])
-        print_msg("backup of easyconfig file saved to %s..." % ec_backup, log=_log)
+        print_msg("backup of easyconfig file saved to %s" % ec_backup, log=_log)
 
         # compute & inject checksums for sources/patches
         print_msg("injecting %s checksums for sources & patches in %s..." % (checksum_type, ec_fn), log=_log)
