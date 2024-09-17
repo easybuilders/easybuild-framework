@@ -393,7 +393,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, commit=None, accoun
         else:
             error_msg = r"Specified commit SHA %s for downloading %s/%s is not valid, "
             error_msg += "must be full SHA-1 (40 chars)"
-            raise EasyBuildError(error_msg, commit, account, repo, exit_code=EasyBuildExit.OPTION_ERROR)
+            raise EasyBuildError(error_msg, commit, account, repo, exit_code=EasyBuildExit.VALUE_ERROR)
 
         extracted_dir_name = '%s-%s' % (repo, commit)
         base_name = '%s.tar.gz' % commit
