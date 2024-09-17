@@ -4303,6 +4303,7 @@ def build_and_install_one(ecdict, init_env):
 
     # build easyconfig
     error_msg = '(no error)'
+    exit_code = None
     # timing info
     start_time = time.time()
     try:
@@ -4468,6 +4469,7 @@ def build_and_install_one(ecdict, init_env):
         success = False
         summary = 'FAILED'
         succ = "unsuccessfully: " + error_msg
+        exit_code = EasyBuildExit.ERROR if exit_code is None else exit_code
 
         # cleanup logs
         app.close_log()
