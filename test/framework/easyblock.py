@@ -1803,7 +1803,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # test no_download option
         urls = ['file://%s' % tmpdir_subdir]
-        error_pattern = "Couldn't find file toy-0.0.tar.gz anywhere, and downloading it is disabled"
+        error_pattern = "Couldn't find file 'toy-0.0.tar.gz' anywhere, and downloading it is disabled"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, eb.obtain_file,
                                   toy_tarball, urls=urls, alt_location='alt_toy', no_download=True)

@@ -64,7 +64,8 @@ except ImportError:
     from threading import get_ident as get_thread_id
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, CWD_NOTFOUND_ERROR, dry_run_msg, print_msg, time_str_since
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUND_ERROR
+from easybuild.tools.build_log import dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.utilities import trace_msg
@@ -574,7 +575,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     else:
         _log.info(f"Output of '{cmd_name} ...' shell command (stdout + stderr):\n{res.output}")
 
-    if res.exit_code == 0:
+    if res.exit_code == EasyBuildExit.SUCCESS:
         _log.info(f"Shell command completed successfully (see output above): {cmd_str}")
     else:
         _log.warning(f"Shell command FAILED (exit code {res.exit_code}, see output above): {cmd_str}")

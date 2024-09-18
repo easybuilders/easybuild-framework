@@ -43,7 +43,7 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, process_easyconfig
 from easybuild.framework.easyconfig.easyconfig import robot_find_easyconfig, verify_easyconfig_filename
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, get_cwd, search_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
@@ -325,7 +325,7 @@ def raise_error_missing_deps(missing_deps, extra_msg=None):
     error_msg = "Missing dependencies: %s" % mod_names
     if extra_msg:
         error_msg += ' (%s)' % extra_msg
-    raise EasyBuildError(error_msg)
+    raise EasyBuildError(error_msg, exit_code=EasyBuildExit.MISSING_DEPENDENCY)
 
 
 def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_error_missing_ecs=True):
