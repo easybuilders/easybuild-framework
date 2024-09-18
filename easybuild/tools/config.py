@@ -206,6 +206,7 @@ BUILD_OPTIONS_CMDLINE = {
         'backup_modules',
         'banned_linked_shared_libs',
         'checksum_priority',
+        'cpp_headers_search_path',
         'container_config',
         'container_image_format',
         'container_image_name',

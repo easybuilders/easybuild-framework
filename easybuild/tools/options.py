@@ -101,6 +101,7 @@ from easybuild.tools.robot import det_robot_path
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
+from easybuild.tools.toolchain.toolchain import CPP_HEADER_SEARCH_PATHS, DEFAULT_CPP_HEADER_SEARCH_PATH
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
@@ -375,6 +376,8 @@ class EasyBuildOptions(GeneralOption):
                                   'choice', 'store_or_None', DEFAULT_CHECKSUM_PRIORITY, CHECKSUM_PRIORITY_CHOICES),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
+            'cpp-headers-search-path': ("Search path used by EasyBuild to inject include directories", 'choice',
+                                        'store', DEFAULT_CPP_HEADER_SEARCH_PATH, [*CPP_HEADER_SEARCH_PATHS]),
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
                       {'metavar': 'WHEN'}),
             'consider-archived-easyconfigs': ("Also consider archived easyconfigs", None, 'store_true', False),
