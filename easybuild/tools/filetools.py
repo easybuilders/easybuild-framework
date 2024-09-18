@@ -2446,18 +2446,33 @@ def copy_file(path, target_path, force_in_dry_run=False):
                     except OSError as err:
                         # catch the more general OSError instead of PermissionError, since python2 doesn't support
                         # PermissionError
+                        if not os.stat(path).st_mode & stat.S_IWUSR:
+                            # failure not due to read-only file
+                            raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+
                         pyver = LooseVersion(platform.python_version())
                         if pyver >= LooseVersion('3.7'):
                             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
                         elif LooseVersion('3.7') > pyver >= LooseVersion('3'):
                             if not isinstance(err, PermissionError):
                                 raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+
                         # double-check whether the copy actually succeeded
                         if not os.path.exists(target_path) or not filecmp.cmp(path, target_path, shallow=False):
                             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
-                        msg = ("%s copied to %s, ignoring permissions error (likely due to "
-                               "https://bugs.python.org/issue24538): %s")
-                        _log.info(msg, path, target_path, err)
+
+                        try:
+                            # re-enable user write permissions in target, copy xattrs, then remove write perms again
+                            adjust_permissions(target_path, stat.I_IWUSR)
+                            shutil._copyxattr(path, target_path)
+                            adjust_permissions(target_path, stat.I_IWUSR, add=False)
+                        except OSError as err:
+                            raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+
+                        msg = ("Failed to copy extended attributes from file %s to %s, due to a bug in shutil (see "
+                               "https://bugs.python.org/issue24538). Copy successful with workaround.")
+                        _log.info(msg, path, target_path)
+
                 elif os.path.islink(path):
                     if os.path.isdir(target_path):
                         target_path = os.path.join(target_path, os.path.basename(path))
