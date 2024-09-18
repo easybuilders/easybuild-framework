@@ -2443,11 +2443,11 @@ def copy_file(path, target_path, force_in_dry_run=False):
                         # see https://bugs.python.org/issue24538
                         shutil.copy2(path, target_path)
                         _log.info("%s copied to %s", path, target_path)
+                    # catch the more general OSError instead of PermissionError,
+                    # since Python 2.7 doesn't support PermissionError
                     except OSError as err:
-                        # catch the more general OSError instead of PermissionError, since python2 doesn't support
-                        # PermissionError
-                        if not os.stat(path).st_mode & stat.S_IWUSR:
-                            # failure not due to read-only file
+                        # if file is writable (not read-only), then we give up since it's not a simple permission error
+                        if os.path.exists(target_path) and os.stat(target_path).st_mode & stat.S_IWUSR:
                             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
                         pyver = LooseVersion(platform.python_version())
