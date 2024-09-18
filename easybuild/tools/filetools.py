@@ -2438,20 +2438,25 @@ def copy_file(path, target_path, force_in_dry_run=False):
                 mkdir(os.path.dirname(target_path), parents=True)
                 if path_exists:
                     try:
-                        # on at least some systems, copying read-only files with shutil.copy2() spits a PermissionError
-                        # but the copy still succeeds
+                        # on filesystems that support extended file attributes, copying read-only files with
+                        # shutil.copy2() will give a PermissionError, when using Python < 3.7
+                        # see https://bugs.python.org/issue24538
                         shutil.copy2(path, target_path)
                         _log.info("%s copied to %s", path, target_path)
                     except OSError as err:
                         # catch the more general OSError instead of PermissionError, since python2 doesn't support
                         # PermissionError
-                        if LooseVersion(platform.python_version()) >= LooseVersion('3'):
+                        pyver = LooseVersion(platform.python_version())
+                        if pyver >= LooseVersion('3.7'):
+                            raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+                        elif LooseVersion('3.7') > pyver >= LooseVersion('3'):
                             if not isinstance(err, PermissionError):
                                 raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
                         # double-check whether the copy actually succeeded
                         if not os.path.exists(target_path) or not filecmp.cmp(path, target_path, shallow=False):
                             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
-                        _log.info("%s copied to %s, ignoring permissions error: %s", path, target_path, err)
+                        msg = "%s copied to %s, ignoring permissions error (likely due to https://bugs.python.org/issue24538): %s"
+                        _log.info(msg, path, target_path, err)
                 elif os.path.islink(path):
                     if os.path.isdir(target_path):
                         target_path = os.path.join(target_path, os.path.basename(path))
