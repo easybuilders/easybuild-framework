@@ -861,7 +861,7 @@ class Toolchain(object):
             else:
                 self.log.debug("prepare: set additional variables onlymod=%s", onlymod)
 
-                # add LDFLAGS and CPPFLAGS from dependencies to self.vars
+                # add linker and preprocessor paths to dependencies to self.vars
                 self._add_dependency_variables()
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
@@ -1060,39 +1060,66 @@ class Toolchain(object):
                 setvar('PKG_CONFIG_PATH', os.pathsep.join(pkg_config_path))
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
-        """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
-            names should be a list of strings containing the name of the dependency
         """
-        cpp_paths = ['include']
-        ld_paths = ['lib64', 'lib']
-
-        if cpp is not None:
-            for p in cpp:
-                if p not in cpp_paths:
-                    cpp_paths.append(p)
-        if ld is not None:
-            for p in ld:
-                if p not in ld_paths:
-                    ld_paths.append(p)
-
-        if not names:
-            deps = self.dependencies
-        else:
-            deps = [{'name': name} for name in names if name is not None]
+        Add linker and preprocessor paths to dependencies to self.variables
+        :names: list of strings containing the name of the dependency
+        """
+        # collect dependencies
+        dependencies = self.dependencies if names is None else [{"name": name} for name in names if name]
 
         # collect software install prefixes for dependencies
-        roots = []
-        for dep in deps:
-            if dep.get('external_module', False):
+        dependency_roots = []
+        for dep in dependencies:
+            if dep.get("external_module", False):
                 # for software names provided via external modules, install prefix may be unknown
-                names = dep['external_module_metadata'].get('name', [])
-                roots.extend([root for root in self.get_software_root(names) if root is not None])
+                names = dep["external_module_metadata"].get("name", [])
+                dependency_roots.extend([root for root in self.get_software_root(names) if root is not None])
             else:
-                roots.extend(self.get_software_root(dep['name']))
+                dependency_roots.extend(self.get_software_root(dep["name"]))
 
-        for root in roots:
-            self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
-            self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
+        for root in dependency_roots:
+            self._add_dependency_cpp_headers(root, extra_dirs=cpp)
+            self._add_dependency_linker_paths(root, extra_dirs=ld)
+
+    def _add_dependency_cpp_headers(self, dep_root, extra_dirs=None):
+        """
+        Append prepocessor paths for given dependency root directory
+        """
+        header_dirs = ["include"]
+        if isinstance(extra_dirs, (tuple, list)):
+            header_dirs.extend(extra_dirs)
+        header_dirs = set(header_dirs)  # remove duplicates
+
+        # mode of operation is defined by cpp-headers-search-path option
+        # toolchain option has precedence over build option
+        cpp_headers_opt = self.options.option("cpp-headers-search-path")
+        if cpp_headers_opt in CPP_HEADER_SEARCH_PATHS:
+            self.log.debug("cpp-headers-search-path set by toolchain option: %s", cpp_headers_opt)
+        elif cpp_headers_opt is not None:
+            raise EasyBuildError(
+                "Unknown value selected for toolchain option cpp-headers-search-path. Choose one of: %s",
+                ", ".join(CPP_HEADER_SEARCH_PATHS)
+            )
+        else:
+            cpp_headers_opt = build_option("cpp_headers_search_path")
+            self.log.debug("cpp-headers-search-path set by build option: %s", cpp_headers_opt)
+
+        for env_var in CPP_HEADER_SEARCH_PATHS[cpp_headers_opt]:
+            self.log.debug("Adding header paths to toolchain variable '%s': %s", env_var, dep_root)
+            self.variables.append_subdirs(env_var, dep_root, subdirs=header_dirs)
+
+    def _add_dependency_linker_paths(self, dep_root, extra_dirs=None):
+        """
+        Append linker paths for given dependency root directory
+        """
+        lib_dirs = ["lib64", "lib"]
+        if isinstance(extra_dirs, (tuple, list)):
+            lib_dirs.extend(extra_dirs)
+        lib_dirs = set(lib_dirs)  # remove duplicates
+
+        env_var = "LDFLAGS"
+        self.log.debug("Adding lib paths to toolchain variable '%s': %s", env_var, dep_root)
+        self.variables.append_subdirs(env_var, dep_root, subdirs=lib_dirs)
 
     def _setenv_variables(self, donotset=None, verbose=True):
         """Actually set the environment variables"""
