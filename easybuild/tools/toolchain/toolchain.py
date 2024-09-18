@@ -1094,19 +1094,20 @@ class Toolchain(object):
         # toolchain option has precedence over build option
         cpp_headers_mode = DEFAULT_CPP_HEADERS_SEARCH_PATH
         tc_opt = self.options.option("cpp-headers-search-path")
-        if tc_opt in CPP_HEADERS_SEARCH_PATHS:
+        if tc_opt is not None:
             self.log.debug("cpp-headers-search-path set by toolchain option: %s", cpp_headers_mode)
             cpp_headers_mode = tc_opt
-        elif tc_opt is not None:
-            raise EasyBuildError(
-                "Unknown value selected for toolchain option cpp-headers-search-path. Choose one of: %s",
-                ", ".join(CPP_HEADERS_SEARCH_PATHS)
-            )
         else:
             build_opt = build_option("cpp_headers_search_path")
             if build_opt is not None:
-                cpp_headers_mode = build_opt
                 self.log.debug("cpp-headers-search-path set by build option: %s", cpp_headers_mode)
+                cpp_headers_mode = build_opt
+
+        if cpp_headers_mode not in CPP_HEADERS_SEARCH_PATHS:
+            raise EasyBuildError(
+                "Unknown value selected for option cpp-headers-search-path. Choose one of: %s",
+                ", ".join(CPP_HEADERS_SEARCH_PATHS)
+            )
 
         for env_var in CPP_HEADERS_SEARCH_PATHS[cpp_headers_mode]:
             self.log.debug("Adding header paths to toolchain variable '%s': %s", env_var, dep_root)
