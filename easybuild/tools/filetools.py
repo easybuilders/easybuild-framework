@@ -2455,7 +2455,8 @@ def copy_file(path, target_path, force_in_dry_run=False):
                         # double-check whether the copy actually succeeded
                         if not os.path.exists(target_path) or not filecmp.cmp(path, target_path, shallow=False):
                             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
-                        msg = "%s copied to %s, ignoring permissions error (likely due to https://bugs.python.org/issue24538): %s"
+                        msg = ("%s copied to %s, ignoring permissions error (likely due to "
+                               "https://bugs.python.org/issue24538): %s")
                         _log.info(msg, path, target_path, err)
                 elif os.path.islink(path):
                     if os.path.isdir(target_path):
