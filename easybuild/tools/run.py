@@ -227,14 +227,17 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     if cmd_log:
         cmd_log.write("# output for command: %s\n\n" % cmd_msg)
 
+    exec_cmd = "/bin/bash"
+
+    # if EasyBuild is configured to use an alternate sysroot,
+    # we should also run shell commands using the bash shell provided in there,
+    # since /bin/bash may not be compatible with the alternate sysroot
     if with_sysroot:
         sysroot = build_option('sysroot')
         if sysroot:
-            exec_cmd = "%s/bin/bash" % sysroot
-        else:
-            exec_cmd = "/bin/bash"
-    else:
-        exec_cmd = "/bin/bash"
+            sysroot_bin_bash = os.path.join(sysroot, 'bin', 'bash')
+            if os.path.exists(sysroot_bin_bash):
+                exec_cmd = sysroot_bin_bash
 
     if not shell:
         if isinstance(cmd, list):
@@ -244,6 +247,8 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
             cmd = '/usr/bin/env %s' % cmd
         else:
             raise EasyBuildError("Don't know how to prefix with /usr/bin/env for commands of type %s", type(cmd))
+
+    _log.info("Using %s as shell for running cmd: %s", exec_cmd, cmd)
 
     if with_hooks:
         hooks = load_hooks(build_option('hooks'))
