@@ -134,7 +134,7 @@ def get_output_from_process(proc, read_size=None, asynchronous=False):
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
             force_in_dry_run=False, verbose=True, shell=None, trace=True, stream_output=None, asynchronous=False,
-            with_hooks=True):
+            with_hooks=True, with_sysroot=True):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -152,6 +152,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param stream_output: enable streaming command output to stdout
     :param asynchronous: run command asynchronously (returns subprocess.Popen instance if set to True)
     :param with_hooks: trigger pre/post run_shell_cmd hooks (if defined)
+    :param with_sysroot: prepend sysroot to exec_cmd (if defined)
     """
     cwd = os.getcwd()
 
@@ -228,6 +229,16 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     exec_cmd = "/bin/bash"
 
+    # if EasyBuild is configured to use an alternate sysroot,
+    # we should also run shell commands using the bash shell provided in there,
+    # since /bin/bash may not be compatible with the alternate sysroot
+    if with_sysroot:
+        sysroot = build_option('sysroot')
+        if sysroot:
+            sysroot_bin_bash = os.path.join(sysroot, 'bin', 'bash')
+            if os.path.exists(sysroot_bin_bash):
+                exec_cmd = sysroot_bin_bash
+
     if not shell:
         if isinstance(cmd, list):
             exec_cmd = None
@@ -236,6 +247,8 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
             cmd = '/usr/bin/env %s' % cmd
         else:
             raise EasyBuildError("Don't know how to prefix with /usr/bin/env for commands of type %s", type(cmd))
+
+    _log.info("Using %s as shell for running cmd: %s", exec_cmd, cmd)
 
     if with_hooks:
         hooks = load_hooks(build_option('hooks'))

@@ -796,6 +796,31 @@ class RunTest(EnhancedTestCase):
         ])
         self.assertEqual(stdout, expected_stdout)
 
+    def test_run_cmd_sysroot(self):
+        """Test with_sysroot option of run_cmd function."""
+
+        # put fake /bin/bash in place that will be picked up when using run_cmd with with_sysroot=True
+        bin_bash = os.path.join(self.test_prefix, 'bin', 'bash')
+        bin_bash_txt = '\n'.join([
+            "#!/bin/bash",
+            "echo 'Hi there I am a fake /bin/bash in %s'" % self.test_prefix,
+            '/bin/bash "$@"',
+        ])
+        write_file(bin_bash, bin_bash_txt)
+        adjust_permissions(bin_bash, stat.S_IXUSR)
+
+        update_build_option('sysroot', self.test_prefix)
+
+        (out, ec) = run_cmd("echo hello")
+        self.assertEqual(ec, 0)
+        self.assertTrue(out.startswith("Hi there I am a fake /bin/bash in"))
+        self.assertTrue(out.endswith("\nhello\n"))
+
+        # picking up on alternate sysroot is enabled by default, but can be disabled via with_sysroot=False
+        (out, ec) = run_cmd("echo hello", with_sysroot=False)
+        self.assertEqual(ec, 0)
+        self.assertEqual(out, "hello\n")
+
 
 def suite():
     """ returns all the testcases in this module """
