@@ -234,7 +234,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         else:
             exec_cmd = "/bin/bash"
     else:
-         exec_cmd = "/bin/bash"
+        exec_cmd = "/bin/bash"
 
     if not shell:
         if isinstance(cmd, list):
