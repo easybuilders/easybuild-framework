@@ -226,7 +226,11 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     if cmd_log:
         cmd_log.write("# output for command: %s\n\n" % cmd_msg)
 
-    exec_cmd = "/bin/bash"
+    sysroot = build_option('sysroot')
+    if sysroot:
+        exec_cmd = "%s/bin/bash" % sysroot
+    else:
+        exec_cmd = "/bin/bash"
 
     if not shell:
         if isinstance(cmd, list):
