@@ -134,7 +134,7 @@ def get_output_from_process(proc, read_size=None, asynchronous=False):
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
             force_in_dry_run=False, verbose=True, shell=None, trace=True, stream_output=None, asynchronous=False,
-            with_hooks=True):
+            with_hooks=True, with_sysroot=True):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -152,6 +152,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param stream_output: enable streaming command output to stdout
     :param asynchronous: run command asynchronously (returns subprocess.Popen instance if set to True)
     :param with_hooks: trigger pre/post run_shell_cmd hooks (if defined)
+    :param with_sysroot: prepend sysroot to exec_cmd (if defined)
     """
     cwd = os.getcwd()
 
@@ -226,11 +227,14 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     if cmd_log:
         cmd_log.write("# output for command: %s\n\n" % cmd_msg)
 
-    sysroot = build_option('sysroot')
-    if sysroot:
-        exec_cmd = "%s/bin/bash" % sysroot
+    if with_sysroot:
+        sysroot = build_option('sysroot')
+        if sysroot:
+            exec_cmd = "%s/bin/bash" % sysroot
+        else:
+            exec_cmd = "/bin/bash"
     else:
-        exec_cmd = "/bin/bash"
+         exec_cmd = "/bin/bash"
 
     if not shell:
         if isinstance(cmd, list):
