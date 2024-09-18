@@ -2463,9 +2463,9 @@ def copy_file(path, target_path, force_in_dry_run=False):
 
                         try:
                             # re-enable user write permissions in target, copy xattrs, then remove write perms again
-                            adjust_permissions(target_path, stat.I_IWUSR)
+                            adjust_permissions(target_path, stat.S_IWUSR)
                             shutil._copyxattr(path, target_path)
-                            adjust_permissions(target_path, stat.I_IWUSR, add=False)
+                            adjust_permissions(target_path, stat.S_IWUSR, add=False)
                         except OSError as err:
                             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
