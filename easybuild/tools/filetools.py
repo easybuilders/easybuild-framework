@@ -42,11 +42,13 @@ Authors:
 """
 import datetime
 import difflib
+import filecmp
 import glob
 import hashlib
 import inspect
 import itertools
 import os
+import platform
 import re
 import shutil
 import signal
@@ -59,7 +61,7 @@ import zlib
 from functools import partial
 
 from easybuild.base import fancylogger
-from easybuild.tools import run
+from easybuild.tools import LooseVersion, run
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import DEFAULT_WAIT_ON_LOCK_INTERVAL, ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN
@@ -2435,8 +2437,42 @@ def copy_file(path, target_path, force_in_dry_run=False):
             else:
                 mkdir(os.path.dirname(target_path), parents=True)
                 if path_exists:
-                    shutil.copy2(path, target_path)
-                    _log.info("%s copied to %s", path, target_path)
+                    try:
+                        # on filesystems that support extended file attributes, copying read-only files with
+                        # shutil.copy2() will give a PermissionError, when using Python < 3.7
+                        # see https://bugs.python.org/issue24538
+                        shutil.copy2(path, target_path)
+                        _log.info("%s copied to %s", path, target_path)
+                    # catch the more general OSError instead of PermissionError,
+                    # since Python 2.7 doesn't support PermissionError
+                    except OSError as err:
+                        # if file is writable (not read-only), then we give up since it's not a simple permission error
+                        if os.path.exists(target_path) and os.stat(target_path).st_mode & stat.S_IWUSR:
+                            raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+
+                        pyver = LooseVersion(platform.python_version())
+                        if pyver >= LooseVersion('3.7'):
+                            raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+                        elif LooseVersion('3.7') > pyver >= LooseVersion('3'):
+                            if not isinstance(err, PermissionError):
+                                raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+
+                        # double-check whether the copy actually succeeded
+                        if not os.path.exists(target_path) or not filecmp.cmp(path, target_path, shallow=False):
+                            raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+
+                        try:
+                            # re-enable user write permissions in target, copy xattrs, then remove write perms again
+                            adjust_permissions(target_path, stat.S_IWUSR)
+                            shutil._copyxattr(path, target_path)
+                            adjust_permissions(target_path, stat.S_IWUSR, add=False)
+                        except OSError as err:
+                            raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+
+                        msg = ("Failed to copy extended attributes from file %s to %s, due to a bug in shutil (see "
+                               "https://bugs.python.org/issue24538). Copy successful with workaround.")
+                        _log.info(msg, path, target_path)
+
                 elif os.path.islink(path):
                     if os.path.isdir(target_path):
                         target_path = os.path.join(target_path, os.path.basename(path))

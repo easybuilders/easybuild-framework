@@ -32,6 +32,7 @@ Unit tests for filetools.py
 @author: Maxime Boissonneault (Compute Canada, Universite Laval)
 """
 import datetime
+import filecmp
 import glob
 import logging
 import os
@@ -51,6 +52,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import IGNORE, ERROR, build_option, update_build_option
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import StringIO, std_urllib
+from easybuild.tools.run import run_cmd
+from easybuild.tools.systemtools import LINUX, get_os_type
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -1911,6 +1914,47 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(re.search("^copied file %s to %s" % (src, target), txt))
         # However, if we add 'force_in_dry_run=True' it should throw an exception
         self.assertErrorRegex(EasyBuildError, "Could not copy *", ft.copy_file, src, target, force_in_dry_run=True)
+
+    def test_copy_file_xattr(self):
+        """Test copying a file with extended attributes using copy_file."""
+        # test copying a read-only files with extended attributes set
+        # first, create a special file with extended attributes
+        special_file = os.path.join(self.test_prefix, 'special.txt')
+        ft.write_file(special_file, 'special')
+        # make read-only, and set extended attributes
+        attr = ft.which('attr')
+        xattr = ft.which('xattr')
+        # try to attr (Linux) or xattr (macOS) to set extended attributes foo=bar
+        cmd = None
+        if attr:
+            cmd = "attr -s foo -V bar %s" % special_file
+        elif xattr:
+            cmd = "xattr -w foo bar %s" % special_file
+
+        if cmd:
+            (_, ec) = run_cmd(cmd, simple=False, log_all=False, log_ok=False)
+
+            # need to make file read-only after setting extended attribute
+            ft.adjust_permissions(special_file, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False)
+
+            # only proceed if setting extended attribute worked
+            if ec == 0:
+                target = os.path.join(self.test_prefix, 'copy.txt')
+                ft.copy_file(special_file, target)
+                self.assertTrue(os.path.exists(target))
+                self.assertTrue(filecmp.cmp(special_file, target, shallow=False))
+
+                # only verify wheter extended attributes were also copied on Linux,
+                # since shutil.copy2 doesn't copy them on macOS;
+                # see warning at https://docs.python.org/3/library/shutil.html
+                if get_os_type() == LINUX:
+                    if attr:
+                        cmd = "attr -g foo %s" % target
+                    else:
+                        cmd = "xattr -l %s" % target
+                    (out, ec) = run_cmd(cmd, simple=False, log_all=False, log_ok=False)
+                    self.assertEqual(ec, 0)
+                    self.assertTrue(out.endswith('\nbar\n'))
 
     def test_copy_files(self):
         """Test copy_files function."""
