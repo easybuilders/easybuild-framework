@@ -175,6 +175,10 @@ OUTPUT_STYLE_NO_COLOR = 'no_color'
 OUTPUT_STYLE_RICH = 'rich'
 OUTPUT_STYLES = (OUTPUT_STYLE_AUTO, OUTPUT_STYLE_BASIC, OUTPUT_STYLE_NO_COLOR, OUTPUT_STYLE_RICH)
 
+PYTHONPATH = 'PYTHONPATH'
+EBPYTHONPREFIXES = 'EBPYTHONPREFIXES'
+PYTHON_SEARCH_PATH_TYPES = [PYTHONPATH, EBPYTHONPREFIXES]
+
 
 class Singleton(ABCMeta):
     """Serves as metaclass for classes that should implement the Singleton pattern.
@@ -336,7 +340,6 @@ BUILD_OPTIONS_CMDLINE = {
         'modules_tool_version_check',
         'mpi_tests',
         'pre_create_installdir',
-        'prefer_ebpythonprefixes',
         'show_progress_bar',
         'trace',
     ],
@@ -408,6 +411,9 @@ BUILD_OPTIONS_CMDLINE = {
     OUTPUT_STYLE_AUTO: [
         'output_style',
     ],
+    PYTHONPATH: [
+        'prefer_python_search_path',
+    ]
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {

@@ -72,7 +72,7 @@ from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
-from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
+from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES, PYTHONPATH, EBPYTHONPREFIXES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import EASYBUILD_SOURCES_URL # noqa
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
@@ -1446,17 +1446,18 @@ class EasyBlock(object):
 
             runtime_deps = [dep['name'] for dep in self.cfg.dependencies(runtime_only=True)]
             use_ebpythonprefixes = 'Python' in runtime_deps and \
-                build_option('prefer_ebpythonprefixes') and self.cfg['prefer_ebpythonprefixes']
+                build_option('prefer_python_search_path') == EBPYTHONPREFIXES and not self.cfg['force_pythonpath']
 
             if python_paths:
                 # Add paths unless they were already added
                 if use_ebpythonprefixes:
-                    if '' not in self.module_generator.added_paths_per_key['EBPYTHONPREFIXES']:
-                        lines.append(self.module_generator.prepend_paths('EBPYTHONPREFIXES', ''))
+                    path = ''  # EBPYTHONPREFIXES are relative to the install dir
+                    if path not in self.module_generator.added_paths_per_key[EBPYTHONPREFIXES]:
+                        lines.append(self.module_generator.prepend_paths(EBPYTHONPREFIXES, path))
                 else:
                     for python_path in python_paths:
-                        if python_path not in self.module_generator.added_paths_per_key['PYTHONPATH']:
-                            lines.append(self.module_generator.prepend_paths('PYTHONPATH', python_path))
+                        if python_path not in self.module_generator.added_paths_per_key[PYTHONPATH]:
+                            lines.append(self.module_generator.prepend_paths(PYTHONPATH, python_path))
 
         modloadmsg = self.cfg['modloadmsg']
         if modloadmsg:
