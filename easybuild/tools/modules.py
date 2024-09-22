@@ -1448,6 +1448,9 @@ class Lmod(ModulesTool):
         setvar('LMOD_REDIRECT', 'no', verbose=False)
         # disable extended defaults within Lmod (introduced and set as default in Lmod 8.0.7)
         setvar('LMOD_EXTENDED_DEFAULT', 'no', verbose=False)
+        # disabled decorations in "ml --terse avail" output
+        # (introduced in Lmod 8.8, see also https://github.com/TACC/Lmod/issues/690)
+        setvar('LMOD_TERSE_DECORATIONS', 'no', verbose=False)
 
         super(Lmod, self).__init__(*args, **kwargs)
         version = StrictVersion(self.version)
