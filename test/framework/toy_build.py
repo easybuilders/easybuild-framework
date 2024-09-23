@@ -1687,7 +1687,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'end',
                 r'setenv\("TOY", "toy-0.0"\)',
                 r'-- Built with EasyBuild version .*',
-                r'io.stderr:write\("oh hai\!"\)$',
+                r'io.stderr:write\("oh hai\!"\)',
             ])
         elif get_module_syntax() == 'Tcl':
             mod_txt_regex_pattern = '\n'.join([
@@ -1728,14 +1728,12 @@ class ToyBuildTest(EnhancedTestCase):
                 r'}',
                 r'setenv	TOY		"toy-0.0"',
                 r'# Built with EasyBuild version .*',
-                r'puts stderr "oh hai\!"$',
+                r'puts stderr "oh hai\!"',
             ])
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
-        mod_txt_regex = re.compile(mod_txt_regex_pattern)
-        msg = "Pattern '%s' matches with: %s" % (mod_txt_regex.pattern, toy_mod_txt)
-        self.assertTrue(mod_txt_regex.match(toy_mod_txt), msg)
+        self.assertRegex(toy_mod_txt, mod_txt_regex_pattern)
 
     def test_external_dependencies(self):
         """Test specifying external (build) dependencies."""
@@ -2046,7 +2044,7 @@ class ToyBuildTest(EnhancedTestCase):
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             error_msg = "Expected pattern '%s' should be found in %s'" % (regex.pattern, stdout)
-            self.assertTrue(regex.search(stdout), error_msg)
+            self.assertRegex(stdout, regex)
 
         # also test skipping of extensions in parallel
         args.append('--skip')
