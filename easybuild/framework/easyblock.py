@@ -74,6 +74,7 @@ from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg
 from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
+from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_HEADER_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.config import EASYBUILD_SOURCES_URL # noqa
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
@@ -107,9 +108,12 @@ from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
-DEFAULT_BIN_LIB_SUBDIRS = ('bin', 'lib', 'lib64')
+DEFAULT_BIN_LIB_SUBDIRS = SEARCH_PATH_BIN_DIRS + SEARCH_PATH_LIB_DIRS
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANITYCHECK_STEP]
+
+# search paths that require some file in their top directory
+NON_RECURSIVE_SEARCH_PATHS = ["PATH", "LD_LIBRARY_PATH"]
 
 # string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
 PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
@@ -1557,106 +1561,92 @@ class EasyBlock(object):
 
     def make_module_req(self):
         """
-        Generate the environment-variables to run the module.
+        Generate the environment-variables required to run the module.
         """
-        requirements = self.make_module_req_guess()
-
-        lines = ['\n']
-        if os.path.isdir(self.installdir):
-            old_dir = change_dir(self.installdir)
-        else:
-            old_dir = None
+        mod_lines = ['\n']
 
         if self.dry_run:
             self.dry_run_msg("List of paths that would be searched and added to module file:\n")
             note = "note: glob patterns are not expanded and existence checks "
             note += "for paths are skipped for the statements below due to dry run"
-            lines.append(self.module_generator.comment(note))
+            mod_lines.append(self.module_generator.comment(note))
 
-        # For these environment variables, the corresponding directory must include at least one file.
-        # The values determine if detection is done recursively, i.e. if it accepts directories where files
-        # are only in subdirectories.
-        keys_requiring_files = {
-            'PATH': False,
-            'LD_LIBRARY_PATH': False,
-            'LIBRARY_PATH': True,
-            'CPATH': True,
-            'CMAKE_PREFIX_PATH': True,
-            'CMAKE_LIBRARY_PATH': True,
-        }
+        env_var_requirements = self.make_module_req_guess()
+        for env_var, search_paths in sorted(env_var_requirements.items()):
+            if isinstance(search_paths, str):
+                self.log.warning("Hoisting string value %s into a list before iterating over it", search_paths)
+                search_paths = [search_paths]
 
-        for key, reqs in sorted(requirements.items()):
-            if isinstance(reqs, str):
-                self.log.warning("Hoisting string value %s into a list before iterating over it", reqs)
-                reqs = [reqs]
+            mod_env_paths = []
+            recursive = env_var not in NON_RECURSIVE_SEARCH_PATHS
             if self.dry_run:
-                self.dry_run_msg(" $%s: %s" % (key, ', '.join(reqs)))
-                # Don't expand globs or do any filtering below for dry run
-                paths = reqs
+                self.dry_run_msg(f" ${env_var}:{', '.join(search_paths)}")
+                # Don't expand globs or do any filtering for dry run
+                mod_env_paths = search_paths
             else:
-                # Expand globs but only if the string is non-empty
-                # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
-                paths = sum((glob.glob(path) if path else [path] for path in reqs), [])  # sum flattens to list
+                for sp in search_paths:
+                    mod_env_paths.extend(self._expand_module_search_path(sp, recursive))
 
-                # If lib64 is just a symlink to lib we fixup the paths to avoid duplicates
-                lib64_is_symlink = (all(os.path.isdir(path) for path in ['lib', 'lib64']) and
-                                    os.path.samefile('lib', 'lib64'))
-                if lib64_is_symlink:
-                    fixed_paths = []
-                    for path in paths:
-                        if (path + os.path.sep).startswith('lib64' + os.path.sep):
-                            # We only need CMAKE_LIBRARY_PATH if there is a separate lib64 path, so skip symlink
-                            if key == 'CMAKE_LIBRARY_PATH':
-                                continue
-                            path = path.replace('lib64', 'lib', 1)
-                        fixed_paths.append(path)
-                    if fixed_paths != paths:
-                        self.log.info("Fixed symlink lib64 in paths for %s: %s -> %s", key, paths, fixed_paths)
-                        paths = fixed_paths
-                # remove duplicate paths preserving order
-                paths = nub(paths)
-                if key in keys_requiring_files:
-                    # only retain paths that contain at least one file
-                    recursive = keys_requiring_files[key]
-                    retained_paths = []
-                    for pth in paths:
-                        fullpath = os.path.join(self.installdir, pth)
-                        if os.path.isdir(fullpath) and dir_contains_files(fullpath, recursive=recursive):
-                            retained_paths.append(pth)
-                    if retained_paths != paths:
-                        self.log.info("Only retaining paths for %s that contain at least one file: %s -> %s",
-                                      key, paths, retained_paths)
-                        paths = retained_paths
+            if mod_env_paths:
+                mod_env_paths = nub(mod_env_paths)  # remove duplicates
+                mod_lines.append(self.module_generator.prepend_paths(env_var, mod_env_paths))
 
-            if paths:
-                lines.append(self.module_generator.prepend_paths(key, paths))
         if self.dry_run:
             self.dry_run_msg('')
 
-        if old_dir is not None:
-            change_dir(old_dir)
-
-        return ''.join(lines)
+        return "".join(mod_lines)
 
     def make_module_req_guess(self):
         """
-        A dictionary of possible directories to look for.
+        A dictionary of common search path variables to be loaded by environment modules
+        Each key contains the list of known directories related to the search path
         """
-        lib_paths = ['lib', 'lib32', 'lib64']
         return {
-            'PATH': ['bin', 'sbin'],
-            'LD_LIBRARY_PATH': lib_paths,
-            'LIBRARY_PATH': lib_paths,
-            'CPATH': ['include'],
+            'PATH': SEARCH_PATH_BIN_DIRS + ['sbin'],
+            'LD_LIBRARY_PATH': SEARCH_PATH_LIB_DIRS,
+            'LIBRARY_PATH': SEARCH_PATH_LIB_DIRS,
+            'CPATH': SEARCH_PATH_HEADER_DIRS,
             'MANPATH': ['man', os.path.join('share', 'man')],
-            'PKG_CONFIG_PATH': [os.path.join(x, 'pkgconfig') for x in lib_paths + ['share']],
+            'PKG_CONFIG_PATH': [os.path.join(x, 'pkgconfig') for x in SEARCH_PATH_LIB_DIRS + ['share']],
             'ACLOCAL_PATH': [os.path.join('share', 'aclocal')],
             'CLASSPATH': ['*.jar'],
             'XDG_DATA_DIRS': ['share'],
-            'GI_TYPELIB_PATH': [os.path.join(x, 'girepository-*') for x in lib_paths],
+            'GI_TYPELIB_PATH': [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS],
             'CMAKE_PREFIX_PATH': [''],
-            'CMAKE_LIBRARY_PATH': ['lib64'],  # lib and lib32 are searched through the above
+            'CMAKE_LIBRARY_PATH': ['lib64'],  # only needed for installations whith standalone lib64
         }
+
+    def _expand_module_search_path(self, search_path, recursive):
+        """
+        Expand given path glob and return list of paths that are suitable to be
+        used as search paths in environment module
+        """
+        # Expand globs but only if the string is non-empty
+        # empty string is a valid value here (i.e. to prepend the installation prefix root directory)
+        abs_search_path = os.path.join(self.installdir, search_path)
+        exp_search_paths = [abs_search_path] if search_path == "" else glob.glob(abs_search_path)
+
+        retained_search_paths = []
+        for abs_path in exp_search_paths:
+            tentative_path = os.path.relpath(abs_path, start=self.installdir)
+            tentative_path = "" if tentative_path == "." else tentative_path  # use empty string instead of dot
+
+            # avoid duplicate entries if lib64 is just a symlink to lib
+            if (tentative_path + os.path.sep).startswith("lib64" + os.path.sep):
+                abs_lib_path = os.path.join(self.installdir, "lib")
+                abs_lib64_path = os.path.join(self.installdir, "lib64")
+                if os.path.islink(abs_lib64_path) and os.path.samefile(abs_lib_path, abs_lib64_path):
+                    self.log.debug("Discarded search path to symlink lib64: %s", tentative_path)
+                    break
+
+            # only retain paths to directories that contain at least one file
+            if os.path.isdir(abs_path) and not dir_contains_files(abs_path, recursive=recursive):
+                self.log.debug("Discarded search path to empty directory: %s", tentative_path)
+                break
+
+            retained_search_paths.append(tentative_path)
+
+        return retained_search_paths
 
     def load_module(self, mod_paths=None, purge=True, extra_modules=None, verbose=True):
         """
