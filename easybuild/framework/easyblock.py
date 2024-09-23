@@ -1559,9 +1559,10 @@ class EasyBlock(object):
 
         return txt
 
-    def make_module_req(self):
+    def make_module_req(self, fake=False):
         """
         Generate the environment-variables required to run the module.
+        Fake modules can set search paths to empty directories.
         """
         mod_lines = ['\n']
 
@@ -1585,7 +1586,7 @@ class EasyBlock(object):
                 mod_env_paths = search_paths
             else:
                 for sp in search_paths:
-                    mod_env_paths.extend(self._expand_module_search_path(sp, recursive))
+                    mod_env_paths.extend(self._expand_module_search_path(sp, recursive, fake=fake))
 
             if mod_env_paths:
                 mod_env_paths = nub(mod_env_paths)  # remove duplicates
@@ -1616,10 +1617,12 @@ class EasyBlock(object):
             'CMAKE_LIBRARY_PATH': ['lib64'],  # only needed for installations whith standalone lib64
         }
 
-    def _expand_module_search_path(self, search_path, recursive):
+    def _expand_module_search_path(self, search_path, recursive, fake=False):
         """
-        Expand given path glob and return list of paths that are suitable to be
-        used as search paths in environment module
+        Expand given path glob and return list of suitable paths to be used as search paths:
+            - Files must exist and directories be non-empty
+            - Fake modules can set search paths to empty directories
+            - Search paths to 'lib64' symlinked to 'lib' are discarded
         """
         # Expand globs but only if the string is non-empty
         # empty string is a valid value here (i.e. to prepend the installation prefix root directory)
@@ -1628,6 +1631,7 @@ class EasyBlock(object):
 
         retained_search_paths = []
         for abs_path in exp_search_paths:
+            # return relative paths
             tentative_path = os.path.relpath(abs_path, start=self.installdir)
             tentative_path = "" if tentative_path == "." else tentative_path  # use empty string instead of dot
 
@@ -1640,7 +1644,7 @@ class EasyBlock(object):
                     break
 
             # only retain paths to directories that contain at least one file
-            if os.path.isdir(abs_path) and not dir_contains_files(abs_path, recursive=recursive):
+            if os.path.isdir(abs_path) and not dir_contains_files(abs_path, recursive=recursive) and not fake:
                 self.log.debug("Discarded search path to empty directory: %s", tentative_path)
                 break
 
@@ -3785,7 +3789,7 @@ class EasyBlock(object):
             txt += self.make_module_deppaths()
             txt += self.make_module_dep()
             txt += self.make_module_extend_modpath()
-            txt += self.make_module_req()
+            txt += self.make_module_req(fake=fake)
             txt += self.make_module_extra()
             txt += self.make_module_footer()
 
