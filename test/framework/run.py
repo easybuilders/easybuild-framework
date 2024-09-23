@@ -2087,7 +2087,7 @@ class RunTest(EnhancedTestCase):
             f"rm -rf {workdir} && echo 'Working directory removed.'"
         )
 
-        error_pattern = rf"Failed to return to {workdir} after executing command"
+        error_pattern = rf"Failed to return to .*/{os.path.basename(self.test_prefix)}/workdir after executing command"
 
         mkdir(workdir, parents=True)
         with self.mocked_stdout_stderr():
