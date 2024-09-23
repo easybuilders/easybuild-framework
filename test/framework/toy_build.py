@@ -1216,6 +1216,8 @@ class ToyBuildTest(EnhancedTestCase):
             # set by ToyExtension easyblock used to install extensions
             '^setenv.*TOY_EXT_BAR.*bar',
             '^setenv.*TOY_EXT_BARBAR.*barbar',
+            '^setenv.*TOY_EXT_VAR.*bar',
+            '^setenv.*TOY_EXT_VAR.*barbar',
         ]
         for pattern in patterns:
             self.assertTrue(re.search(pattern, toy_mod_txt, re.M), "Pattern '%s' found in: %s" % (pattern, toy_mod_txt))
@@ -1686,8 +1688,8 @@ class ToyBuildTest(EnhancedTestCase):
             ] + modloadmsg_lua + [
                 r'end',
                 r'setenv\("TOY", "toy-0.0"\)',
-                r'-- Built with EasyBuild version .*',
                 r'io.stderr:write\("oh hai\!"\)',
+                r'-- Built with EasyBuild version .*',
             ])
         elif get_module_syntax() == 'Tcl':
             mod_txt_regex_pattern = '\n'.join([
@@ -1727,8 +1729,8 @@ class ToyBuildTest(EnhancedTestCase):
             ] + modloadmsg_tcl + [
                 r'}',
                 r'setenv	TOY		"toy-0.0"',
-                r'# Built with EasyBuild version .*',
                 r'puts stderr "oh hai\!"',
+                r'# Built with EasyBuild version .*',
             ])
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
@@ -1974,6 +1976,8 @@ class ToyBuildTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.eb_main([test_ec, '--module-only'], do_build=True, raise_error=True)
         self.assertExists(toy_mod)
+        # Extra stuff from extension(s) is included
+        self.assertRegex(read_file(toy_mod), 'TOY_EXT_VAR.*barbar-0.0')
         remove_file(toy_mod)
 
         # rename file required for barbar extension, so we can check whether sanity check catches it
@@ -2032,6 +2036,13 @@ class ToyBuildTest(EnhancedTestCase):
         stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args, raise_error=True)
         self.assertEqual(stderr, '')
 
+        # Extra stuff from extension(s) should be included
+        ext_var_patterns = [
+            'TOY_EXT_VAR.*ls',
+            'TOY_EXT_VAR.*bar-0.0',
+            'TOY_EXT_VAR.*barbar-0.0',
+        ]
+
         # take into account that each of these lines may appear multiple times,
         # in case no progress was made between checks
         patterns = [
@@ -2045,6 +2056,10 @@ class ToyBuildTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             error_msg = "Expected pattern '%s' should be found in %s'" % (regex.pattern, stdout)
             self.assertRegex(stdout, regex)
+
+        module_contents = read_file(toy_mod)
+        for pattern in ext_var_patterns:
+            self.assertRegex(module_contents, pattern)
 
         # also test skipping of extensions in parallel
         args.append('--skip')
@@ -2063,6 +2078,10 @@ class ToyBuildTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             error_msg = "Expected pattern '%s' should be found in %s'" % (regex.pattern, stdout)
             self.assertTrue(regex.search(stdout), error_msg)
+
+        module_contents = read_file(toy_mod)
+        for pattern in ext_var_patterns:
+            self.assertRegex(module_contents, pattern)
 
         # check behaviour when using Toy_Extension easyblock that doesn't implement required_deps method;
         # framework should fall back to installing extensions sequentially
@@ -2090,6 +2109,10 @@ class ToyBuildTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             error_msg = "Expected pattern '%s' should be found in %s'" % (regex.pattern, stdout)
             self.assertTrue(regex.search(stdout), error_msg)
+
+        module_contents = read_file(toy_mod)
+        for pattern in ext_var_patterns:
+            self.assertRegex(module_contents, pattern)
 
     def test_backup_modules(self):
         """Test use of backing up of modules with --module-only."""

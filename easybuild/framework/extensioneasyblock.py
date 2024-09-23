@@ -219,6 +219,6 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.log.deprecated("Passing the parameter 'extra' to make_module_extra should be "
                                 "replaced by concatenating the result", '6.0')
         txt = super().make_module_extra(*args, **kwargs)
-        if extra is not None:
+        if extra:
             txt += extra
         return txt
