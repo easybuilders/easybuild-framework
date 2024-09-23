@@ -2046,7 +2046,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             os.chmod(tmptest_file, 0o700)
             res = run_shell_cmd(tmptest_file, fail_on_error=False, in_dry_run=True, hidden=True, stream_output=False,
                                 with_hooks=False)
-            if res.exit_code:
+            if res.exit_code != EasyBuildExit.SUCCESS:
                 msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
                 msg += "This can cause problems in the build process, consider using --tmpdir."
                 if raise_error:
