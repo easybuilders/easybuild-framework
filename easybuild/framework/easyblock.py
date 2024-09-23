@@ -203,7 +203,6 @@ class EasyBlock:
 
         # extensions
         self.exts = []
-        self.exts_all = None
         self.ext_instances = []
         self.skip = None
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
@@ -2171,7 +2170,7 @@ class EasyBlock:
         running_exts = []
         installed_ext_names = []
 
-        all_ext_names = [x['name'] for x in self.exts_all]
+        all_ext_names = [x['name'] for x in self.exts]
         self.log.debug("List of names of all extensions: %s", all_ext_names)
 
         # take into account that some extensions may be installed already
@@ -3187,8 +3186,6 @@ class EasyBlock:
         if fetch:
             self.update_exts_progress_bar("fetching extension sources/patches")
             self.exts = self.collect_exts_file_info(fetch_files=True)
-
-        self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
         # actually install extensions
         if install:
