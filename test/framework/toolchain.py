@@ -955,8 +955,8 @@ class ToolchainTest(EnhancedTestCase):
 
                 self.modtool.purge()
 
-    def test_cpp_headers_search_path(self):
-        """Test functionality behind cpp-headers-search-path option"""
+    def test_search_path_cpp_headers(self):
+        """Test functionality behind search-path-cpp-headers option"""
         cpp_headers_mode = {
             "CPPFLAGS": ["CPPFLAGS"],
             "CPATH": ["CPATH"],
@@ -964,37 +964,37 @@ class ToolchainTest(EnhancedTestCase):
         }
         # test without toolchain option
         for build_opt in cpp_headers_mode:
-            init_config(build_options={"cpp_headers_search_path": build_opt, "silent": True})
+            init_config(build_options={"search_path_cpp_headers": build_opt, "silent": True})
             tc = self.get_toolchain("foss", version="2018a")
             with self.mocked_stdout_stderr():
                 tc.prepare()
                 for env_var in cpp_headers_mode[build_opt]:
                     assert_fail_msg = (
-                        f"Variable {env_var} required by cpp-headers-search-path build option '{build_opt}' "
+                        f"Variable {env_var} required by search-path-cpp-headers build option '{build_opt}' "
                         "not found in toolchain environment"
                     )
                     self.assertIn(env_var, [*tc.variables], assert_fail_msg)
                 self.modtool.purge()
         # test with toolchain option
         for build_opt in cpp_headers_mode:
-            init_config(build_options={"cpp_headers_search_path": build_opt, "silent": True})
+            init_config(build_options={"search_path_cpp_headers": build_opt, "silent": True})
             for tc_opt in cpp_headers_mode:
                 tc = self.get_toolchain("foss", version="2018a")
-                tc.set_options({"cpp-headers-search-path": tc_opt})
+                tc.set_options({"search-path-cpp-headers": tc_opt})
                 with self.mocked_stdout_stderr():
                     tc.prepare()
                     for env_var in cpp_headers_mode[tc_opt]:
                         assert_fail_msg = (
-                            f"Variable {env_var} required by cpp-headers-search-path toolchain option '{tc_opt}' "
+                            f"Variable {env_var} required by search-path-cpp-headers toolchain option '{tc_opt}' "
                             "not found in toolchain environment"
                         )
                         self.assertIn(env_var, [*tc.variables], assert_fail_msg)
                 self.modtool.purge()
         # test wrong toolchain option
         tc = self.get_toolchain("foss", version="2018a")
-        tc.set_options({"cpp-headers-search-path": "WRONG_MODE"})
+        tc.set_options({"search-path-cpp-headers": "WRONG_MODE"})
         with self.mocked_stdout_stderr():
-            error_pattern = "Unknown value selected for option cpp-headers-search-path"
+            error_pattern = "Unknown value selected for option search-path-cpp-headers"
             self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
         self.modtool.purge()
 

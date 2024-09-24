@@ -93,7 +93,7 @@ class Compiler(Toolchain):
         'vectorize': (None, "Enable compiler auto-vectorization, default except for noopt and lowopt"),
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
         'rpath': (True, "Use RPATH wrappers when --rpath is enabled in EasyBuild configuration"),
-        'cpp-headers-search-path': (None, "Search path used by EasyBuild to inject include directories"),
+        'search-path-cpp-headers': (None, "Search path used at build time for include directories"),
         'extra_cflags': (None, "Specify extra CFLAGS options."),
         'extra_cxxflags': (None, "Specify extra CXXFLAGS options."),
         'extra_fflags': (None, "Specify extra FFLAGS options."),

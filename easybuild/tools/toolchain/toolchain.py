@@ -97,15 +97,15 @@ TOOLCHAIN_CAPABILITIES = [
 ]
 # modes to handle CPP header search paths
 # see: https://gcc.gnu.org/onlinedocs/cpp/Environment-Variables.html
-CPP_HEADERS_SEARCH_PATH_FLAGS = "CPPFLAGS"
-CPP_HEADERS_SEARCH_PATH_CPATH = "CPATH"
-CPP_HEADERS_SEARCH_PATH_INCLUDE = "INCLUDE_PATHS"
-CPP_HEADERS_SEARCH_PATHS = {
-    CPP_HEADERS_SEARCH_PATH_FLAGS: ["CPPFLAGS"],
-    CPP_HEADERS_SEARCH_PATH_CPATH: ["CPATH"],
-    CPP_HEADERS_SEARCH_PATH_INCLUDE: ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
+SEARCH_PATH_CPP_HEADERS_FLAGS = "CPPFLAGS"
+SEARCH_PATH_CPP_HEADERS_CPATH = "CPATH"
+SEARCH_PATH_CPP_HEADERS_INCLUDE = "INCLUDE_PATHS"
+SEARCH_PATH_CPP_HEADERS = {
+    SEARCH_PATH_CPP_HEADERS_FLAGS: ["CPPFLAGS"],
+    SEARCH_PATH_CPP_HEADERS_CPATH: ["CPATH"],
+    SEARCH_PATH_CPP_HEADERS_INCLUDE: ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
 }
-DEFAULT_CPP_HEADERS_SEARCH_PATH = CPP_HEADERS_SEARCH_PATH_FLAGS
+DEFAULT_SEARCH_PATH_CPP_HEADERS = SEARCH_PATH_CPP_HEADERS_FLAGS
 
 
 def is_system_toolchain(tc_name):
@@ -1090,26 +1090,26 @@ class Toolchain(object):
             header_dirs.extend(extra_dirs)
         header_dirs = set(header_dirs)  # remove duplicates
 
-        # mode of operation is defined by cpp-headers-search-path option
+        # mode of operation is defined by search-path-cpp-headers option
         # toolchain option has precedence over build option
-        cpp_headers_mode = DEFAULT_CPP_HEADERS_SEARCH_PATH
-        tc_opt = self.options.option("cpp-headers-search-path")
+        cpp_headers_mode = DEFAULT_SEARCH_PATH_CPP_HEADERS
+        tc_opt = self.options.option("search-path-cpp-headers")
         if tc_opt is not None:
-            self.log.debug("cpp-headers-search-path set by toolchain option: %s", cpp_headers_mode)
+            self.log.debug("search-path-cpp-headers set by toolchain option: %s", cpp_headers_mode)
             cpp_headers_mode = tc_opt
         else:
-            build_opt = build_option("cpp_headers_search_path")
+            build_opt = build_option("search_path_cpp_headers")
             if build_opt is not None:
-                self.log.debug("cpp-headers-search-path set by build option: %s", cpp_headers_mode)
+                self.log.debug("search-path-cpp-headers set by build option: %s", cpp_headers_mode)
                 cpp_headers_mode = build_opt
 
-        if cpp_headers_mode not in CPP_HEADERS_SEARCH_PATHS:
+        if cpp_headers_mode not in SEARCH_PATH_CPP_HEADERS:
             raise EasyBuildError(
-                "Unknown value selected for option cpp-headers-search-path. Choose one of: %s",
-                ", ".join(CPP_HEADERS_SEARCH_PATHS)
+                "Unknown value selected for option search-path-cpp-headers. Choose one of: %s",
+                ", ".join(SEARCH_PATH_CPP_HEADERS)
             )
 
-        for env_var in CPP_HEADERS_SEARCH_PATHS[cpp_headers_mode]:
+        for env_var in SEARCH_PATH_CPP_HEADERS[cpp_headers_mode]:
             self.log.debug("Adding header paths to toolchain variable '%s': %s", env_var, dep_root)
             self.variables.append_subdirs(env_var, dep_root, subdirs=header_dirs)
 
