@@ -182,6 +182,17 @@ PYTHONPATH = 'PYTHONPATH'
 EBPYTHONPREFIXES = 'EBPYTHONPREFIXES'
 PYTHON_SEARCH_PATH_TYPES = [PYTHONPATH, EBPYTHONPREFIXES]
 
+# modes to handle header search paths in environment of modules
+MOD_SEARCH_PATH_HEADERS_NONE = "none"
+MOD_SEARCH_PATH_HEADERS_CPATH = "CPATH"
+MOD_SEARCH_PATH_HEADERS_INCLUDE = "INCLUDE_PATHS"
+MOD_SEARCH_PATH_HEADERS = {
+    MOD_SEARCH_PATH_HEADERS_NONE: [],
+    MOD_SEARCH_PATH_HEADERS_CPATH: ["CPATH"],
+    MOD_SEARCH_PATH_HEADERS_INCLUDE: ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
+}
+DEFAULT_MOD_SEARCH_PATH_HEADERS = MOD_SEARCH_PATH_HEADERS_CPATH
+
 
 class Singleton(ABCMeta):
     """Serves as metaclass for classes that should implement the Singleton pattern.
@@ -307,6 +318,7 @@ BUILD_OPTIONS_CMDLINE = {
         'logtostdout',
         'minimal_toolchains',
         'module_only',
+        'module_search_path_headers',
         'package',
         'parallel_extensions_install',
         'read_only_installdir',

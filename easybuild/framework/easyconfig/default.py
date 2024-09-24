@@ -208,10 +208,11 @@ DEFAULT_CONFIG = {
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
     'module_depends_on': [None, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
                           '(implies recursive unloading of modules) [DEPRECATED]', MODULES],
+    'module_search_path_headers': [False, "Environment variable set by modules on load with search paths "
+                                   "to header files", MODULES],
     'recursive_module_unload': [None, "Recursive unload of all dependencies when unloading module "
-                                      "(True/False to hard enable/disable; None implies honoring "
-                                      "the --recursive-module-unload EasyBuild configuration setting",
-                                MODULES],
+                                "(True/False to hard enable/disable; None implies honoring the "
+                                "--recursive-module-unload EasyBuild configuration setting", MODULES],
 
     # MODULES documentation easyconfig parameters
     #    (docurls is part of MANDATORY)
