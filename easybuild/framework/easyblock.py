@@ -1597,26 +1597,6 @@ class EasyBlock(object):
 
         return "".join(mod_lines)
 
-    def make_module_req_guess(self):
-        """
-        A dictionary of common search path variables to be loaded by environment modules
-        Each key contains the list of known directories related to the search path
-        """
-        return {
-            'PATH': SEARCH_PATH_BIN_DIRS + ['sbin'],
-            'LD_LIBRARY_PATH': SEARCH_PATH_LIB_DIRS,
-            'LIBRARY_PATH': SEARCH_PATH_LIB_DIRS,
-            'CPATH': SEARCH_PATH_HEADER_DIRS,
-            'MANPATH': ['man', os.path.join('share', 'man')],
-            'PKG_CONFIG_PATH': [os.path.join(x, 'pkgconfig') for x in SEARCH_PATH_LIB_DIRS + ['share']],
-            'ACLOCAL_PATH': [os.path.join('share', 'aclocal')],
-            'CLASSPATH': ['*.jar'],
-            'XDG_DATA_DIRS': ['share'],
-            'GI_TYPELIB_PATH': [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS],
-            'CMAKE_PREFIX_PATH': [''],
-            'CMAKE_LIBRARY_PATH': ['lib64'],  # only needed for installations whith standalone lib64
-        }
-
     def _expand_module_search_path(self, search_path, recursive, fake=False):
         """
         Expand given path glob and return list of suitable paths to be used as search paths:
@@ -1651,6 +1631,26 @@ class EasyBlock(object):
             retained_search_paths.append(tentative_path)
 
         return retained_search_paths
+
+    def make_module_req_guess(self):
+        """
+        A dictionary of common search path variables to be loaded by environment modules
+        Each key contains the list of known directories related to the search path
+        """
+        return {
+            'PATH': SEARCH_PATH_BIN_DIRS + ['sbin'],
+            'LD_LIBRARY_PATH': SEARCH_PATH_LIB_DIRS,
+            'LIBRARY_PATH': SEARCH_PATH_LIB_DIRS,
+            'CPATH': SEARCH_PATH_HEADER_DIRS,
+            'MANPATH': ['man', os.path.join('share', 'man')],
+            'PKG_CONFIG_PATH': [os.path.join(x, 'pkgconfig') for x in SEARCH_PATH_LIB_DIRS + ['share']],
+            'ACLOCAL_PATH': [os.path.join('share', 'aclocal')],
+            'CLASSPATH': ['*.jar'],
+            'XDG_DATA_DIRS': ['share'],
+            'GI_TYPELIB_PATH': [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS],
+            'CMAKE_PREFIX_PATH': [''],
+            'CMAKE_LIBRARY_PATH': ['lib64'],  # only needed for installations whith standalone lib64
+        }
 
     def load_module(self, mod_paths=None, purge=True, extra_modules=None, verbose=True):
         """
