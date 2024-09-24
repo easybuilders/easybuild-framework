@@ -74,6 +74,7 @@ from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg
 from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
+from easybuild.tools.config import DEFAULT_MOD_SEARCH_PATH_HEADERS, MOD_SEARCH_PATH_HEADERS
 from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_HEADER_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.config import EASYBUILD_SOURCES_URL # noqa
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
@@ -1637,11 +1638,10 @@ class EasyBlock(object):
         A dictionary of common search path variables to be loaded by environment modules
         Each key contains the list of known directories related to the search path
         """
-        return {
+        module_req_guess = {
             'PATH': SEARCH_PATH_BIN_DIRS + ['sbin'],
             'LD_LIBRARY_PATH': SEARCH_PATH_LIB_DIRS,
             'LIBRARY_PATH': SEARCH_PATH_LIB_DIRS,
-            'CPATH': SEARCH_PATH_HEADER_DIRS,
             'MANPATH': ['man', os.path.join('share', 'man')],
             'PKG_CONFIG_PATH': [os.path.join(x, 'pkgconfig') for x in SEARCH_PATH_LIB_DIRS + ['share']],
             'ACLOCAL_PATH': [os.path.join('share', 'aclocal')],
@@ -1651,6 +1651,57 @@ class EasyBlock(object):
             'CMAKE_PREFIX_PATH': [''],
             'CMAKE_LIBRARY_PATH': ['lib64'],  # only needed for installations whith standalone lib64
         }
+
+        module_req_guess.update(self._make_search_path_guess("module_search_path_headers"))
+
+        return module_req_guess
+
+    @property
+    def module_header_dirs(self):
+        """List of relative search paths to look for header files"""
+        return SEARCH_PATH_HEADER_DIRS
+
+    def _make_search_path_guess(self, search_path_opt):
+        """
+        Return dictionary with guesses for given search path option
+        """
+        # known module_search_path_xxx options
+        opt_settings = {
+            "module_search_path_headers": (
+                MOD_SEARCH_PATH_HEADERS, DEFAULT_MOD_SEARCH_PATH_HEADERS, self.module_header_dirs
+            ),
+        }
+
+        if search_path_opt not in opt_settings:
+            raise EasyBuildError(
+                "Unknown option given to make search path guess: %s. Choose one of: %s",
+                search_path_opt, ", ".join(opt_settings.keys())
+            )
+
+        search_path_modes, mode_default, search_path_dirs = opt_settings[search_path_opt]
+
+        # easyconfig parameters have precedence over command line options
+        cfg_param = self.cfg[search_path_opt]
+        build_opt = build_option(search_path_opt)
+        mode = mode_default
+        if cfg_param is not False:
+            mode = cfg_param
+        elif build_opt is not False:
+            mode = build_opt
+
+        if mode not in search_path_modes:
+            raise EasyBuildError(
+                "Unknown value selected for option %s: %s. Choose one of: %s",
+                search_path_opt, mode, ", ".join(search_path_modes)
+            )
+
+        guess = {}
+        for env_var in search_path_modes[mode]:
+            dbg_msg = "Adding search paths to environment variable '%s': %s"
+            self.log.debug(dbg_msg, env_var, ", ".join(search_path_dirs))
+            guess.update({env_var: search_path_dirs})
+
+        return guess
 
     def load_module(self, mod_paths=None, purge=True, extra_modules=None, verbose=True):
         """
