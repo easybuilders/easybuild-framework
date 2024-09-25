@@ -433,12 +433,13 @@ class EasyBlockTest(EnhancedTestCase):
 
         # create fake directories and files that should be guessed
         os.makedirs(eb.installdir)
-        write_file(os.path.join(eb.installdir, 'foo.jar'), 'foo.jar')
-        write_file(os.path.join(eb.installdir, 'bla.jar'), 'bla.jar')
         for path in ('bin', ('bin', 'testdir'), 'sbin', 'share', ('share', 'man'), 'lib', 'lib64'):
             if isinstance(path, str):
                 path = (path, )
             os.mkdir(os.path.join(eb.installdir, *path))
+        write_file(os.path.join(eb.installdir, 'foo.jar'), 'foo.jar')
+        write_file(os.path.join(eb.installdir, 'bla.jar'), 'bla.jar')
+        write_file(os.path.join(eb.installdir, 'share', 'man', 'pi'), 'Man page')
         # this is not a path that should be picked up
         os.mkdir(os.path.join(eb.installdir, 'CPATH'))
 
@@ -587,6 +588,96 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertFalse(re.search(r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "%s"\)\)\n' % sub_lib_path,
                                        txt, re.M))
             self.assertFalse(re.search(r'prepend_path\("PATH", pathJoin\(root, "%s"\)\)\n' % sub_path_path, txt, re.M))
+
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
+
+    def test_module_search_path_headers(self):
+        """Test functionality of module-search-path-headers option"""
+        sp_headers_mode = {
+            "none": [],
+            "CPATH": ["CPATH"],
+            "INCLUDE_PATHS": ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
+        }
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = config.install_path()
+        os.makedirs(eb.installdir)
+        os.mkdir(os.path.join(eb.installdir, 'include'))
+        write_file(os.path.join(eb.installdir, 'include', 'header.h'), 'dummy header file')
+
+        for build_opt in sp_headers_mode:
+            init_config(build_options={"module_search_path_headers": build_opt, "silent": True})
+            with eb.module_generator.start_module_creation():
+                guess = eb.make_module_req()
+            if not sp_headers_mode[build_opt]:
+                # none option adds nothing to module file
+                for header_path in eb.module_header_dirs:
+                    if get_module_syntax() == 'Tcl':
+                        tcl_ref_pattern = rf"^prepend-path\s+CPATH\s+\$root/{header_path}$"
+                        self.assertFalse(re.search(tcl_ref_pattern, guess, re.M))
+                    elif get_module_syntax() == 'Lua':
+                        lua_ref_pattern = rf'^prepend_path\("CPATH", pathJoin\(root, "{header_path}"\)\)$'
+                        self.assertFalse(re.search(lua_ref_pattern, guess, re.M))
+            else:
+                for env_var in sp_headers_mode[build_opt]:
+                    for header_path in eb.module_header_dirs:
+                        if get_module_syntax() == 'Tcl':
+                            tcl_ref_pattern = rf"^prepend-path\s+{env_var}\s+\$root/{header_path}$"
+                            self.assertTrue(re.search(tcl_ref_pattern, guess, re.M))
+                        elif get_module_syntax() == 'Lua':
+                            lua_ref_pattern = rf'^prepend_path\("{env_var}", pathJoin\(root, "{header_path}"\)\)$'
+                            self.assertTrue(re.search(lua_ref_pattern, guess, re.M))
+
+        # test with easyconfig parameter
+        for ec_param in sp_headers_mode:
+            self.contents += f'\nmodule_search_path_headers = "{ec_param}"'
+            self.writeEC()
+            eb = EasyBlock(EasyConfig(self.eb_file))
+            eb.installdir = config.install_path()
+
+            for build_opt in sp_headers_mode:
+                init_config(build_options={"module_search_path_headers": build_opt, "silent": True})
+                with eb.module_generator.start_module_creation():
+                    guess = eb.make_module_req()
+                if not sp_headers_mode[ec_param]:
+                    # none option adds nothing to module file
+                    for header_path in eb.module_header_dirs:
+                        if get_module_syntax() == 'Tcl':
+                            tcl_ref_pattern = rf"^prepend-path\s+CPATH\s+\$root/{header_path}$"
+                            self.assertFalse(re.search(tcl_ref_pattern, guess, re.M))
+                        elif get_module_syntax() == 'Lua':
+                            lua_ref_pattern = rf'^prepend_path\("CPATH", pathJoin\(root, "{header_path}"\)\)$'
+                            self.assertFalse(re.search(lua_ref_pattern, guess, re.M))
+                else:
+                    for env_var in sp_headers_mode[ec_param]:
+                        for header_path in eb.module_header_dirs:
+                            if get_module_syntax() == 'Tcl':
+                                tcl_ref_pattern = rf"^prepend-path\s+{env_var}\s+\$root/{header_path}$"
+                                self.assertTrue(re.search(tcl_ref_pattern, guess, re.M))
+                            elif get_module_syntax() == 'Lua':
+                                lua_ref_pattern = rf'^prepend_path\("{env_var}", pathJoin\(root, "{header_path}"\)\)$'
+                                self.assertTrue(re.search(lua_ref_pattern, guess, re.M))
+
+        # test wrong easyconfig parameter
+        self.contents += '\nmodule_search_path_headers = "WRONG_OPT"'
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = config.install_path()
+
+        error_pattern = "Unknown value selected for option module_search_path_headers"
+        with eb.module_generator.start_module_creation():
+            self.assertErrorRegex(EasyBuildError, error_pattern, eb.make_module_req)
 
         # cleanup
         eb.close_log()
