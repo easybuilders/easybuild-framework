@@ -95,22 +95,35 @@ def get_dep_tree(package_spec, verbose):
 
 def find_deps(pkgs, dep_tree):
     """Recursively resolve dependencies of the given package(s) and return them"""
+    MAX_PACKAGES = 1000
     res = []
-    for orig_pkg in pkgs:
-        pkg = canonicalize_name(orig_pkg)
-        matching_entries = [entry for entry in dep_tree
-                            if pkg in (entry['package']['package_name'], entry['package']['key'])]
-        if not matching_entries:
+    next_pkgs = set(pkgs)
+    # Don't check any package multiple times to avoid infinite recursion
+    seen_pkgs = set()
+    count = 0
+    while next_pkgs:
+        cur_pkgs = next_pkgs - seen_pkgs
+        seen_pkgs.update(cur_pkgs)
+        next_pkgs = set()
+        for orig_pkg in cur_pkgs:
+            count += 1
+            if count > MAX_PACKAGES:
+                raise RuntimeError("Aborting after checking %s packages. Possibly cycle detected!" % MAX_PACKAGES)
+            pkg = canonicalize_name(orig_pkg)
             matching_entries = [entry for entry in dep_tree
-                                if orig_pkg in (entry['package']['package_name'], entry['package']['key'])]
-        if not matching_entries:
-            raise RuntimeError("Found no installed package for '%s' in %s" % (pkg, dep_tree))
-        if len(matching_entries) > 1:
-            raise RuntimeError("Found multiple installed packages for '%s' in %s" % (pkg, dep_tree))
-        entry = matching_entries[0]
-        res.append((entry['package']['package_name'], entry['package']['installed_version']))
-        deps = (dep['package_name'] for dep in entry['dependencies'])
-        res.extend(find_deps(deps, dep_tree))
+                                if pkg in (entry['package']['package_name'], entry['package']['key'])]
+            if not matching_entries:
+                matching_entries = [entry for entry in dep_tree
+                                    if orig_pkg in (entry['package']['package_name'], entry['package']['key'])]
+            if not matching_entries:
+                raise RuntimeError("Found no installed package for '%s' in %s" % (pkg, dep_tree))
+            if len(matching_entries) > 1:
+                raise RuntimeError("Found multiple installed packages for '%s' in %s" % (pkg, dep_tree))
+            entry = matching_entries[0]
+            res.append((entry['package']['package_name'], entry['package']['installed_version']))
+            # Add dependencies to list of packages to check next
+            # Could call this function recursively but that might exceed the max recursion depth
+            next_pkgs.update(dep['package_name'] for dep in entry['dependencies'])
     return res
 
 
