@@ -104,6 +104,10 @@ class GC3Pie(JobBackend):
     def _check_version(self):
         """Check whether GC3Pie version complies with required version."""
 
+        deprication_msg = "The GC3Pie job back-end is no longer maintained and will be deprecated"
+        deprication_msg += ", please use a different backend"
+        _log.deprecated(deprication_msg, '5.0')
+
         try:
             from pkg_resources import get_distribution, DistributionNotFound
             pkg = get_distribution('gc3pie')
