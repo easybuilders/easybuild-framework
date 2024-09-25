@@ -609,6 +609,100 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
+    def test_module_search_path_headers(self):
+        """Test functionality of module-search-path-headers option"""
+        sp_headers_mode = {
+            "none": [],
+            "cpath": ["CPATH"],
+            "include_paths": ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
+        }
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.writeEC()
+
+        for build_opt, sp_headers in sp_headers_mode.items():
+            init_config(build_options={"module_search_path_headers": build_opt, "silent": True})
+            eb = EasyBlock(EasyConfig(self.eb_file))
+            eb.installdir = config.install_path()
+            try:
+                os.makedirs(os.path.join(eb.installdir, 'include'))
+                write_file(os.path.join(eb.installdir, 'include', 'header.h'), 'dummy header file')
+            except FileExistsError:
+                pass
+
+            with eb.module_generator.start_module_creation():
+                guess = eb.make_module_req()
+
+            if not sp_headers:
+                # none option adds nothing to module file
+                if get_module_syntax() == 'Tcl':
+                    tcl_ref_pattern = r"^prepend-path\s+CPATH\s+\$root/include$"
+                    self.assertFalse(re.search(tcl_ref_pattern, guess, re.M))
+                elif get_module_syntax() == 'Lua':
+                    lua_ref_pattern = r'^prepend_path\("CPATH", pathJoin\(root, "include"\)\)$'
+                    self.assertFalse(re.search(lua_ref_pattern, guess, re.M))
+            else:
+                for env_var in sp_headers:
+                    if get_module_syntax() == 'Tcl':
+                        tcl_ref_pattern = rf"^prepend-path\s+{env_var}\s+\$root/include$"
+                        self.assertTrue(re.search(tcl_ref_pattern, guess, re.M))
+                    elif get_module_syntax() == 'Lua':
+                        lua_ref_pattern = rf'^prepend_path\("{env_var}", pathJoin\(root, "include"\)\)$'
+                        self.assertTrue(re.search(lua_ref_pattern, guess, re.M))
+
+        # test with easyconfig parameter
+        for ec_param, sp_headers in sp_headers_mode.items():
+            self.contents += f'\nmodule_search_path_headers = "{ec_param}"'
+            self.writeEC()
+            eb = EasyBlock(EasyConfig(self.eb_file))
+            eb.installdir = config.install_path()
+            try:
+                os.makedirs(os.path.join(eb.installdir, 'include'))
+                write_file(os.path.join(eb.installdir, 'include', 'header.h'), 'dummy header file')
+            except FileExistsError:
+                pass
+
+            for build_opt in sp_headers_mode:
+                init_config(build_options={"module_search_path_headers": build_opt, "silent": True})
+                with eb.module_generator.start_module_creation():
+                    guess = eb.make_module_req()
+                if not sp_headers:
+                    # none option adds nothing to module file
+                    if get_module_syntax() == 'Tcl':
+                        tcl_ref_pattern = r"^prepend-path\s+CPATH\s+\$root/include$"
+                        self.assertFalse(re.search(tcl_ref_pattern, guess, re.M))
+                    elif get_module_syntax() == 'Lua':
+                        lua_ref_pattern = r'^prepend_path\("CPATH", pathJoin\(root, "include"\)\)$'
+                        self.assertFalse(re.search(lua_ref_pattern, guess, re.M))
+                else:
+                    for env_var in sp_headers:
+                        if get_module_syntax() == 'Tcl':
+                            tcl_ref_pattern = rf"^prepend-path\s+{env_var}\s+\$root/include$"
+                            self.assertTrue(re.search(tcl_ref_pattern, guess, re.M))
+                        elif get_module_syntax() == 'Lua':
+                            lua_ref_pattern = rf'^prepend_path\("{env_var}", pathJoin\(root, "include"\)\)$'
+                            self.assertTrue(re.search(lua_ref_pattern, guess, re.M))
+
+        # test wrong easyconfig parameter
+        self.contents += '\nmodule_search_path_headers = "WRONG_OPT"'
+        self.writeEC()
+        ec =EasyConfig(self.eb_file)
+
+        error_pattern = "Unknown value selected for option module-search-path-headers"
+        with eb.module_generator.start_module_creation():
+            self.assertErrorRegex(EasyBuildError, error_pattern, EasyBlock, ec)
+
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
+
     def test_make_module_extra(self):
         """Test for make_module_extra."""
         init_config(build_options={'silent': True})
