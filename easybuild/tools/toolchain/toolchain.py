@@ -1094,11 +1094,12 @@ class Toolchain(object):
         # toolchain option has precedence over build option
         cpp_headers_mode = DEFAULT_SEARCH_PATH_CPP_HEADERS
         tc_opt = self.options.option("search-path-cpp-headers")
+        build_opt = build_option("search_path_cpp_headers")
         if tc_opt:
             cpp_headers_mode = tc_opt
             self.log.debug("search-path-cpp-headers set by toolchain option: %s", cpp_headers_mode)
-        else:
-            cpp_headers_mode = build_option("search_path_cpp_headers")
+        elif build_opt:
+            cpp_headers_mode = build_opt
             self.log.debug("search-path-cpp-headers set by build option: %s", cpp_headers_mode)
 
         if cpp_headers_mode not in SEARCH_PATH_CPP_HEADERS:
