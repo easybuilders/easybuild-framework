@@ -1288,8 +1288,13 @@ class EasyConfig(object):
         """
         if values is None:
             values = []
-        if self[attr] and self[attr] not in values:
-            raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
+        if isinstance(self[attr], (list, tuple)):
+                for val in self[attr]:
+                    if val and val not in values:
+                        raise EasyBuildError("%s provided '%s' is not valid: %s", attr, val, values)
+        else:
+                if self[attr] and self[attr] not in values:
+                    raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
 
     def probe_external_module_metadata(self, mod_name, existing_metadata=None):
         """

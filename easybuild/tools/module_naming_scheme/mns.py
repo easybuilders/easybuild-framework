@@ -119,7 +119,10 @@ class ModuleNamingScheme(BaseModuleNamingScheme):
         Determine list of paths in which symlinks to module files must be created.
         """
         # by default: make a symlink from moduleclass subdirectory of $MODULEPATH
-        return [ec['moduleclass']]
+        if isinstance(ec._config['moduleclass'][0], str):
+            return [ec['moduleclass']]
+        else:
+            return ec['moduleclass']
 
     def det_modpath_extensions(self, ec):
         """
