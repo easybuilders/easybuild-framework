@@ -1061,7 +1061,7 @@ class Toolchain(object):
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """
-        Add linker and preprocessor paths to dependencies to self.variables
+        Add linker and preprocessor paths of dependencies to self.variables
         :names: list of strings containing the name of the dependency
         """
         # collect dependencies
