@@ -1088,7 +1088,7 @@ class Toolchain(object):
         header_dirs = ["include"]
         if isinstance(extra_dirs, (tuple, list)):
             header_dirs.extend(extra_dirs)
-        header_dirs = set(header_dirs)  # remove duplicates
+        header_dirs = nub(header_dirs)  # remove duplicates
 
         # mode of operation is defined by search-path-cpp-headers option
         # toolchain option has precedence over build option
@@ -1118,7 +1118,7 @@ class Toolchain(object):
         lib_dirs = ["lib64", "lib"]
         if isinstance(extra_dirs, (tuple, list)):
             lib_dirs.extend(extra_dirs)
-        lib_dirs = set(lib_dirs)  # remove duplicates
+        lib_dirs = nub(lib_dirs)  # remove duplicates
 
         env_var = "LDFLAGS"
         self.log.debug("Adding lib paths to toolchain variable '%s': %s", env_var, dep_root)
