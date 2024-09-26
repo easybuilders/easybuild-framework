@@ -988,7 +988,7 @@ class ToolchainTest(EnhancedTestCase):
                             f"Variable {env_var} required by search-path-cpp-headers toolchain option '{tc_opt}' "
                             "not found in toolchain environment"
                         )
-                        self.assertIn(env_var, [*tc.variables], assert_fail_msg)
+                        self.assertIn(env_var, tc.variables, assert_fail_msg)
                 self.modtool.purge()
         # test wrong toolchain option
         tc = self.get_toolchain("foss", version="2018a")
