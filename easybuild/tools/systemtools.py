@@ -174,6 +174,7 @@ ARM_CORTEX_IDS = {
 RPM = 'rpm'
 DPKG = 'dpkg'
 ZYPPER = 'zypper'
+PACMAN = 'pacman'
 
 SYSTEM_TOOLS = {
     '7z': "extracting sources (.iso)",
@@ -215,6 +216,9 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
     'PyYAML': ('yaml', "easystack files and .yeb easyconfig format"),
     'setuptools': ('pkg_resources', "obtaining information on Python packages via pkg_resources module"),
 }
+
+# arch-based linux distros (might require tweaks to package names)
+ARCH_DISTROS = ['arch', 'manjaro']
 
 
 class SystemToolsException(Exception):
@@ -854,13 +858,30 @@ def check_os_dependency(dep):
         'redhat': RPM,
         'rhel': RPM,
         'ubuntu': DPKG,
+        'arch': PACMAN,
+        'manjaro': PACMAN,
     }
     pkg_cmd_flag = {
         DPKG: '-s',
         RPM: '-q',
         ZYPPER: 'search -i',
+        PACMAN: '-Q'
     }
     os_name = get_os_name().lower().split(' ')[0]
+
+    # to accomodate arch package naming conventions
+    # these are explicitly defined in case the corresponding easyconfig constant was not used
+    ssl_deps = ['libssl', 'libopenssl', 'openssl-devel', 'libssl-dev', 'libopenssl-devel']
+    ibvers_deps = ['libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel']
+    pam_deps = ['pam-devel', 'libpam0g-dev']
+    if os_name in ARCH_DISTROS:
+        if dep in ssl_deps:
+            dep = 'openssl'
+        elif dep in ibvers_deps:
+            dep = 'rdma-core'
+        elif dep in pam_deps:
+            dep = 'pam'
+
     if os_name in os_to_pkg_cmd_map:
         pkg_cmds = [os_to_pkg_cmd_map[os_name]]
     else:
