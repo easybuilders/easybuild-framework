@@ -4309,7 +4309,9 @@ def build_and_install_one(ecdict, init_env):
         def ensure_writable_log_dir(log_dir):
             """Make sure we can write into the log dir"""
             if build_option('read_only_installdir'):
-                # temporarily re-enable write permissions for copying log/easyconfig to install dir
+                # temporarily re-enable write permissions for copying log/easyconfig to install dir,
+                # ensuring that we resolve symlinks
+                log_dir = os.path.realpath(log_dir, strict=True)
                 if os.path.exists(log_dir):
                     adjust_permissions(log_dir, stat.S_IWUSR, add=True, recursive=True)
                 else:
