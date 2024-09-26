@@ -973,7 +973,7 @@ class ToolchainTest(EnhancedTestCase):
                         f"Variable {env_var} required by search-path-cpp-headers build option '{build_opt}' "
                         "not found in toolchain environment"
                     )
-                    self.assertIn(env_var, [*tc.variables], assert_fail_msg)
+                    self.assertIn(env_var, tc.variables, assert_fail_msg)
                 self.modtool.purge()
         # test with toolchain option
         for build_opt in cpp_headers_mode:
