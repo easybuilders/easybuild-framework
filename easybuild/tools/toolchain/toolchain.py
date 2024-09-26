@@ -861,7 +861,7 @@ class Toolchain(object):
             else:
                 self.log.debug("prepare: set additional variables onlymod=%s", onlymod)
 
-                # add linker and preprocessor paths to dependencies to self.vars
+                # add linker and preprocessor paths of dependencies to self.vars
                 self._add_dependency_variables()
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
