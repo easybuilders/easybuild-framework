@@ -1086,9 +1086,19 @@ class Toolchain(object):
         Append prepocessor paths for given dependency root directory
         """
         header_dirs = ["include"]
-        if isinstance(extra_dirs, (tuple, list)):
+
+        if extra_dirs is None:
+            extra_dirs = ()
+        elif extra_dirs and isinstance(extra_dirs, (str,)):
+            extra_dirs = [extra_dirs]
+
+        try:
             header_dirs.extend(extra_dirs)
-        header_dirs = nub(header_dirs)  # remove duplicates
+        except TypeError as err:
+            err_msg = f"_add_dependency_cpp_headers: given extra_dirs is not iterable: {extra_dirs}"
+            raise EasyBuildError(err_msg) from err
+        else:
+            header_dirs = nub(header_dirs)  # remove duplicates
 
         # mode of operation is defined by search-path-cpp-headers option
         # toolchain option has precedence over build option
@@ -1116,13 +1126,26 @@ class Toolchain(object):
         Append linker paths for given dependency root directory
         """
         lib_dirs = ["lib64", "lib"]
-        if isinstance(extra_dirs, (tuple, list)):
+
+        if extra_dirs is None:
+            extra_dirs = ()
+        elif extra_dirs and isinstance(extra_dirs, (str,)):
+            extra_dirs = [extra_dirs]
+
+        try:
             lib_dirs.extend(extra_dirs)
-        lib_dirs = nub(lib_dirs)  # remove duplicates
+        except TypeError as err:
+            err_msg = f"_add_dependency_linker_paths: given extra_dirs is not iterable: {extra_dirs}"
+            raise EasyBuildError(err_msg) from err
+        else:
+            lib_dirs = nub(lib_dirs)  # remove duplicates
 
         env_var = "LDFLAGS"
         self.log.debug("Adding lib paths to toolchain variable '%s': %s", env_var, dep_root)
         self.variables.append_subdirs(env_var, dep_root, subdirs=lib_dirs)
+
+    def _unique_ordered_list_append(self, base, extra_dirs):
+        """Append list of dirs to another list of dirs keeping order and without duplicates"""
 
     def _setenv_variables(self, donotset=None, verbose=True):
         """Actually set the environment variables"""
