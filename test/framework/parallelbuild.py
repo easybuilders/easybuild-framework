@@ -262,7 +262,10 @@ class ParallelBuildTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         test_easyblocks_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
         cmd = "PYTHONPATH=%s:%s:$PYTHONPATH eb %%(spec)s -df" % (topdir, test_easyblocks_path)
+
+        self.allow_deprecated_behaviour()
         build_easyconfigs_in_parallel(cmd, ordered_ecs, prepare_first=False)
+        self.disallow_deprecated_behaviour()
 
         toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
@@ -279,8 +282,10 @@ class ParallelBuildTest(EnhancedTestCase):
         write_file(test_ecfile, ectxt)
         ecs = resolve_dependencies(process_easyconfig(test_ecfile), self.modtool)
 
+        self.allow_deprecated_behaviour()
         error = "1 jobs failed: toy-1.2.3"
         self.assertErrorRegex(EasyBuildError, error, build_easyconfigs_in_parallel, cmd, ecs, prepare_first=False)
+        self.disallow_deprecated_behaviour()
 
     def test_submit_jobs(self):
         """Test submit_jobs"""
