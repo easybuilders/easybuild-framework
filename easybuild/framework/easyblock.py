@@ -5603,8 +5603,8 @@ def inject_checksums(ecs, checksum_type):
         if app.src:
             placeholder = '# PLACEHOLDER FOR SOURCES/PATCHES WITH CHECKSUMS'
 
-            # grab raw lines for source_urls, sources, data_sources, patches
-            keys = ['data_sources', 'patches', 'source_urls', 'sources']
+            # grab raw lines for the following params
+            keys = ['data_sources', 'patches', 'source_urls', 'sources', 'crates']
             raw = {}
             for key in keys:
                 regex = re.compile(r'^(%s(?:.|\n)*?\])\s*$' % key, re.M)
@@ -5615,15 +5615,11 @@ def inject_checksums(ecs, checksum_type):
 
             _log.debug("Raw lines for %s easyconfig parameters: %s", '/'.join(keys), raw)
 
-            # inject combination of source_urls/sources/patches/checksums into easyconfig
-            # by replacing first occurence of placeholder that was put in place
-            sources_raw = raw.get('sources', '')
-            data_sources_raw = raw.get('data_sources', '')
-            source_urls_raw = raw.get('source_urls', '')
-            patches_raw = raw.get('patches', '')
+            # inject combination of the grabbed lines and the checksums into the easyconfig
+            # by replacing first the occurence of the placeholder that was put in place
+            raw_text = ''.join(raw.get(key, '') for key in keys)
             regex = re.compile(placeholder + '\n', re.M)
-            ectxt = regex.sub(source_urls_raw + sources_raw + data_sources_raw + patches_raw + checksums_txt + '\n',
-                              ectxt, count=1)
+            ectxt = regex.sub(raw_text + checksums_txt + '\n', ectxt, count=1)
 
             # get rid of potential remaining placeholders
             ectxt = regex.sub('', ectxt)
