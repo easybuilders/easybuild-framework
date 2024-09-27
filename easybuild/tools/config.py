@@ -415,13 +415,13 @@ BUILD_OPTIONS_OTHER = {
         'command_line',
         'external_modules_metadata',
         'extra_ec_paths',
+        'mod_depends_on',  # deprecated
         'robot_path',
         'valid_module_classes',
         'valid_stops',
     ],
     False: [
         'dry_run',
-        'mod_depends_on',
         'recursive_mod_unload',
         'retain_all_deps',
         'silent',
