@@ -2779,8 +2779,8 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
         tar_cmd = [
             # print names of all files and folders excluding .git directory
             'find', repo_name, '-name ".git"', '-prune', '-o', '-print0',
-            # reset access and modification timestamps to epoch 0 (equivalent to --mtime in GNU tar)
-            '-exec', 'touch', '--date=@0', '{}', r'\;',
+            # reset access and modification timestamps to epoch 0
+            '-exec', 'touch', '--date=1970-01-01T00:00:00.00Z', '{}', r'\;',
             # reset file permissions of cloned repo (equivalent to --mode in GNU tar)
             '-exec', 'chmod', '"go+u,go-w"', '{}', r'\;', '|',
             # sort file list (equivalent to --sort in GNU tar)
