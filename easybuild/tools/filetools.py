@@ -2772,15 +2772,30 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
 
     if keep_git_dir:
         # create archive of git repo including .git directory
-        tar_cmd = ['tar', 'cfvz', archive_path, repo_name]
+        tar_cmd = f"tar cfvz {archive_path} {repo_name}"
     else:
         # create reproducible archive
-        # see https://reproducible-builds.org/docs/archives/
-        tar_cmd = [
+        tar_cmd = reproducible_archive_cmd(repo_name, archive_path)
+
+    run_shell_cmd(tar_cmd, work_dir=tmpdir, hidden=True, verbose_dry_run=True)
+
+    # cleanup (repo_name dir does not exist in dry run mode)
+    remove(tmpdir)
+
+    return archive_path
+
+
+def reproducible_archive_cmd(dir_name, archive_name):
+    """
+    Return string with command to make reproducible archive from a given directory
+    see https://reproducible-builds.org/docs/archives/
+    """
+    try:
+        cmd_pipe = [
             # stop on failure of any command in the pipe
             'set', '-eo pipefail', ';',
             # print names of all files and folders excluding .git directory
-            'find', repo_name, '-name ".git"', '-prune', '-o', '-print0',
+            'find', str(dir_name), '-name ".git"', '-prune', '-o', '-print0',
             # reset access and modification timestamps to epoch 0
             '-exec', 'touch', '--date=1970-01-01T00:00:00.00Z', '{}', r'\;',
             # reset file permissions of cloned repo (equivalent to --mode in GNU tar)
@@ -2791,14 +2806,12 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
             'tar', '--create', '--no-recursion', '--owner=0', '--group=0', '--numeric-owner',
             '--format=gnu', '--null', '--files-from', '-', '|',
             # compress tarball with gzip without original file name and timestamp
-            'gzip', '--no-name', '>', archive_path
+            'gzip', '--no-name', '>', str(archive_name)
         ]
-    run_shell_cmd(' '.join(tar_cmd), work_dir=tmpdir, hidden=True, verbose_dry_run=True)
+    except TypeError as err:
+        raise EasyBuildError("reproducible_archive_cmd: wrong directory or archive name given") from err
 
-    # cleanup (repo_name dir does not exist in dry run mode)
-    remove(tmpdir)
-
-    return archive_path
+    return " ".join(cmd_pipe)
 
 
 def move_file(path, target_path, force_in_dry_run=False):
