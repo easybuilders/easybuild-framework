@@ -1440,8 +1440,9 @@ class EasyBlock(object):
 
         # Add automatic PYTHONPATH or EBPYTHONPREFIXES if they aren't already present and python paths exist
         if not os.path.isfile(os.path.join(self.installdir, 'bin/python')):  # only needed when not a python install
-            python_paths = [path for path in glob.glob('lib/python*/site-packages', root_dir=self.installdir)
-                            if re.match(r'lib/python\d+\.\d+/site-packages', path)]
+            candidate_paths = (os.path.relpath(path, self.installdir)
+                               for path in glob.glob(f'{self.installdir}/lib/python*/site-packages'))
+            python_paths = [path for path in candidate_paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
 
             runtime_deps = [dep['name'] for dep in self.cfg.dependencies(runtime_only=True)]
             use_ebpythonprefixes = 'Python' in runtime_deps and \
