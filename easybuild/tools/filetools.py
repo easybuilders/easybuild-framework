@@ -2777,6 +2777,8 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
         # create reproducible archive
         # see https://reproducible-builds.org/docs/archives/
         tar_cmd = [
+            # stop on failure of any command in the pipe
+            'set', '-eo pipefail', ';',
             # print names of all files and folders excluding .git directory
             'find', repo_name, '-name ".git"', '-prune', '-o', '-print0',
             # reset access and modification timestamps to epoch 0
