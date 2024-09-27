@@ -2939,16 +2939,11 @@ class FileToolsTest(EnhancedTestCase):
             'git_repo': 'git@github.com:easybuilders/testrepository.git',
             'test_prefix': self.test_prefix,
         }
-        reprod_tar_cmd_pattern = (
-            r' running shell command "find {} -name \".git\" -prune -o -print0 -exec touch -t 197001010100 {{}} \; |'
-            r' LC_ALL=C sort --zero-terminated | tar --create --no-recursion --owner=0 --group=0 --numeric-owner'
-            r' --format=gnu --null --files-from - | gzip --no-name > %(test_prefix)s/target/test.tar.gz'
-        )
 
         expected = '\n'.join([
             r'  running shell command "git clone --depth 1 --branch tag_for_tests %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            reprod_tar_cmd_pattern.format("testrepository"),
+            ft.reproducible_archive_cmd("testrepository", "%(test_prefix)s/target/test.tar.gz"),
             r"  \(in .*/tmp.*\)",
         ]) % string_args
         run_check()
@@ -2957,7 +2952,7 @@ class FileToolsTest(EnhancedTestCase):
         expected = '\n'.join([
             r'  running shell command "git clone --depth 1 --branch tag_for_tests %(git_repo)s test123"',
             r"  \(in .*/tmp.*\)",
-            reprod_tar_cmd_pattern.format("test123"),
+            ft.reproducible_archive_cmd("test123", "%(test_prefix)s/target/test.tar.gz"),
             r"  \(in .*/tmp.*\)",
         ]) % string_args
         run_check()
@@ -2967,7 +2962,7 @@ class FileToolsTest(EnhancedTestCase):
         expected = '\n'.join([
             r'  running shell command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            reprod_tar_cmd_pattern.format("testrepository"),
+            ft.reproducible_archive_cmd("testrepository", "%(test_prefix)s/target/test.tar.gz"),
             r"  \(in .*/tmp.*\)",
         ]) % string_args
         run_check()
@@ -2977,7 +2972,7 @@ class FileToolsTest(EnhancedTestCase):
             '  running shell command "git clone --depth 1 --branch tag_for_tests --recursive'
             + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            reprod_tar_cmd_pattern.format("testrepository"),
+            ft.reproducible_archive_cmd("testrepository", "%(test_prefix)s/target/test.tar.gz"),
             r"  \(in .*/tmp.*\)",
         ]) % string_args
         run_check()
@@ -2991,7 +2986,7 @@ class FileToolsTest(EnhancedTestCase):
             + ' clone --depth 1 --branch tag_for_tests --recursive'
             + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            reprod_tar_cmd_pattern.format("testrepository"),
+            ft.reproducible_archive_cmd("testrepository", "%(test_prefix)s/target/test.tar.gz"),
             r"  \(in .*/tmp.*\)",
         ]) % string_args
         run_check()
@@ -3015,7 +3010,7 @@ class FileToolsTest(EnhancedTestCase):
             r"  \(in .*/tmp.*\)",
             r'  running shell command "git checkout 8456f86 && git submodule update --init --recursive"',
             r"  \(in testrepository\)",
-            reprod_tar_cmd_pattern.format("testrepository"),
+            ft.reproducible_archive_cmd("testrepository", "%(test_prefix)s/target/test.tar.gz"),
             r"  \(in .*/tmp.*\)",
         ]) % string_args
         run_check()
@@ -3026,7 +3021,7 @@ class FileToolsTest(EnhancedTestCase):
             r"  \(in .*/tmp.*\)",
             r'  running shell command "git checkout 8456f86"',
             r"  \(in testrepository\)",
-            reprod_tar_cmd_pattern.format("testrepository"),
+            ft.reproducible_archive_cmd("testrepository", "%(test_prefix)s/target/test.tar.gz"),
             r"  \(in .*/tmp.*\)",
         ]) % string_args
         run_check()
@@ -3038,7 +3033,7 @@ class FileToolsTest(EnhancedTestCase):
             r"  \(in /.*\)",
             r'  running shell command "git checkout 8456f86"',
             r"  \(in /.*/testrepository\)",
-            reprod_tar_cmd_pattern.format("testrepository"),
+            ft.reproducible_archive_cmd("testrepository", "%(test_prefix)s/target/test.tar.gz"),
             r"  \(in /.*\)",
         ]) % string_args
         run_check()
