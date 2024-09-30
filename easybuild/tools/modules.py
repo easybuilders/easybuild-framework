@@ -130,6 +130,42 @@ MODULE_VERSION_CACHE = {}
 
 _log = fancylogger.getLogger('modules', fname=False)
 
+class ModuleEnvironmentVariable:
+    """Environment variable data structure for modules"""
+    def __init__(self, paths, empty=False, top_level_file=False):
+        self.paths = paths
+        self.empty = bool(empty)
+        self.top_level_file = bool(top_level_file)
+
+    def __str__(self):
+        return ":".join(self.paths)
+
+    @property
+    def paths(self):
+        return self._paths
+
+    @paths.setter
+    def paths(self, value):
+        """Enforce that paths is a list of strings"""
+        if isinstance(value, str):
+            value = [value]
+        try:
+            self._paths = [str(path) for path in value]
+        except TypeError:
+            raise TypeError("ModuleEnvironmentVariable.paths must be a list of strings") from None
+
+    def append(self, *args):
+        """Shortcut to append to list of paths"""
+        self.paths.append(*args)
+
+    def extend(self, *args):
+        """Shortcut to extend list of paths"""
+        self.paths.extend(*args)
+
+    def prepend(self, item):
+        """Shortcut to append to list of paths"""
+        self.paths.insert(0, item)
+
 
 class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""

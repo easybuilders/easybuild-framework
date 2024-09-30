@@ -1588,6 +1588,32 @@ class ModulesTest(EnhancedTestCase):
         res = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'NO_SUCH_VARIABLE_SET')
         self.assertEqual(res, None)
 
+    def test_module_environment_variable(self):
+        """Test for ModuleEnvironmentVariable object"""
+        test_paths = ['lib', 'lib64']
+        mod_envar = mod.ModuleEnvironmentVariable(test_paths)
+        self.assertTrue(hasattr(mod_envar, "paths"))
+        self.assertTrue(hasattr(mod_envar, "empty"))
+        self.assertTrue(hasattr(mod_envar, "top_level_file"))
+        self.assertEqual(mod_envar.paths, test_paths)
+        self.assertEqual(str(mod_envar), "lib:lib64")
+
+        mod_envar.paths = []
+        self.assertEqual(mod_envar.paths, [])
+        self.assertRaises(TypeError, setattr, mod_envar, "paths", None)
+
+        mod_envar.paths = (1, 2, 3)
+        self.assertEqual(mod_envar.paths, ["1", "2", "3"])
+
+        mod_envar.paths = "include"
+        self.assertEqual(mod_envar.paths, ["include"])
+
+        mod_envar.append("share")
+        self.assertEqual(mod_envar.paths, ["include", "share"])
+        mod_envar.extend(test_paths)
+        self.assertEqual(mod_envar.paths, ["include", "share", "lib", "lib64"])
+        mod_envar.prepend("bin")
+        self.assertEqual(mod_envar.paths, ["bin", "include", "share", "lib", "lib64"])
 
 def suite():
     """ returns all the testcases in this module """
