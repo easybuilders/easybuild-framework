@@ -97,7 +97,8 @@ from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import Lmod, curr_module_paths, invalidate_module_caches_for, get_software_root
+from easybuild.tools.modules import Lmod, ModuleLoadEnvironment
+from easybuild.tools.modules import curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
 from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_progress_bar, update_progress_bar
@@ -210,6 +211,9 @@ class EasyBlock(object):
         modules_header_path = build_option('modules_header')
         if modules_header_path is not None:
             self.modules_header = read_file(modules_header_path)
+
+        # environment variables on module load
+        self.module_load_environment = ModuleLoadEnvironment()
 
         # determine install subdirectory, based on module name
         self.install_subdir = None
@@ -1646,20 +1650,7 @@ class EasyBlock(object):
         A dictionary of common search path variables to be loaded by environment modules
         Each key contains the list of known directories related to the search path
         """
-        return {
-            'PATH': SEARCH_PATH_BIN_DIRS + ['sbin'],
-            'LD_LIBRARY_PATH': SEARCH_PATH_LIB_DIRS,
-            'LIBRARY_PATH': SEARCH_PATH_LIB_DIRS,
-            'CPATH': SEARCH_PATH_HEADER_DIRS,
-            'MANPATH': ['man', os.path.join('share', 'man')],
-            'PKG_CONFIG_PATH': [os.path.join(x, 'pkgconfig') for x in SEARCH_PATH_LIB_DIRS + ['share']],
-            'ACLOCAL_PATH': [os.path.join('share', 'aclocal')],
-            'CLASSPATH': ['*.jar'],
-            'XDG_DATA_DIRS': ['share'],
-            'GI_TYPELIB_PATH': [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS],
-            'CMAKE_PREFIX_PATH': [''],
-            'CMAKE_LIBRARY_PATH': ['lib64'],  # only needed for installations whith standalone lib64
-        }
+        return self.module_load_environment.environ
 
     def load_module(self, mod_paths=None, purge=True, extra_modules=None, verbose=True):
         """
