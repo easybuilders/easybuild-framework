@@ -1631,6 +1631,10 @@ class EasyBlock(object):
         abs_glob = os.path.join(self.installdir, search_path)
         exp_search_paths = [abs_glob] if search_path == "" else glob.glob(abs_glob)
 
+        # Explicitly check symlink state between lib dirs if it is still undefined (e.g. --module-only)
+        if self.install_lib_symlink == LibSymlink.NONE:
+            self.check_install_lib_symlink()
+
         retained_search_paths = []
         for abs_path in exp_search_paths:
             # return relative paths
@@ -1654,6 +1658,17 @@ class EasyBlock(object):
             retained_search_paths.append(tentative_path)
 
         return retained_search_paths
+
+    def check_install_lib_symlink(self):
+        """Check symlink state between library directories in installation prefix"""
+        lib_dir = os.path.join(self.installdir, 'lib')
+        lib64_dir = os.path.join(self.installdir, 'lib64')
+        if os.path.exists(lib_dir) and os.path.exists(lib64_dir):
+            self.install_lib_symlink = LibSymlink.NEITHER
+            if os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
+                self.install_lib_symlink = LibSymlink.LIB
+            elif os.path.islink(lib64_dir) and os.path.samefile(lib_dir, lib64_dir):
+                self.install_lib_symlink = LibSymlink.LIB64
 
     def make_module_req_guess(self):
         """
@@ -3074,13 +3089,8 @@ class EasyBlock(object):
             # create *relative* 'lib' symlink to 'lib64';
             symlink('lib64', lib_dir, use_abspath_source=False)
 
-        # check symlink state
-        if os.path.exists(lib_dir) and os.path.exists(lib64_dir):
-            self.install_lib_symlink = LibSymlink.NEITHER
-            if os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
-                self.install_lib_symlink = LibSymlink.LIB
-            elif os.path.islink(lib64_dir) and os.path.samefile(lib_dir, lib64_dir):
-                self.install_lib_symlink = LibSymlink.LIB64
+        # refresh symlink state
+        self.check_install_lib_symlink()
 
         self.run_post_install_commands()
         self.apply_post_install_patches()
