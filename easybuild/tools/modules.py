@@ -135,9 +135,8 @@ _log = fancylogger.getLogger('modules', fname=False)
 
 class ModuleEnvironmentVariable:
     """Environment variable data structure for modules"""
-    def __init__(self, paths, empty=False, top_level_file=False):
+    def __init__(self, paths, top_level_file=False):
         self.paths = paths
-        self.empty = bool(empty)
         self.top_level_file = bool(top_level_file)
 
     def __str__(self):
