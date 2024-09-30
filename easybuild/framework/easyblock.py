@@ -1618,17 +1618,18 @@ class EasyBlock(object):
 
         return "".join(mod_lines)
 
-    def _expand_module_search_path(self, search_path, recursive, fake=False):
+    def _expand_module_search_path(self, search_path, top_level, fake=False):
         """
         Expand given path glob and return list of suitable paths to be used as search paths:
-            - Files must exist and directories be non-empty
+            - Paths are relative to installation prefix root
+            - Paths to files must exist and directories be non-empty
             - Fake modules can set search paths to empty directories
-            - Search paths to 'lib64' symlinked to 'lib' are discarded
+            - Search paths to a 'lib64' symlinked to 'lib' are discarded to avoid duplicates
         """
         # Expand globs but only if the string is non-empty
         # empty string is a valid value here (i.e. to prepend the installation prefix root directory)
-        abs_search_path = os.path.join(self.installdir, search_path)
-        exp_search_paths = [abs_search_path] if search_path == "" else glob.glob(abs_search_path)
+        abs_glob = os.path.join(self.installdir, search_path)
+        exp_search_paths = [abs_glob] if search_path == "" else glob.glob(abs_glob)
 
         retained_search_paths = []
         for abs_path in exp_search_paths:
@@ -1636,16 +1637,17 @@ class EasyBlock(object):
             tentative_path = os.path.relpath(abs_path, start=self.installdir)
             tentative_path = "" if tentative_path == "." else tentative_path  # use empty string instead of dot
 
-            # avoid duplicate entries if lib64 is just a symlink to lib
-            if (tentative_path + os.path.sep).startswith("lib64" + os.path.sep):
-                abs_lib_path = os.path.join(self.installdir, "lib")
-                abs_lib64_path = os.path.join(self.installdir, "lib64")
-                if os.path.islink(abs_lib64_path) and os.path.samefile(abs_lib_path, abs_lib64_path):
-                    self.log.debug("Discarded search path to symlink lib64: %s", tentative_path)
-                    break
+            # avoid duplicate entries between symlinked library dirs
+            tentative_sep = tentative_path + os.path.sep
+            if self.install_lib_symlink == LibSymlink.LIB64 and tentative_sep.startswith("lib64" + os.path.sep):
+                self.log.debug("Discarded search path to symlinked lib64 directory: %s", tentative_path)
+                break
+            if self.install_lib_symlink == LibSymlink.LIB and tentative_sep.startswith("lib" + os.path.sep):
+                self.log.debug("Discarded search path to symlinked lib directory: %s", tentative_path)
+                break
 
             # only retain paths to directories that contain at least one file
-            if os.path.isdir(abs_path) and not dir_contains_files(abs_path, recursive=recursive) and not fake:
+            if os.path.isdir(abs_path) and not dir_contains_files(abs_path, recursive=not top_level) and not fake:
                 self.log.debug("Discarded search path to empty directory: %s", tentative_path)
                 break
 
