@@ -223,6 +223,25 @@ def nub(list_):
     return [x for x in list_ if x not in seen and not seen_add(x)]
 
 
+def unique_ordered_append(base, extra):
+    """Append elements of extra list to another base list keeping order and without duplicates"""
+    if extra and isinstance(extra, str):
+        extra = [extra]
+
+    try:
+        base.extend(extra)
+    except TypeError as err:
+        err_msg = f"_unique_ordered_list_append: given extra list is not iterable: {extra}"
+        raise EasyBuildError(err_msg) from err
+    except AttributeError as err:
+        err_msg = f"_unique_ordered_list_append: given base cannot be extended: {base}"
+        raise EasyBuildError(err_msg) from err
+    else:
+        base = nub(base)  # remove duplicates
+
+    return base
+
+
 def get_class_for(modulepath, class_name):
     """
     Get class for a given Python class name and Python module path.
