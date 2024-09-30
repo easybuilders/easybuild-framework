@@ -1409,10 +1409,7 @@ class EasyBlock(object):
             use_ebpythonprefixes = False
             multi_deps = self.cfg['multi_deps']
 
-            if self.cfg['force_pythonpath']:
-                self.log.info("Using $PYTHONPATH to specify Python search path, since 'force_pythonpath' is set")
-
-            elif 'Python' in runtime_deps:
+            if 'Python' in runtime_deps:
                 self.log.info("Found Python runtime dependency, so considering $EBPYTHONPREFIXES...")
 
                 if build_option('prefer_python_search_path') == EBPYTHONPREFIXES:

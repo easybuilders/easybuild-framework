@@ -4302,13 +4302,6 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(ebpythonprefixes_regex.search(toy_mod_txt),
                         f"Pattern '{ebpythonprefixes_regex.pattern}' found in: {toy_mod_txt}")
 
-        write_file(test_ec, test_ec_txt + "\ndependencies = [('Python', '3.6', '', SYSTEM)]\nforce_pythonpath = True")
-        self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
-        toy_mod_txt = read_file(toy_mod)
-
-        self.assertTrue(pythonpath_regex.search(toy_mod_txt),
-                        f"Pattern '{pythonpath_regex.pattern}' found in: {toy_mod_txt}")
-
 
 def suite():
     """ return all the tests in this file """
