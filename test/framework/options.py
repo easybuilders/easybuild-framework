@@ -995,6 +995,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 EasyBlock
                 |-- bar
                 |-- Bundle
+                |-- Cargo
                 |-- CMakeMake
                 |-- CmdCp
                 |-- ConfigureMake
