@@ -1390,6 +1390,37 @@ class EasyBlock(object):
         """
         return self.module_generator.get_description()
 
+    def make_module_pythonpath(self):
+        """
+        Add lines for module file to update $PYTHONPATH or $EBPYTHONPREFIXES,
+        if they aren't already present and the standard lib/python*/site-packages subdirectory exists
+        """
+        lines = []
+        if not os.path.isfile(os.path.join(self.installdir, 'bin', 'python')):  # only needed when not a python install
+            python_subdir_pattern = os.path.join(self.installdir, 'lib', 'python*', 'site-packages')
+            candidate_paths = (os.path.relpath(path, self.installdir) for path in glob.glob(python_subdir_pattern))
+            python_paths = [path for path in candidate_paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
+
+            runtime_deps = [dep['name'] for dep in self.cfg.dependencies(runtime_only=True)]
+            use_ebpythonprefixes = all([
+                'Python' in runtime_deps,
+                build_option('prefer_python_search_path') == EBPYTHONPREFIXES,
+                not self.cfg['force_pythonpath']
+            ])
+
+            if python_paths:
+                # add paths unless they were already added
+                if use_ebpythonprefixes:
+                    path = ''  # EBPYTHONPREFIXES are relative to the install dir
+                    if path not in self.module_generator.added_paths_per_key[EBPYTHONPREFIXES]:
+                        lines.append(self.module_generator.prepend_paths(EBPYTHONPREFIXES, path))
+                else:
+                    for python_path in python_paths:
+                        if python_path not in self.module_generator.added_paths_per_key[PYTHONPATH]:
+                            lines.append(self.module_generator.prepend_paths(PYTHONPATH, python_path))
+
+        return lines
+
     def make_module_extra(self, altroot=None, altversion=None):
         """
         Set extra stuff in module file, e.g. $EBROOT*, $EBVERSION*, etc.
@@ -1438,26 +1469,8 @@ class EasyBlock(object):
                                      value, type(value))
             lines.append(self.module_generator.append_paths(key, value, allow_abs=self.cfg['allow_append_abs_path']))
 
-        # Add automatic PYTHONPATH or EBPYTHONPREFIXES if they aren't already present and python paths exist
-        if not os.path.isfile(os.path.join(self.installdir, 'bin/python')):  # only needed when not a python install
-            candidate_paths = (os.path.relpath(path, self.installdir)
-                               for path in glob.glob(f'{self.installdir}/lib/python*/site-packages'))
-            python_paths = [path for path in candidate_paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
-
-            runtime_deps = [dep['name'] for dep in self.cfg.dependencies(runtime_only=True)]
-            use_ebpythonprefixes = 'Python' in runtime_deps and \
-                build_option('prefer_python_search_path') == EBPYTHONPREFIXES and not self.cfg['force_pythonpath']
-
-            if python_paths:
-                # Add paths unless they were already added
-                if use_ebpythonprefixes:
-                    path = ''  # EBPYTHONPREFIXES are relative to the install dir
-                    if path not in self.module_generator.added_paths_per_key[EBPYTHONPREFIXES]:
-                        lines.append(self.module_generator.prepend_paths(EBPYTHONPREFIXES, path))
-                else:
-                    for python_path in python_paths:
-                        if python_path not in self.module_generator.added_paths_per_key[PYTHONPATH]:
-                            lines.append(self.module_generator.prepend_paths(PYTHONPATH, python_path))
+        # add lines to update $PYTHONPATH or $EBPYTHONPREFIXES
+        lines.extend(self.make_module_pythonpath())
 
         modloadmsg = self.cfg['modloadmsg']
         if modloadmsg:
