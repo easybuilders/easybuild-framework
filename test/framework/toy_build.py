@@ -4242,15 +4242,16 @@ class ToyBuildTest(EnhancedTestCase):
         """
         Test whether $PYTHONPATH or $EBPYTHONPREFIXES are set correctly.
         """
-        # generate fake Python module that we can use as runtime dependency for toy
+        # generate fake Python modules that we can use as runtime dependency for toy
         # (required condition for use of $EBPYTHONPREFIXES)
         fake_mods_path = os.path.join(self.test_prefix, 'modules')
-        fake_python_mod = os.path.join(fake_mods_path, 'Python', '3.6')
-        if get_module_syntax() == 'Lua':
-            fake_python_mod += '.lua'
-            write_file(fake_python_mod, '')
-        else:
-            write_file(fake_python_mod, '#%Module')
+        for pyver in ('2.7', '3.6'):
+            fake_python_mod = os.path.join(fake_mods_path, 'Python', pyver)
+            if get_module_syntax() == 'Lua':
+                fake_python_mod += '.lua'
+                write_file(fake_python_mod, '')
+            else:
+                write_file(fake_python_mod, '#%Module')
         self.modtool.use(fake_mods_path)
 
         test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
@@ -4284,8 +4285,8 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(pythonpath_regex.search(toy_mod_txt),
                         f"Pattern '{pythonpath_regex.pattern}' found in: {toy_mod_txt}")
 
-        test_ec_txt += "\ndependencies = [('Python', '3.6', '', SYSTEM)]"
-        write_file(test_ec, test_ec_txt)
+        # if Python is listed as runtime dependency, then $EBPYTHONPREFIXES is used if it's preferred
+        write_file(test_ec, test_ec_txt + "\ndependencies = [('Python', '3.6', '', SYSTEM)]")
         self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
         toy_mod_txt = read_file(toy_mod)
 
@@ -4293,13 +4294,13 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(ebpythonprefixes_regex.search(toy_mod_txt),
                         f"Pattern '{ebpythonprefixes_regex.pattern}' found in: {toy_mod_txt}")
 
-        test_ec_txt += "\nforce_pythonpath = True"
-        write_file(test_ec, test_ec_txt)
+        # if Python is listed in multi_deps, then $EBPYTHONPREFIXES is used, even if it's not explicitely preferred
+        write_file(test_ec, test_ec_txt + "\nmulti_deps = {'Python': ['2.7', '3.6']}")
         self.run_test_toy_build_with_output(ec_file=test_ec)
         toy_mod_txt = read_file(toy_mod)
 
-        self.assertTrue(pythonpath_regex.search(toy_mod_txt),
-                        f"Pattern '{pythonpath_regex.pattern}' found in: {toy_mod_txt}")
+        self.assertTrue(ebpythonprefixes_regex.search(toy_mod_txt),
+                        f"Pattern '{ebpythonprefixes_regex.pattern}' found in: {toy_mod_txt}")
 
 
 def suite():

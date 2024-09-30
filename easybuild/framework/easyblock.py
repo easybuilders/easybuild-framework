@@ -1401,12 +1401,24 @@ class EasyBlock(object):
             candidate_paths = (os.path.relpath(path, self.installdir) for path in glob.glob(python_subdir_pattern))
             python_paths = [path for path in candidate_paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
 
+            # determine whether Python is a runtime dependency;
+            # if so, we assume it was installed with EasyBuild, and hence is aware of $EBPYTHONPREFIXES
             runtime_deps = [dep['name'] for dep in self.cfg.dependencies(runtime_only=True)]
-            use_ebpythonprefixes = all([
-                'Python' in runtime_deps,
-                build_option('prefer_python_search_path') == EBPYTHONPREFIXES,
-                not self.cfg['force_pythonpath']
-            ])
+
+            # don't use $EBPYTHONPREFIXES unless we can and it's preferred or necesary (due to use of multi_deps)
+            use_ebpythonprefixes = False
+            multi_deps = self.cfg['multi_deps']
+
+            if 'Python' in runtime_deps:
+                self.log.info("Found Python runtime dependency, so considering $EBPYTHONPREFIXES...")
+
+                if build_option('prefer_python_search_path') == EBPYTHONPREFIXES:
+                    self.log.info("Preferred Python search path is $EBPYTHONPREFIXES, so using that")
+                    use_ebpythonprefixes = True
+
+            elif multi_deps and 'Python' in multi_deps:
+                self.log.info("Python is listed in 'multi_deps', so using $EBPYTHONPREFIXES instead of $PYTHONPATH")
+                use_ebpythonprefixes = True
 
             if python_paths:
                 # add paths unless they were already added
