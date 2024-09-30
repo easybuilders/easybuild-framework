@@ -69,7 +69,7 @@ from easybuild.tools.modules import get_software_version, get_software_version_e
 from easybuild.tools.systemtools import LINUX, get_os_type
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
-from easybuild.tools.utilities import nub, trace_msg
+from easybuild.tools.utilities import nub, unique_ordered_append, trace_msg
 
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
@@ -1085,20 +1085,11 @@ class Toolchain(object):
         """
         Append prepocessor paths for given dependency root directory
         """
-        header_dirs = ["include"]
-
         if extra_dirs is None:
             extra_dirs = ()
-        elif extra_dirs and isinstance(extra_dirs, (str,)):
-            extra_dirs = [extra_dirs]
 
-        try:
-            header_dirs.extend(extra_dirs)
-        except TypeError as err:
-            err_msg = f"_add_dependency_cpp_headers: given extra_dirs is not iterable: {extra_dirs}"
-            raise EasyBuildError(err_msg) from err
-        else:
-            header_dirs = nub(header_dirs)  # remove duplicates
+        header_dirs = ["include"]
+        header_dirs = unique_ordered_append(header_dirs, extra_dirs)
 
         # mode of operation is defined by search-path-cpp-headers option
         # toolchain option has precedence over build option
@@ -1125,27 +1116,15 @@ class Toolchain(object):
         """
         Append linker paths for given dependency root directory
         """
-        lib_dirs = ["lib64", "lib"]
-
         if extra_dirs is None:
             extra_dirs = ()
-        elif extra_dirs and isinstance(extra_dirs, (str,)):
-            extra_dirs = [extra_dirs]
 
-        try:
-            lib_dirs.extend(extra_dirs)
-        except TypeError as err:
-            err_msg = f"_add_dependency_linker_paths: given extra_dirs is not iterable: {extra_dirs}"
-            raise EasyBuildError(err_msg) from err
-        else:
-            lib_dirs = nub(lib_dirs)  # remove duplicates
+        lib_dirs = ["lib64", "lib"]
+        lib_dirs = unique_ordered_append(lib_dirs, extra_dirs)
 
         env_var = "LDFLAGS"
         self.log.debug("Adding lib paths to toolchain variable '%s': %s", env_var, dep_root)
         self.variables.append_subdirs(env_var, dep_root, subdirs=lib_dirs)
-
-    def _unique_ordered_list_append(self, base, extra_dirs):
-        """Append list of dirs to another list of dirs keeping order and without duplicates"""
 
     def _setenv_variables(self, donotset=None, verbose=True):
         """Actually set the environment variables"""
