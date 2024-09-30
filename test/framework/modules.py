@@ -1615,6 +1615,27 @@ class ModulesTest(EnhancedTestCase):
         mod_envar.prepend("bin")
         self.assertEqual(mod_envar.paths, ["bin", "include", "share", "lib", "lib64"])
 
+    def test_module_load_environment(self):
+        """Test for ModuleLoadEnvironment object"""
+        mod_load_env = mod.ModuleLoadEnvironment()
+        mod_load_env.TEST_VAR = mod.ModuleEnvironmentVariable(["lib", "lib64"])
+        self.assertTrue(hasattr(mod_load_env, "TEST_VAR"))
+        self.assertEqual(mod_load_env.TEST_VAR.paths, ["lib", "lib64"])
+
+        # copy current state as reference
+        ref_load_env = mod_load_env.__dict__.copy()
+        # and add some garbage
+        mod_load_env.garbage = "not_an_env_var"
+        self.assertTrue(hasattr(mod_load_env, "garbage"))
+        self.assertEqual(mod_load_env.garbage, "not_an_env_var")
+
+        self.assertCountEqual(list(mod_load_env), ref_load_env.keys())
+        ref_load_env_item_list = [(key, value.paths) for key, value in ref_load_env.items()]
+        self.assertCountEqual(list(mod_load_env.items()), ref_load_env_item_list)
+        ref_load_env_environ = {key: value.paths for key, value in ref_load_env.items()}
+        self.assertDictEqual(mod_load_env.environ, ref_load_env_environ)
+
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(ModulesTest, sys.argv[1:])
