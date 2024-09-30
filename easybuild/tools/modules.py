@@ -132,6 +132,7 @@ MODULE_VERSION_CACHE = {}
 
 _log = fancylogger.getLogger('modules', fname=False)
 
+
 class ModuleEnvironmentVariable:
     """Environment variable data structure for modules"""
     def __init__(self, paths, empty=False, top_level_file=False):
