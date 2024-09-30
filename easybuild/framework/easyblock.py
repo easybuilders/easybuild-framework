@@ -54,6 +54,7 @@ import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from enum import Enum
 from textwrap import indent
 
 import easybuild.tools.environment as env
@@ -122,6 +123,11 @@ PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 REPROD = 'reprod'
 
 _log = fancylogger.getLogger('easyblock')
+
+
+class LibSymlink(Enum):
+    """Possible states for symlinking of library directories"""
+    NONE, LIB, LIB64, NEITHER = range(0, 4)
 
 
 class EasyBlock(object):
