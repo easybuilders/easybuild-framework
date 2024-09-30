@@ -214,6 +214,9 @@ class EasyBlock(object):
         # determine install subdirectory, based on module name
         self.install_subdir = None
 
+        # track status of symlink between library directories
+        self.install_lib_symlink = LibSymlink.NONE
+
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']
 
@@ -3059,18 +3062,24 @@ class EasyBlock(object):
         # However for each <dir> in $LIBRARY_PATH (where <dir> is often <prefix>/lib) it searches <dir>/../lib64 first.
         # So we create <prefix>/lib64 as a symlink to <prefix>/lib to make it prefer EB installed libraries.
         # See https://github.com/easybuilders/easybuild-easyconfigs/issues/5776
-        if build_option('lib64_lib_symlink'):
-            if os.path.exists(lib_dir) and not os.path.exists(lib64_dir):
-                # create *relative* 'lib64' symlink to 'lib';
-                # see https://github.com/easybuilders/easybuild-framework/issues/3564
-                symlink('lib', lib64_dir, use_abspath_source=False)
+        if build_option('lib64_lib_symlink') and os.path.exists(lib_dir) and not os.path.exists(lib64_dir):
+            # create *relative* 'lib64' symlink to 'lib';
+            # see https://github.com/easybuilders/easybuild-framework/issues/3564
+            symlink('lib', lib64_dir, use_abspath_source=False)
 
         # symlink lib to lib64, which is helpful on OpenSUSE;
         # see https://github.com/easybuilders/easybuild-framework/issues/3549
-        if build_option('lib_lib64_symlink'):
-            if os.path.exists(lib64_dir) and not os.path.exists(lib_dir):
-                # create *relative* 'lib' symlink to 'lib64';
-                symlink('lib64', lib_dir, use_abspath_source=False)
+        if build_option('lib_lib64_symlink') and os.path.exists(lib64_dir) and not os.path.exists(lib_dir):
+            # create *relative* 'lib' symlink to 'lib64';
+            symlink('lib64', lib_dir, use_abspath_source=False)
+
+        # check symlink state
+        if os.path.exists(lib_dir) and os.path.exists(lib64_dir):
+            self.install_lib_symlink = LibSymlink.NEITHER
+            if os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
+                self.install_lib_symlink = LibSymlink.LIB
+            elif os.path.islink(lib64_dir) and os.path.samefile(lib_dir, lib64_dir):
+                self.install_lib_symlink = LibSymlink.LIB64
 
         self.run_post_install_commands()
         self.apply_post_install_patches()
