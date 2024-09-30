@@ -75,7 +75,7 @@ from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg
 from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
-from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_HEADER_DIRS, SEARCH_PATH_LIB_DIRS
+from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.config import EASYBUILD_SOURCES_URL # noqa
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
@@ -113,9 +113,6 @@ from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 DEFAULT_BIN_LIB_SUBDIRS = SEARCH_PATH_BIN_DIRS + SEARCH_PATH_LIB_DIRS
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANITYCHECK_STEP]
-
-# search paths that require some file in their top directory
-NON_RECURSIVE_SEARCH_PATHS = ["PATH", "LD_LIBRARY_PATH"]
 
 # string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
 PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
@@ -1585,25 +1582,36 @@ class EasyBlock(object):
             note += "for paths are skipped for the statements below due to dry run"
             mod_lines.append(self.module_generator.comment(note))
 
-        env_var_requirements = self.make_module_req_guess()
-        for env_var, search_paths in sorted(env_var_requirements.items()):
-            if isinstance(search_paths, str):
-                self.log.warning("Hoisting string value %s into a list before iterating over it", search_paths)
-                search_paths = [search_paths]
+        # prefer deprecated make_module_req_guess on custom easyblocks
+        if self.make_module_req_guess.__qualname__ == "EasyBlock.make_module_req_guess":
+            # No custom method in child Easyblock, deprecated method is defined by base EasyBlock class
+            env_var_requirements = self.module_load_environment.environ
+        else:
+            # Custom deprecated method used by child EasyBlock
+            self.log.devel(
+                "make_module_req_guess() is deprecated, use module_load_environment object instead.",
+                "6.0",
+            )
+            env_var_requirements = self.make_module_req_guess()
+            # backward compatibility: manually convert paths defined as string to lists
+            env_var_requirements.update({
+                envar: [path] for envar, path in env_var_requirements.items() if isinstance(path, str)
+            })
 
-            mod_env_paths = []
-            recursive = env_var not in NON_RECURSIVE_SEARCH_PATHS
+        for env_var, search_paths in sorted(env_var_requirements.items()):
             if self.dry_run:
                 self.dry_run_msg(f" ${env_var}:{', '.join(search_paths)}")
                 # Don't expand globs or do any filtering for dry run
-                mod_env_paths = search_paths
+                mod_req_paths = search_paths
             else:
-                for sp in search_paths:
-                    mod_env_paths.extend(self._expand_module_search_path(sp, recursive, fake=fake))
+                mod_req_paths = []
+                top_level = getattr(self.module_load_environment, env_var).top_level_file
+                for path in search_paths:
+                    mod_req_paths.extend(self._expand_module_search_path(path, top_level, fake=fake))
 
-            if mod_env_paths:
-                mod_env_paths = nub(mod_env_paths)  # remove duplicates
-                mod_lines.append(self.module_generator.prepend_paths(env_var, mod_env_paths))
+            if mod_req_paths:
+                mod_req_paths = nub(mod_req_paths)  # remove duplicates
+                mod_lines.append(self.module_generator.prepend_paths(env_var, mod_req_paths))
 
         if self.dry_run:
             self.dry_run_msg('')
