@@ -52,6 +52,7 @@ import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.config import update_build_option
 from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, remove_dir, write_file
+from easybuild.tools.modules import EnvironmentModules, Lmod
 from easybuild.tools.run import RunShellCmdResult, RunShellCmdError, check_async_cmd, check_log_for_errors
 from easybuild.tools.run import complete_cmd, fileprefix_from_cmd, get_output_from_process, parse_log_for_error
 from easybuild.tools.run import run_cmd, run_cmd_qa, run_shell_cmd, subprocess_terminate
@@ -232,6 +233,20 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(len(res), 1)
         pwd = res[0].strip()[5:]
         self.assertTrue(os.path.samefile(pwd, self.test_prefix))
+
+        cmd = f"{cmd_script} -c 'module --version'"
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, fail_on_error=False)
+        self.assertEqual(res.exit_code, 0)
+
+        if isinstance(self.modtool, Lmod):
+            regex = re.compile("^Modules based on Lua: Version [0-9]", re.M)
+        elif isinstance(self.modtool, EnvironmentModules):
+            regex = re.compile("^Modules Release [0-9]", re.M)
+        else:
+            self.fail("Unknown modules tool used!")
+
+        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
 
         # test running command that emits non-UTF-8 characters
         # this is constructed to reproduce errors like:
