@@ -414,6 +414,9 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
         if stdin:
             proc.stdin.write(stdin)
+            proc.stdin.flush()
+            if not qa_patterns:
+                proc.stdin.close()
 
         exit_code = None
         stdout, stderr = b'', b''
