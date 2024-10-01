@@ -182,49 +182,45 @@ class ModuleLoadEnvironment(BaseModuleEnvironment):
         Paths are relative to root of installation directory
         """
 
-        self.PATH = ModuleEnvironmentVariable(
+        self.PATH = (
             SEARCH_PATH_BIN_DIRS + ['sbin'],
-            top_level_file=True,
+            {"top_level_file": True},
         )
-        self.LD_LIBRARY_PATH = ModuleEnvironmentVariable(
+        self.LD_LIBRARY_PATH = (
             SEARCH_PATH_LIB_DIRS,
-            top_level_file=True,
+            {"top_level_file": True},
         )
-        self.LIBRARY_PATH = ModuleEnvironmentVariable(
-            SEARCH_PATH_LIB_DIRS,
-        )
-        self.CPATH = ModuleEnvironmentVariable(
-            SEARCH_PATH_HEADER_DIRS,
-        )
-        self.MANPATH = ModuleEnvironmentVariable(
-            ['man', os.path.join('share', 'man')],
-        )
-        self.PKG_CONFIG_PATH = ModuleEnvironmentVariable(
-            [os.path.join(x, 'pkgconfig') for x in SEARCH_PATH_LIB_DIRS + ['share']],
-        )
-        self.ACLOCAL_PATH = ModuleEnvironmentVariable(
-            [os.path.join('share', 'aclocal')],
-        )
-        self.CLASSPATH = ModuleEnvironmentVariable(
-            ['*.jar'],
-        )
-        self.XDG_DATA_DIRS = ModuleEnvironmentVariable(
-            ['share'],
-        )
-        self.GI_TYPELIB_PATH = ModuleEnvironmentVariable(
-            [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS]
-        )
-        self.CMAKE_PREFIX_PATH = ModuleEnvironmentVariable(
-            [''],
-        )
+        self.LIBRARY_PATH = SEARCH_PATH_LIB_DIRS
+        self.CPATH = SEARCH_PATH_HEADER_DIRS
+        self.MANPATH = ['man', os.path.join('share', 'man')]
+        self.PKG_CONFIG_PATH = [os.path.join(x, 'pkgconfig') for x in SEARCH_PATH_LIB_DIRS + ['share']]
+        self.ACLOCAL_PATH = [os.path.join('share', 'aclocal')]
+        self.CLASSPATH = ['*.jar']
+        self.XDG_DATA_DIRS = ['share']
+        self.GI_TYPELIB_PATH = [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS]
+        self.CMAKE_PREFIX_PATH = ['']
         # only needed for installations whith standalone lib64
-        self.CMAKE_LIBRARY_PATH = ModuleEnvironmentVariable(
-            ['lib64'],
-        )
+        self.CMAKE_LIBRARY_PATH = ['lib64']
+
+    def __setattr__(self, name, value):
+        """
+        Specific restrictions for ModuleLoadEnvironment attributes:
+        - attribute names are uppercase
+        - attributes are instances of ModuleEnvironmentVariable
+        """
+        try:
+            (paths, kwargs) = value
+        except ValueError:
+            paths, kwargs = value, {}
+        else:
+            if not isinstance(kwargs, dict):
+                paths, kwargs = value, {}
+
+        return super().__setattr__(name.upper(), ModuleEnvironmentVariable(paths, **kwargs))
 
     def __iter__(self):
         """Make the class iterable"""
-        yield from (envar for envar in self.__dict__ if isinstance(getattr(self, envar), ModuleEnvironmentVariable))
+        yield from self.__dict__
 
     def items(self):
         """
@@ -233,9 +229,7 @@ class ModuleLoadEnvironment(BaseModuleEnvironment):
         - value = its "paths" attribute
         """
         for attr in self.__dict__:
-            envar = getattr(self, attr)
-            if isinstance(envar, ModuleEnvironmentVariable):
-                yield attr, envar.paths
+            yield attr, getattr(self, attr).paths
 
     @property
     def environ(self):

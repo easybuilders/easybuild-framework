@@ -1616,23 +1616,30 @@ class ModulesTest(EnhancedTestCase):
 
     def test_module_load_environment(self):
         """Test for ModuleLoadEnvironment object"""
+        test_paths = ['lib', 'lib64']
         mod_load_env = mod.ModuleLoadEnvironment()
-        mod_load_env.TEST_VAR = mod.ModuleEnvironmentVariable(["lib", "lib64"])
+        mod_load_env.TEST_VAR = test_paths
         self.assertTrue(hasattr(mod_load_env, "TEST_VAR"))
-        self.assertEqual(mod_load_env.TEST_VAR.paths, ["lib", "lib64"])
+        self.assertEqual(mod_load_env.TEST_VAR.paths, test_paths)
 
-        # copy current state as reference
         ref_load_env = mod_load_env.__dict__.copy()
-        # and add some garbage
-        mod_load_env.garbage = "not_an_env_var"
-        self.assertTrue(hasattr(mod_load_env, "garbage"))
-        self.assertEqual(mod_load_env.garbage, "not_an_env_var")
-
         self.assertCountEqual(list(mod_load_env), ref_load_env.keys())
         ref_load_env_item_list = [(key, value.paths) for key, value in ref_load_env.items()]
         self.assertCountEqual(list(mod_load_env.items()), ref_load_env_item_list)
         ref_load_env_environ = {key: value.paths for key, value in ref_load_env.items()}
         self.assertDictEqual(mod_load_env.environ, ref_load_env_environ)
+
+        mod_load_env.test_lower = test_paths
+        self.assertTrue(hasattr(mod_load_env, "TEST_LOWER"))
+        self.assertEqual(mod_load_env.TEST_LOWER.paths, test_paths)
+        mod_load_env.TEST_STR = "some/path"
+        self.assertTrue(hasattr(mod_load_env, "TEST_STR"))
+        self.assertEqual(mod_load_env.TEST_STR.paths, ["some/path"])
+        mod_load_env.TEST_EXTRA = (test_paths, {"top_level_file": True})
+        self.assertTrue(hasattr(mod_load_env, "TEST_EXTRA"))
+        self.assertEqual(mod_load_env.TEST_EXTRA.paths, test_paths)
+        self.assertEqual(mod_load_env.TEST_EXTRA.top_level_file, True)
+        self.assertRaises(TypeError, setattr, mod_load_env, "TEST_UNKNONW", (test_paths, {"unkown_param": True}))
 
 
 def suite():
