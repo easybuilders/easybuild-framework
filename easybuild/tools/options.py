@@ -1337,7 +1337,8 @@ class EasyBuildOptions(GeneralOption):
             "* system-level: %s" % os.path.join('${XDG_CONFIG_DIRS:-/etc/xdg}', 'easybuild.d', '*.cfg'),
             "  -> %s => %s" % (system_cfg_glob_paths, ', '.join(flatten(DEFAULT_SYS_CFGFILES)) or "(no matches)"),
             '',
-            "Default list of existing configuration files (%d): %s" % (found_cfgfile_cnt, found_cfgfile_list),
+            "Default list of existing configuration files (%d, most important last):" % found_cfgfile_cnt,
+            found_cfgfile_list,
         ]
         return '\n'.join(lines)
 
