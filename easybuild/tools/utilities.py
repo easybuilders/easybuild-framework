@@ -234,10 +234,8 @@ def unique_ordered_append(base, extra):
         raise EasyBuildError( f"given extra list is not iterable: {extra}") from err
     except AttributeError as err:
         raise EasyBuildError(f"given base cannot be extended: {base}") from err
-    else:
-        base = nub(base)  # remove duplicates
 
-    return base
+    return nub(base)  # remove duplicates
 
 
 def get_class_for(modulepath, class_name):
