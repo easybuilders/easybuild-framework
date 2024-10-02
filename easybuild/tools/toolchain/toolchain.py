@@ -69,7 +69,7 @@ from easybuild.tools.modules import get_software_version, get_software_version_e
 from easybuild.tools.systemtools import LINUX, get_os_type
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
-from easybuild.tools.utilities import nub, unique_ordered_append, trace_msg
+from easybuild.tools.utilities import nub, unique_ordered_extend, trace_msg
 
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
@@ -1089,7 +1089,7 @@ class Toolchain(object):
             extra_dirs = ()
 
         header_dirs = ["include"]
-        header_dirs = unique_ordered_append(header_dirs, extra_dirs)
+        header_dirs = unique_ordered_extend(header_dirs, extra_dirs)
 
         # mode of operation is defined by search-path-cpp-headers option
         # toolchain option has precedence over build option
@@ -1120,7 +1120,7 @@ class Toolchain(object):
             extra_dirs = ()
 
         lib_dirs = ["lib64", "lib"]
-        lib_dirs = unique_ordered_append(lib_dirs, extra_dirs)
+        lib_dirs = unique_ordered_extend(lib_dirs, extra_dirs)
 
         env_var = "LDFLAGS"
         self.log.debug("Adding lib paths to toolchain variable '%s': %s", env_var, dep_root)

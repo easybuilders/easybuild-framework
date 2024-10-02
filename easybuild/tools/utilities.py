@@ -223,10 +223,11 @@ def nub(list_):
     return [x for x in list_ if x not in seen and not seen_add(x)]
 
 
-def unique_ordered_append(base, extra):
-    """Append elements of extra list to another base list keeping order and without duplicates"""
-    if extra and isinstance(extra, str):
-        extra = [extra]
+def unique_ordered_extend(base, extra):
+    """Extend base list with elements of extra list keeping order and without duplicates"""
+    if isinstance(extra, str):
+        # avoid strings as they are iterables and generate wrong result without error
+        raise EasyBuildError(f"given extra list is a string: {extra}")
 
     try:
         base.extend(extra)

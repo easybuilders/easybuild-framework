@@ -191,22 +191,22 @@ class UtilitiesTest(EnhancedTestCase):
         self.assertEqual(LooseVersion('2.a').version, [2, 'a'])
         self.assertEqual(LooseVersion('2.a5').version, [2, 'a', 5])
 
-    def test_unique_ordered_append(self):
+    def test_unique_ordered_extend(self):
         """Test unique_ordered_list_append method"""
         base = ["potato", "tomato", "orange"]
 
         reference = ["potato", "tomato", "orange", "apple"]
-        self.assertEqual(tu.unique_ordered_append(base, ["apple"]), reference)
-        self.assertEqual(tu.unique_ordered_append(base, ["apple", "apple"]), reference)
-        self.assertEqual(tu.unique_ordered_append(base, "apple"), reference)
-        self.assertNotEqual(tu.unique_ordered_append(base, "apple"), sorted(reference))
+        self.assertEqual(tu.unique_ordered_extend(base, ["apple"]), reference)
+        self.assertEqual(tu.unique_ordered_extend(base, ["apple", "apple"]), reference)
+        self.assertEqual(tu.unique_ordered_extend(base, "apple"), reference)
+        self.assertNotEqual(tu.unique_ordered_extend(base, "apple"), sorted(reference))
 
         error_pattern = "given extra list is not iterable"
-        self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_append, base, 0)
+        self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, 0)
 
         base = "potato"
         error_pattern = "given base cannot be extended"
-        self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_append, base, reference)
+        self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, reference)
 
 
 def suite():
