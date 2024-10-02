@@ -401,11 +401,12 @@ def terminate_process(proc, timeout=20):
         proc.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
         _log.warning(f"Process did not terminate after {timeout} seconds, sending SIGKILL")
-    proc.kill()
-    try:
-        proc.wait(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        raise EasyBuildError(f"Process `{proc.args}` did not terminate after {timeout} seconds, giving up")
+
+        proc.kill()
+        try:
+            proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            raise EasyBuildError(f"Process `{proc.args}` did not terminate after {timeout} seconds, giving up")
 
 
 @run_shell_cmd_cache
