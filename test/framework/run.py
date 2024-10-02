@@ -1746,7 +1746,7 @@ class RunTest(EnhancedTestCase):
         """Test use of run_shell_cmd with a timeout."""
         data = '0'*128
         # Failure on process timeout
-        cmd = f'while true; do echo {data} && sleep 0.1; done'
+        cmd = f'for i in {{1..20}}; do echo {data} && sleep 0.1; done'
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(
                 EasyBuildError, "Timeout during `.*` after .* seconds",
@@ -1754,7 +1754,7 @@ class RunTest(EnhancedTestCase):
                 )
 
         # Failure on stdout read timeout
-        cmd = 'cat -'
+        cmd = 'timeout 1 cat -'
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(
                 EasyBuildError, "Timeout during `.*` after .* seconds",
