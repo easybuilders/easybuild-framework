@@ -3523,7 +3523,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected_tmpl += '\n'.join([
             "%s",
             '',
-            "Default list of existing configuration files (%d): %s",
+            "Default list of existing configuration files (%d, most important last):",
+            "%s",
         ])
 
         # put dummy cfgfile in place in $HOME (to predict last line of output which only lists *existing* files)

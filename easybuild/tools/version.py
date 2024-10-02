@@ -85,10 +85,8 @@ else:
 FRAMEWORK_VERSION = VERBOSE_VERSION
 
 # EasyBlock version
-try:
-    from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
-except Exception:
-    EASYBLOCKS_VERSION = UNKNOWN_EASYBLOCKS_VERSION  # make sure it is smaller then anything
+#from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
+EASYBLOCKS_VERSION = '4.9.2'
 
 
 def this_is_easybuild():
