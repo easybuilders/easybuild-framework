@@ -106,7 +106,7 @@ class GC3Pie(JobBackend):
 
         deprecation_msg = "The GC3Pie job backend is no longer maintained and will be removed"
         deprecation_msg += ", please use a different job backend"
-        _log.deprecated(deprecation_msg, '5.0')
+        _log.deprecated(deprecation_msg, '6.0')
 
         try:
             from pkg_resources import get_distribution, DistributionNotFound
