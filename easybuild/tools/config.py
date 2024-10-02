@@ -96,7 +96,7 @@ DEFAULT_DOWNLOAD_TIMEOUT = 10
 DEFAULT_ENV_FOR_SHEBANG = '/usr/bin/env'
 DEFAULT_ENVVAR_USERS_MODULES = 'HOME'
 DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
-DEFAULT_JOB_BACKEND = 'GC3Pie'
+DEFAULT_JOB_BACKEND = 'Slurm'
 DEFAULT_JOB_EB_CMD = 'eb'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
@@ -177,6 +177,10 @@ OUTPUT_STYLES = (OUTPUT_STYLE_AUTO, OUTPUT_STYLE_BASIC, OUTPUT_STYLE_NO_COLOR, O
 SEARCH_PATH_BIN_DIRS = ["bin"]
 SEARCH_PATH_HEADER_DIRS = ["include"]
 SEARCH_PATH_LIB_DIRS = ["lib", "lib64"]
+
+PYTHONPATH = 'PYTHONPATH'
+EBPYTHONPREFIXES = 'EBPYTHONPREFIXES'
+PYTHON_SEARCH_PATH_TYPES = [PYTHONPATH, EBPYTHONPREFIXES]
 
 
 class Singleton(ABCMeta):
@@ -410,6 +414,9 @@ BUILD_OPTIONS_CMDLINE = {
     OUTPUT_STYLE_AUTO: [
         'output_style',
     ],
+    PYTHONPATH: [
+        'prefer_python_search_path',
+    ]
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {

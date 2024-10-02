@@ -52,6 +52,7 @@ import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.config import update_build_option
 from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, remove_dir, write_file
+from easybuild.tools.modules import EnvironmentModules, Lmod
 from easybuild.tools.run import RunShellCmdResult, RunShellCmdError, check_async_cmd, check_log_for_errors
 from easybuild.tools.run import complete_cmd, fileprefix_from_cmd, get_output_from_process, parse_log_for_error
 from easybuild.tools.run import run_cmd, run_cmd_qa, run_shell_cmd, subprocess_terminate
@@ -232,6 +233,20 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(len(res), 1)
         pwd = res[0].strip()[5:]
         self.assertTrue(os.path.samefile(pwd, self.test_prefix))
+
+        cmd = f"{cmd_script} -c 'module --version'"
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, fail_on_error=False)
+        self.assertEqual(res.exit_code, 0)
+
+        if isinstance(self.modtool, Lmod):
+            regex = re.compile("^Modules based on Lua: Version [0-9]", re.M)
+        elif isinstance(self.modtool, EnvironmentModules):
+            regex = re.compile("^Modules Release [0-9]", re.M)
+        else:
+            self.fail("Unknown modules tool used!")
+
+        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
 
         # test running command that emits non-UTF-8 characters
         # this is constructed to reproduce errors like:
@@ -1625,6 +1640,25 @@ class RunTest(EnhancedTestCase):
         for line in expected:
             self.assertIn(line, stdout)
 
+    def test_run_shell_cmd_eof_stdin(self):
+        """Test use of run_shell_cmd with streaming output and blocking stdin read."""
+        cmd = 'timeout 1 cat -'
+
+        inp = 'hello\nworld\n'
+        # test with streaming output
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, stream_output=True, stdin=inp, fail_on_error=False)
+
+        self.assertEqual(res.exit_code, 0, "Streaming output: Command timed out")
+        self.assertEqual(res.output, inp)
+
+        # test with non-streaming output (proc.communicate() is used)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, stdin=inp, fail_on_error=False)
+
+        self.assertEqual(res.exit_code, 0, "Non-streaming output: Command timed out")
+        self.assertEqual(res.output, inp)
+
     def test_run_cmd_async(self):
         """Test asynchronously running of a shell command via run_cmd + complete_cmd."""
 
@@ -2087,11 +2121,41 @@ class RunTest(EnhancedTestCase):
             f"rm -rf {workdir} && echo 'Working directory removed.'"
         )
 
-        error_pattern = rf"Failed to return to {workdir} after executing command"
+        error_pattern = rf"Failed to return to .*/{os.path.basename(self.test_prefix)}/workdir after executing command"
 
         mkdir(workdir, parents=True)
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd_workdir_rm, work_dir=workdir)
+
+    def test_run_cmd_sysroot(self):
+        """Test with_sysroot option of run_cmd function."""
+
+        # use of run_cmd/run_cmd_qa is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
+        # put fake /bin/bash in place that will be picked up when using run_cmd with with_sysroot=True
+        bin_bash = os.path.join(self.test_prefix, 'bin', 'bash')
+        bin_bash_txt = '\n'.join([
+            "#!/bin/bash",
+            "echo 'Hi there I am a fake /bin/bash in %s'" % self.test_prefix,
+            '/bin/bash "$@"',
+        ])
+        write_file(bin_bash, bin_bash_txt)
+        adjust_permissions(bin_bash, stat.S_IXUSR)
+
+        update_build_option('sysroot', self.test_prefix)
+
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd("echo hello")
+        self.assertEqual(ec, 0)
+        self.assertTrue(out.startswith("Hi there I am a fake /bin/bash in"))
+        self.assertTrue(out.endswith("\nhello\n"))
+
+        # picking up on alternate sysroot is enabled by default, but can be disabled via with_sysroot=False
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd("echo hello", with_sysroot=False)
+        self.assertEqual(ec, 0)
+        self.assertEqual(out, "hello\n")
 
 
 def suite():

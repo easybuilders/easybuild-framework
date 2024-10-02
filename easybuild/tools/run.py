@@ -208,6 +208,11 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
     if env is None:
         env = os.environ.copy()
 
+    # Decode any declared bash functions
+    proc = subprocess.Popen('declare -f', stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                            env=env, shell=True, executable='bash')
+    (bash_functions, _) = proc.communicate()
+
     env_fp = os.path.join(tmpdir, 'env.sh')
     with open(env_fp, 'w') as fid:
         # unset all environment variables in current environment first to start from a clean slate;
@@ -218,6 +223,8 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
         # excludes bash functions (environment variables ending with %)
         fid.write('\n'.join(f'export {key}={shlex.quote(value)}' for key, value in sorted(env.items())
                             if not key.endswith('%')) + '\n')
+
+        fid.write(bash_functions.decode(errors='ignore') + '\n')
 
         fid.write('\n\nPS1="eb-shell> "')
 
@@ -485,6 +492,9 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
         if stdin:
             proc.stdin.write(stdin)
+            proc.stdin.flush()
+            if not qa_patterns:
+                proc.stdin.close()
 
         exit_code = None
         stdout, stderr = b'', b''

@@ -4238,6 +4238,70 @@ class ToyBuildTest(EnhancedTestCase):
             stderr = stderr.getvalue()
             self.assertTrue(regex.search(stderr), f"Pattern '{regex.pattern}' should be found in {stderr}")
 
+    def test_toy_python(self):
+        """
+        Test whether $PYTHONPATH or $EBPYTHONPREFIXES are set correctly.
+        """
+        # generate fake Python modules that we can use as runtime dependency for toy
+        # (required condition for use of $EBPYTHONPREFIXES)
+        fake_mods_path = os.path.join(self.test_prefix, 'modules')
+        for pyver in ('2.7', '3.6'):
+            fake_python_mod = os.path.join(fake_mods_path, 'Python', pyver)
+            if get_module_syntax() == 'Lua':
+                fake_python_mod += '.lua'
+                write_file(fake_python_mod, '')
+            else:
+                write_file(fake_python_mod, '#%Module')
+        self.modtool.use(fake_mods_path)
+
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "\npostinstallcmds.append('mkdir -p %(installdir)s/lib/python3.6/site-packages')"
+        test_ec_txt += "\npostinstallcmds.append('touch %(installdir)s/lib/python3.6/site-packages/foo.py')"
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+        self.run_test_toy_build_with_output(ec_file=test_ec)
+
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_mod += '.lua'
+        toy_mod_txt = read_file(toy_mod)
+
+        pythonpath_regex = re.compile('^prepend.path.*PYTHONPATH.*lib/python3.6/site-packages', re.M)
+
+        self.assertTrue(pythonpath_regex.search(toy_mod_txt),
+                        f"Pattern '{pythonpath_regex.pattern}' found in: {toy_mod_txt}")
+
+        # also check when opting in to use $EBPYTHONPREFIXES instead of $PYTHONPATH
+        args = ['--prefer-python-search-path=EBPYTHONPREFIXES']
+        self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
+        toy_mod_txt = read_file(toy_mod)
+        # if Python is not listed as a runtime dependency then $PYTHONPATH is still used,
+        # because the Python dependency used must be aware of $EBPYTHONPREFIXES
+        # (see sitecustomize.py installed by Python easyblock)
+        self.assertTrue(pythonpath_regex.search(toy_mod_txt),
+                        f"Pattern '{pythonpath_regex.pattern}' found in: {toy_mod_txt}")
+
+        # if Python is listed as runtime dependency, then $EBPYTHONPREFIXES is used if it's preferred
+        write_file(test_ec, test_ec_txt + "\ndependencies = [('Python', '3.6', '', SYSTEM)]")
+        self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
+        toy_mod_txt = read_file(toy_mod)
+
+        ebpythonprefixes_regex = re.compile('^prepend.path.*EBPYTHONPREFIXES.*root', re.M)
+        self.assertTrue(ebpythonprefixes_regex.search(toy_mod_txt),
+                        f"Pattern '{ebpythonprefixes_regex.pattern}' found in: {toy_mod_txt}")
+
+        # if Python is listed in multi_deps, then $EBPYTHONPREFIXES is used, even if it's not explicitely preferred
+        write_file(test_ec, test_ec_txt + "\nmulti_deps = {'Python': ['2.7', '3.6']}")
+        self.run_test_toy_build_with_output(ec_file=test_ec)
+        toy_mod_txt = read_file(toy_mod)
+
+        self.assertTrue(ebpythonprefixes_regex.search(toy_mod_txt),
+                        f"Pattern '{ebpythonprefixes_regex.pattern}' found in: {toy_mod_txt}")
+
 
 def suite():
     """ return all the tests in this file """

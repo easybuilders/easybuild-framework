@@ -73,7 +73,7 @@ from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
-from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
+from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES, PYTHONPATH, EBPYTHONPREFIXES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.config import EASYBUILD_SOURCES_URL # noqa
@@ -1404,6 +1404,49 @@ class EasyBlock(object):
         """
         return self.module_generator.get_description()
 
+    def make_module_pythonpath(self):
+        """
+        Add lines for module file to update $PYTHONPATH or $EBPYTHONPREFIXES,
+        if they aren't already present and the standard lib/python*/site-packages subdirectory exists
+        """
+        lines = []
+        if not os.path.isfile(os.path.join(self.installdir, 'bin', 'python')):  # only needed when not a python install
+            python_subdir_pattern = os.path.join(self.installdir, 'lib', 'python*', 'site-packages')
+            candidate_paths = (os.path.relpath(path, self.installdir) for path in glob.glob(python_subdir_pattern))
+            python_paths = [path for path in candidate_paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
+
+            # determine whether Python is a runtime dependency;
+            # if so, we assume it was installed with EasyBuild, and hence is aware of $EBPYTHONPREFIXES
+            runtime_deps = [dep['name'] for dep in self.cfg.dependencies(runtime_only=True)]
+
+            # don't use $EBPYTHONPREFIXES unless we can and it's preferred or necesary (due to use of multi_deps)
+            use_ebpythonprefixes = False
+            multi_deps = self.cfg['multi_deps']
+
+            if 'Python' in runtime_deps:
+                self.log.info("Found Python runtime dependency, so considering $EBPYTHONPREFIXES...")
+
+                if build_option('prefer_python_search_path') == EBPYTHONPREFIXES:
+                    self.log.info("Preferred Python search path is $EBPYTHONPREFIXES, so using that")
+                    use_ebpythonprefixes = True
+
+            elif multi_deps and 'Python' in multi_deps:
+                self.log.info("Python is listed in 'multi_deps', so using $EBPYTHONPREFIXES instead of $PYTHONPATH")
+                use_ebpythonprefixes = True
+
+            if python_paths:
+                # add paths unless they were already added
+                if use_ebpythonprefixes:
+                    path = ''  # EBPYTHONPREFIXES are relative to the install dir
+                    if path not in self.module_generator.added_paths_per_key[EBPYTHONPREFIXES]:
+                        lines.append(self.module_generator.prepend_paths(EBPYTHONPREFIXES, path))
+                else:
+                    for python_path in python_paths:
+                        if python_path not in self.module_generator.added_paths_per_key[PYTHONPATH]:
+                            lines.append(self.module_generator.prepend_paths(PYTHONPATH, python_path))
+
+        return lines
+
     def make_module_extra(self, altroot=None, altversion=None):
         """
         Set extra stuff in module file, e.g. $EBROOT*, $EBVERSION*, etc.
@@ -1451,6 +1494,9 @@ class EasyBlock(object):
                 raise EasyBuildError("modextrapaths_append dict value %s (type: %s) is not a list or tuple",
                                      value, type(value))
             lines.append(self.module_generator.append_paths(key, value, allow_abs=self.cfg['allow_append_abs_path']))
+
+        # add lines to update $PYTHONPATH or $EBPYTHONPREFIXES
+        lines.extend(self.make_module_pythonpath())
 
         modloadmsg = self.cfg['modloadmsg']
         if modloadmsg:

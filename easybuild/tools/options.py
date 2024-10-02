@@ -78,6 +78,7 @@ from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING
 from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
+from easybuild.tools.config import PYTHON_SEARCH_PATH_TYPES, PYTHONPATH
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_JSON, FORMAT_MD, FORMAT_RST, FORMAT_TXT
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
@@ -490,6 +491,10 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'pre-create-installdir': ("Create installation directory before submitting build jobs",
                                       None, 'store_true', True),
+            'prefer-python-search-path': (("Prefer using specified environment variable when possible to specify where"
+                                           " Python packages were installed; see also "
+                                           "https://docs.easybuild.io/python-search-path"),
+                                          'choice', 'store_or_None', PYTHONPATH, PYTHON_SEARCH_PATH_TYPES),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                         None, 'store_true', False, 'p'),
             'read-only-installdir': ("Set read-only permissions on installation directory after installation",
@@ -2046,7 +2051,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             os.chmod(tmptest_file, 0o700)
             res = run_shell_cmd(tmptest_file, fail_on_error=False, in_dry_run=True, hidden=True, stream_output=False,
                                 with_hooks=False)
-            if res.exit_code:
+            if res.exit_code != EasyBuildExit.SUCCESS:
                 msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
                 msg += "This can cause problems in the build process, consider using --tmpdir."
                 if raise_error:
