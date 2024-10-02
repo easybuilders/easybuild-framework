@@ -194,16 +194,19 @@ class UtilitiesTest(EnhancedTestCase):
     def test_unique_ordered_extend(self):
         """Test unique_ordered_list_append method"""
         base = ["potato", "tomato", "orange"]
+        base_orig = base.copy()
 
         reference = ["potato", "tomato", "orange", "apple"]
         self.assertEqual(tu.unique_ordered_extend(base, ["apple"]), reference)
         self.assertEqual(tu.unique_ordered_extend(base, ["apple", "apple"]), reference)
-        self.assertEqual(tu.unique_ordered_extend(base, "apple"), reference)
-        self.assertNotEqual(tu.unique_ordered_extend(base, "apple"), sorted(reference))
+        self.assertNotEqual(tu.unique_ordered_extend(base, ["apple"]), sorted(reference))
+        # original list should not be modified
+        self.assertEqual(base, base_orig)
 
-        error_pattern = "given extra list is not iterable"
+        error_pattern = "given affix list is a string"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, "apple")
+        error_pattern = "given affix list is not iterable"
         self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, 0)
-
         base = "potato"
         error_pattern = "given base cannot be extended"
         self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, reference)

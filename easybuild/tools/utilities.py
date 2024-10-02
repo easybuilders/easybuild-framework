@@ -223,20 +223,21 @@ def nub(list_):
     return [x for x in list_ if x not in seen and not seen_add(x)]
 
 
-def unique_ordered_extend(base, extra):
-    """Extend base list with elements of extra list keeping order and without duplicates"""
-    if isinstance(extra, str):
-        # avoid strings as they are iterables and generate wrong result without error
-        raise EasyBuildError(f"given extra list is a string: {extra}")
+def unique_ordered_extend(base, affix):
+    """Extend base list with elements of affix list keeping order and without duplicates"""
+    if isinstance(affix, str):
+        # avoid extending with strings, as iterables generate wrong result without error
+        raise EasyBuildError(f"given affix list is a string: {affix}")
 
     try:
-        base.extend(extra)
+        ext_base = base.copy()
+        ext_base.extend(affix)
     except TypeError as err:
-        raise EasyBuildError(f"given extra list is not iterable: {extra}") from err
+        raise EasyBuildError(f"given affix list is not iterable: {affix}") from err
     except AttributeError as err:
         raise EasyBuildError(f"given base cannot be extended: {base}") from err
 
-    return nub(base)  # remove duplicates
+    return nub(ext_base)  # remove duplicates
 
 
 def get_class_for(modulepath, class_name):
