@@ -233,8 +233,7 @@ def unique_ordered_append(base, extra):
     except TypeError as err:
         raise EasyBuildError( f"given extra list is not iterable: {extra}") from err
     except AttributeError as err:
-        err_msg = f"_unique_ordered_list_append: given base cannot be extended: {base}"
-        raise EasyBuildError(err_msg) from err
+        raise EasyBuildError(f"given base cannot be extended: {base}") from err
     else:
         base = nub(base)  # remove duplicates
 
