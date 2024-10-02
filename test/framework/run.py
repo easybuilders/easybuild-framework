@@ -1640,6 +1640,25 @@ class RunTest(EnhancedTestCase):
         for line in expected:
             self.assertIn(line, stdout)
 
+    def test_run_shell_cmd_eof_stdin(self):
+        """Test use of run_shell_cmd with streaming output and blocking stdin read."""
+        cmd = 'timeout 1 cat -'
+
+        inp = 'hello\nworld\n'
+        # test with streaming output
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, stream_output=True, stdin=inp, fail_on_error=False)
+
+        self.assertEqual(res.exit_code, 0, "Streaming output: Command timed out")
+        self.assertEqual(res.output, inp)
+
+        # test with non-streaming output (proc.communicate() is used)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, stdin=inp, fail_on_error=False)
+
+        self.assertEqual(res.exit_code, 0, "Non-streaming output: Command timed out")
+        self.assertEqual(res.output, inp)
+
     def test_run_cmd_async(self):
         """Test asynchronously running of a shell command via run_cmd + complete_cmd."""
 
