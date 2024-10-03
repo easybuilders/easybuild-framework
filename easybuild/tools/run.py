@@ -68,6 +68,7 @@ from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUN
 from easybuild.tools.build_log import dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
+from easybuild.tools.output import COLOR_RED, COLOR_YELLOW, colorize
 from easybuild.tools.utilities import trace_msg
 
 
@@ -86,7 +87,7 @@ CACHED_COMMANDS = (
 )
 
 RunShellCmdResult = namedtuple('RunShellCmdResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir',
-                                                     'out_file', 'err_file', 'thread_id', 'task_id'))
+                                                     'out_file', 'err_file', 'cmd_sh', 'thread_id', 'task_id'))
 
 
 class RunShellCmdError(BaseException):
@@ -101,6 +102,7 @@ class RunShellCmdError(BaseException):
         self.out_file = cmd_result.out_file
         self.stderr = cmd_result.stderr
         self.err_file = cmd_result.err_file
+        self.cmd_sh = cmd_result.cmd_sh
 
         self.caller_info = caller_info
 
@@ -112,31 +114,37 @@ class RunShellCmdError(BaseException):
         Report failed shell command for this RunShellCmdError instance
         """
 
-        def pad_4_spaces(msg):
-            return ' ' * 4 + msg
+        def pad_4_spaces(msg, color=None):
+            padded_msg = ' ' * 4 + msg
+            if color:
+                return colorize(padded_msg, color)
+            else:
+                return padded_msg
+
+        caller_file_name, caller_line_nr, caller_function_name = self.caller_info
+        called_from_info = f"'{caller_function_name}' function in {caller_file_name} (line {caller_line_nr})"
 
         error_info = [
             '',
-            "ERROR: Shell command failed!",
+            colorize("ERROR: Shell command failed!", COLOR_RED),
             pad_4_spaces(f"full command              ->  {self.cmd}"),
             pad_4_spaces(f"exit code                 ->  {self.exit_code}"),
+            pad_4_spaces(f"called from               ->  {called_from_info}"),
             pad_4_spaces(f"working directory         ->  {self.work_dir}"),
         ]
 
         if self.out_file is not None:
             # if there's no separate file for error/warnings, then out_file includes both stdout + stderr
             out_info_msg = "output (stdout + stderr)" if self.err_file is None else "output (stdout)         "
-            error_info.append(pad_4_spaces(f"{out_info_msg}  ->  {self.out_file}"))
+            error_info.append(pad_4_spaces(f"{out_info_msg}  ->  {self.out_file}", color=COLOR_YELLOW))
 
         if self.err_file is not None:
-            error_info.append(pad_4_spaces(f"error/warnings (stderr)   ->  {self.err_file}"))
+            error_info.append(pad_4_spaces(f"error/warnings (stderr)   ->  {self.err_file}", color=COLOR_YELLOW))
 
-        caller_file_name, caller_line_nr, caller_function_name = self.caller_info
-        called_from_info = f"'{caller_function_name}' function in {caller_file_name} (line {caller_line_nr})"
-        error_info.extend([
-            pad_4_spaces(f"called from               ->  {called_from_info}"),
-            '',
-        ])
+        if self.cmd_sh is not None:
+            error_info.append(pad_4_spaces(f"interactive shell script  ->  {self.cmd_sh}", color=COLOR_YELLOW))
+
+        error_info.append('')
 
         sys.stderr.write('\n'.join(error_info) + '\n')
 
@@ -253,6 +261,8 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
             'bash --rcfile $EB_SCRIPT_DIR/env.sh -i "$@"',
             ]))
     os.chmod(cmd_fp, 0o775)
+
+    return cmd_fp
 
 
 def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
@@ -430,9 +440,9 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         else:
             cmd_err_fp = None
 
-        create_cmd_scripts(cmd_str, work_dir, env, tmpdir, cmd_out_fp, cmd_err_fp)
+        cmd_sh = create_cmd_scripts(cmd_str, work_dir, env, tmpdir, cmd_out_fp, cmd_err_fp)
     else:
-        tmpdir, cmd_out_fp, cmd_err_fp = None, None, None
+        tmpdir, cmd_out_fp, cmd_err_fp, cmd_sh = None, None, None, None
 
     interactive_msg = 'interactive ' if interactive else ''
 
@@ -445,7 +455,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             dry_run_msg(msg, silent=silent)
 
         return RunShellCmdResult(cmd=cmd_str, exit_code=0, output='', stderr=None, work_dir=work_dir,
-                                 out_file=cmd_out_fp, err_file=cmd_err_fp, thread_id=thread_id, task_id=task_id)
+                                 out_file=cmd_out_fp, err_file=cmd_err_fp, cmd_sh=cmd_sh,
+                                 thread_id=thread_id, task_id=task_id)
 
     start_time = datetime.now()
     if not hidden:
@@ -571,8 +582,9 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         except IOError as err:
             raise EasyBuildError(f"Failed to dump command output to temporary file: {err}")
 
-    res = RunShellCmdResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr, work_dir=work_dir,
-                            out_file=cmd_out_fp, err_file=cmd_err_fp, thread_id=thread_id, task_id=task_id)
+    res = RunShellCmdResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr,
+                            work_dir=work_dir, out_file=cmd_out_fp, err_file=cmd_err_fp, cmd_sh=cmd_sh,
+                            thread_id=thread_id, task_id=task_id)
 
     # always log command output
     cmd_name = cmd_str.split(' ')[0]
