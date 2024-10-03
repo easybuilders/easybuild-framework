@@ -491,12 +491,13 @@ class RunTest(EnhancedTestCase):
                 # check error reporting output
                 stderr = stderr.getvalue()
                 patterns = [
-                    r"^ERROR: Shell command failed!",
-                    r"^\s+full command\s* ->  kill -9 \$\$",
-                    r"^\s+exit code\s* ->  -9",
-                    r"^\s+working directory\s* ->  " + work_dir,
-                    r"^\s+called from\s* ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
-                    r"^\s+output \(stdout \+ stderr\)\s* ->  .*/run-shell-cmd-output/kill-.*/out.txt",
+                    r"ERROR: Shell command failed!",
+                    r"\s+full command\s* ->  kill -9 \$\$",
+                    r"\s+exit code\s* ->  -9",
+                    r"\s+working directory\s* ->  " + work_dir,
+                    r"\s+called from\s* ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
+                    r"\s+output \(stdout \+ stderr\)\s* ->  .*/run-shell-cmd-output/kill-.*/out.txt",
+                    r"\s+interactive shell script\s* ->  .*/run-shell-cmd-output/kill-.*/cmd.sh",
                 ]
                 for pattern in patterns:
                     regex = re.compile(pattern, re.M)
@@ -526,13 +527,14 @@ class RunTest(EnhancedTestCase):
                 # check error reporting output
                 stderr = stderr.getvalue()
                 patterns = [
-                    r"^ERROR: Shell command failed!",
-                    r"^\s+full command\s+ ->  kill -9 \$\$",
-                    r"^\s+exit code\s+ ->  -9",
-                    r"^\s+working directory\s+ ->  " + work_dir,
-                    r"^\s+called from\s+ ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
-                    r"^\s+output \(stdout\)\s+ -> .*/run-shell-cmd-output/kill-.*/out.txt",
-                    r"^\s+error/warnings \(stderr\)\s+ -> .*/run-shell-cmd-output/kill-.*/err.txt",
+                    r"ERROR: Shell command failed!",
+                    r"\s+full command\s+ ->  kill -9 \$\$",
+                    r"\s+exit code\s+ ->  -9",
+                    r"\s+working directory\s+ ->  " + work_dir,
+                    r"\s+called from\s+ ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
+                    r"\s+output \(stdout\)\s+ -> .*/run-shell-cmd-output/kill-.*/out.txt",
+                    r"\s+error/warnings \(stderr\)\s+ -> .*/run-shell-cmd-output/kill-.*/err.txt",
+                    r"\s+interactive shell script\s* ->  .*/run-shell-cmd-output/kill-.*/cmd.sh",
                 ]
                 for pattern in patterns:
                     regex = re.compile(pattern, re.M)
