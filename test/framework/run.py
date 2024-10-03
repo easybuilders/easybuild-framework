@@ -1385,7 +1385,7 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             cached_res = RunShellCmdResult(cmd=cmd, output="123456", exit_code=123, stderr=None,
                                            work_dir='/test_ulimit', out_file='/tmp/foo.out', err_file=None,
-                                           thread_id=None, task_id=None)
+                                           cmd_sh='/tmp/cmd.sh', thread_id=None, task_id=None)
             run_shell_cmd.update_cache({(cmd, None): cached_res})
             res = run_shell_cmd(cmd)
         self.assertEqual(res.cmd, cmd)
@@ -1405,7 +1405,7 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             cached_res = RunShellCmdResult(cmd=cmd, output="bar", exit_code=123, stderr=None,
                                            work_dir='/test_cat', out_file='/tmp/cat.out', err_file=None,
-                                           thread_id=None, task_id=None)
+                                           cmd_sh='/tmp/cmd.sh', thread_id=None, task_id=None)
             run_shell_cmd.update_cache({(cmd, 'foo'): cached_res})
             res = run_shell_cmd(cmd, stdin='foo')
         self.assertEqual(res.cmd, cmd)
