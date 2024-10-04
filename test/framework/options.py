@@ -509,8 +509,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         check_args(['--debug'])
         check_args(['--debug', '--stop=configure', '--try-software-name=foo'],
                    passed_args=['--debug', "--stop='configure'"],
-                   try_opts = " --try-software-name='foo'",
-                   tweaked_eb_file = "foo-1.4.eb")
+                   try_opts=" --try-software-name='foo'",
+                   tweaked_eb_file="foo-1.4.eb")
         check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'],
                    passed_args=['--debug', "--robot-paths='/tmp/foo:/tmp/bar'"])
         # --robot has preference over --robot-paths, --robot is not passed down
