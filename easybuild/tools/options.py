@@ -2016,8 +2016,7 @@ def opts_dict_to_eb_opts(args_dict):
         if str(arg) in allow_multiple_calls:
             if not isinstance(value, (list, tuple)):
                 value = [value]
-            for v in value:
-                args.append(option + '=' + str(v))
+            args.extend(option + '=' + str(x) for x in value)
         elif value in [True, None]:
             args.append(option)
         elif value is False:
