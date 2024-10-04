@@ -2002,6 +2002,7 @@ def opts_dict_to_eb_opts(args_dict):
     :return: a list of strings representing command-line options for the 'eb' command
     """
 
+    allow_multiple_calls = ['amend', 'try-amend']
     _log.debug("Converting dictionary %s to argument list" % args_dict)
     args = []
     for arg in sorted(args_dict):
@@ -2011,6 +2012,14 @@ def opts_dict_to_eb_opts(args_dict):
             prefix = '--'
         option = prefix + str(arg)
         value = args_dict[arg]
+
+        if str(arg) in allow_multiple_calls:
+            if not isinstance(value, (list, tuple)):
+                value = [value]
+            for v in value:
+                args.append(option + '=' + str(v))
+            continue
+
         if isinstance(value, (list, tuple)):
             value = ','.join(str(x) for x in value)
 
