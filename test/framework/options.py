@@ -482,7 +482,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # use gzip-1.4.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb')
 
-        def check_args(job_args, passed_args=None):
+        def check_args(job_args, passed_args=None, try_opts='', tweaked_eb_file='gzip-1.4.eb'):
             """Check whether specified args yield expected result."""
             if passed_args is None:
                 passed_args = job_args[:]
@@ -501,10 +501,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
             assertmsg = "Info log msg with job command template for --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
             self.assertTrue(re.search(job_msg, outtxt), assertmsg)
 
+            job_msg = r"INFO creating job for ec: %s using %s%s\n" % (tweaked_eb_file, eb_file, try_opts)
+            assertmsg = "Info log msg with creating job for --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
+            self.assertTrue(re.search(job_msg, outtxt), assertmsg)
+
         # options passed are reordered, so order here matters to make tests pass
         check_args(['--debug'])
         check_args(['--debug', '--stop=configure', '--try-software-name=foo'],
-                   passed_args=['--debug', "--stop='configure'"])
+                   passed_args=['--debug', "--stop='configure'"],
+                   try_opts = " --try-software-name='foo'",
+                   tweaked_eb_file = "foo-1.4.eb")
         check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'],
                    passed_args=['--debug', "--robot-paths='/tmp/foo:/tmp/bar'"])
         # --robot has preference over --robot-paths, --robot is not passed down

@@ -36,6 +36,7 @@ Authors:
 * Fotis Georgatos (Uni.Lu, NTUA)
 * Alan O'Cais (Juelich Supercomputing Centre)
 * Maxime Boissonneault (Universite Laval, Calcul Quebec, Compute Canada)
+* Bart Oldeman (McGill University, Calcul Quebec, Digital Research Alliance of Canada)
 """
 import copy
 import functools
@@ -82,8 +83,9 @@ def ec_filename_for(path):
     return fn
 
 
-def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
-    """Tweak list of easyconfigs according to provided build specifications."""
+def tweak(easyconfigs, build_specs, modtool, targetdirs=None, return_map=False):
+    """Tweak list of easyconfigs according to provided build specifications.
+       If return_map=True, also returns tweaked to original file mapping"""
     # keep track of originally listed easyconfigs (via their path)
     listed_ec_paths = [ec['spec'] for ec in easyconfigs]
 
@@ -92,6 +94,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
         tweaked_ecs_path, tweaked_ecs_deps_path = targetdirs
     modifying_toolchains_or_deps = False
     src_to_dst_tc_mapping = {}
+    tweak_map = {}
     revert_to_regex = False
 
     if 'update_deps' in build_specs:
@@ -223,13 +226,18 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             if modifying_toolchains_or_deps:
                 if tc_name in src_to_dst_tc_mapping:
                     # Note pruned_build_specs are not passed down for dependencies
-                    map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
-                                                          targetdir=tweaked_ecs_deps_path,
-                                                          update_dep_versions=update_dependencies,
-                                                          ignore_versionsuffixes=ignore_versionsuffixes)
+                    new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
+                                                                        targetdir=tweaked_ecs_deps_path,
+                                                                        update_dep_versions=update_dependencies,
+                                                                        ignore_versionsuffixes=ignore_versionsuffixes)
             else:
-                tweak_one(orig_ec['spec'], None, build_specs, targetdir=tweaked_ecs_deps_path)
+                new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=tweaked_ecs_deps_path)
 
+        if new_ec_file:
+            tweak_map[new_ec_file] = orig_ec['spec']
+
+    if return_map:
+        return tweaked_easyconfigs, tweak_map
     return tweaked_easyconfigs
 
 
