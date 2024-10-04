@@ -2018,16 +2018,13 @@ def opts_dict_to_eb_opts(args_dict):
                 value = [value]
             for v in value:
                 args.append(option + '=' + str(v))
-            continue
-
-        if isinstance(value, (list, tuple)):
-            value = ','.join(str(x) for x in value)
-
-        if value in [True, None]:
+        elif value in [True, None]:
             args.append(option)
         elif value is False:
             args.append('--disable-' + option[2:])
         elif value is not None:
+            if isinstance(value, (list, tuple)):
+                value = ','.join(str(x) for x in value)
             args.append(option + '=' + str(value))
 
     _log.debug("Converted dictionary %s to argument list %s" % (args_dict, args))
