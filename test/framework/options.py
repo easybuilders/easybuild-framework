@@ -480,9 +480,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test submitting build as a job."""
 
         # use gzip-1.4.eb easyconfig file that comes with the tests
-        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb')
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        eb_file = os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.4.eb')
 
-        def check_args(job_args, passed_args=None, try_opts='', tweaked_eb_file='gzip-1.4.eb'):
+        def check_args(job_args, passed_args=None, msgstrs=None, try_opts='', tweaked_eb_file='gzip-1.4.eb'):
             """Check whether specified args yield expected result."""
             if passed_args is None:
                 passed_args = job_args[:]
@@ -501,9 +502,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
             assertmsg = "Info log msg with job command template for --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
             self.assertTrue(re.search(job_msg, outtxt), assertmsg)
 
-            job_msg = r"INFO creating job for ec: %s using %s%s\n" % (tweaked_eb_file, eb_file, try_opts)
+            if msgstrs is None:
+                msgstrs = [(tweaked_eb_file, eb_file + try_opts)]
+
             assertmsg = "Info log msg with creating job for --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
-            self.assertTrue(re.search(job_msg, outtxt), assertmsg)
+            for msgstr in msgstrs:
+                job_msg = r"INFO creating job for ec: %s using %s\n" % msgstr
+                print(job_msg)
+                self.assertTrue(re.search(job_msg, outtxt), assertmsg)
 
         # options passed are reordered, so order here matters to make tests pass
         check_args(['--debug'])
@@ -516,6 +522,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # --robot has preference over --robot-paths, --robot is not passed down
         check_args(['--debug', '--robot-paths=/tmp/foo', '--robot=%s' % self.test_prefix],
                    passed_args=['--debug', "--robot-paths='%s:/tmp/foo'" % self.test_prefix])
+
+        # check if libtoy dep uses --try-toolchain but gzip does not (easyconfig exists already)
+        eb_file = os.path.join(self.test_buildpath, 'toy-0.0-with-deps.eb')
+        copy_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb'), eb_file)
+        write_file(eb_file, "dependencies = [('libtoy', '0.0'), ('gzip', '1.4')]\n", append=True)
+        try_opts = " --try-toolchain='GCC,4.9.3-2.26'"
+        tweaked_eb_file = "toy-0.0-GCC-4.9.3-2.26.eb"
+        gzip_eb_file = 'gzip-1.4-GCC-4.9.3-2.26.eb'
+        check_args(['--debug', '--stop=configure', '--try-toolchain=GCC,4.9.3-2.26', '--robot'],
+                   passed_args=['--debug', "--stop='configure'"],
+                   msgstrs=[
+                       (tweaked_eb_file, eb_file + try_opts),
+                       ('libtoy-0.0-GCC-4.9.3-2.26.eb',
+                        os.path.join(test_ecs, 'l', 'libtoy', 'libtoy-0.0.eb') + try_opts),
+                       (gzip_eb_file, os.path.join(test_ecs, 'g', 'gzip', gzip_eb_file))],
+                   try_opts=try_opts,
+                   tweaked_eb_file=tweaked_eb_file)
 
     # 'zzz' prefix in the test name is intentional to make this test run last,
     # since it fiddles with the logging infrastructure which may break things
