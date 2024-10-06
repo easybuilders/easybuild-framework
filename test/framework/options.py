@@ -508,7 +508,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             assertmsg = "Info log msg with creating job for --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
             for msgstr in msgstrs:
                 job_msg = r"INFO creating job for ec: %s using %s\n" % msgstr
-                print(job_msg)
                 self.assertTrue(re.search(job_msg, outtxt), assertmsg)
 
         # options passed are reordered, so order here matters to make tests pass
