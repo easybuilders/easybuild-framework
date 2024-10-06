@@ -749,7 +749,6 @@ class EasyBlockTest(EnhancedTestCase):
             "   ('FFTW', '3.3.7'),",
             "   ('OpenBLAS', '0.2.20', '', ('GCC', '6.4.0-2.28')),",
             ']',
-            'module_depends_on = False',
         ])
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
