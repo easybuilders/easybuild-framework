@@ -489,7 +489,7 @@ class ModuleGenerator(object):
 
         :param mod_name: name of module to generate load statement for
         :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
-        :param depends_on: use depends_on statements rather than (guarded) load statements (deprecated)
+        :param depends_on: use depends_on statements rather than (guarded) load statements (DEPRECATED)
         :param unload_modules: name(s) of module to unload first
         :param multi_dep_mods: list of module names in multi_deps context, to use for guarding load statement
         """
@@ -885,7 +885,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param mod_name: name of module to generate load statement for
         :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
                                  (if None: enable if recursive_mod_unload build option or depends_on is True)
-        :param depends_on: use depends_on statements rather than (guarded) load statements (deprecated)
+        :param depends_on: use depends_on statements rather than (guarded) load statements (DEPRECATED)
         :param unload_modules: name(s) of module to unload first
         :param multi_dep_mods: list of module names in multi_deps context, to use for guarding load statement
         """
@@ -896,7 +896,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
         # Lmod 7.6.1+ supports depends-on which does this most nicely:
         if (build_option('mod_depends_on') and self.modules_tool.supports_depends_on) or depends_on:
             if depends_on is not None:
-                print_warning('Module generator load_module keyword parameter "depends_on" is deprecated.')
+                depr_msg = "'depends_on' argument of module generator method 'load_module' should not be used anymore"
+                self.log.deprecated(depr_msg, '6.0')
             if not self.modules_tool.supports_depends_on:
                 raise EasyBuildError("depends-on statements in generated module are not supported by modules tool")
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
@@ -1312,7 +1313,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param mod_name: name of module to generate load statement for
         :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
                                  (if None: enable if recursive_mod_unload build option or depends_on is True)
-        :param depends_on: use depends_on statements rather than (guarded) load statements (deprecated)
+        :param depends_on: use depends_on statements rather than (guarded) load statements (DEPRECATED)
         :param unload_modules: name(s) of module to unload first
         :param multi_dep_mods: list of module names in multi_deps context, to use for guarding load statement
         """
@@ -1324,7 +1325,8 @@ class ModuleGeneratorLua(ModuleGenerator):
         # Lmod 7.6+ supports depends_on which does this most nicely:
         if (build_option('mod_depends_on') and self.modules_tool.supports_depends_on) or depends_on:
             if depends_on is not None:
-                print_warning('Module generator load_module keyword parameter "depends_on" is deprecated.')
+                depr_msg = "'depends_on' argument of module generator method 'load_module' should not be used anymore"
+                self.log.deprecated(depr_msg, '6.0')
             if not self.modules_tool.supports_depends_on:
                 raise EasyBuildError("depends_on statements in generated module are not supported by modules tool")
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
