@@ -315,7 +315,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             else:
                 expected = "depends-on statements in generated module are not supported by modules tool"
                 with self.mocked_stdout_stderr():
-                    self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name", depends_on=True)
+                    self.assertErrorRegex(EasyBuildError, expected,
+                                          self.modgen.load_module, "mod_name", depends_on=True)
                     init_config(build_options={'mod_depends_on': 'True'})
                     self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
         else:
@@ -362,7 +363,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             else:
                 expected = "depends_on statements in generated module are not supported by modules tool"
                 with self.mocked_stdout_stderr():
-                    self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name", depends_on=True)
+                    self.assertErrorRegex(EasyBuildError, expected,
+                                          self.modgen.load_module, "mod_name", depends_on=True)
                     init_config(build_options={'mod_depends_on': 'True'})
                     self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
 
