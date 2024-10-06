@@ -1156,8 +1156,10 @@ class RobotTest(EnhancedTestCase):
         # Check it picks up the untweaked dependency of the tweaked OpenMPI
         untweaked_hwloc = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb')
         self.assertIn(untweaked_hwloc, specs)
-        # Check correctness of tweak_map
-        self.assertEqual(tweak_map, {tweaked_openmpi: untweaked_openmpi, tweaked_hwloc: untweaked_hwloc})
+        # Check correctness of tweak_map (maps back to the original untweaked file, even for hwloc, where the
+        # tweaked version is generated but not used)
+        self.assertEqual(tweak_map, {tweaked_openmpi: untweaked_openmpi,
+                                     tweaked_hwloc: untweaked_hwloc.replace("6.4.0-2.28", "4.6.4")})
 
     def test_robot_find_subtoolchain_for_dep(self):
         """Test robot_find_subtoolchain_for_dep."""
