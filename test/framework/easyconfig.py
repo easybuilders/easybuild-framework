@@ -4785,7 +4785,9 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = read_file(toy_ec)
+
         # this test only makes sense if depends_on is not used
+        self.allow_deprecated_behaviour()
         test_ec_txt += '\nmodule_depends_on = False'
         write_file(test_ec, test_ec_txt)
 
