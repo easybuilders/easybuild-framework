@@ -3217,12 +3217,16 @@ class ToyBuildTest(EnhancedTestCase):
                 'end',
             ])
         else:
+            if isinstance(self.modtool, EnvironmentModules):
+                load_stmt = "module load"
+            else:
+                load_stmt = "depends-on"
             expected = '\n'.join([
                 '',
                 "if { [ module-info mode remove ] || [ is-loaded GCC/7.3.0-2.30 ] } {",
-                "    module load GCC",
+                "    %s GCC" % load_stmt,
                 '} else {',
-                "    module load GCC/4.6.3",
+                "    %s GCC/4.6.3" % load_stmt,
                 '}',
                 '',
             ])
