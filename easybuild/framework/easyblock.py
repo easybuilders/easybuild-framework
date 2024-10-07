@@ -3248,8 +3248,7 @@ class EasyBlock(object):
                                     self.log.warning(fail_msg)
                                     fails.append(fail_msg)
 
-                            # inject suggestion to disable strict RPATH sanity check if one or more dependency libraries
-                            # were not installed with RPATH linking enabled (so we're in a "mixed stack" situation)
+                            # if any libraries were not found, log whether dependency libraries have an RPATH section
                             if fails:
                                 lib_paths = re.findall(lib_path_regex, out)
                                 for lib_path in lib_paths:
