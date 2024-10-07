@@ -48,6 +48,7 @@ import hashlib
 import inspect
 import itertools
 import os
+import pathlib
 import platform
 import re
 import shutil
@@ -55,6 +56,7 @@ import signal
 import stat
 import ssl
 import sys
+import tarfile
 import tempfile
 import time
 import zlib
@@ -2644,7 +2646,7 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     """
     Downloads a git repository, at a specific tag or commit, recursively or not, and make an archive with it
 
-    :param filename: name of the archive to save the code to (must be .tar.gz)
+    :param filename: name of the archive to save the code to (must be extensionless)
     :param target_dir: target directory where to save the archive to
     :param git_config: dictionary containing url, repo_name, recursive, and one of tag or commit
     """
@@ -2680,8 +2682,10 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     if not url:
         raise EasyBuildError("url not specified in git_config parameter")
 
-    if not filename.endswith('.tar.gz'):
-        raise EasyBuildError("git_config currently only supports filename ending in .tar.gz")
+    file_ext = find_extension(filename)
+    if file_ext:
+        print_warning(f"Ignoring extension of filename '{filename}' set in git_config parameter")
+        filename = filename[:-len(file_ext)]
 
     # prepare target directory and clone repository
     mkdir(target_dir, parents=True)
@@ -2768,16 +2772,8 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
                 run_shell_cmd(cmd, work_dir=work_dir, hidden=True, verbose_dry_run=True)
 
     # Create archive
-    archive_path = os.path.join(target_dir, filename)
-
-    if keep_git_dir:
-        # create archive of git repo including .git directory
-        tar_cmd = f"tar cfvz {archive_path} {repo_name}"
-    else:
-        # create reproducible archive
-        tar_cmd = reproducible_archive_cmd(repo_name, archive_path)
-
-    run_shell_cmd(tar_cmd, work_dir=tmpdir, hidden=True, verbose_dry_run=True)
+    repo_path = os.path.join(tmpdir, repo_name)
+    archive_path = make_archive(repo_path, archive_name=filename, archive_dir=target_dir, reproducible=not keep_git_dir)
 
     # cleanup (repo_name dir does not exist in dry run mode)
     remove(tmpdir)
@@ -2785,33 +2781,63 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     return archive_path
 
 
-def reproducible_archive_cmd(dir_name, archive_name):
+def make_archive(dir_path, archive_name=None, archive_dir=None, reproducible=False):
     """
-    Return string with command to make reproducible archive from a given directory
-    see https://reproducible-builds.org/docs/archives/
-    """
-    try:
-        cmd_pipe = [
-            # stop on failure of any command in the pipe
-            'set', '-eo pipefail', ';',
-            # print names of all files and folders excluding .git directory
-            'find', str(dir_name), '-name ".git"', '-prune', '-o', '-print0',
-            # reset access and modification timestamps to epoch 0
-            '-exec', 'touch', '--date=1970-01-01T00:00:00.00Z', '{}', r'\;',
-            # reset file permissions of cloned repo (equivalent to --mode in GNU tar)
-            '-exec', 'chmod', '"go+u,go-w"', '{}', r'\;', '|',
-            # sort file list (equivalent to --sort in GNU tar)
-            'LC_ALL=C', 'sort', '--zero-terminated', '|',
-            # create tarball in GNU format with ownership and permissions reset
-            'tar', '--create', '--no-recursion', '--owner=0', '--group=0', '--numeric-owner',
-            '--format=gnu', '--null', '--files-from', '-', '|',
-            # compress tarball with gzip without original file name and timestamp
-            'gzip', '--no-name', '>', str(archive_name)
-        ]
-    except TypeError as err:
-        raise EasyBuildError("reproducible_archive_cmd: wrong directory or archive name given") from err
+    Create a compressed tar archive in XZ format.
 
-    return " ".join(cmd_pipe)
+    :dir_path: string with path to directory to be archived
+    :archive_name: string with extensionless filename of archive
+    :archive_dir: string with path to directory to place the archive
+    :reproducuble: make a tarball that is reproducible accross systems
+    see https://reproducible-builds.org/docs/archives/
+
+    Archive is compressed with LZMA into a .xz because that is compatible with
+    a reproducible archive. Other formats like .gz are not reproducible due to
+    arbitrary strings and timestamps getting added into their metadata.
+    """
+    def reproducible_filter(tarinfo):
+        "Filter out system-dependent data from tarball"
+        # contents of '.git' subdir are inherently system dependent
+        if "/.git/" in tarinfo.name or tarinfo.name.endswith("/.git"):
+            return None
+        # set timestamp to epoch 0
+        tarinfo.mtime = 0
+        # reset file permissions by applying go+u,go-w
+        user_mode = tarinfo.mode & stat.S_IRWXU
+        tarinfo.mode = tarinfo.mode | user_mode >> 3 & ~stat.S_IWGRP | user_mode >> 6 & ~stat.S_IWOTH
+        # reset ownership numeric UID/GID 0
+        tarinfo.uid = tarinfo.gid = 0
+        tarinfo.uname = tarinfo.gname = ""
+        return tarinfo
+
+    if archive_name is None:
+        archive_name = os.path.basename(dir_path)
+
+    archive_ext = ".tar.xz"
+    archive_filename = archive_name + archive_ext
+    archive_path = archive_filename if archive_dir is None else os.path.join(archive_dir, archive_filename)
+
+    # TODO: replace with TarFile.add(recursive=True) when support for Python 3.6 drops
+    # since Python v3.7 tarfile automatically orders the list of files added to the archive
+    dir_files = [dir_path]
+    # pathlib's glob includes hidden files
+    dir_files.extend([str(filepath) for filepath in pathlib.Path(dir_path).glob("**/*")])
+    dir_files.sort()  # independent of locale
+
+    dir_path_prefix = os.path.dirname(dir_path)
+    archive_filter = reproducible_filter if reproducible else None
+
+    _log.info("Archiving '%s' into '%s'...", dir_path, archive_path)
+    with tarfile.open(archive_path, "w:xz", format=tarfile.GNU_FORMAT, encoding="utf-8", preset=6) as archive:
+        for filepath in dir_files:
+            # archive with target directory in its top level, remove any prefix in path
+            file_name = os.path.relpath(filepath, start=dir_path_prefix)
+            archive.add(filepath, arcname=file_name, recursive=False, filter=archive_filter)
+            _log.debug("File/folder added to archive '%s': %s", archive_filename, filepath)
+
+    _log.info("Archive '%s' created successfully", archive_filename)
+
+    return archive_path
 
 
 def move_file(path, target_path, force_in_dry_run=False):
