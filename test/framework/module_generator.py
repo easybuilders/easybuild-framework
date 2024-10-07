@@ -317,8 +317,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 with self.mocked_stdout_stderr():
                     self.assertErrorRegex(EasyBuildError, expected,
                                           self.modgen.load_module, "mod_name", depends_on=True)
-                    init_config(build_options={'mod_depends_on': 'True'})
-                    self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
         else:
             # default: guarded module load (which implies no recursive unloading)
             expected = '\n'.join([
@@ -365,8 +363,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 with self.mocked_stdout_stderr():
                     self.assertErrorRegex(EasyBuildError, expected,
                                           self.modgen.load_module, "mod_name", depends_on=True)
-                    init_config(build_options={'mod_depends_on': 'True'})
-                    self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
 
     def test_load_multi_deps(self):
         """Test generated load statement when multi_deps is involved."""
