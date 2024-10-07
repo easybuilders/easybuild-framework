@@ -3118,7 +3118,6 @@ class EasyBlock(object):
         self.log.info("Checking RPATH linkage for binaries/libraries...")
 
         fails = []
-        mixed_stack = False
 
         if build_option('strict_rpath_sanity_check'):
             self.log.info("Unsetting $LD_LIBRARY_PATH since strict RPATH sanity check is enabled...")
@@ -3190,7 +3189,6 @@ class EasyBlock(object):
                                     res = run_shell_cmd(f"readelf -d {lib_path}", fail_on_error=False)
                                     if res.exit_code:
                                         self.log.info(f"No RPATH section found in {lib_path}")
-                                        mixed_stack = True
                         else:
                             self.log.debug(f"Output of 'ldd {path}' checked, looks OK")
 
@@ -3215,14 +3213,6 @@ class EasyBlock(object):
 
         if orig_env:
             env.restore_env_vars(orig_env)
-
-        if mixed_stack:
-            msg = "\nNo RPATH section found in one or more dependency libraries, "
-            msg += "so you should probably change your EasyBuild configuration to disable "
-            msg += "the strict RPATH sanity check that involves unsetting $LD_LIBRARY_PATH "
-            msg += "when checking for required libraries; "
-            msg += "see also https://docs.easybuild.io/easybuild-v5/strict-rpath-sanity-check"
-            fails.append(msg)
 
         return fails
 
