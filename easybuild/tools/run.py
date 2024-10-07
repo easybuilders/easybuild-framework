@@ -64,7 +64,8 @@ except ImportError:
     from threading import get_ident as get_thread_id
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, CWD_NOTFOUND_ERROR, dry_run_msg, print_msg, time_str_since
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUND_ERROR
+from easybuild.tools.build_log import dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.utilities import trace_msg
@@ -207,6 +208,11 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
     if env is None:
         env = os.environ.copy()
 
+    # Decode any declared bash functions
+    proc = subprocess.Popen('declare -f', stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                            env=env, shell=True, executable='bash')
+    (bash_functions, _) = proc.communicate()
+
     env_fp = os.path.join(tmpdir, 'env.sh')
     with open(env_fp, 'w') as fid:
         # unset all environment variables in current environment first to start from a clean slate;
@@ -217,6 +223,8 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
         # excludes bash functions (environment variables ending with %)
         fid.write('\n'.join(f'export {key}={shlex.quote(value)}' for key, value in sorted(env.items())
                             if not key.endswith('%')) + '\n')
+
+        fid.write(bash_functions.decode(errors='ignore') + '\n')
 
         fid.write('\n\nPS1="eb-shell> "')
 
@@ -574,7 +582,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     else:
         _log.info(f"Output of '{cmd_name} ...' shell command (stdout + stderr):\n{res.output}")
 
-    if res.exit_code == 0:
+    if res.exit_code == EasyBuildExit.SUCCESS:
         _log.info(f"Shell command completed successfully (see output above): {cmd_str}")
     else:
         _log.warning(f"Shell command FAILED (exit code {res.exit_code}, see output above): {cmd_str}")

@@ -39,6 +39,7 @@ import copy
 import os
 import re
 import tempfile
+from collections import defaultdict
 from contextlib import contextmanager
 from easybuild.tools import LooseVersion
 from textwrap import wrap
@@ -153,7 +154,7 @@ class ModuleGenerator(object):
             raise EasyBuildError('Module creation already in process. '
                                  'You cannot create multiple modules at the same time!')
         # Mapping of keys/env vars to paths already added
-        self.added_paths_per_key = dict()
+        self.added_paths_per_key = defaultdict(set)
         txt = self.MODULE_SHEBANG
         if txt:
             txt += '\n'
@@ -212,7 +213,7 @@ class ModuleGenerator(object):
             print_warning('Module creation has not been started. Call start_module_creation first!')
             return paths
 
-        added_paths = self.added_paths_per_key.setdefault(key, set())
+        added_paths = self.added_paths_per_key[key]
         # paths can be a string
         if isinstance(paths, str):
             if paths in added_paths:

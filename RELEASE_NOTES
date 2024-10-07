@@ -4,6 +4,18 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.9.4 (22 September 2024)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - set $LMOD_TERSE_DECORATIONS to 'no' to avoid additional info in output produced by 'ml --terse avail' (#4648)
+- various bug fixes, including:
+  - implement workaround for permission error when copying read-only files that have extended attributes set and using Python 3.6 (#4642)
+  - take into account alternate sysroot for /bin/bash used by run_cmd (#4646)
+
+
 v4.9.3 (14 September 2024)
 --------------------------
 

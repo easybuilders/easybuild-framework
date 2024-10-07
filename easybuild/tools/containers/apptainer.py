@@ -29,7 +29,7 @@ Support for generating Apptainer container recipes and creating container images
 import os
 import re
 
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_msg
 from easybuild.tools.containers.singularity import SingularityContainer
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX
 from easybuild.tools.config import CONT_IMAGE_FORMAT_SIF, CONT_IMAGE_FORMAT_SQUASHFS
@@ -49,7 +49,7 @@ class ApptainerContainer(SingularityContainer):
         """Get Apptainer version."""
         version_cmd = "apptainer --version"
         res = run_shell_cmd(version_cmd, hidden=True, in_dry_run=True)
-        if res.exit_code:
+        if res.exit_code != EasyBuildExit.SUCCESS:
             raise EasyBuildError(f"Error running '{version_cmd}': {res.output}")
 
         regex_res = re.search(r"\d+\.\d+(\.\d+)?", res.output.strip())

@@ -44,7 +44,7 @@ import shlex
 
 from easybuild.base import fancylogger
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning
 from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import build_option, get_modules_tool, install_path
@@ -303,9 +303,9 @@ class ModulesTool(object):
         if self.testing:
             # grab 'module' function definition from environment if it's there; only during testing
             try:
-                output, exit_code = os.environ['module'], 0
+                output, exit_code = os.environ['module'], EasyBuildExit.SUCCESS
             except KeyError:
-                output, exit_code = None, 1
+                output, exit_code = None, EasyBuildExit.FAIL_SYSTEM_CHECK
         else:
             cmd = "type module"
             res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=False, hidden=True, output_file=False)
@@ -316,7 +316,7 @@ class ModulesTool(object):
         mod_cmd_re = re.compile(regex, re.M)
         mod_details = "pattern '%s' (%s)" % (mod_cmd_re.pattern, self.NAME)
 
-        if exit_code == 0:
+        if exit_code == EasyBuildExit.SUCCESS:
             if mod_cmd_re.search(output):
                 self.log.debug("Found pattern '%s' in defined 'module' function." % mod_cmd_re.pattern)
             else:
@@ -826,7 +826,7 @@ class ModulesTool(object):
         self.log.debug("Output of module command '%s': stdout: %s; stderr: %s", cmd, stdout, stderr)
 
         # also catch and check exit code
-        if kwargs.get('check_exit_code', True) and res.exit_code != 0:
+        if kwargs.get('check_exit_code', True) and res.exit_code != EasyBuildExit.SUCCESS:
             raise EasyBuildError("Module command '%s' failed with exit code %s; stderr: %s; stdout: %s",
                                  cmd, res.exit_code, stderr, stdout)
 
@@ -1477,6 +1477,9 @@ class Lmod(ModulesTool):
         setvar('LMOD_REDIRECT', 'no', verbose=False)
         # disable extended defaults within Lmod (introduced and set as default in Lmod 8.0.7)
         setvar('LMOD_EXTENDED_DEFAULT', 'no', verbose=False)
+        # disabled decorations in "ml --terse avail" output
+        # (introduced in Lmod 8.8, see also https://github.com/TACC/Lmod/issues/690)
+        setvar('LMOD_TERSE_DECORATIONS', 'no', verbose=False)
 
         super(Lmod, self).__init__(*args, **kwargs)
         version = LooseVersion(self.version)

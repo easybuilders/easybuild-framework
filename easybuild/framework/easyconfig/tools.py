@@ -54,7 +54,7 @@ from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_inf
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_error, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, get_cwd, is_patch_file, locate_files
@@ -409,7 +409,7 @@ def parse_easyconfigs(paths, validate=True):
         # keep track of whether any files were generated
         generated_ecs |= generated
         if not os.path.exists(path):
-            raise EasyBuildError("Can't find path %s", path)
+            raise EasyBuildError("Can't find path %s", path, exit_code=EasyBuildExit.MISSING_EASYCONFIG)
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
