@@ -298,20 +298,25 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
             # Lmod 7.6+ depends-on
+
+            self.allow_deprecated_behaviour()
+
             if self.modtool.supports_depends_on:
                 expected = '\n'.join([
                     '',
                     "depends-on mod_name",
                     '',
                 ])
-                self.assertEqual(expected, self.modgen.load_module("mod_name", depends_on=True))
+                with self.mocked_stdout_stderr():
+                    txt = self.modgen.load_module("mod_name", depends_on=True)
+                self.assertEqual(expected, txt)
                 init_config(build_options={'mod_depends_on': 'True'})
                 self.assertEqual(expected, self.modgen.load_module("mod_name"))
             else:
                 expected = "depends-on statements in generated module are not supported by modules tool"
-                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name", depends_on=True)
-                init_config(build_options={'mod_depends_on': 'True'})
-                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
+                with self.mocked_stdout_stderr():
+                    self.assertErrorRegex(EasyBuildError, expected,
+                                          self.modgen.load_module, "mod_name", depends_on=True)
         else:
             # default: guarded module load (which implies no recursive unloading)
             expected = '\n'.join([
@@ -338,20 +343,26 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
             # Lmod 7.6+ depends_on
+
+            self.allow_deprecated_behaviour()
+
             if self.modtool.supports_depends_on:
                 expected = '\n'.join([
                     '',
                     'depends_on("mod_name")',
                     '',
                 ])
-                self.assertEqual(expected, self.modgen.load_module("mod_name", depends_on=True))
+                with self.mocked_stdout_stderr():
+                    txt = self.modgen.load_module("mod_name", depends_on=True)
+
+                self.assertEqual(expected, txt)
                 init_config(build_options={'mod_depends_on': 'True'})
                 self.assertEqual(expected, self.modgen.load_module("mod_name"))
             else:
                 expected = "depends_on statements in generated module are not supported by modules tool"
-                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name", depends_on=True)
-                init_config(build_options={'mod_depends_on': 'True'})
-                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
+                with self.mocked_stdout_stderr():
+                    self.assertErrorRegex(EasyBuildError, expected,
+                                          self.modgen.load_module, "mod_name", depends_on=True)
 
     def test_load_multi_deps(self):
         """Test generated load statement when multi_deps is involved."""
@@ -390,8 +401,12 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual(expected, res)
 
         if self.modtool.supports_depends_on:
+
+            self.allow_deprecated_behaviour()
+
             # two versions with depends_on
-            res = self.modgen.load_module('Python/3.7.4', multi_dep_mods=multi_dep_mods, depends_on=True)
+            with self.mocked_stdout_stderr():
+                res = self.modgen.load_module('Python/3.7.4', multi_dep_mods=multi_dep_mods, depends_on=True)
 
             if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
                 expected = '\n'.join([
@@ -414,6 +429,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
                     '',
                 ])
             self.assertEqual(expected, res)
+
+            self.disallow_deprecated_behaviour()
 
         # now test with more than two versions...
         multi_dep_mods = ['foo/1.2.3', 'foo/2.3.4', 'foo/3.4.5', 'foo/4.5.6']
@@ -452,8 +469,12 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual(expected, res)
 
         if self.modtool.supports_depends_on:
+
+            self.allow_deprecated_behaviour()
+
             # more than two versions, with depends_on
-            res = self.modgen.load_module('foo/1.2.3', multi_dep_mods=multi_dep_mods, depends_on=True)
+            with self.mocked_stdout_stderr():
+                res = self.modgen.load_module('foo/1.2.3', multi_dep_mods=multi_dep_mods, depends_on=True)
 
             if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
                 expected = '\n'.join([
@@ -478,6 +499,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
                     '',
                 ])
             self.assertEqual(expected, res)
+
+            self.disallow_deprecated_behaviour()
 
         # what if we only list a single version?
         # see https://github.com/easybuilders/easybuild-framework/issues/3080
@@ -505,7 +528,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual(expected, res)
 
         if self.modtool.supports_depends_on:
-            res = self.modgen.load_module('one/1.0', multi_dep_mods=['one/1.0'], depends_on=True)
+
+            self.allow_deprecated_behaviour()
+
+            with self.mocked_stdout_stderr():
+                res = self.modgen.load_module('one/1.0', multi_dep_mods=['one/1.0'], depends_on=True)
 
             if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
                 expected = '\ndepends-on one/1.0\n'

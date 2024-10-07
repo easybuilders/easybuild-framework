@@ -873,10 +873,10 @@ class EasyBlockTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             mod_dep_txt = eb.make_module_dep()
         for mod in ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2']:
-            regex = re.compile('load.*%s' % mod)
+            regex = re.compile('(load|depends[-_]on).*%s' % mod)
             self.assertFalse(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
-        regex = re.compile('load.*FFTW/3.3.7')
+        regex = re.compile('(load|depends[-_]on).*FFTW/3.3.7')
         self.assertTrue(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
     def test_make_module_dep_of_dep_hmns(self):
@@ -1361,27 +1361,27 @@ class EasyBlockTest(EnhancedTestCase):
 
         for (name, ver) in [('GCC', '6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^\s*module load %s\s*$' % os.path.join(name, ver), re.M)
+                regex = re.compile(r'^\s*(module load|depends-on) %s\s*$' % os.path.join(name, ver), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^\s*load\("%s"\)$' % os.path.join(name, ver), re.M)
+                regex = re.compile(r'^\s*(load|depends_on)\("%s"\)$' % os.path.join(name, ver), re.M)
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('test', '1.2.3')]:
             if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^\s*module load %s/.%s\s*$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(module load|depends-on) %s/.%s\s*$' % (name, ver), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^\s*load\("%s/.%s"\)$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(load|depends_on)\("%s/.%s"\)$' % (name, ver), re.M)
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^\s*module load %s/.?%s\s*$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(module load|depends-on) %s/.?%s\s*$' % (name, ver), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^\s*load\("%s/.?%s"\)$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(load|depends_on)\("%s/.?%s"\)$' % (name, ver), re.M)
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertFalse(regex.search(txt), "Pattern '%s' *not* found in %s" % (regex.pattern, txt))

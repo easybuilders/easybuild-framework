@@ -4785,6 +4785,10 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = read_file(toy_ec)
+
+        # this test only makes sense if depends_on is not used
+        self.allow_deprecated_behaviour()
+        test_ec_txt += '\nmodule_depends_on = False'
         write_file(test_ec, test_ec_txt)
 
         test_module = os.path.join(self.test_installpath, 'modules', 'all', 'foss', '2018a')
@@ -4827,6 +4831,8 @@ class EasyConfigTest(EnhancedTestCase):
         # recursive_module_unload easyconfig parameter is honored
         test_ec_bis = os.path.join(self.test_prefix, 'test_bis.eb')
         test_ec_bis_txt = read_file(toy_ec) + '\nrecursive_module_unload = True'
+        # this test only makes sense if depends_on is not used
+        test_ec_bis_txt += '\nmodule_depends_on = False'
         write_file(test_ec_bis, test_ec_bis_txt)
 
         ec_bis = EasyConfig(test_ec_bis)
@@ -4871,6 +4877,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(build_option('recursive_mod_unload'))
         test_ec_bis = os.path.join(self.test_prefix, 'test_bis.eb')
         test_ec_bis_txt = read_file(toy_ec) + '\nrecursive_module_unload = False'
+        # this test only makes sense if depends_on is not used
+        test_ec_bis_txt += '\nmodule_depends_on = False'
         write_file(test_ec_bis, test_ec_bis_txt)
         ec_bis = EasyConfig(test_ec_bis)
         self.assertEqual(ec_bis['recursive_module_unload'], False)

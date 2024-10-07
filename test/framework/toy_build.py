@@ -873,9 +873,9 @@ class ToyBuildTest(EnhancedTestCase):
         # check that toolchain load is expanded to loads for toolchain dependencies,
         # except for the ones that extend $MODULEPATH to make the toy module available
         if get_module_syntax() == 'Tcl':
-            load_regex_template = "load %s"
+            load_regex_template = "(load|depends-on) %s"
         elif get_module_syntax() == 'Lua':
-            load_regex_template = r'load\("%s/.*"\)'
+            load_regex_template = r'(load|depends_on)\("%s/.*"\)'
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
@@ -1739,8 +1739,10 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included in additional module file generated with --module-only
         modtxt = read_file(toy_mod)
-        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
-        self.assertTrue(re.search('load.*GCC/6.4.0-2.28', modtxt), "load statement for GCC/6.4.0-2.28 found in module")
+        self.assertTrue(re.search('(load|depends[-_]on).*intel/2018a', modtxt),
+                        "load statement for intel/2018a found in module")
+        self.assertTrue(re.search('(load|depends[-_]on).*GCC/6.4.0-2.28', modtxt),
+                        "load statement for GCC/6.4.0-2.28 found in module")
 
         os.remove(toy_mod)
 
@@ -1782,7 +1784,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included
         modtxt = read_file(toy_core_mod)
-        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
+        self.assertTrue(re.search('(load|depends[-_]on).*intel/2018a', modtxt),
+                        "load statement for intel/2018a found in module")
 
         # Test we can create a module even for an installation where we don't have write permissions
         os.remove(toy_core_mod)
@@ -1800,7 +1803,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included
         modtxt = read_file(toy_core_mod)
-        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
+        self.assertTrue(re.search('(load|depends[-_]on).*intel/2018a', modtxt),
+                        "load statement for intel/2018a found in module")
 
         os.remove(toy_core_mod)
         os.remove(toy_mod)
@@ -1826,7 +1830,8 @@ class ToyBuildTest(EnhancedTestCase):
 
             # make sure load statements for dependencies are included
             modtxt = read_file(toy_mod + '.lua')
-            self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
+            self.assertTrue(re.search('(load|depends[-_]on).*intel/2018a', modtxt),
+                            "load statement for intel/2018a found in module")
 
     def test_module_only_extensions(self):
         """
@@ -2371,7 +2376,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         mod2_txt = read_file(mod2)
 
-        load1_regex = re.compile('load.*toy/0.0-one', re.M)
+        load1_regex = re.compile('(load|depends[-_]on).*toy/0.0-one', re.M)
         self.assertTrue(load1_regex.search(mod2_txt), "Pattern '%s' found in: %s" % (load1_regex.pattern, mod2_txt))
 
         # Check the contents of the dumped env in the reprod dir to ensure it contains the dependency load
@@ -3176,6 +3181,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt += "\nexts_list = [('barbar', '1.2', {'start_dir': 'src'})]"
 
         test_ec_txt += "\nmulti_deps = {'GCC': ['4.6.3', '7.3.0-2.30']}"
+
         write_file(test_ec, test_ec_txt)
 
         test_mod_path = os.path.join(self.test_installpath, 'modules', 'all')
@@ -3204,27 +3210,26 @@ class ToyBuildTest(EnhancedTestCase):
         # check whether (guarded) load statement for first version listed in multi_deps is there
         if get_module_syntax() == 'Lua':
             expected = '\n'.join([
-                'if not ( isloaded("GCC/4.6.3") ) and not ( isloaded("GCC/7.3.0-2.30") ) then',
-                '    load("GCC/4.6.3")',
+                'if mode() == "unload" or isloaded("GCC/7.3.0-2.30") then',
+                '    depends_on("GCC")',
+                'else',
+                '    depends_on("GCC/4.6.3")',
                 'end',
             ])
         else:
-            if not self.modtool.supports_safe_auto_load:
-                expected = '\n'.join([
-                    'if { ![ is-loaded GCC/4.6.3 ] && ![ is-loaded GCC/7.3.0-2.30 ] } {',
-                    '    module load GCC/4.6.3',
-                    '}',
-                ])
+            if isinstance(self.modtool, EnvironmentModules):
+                load_stmt = "module load"
             else:
-                expected = '\n'.join([
-                    '',
-                    "if { [ module-info mode remove ] || [ is-loaded GCC/7.3.0-2.30 ] } {",
-                    "    module load GCC",
-                    '} else {',
-                    "    module load GCC/4.6.3",
-                    '}',
-                    '',
-                ])
+                load_stmt = "depends-on"
+            expected = '\n'.join([
+                '',
+                "if { [ module-info mode remove ] || [ is-loaded GCC/7.3.0-2.30 ] } {",
+                "    %s GCC" % load_stmt,
+                '} else {',
+                "    %s GCC/4.6.3" % load_stmt,
+                '}',
+                '',
+            ])
 
         self.assertIn(expected, toy_mod_txt)
 

@@ -1219,6 +1219,8 @@ class EasyBlock(object):
         # these should be all the dependencies and we should load them
         recursive_unload = self.cfg['recursive_module_unload']
         depends_on = self.cfg['module_depends_on']
+        if depends_on is not None:
+            self.log.deprecated("'module_depends_on' easyconfig parameter should not be used anymore", '6.0')
         for key in os.environ:
             # legacy support
             if key.startswith(DEVEL_ENV_VAR_NAME_PREFIX):
@@ -1346,6 +1348,8 @@ class EasyBlock(object):
         # include load statements for retained dependencies
         recursive_unload = self.cfg['recursive_module_unload']
         depends_on = self.cfg['module_depends_on']
+        if depends_on is not None:
+            self.log.deprecated("'module_depends_on' easyconfig parameter should not be used anymore", '6.0')
         loads = []
         for dep in deps:
             unload_modules = []
