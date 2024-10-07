@@ -512,7 +512,7 @@ class EasyBuildOptions(GeneralOption):
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'strict-rpath-sanity-check': ("Perform strict RPATH sanity check, which involces unsetting "
                                           "$LD_LIBRARY_PATH before checking whether all required libraries are found",
-                                          None, 'store_true', True),
+                                          None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', True, 'T'),
