@@ -3219,12 +3219,6 @@ class ToyBuildTest(EnhancedTestCase):
         else:
             if not self.modtool.supports_safe_auto_load:
                 expected = '\n'.join([
-                    'if { ![ is-loaded GCC/4.6.3 ] && ![ is-loaded GCC/7.3.0-2.30 ] } {',
-                    '    depends-on GCC/4.6.3',
-                    '}',
-                ])
-            else:
-                expected = '\n'.join([
                     '',
                     "if { [ module-info mode remove ] || [ is-loaded GCC/7.3.0-2.30 ] } {",
                     "    depends-on GCC",
@@ -3232,6 +3226,12 @@ class ToyBuildTest(EnhancedTestCase):
                     "    depends-on GCC/4.6.3",
                     '}',
                     '',
+                ])
+            else:
+                expected = '\n'.join([
+                    'if { ![ is-loaded GCC/4.6.3 ] && ![ is-loaded GCC/7.3.0-2.30 ] } {',
+                    '    depends-on GCC/4.6.3',
+                    '}',
                 ])
 
         self.assertIn(expected, toy_mod_txt)
