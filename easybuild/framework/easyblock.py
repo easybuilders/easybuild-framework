@@ -1877,7 +1877,6 @@ class EasyBlock(object):
         Skip already installed extensions (checking in parallel),
         by removing them from list of Extension instances to install (self.ext_instances).
         """
-        self.log.experimental("Skipping installed extensions in parallel")
         print_msg("skipping installed extensions (in parallel)", log=self.log)
 
         installed_exts_ids = []
@@ -1934,13 +1933,12 @@ class EasyBlock(object):
         self.log.debug("List of loaded modules: %s", self.modules_tool.list())
 
         if build_option('parallel_extensions_install'):
-            self.log.experimental("installing extensions in parallel")
             try:
                 self.install_extensions_parallel(install=install)
             except NotImplementedError:
                 # If parallel extension install is not supported for this type of extension then install sequentially
                 msg = "Parallel extensions install not supported for %s - using sequential install" % self.name
-                self.log.experimental(msg)
+                self.log.info(msg)
                 self.install_extensions_sequential(install=install)
         else:
             self.install_extensions_sequential(install=install)
