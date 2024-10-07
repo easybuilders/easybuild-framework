@@ -10,12 +10,7 @@
 # - Changes to documentation and formatting
 
 import re
-# Modified: Make this compatible with Python 2
-try:
-    from itertools import zip_longest
-except ImportError:
-    # Python 2
-    from itertools import izip_longest as zip_longest
+from itertools import zip_longest
 
 
 class LooseVersion(object):
@@ -52,6 +47,22 @@ class LooseVersion(object):
     def version(self):
         """Readonly access to the parsed version (list or None)"""
         return self._version
+
+    def is_prerelease(self, other, markers):
+        """Check if this is a prerelease of other
+
+        Markers is a list of strings that denote a prerelease
+        """
+        if isinstance(other, str):
+            vstring = other
+        else:
+            vstring = other._vstring
+        if self._vstring.startswith(vstring):
+            prerelease = self._vstring[len(vstring):]
+            for marker in markers:
+                if prerelease.startswith(marker):
+                    return True
+        return False
 
     def __str__(self):
         return self._vstring

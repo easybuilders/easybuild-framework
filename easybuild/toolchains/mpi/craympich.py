@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2023 Ghent University
+# Copyright 2014-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -53,7 +53,7 @@ class CrayMPICH(Mpi):
     MPI_COMPILER_MPIFC = CrayPECompiler.COMPILER_FC
 
     # no MPI wrappers, so no need to specify serial compiler
-    MPI_SHARED_OPTION_MAP = dict([('_opt_%s' % var, '') for var, _ in MPI_COMPILER_VARIABLES])
+    MPI_SHARED_OPTION_MAP = {'_opt_%s' % var: '' for var, _ in MPI_COMPILER_VARIABLES}
 
     def _set_mpi_compiler_variables(self):
         """Set the MPI compiler variables"""

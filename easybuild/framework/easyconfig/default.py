@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -60,7 +60,7 @@ OTHER = (9, 'other')
 # we use a tuple here so we can sort them based on the numbers
 CATEGORY_NAMES = ['BUILD', 'CUSTOM', 'DEPENDENCIES', 'EXTENSIONS', 'FILEMANAGEMENT', 'HIDDEN',
                   'LICENSE', 'MANDATORY', 'MODULES', 'OTHER', 'TOOLCHAIN']
-ALL_CATEGORIES = dict((name, eval(name)) for name in CATEGORY_NAMES)
+ALL_CATEGORIES = {name: eval(name) for name in CATEGORY_NAMES}
 
 # List of tuples. Each tuple has the following format (key, [default, help text, category])
 DEFAULT_CONFIG = {
@@ -108,7 +108,8 @@ DEFAULT_CONFIG = {
                        BUILD],
     'hidden': [False, "Install module file as 'hidden' by prefixing its version with '.'", BUILD],
     'installopts': ['', 'Extra options for installation', BUILD],
-    'maxparallel': [None, 'Max degree of parallelism', BUILD],
+    'maxparallel': [16, 'Max degree of parallelism', BUILD],
+    'module_only': [False, 'Only generate module file', BUILD],
     'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
                         'cores, active cpuset and restrictions in ulimit)'), BUILD],
     'patches': [[], "List of patches to apply", BUILD],
@@ -205,8 +206,8 @@ DEFAULT_CONFIG = {
     'moduleclass': [MODULECLASS_BASE, 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
-    'module_depends_on': [False, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
-                          '(implies recursive unloading of modules).', MODULES],
+    'module_depends_on': [None, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
+                          '(implies recursive unloading of modules) [DEPRECATED]', MODULES],
     'recursive_module_unload': [None, "Recursive unload of all dependencies when unloading module "
                                       "(True/False to hard enable/disable; None implies honoring "
                                       "the --recursive-module-unload EasyBuild configuration setting",

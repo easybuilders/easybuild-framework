@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,6 +39,7 @@ import tempfile
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, build_option
+from easybuild.tools.filetools import get_cwd
 from easybuild.tools.job.backend import JobBackend
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -320,8 +321,8 @@ class PbsJob(object):
         self.log.debug("Job hold attributes: %s" % hold_attributes[0].value)
 
         # add a bunch of variables (added by qsub)
-        # also set PBS_O_WORKDIR to os.getcwd()
-        os.environ.setdefault('WORKDIR', os.getcwd())
+        # also set PBS_O_WORKDIR to current working dir
+        os.environ.setdefault('WORKDIR', get_cwd())
 
         defvars = ['MAIL', 'HOME', 'PATH', 'SHELL', 'WORKDIR']
         pbsvars = ["PBS_O_%s=%s" % (x, os.environ.get(x, 'NOTFOUND_%s' % x)) for x in defvars]
@@ -484,7 +485,7 @@ class PbsJob(object):
         # only expect to have a list with one element
         j = jobs[0]
         # convert attribs into useable dict
-        job_details = dict([(attrib.name, attrib.value) for attrib in j.attribs])
+        job_details = {attrib.name: attrib.value for attrib in j.attribs}
         # manually set 'id' attribute
         job_details['id'] = j.name
         self.log.debug("Found jobinfo %s" % job_details)

@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,7 +32,9 @@ Unit tests for filetools.py
 @author: Maxime Boissonneault (Compute Canada, Universite Laval)
 """
 import datetime
+import filecmp
 import glob
+import logging
 import os
 import re
 import shutil
@@ -47,11 +49,12 @@ from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from urllib import request
-from easybuild.tools import run
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import IGNORE, ERROR, build_option, update_build_option
+from easybuild.tools.config import IGNORE, ERROR, WARN, build_option, update_build_option
 from easybuild.tools.multidiff import multidiff
+from easybuild.tools.run import run_shell_cmd
+from easybuild.tools.systemtools import LINUX, get_os_type
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -290,29 +293,39 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(fp, "easybuild\n")
 
         known_checksums = {
-            'adler32': '0x379257805',
-            'crc32': '0x1457143216',
-            'md5': '7167b64b1ca062b9674ffef46f9325db',
-            'sha1': 'db05b79e09a4cc67e9dd30b313b5488813db3190',
             'sha256': '1c49562c4b404f3120a3fa0926c8d09c99ef80e470f7de03ffdfa14047960ea5',
             'sha512': '7610f6ce5e91e56e350d25c917490e4815f7986469fafa41056698aec256733e'
                       'b7297da8b547d5e74b851d7c4e475900cec4744df0f887ae5c05bf1757c224b4',
         }
 
+        old_log_level = ft._log.getEffectiveLevel()
+        ft._log.setLevel(logging.DEBUG)
         # make sure checksums computation/verification is correct
         for checksum_type, checksum in known_checksums.items():
             self.assertEqual(ft.compute_checksum(fp, checksum_type=checksum_type), checksum)
-            self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum)))
+            with self.log_to_testlogfile():
+                self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum)))
+            self.assertIn('Computed ' + checksum_type, ft.read_file(self.logfile))
+            # Passing precomputed checksums reuses it
+            with self.log_to_testlogfile():
+                computed_checksums = {checksum_type: checksum}
+                self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum), computed_checksums))
+            self.assertIn('Precomputed ' + checksum_type, ft.read_file(self.logfile))
+            # If the type isn't contained the checksum will be computed
+            with self.log_to_testlogfile():
+                computed_checksums = {'doesnt exist': 'checksum'}
+                self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum), computed_checksums))
+            self.assertIn('Computed ' + checksum_type, ft.read_file(self.logfile))
 
-        # default checksum type is MD5
-        self.assertEqual(ft.compute_checksum(fp), known_checksums['md5'])
+        ft._log.setLevel(old_log_level)
 
-        # both MD5 and SHA256 checksums can be verified without specifying type
-        self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
+        # default checksum type is SHA256
+        self.assertEqual(ft.compute_checksum(fp), known_checksums['sha256'])
+
+        # SHA256 checksums can be verified without specifying type
         self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
 
-        # providing non-matching MD5 and SHA256 checksums results in failed verification
-        self.assertFalse(ft.verify_checksum(fp, '1c49562c4b404f3120a3fa0926c8d09c'))
+        # providing non-matching SHA256 checksums results in failed verification
         self.assertFalse(ft.verify_checksum(fp, '7167b64b1ca062b9674ffef46f9325db7167b64b1ca062b9674ffef46f9325db'))
 
         # checksum of length 32 is assumed to be MD5, length 64 to be SHA256, other lengths not allowed
@@ -322,27 +335,16 @@ class FileToolsTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, error_pattern, ft.verify_checksum, fp, checksum)
 
         # make sure faulty checksums are reported
-        broken_checksums = dict([(typ, val[:-3] + 'foo') for (typ, val) in known_checksums.items()])
+        broken_checksums = {typ: (val[:-3] + 'foo') for typ, val in known_checksums.items()}
         for checksum_type, checksum in broken_checksums.items():
             self.assertFalse(ft.compute_checksum(fp, checksum_type=checksum_type) == checksum)
             self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))
-        # md5 is default
-        self.assertFalse(ft.compute_checksum(fp) == broken_checksums['md5'])
-        self.assertFalse(ft.verify_checksum(fp, broken_checksums['md5']))
+        # sha256 is default
+        self.assertFalse(ft.compute_checksum(fp) == broken_checksums['sha256'])
         self.assertFalse(ft.verify_checksum(fp, broken_checksums['sha256']))
 
         # test specify alternative checksums
         alt_checksums = ('7167b64b1ca062b9674ffef46f9325db7167b64b1ca062b9674ffef46f9325db', known_checksums['sha256'])
-        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
-
-        alt_checksums = ('fecf50db81148786647312bbd3b5c740', '2c829facaba19c0fcd81f9ce96bef712',
-                         '840078aeb4b5d69506e7c8edae1e1b89', known_checksums['md5'])
-        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
-
-        alt_checksums = ('840078aeb4b5d69506e7c8edae1e1b89', known_checksums['md5'], '2c829facaba19c0fcd81f9ce96bef712')
-        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
-
-        alt_checksums = (known_checksums['md5'], '840078aeb4b5d69506e7c8edae1e1b89', '2c829facaba19c0fcd81f9ce96bef712')
         self.assertTrue(ft.verify_checksum(fp, alt_checksums))
 
         alt_checksums = (known_checksums['sha256'],)
@@ -366,15 +368,83 @@ class FileToolsTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum, fp, None)
-        self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
         self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
 
         # Test dictionary-type checksums
-        for checksum in [known_checksums[x] for x in ('md5', 'sha256')]:
+        for checksum in [known_checksums[x] for x in ['sha256']]:
             dict_checksum = {os.path.basename(fp): checksum, 'foo': 'baa'}
             self.assertTrue(ft.verify_checksum(fp, dict_checksum))
             del dict_checksum[os.path.basename(fp)]
             self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum, fp, dict_checksum)
+
+    def test_deprecated_checksums(self):
+        """Test checksum functionality."""
+
+        fp = os.path.join(self.test_prefix, 'test.txt')
+        ft.write_file(fp, "easybuild\n")
+
+        known_checksums = {
+            'adler32': '0x379257805',
+            'crc32': '0x1457143216',
+            'md5': '7167b64b1ca062b9674ffef46f9325db',
+            'sha1': 'db05b79e09a4cc67e9dd30b313b5488813db3190',
+        }
+
+        self.allow_deprecated_behaviour()
+        self.mock_stderr(True)  # just to capture deprecation warning
+
+        # make sure checksums computation/verification is correct
+        for checksum_type, checksum in known_checksums.items():
+            self.assertEqual(ft.compute_checksum(fp, checksum_type=checksum_type), checksum)
+            self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum)))
+
+        # MD5 checksums can be verified without specifying type
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
+
+        # providing non-matching MD5 checksums results in failed verification
+        self.assertFalse(ft.verify_checksum(fp, '1c49562c4b404f3120a3fa0926c8d09c'))
+
+        # checksum of length 32 is assumed to be MD5, length 64 to be SHA256, other lengths not allowed
+        # checksum of length other than 32/64 yields an error
+        error_pattern = r"Length of checksum '.*' \(\d+\) does not match with either MD5 \(32\) or SHA256 \(64\)"
+        for checksum in ['tooshort', 'inbetween32and64charactersisnotgoodeither', known_checksums['md5'] + 'foo']:
+            self.assertErrorRegex(EasyBuildError, error_pattern, ft.verify_checksum, fp, checksum)
+
+        # make sure faulty checksums are reported
+        broken_checksums = {typ: (val[:-3] + 'foo') for typ, val in known_checksums.items()}
+        for checksum_type, checksum in broken_checksums.items():
+            self.assertFalse(ft.compute_checksum(fp, checksum_type=checksum_type) == checksum)
+            self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))
+        self.assertFalse(ft.verify_checksum(fp, broken_checksums['md5']))
+
+        # test specify alternative checksums
+        alt_checksums = ('fecf50db81148786647312bbd3b5c740', '2c829facaba19c0fcd81f9ce96bef712',
+                         '840078aeb4b5d69506e7c8edae1e1b89', known_checksums['md5'])
+        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
+
+        alt_checksums = ('840078aeb4b5d69506e7c8edae1e1b89', known_checksums['md5'], '2c829facaba19c0fcd81f9ce96bef712')
+        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
+
+        alt_checksums = (known_checksums['md5'], '840078aeb4b5d69506e7c8edae1e1b89', '2c829facaba19c0fcd81f9ce96bef712')
+        self.assertTrue(ft.verify_checksum(fp, alt_checksums))
+
+        # check whether missing checksums are enforced
+        build_options = {
+            'enforce_checksums': True,
+        }
+        init_config(build_options=build_options)
+
+        self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum, fp, None)
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
+
+        # Test dictionary-type checksums
+        for checksum in [known_checksums[x] for x in ['md5']]:
+            dict_checksum = {os.path.basename(fp): checksum, 'foo': 'baa'}
+            self.assertTrue(ft.verify_checksum(fp, dict_checksum))
+            del dict_checksum[os.path.basename(fp)]
+            self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum, fp, dict_checksum)
+
+        self.mock_stderr(False)
 
     def test_common_path_prefix(self):
         """Test get common path prefix for a list of paths."""
@@ -924,7 +994,7 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertTrue(ft.is_binary(b'\00'))
         self.assertTrue(ft.is_binary(b"File is binary when it includes \00 somewhere"))
-        self.assertTrue(ft.is_binary(ft.read_file('/bin/ls', mode='rb')))
+        self.assertTrue(ft.is_binary(ft.read_file('/bin/bash', mode='rb')))
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""
@@ -1163,9 +1233,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(lines[8].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "29 %s+ postinstallcmds = " % green
+        expected = "26 %s+ postinstallcmds = " % green
         self.assertTrue(any(line.startswith(expected) for line in lines))
-        expected = "30 %s+%s (1/2) toy-0.0" % (green, endcol)
+        expected = "27 %s+%s (1/2) toy-0.0" % (green, endcol)
         self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
         self.assertEqual(lines[-1], "=====")
 
@@ -1184,9 +1254,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(lines[8].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "29 + postinstallcmds = "
+        expected = "26 + postinstallcmds = "
         self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
-        expected = "30 + (1/2) toy-0.0-"
+        expected = "27 + (1/2) toy-0.0-"
         self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
 
         self.assertEqual(lines[-1], "=====")
@@ -1442,7 +1512,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # passing empty list of substitions is a no-op
         ft.write_file(testfile, testtxt)
-        ft.apply_regex_substitutions(testfile, [], on_missing_match=run.IGNORE)
+        ft.apply_regex_substitutions(testfile, [], on_missing_match=IGNORE)
         new_testtxt = ft.read_file(testfile)
         self.assertEqual(new_testtxt, testtxt)
 
@@ -1452,17 +1522,17 @@ class FileToolsTest(EnhancedTestCase):
         error_pat = 'Nothing found to replace in %s' % testfile
         # Error
         self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, testfile, regex_subs_no_match,
-                              on_missing_match=run.ERROR)
+                              on_missing_match=ERROR)
 
         # Warn
         with self.log_to_testlogfile():
-            ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.WARN)
+            ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=WARN)
         logtxt = ft.read_file(self.logfile)
         self.assertIn('WARNING ' + error_pat, logtxt)
 
         # Ignore
         with self.log_to_testlogfile():
-            ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.IGNORE)
+            ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=IGNORE)
         logtxt = ft.read_file(self.logfile)
         self.assertIn('INFO ' + error_pat, logtxt)
 
@@ -1531,8 +1601,7 @@ class FileToolsTest(EnhancedTestCase):
         lic_server = '1234@example.license.server'
 
         # make test robust against environment in which $LM_LICENSE_FILE is defined
-        if 'LM_LICENSE_FILE' in os.environ:
-            del os.environ['LM_LICENSE_FILE']
+        os.environ.pop('LM_LICENSE_FILE', None)
 
         # default return value
         self.assertEqual(ft.find_flexlm_license(), ([], None))
@@ -1854,6 +1923,19 @@ class FileToolsTest(EnhancedTestCase):
             # printing this message will make test suite fail in Travis/GitHub CI,
             # since we check for unexpected output produced by the tests
             print("Skipping overwrite-file-owned-by-other-user copy_file test (%s is missing)" % test_file_to_overwrite)
+        # Copy a file to a directory owned by some other user, e.g. /tmp (owned by root)
+        # This might be a common choice for e.g. --copy-ec
+        target_file_path = tempfile.mktemp("easybuild", dir="/tmp")
+        test_file_to_copy = os.path.join(self.test_prefix, os.path.basename(target_file_path))
+        ft.write_file(test_file_to_copy, test_file_contents)
+        try:
+            ft.copy_file(test_file_to_copy, '/tmp')
+            self.assertEqual(ft.read_file(target_file_path), test_file_contents)
+        finally:
+            try:
+                os.remove(target_file_path)
+            except FileNotFoundError:
+                pass
 
         # also test behaviour of copy_file under --dry-run
         build_options = {
@@ -1896,6 +1978,49 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(re.search("^copied file %s to %s" % (src, target), txt))
         # However, if we add 'force_in_dry_run=True' it should throw an exception
         self.assertErrorRegex(EasyBuildError, "Could not copy *", ft.copy_file, src, target, force_in_dry_run=True)
+
+    def test_copy_file_xattr(self):
+        """Test copying a file with extended attributes using copy_file."""
+        # test copying a read-only files with extended attributes set
+        # first, create a special file with extended attributes
+        special_file = os.path.join(self.test_prefix, 'special.txt')
+        ft.write_file(special_file, 'special')
+        # make read-only, and set extended attributes
+        attr = ft.which('attr')
+        xattr = ft.which('xattr')
+        # try to attr (Linux) or xattr (macOS) to set extended attributes foo=bar
+        cmd = None
+        if attr:
+            cmd = "attr -s foo -V bar %s" % special_file
+        elif xattr:
+            cmd = "xattr -w foo bar %s" % special_file
+
+        if cmd:
+            with self.mocked_stdout_stderr():
+                res = run_shell_cmd(cmd, fail_on_error=False)
+
+            # need to make file read-only after setting extended attribute
+            ft.adjust_permissions(special_file, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False)
+
+            # only proceed if setting extended attribute worked
+            if res.exit_code == 0:
+                target = os.path.join(self.test_prefix, 'copy.txt')
+                ft.copy_file(special_file, target)
+                self.assertTrue(os.path.exists(target))
+                self.assertTrue(filecmp.cmp(special_file, target, shallow=False))
+
+                # only verify wheter extended attributes were also copied on Linux,
+                # since shutil.copy2 doesn't copy them on macOS;
+                # see warning at https://docs.python.org/3/library/shutil.html
+                if get_os_type() == LINUX:
+                    if attr:
+                        cmd = "attr -g foo %s" % target
+                    else:
+                        cmd = "xattr -l %s" % target
+                    with self.mocked_stdout_stderr():
+                        res = run_shell_cmd(cmd, fail_on_error=False)
+                    self.assertEqual(res.exit_code, 0)
+                    self.assertTrue(res.output.endswith('\nbar\n'))
 
     def test_copy_files(self):
         """Test copy_files function."""
@@ -2223,6 +2348,19 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'toy', 'toy-0.0.eb')))
         self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'GCC-4.6.3.eb')))
         self.assertEqual(txt, '')
+
+    def test_get_cwd(self):
+        """Test get_cwd"""
+        toy_dir = os.path.join(self.test_prefix, "test_get_cwd_dir")
+        os.mkdir(toy_dir)
+        os.chdir(toy_dir)
+
+        self.assertTrue(os.path.samefile(ft.get_cwd(), toy_dir))
+
+        os.rmdir(toy_dir)
+        self.assertErrorRegex(EasyBuildError, ft.CWD_NOTFOUND_ERROR, ft.get_cwd)
+
+        self.assertEqual(ft.get_cwd(must_exist=False), None)
 
     def test_change_dir(self):
         """Test change_dir"""
@@ -2637,8 +2775,7 @@ class FileToolsTest(EnhancedTestCase):
         """Test find_eb_script function."""
 
         # make sure $EB_SCRIPT_PATH is not set already (used as fallback mechanism in find_eb_script)
-        if 'EB_SCRIPT_PATH' in os.environ:
-            del os.environ['EB_SCRIPT_PATH']
+        os.environ.pop('EB_SCRIPT_PATH', None)
 
         self.assertExists(ft.find_eb_script('rpath_args.py'))
         self.assertExists(ft.find_eb_script('rpath_wrapper_template.sh.in'))
@@ -2798,32 +2935,41 @@ class FileToolsTest(EnhancedTestCase):
             'url': 'git@github.com:easybuilders',
             'tag': 'tag_for_tests',
         }
-        git_repo = {'git_repo': 'git@github.com:easybuilders/testrepository.git'}  # Just to make the below shorter
+        string_args = {
+            'git_repo': 'git@github.com:easybuilders/testrepository.git',
+            'test_prefix': self.test_prefix,
+        }
+        reprod_tar_cmd_pattern = (
+            r' running shell command "find {} -name \".git\" -prune -o -print0 -exec touch -t 197001010100 {{}} \; |'
+            r' LC_ALL=C sort --zero-terminated | tar --create --no-recursion --owner=0 --group=0 --numeric-owner'
+            r' --format=gnu --null --files-from - | gzip --no-name > %(test_prefix)s/target/test.tar.gz'
+        )
+
         expected = '\n'.join([
             r'  running shell command "git clone --depth 1 --branch tag_for_tests %(git_repo)s"',
-            r"  \(in /.*\)",
-            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in /.*\)",
-        ]) % git_repo
+            r"  \(in .*/tmp.*\)",
+            reprod_tar_cmd_pattern.format("testrepository"),
+            r"  \(in .*/tmp.*\)",
+        ]) % string_args
         run_check()
 
         git_config['clone_into'] = 'test123'
         expected = '\n'.join([
             r'  running shell command "git clone --depth 1 --branch tag_for_tests %(git_repo)s test123"',
-            r"  \(in /.*\)",
-            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git test123"',
-            r"  \(in /.*\)",
-        ]) % git_repo
+            r"  \(in .*/tmp.*\)",
+            reprod_tar_cmd_pattern.format("test123"),
+            r"  \(in .*/tmp.*\)",
+        ]) % string_args
         run_check()
         del git_config['clone_into']
 
         git_config['recursive'] = True
         expected = '\n'.join([
             r'  running shell command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
-            r"  \(in /.*\)",
-            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in /.*\)",
-        ]) % git_repo
+            r"  \(in .*/tmp.*\)",
+            reprod_tar_cmd_pattern.format("testrepository"),
+            r"  \(in .*/tmp.*\)",
+        ]) % string_args
         run_check()
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
@@ -2831,9 +2977,9 @@ class FileToolsTest(EnhancedTestCase):
             '  running shell command "git clone --depth 1 --branch tag_for_tests --recursive'
             + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in .*/tmp.*\)",
-        ]) % git_repo
+        ]) % string_args
         run_check()
 
         git_config['extra_config_params'] = [
@@ -2845,9 +2991,9 @@ class FileToolsTest(EnhancedTestCase):
             + ' clone --depth 1 --branch tag_for_tests --recursive'
             + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in .*/tmp.*\)",
-        ]) % git_repo
+        ]) % string_args
         run_check()
         del git_config['recurse_submodules']
         del git_config['extra_config_params']
@@ -2855,10 +3001,10 @@ class FileToolsTest(EnhancedTestCase):
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
             r'  running shell command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
-            r"  \(in /.*\)",
+            r"  \(in .*/tmp.*\)",
             r'  running shell command "tar cfvz .*/target/test.tar.gz testrepository"',
-            r"  \(in /.*\)",
-        ]) % git_repo
+            r"  \(in .*/tmp.*\)",
+        ]) % string_args
         run_check()
         del git_config['keep_git_dir']
 
@@ -2866,24 +3012,23 @@ class FileToolsTest(EnhancedTestCase):
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
             r'  running shell command "git clone --no-checkout %(git_repo)s"',
-            r"  \(in /.*\)",
+            r"  \(in .*/tmp.*\)",
             r'  running shell command "git checkout 8456f86 && git submodule update --init --recursive"',
-            r"  \(in /.*/testrepository\)",
-            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
-            r"  \(in /.*\)",
-        ]) % git_repo
+            r"  \(in testrepository\)",
+            reprod_tar_cmd_pattern.format("testrepository"),
+            r"  \(in .*/tmp.*\)",
+        ]) % string_args
         run_check()
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
         expected = '\n'.join([
             r'  running shell command "git clone --no-checkout %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            '  running shell command "git checkout 8456f86 && git submodule update --init --recursive'
-            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\'"',
-            r"  \(in /.*/testrepository\)",
-            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r'  running shell command "git checkout 8456f86"',
+            r"  \(in testrepository\)",
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in .*/tmp.*\)",
-        ]) % git_repo
+        ]) % string_args
         run_check()
 
         del git_config['recursive']
@@ -2893,9 +3038,9 @@ class FileToolsTest(EnhancedTestCase):
             r"  \(in /.*\)",
             r'  running shell command "git checkout 8456f86"',
             r"  \(in /.*/testrepository\)",
-            r'  running shell command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            reprod_tar_cmd_pattern.format("testrepository"),
             r"  \(in /.*\)",
-        ]) % git_repo
+        ]) % string_args
         run_check()
 
         # Test with real data.

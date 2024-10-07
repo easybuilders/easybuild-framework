@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -50,7 +50,7 @@ from string import ascii_letters
 from easybuild.base import fancylogger
 from easybuild.base.frozendict import FrozenDictKnownKeys
 from easybuild.base.wrapper import create_base_metaclass
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit
 
 try:
     import rich  # noqa
@@ -96,7 +96,7 @@ DEFAULT_DOWNLOAD_TIMEOUT = 10
 DEFAULT_ENV_FOR_SHEBANG = '/usr/bin/env'
 DEFAULT_ENVVAR_USERS_MODULES = 'HOME'
 DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
-DEFAULT_JOB_BACKEND = 'GC3Pie'
+DEFAULT_JOB_BACKEND = 'Slurm'
 DEFAULT_JOB_EB_CMD = 'eb'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
@@ -121,6 +121,8 @@ DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PR_TARGET_ACCOUNT = 'easybuilders'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
+EASYBUILD_SOURCES_URL = 'https://sources.easybuild.io'
+DEFAULT_EXTRA_SOURCE_URLS = (EASYBUILD_SOURCES_URL,)
 # Filter these CUDA libraries by default from the RPATH sanity check.
 # These are the only four libraries for which the CUDA toolkit ships stubs. By design, one is supposed to build
 # against the stub versions, but use the libraries that come with the CUDA driver at runtime. That means they should
@@ -173,6 +175,10 @@ OUTPUT_STYLE_NO_COLOR = 'no_color'
 OUTPUT_STYLE_RICH = 'rich'
 OUTPUT_STYLES = (OUTPUT_STYLE_AUTO, OUTPUT_STYLE_BASIC, OUTPUT_STYLE_NO_COLOR, OUTPUT_STYLE_RICH)
 
+PYTHONPATH = 'PYTHONPATH'
+EBPYTHONPREFIXES = 'EBPYTHONPREFIXES'
+PYTHON_SEARCH_PATH_TYPES = [PYTHONPATH, EBPYTHONPREFIXES]
+
 
 class Singleton(ABCMeta):
     """Serves as metaclass for classes that should implement the Singleton pattern.
@@ -221,6 +227,7 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_env_vars',
         'filter_rpath_sanity_libs',
         'force_download',
+        'from_commit',
         'git_working_dirs_path',
         'github_user',
         'github_org',
@@ -230,6 +237,7 @@ BUILD_OPTIONS_CMDLINE = {
         'http_header_fields_urlpat',
         'hooks',
         'ignore_dirs',
+        'include_easyblocks_from_commit',
         'insecure_download',
         'job_backend_config',
         'job_cores',
@@ -258,6 +266,7 @@ BUILD_OPTIONS_CMDLINE = {
         'rpath_override_dirs',
         'required_linked_shared_libs',
         'skip',
+        'software_commit',
         'stop',
         'subdir_user_modules',
         'sysroot',
@@ -275,6 +284,7 @@ BUILD_OPTIONS_CMDLINE = {
         'debug',
         'debug_lmod',
         'dump_autopep8',
+        'dump_env_script',
         'enforce_checksums',
         'experimental',
         'extended_dry_run',
@@ -290,7 +300,6 @@ BUILD_OPTIONS_CMDLINE = {
         'install_latest_eb_release',
         'logtostdout',
         'minimal_toolchains',
-        'module_extensions',
         'module_only',
         'package',
         'parallel_extensions_install',
@@ -304,9 +313,11 @@ BUILD_OPTIONS_CMDLINE = {
         'set_gid_bit',
         'silence_hook_trigger',
         'skip_extensions',
+        'skip_sanity_check',
         'skip_test_cases',
         'skip_test_step',
         'sticky_bit',
+        'terse',
         'unit_testing_mode',
         'upload_test_report',
         'update_modules_tool_cache',
@@ -325,6 +336,7 @@ BUILD_OPTIONS_CMDLINE = {
         'lib64_fallback_sanity_check',
         'lib64_lib_symlink',
         'map_toolchains',
+        'module_extensions',
         'modules_tool_version_check',
         'mpi_tests',
         'pre_create_installdir',
@@ -388,6 +400,9 @@ BUILD_OPTIONS_CMDLINE = {
     'defaultopt': [
         'default_opt_level',
     ],
+    DEFAULT_EXTRA_SOURCE_URLS: [
+        'extra_source_urls',
+    ],
     DEFAULT_ALLOW_LOADED_MODULES: [
         'allow_loaded_modules',
     ],
@@ -397,6 +412,9 @@ BUILD_OPTIONS_CMDLINE = {
     OUTPUT_STYLE_AUTO: [
         'output_style',
     ],
+    PYTHONPATH: [
+        'prefer_python_search_path',
+    ]
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {
@@ -404,14 +422,14 @@ BUILD_OPTIONS_OTHER = {
         'build_specs',
         'command_line',
         'external_modules_metadata',
-        'pr_paths',
+        'extra_ec_paths',
+        'mod_depends_on',  # deprecated
         'robot_path',
         'valid_module_classes',
         'valid_stops',
     ],
     False: [
         'dry_run',
-        'mod_depends_on',
         'recursive_mod_unload',
         'retain_all_deps',
         'silent',
@@ -496,7 +514,10 @@ class ConfigurationVariables(BaseConfigurationVariables):
         """
         missing = [x for x in self.KNOWN_KEYS if x not in self]
         if len(missing) > 0:
-            raise EasyBuildError("Cannot determine value for configuration variables %s. Please specify it.", missing)
+            raise EasyBuildError(
+                "Cannot determine value for configuration variables %s. Please specify it.", ', '.join(missing),
+                exit_code=EasyBuildExit.OPTION_ERROR
+            )
 
         return self.items()
 
@@ -529,7 +550,10 @@ def init(options, config_options_dict):
         tmpdict['sourcepath'] = sourcepath.split(':')
         _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
     elif not isinstance(sourcepath, (tuple, list)):
-        raise EasyBuildError("Value for sourcepath has invalid type (%s): %s", type(sourcepath), sourcepath)
+        raise EasyBuildError(
+            "Value for sourcepath has invalid type (%s): %s", type(sourcepath), sourcepath,
+            exit_code=EasyBuildExit.OPTION_ERROR
+        )
 
     # initialize configuration variables (any future calls to ConfigurationVariables() will yield the same instance
     variables = ConfigurationVariables(tmpdict, ignore_unknown_keys=True)
@@ -571,7 +595,7 @@ def init_build_options(build_options=None, cmdline_options=None):
             cmdline_options.ignore_osdeps = True
 
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]
-        active_build_options.update(dict([(key, getattr(cmdline_options, key)) for key in cmdline_build_option_names]))
+        active_build_options.update({key: getattr(cmdline_options, key) for key in cmdline_build_option_names})
         # other options which can be derived but have no perfectly matching cmdline option
         active_build_options.update({
             'check_osdeps': not cmdline_options.ignore_osdeps,
@@ -589,12 +613,12 @@ def init_build_options(build_options=None, cmdline_options=None):
     # seed in defaults to make sure all build options are defined, and that build_option() doesn't fail on valid keys
     bo = {}
     for build_options_by_default in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER]:
-        for default in build_options_by_default:
+        for default, options in build_options_by_default.items():
             if default == EMPTY_LIST:
-                for opt in build_options_by_default[default]:
+                for opt in options:
                     bo[opt] = []
             else:
-                bo.update(dict([(opt, default) for opt in build_options_by_default[default]]))
+                bo.update({opt: default for opt in options})
     bo.update(active_build_options)
 
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
@@ -613,7 +637,7 @@ def build_option(key, **kwargs):
         error_msg = "Undefined build option: '%s'. " % key
         error_msg += "Make sure you have set up the EasyBuild configuration using set_up_configuration() "
         error_msg += "(from easybuild.tools.options) in case you're not using EasyBuild via the 'eb' CLI."
-        raise EasyBuildError(error_msg)
+        raise EasyBuildError(error_msg, exit_code=EasyBuildExit.OPTION_ERROR)
 
 
 def update_build_option(key, value):
@@ -678,7 +702,10 @@ def install_path(typ=None):
 
     known_types = ['modules', 'software']
     if typ not in known_types:
-        raise EasyBuildError("Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types))
+        raise EasyBuildError(
+            "Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types),
+            exit_code=EasyBuildExit.OPTION_ERROR
+        )
 
     variables = ConfigurationVariables()
 
@@ -731,7 +758,7 @@ def container_path():
 
 def get_modules_tool():
     """
-    Return modules tool (EnvironmentModulesC, Lmod, ...)
+    Return modules tool (EnvironmentModules, Lmod, ...)
     """
     # 'modules_tool' key will only be present if EasyBuild config is initialized
     return ConfigurationVariables().get('modules_tool', None)
@@ -770,7 +797,10 @@ def get_output_style():
             output_style = OUTPUT_STYLE_BASIC
 
     if output_style == OUTPUT_STYLE_RICH and not HAVE_RICH:
-        raise EasyBuildError("Can't use '%s' output style, Rich Python package is not available!", OUTPUT_STYLE_RICH)
+        raise EasyBuildError(
+            "Can't use '%s' output style, Rich Python package is not available!", OUTPUT_STYLE_RICH,
+            exit_code=EasyBuildExit.MISSING_EB_DEPENDENCY
+        )
 
     return output_style
 
@@ -795,8 +825,10 @@ def log_file_format(return_directory=False, ec=None, date=None, timestamp=None):
 
     logfile_format = ConfigurationVariables()['logfile_format']
     if not isinstance(logfile_format, tuple) or len(logfile_format) != 2:
-        raise EasyBuildError("Incorrect log file format specification, should be 2-tuple (<dir>, <filename>): %s",
-                             logfile_format)
+        raise EasyBuildError(
+            "Incorrect log file format specification, should be 2-tuple (<dir>, <filename>): %s", logfile_format,
+            exit_code=EasyBuildExit.OPTION_ERROR
+        )
 
     idx = int(not return_directory)
     res = ConfigurationVariables()['logfile_format'][idx] % {
@@ -903,7 +935,10 @@ def find_last_log(curlog):
         sorted_paths = [p for (_, p) in sorted(paths)]
 
     except OSError as err:
-        raise EasyBuildError("Failed to locate/select/order log files matching '%s': %s", glob_pattern, err)
+        raise EasyBuildError(
+            "Failed to locate/select/order log files matching '%s': %s", glob_pattern, err,
+            exit_code=EasyBuildExit.OPTION_ERROR
+        )
 
     try:
         # log of current session is typically listed last, should be taken into account

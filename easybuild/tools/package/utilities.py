@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2023 Ghent University
+# Copyright 2015-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -58,7 +58,7 @@ def avail_package_naming_schemes():
     They are loaded from the easybuild.package.package_naming_scheme namespace
     """
     import_available_modules('easybuild.tools.package.package_naming_scheme')
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(PackageNamingScheme)])
+    class_dict = {x.__name__: x for x in get_subclasses(PackageNamingScheme)}
     return class_dict
 
 
