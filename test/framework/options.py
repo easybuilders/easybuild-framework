@@ -5282,7 +5282,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         regex = re.compile(r"(?P<cfg_opt>\S*).*%s.*" % self.test_prefix, re.M)
 
-        expected = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'prefix', 'repositorypath']
+        expected = [
+            'buildpath',
+            'containerpath',
+            'errorlogpath',
+            'installpath',
+            'packagepath',
+            'prefix',
+            'repositorypath',
+        ]
         self.assertEqual(sorted(regex.findall(txt)), expected)
 
     def test_dump_env_script(self):

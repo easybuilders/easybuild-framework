@@ -571,6 +571,8 @@ class EasyBuildOptions(GeneralOption):
             'envvars-user-modules': ("List of environment variables that hold the base paths for which user-specific "
                                      "modules will be installed relative to", 'strlist', 'store',
                                      [DEFAULT_ENVVAR_USERS_MODULES]),
+            'errorlogpath': ("Location where logs and artifacts are copied in case of an error",
+                             None, 'store', mk_full_default_path('errorlogpath')),
             'external-modules-metadata': ("List of (glob patterns for) paths to files specifying metadata "
                                           "for external modules (INI format)", 'strlist', 'store', None),
             'hooks': ("Location of Python module with hook implementations", 'str', 'store', None),
@@ -1153,7 +1155,7 @@ class EasyBuildOptions(GeneralOption):
         # - the <path> could also specify the location of a *remote* (Git( repository,
         #   which can be done in variety of formats (git@<url>:<org>/<repo>), https://<url>, etc.)
         #   (see also https://github.com/easybuilders/easybuild-framework/issues/3892);
-        path_opt_names = ['buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
+        path_opt_names = ['buildpath', 'containerpath', 'errorlogpath', 'git_working_dirs_path', 'installpath',
                           'installpath_modules', 'installpath_software', 'prefix', 'packagepath',
                           'robot_paths', 'sourcepath']
 
@@ -1163,8 +1165,8 @@ class EasyBuildOptions(GeneralOption):
         if self.options.prefix is not None:
             # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath in account
             # in the legacy-style configuration, repository is initialised in configuration file itself
-            path_opts = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'repository', 'repositorypath',
-                         'sourcepath']
+            path_opts = ['buildpath', 'containerpath', 'errorlogpath', 'installpath', 'packagepath', 'repository',
+                         'repositorypath', 'sourcepath']
             for dest in path_opts:
                 if not self.options._action_taken.get(dest, False):
                     if dest == 'repository':

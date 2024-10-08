@@ -74,13 +74,13 @@ from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import EASYBUILD_SOURCES_URL # noqa
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
-from easybuild.tools.config import install_path, log_path, package_path, source_paths
+from easybuild.tools.config import install_path, log_path, package_path, source_paths, error_log_path
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
-from easybuild.tools.filetools import compute_checksum, convert_name, copy_file, create_lock, create_patch_info
+from easybuild.tools.filetools import convert_name, copy_file, copy_dir, create_lock, create_patch_info, is_readable
 from easybuild.tools.filetools import derive_alt_pypi_url, diff_files, dir_contains_files, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file
+from easybuild.tools.filetools import encode_class_name, extract_file, compute_checksum
 from easybuild.tools.filetools import find_backup_name_candidate, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file, symlink
@@ -1039,8 +1039,8 @@ class EasyBlock(object):
     #
     # DIRECTORY UTILITY FUNCTIONS
     #
-    def gen_builddir(self):
-        """Generate the (unique) name for the builddir"""
+    def get_relative_builddir_base_path(self):
+        """Generate builddir base name relative to build_path"""
         clean_name = remove_unwanted_chars(self.name)
 
         # if a toolchain version starts with a -, remove the - so prevent a -- in the path name
@@ -1048,7 +1048,14 @@ class EasyBlock(object):
         tcversion = tc['version'].lstrip('-')
         lastdir = "%s%s-%s%s" % (self.cfg['versionprefix'], tc['name'], tcversion, self.cfg['versionsuffix'])
 
-        builddir = os.path.join(os.path.abspath(build_path()), clean_name, self.version, lastdir)
+        relative_builddir = os.path.join(clean_name, self.version, lastdir)
+
+        return relative_builddir
+
+    def gen_builddir(self):
+        """Generate the (unique) name for the builddir"""
+        relative_builddir = self.get_relative_builddir_base_path()
+        builddir = os.path.join(os.path.abspath(build_path()), relative_builddir)
 
         # make sure build dir is unique if cleanupoldbuild is False or not set
         if not self.cfg.get('cleanupoldbuild', False):
@@ -4190,6 +4197,40 @@ def print_dry_run_note(loc, silent=True):
     dry_run_msg(msg, silent=silent)
 
 
+def persists_failed_compilation_log_and_artifacts(build_successful, application_log, silent, app, err_log_path):
+    def do_if_paths_distinct(operation, source, destination):
+        if not os.path.exists(source):
+            return
+        if os.path.realpath(source) == os.path.realpath(destination):
+            return
+        operation(source, destination)
+
+    if application_log:
+        # there may be multiple log files, or the file name may be different due to zipping
+        logs = glob.glob('%s*' % application_log)
+        print_msg(
+            "Results of the build can be found in the temporary log file(s) %s" % ', '.join(logs),
+            log=_log,
+            silent=silent
+        )
+
+        if err_log_path and not build_successful:
+            for log_file in logs:
+                target_file = os.path.join(err_log_path, os.path.basename(log_file))
+                do_if_paths_distinct(copy_file, log_file, target_file)
+
+            builddir = app.builddir
+            if is_readable(builddir):
+                build_artifact_log_path = os.path.join(err_log_path, app.get_relative_builddir_base_path())
+                do_if_paths_distinct(copy_dir, builddir, build_artifact_log_path)
+
+            print_msg(
+                "Build log and any output artifacts copied to permanent storage: %s" % err_log_path,
+                log=_log,
+                silent=silent
+            )
+
+
 def build_and_install_one(ecdict, init_env):
     """
     Build the software
@@ -4448,10 +4489,8 @@ def build_and_install_one(ecdict, init_env):
         else:
             dry_run_msg("(no ignored errors during dry run)\n", silent=silent)
 
-    if application_log:
-        # there may be multiple log files, or the file name may be different due to zipping
-        logs = glob.glob('%s*' % application_log)
-        print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=_log, silent=silent)
+    err_log_path = error_log_path(ec=ecdict['ec'])
+    persists_failed_compilation_log_and_artifacts(success, application_log, silent, app, err_log_path)
 
     del app
 
