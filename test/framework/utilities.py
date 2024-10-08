@@ -49,7 +49,7 @@ from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
 from easybuild.tools import config
-from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes, update_build_option
+from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, mkdir, read_file, which
@@ -106,8 +106,8 @@ class EnhancedTestCase(TestCase):
         os.close(fd)
         self.cwd = os.getcwd()
 
-        # keep track of original environment to restore
-        self.orig_environ = copy.deepcopy(os.environ)
+        # keep track of original environment to restore after tests
+        self._initial_environ = copy.deepcopy(os.environ)
 
         # keep track of original environment/Python search path to restore
         self.orig_sys_path = sys.path[:]
@@ -131,16 +131,18 @@ class EnhancedTestCase(TestCase):
             if eb_path is not None:
                 os.environ['EB_SCRIPT_PATH'] = eb_path
 
+        # disable progress bars when running the tests,
+        # since it messes with test suite progress output when test installations are performed
+        os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
+
+        # Store the environment as setup (including the above paths) for tests to restore
+        self.orig_environ = copy.deepcopy(os.environ)
+
         # make sure no deprecated behaviour is being triggered (unless intended by the test)
         self.orig_current_version = eb_build_log.CURRENT_VERSION
         self.disallow_deprecated_behaviour()
 
         init_config()
-
-        # disable progress bars when running the tests,
-        # since it messes with test suite progress output when test installations are performed
-        os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
-        update_build_option('show_progress_bar', False)
 
         import easybuild
         # try to import easybuild.easyblocks(.generic) packages
