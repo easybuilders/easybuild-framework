@@ -265,6 +265,7 @@ BUILD_OPTIONS_CMDLINE = {
         'rpath_filter',
         'rpath_override_dirs',
         'required_linked_shared_libs',
+        'search_path_cpp_headers',
         'skip',
         'software_commit',
         'stop',

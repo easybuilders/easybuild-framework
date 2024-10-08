@@ -46,6 +46,11 @@ class LinkLibraryPaths(AbsPathList):
     PREFIX = '-L'
 
 
+class SearchPaths(AbsPathList):
+    """Colon-separated list of absolute paths"""
+    SEPARATOR = ':'
+
+
 class FlagList(StrList):
     """Flag list"""
     PREFIX = "-"
