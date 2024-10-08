@@ -2920,7 +2920,7 @@ class FileToolsTest(EnhancedTestCase):
         def run_check():
             """Helper function to run get_source_tarball_from_git & check dry run output"""
             with self.mocked_stdout_stderr():
-                res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+                res = ft.get_source_tarball_from_git('test', target_dir, git_config)
                 stdout = self.get_stdout()
                 stderr = self.get_stderr()
             self.assertEqual(stderr, '')
@@ -2928,7 +2928,7 @@ class FileToolsTest(EnhancedTestCase):
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
             self.assertEqual(os.path.dirname(res), target_dir)
-            self.assertEqual(os.path.basename(res), 'test.tar.gz')
+            self.assertEqual(os.path.basename(res), 'test.tar.xz')
 
         git_config = {
             'repo_name': 'testrepository',
@@ -2941,40 +2941,36 @@ class FileToolsTest(EnhancedTestCase):
         }
 
         expected = '\n'.join([
-            r'  running shell command "git clone --depth 1 --branch tag_for_tests %(git_repo)s"',
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests {git_repo}"',
             r"  \(in .*/tmp.*\)",
-            ft.reproducible_archive_cmd("testrepository", "%(test_prefix)s/target/test.tar.gz"),
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
 
         git_config['clone_into'] = 'test123'
         expected = '\n'.join([
-            r'  running shell command "git clone --depth 1 --branch tag_for_tests %(git_repo)s test123"',
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests {git_repo} test123"',
             r"  \(in .*/tmp.*\)",
-            ft.reproducible_archive_cmd("test123", "%(test_prefix)s/target/test.tar.gz"),
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='test123')
         run_check()
         del git_config['clone_into']
 
         git_config['recursive'] = True
         expected = '\n'.join([
-            r'  running shell command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests --recursive {git_repo}"',
             r"  \(in .*/tmp.*\)",
-            ft.reproducible_archive_cmd("testrepository", "%(test_prefix)s/target/test.tar.gz"),
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
         expected = '\n'.join([
             '  running shell command "git clone --depth 1 --branch tag_for_tests --recursive'
-            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
+            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' {git_repo}"',
             r"  \(in .*/tmp.*\)",
-            ft.reproducible_archive_cmd("testrepository", "%(test_prefix)s/target/test.tar.gz"),
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
 
         git_config['extra_config_params'] = [
@@ -2984,59 +2980,71 @@ class FileToolsTest(EnhancedTestCase):
         expected = '\n'.join([
             '  running shell command "git -c submodule."fastahack".active=false -c submodule."sha1".active=false'
             + ' clone --depth 1 --branch tag_for_tests --recursive'
-            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
+            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' {git_repo}"',
             r"  \(in .*/tmp.*\)",
-            ft.reproducible_archive_cmd("testrepository", "%(test_prefix)s/target/test.tar.gz"),
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
         del git_config['recurse_submodules']
         del git_config['extra_config_params']
 
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
-            r'  running shell command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
+            r'  running shell command "git clone --branch tag_for_tests --recursive {git_repo}"',
             r"  \(in .*/tmp.*\)",
-            r'  running shell command "tar cfvz .*/target/test.tar.gz testrepository"',
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
         del git_config['keep_git_dir']
 
         del git_config['tag']
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
-            r'  running shell command "git clone --no-checkout %(git_repo)s"',
+            r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in .*/tmp.*\)",
             r'  running shell command "git checkout 8456f86 && git submodule update --init --recursive"',
-            r"  \(in testrepository\)",
-            ft.reproducible_archive_cmd("testrepository", "%(test_prefix)s/target/test.tar.gz"),
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r"  \(in .*/testrepository\)",
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
         expected = '\n'.join([
-            r'  running shell command "git clone --no-checkout %(git_repo)s"',
+            r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in .*/tmp.*\)",
-            r'  running shell command "git checkout 8456f86"',
-            r"  \(in testrepository\)",
-            ft.reproducible_archive_cmd("testrepository", "%(test_prefix)s/target/test.tar.gz"),
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r'  running shell command "git checkout 8456f86 && git submodule update --init '
+            r"--recursive --recurse-submodules='!vcflib' --recurse-submodules='!sdsl-lite'\"",
+            r"  \(in .*/testrepository\)",
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
 
         del git_config['recursive']
         del git_config['recurse_submodules']
         expected = '\n'.join([
-            r'  running shell command "git clone --no-checkout %(git_repo)s"',
+            r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in /.*\)",
             r'  running shell command "git checkout 8456f86"',
             r"  \(in /.*/testrepository\)",
-            ft.reproducible_archive_cmd("testrepository", "%(test_prefix)s/target/test.tar.gz"),
-            r"  \(in /.*\)",
-        ]) % string_args
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
+
+        # files with a recognizable extension have those extensions automatically removed with a warning
+        bad_filenames = ['test.tar', 'test.tar.gz', 'test.tar.xz', 'test.zip']
+        # files with arbitrary extensions are taken as is and get extra 'tar.xz' extension appended
+        good_filenames = ['test', 'test-1.2.3', 'test.txt', 'test-1.2.3.txt']
+        for test_filename in bad_filenames + good_filenames:
+            with self.mocked_stdout_stderr():
+                res = ft.get_source_tarball_from_git(test_filename, target_dir, git_config)
+                stderr = self.get_stderr()
+            regex = re.compile("Ignoring extension of filename.*set in git_config parameter")
+            if test_filename in bad_filenames:
+                self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+                self.assertTrue(res.endswith("test.tar.xz"))
+            else:
+                self.assertFalse(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+                self.assertTrue(res.endswith(test_filename + ".tar.xz"))
 
         # Test with real data.
         init_config()
@@ -3047,13 +3055,13 @@ class FileToolsTest(EnhancedTestCase):
         }
 
         try:
-            res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+            res = ft.get_source_tarball_from_git('test', target_dir, git_config)
             # (only) tarball is created in specified target dir
-            test_file = os.path.join(target_dir, 'test.tar.gz')
+            test_file = os.path.join(target_dir, 'test.tar.xz')
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
-            test_tar_gzs = [os.path.basename(test_file)]
-            self.assertEqual(os.listdir(target_dir), ['test.tar.gz'])
+            test_tar_files = [os.path.basename(test_file)]
+            self.assertEqual(os.listdir(target_dir), ['test.tar.xz'])
             # Check that we indeed downloaded the right tag
             extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
             with self.mocked_stdout_stderr():
@@ -3064,7 +3072,7 @@ class FileToolsTest(EnhancedTestCase):
             # use a tag that clashes with a branch name and make sure this is handled correctly
             git_config['tag'] = 'tag_for_tests'
             with self.mocked_stdout_stderr():
-                res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+                res = ft.get_source_tarball_from_git('test', target_dir, git_config)
                 stderr = self.get_stderr()
             self.assertIn('Tag tag_for_tests was not downloaded in the first try', stderr)
             self.assertEqual(res, test_file)
@@ -3077,20 +3085,20 @@ class FileToolsTest(EnhancedTestCase):
 
             del git_config['tag']
             git_config['commit'] = '90366ea'
-            res = ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
-            test_file = os.path.join(target_dir, 'test2.tar.gz')
+            res = ft.get_source_tarball_from_git('test2', target_dir, git_config)
+            test_file = os.path.join(target_dir, 'test2.tar.xz')
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
-            test_tar_gzs.append(os.path.basename(test_file))
-            self.assertEqual(sorted(os.listdir(target_dir)), test_tar_gzs)
+            test_tar_files.append(os.path.basename(test_file))
+            self.assertEqual(sorted(os.listdir(target_dir)), test_tar_files)
 
             git_config['keep_git_dir'] = True
-            res = ft.get_source_tarball_from_git('test3.tar.gz', target_dir, git_config)
-            test_file = os.path.join(target_dir, 'test3.tar.gz')
+            res = ft.get_source_tarball_from_git('test3', target_dir, git_config)
+            test_file = os.path.join(target_dir, 'test3.tar.xz')
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
-            test_tar_gzs.append(os.path.basename(test_file))
-            self.assertEqual(sorted(os.listdir(target_dir)), test_tar_gzs)
+            test_tar_files.append(os.path.basename(test_file))
+            self.assertEqual(sorted(os.listdir(target_dir)), test_tar_files)
 
         except EasyBuildError as err:
             if "Network is down" in str(err):
@@ -3103,7 +3111,7 @@ class FileToolsTest(EnhancedTestCase):
             'url': 'git@github.com:easybuilders',
             'tag': 'tag_for_tests',
         }
-        args = ['test.tar.gz', self.test_prefix, git_config]
+        args = ['test', self.test_prefix, git_config]
 
         for key in ['repo_name', 'url', 'tag']:
             orig_value = git_config.pop(key)
