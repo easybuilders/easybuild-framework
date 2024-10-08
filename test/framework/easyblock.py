@@ -2199,58 +2199,83 @@ class EasyBlockTest(EnhancedTestCase):
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         toytxt = read_file(toy_ec)
 
+        handle, toy_ec_error = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
+        os.close(handle)
+        write_file(toy_ec_error, toytxt + "\nparallel = 123")
+
         handle, toy_ec1 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
-        write_file(toy_ec1, toytxt + "\nparallel = 13")
+        write_file(toy_ec1, toytxt + "\nmaxparallel = None")
 
         handle, toy_ec2 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
-        write_file(toy_ec2, toytxt + "\nparallel = 123\nmaxparallel = 67")
+        write_file(toy_ec2, toytxt + "\nmaxparallel = 6")
 
         handle, toy_ec3 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
-        write_file(toy_ec3, toytxt + "\nparallel = False")
+        write_file(toy_ec3, toytxt + "\nmaxparallel = False")
+
+        import easybuild.tools.systemtools as st
+        auto_parallel = 15
+        st.det_parallelism._default_parallelism = auto_parallel
+
+        # 'parallel' easyconfig parameter specified is an error
+        self.assertRaises(EasyBuildError, EasyConfig, toy_ec_error)
+        self.assertErrorRegex(EasyBuildError, "Easyconfig parameter 'parallel' is replaced by 'maxparallel'",
+                              EasyConfig, toy_ec_error)
 
         # default: parallelism is derived from # available cores + ulimit
+        # Note that maxparallel has a default of 16, so we need a lower auto_paralle value here
         test_eb = EasyBlock(EasyConfig(toy_ec))
         test_eb.check_readiness_step()
-        self.assertTrue(isinstance(test_eb.cfg['parallel'], int) and test_eb.cfg['parallel'] > 0)
+        self.assertEqual(test_eb.cfg.parallel, auto_parallel)
 
-        # only 'parallel' easyconfig parameter specified (no 'parallel' build option)
-        test_eb = EasyBlock(EasyConfig(toy_ec1))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 13)
+        auto_parallel = 128  # Don't limit by available CPU cores mock
+        st.det_parallelism._default_parallelism = auto_parallel
 
-        # both 'parallel' and 'maxparallel' easyconfig parameters specified (no 'parallel' build option)
+        # only 'maxparallel' easyconfig parameter specified (no 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec2))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 67)
+        self.assertEqual(test_eb.cfg.parallel, 6)
 
-        # make sure 'parallel = False' is not overriden (no 'parallel' build option)
+        # make sure 'maxparallel = False' is treated as 1 (no 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec3))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], False)
+        self.assertEqual(test_eb.cfg.parallel, 1)
 
         # only 'parallel' build option specified
-        init_config(build_options={'parallel': '9', 'validate': False})
+        init_config(build_options={'parallel': '13', 'validate': False})
         test_eb = EasyBlock(EasyConfig(toy_ec))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 9)
+        self.assertEqual(test_eb.cfg.parallel, 13)
 
-        # both 'parallel' build option and easyconfig parameter specified (no 'maxparallel')
+        # 'maxparallel = None' is the same as unset
         test_eb = EasyBlock(EasyConfig(toy_ec1))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 9)
+        self.assertEqual(test_eb.cfg.parallel, 13)
 
-        # both 'parallel' and 'maxparallel' easyconfig parameters specified + 'parallel' build option
+        # 'maxparallel' easyconfig parameter with 'parallel' build option
         test_eb = EasyBlock(EasyConfig(toy_ec2))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 9)
+        self.assertEqual(test_eb.cfg.parallel, 6)
 
-        # make sure 'parallel = False' is not overriden (with 'parallel' build option)
+        # make sure 'maxparallel = False' is treated as 1 (with 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec3))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 0)
+        self.assertEqual(test_eb.cfg.parallel, 1)
+
+        # Template updated correctly
+        test_eb.cfg['buildopts'] = '-j %(parallel)s'
+        self.assertEqual(test_eb.cfg['buildopts'], '-j 1')
+        # Might be done in an easyblock step
+        test_eb.cfg.parallel = 42
+        self.assertEqual(test_eb.cfg['buildopts'], '-j 42')
+        # Unaffected by build settings
+        test_eb.cfg.parallel = 421337
+        self.assertEqual(test_eb.cfg['buildopts'], '-j 421337')
+
+        # Reset mocked value
+        del st.det_parallelism._default_parallelism
 
     def test_guess_start_dir(self):
         """Test guessing the start dir."""

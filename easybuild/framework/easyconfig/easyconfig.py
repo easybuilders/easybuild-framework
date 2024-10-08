@@ -127,7 +127,8 @@ def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
             key, ver = DEPRECATED_EASYCONFIG_PARAMETERS[depr_key]
             _log.deprecated("Easyconfig parameter '%s' is deprecated, use '%s' instead" % (depr_key, key), ver)
         elif key in REPLACED_PARAMETERS:
-            _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
+            newkey, ver = REPLACED_PARAMETERS[key]
+            _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, newkey), ver)
         return ec_method(self, key, *args, **kwargs)
 
     return new_ec_method
@@ -498,6 +499,9 @@ class EasyConfig(object):
         # list of all options to iterate over
         self.iterate_options = []
         self.iterating = False
+
+        # Storage for parallel property. Mark as unset initially
+        self._parallel = None
 
         # parse easyconfig file
         self.build_specs = build_specs
@@ -1211,6 +1215,20 @@ class EasyConfig(object):
                 self._all_dependencies.append(self.toolchain.as_dict())
 
         return self._all_dependencies
+
+    @property
+    def parallel(self):
+        """Number of parallel jobs to be used for building etc."""
+        if self._parallel is None:
+            raise EasyBuildError("Parallelism in EasyConfig not set yet. "
+                                 "Need to call the easyblocks set_parallel first.")
+        return self._parallel
+
+    @parallel.setter
+    def parallel(self, value):
+        # Update backstorage and template value
+        self._parallel = value
+        self.template_values['parallel'] = value
 
     def dump(self, fp, always_overwrite=True, backup=False, explicit_toolchains=False):
         """
