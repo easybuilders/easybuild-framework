@@ -1404,18 +1404,20 @@ def find_base_dir():
     return new_dir
 
 
-def find_extension(filename):
+def find_extension(filename, required=True):
     """Find best match for filename extension."""
     # sort by length, so longest file extensions get preference
     suffixes = sorted(EXTRACT_CMDS.keys(), key=len, reverse=True)
     pat = r'(?P<ext>%s)$' % '|'.join([s.replace('.', '\\.') for s in suffixes])
     res = re.search(pat, filename, flags=re.IGNORECASE)
+
     if res:
-        ext = res.group('ext')
-    else:
+        return res.group('ext')
+
+    if required:
         raise EasyBuildError("%s has unknown file extension", filename)
 
-    return ext
+    return None
 
 
 def extract_cmd(filepath, overwrite=False):
@@ -2682,7 +2684,7 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     if not url:
         raise EasyBuildError("url not specified in git_config parameter")
 
-    file_ext = find_extension(filename)
+    file_ext = find_extension(filename, required=False)
     if file_ext:
         print_warning(f"Ignoring extension of filename '{filename}' set in git_config parameter")
         filename = filename[:-len(file_ext)]
