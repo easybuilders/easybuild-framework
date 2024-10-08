@@ -4302,6 +4302,42 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(ebpythonprefixes_regex.search(toy_mod_txt),
                         f"Pattern '{ebpythonprefixes_regex.pattern}' found in: {toy_mod_txt}")
 
+    def test_toy_multiple_ecs_module(self):
+        """
+        Verify whether module file is correct when multiple easyconfigs are being installed.
+        """
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        # modify 'toy' easyconfig so toy-headers subdirectory is created,
+        # which is taken into account by EB_toy easyblock for $CPATH
+        test_toy_ec = os.path.join(self.test_prefix, 'test-toy.eb')
+        toy_ec_txt = read_file(toy_ec)
+        toy_ec_txt += "\npostinstallcmds += ['mkdir %(installdir)s/toy-headers']"
+        toy_ec_txt += "\npostinstallcmds += ['touch %(installdir)s/toy-headers/toy.h']"
+        write_file(test_toy_ec, toy_ec_txt)
+
+        # modify 'toy-app' easyconfig so toy-headers subdirectory is created,
+        # which is consider by EB_toy easyblock for $CPATH,
+        # but should *not* be actually used because software name is not 'toy'
+        toy_app_ec = os.path.join(test_ecs, 't', 'toy-app', 'toy-app-0.0.eb')
+        test_toy_app_ec = os.path.join(self.test_prefix, 'test-toy-app.eb')
+        toy_ec_txt = read_file(toy_app_ec)
+        toy_ec_txt += "\npostinstallcmds += ['mkdir %(installdir)s/toy-headers']"
+        toy_ec_txt += "\npostinstallcmds += ['touch %(installdir)s/toy-headers/toy.h']"
+        write_file(test_toy_app_ec, toy_ec_txt)
+
+        self.run_test_toy_build_with_output(ec_file=test_toy_ec, extra_args=[test_toy_app_ec])
+
+        toy_modtxt = read_file(os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0.lua'))
+        regex = re.compile('prepend[-_]path.*CPATH.*toy-headers', re.M)
+        self.assertTrue(regex.search(toy_modtxt),
+                        f"Pattern '{regex.pattern}' should be found in: {toy_modtxt}")
+
+        toy_app_modtxt = read_file(os.path.join(self.test_installpath, 'modules', 'all', 'toy-app', '0.0.lua'))
+        self.assertFalse(regex.search(toy_app_modtxt),
+                         f"Pattern '{regex.pattern}' should *not* be found in: {toy_app_modtxt}")
+
 
 def suite():
     """ return all the tests in this file """
