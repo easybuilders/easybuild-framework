@@ -2819,6 +2819,11 @@ def make_archive(dir_path, archive_name=None, archive_dir=None, reproducible=Fal
     archive_filename = archive_name + archive_ext
     archive_path = archive_filename if archive_dir is None else os.path.join(archive_dir, archive_filename)
 
+    if build_option('extended_dry_run'):
+        # early return in dry run mode
+        dry_run_msg("Archiving '%s' into '%s'...", dir_path, archive_path)
+        return archive_path
+
     # TODO: replace with TarFile.add(recursive=True) when support for Python 3.6 drops
     # since Python v3.7 tarfile automatically orders the list of files added to the archive
     dir_files = [dir_path]
