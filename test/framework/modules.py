@@ -1588,6 +1588,59 @@ class ModulesTest(EnhancedTestCase):
         res = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'NO_SUCH_VARIABLE_SET')
         self.assertEqual(res, None)
 
+    def test_module_environment_variable(self):
+        """Test for ModuleEnvironmentVariable object"""
+        test_paths = ['lib', 'lib64']
+        mod_envar = mod.ModuleEnvironmentVariable(test_paths)
+        self.assertTrue(hasattr(mod_envar, "paths"))
+        self.assertTrue(hasattr(mod_envar, "top_level_file"))
+        self.assertEqual(mod_envar.paths, test_paths)
+        self.assertEqual(str(mod_envar), "lib:lib64")
+
+        mod_envar.paths = []
+        self.assertEqual(mod_envar.paths, [])
+        self.assertRaises(TypeError, setattr, mod_envar, "paths", None)
+
+        mod_envar.paths = (1, 2, 3)
+        self.assertEqual(mod_envar.paths, ["1", "2", "3"])
+
+        mod_envar.paths = "include"
+        self.assertEqual(mod_envar.paths, ["include"])
+
+        mod_envar.append("share")
+        self.assertEqual(mod_envar.paths, ["include", "share"])
+        mod_envar.extend(test_paths)
+        self.assertEqual(mod_envar.paths, ["include", "share", "lib", "lib64"])
+        mod_envar.prepend("bin")
+        self.assertEqual(mod_envar.paths, ["bin", "include", "share", "lib", "lib64"])
+
+    def test_module_load_environment(self):
+        """Test for ModuleLoadEnvironment object"""
+        test_paths = ['lib', 'lib64']
+        mod_load_env = mod.ModuleLoadEnvironment()
+        mod_load_env.TEST_VAR = test_paths
+        self.assertTrue(hasattr(mod_load_env, "TEST_VAR"))
+        self.assertEqual(mod_load_env.TEST_VAR.paths, test_paths)
+
+        ref_load_env = mod_load_env.__dict__.copy()
+        self.assertCountEqual(list(mod_load_env), ref_load_env.keys())
+        ref_load_env_item_list = [(key, value.paths) for key, value in ref_load_env.items()]
+        self.assertCountEqual(list(mod_load_env.items()), ref_load_env_item_list)
+        ref_load_env_environ = {key: value.paths for key, value in ref_load_env.items()}
+        self.assertDictEqual(mod_load_env.environ, ref_load_env_environ)
+
+        mod_load_env.test_lower = test_paths
+        self.assertTrue(hasattr(mod_load_env, "TEST_LOWER"))
+        self.assertEqual(mod_load_env.TEST_LOWER.paths, test_paths)
+        mod_load_env.TEST_STR = "some/path"
+        self.assertTrue(hasattr(mod_load_env, "TEST_STR"))
+        self.assertEqual(mod_load_env.TEST_STR.paths, ["some/path"])
+        mod_load_env.TEST_EXTRA = (test_paths, {"top_level_file": True})
+        self.assertTrue(hasattr(mod_load_env, "TEST_EXTRA"))
+        self.assertEqual(mod_load_env.TEST_EXTRA.paths, test_paths)
+        self.assertEqual(mod_load_env.TEST_EXTRA.top_level_file, True)
+        self.assertRaises(TypeError, setattr, mod_load_env, "TEST_UNKNONW", (test_paths, {"unkown_param": True}))
+
 
 def suite():
     """ returns all the testcases in this module """

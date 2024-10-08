@@ -54,6 +54,7 @@ import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from enum import Enum
 from textwrap import indent
 
 import easybuild.tools.environment as env
@@ -74,6 +75,7 @@ from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg
 from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES, PYTHONPATH, EBPYTHONPREFIXES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
+from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.config import EASYBUILD_SOURCES_URL # noqa
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
@@ -95,7 +97,8 @@ from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import Lmod, curr_module_paths, invalidate_module_caches_for, get_software_root
+from easybuild.tools.modules import Lmod, ModuleLoadEnvironment
+from easybuild.tools.modules import curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
 from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_progress_bar, update_progress_bar
@@ -107,7 +110,7 @@ from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
-DEFAULT_BIN_LIB_SUBDIRS = ('bin', 'lib', 'lib64')
+DEFAULT_BIN_LIB_SUBDIRS = SEARCH_PATH_BIN_DIRS + SEARCH_PATH_LIB_DIRS
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, POSTITER_STEP, SANITYCHECK_STEP]
 
@@ -118,6 +121,11 @@ PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 REPROD = 'reprod'
 
 _log = fancylogger.getLogger('easyblock')
+
+
+class LibSymlink(Enum):
+    """Possible states for symlinking of library directories"""
+    NONE, LIB, LIB64, NEITHER = range(0, 4)
 
 
 class EasyBlock(object):
@@ -201,8 +209,14 @@ class EasyBlock(object):
         if modules_header_path is not None:
             self.modules_header = read_file(modules_header_path)
 
+        # environment variables on module load
+        self.module_load_environment = ModuleLoadEnvironment()
+
         # determine install subdirectory, based on module name
         self.install_subdir = None
+
+        # track status of symlink between library directories
+        self.install_lib_symlink = LibSymlink.NONE
 
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']
@@ -1605,108 +1619,113 @@ class EasyBlock(object):
 
         return txt
 
-    def make_module_req(self):
+    def make_module_req(self, fake=False):
         """
-        Generate the environment-variables to run the module.
+        Generate the environment-variables required to run the module.
+        Fake modules can set search paths to empty directories.
         """
-        requirements = self.make_module_req_guess()
-
-        lines = ['\n']
-        if os.path.isdir(self.installdir):
-            old_dir = change_dir(self.installdir)
-        else:
-            old_dir = None
+        mod_lines = ['\n']
 
         if self.dry_run:
             self.dry_run_msg("List of paths that would be searched and added to module file:\n")
             note = "note: glob patterns are not expanded and existence checks "
             note += "for paths are skipped for the statements below due to dry run"
-            lines.append(self.module_generator.comment(note))
+            mod_lines.append(self.module_generator.comment(note))
 
-        # For these environment variables, the corresponding directory must include at least one file.
-        # The values determine if detection is done recursively, i.e. if it accepts directories where files
-        # are only in subdirectories.
-        keys_requiring_files = {
-            'PATH': False,
-            'LD_LIBRARY_PATH': False,
-            'LIBRARY_PATH': True,
-            'CPATH': True,
-            'CMAKE_PREFIX_PATH': True,
-            'CMAKE_LIBRARY_PATH': True,
-        }
+        # prefer deprecated make_module_req_guess on custom easyblocks
+        if self.make_module_req_guess.__qualname__ == "EasyBlock.make_module_req_guess":
+            # No custom method in child Easyblock, deprecated method is defined by base EasyBlock class
+            env_var_requirements = self.module_load_environment.environ
+        else:
+            # Custom deprecated method used by child EasyBlock
+            self.log.devel(
+                "make_module_req_guess() is deprecated, use module_load_environment object instead.",
+                "6.0",
+            )
+            env_var_requirements = self.make_module_req_guess()
+            # backward compatibility: manually convert paths defined as string to lists
+            env_var_requirements.update({
+                envar: [path] for envar, path in env_var_requirements.items() if isinstance(path, str)
+            })
 
-        for key, reqs in sorted(requirements.items()):
-            if isinstance(reqs, str):
-                self.log.warning("Hoisting string value %s into a list before iterating over it", reqs)
-                reqs = [reqs]
+        for env_var, search_paths in sorted(env_var_requirements.items()):
             if self.dry_run:
-                self.dry_run_msg(" $%s: %s" % (key, ', '.join(reqs)))
-                # Don't expand globs or do any filtering below for dry run
-                paths = reqs
+                self.dry_run_msg(f" ${env_var}:{', '.join(search_paths)}")
+                # Don't expand globs or do any filtering for dry run
+                mod_req_paths = search_paths
             else:
-                # Expand globs but only if the string is non-empty
-                # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
-                paths = sum((glob.glob(path) if path else [path] for path in reqs), [])  # sum flattens to list
+                mod_req_paths = []
+                top_level = getattr(self.module_load_environment, env_var).top_level_file
+                for path in search_paths:
+                    mod_req_paths.extend(self._expand_module_search_path(path, top_level, fake=fake))
 
-                # If lib64 is just a symlink to lib we fixup the paths to avoid duplicates
-                lib64_is_symlink = (all(os.path.isdir(path) for path in ['lib', 'lib64']) and
-                                    os.path.samefile('lib', 'lib64'))
-                if lib64_is_symlink:
-                    fixed_paths = []
-                    for path in paths:
-                        if (path + os.path.sep).startswith('lib64' + os.path.sep):
-                            # We only need CMAKE_LIBRARY_PATH if there is a separate lib64 path, so skip symlink
-                            if key == 'CMAKE_LIBRARY_PATH':
-                                continue
-                            path = path.replace('lib64', 'lib', 1)
-                        fixed_paths.append(path)
-                    if fixed_paths != paths:
-                        self.log.info("Fixed symlink lib64 in paths for %s: %s -> %s", key, paths, fixed_paths)
-                        paths = fixed_paths
-                # remove duplicate paths preserving order
-                paths = nub(paths)
-                if key in keys_requiring_files:
-                    # only retain paths that contain at least one file
-                    recursive = keys_requiring_files[key]
-                    retained_paths = []
-                    for pth in paths:
-                        fullpath = os.path.join(self.installdir, pth)
-                        if os.path.isdir(fullpath) and dir_contains_files(fullpath, recursive=recursive):
-                            retained_paths.append(pth)
-                    if retained_paths != paths:
-                        self.log.info("Only retaining paths for %s that contain at least one file: %s -> %s",
-                                      key, paths, retained_paths)
-                        paths = retained_paths
+            if mod_req_paths:
+                mod_req_paths = nub(mod_req_paths)  # remove duplicates
+                mod_lines.append(self.module_generator.prepend_paths(env_var, mod_req_paths))
 
-            if paths:
-                lines.append(self.module_generator.prepend_paths(key, paths))
         if self.dry_run:
             self.dry_run_msg('')
 
-        if old_dir is not None:
-            change_dir(old_dir)
+        return "".join(mod_lines)
 
-        return ''.join(lines)
+    def _expand_module_search_path(self, search_path, top_level, fake=False):
+        """
+        Expand given path glob and return list of suitable paths to be used as search paths:
+            - Paths are relative to installation prefix root
+            - Paths to files must exist and directories be non-empty
+            - Fake modules can set search paths to empty directories
+            - Search paths to a 'lib64' symlinked to 'lib' are discarded to avoid duplicates
+        """
+        # Expand globs but only if the string is non-empty
+        # empty string is a valid value here (i.e. to prepend the installation prefix root directory)
+        abs_glob = os.path.join(self.installdir, search_path)
+        exp_search_paths = [abs_glob] if search_path == "" else glob.glob(abs_glob)
+
+        # Explicitly check symlink state between lib dirs if it is still undefined (e.g. --module-only)
+        if self.install_lib_symlink == LibSymlink.NONE:
+            self.check_install_lib_symlink()
+
+        retained_search_paths = []
+        for abs_path in exp_search_paths:
+            # return relative paths
+            tentative_path = os.path.relpath(abs_path, start=self.installdir)
+            tentative_path = "" if tentative_path == "." else tentative_path  # use empty string instead of dot
+
+            # avoid duplicate entries between symlinked library dirs
+            tentative_sep = tentative_path + os.path.sep
+            if self.install_lib_symlink == LibSymlink.LIB64 and tentative_sep.startswith("lib64" + os.path.sep):
+                self.log.debug("Discarded search path to symlinked lib64 directory: %s", tentative_path)
+                break
+            if self.install_lib_symlink == LibSymlink.LIB and tentative_sep.startswith("lib" + os.path.sep):
+                self.log.debug("Discarded search path to symlinked lib directory: %s", tentative_path)
+                break
+
+            # only retain paths to directories that contain at least one file
+            if os.path.isdir(abs_path) and not dir_contains_files(abs_path, recursive=not top_level) and not fake:
+                self.log.debug("Discarded search path to empty directory: %s", tentative_path)
+                break
+
+            retained_search_paths.append(tentative_path)
+
+        return retained_search_paths
+
+    def check_install_lib_symlink(self):
+        """Check symlink state between library directories in installation prefix"""
+        lib_dir = os.path.join(self.installdir, 'lib')
+        lib64_dir = os.path.join(self.installdir, 'lib64')
+        if os.path.exists(lib_dir) and os.path.exists(lib64_dir):
+            self.install_lib_symlink = LibSymlink.NEITHER
+            if os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
+                self.install_lib_symlink = LibSymlink.LIB
+            elif os.path.islink(lib64_dir) and os.path.samefile(lib_dir, lib64_dir):
+                self.install_lib_symlink = LibSymlink.LIB64
 
     def make_module_req_guess(self):
         """
-        A dictionary of possible directories to look for.
+        A dictionary of common search path variables to be loaded by environment modules
+        Each key contains the list of known directories related to the search path
         """
-        lib_paths = ['lib', 'lib32', 'lib64']
-        return {
-            'PATH': ['bin', 'sbin'],
-            'LD_LIBRARY_PATH': lib_paths,
-            'LIBRARY_PATH': lib_paths,
-            'CPATH': ['include'],
-            'MANPATH': ['man', os.path.join('share', 'man')],
-            'PKG_CONFIG_PATH': [os.path.join(x, 'pkgconfig') for x in lib_paths + ['share']],
-            'ACLOCAL_PATH': [os.path.join('share', 'aclocal')],
-            'CLASSPATH': ['*.jar'],
-            'XDG_DATA_DIRS': ['share'],
-            'GI_TYPELIB_PATH': [os.path.join(x, 'girepository-*') for x in lib_paths],
-            'CMAKE_PREFIX_PATH': [''],
-            'CMAKE_LIBRARY_PATH': ['lib64'],  # lib and lib32 are searched through the above
-        }
+        return self.module_load_environment.environ
 
     def load_module(self, mod_paths=None, purge=True, extra_modules=None, verbose=True):
         """
@@ -3109,18 +3128,19 @@ class EasyBlock(object):
         # However for each <dir> in $LIBRARY_PATH (where <dir> is often <prefix>/lib) it searches <dir>/../lib64 first.
         # So we create <prefix>/lib64 as a symlink to <prefix>/lib to make it prefer EB installed libraries.
         # See https://github.com/easybuilders/easybuild-easyconfigs/issues/5776
-        if build_option('lib64_lib_symlink'):
-            if os.path.exists(lib_dir) and not os.path.exists(lib64_dir):
-                # create *relative* 'lib64' symlink to 'lib';
-                # see https://github.com/easybuilders/easybuild-framework/issues/3564
-                symlink('lib', lib64_dir, use_abspath_source=False)
+        if build_option('lib64_lib_symlink') and os.path.exists(lib_dir) and not os.path.exists(lib64_dir):
+            # create *relative* 'lib64' symlink to 'lib';
+            # see https://github.com/easybuilders/easybuild-framework/issues/3564
+            symlink('lib', lib64_dir, use_abspath_source=False)
 
         # symlink lib to lib64, which is helpful on OpenSUSE;
         # see https://github.com/easybuilders/easybuild-framework/issues/3549
-        if build_option('lib_lib64_symlink'):
-            if os.path.exists(lib64_dir) and not os.path.exists(lib_dir):
-                # create *relative* 'lib' symlink to 'lib64';
-                symlink('lib64', lib_dir, use_abspath_source=False)
+        if build_option('lib_lib64_symlink') and os.path.exists(lib64_dir) and not os.path.exists(lib_dir):
+            # create *relative* 'lib' symlink to 'lib64';
+            symlink('lib64', lib_dir, use_abspath_source=False)
+
+        # refresh symlink state
+        self.check_install_lib_symlink()
 
         self.run_post_install_commands()
         self.apply_post_install_patches()
@@ -3845,7 +3865,7 @@ class EasyBlock(object):
             txt += self.make_module_deppaths()
             txt += self.make_module_dep()
             txt += self.make_module_extend_modpath()
-            txt += self.make_module_req()
+            txt += self.make_module_req(fake=fake)
             txt += self.make_module_extra()
             txt += self.make_module_footer()
 

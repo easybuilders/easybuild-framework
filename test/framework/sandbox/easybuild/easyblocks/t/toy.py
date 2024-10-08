@@ -192,3 +192,10 @@ class EB_toy(ExtensionEasyBlock):
         txt = super(EB_toy, self).make_module_extra()
         txt += self.module_generator.set_environment('TOY', os.getenv('TOY', '<TOY_env_var_not_defined>'))
         return txt
+
+    def make_module_req_guess(self):
+        """Extra paths for environment variables to consider"""
+        guesses = super(EB_toy, self).make_module_req_guess()
+        if self.name == 'toy':
+            guesses['CPATH'].append('toy-headers')
+        return guesses

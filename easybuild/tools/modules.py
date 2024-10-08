@@ -43,11 +43,13 @@ import re
 import shlex
 
 from easybuild.base import fancylogger
+from easybuild.base.wrapper import create_base_metaclass
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning
 from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
-from easybuild.tools.config import build_option, get_modules_tool, install_path
+from easybuild.tools.config import Singleton, build_option, get_modules_tool, install_path
+from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_HEADER_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
 from easybuild.tools.filetools import convert_name, mkdir, normalize_path, path_matches, read_file, which, write_file
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
@@ -129,6 +131,116 @@ MODULE_VERSION_CACHE = {}
 
 
 _log = fancylogger.getLogger('modules', fname=False)
+
+
+class ModuleEnvironmentVariable:
+    """Environment variable data structure for modules"""
+    def __init__(self, paths, top_level_file=False):
+        self.paths = paths
+        self.top_level_file = bool(top_level_file)
+
+    def __str__(self):
+        return ":".join(self.paths)
+
+    @property
+    def paths(self):
+        return self._paths
+
+    @paths.setter
+    def paths(self, value):
+        """Enforce that paths is a list of strings"""
+        if isinstance(value, str):
+            value = [value]
+        try:
+            self._paths = [str(path) for path in value]
+        except TypeError:
+            raise TypeError("ModuleEnvironmentVariable.paths must be a list of strings") from None
+
+    def append(self, *args):
+        """Shortcut to append to list of paths"""
+        self.paths.append(*args)
+
+    def extend(self, *args):
+        """Shortcut to extend list of paths"""
+        self.paths.extend(*args)
+
+    def prepend(self, item):
+        """Shortcut to append to list of paths"""
+        self.paths.insert(0, item)
+
+
+# singleton metaclass: only one instance is created
+BaseModuleEnvironment = create_base_metaclass('BaseModuleEnvironment', Singleton, object)
+
+
+class ModuleLoadEnvironment(BaseModuleEnvironment):
+    """Environment set by modules on load"""
+
+    def __init__(self):
+        """
+        Initialize default environment definition
+        Paths are relative to root of installation directory
+        """
+
+        self.PATH = (
+            SEARCH_PATH_BIN_DIRS + ['sbin'],
+            {"top_level_file": True},
+        )
+        self.LD_LIBRARY_PATH = (
+            SEARCH_PATH_LIB_DIRS,
+            {"top_level_file": True},
+        )
+        self.LIBRARY_PATH = SEARCH_PATH_LIB_DIRS
+        self.CPATH = SEARCH_PATH_HEADER_DIRS
+        self.MANPATH = ['man', os.path.join('share', 'man')]
+        self.PKG_CONFIG_PATH = [os.path.join(x, 'pkgconfig') for x in SEARCH_PATH_LIB_DIRS + ['share']]
+        self.ACLOCAL_PATH = [os.path.join('share', 'aclocal')]
+        self.CLASSPATH = ['*.jar']
+        self.XDG_DATA_DIRS = ['share']
+        self.GI_TYPELIB_PATH = [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS]
+        self.CMAKE_PREFIX_PATH = ['']
+        # only needed for installations whith standalone lib64
+        self.CMAKE_LIBRARY_PATH = ['lib64']
+
+    def __setattr__(self, name, value):
+        """
+        Specific restrictions for ModuleLoadEnvironment attributes:
+        - attribute names are uppercase
+        - attributes are instances of ModuleEnvironmentVariable
+        """
+        try:
+            (paths, kwargs) = value
+        except ValueError:
+            paths, kwargs = value, {}
+        else:
+            if not isinstance(kwargs, dict):
+                paths, kwargs = value, {}
+
+        return super().__setattr__(name.upper(), ModuleEnvironmentVariable(paths, **kwargs))
+
+    def __iter__(self):
+        """Make the class iterable"""
+        yield from self.__dict__
+
+    def items(self):
+        """
+        Return key-value pairs for each attribute that is a ModuleEnvironmentVariable
+        - key = attribute name
+        - value = its "paths" attribute
+        """
+        for attr in self.__dict__:
+            yield attr, getattr(self, attr).paths
+
+    @property
+    def environ(self):
+        """
+        Return dict with mapping of ModuleEnvironmentVariables names with their paths
+        Equivalent in shape to os.environ
+        """
+        mapping = {}
+        for envar_name, envar_paths in self.items():
+            mapping.update({envar_name: envar_paths})
+        return mapping
 
 
 class ModulesTool(object):

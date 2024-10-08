@@ -40,7 +40,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.base import fancylogger
-from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
+from easybuild.framework.easyblock import LibSymlink, EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
@@ -433,12 +433,15 @@ class EasyBlockTest(EnhancedTestCase):
 
         # create fake directories and files that should be guessed
         os.makedirs(eb.installdir)
-        write_file(os.path.join(eb.installdir, 'foo.jar'), 'foo.jar')
-        write_file(os.path.join(eb.installdir, 'bla.jar'), 'bla.jar')
         for path in ('bin', ('bin', 'testdir'), 'sbin', 'share', ('share', 'man'), 'lib', 'lib64'):
             if isinstance(path, str):
                 path = (path, )
             os.mkdir(os.path.join(eb.installdir, *path))
+        eb.install_lib_symlink = LibSymlink.NEITHER
+
+        write_file(os.path.join(eb.installdir, 'foo.jar'), 'foo.jar')
+        write_file(os.path.join(eb.installdir, 'bla.jar'), 'bla.jar')
+        write_file(os.path.join(eb.installdir, 'share', 'man', 'pi'), 'Man page')
         # this is not a path that should be picked up
         os.mkdir(os.path.join(eb.installdir, 'CPATH'))
 
@@ -500,6 +503,7 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'test')
         shutil.rmtree(os.path.join(eb.installdir, 'lib64'))
         os.symlink('lib', os.path.join(eb.installdir, 'lib64'))
+        eb.install_lib_symlink = LibSymlink.LIB64
         with eb.module_generator.start_module_creation():
             guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
