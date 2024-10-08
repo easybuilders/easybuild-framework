@@ -3124,10 +3124,33 @@ class FileToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
         del git_config['unknown']
 
-        args[0] = 'test.txt'
-        error_pattern = "git_config currently only supports filename ending in .tar.gz"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
-        args[0] = 'test.tar.gz'
+    def test_make_archive(self):
+        """Test for make_archive method"""
+        # create fake directories and files to be archived
+        tmpdir = tempfile.mkdtemp()
+        tardir = os.path.join(tmpdir, "test_archive")
+        os.mkdir(tardir)
+        for path in ('bin', 'lib', 'include'):
+            os.mkdir(os.path.join(tardir, path))
+        ft.write_file(os.path.join(tardir, 'README'), 'Dummy readme')
+        ft.write_file(os.path.join(tardir, 'bin', 'executable'), 'Dummy binary')
+        ft.write_file(os.path.join(tardir, 'lib', 'lib.so'), 'Dummy library')
+        ft.write_file(os.path.join(tardir, 'include', 'header.h'), 'Dummy header')
+
+        reference_checksum = "ec0f91a462c2743b19b428f4c177d7109d2ccc018dcdedc12570d9d735d6fb1b"
+
+        test_tar = ft.make_archive(tardir, reproducible=False)
+        self.assertEqual(test_tar, "test_archive.tar.xz")
+        self.assertNotEqual(ft.compute_checksum(test_tar, checksum_type="sha256"), reference_checksum)
+        test_tar = ft.make_archive(tardir, reproducible=True)
+        self.assertEqual(test_tar, "test_archive.tar.xz")
+        self.assertEqual(ft.compute_checksum(test_tar, checksum_type="sha256"), reference_checksum)
+        test_tar = ft.make_archive(tardir, archive_name="custom_name", reproducible=True)
+        self.assertEqual(test_tar, "custom_name.tar.xz")
+        self.assertEqual(ft.compute_checksum(test_tar, checksum_type="sha256"), reference_checksum)
+        test_tar = ft.make_archive(tardir, archive_name="custom_name", archive_dir=tmpdir, reproducible=True)
+        self.assertEqual(test_tar, os.path.join(tmpdir, "custom_name.tar.xz"))
+        self.assertEqual(ft.compute_checksum(test_tar, checksum_type="sha256"), reference_checksum)
 
     def test_is_sha256_checksum(self):
         """Test for is_sha256_checksum function."""
