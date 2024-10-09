@@ -2122,8 +2122,10 @@ class EasyBlock(object):
                     # to avoid getting stuck in an infinite loop!
                     missing_deps = [x for x in required_deps if x not in all_ext_names]
                     if missing_deps:
-                        raise EasyBuildError("Missing required dependencies for %s are not going to be installed: %s",
-                                             ext.name, ', '.join(missing_deps))
+                        msg = f"Missing required extensions for {ext.name} not found "
+                        msg += "in list of extensions being installed, let's assume they are provided by "
+                        msg += "by dependencies and proceed: " + ', '.join(missing_deps)
+                        self.log.info(msg)
                     else:
                         self.log.info("Required dependencies missing for extension %s (%s), adding it back to queue...",
                                       ext.name, ', '.join(pending_deps))
