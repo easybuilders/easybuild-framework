@@ -1434,18 +1434,18 @@ class EasyConfigTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         ec = EasyConfig(test_ec)
-        expected = '--with-rpath=yes' if get_os_name() == 'Linux' else '--with-rpath=no'
+        expected = '--with-rpath=true' if get_os_name() == 'Linux' else '--with-rpath=false'
         self.assertEqual(ec['configopts'], expected)
 
         # force True
         update_build_option('rpath', True)
         ec = EasyConfig(test_ec)
-        self.assertEqual(ec['configopts'], "--with-rpath=yes")
+        self.assertEqual(ec['configopts'], "--with-rpath=true")
 
         # force False
         update_build_option('rpath', False)
         ec = EasyConfig(test_ec)
-        self.assertEqual(ec['configopts'], "--with-rpath=no")
+        self.assertEqual(ec['configopts'], "--with-rpath=false")
 
     def test_sysroot_template(self):
         """Test the %(sysroot)s template"""
@@ -3389,7 +3389,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         arch_regex = re.compile('^[a-z0-9_]+$')
 
-        rpath = 'yes' if get_os_name() == 'Linux' else 'no'
+        rpath = 'true' if get_os_name() == 'Linux' else 'false'
 
         expected = {
             'bitbucket_account': 'gzip',
