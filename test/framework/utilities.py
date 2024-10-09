@@ -419,6 +419,10 @@ class EnhancedTestCase(TestCase):
                 sys.stdout.write(line)
 
 
+if sys.version_info[0] < 3 or sys.version_info[1] < 1:
+    EnhancedTestCase.assertRegex = EnhancedTestCase.assertRegexpMatches
+
+
 class TestLoaderFiltered(unittest.TestLoader):
     """Test load that supports filtering of tests based on name."""
 

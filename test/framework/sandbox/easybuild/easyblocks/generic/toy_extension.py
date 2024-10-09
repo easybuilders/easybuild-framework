@@ -99,6 +99,15 @@ class Toy_Extension(ExtensionEasyBlock):
 
         EB_toy.install_step(self.master, name=self.name)
 
+    def make_extension_module_extra(self):
+        """Extra stuff for toy extensions"""
+        txt = super(Toy_Extension, self).make_extension_module_extra()
+        value = self.name
+        if self.version:
+            value += '-' + self.version
+        txt += self.module_generator.set_environment('TOY_EXT_VAR', value)
+        return txt
+
     def sanity_check_step(self, *args, **kwargs):
         """Custom sanity check for toy extensions."""
         self.log.info("Loaded modules: %s", self.modules_tool.list())

@@ -475,6 +475,7 @@ class EasyConfigTest(EnhancedTestCase):
             homepage = "http://example.com"
             description = "test easyconfig"
             toolchain = SYSTEM
+            exts_defaultclass = "DummyExtension"
             exts_default_options = {
                 "source_tmpl": "gzip-1.4.eb", # dummy source template to avoid download fail
                 "source_urls": ["http://example.com/%(name)s/%(version)s"]

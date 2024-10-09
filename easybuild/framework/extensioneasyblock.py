@@ -217,6 +217,6 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         """Add custom entries to module."""
 
         txt = EasyBlock.make_module_extra(self)
-        if extra is not None:
+        if extra:
             txt += extra
         return txt
