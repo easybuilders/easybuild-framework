@@ -59,7 +59,6 @@ TEMPLATE_NAMES_CONFIG = [
     'bitbucket_account',
     'github_account',
     'name',
-    'parallel',
     'version',
     'versionsuffix',
     'versionprefix',
@@ -106,7 +105,7 @@ TEMPLATE_NAMES_DYNAMIC = {
     'software_commit': "Git commit id to use for the software as specified by --software-commit command line option",
     'sysroot': "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
                "as specify by the --sysroot configuration option",
-
+    'parallel': "Degree of parallelism for e.g. make",
 }
 
 # constant templates that can be used in easyconfigs

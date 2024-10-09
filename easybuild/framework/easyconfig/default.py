@@ -110,8 +110,6 @@ DEFAULT_CONFIG = {
     'installopts': ['', 'Extra options for installation', BUILD],
     'maxparallel': [16, 'Max degree of parallelism', BUILD],
     'module_only': [False, 'Only generate module file', BUILD],
-    'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
-                        'cores, active cpuset and restrictions in ulimit)'), BUILD],
     'patches': [[], "List of patches to apply", BUILD],
     'prebuildopts': ['', 'Extra options pre-passed to build command.', BUILD],
     'preconfigopts': ['', 'Extra options pre-passed to configure.', BUILD],
