@@ -101,7 +101,7 @@ TEMPLATE_NAMES_DYNAMIC = [
     ('cuda_sm_space_sep', "Space-separated list of sm_* values that correspond with CUDA compute capabilities"),
     ('mpi_cmd_prefix', "Prefix command for running MPI programs (with default number of ranks)"),
     # can't be a boolean (True/False), must be a string value since it's a string template
-    ('rpath', "String value indicating whether or not RPATH linking is used ('true' or 'false')"),
+    ('rpath_enabled', "String value indicating whether or not RPATH linking is used ('true' or 'false')"),
     ('software_commit', "Git commit id to use for the software as specified by --software-commit command line option"),
     ('sysroot', "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
      "as specified by the --sysroot configuration option"),
@@ -211,7 +211,7 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
     template_values['arch'] = platform.uname()[4]
 
     # set 'rpath' template based on 'rpath' configuration option, using empty string as fallback
-    template_values['rpath'] = 'true' if build_option('rpath') else 'false'
+    template_values['rpath_enabled'] = 'true' if build_option('rpath') else 'false'
 
     # set 'sysroot' template based on 'sysroot' configuration option, using empty string as fallback
     template_values['sysroot'] = build_option('sysroot') or ''

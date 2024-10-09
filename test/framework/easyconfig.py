@@ -1430,7 +1430,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = read_file(toy_ec)
-        test_ec_txt += "configopts = '--with-rpath=%(rpath)s'"
+        test_ec_txt += "configopts = '--with-rpath=%(rpath_enabled)s'"
         write_file(test_ec, test_ec_txt)
 
         ec = EasyConfig(test_ec)
@@ -3400,7 +3400,7 @@ class EasyConfigTest(EnhancedTestCase):
             'nameletter': 'g',
             'nameletterlower': 'g',
             'parallel': None,
-            'rpath': rpath,
+            'rpath_enabled': rpath,
             'software_commit': '',
             'sysroot': '',
             'toolchain_name': 'foss',
@@ -3484,7 +3484,7 @@ class EasyConfigTest(EnhancedTestCase):
             'pyminver': '7',
             'pyshortver': '3.7',
             'pyver': '3.7.2',
-            'rpath': rpath,
+            'rpath_enabled': rpath,
             'software_commit': '',
             'sysroot': '',
             'version': '0.01',
@@ -3551,7 +3551,7 @@ class EasyConfigTest(EnhancedTestCase):
             'namelower': 'foo',
             'nameletter': 'f',
             'nameletterlower': 'f',
-            'rpath': rpath,
+            'rpath_enabled': rpath,
             'software_commit': '',
             'sysroot': '',
             'version': '1.2.3',
