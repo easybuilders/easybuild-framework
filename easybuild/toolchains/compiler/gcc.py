@@ -96,6 +96,7 @@ class Gcc(Compiler):
         (systemtools.POWER, systemtools.POWER_LE): 'mcpu=native',
         (systemtools.X86_64, systemtools.AMD): 'march=native',  # implies -mtune=native
         (systemtools.X86_64, systemtools.INTEL): 'march=native',  # implies -mtune=native
+        (systemtools.RISCV64, systemtools.SIFIVE): 'march=rv64gc mtune=sifive-7-series',  # flags specified in archspec
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
