@@ -173,6 +173,14 @@ class EasyBlock:
 
         return extra
 
+    @staticmethod
+    def src_parameter_names():
+        """
+        Return list of EasyConfig parameter that contribute to the sources in the `src` member
+        (or equivalently to the `sources` parameter of a parsed EasyConfig)
+        """
+        return ['sources']
+
     #
     # INIT
     #
@@ -5604,7 +5612,7 @@ def inject_checksums(ecs, checksum_type):
             placeholder = '# PLACEHOLDER FOR SOURCES/PATCHES WITH CHECKSUMS'
 
             # grab raw lines for the following params
-            keys = ['data_sources', 'patches', 'source_urls', 'sources', 'crates']
+            keys = ['data_sources', 'source_urls'] + app.src_parameter_names() + ['patches']
             raw = {}
             for key in keys:
                 regex = re.compile(r'^(%s(?:.|\n)*?\])\s*$' % key, re.M)
