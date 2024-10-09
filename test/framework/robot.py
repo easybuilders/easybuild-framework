@@ -1139,7 +1139,8 @@ class RobotTest(EnhancedTestCase):
 
         # Tweak the toolchain version of the easyconfig
         tweak_specs = {'toolchain_version': '6.4.0-2.28'}
-        easyconfigs = tweak(easyconfigs, tweak_specs, self.modtool, targetdirs=tweaked_ecs_paths)
+        easyconfigs, tweak_map = tweak(easyconfigs, tweak_specs, self.modtool, targetdirs=tweaked_ecs_paths,
+                                       return_map=True)
 
         # Check that all expected tweaked easyconfigs exists
         tweaked_openmpi = os.path.join(tweaked_ecs_paths[0], 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
@@ -1155,6 +1156,10 @@ class RobotTest(EnhancedTestCase):
         # Check it picks up the untweaked dependency of the tweaked OpenMPI
         untweaked_hwloc = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb')
         self.assertIn(untweaked_hwloc, specs)
+        # Check correctness of tweak_map (maps back to the original untweaked file, even for hwloc, where the
+        # tweaked version is generated but not used)
+        self.assertEqual(tweak_map, {tweaked_openmpi: untweaked_openmpi,
+                                     tweaked_hwloc: untweaked_hwloc.replace("6.4.0-2.28", "4.6.4")})
 
     def test_robot_find_subtoolchain_for_dep(self):
         """Test robot_find_subtoolchain_for_dep."""
