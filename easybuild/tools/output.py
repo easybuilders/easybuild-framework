@@ -74,9 +74,9 @@ def colorize(txt, color):
     """
     if color in KNOWN_COLORS:
         if use_rich():
-            coltxt = '[bold %s]%s[/bold %s]' % (color, txt, color)
-        else:
             coltxt = KNOWN_COLORS[color] + txt + COLOR_END
+        else:
+            coltxt = '[bold %s]%s[/bold %s]' % (color, txt, color)
     else:
         raise EasyBuildError("Unknown color: %s", color)
 
