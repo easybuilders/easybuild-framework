@@ -247,6 +247,10 @@ class Extension(object):
         """
         return self.master.toolchain
 
+    def make_extension_module_extra(self):
+        """Similar to make_module_extra but only called for extensions"""
+        return ''
+
     def sanity_check_step(self):
         """
         Sanity check to run after installing extension
