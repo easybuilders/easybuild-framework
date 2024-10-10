@@ -1755,6 +1755,12 @@ class EasyConfig(object):
             if self.template_values[key] is None:
                 del self.template_values[key]
 
+    def resolve_template(self, value):
+        """Resolve all templates in the given value using this easyconfig"""
+        if not self.template_values:
+            self.generate_template_values()
+        return resolve_template(value, self.template_values)
+
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __contains__(self, key):
         """Check whether easyconfig parameter is defined"""
@@ -1770,9 +1776,7 @@ class EasyConfig(object):
             raise EasyBuildError("Use of unknown easyconfig parameter '%s' when getting parameter value", key)
 
         if self.enable_templating:
-            if self.template_values is None or len(self.template_values) == 0:
-                self.generate_template_values()
-            value = resolve_template(value, self.template_values)
+            value = self.resolve_template(value)
 
         return value
 
@@ -1848,9 +1852,7 @@ class EasyConfig(object):
         for key, tup in self._config.items():
             value = tup[0]
             if self.enable_templating:
-                if not self.template_values:
-                    self.generate_template_values()
-                value = resolve_template(value, self.template_values)
+                value = self.resolve_template(value)
             res[key] = value
         return res
 
