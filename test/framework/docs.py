@@ -44,6 +44,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 
 LIST_EASYBLOCKS_SIMPLE_TXT = """EasyBlock
 |-- bar
+|-- Cargo
 |-- ConfigureMake
 |   |-- MakeCp
 |-- EB_EasyBuildMeta
@@ -76,6 +77,7 @@ Extension
 
 LIST_EASYBLOCKS_DETAILED_TXT = """EasyBlock (easybuild.framework.easyblock)
 |-- bar (easybuild.easyblocks.generic.bar @ %(topdir)s/generic/bar.py)
+|-- Cargo (easybuild.easyblocks.generic.cargo @ %(topdir)s/generic/cargo.py)
 |-- ConfigureMake (easybuild.easyblocks.generic.configuremake @ %(topdir)s/generic/configuremake.py)
 |   |-- MakeCp (easybuild.easyblocks.generic.makecp @ %(topdir)s/generic/makecp.py)
 |-- EB_EasyBuildMeta (easybuild.easyblocks.easybuildmeta @ %(topdir)s/e/easybuildmeta.py)
@@ -109,6 +111,7 @@ Extension (easybuild.framework.extension)
 LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
 
   * bar
+  * Cargo
   * ConfigureMake
 
     * MakeCp
@@ -157,6 +160,7 @@ LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
 LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock)
 
   * bar (easybuild.easyblocks.generic.bar @ %(topdir)s/generic/bar.py)
+  * Cargo (easybuild.easyblocks.generic.cargo @ %(topdir)s/generic/cargo.py)
   * ConfigureMake (easybuild.easyblocks.generic.configuremake @ %(topdir)s/generic/configuremake.py)
 
     * MakeCp (easybuild.easyblocks.generic.makecp @ %(topdir)s/generic/makecp.py)
@@ -204,6 +208,7 @@ LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock
 
 LIST_EASYBLOCKS_SIMPLE_MD = """- **EasyBlock**
   - bar
+  - Cargo
   - ConfigureMake
     - MakeCp
   - EB_EasyBuildMeta
@@ -236,6 +241,7 @@ LIST_EASYBLOCKS_SIMPLE_MD = """- **EasyBlock**
 
 LIST_EASYBLOCKS_DETAILED_MD = """- **EasyBlock** (easybuild.framework.easyblock)
   - bar (easybuild.easyblocks.generic.bar @ %(topdir)s/generic/bar.py)
+  - Cargo (easybuild.easyblocks.generic.cargo @ %(topdir)s/generic/cargo.py)
   - ConfigureMake (easybuild.easyblocks.generic.configuremake @ %(topdir)s/generic/configuremake.py)
     - MakeCp (easybuild.easyblocks.generic.makecp @ %(topdir)s/generic/makecp.py)
   - EB_EasyBuildMeta (easybuild.easyblocks.easybuildmeta @ %(topdir)s/e/easybuildmeta.py)
@@ -513,7 +519,7 @@ class DocsTest(EnhancedTestCase):
         # result should correspond with test easyblocks in test/framework/sandbox/easybuild/easyblocks/generic
         eb_classes = get_easyblock_classes('easybuild.easyblocks.generic')
         eb_names = [x.__name__ for x in eb_classes]
-        expected = ['ConfigureMake', 'DummyExtension', 'MakeCp', 'ModuleRC',
+        expected = ['Cargo', 'ConfigureMake', 'DummyExtension', 'MakeCp', 'ModuleRC',
                     'PythonBundle', 'Toolchain', 'Toy_Extension', 'bar']
         self.assertEqual(sorted(eb_names), expected)
 
@@ -724,6 +730,7 @@ class DocsTest(EnhancedTestCase):
             'homepage: https://easybuilders.github.io/easybuild',
             '',
             "  * toy v0.0: gompi/2018a, system",
+            "  * toy v0.0 (versionsuffix: '-cargo'): system",
             "  * toy v0.0 (versionsuffix: '-deps'): system",
             "  * toy v0.0 (versionsuffix: '-iter'): system",
             "  * toy v0.0 (versionsuffix: '-multiple'): system",
@@ -746,6 +753,7 @@ class DocsTest(EnhancedTestCase):
             'version    versionsuffix    toolchain',
             '=======    =============    ===========================',
             '``0.0``                     ``gompi/2018a``, ``system``',
+            '``0.0``    ``-cargo``       ``system``',
             '``0.0``    ``-deps``        ``system``',
             '``0.0``    ``-iter``        ``system``',
             '``0.0``    ``-multiple``    ``system``',

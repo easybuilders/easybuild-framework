@@ -1,0 +1,17 @@
+name = 'toy'
+version = '0.0'
+versionsuffix = '-cargo'
+
+easyblock = 'Cargo'
+
+homepage = 'https://easybuilders.github.io/easybuild'
+description = "Toy C program, 100% toy."
+
+toolchain = SYSTEM
+
+crates = [
+    ('toy', 'extra.txt'),
+    ('toy', '0.0_gzip.patch.gz'),
+]
+
+moduleclass = 'tools'
