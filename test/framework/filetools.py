@@ -3147,17 +3147,19 @@ class FileToolsTest(EnhancedTestCase):
         del git_config['extra_config_params']
 
         del git_config['tag']
-        git_config['commit'] = '8456f86'
+        string_args['commit'] = git_config['commit'] = '8456f86'
         lfs_check_commit = (
-            r'  running shell command "git grep -I -h filter=lfs 8456f86 -- '
+            r'  running shell command "git grep -I -h filter=lfs {commit} -- '
             r"':\(glob\)\*\*/\.gitattributes'\""
         )
         run_check('\n'.join([
             r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in .*/tmp.*\)",
+            r'  running shell command "git fetch {git_repo} {commit}"',
+            r"  \(in .*/{repo_name}\)",
             lfs_check_commit,
             r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git checkout 8456f86"',
+            r'  running shell command "git checkout {commit}"',
             r"  \(in .*/{repo_name}\)",
             r'  running shell command "git submodule update --init --recursive"',
             r"  \(in .*/{repo_name}\)",
@@ -3169,6 +3171,8 @@ class FileToolsTest(EnhancedTestCase):
         run_check('\n'.join([
             r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in .*/tmp.*\)",
+            r'  running shell command "git fetch {git_repo} {commit}"',
+            r"  \(in .*/{repo_name}\)",
             lfs_check_commit,
             r"  \(in .*/{repo_name}\)",
             r'  running shell command "git checkout 8456f86"',
@@ -3184,6 +3188,8 @@ class FileToolsTest(EnhancedTestCase):
         run_check('\n'.join([
             r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in .*\)",
+            r'  running shell command "git fetch {git_repo} {commit}"',
+            r"  \(in .*/{repo_name}\)",
             lfs_check_commit,
             r"  \(in .*/{repo_name}\)",
             r'  running shell command "git checkout 8456f86"',
@@ -3209,6 +3215,8 @@ class FileToolsTest(EnhancedTestCase):
             run_check('\n'.join([
                 r'  running shell command "git clone --no-checkout {git_repo}"',
                 r"  \(in .*\)",
+                r'  running shell command "git fetch {git_repo} {commit}"',
+                r"  \(in .*/{repo_name}\)",
                 lfs_check_commit,
                 r"  \(in .*/{repo_name}\)",
                 r'  running shell command "git lfs install --local --skip-repo"',
@@ -3236,6 +3244,8 @@ class FileToolsTest(EnhancedTestCase):
             run_check('\n'.join([
                 r'  running shell command "git clone --no-checkout {git_repo}"',
                 r"  \(in .*\)",
+                r'  running shell command "git fetch {git_repo} {commit}"',
+                r"  \(in .*/{repo_name}\)",
                 lfs_check_commit,
                 r"  \(in .*/{repo_name}\)",
                 r'  running shell command "git checkout 8456f86"',

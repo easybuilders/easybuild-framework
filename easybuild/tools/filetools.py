@@ -2842,7 +2842,9 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
 
     # Ensure URL is also processed correctly by tools that don't collapse double slashes
     url = url.rstrip('/')
-    clone_cmd.append(f'{url}/{repo_name}.git')
+    repo_url = f'{url}/{repo_name}.git'
+
+    clone_cmd.append(repo_url)
 
     if clone_into:
         clone_cmd.append(clone_into)
@@ -2857,8 +2859,14 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
 
     repo_dir = os.path.join(tmpdir, repo_name)
 
+    if commit:
+        git_ref = commit
+        # The commit might not be reachable from the default branch that is fetched, so fetch it explicitely
+        run_shell_cmd(f'{git_cmd} fetch {repo_url} {commit}', hidden=True, verbose_dry_run=True, work_dir=repo_dir)
+    else:
+        git_ref = f"refs/tags/{tag}"
+
     # Git LFS functionality
-    git_ref = commit if commit else f"refs/tags/{tag}"
     # Check whether the selected Git tree contains Git LFS attributes.
     lfs_check_cmd = f"{git_cmd} grep -I -h filter=lfs {git_ref} -- ':(glob)**/.gitattributes' "
     res = run_shell_cmd(lfs_check_cmd, work_dir=repo_dir, fail_on_error=False,
