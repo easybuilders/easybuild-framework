@@ -2862,7 +2862,8 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     if commit:
         git_ref = commit
         # The commit might not be reachable from the default branch that is fetched, so fetch it explicitely
-        run_shell_cmd(f'{git_cmd} fetch {repo_url} {commit}', hidden=True, verbose_dry_run=True, work_dir=repo_dir)
+        if len(commit) == 40:  # Only works for long commit hashes
+            run_shell_cmd(f'{git_cmd} fetch {repo_url} {commit}', hidden=True, verbose_dry_run=True, work_dir=repo_dir)
     else:
         git_ref = f"refs/tags/{tag}"
 
