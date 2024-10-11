@@ -2593,6 +2593,99 @@ class ToyBuildTest(EnhancedTestCase):
 
         del sys.modules['easybuild.easyblocks.toy']
 
+    def test_toy_build_enhanced_sanity_check_templated_multi_dep(self):
+        """Test enhancing of sanity check by easyblocks with templates and in the presence of multi_deps."""
+
+        # if toy easyblock was imported, get rid of corresponding entry in sys.modules,
+        # to avoid that it messes up the use of --include-easyblocks=toy.py below...
+        if 'easybuild.easyblocks.toy' in sys.modules:
+            del sys.modules['easybuild.easyblocks.toy']
+
+        test_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)))
+        toy_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        # get rid of custom sanity check paths in test easyconfig
+        regex = re.compile(r'^sanity_check_paths\s*=\s*{[^}]+}', re.M)
+        test_ec_txt = regex.sub('', toy_ec_txt)
+        self.assertNotIn('sanity_check_', test_ec_txt)
+
+        test_ec_txt += "\nmulti_deps = {'Python': ['3.7.2', '2.7.15']}"
+        write_file(test_ec, test_ec_txt)
+
+        # create custom easyblock for toy that has a custom sanity_check_step
+        toy_easyblock = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
+
+        toy_easyblock_txt = read_file(toy_easyblock)
+
+        toy_custom_sanity_check_step = textwrap.dedent("""
+            # Add to class to indent
+                def sanity_check_step(self):
+                    paths = {
+                        'files': ['bin/python%(pyshortver)s'],
+                        'dirs': ['lib/py-%(pyshortver)s'],
+                    }
+                    cmds = ['python%(pyshortver)s']
+                    return super(EB_toy, self).sanity_check_step(custom_paths=paths, custom_commands=cmds)
+        """)
+        test_toy_easyblock = os.path.join(self.test_prefix, 'toy.py')
+        write_file(test_toy_easyblock, toy_easyblock_txt + toy_custom_sanity_check_step)
+
+        eb_args = [
+            '--extended-dry-run',
+            '--include-easyblocks=%s' % test_toy_easyblock,
+        ]
+
+        # by default, sanity check commands & paths specified by easyblock are used
+        with self.mocked_stdout_stderr():
+            self.test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+            stdout = self.get_stdout()
+            # Cut output to start of the toy-ec, after the Python installations
+            stdout = stdout[stdout.index(test_ec):]
+
+        pattern_template = textwrap.dedent(r"""
+            Sanity check paths - file.*
+            \s*\* bin/python{pyshortver}
+            Sanity check paths - \(non-empty\) directory.*
+            \s*\* lib/py-{pyshortver}
+            Sanity check commands
+            \s*\* python{pyshortver}
+        """)
+        for pyshortver in ('2.7', '3.7'):
+            regex = re.compile(pattern_template.format(pyshortver=pyshortver), re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        # Enhance sanity check by extra paths to check for, the ones from the easyblock should be kept
+        test_ec_txt += textwrap.dedent("""
+            enhance_sanity_check = True
+            sanity_check_paths = {
+                'files': ['bin/pip%(pyshortver)s'],
+                'dirs': ['bin'],
+            }
+        """)
+        write_file(test_ec, test_ec_txt)
+        with self.mocked_stdout_stderr():
+            self.test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+            stdout = self.get_stdout()
+            # Cut output to start of the toy-ec, after the Python installations
+            stdout = stdout[stdout.index(test_ec):]
+
+        pattern_template = textwrap.dedent(r"""
+            Sanity check paths - file.*
+            \s*\* bin/pip{pyshortver}
+            \s*\* bin/python{pyshortver}
+            Sanity check paths - \(non-empty\) directory.*
+            \s*\* bin
+            \s*\* lib/py-{pyshortver}
+            Sanity check commands
+            \s*\* python{pyshortver}
+        """)
+        for pyshortver in ('2.7', '3.7'):
+            regex = re.compile(pattern_template.format(pyshortver=pyshortver), re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
     def test_toy_dumped_easyconfig(self):
         """ Test dumping of file in eb_filerepo in both .eb and .yeb format """
         filename = 'toy-0.0'

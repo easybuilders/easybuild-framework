@@ -3362,7 +3362,7 @@ class EasyBlock(object):
             # if no sanity_check_paths are specified in easyconfig,
             # we fall back to the ones provided by the easyblock via custom_paths
             if custom_paths:
-                paths = custom_paths
+                paths = self.cfg.resolve_template(custom_paths)
                 self.log.info("Using customized sanity check paths: %s", paths)
             # if custom_paths is empty, we fall back to a generic set of paths:
             # non-empty bin/ + /lib or /lib64 directories
@@ -3412,7 +3412,7 @@ class EasyBlock(object):
             self.log.info("Using (only) sanity check commands specified by easyconfig file: %s", commands)
         else:
             if custom_commands:
-                commands = custom_commands
+                commands = self.cfg.resolve_template(custom_commands)
                 self.log.info("Using customised sanity check commands: %s", commands)
             else:
                 commands = []
