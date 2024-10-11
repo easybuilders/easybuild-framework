@@ -2843,6 +2843,8 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     # if a specific commit is asked for, check it out
     if commit:
         checkout_cmd.append(f"{commit}")
+        # The commit might not be reachable from the default branch that is fetched, so fetch it explicitely
+        run_shell_cmd(f'{git_cmd} {fetch} {repo_url}', hidden=True, verbose_dry_run=True, work_dir=tmpdir)
     elif tag:
         checkout_cmd.append(f"refs/tags/{tag}")
 
