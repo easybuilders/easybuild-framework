@@ -3066,21 +3066,24 @@ class EasyBlock(object):
                 # create *relative* 'lib' symlink to 'lib64';
                 symlink('lib64', lib_dir, use_abspath_source=False)
 
+    def _dispatch_sanity_check_step(self, *args, **kwargs):
+        """Decide whether to run the dry-run or the real version of the sanity-check step"""
+        if self.dry_run:
+            self._sanity_check_step_dry_run(*args, **kwargs)
+        else:
+            self._sanity_check_step(*args, **kwargs)
+
     def sanity_check_step(self, *args, **kwargs):
         """
         Do a sanity check on the installation
         - if *any* of the files/subdirectories in the installation directory listed
           in sanity_check_paths are non-existent (or empty), the sanity check fails
         """
-        if self.dry_run:
-            self._sanity_check_step_dry_run(*args, **kwargs)
-
         # handling of extensions that were installed for multiple dependency versions is done in ExtensionEasyBlock
-        elif self.cfg['multi_deps'] and not self.is_extension:
+        if self.cfg['multi_deps'] and not self.is_extension:
             self._sanity_check_step_multi_deps(*args, **kwargs)
-
         else:
-            self._sanity_check_step(*args, **kwargs)
+            self._dispatch_sanity_check_step(*args, **kwargs)
 
     def _sanity_check_step_multi_deps(self, *args, **kwargs):
         """Perform sanity check for installations that iterate over a list a versions for particular dependencies."""
@@ -3112,7 +3115,7 @@ class EasyBlock(object):
             self.log.info(info_msg)
 
             kwargs['extra_modules'] = extra_modules
-            self._sanity_check_step(*args, **kwargs)
+            self._dispatch_sanity_check_step(*args, **kwargs)
 
         # restore list of lists of build dependencies & stop iterating again
         self.cfg['builddependencies'] = builddeps
@@ -3373,14 +3376,13 @@ class EasyBlock(object):
             # if enhance_sanity_check is enabled *and* sanity_check_paths are specified in the easyconfig,
             # those paths are used to enhance the paths provided by the easyblock
             if enhance_sanity_check and ec_paths:
-                for key in ec_paths:
-                    val = ec_paths[key]
+                for key, val in ec_paths.items():
                     if isinstance(val, list):
                         paths[key] = paths.get(key, []) + val
                     else:
-                        error_pattern = "Incorrect value type in sanity_check_paths, should be a list: "
-                        error_pattern += "%s (type: %s)" % (val, type(val))
-                        raise EasyBuildError(error_pattern)
+                        error_msg = "Incorrect value type in sanity_check_paths, should be a list: "
+                        error_msg += "%s (type: %s)" % (val, type(val))
+                        raise EasyBuildError(error_msg)
                 self.log.info("Enhanced sanity check paths after taking into account easyconfig file: %s", paths)
 
         sorted_keys = sorted(paths.keys())
