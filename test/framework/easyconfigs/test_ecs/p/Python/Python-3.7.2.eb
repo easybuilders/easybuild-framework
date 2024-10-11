@@ -1,0 +1,23 @@
+easyblock = 'ConfigureMake'
+
+name = 'Python'
+version = '3.7.2'
+
+homepage = 'http://python.org/'
+description = """Python is a programming language that lets you work more quickly and integrate your systems
+more effectively."""
+
+toolchain = SYSTEM
+
+source_urls = ['http://www.python.org/ftp/%(namelower)s/%(version)s/']
+sources = [SOURCE_TGZ]
+
+# This just serves to have a Python as a dependency to test e.g. the Python version templates
+# So all dependencies and extensions are removed
+dependencies = []
+
+osdependencies = []
+
+exts_list = []
+
+moduleclass = 'lang'
