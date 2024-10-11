@@ -2701,10 +2701,15 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         git_cmd = 'git'
     clone_cmd = [git_cmd, 'clone']
 
-    if not keep_git_dir and not commit:
+    is_short_commit_hash = commit and len(commit) != 40
+    if keep_git_dir or is_short_commit_hash:
+        depth_args = []
+    else:
         # Speed up cloning by only fetching the most recent commit, not the whole history
         # When we don't want to keep the .git folder there won't be a difference in the result
-        clone_cmd.extend(['--depth', '1'])
+        # We also can't use it if only a short commit hash is given, as `git fetch` only works with full commit hashe
+        depth_args = ['--depth=1']
+    clone_cmd.extend(depth_args)
 
     if tag:
         clone_cmd.extend(['--branch', tag])
@@ -2716,7 +2721,8 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
         # checkout is done separately below for specific commits
         clone_cmd.append('--no-checkout')
 
-    clone_cmd.append('%s/%s.git' % (url, repo_name))
+    repo_url = '%s/%s.git' % (url, repo_name)
+    clone_cmd.append(repo_url)
 
     if clone_into:
         clone_cmd.append(clone_into)
@@ -2731,6 +2737,12 @@ def get_source_tarball_from_git(filename, targetdir, git_config):
 
     # if a specific commit is asked for, check it out
     if commit:
+        # The commit might not be reachable from the default branch that is fetched, so fetch it explicitely
+        # Only works for long commit hashes
+        if not is_short_commit_hash:
+            fetch_cmd = [git_cmd, 'fetch'] + depth_args + [repo_url, commit]
+            run.run_cmd(' '.join(fetch_cmd), log_all=True, simple=True, regexp=False, path=repo_name)
+
         checkout_cmd = [git_cmd, 'checkout', commit]
 
         if recursive or recurse_submodules:

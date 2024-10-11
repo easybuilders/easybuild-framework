@@ -2865,7 +2865,7 @@ class FileToolsTest(EnhancedTestCase):
         }
         git_repo = {'git_repo': 'git@github.com:easybuilders/testrepository.git'}  # Just to make the below shorter
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch tag_for_tests %(git_repo)s"',
+            r'  running command "git clone --depth=1 --branch tag_for_tests %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
@@ -2874,7 +2874,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config['clone_into'] = 'test123'
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch tag_for_tests %(git_repo)s test123"',
+            r'  running command "git clone --depth=1 --branch tag_for_tests %(git_repo)s test123"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git test123"',
             r"  \(in .*/tmp.*\)",
@@ -2884,7 +2884,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config['recursive'] = True
         expected = '\n'.join([
-            r'  running command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
+            r'  running command "git clone --depth=1 --branch tag_for_tests --recursive %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
@@ -2893,7 +2893,7 @@ class FileToolsTest(EnhancedTestCase):
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
         expected = '\n'.join([
-            '  running command "git clone --depth 1 --branch tag_for_tests --recursive'
+            '  running command "git clone --depth=1 --branch tag_for_tests --recursive'
             + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
@@ -2907,7 +2907,7 @@ class FileToolsTest(EnhancedTestCase):
         ]
         expected = '\n'.join([
             '  running command "git -c submodule."fastahack".active=false -c submodule."sha1".active=false'
-            + ' clone --depth 1 --branch tag_for_tests --recursive'
+            + ' clone --depth=1 --branch tag_for_tests --recursive'
             + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
@@ -2928,11 +2928,27 @@ class FileToolsTest(EnhancedTestCase):
         del git_config['keep_git_dir']
 
         del git_config['tag']
+        git_config['commit'] = '90366eac4408c5d615d69c5444ed784734b167c8'
+        git_repo['commit'] = git_config['commit']
+        expected = '\n'.join([
+            r'  running command "git clone --depth=1 --no-checkout %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "git fetch --depth=1 %(git_repo)s %(commit)s"',
+            r"  \(in testrepository\)",
+            r'  running command "git checkout %(commit)s && git submodule update --init --recursive"',
+            r"  \(in testrepository\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % git_repo
+        run_check()
+
+        # depth=1 clone & fetch does not work for short hashes
         git_config['commit'] = '8456f86'
+        git_repo['commit'] = git_config['commit']
         expected = '\n'.join([
             r'  running command "git clone --no-checkout %(git_repo)s"',
             r"  \(in .*/tmp.*\)",
-            r'  running command "git checkout 8456f86 && git submodule update --init --recursive"',
+            r'  running command "git checkout %(commit)s && git submodule update --init --recursive"',
             r"  \(in testrepository\)",
             r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
             r"  \(in .*/tmp.*\)",
@@ -2999,13 +3015,14 @@ class FileToolsTest(EnhancedTestCase):
             self.assertTrue(os.path.isfile(os.path.join(extracted_repo_dir, 'this-is-a-tag.txt')))
 
             del git_config['tag']
-            git_config['commit'] = '90366ea'
-            res = ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
-            test_file = os.path.join(target_dir, 'test2.tar.gz')
-            self.assertEqual(res, test_file)
-            self.assertTrue(os.path.isfile(test_file))
-            test_tar_gzs.append(os.path.basename(test_file))
-            self.assertEqual(sorted(os.listdir(target_dir)), test_tar_gzs)
+            for i, commit in enumerate(['90366eac4408c5d615d69c5444ed784734b167c8', '90366ea']):
+                git_config['commit'] = commit
+                test_file = os.path.join(target_dir, 'test2-%s.tar.gz' % i)
+                res = ft.get_source_tarball_from_git(os.path.basename(test_file), target_dir, git_config)
+                self.assertEqual(res, test_file)
+                self.assertTrue(os.path.isfile(test_file))
+                test_tar_gzs.append(os.path.basename(test_file))
+                self.assertEqual(sorted(os.listdir(target_dir)), test_tar_gzs)
 
             git_config['keep_git_dir'] = True
             res = ft.get_source_tarball_from_git('test3.tar.gz', target_dir, git_config)
