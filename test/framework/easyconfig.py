@@ -1260,6 +1260,29 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['sanity_check_commands'], ['mpiexec -np 1 -- toy'])
 
+    def test_ec_method_resolve_template(self):
+        """Test the `resolve_template` method of easyconfig instances."""
+        # don't use any escaping insanity here, since it is templated itself
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "PI"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig %(name)s version %(version_major)s"
+            toolchain = SYSTEM
+        """)
+        self.prep()
+        ec = EasyConfig(self.eb_file, validate=False)
+
+        # We can resolve anything with values from the EC
+        self.assertEqual(ec.resolve_template('%(namelower)s %(version_major)s begins with %(nameletterlower)s'),
+                         'pi 3 begins with p')
+
+        # `resolve_template` does basically the same resolving any value on acccess
+        description = ec.get('description', resolve=False)
+        self.assertIn('%', description, 'Description needs a template for the next test')
+        self.assertEqual(ec.resolve_template(description), ec['description'])
+
     def test_templating_cuda_toolchain(self):
         """Test templates via toolchain component, like setting %(cudaver)s with fosscuda toolchain."""
 
