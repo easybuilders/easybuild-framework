@@ -45,7 +45,6 @@ import shlex
 import shutil
 import string
 import subprocess
-import sys
 import tempfile
 import time
 from collections import namedtuple
