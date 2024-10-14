@@ -68,7 +68,7 @@ from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUN
 from easybuild.tools.build_log import dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
-from easybuild.tools.output import COLOR_RED, COLOR_YELLOW, colorize
+from easybuild.tools.output import COLOR_RED, COLOR_YELLOW, colorize, print_error
 from easybuild.tools.utilities import trace_msg
 
 
@@ -125,7 +125,6 @@ class RunShellCmdError(BaseException):
         called_from_info = f"'{caller_function_name}' function in {caller_file_name} (line {caller_line_nr})"
 
         error_info = [
-            '',
             colorize("ERROR: Shell command failed!", COLOR_RED),
             pad_4_spaces(f"full command              ->  {self.cmd}"),
             pad_4_spaces(f"exit code                 ->  {self.exit_code}"),
@@ -144,9 +143,7 @@ class RunShellCmdError(BaseException):
         if self.cmd_sh is not None:
             error_info.append(pad_4_spaces(f"interactive shell script  ->  {self.cmd_sh}", color=COLOR_YELLOW))
 
-        error_info.append('')
-
-        sys.stderr.write('\n'.join(error_info) + '\n')
+        print_error('\n'.join(error_info), rich_highlight=False)
 
 
 def raise_run_shell_cmd_error(cmd_res):
