@@ -115,6 +115,8 @@ MARVELL = 'Marvell'
 MOTOROLA = 'Motorola/Freescale'
 NVIDIA = 'NVIDIA'
 QUALCOMM = 'Qualcomm'
+SIFIVE_u74mc = 'SiFive U74-MC'
+THEAD = 'T-HEAD'
 
 # Family constants
 POWER_LE = 'POWER little-endian'
@@ -133,7 +135,8 @@ PROC_MEMINFO_FP = '/proc/meminfo'
 
 CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, RISCV32, RISCV64, X86_64]
 CPU_FAMILIES = [AMD, ARM, INTEL, POWER, POWER_LE, RISCV]
-CPU_VENDORS = [AMD, APM, APPLE, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
+CPU_VENDORS = [AMD, APM, APPLE, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM,
+               SIFIVE_u74mc, THEAD]
 # ARM implementer IDs (i.e., the hexadeximal keys) taken from ARMv8-A Architecture Reference Manual
 # (ARM DDI 0487A.j, Section G6.2.102, Page G6-4493)
 VENDOR_IDS = {
@@ -154,6 +157,10 @@ VENDOR_IDS = {
     # IBM POWER9
     '8335-GTH': IBM,
     '8335-GTX': IBM,
+    # RISCV
+    'sifive,u74-mc': SIFIVE_u74mc,
+    # Following id comes from Linux (arch/riscv/include/asm/vendorid_list.h)
+    '0x5b7': THEAD,
 }
 # ARM Cortex part numbers from the corresponding ARM Processor Technical Reference Manuals,
 # see http://infocenter.arm.com - Cortex-A series processors, Section "Main ID Register"
@@ -380,7 +387,11 @@ def get_cpu_vendor():
             vendor_regex = re.compile(r"model\s+:\s*((\w|-)+)")
         elif arch in [AARCH32, AARCH64]:
             vendor_regex = re.compile(r"CPU implementer\s+:\s*(\S+)")
-
+        elif arch == RISCV64:
+            if get_cpu_arch_name() == 'u74mc':
+                vendor_regex = re.compile(r"uarch\s+:\s*(\S+)\s*")
+            else:
+                vendor_regex = re.compile(r"mvendorid\s+:\s*(\S+)")
         if vendor_regex and is_readable(PROC_CPUINFO_FP):
             vendor_id = None
 
@@ -388,7 +399,6 @@ def get_cpu_vendor():
             res = vendor_regex.search(proc_cpuinfo)
             if res:
                 vendor_id = res.group(1)
-
             if vendor_id in VENDOR_IDS:
                 vendor = VENDOR_IDS[vendor_id]
                 _log.debug("Determined CPU vendor on Linux as being '%s' via regex '%s' in %s",
@@ -496,6 +506,13 @@ def get_cpu_model():
                     model = vendor + ' ' + ' + '.join(id_list)
                     _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s",
                                model_regex.pattern, PROC_CPUINFO_FP, model)
+        elif arch == RISCV64:
+            model_regex = re.compile(r"uarch\s+:\s*(\S+)\s*")
+            res = model_regex.search(proc_cpuinfo)
+            if res is not None:
+                model = res.group(1)
+                _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s",
+                           model_regex.pattern, PROC_CPUINFO_FP, model)
         else:
             # we need 'model name' on Linux/x86, but 'model' is there first with different info
             # 'model name' is not there for Linux/POWER, but 'model' has the right info
