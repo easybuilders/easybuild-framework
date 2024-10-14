@@ -240,7 +240,7 @@ def wrap_path_env(prepend=None, append=None, sep=os.pathsep, strict=False):
     if append is None:
         append = {}
     orig = {}
-    for key in prepend.keys() | append.keys():
+    for key in set(prepend.keys()) | set(append.keys()):
         if isinstance(sep, dict):
             if key not in sep:
                 if strict:
