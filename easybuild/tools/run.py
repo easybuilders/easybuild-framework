@@ -88,6 +88,19 @@ CACHED_COMMANDS = (
 
 RunShellCmdResult = namedtuple('RunShellCmdResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir',
                                                      'out_file', 'err_file', 'cmd_sh', 'thread_id', 'task_id'))
+RunShellCmdResult.__doc__ = """A namedtuple that represents the result of a call to run_shell_cmd,
+with the following fields:
+- cmd: the command that was executed;
+- exit_code: the exit code of the command (zero if it was succesful, non-zero if not);
+- output: output of the command (stdout+stderr combined, only stdout if stderr was caught separately);
+- stderr: stderr output produced by the command, if caught separately (None otherwise);
+- work_dir: the working directory of the command;
+- out_file: path to file with output of command (stdout+stderr combined, only stdout if stderr was caught separately);
+- err_file: path to file with stderr output of command, if caught separately (None otherwise);
+- cmd_sh: path to script to set up interactive shell with environment in which command was executed;
+- thread_id: thread ID of command that was executed (None unless asynchronous mode was enabled for running command);
+- task_id: task ID of command, if it was specified (None otherwise);
+"""
 
 
 class RunShellCmdError(BaseException):
