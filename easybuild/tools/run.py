@@ -90,7 +90,7 @@ RunShellCmdResult = namedtuple('RunShellCmdResult', ('cmd', 'exit_code', 'output
 RunShellCmdResult.__doc__ = """A namedtuple that represents the result of a call to run_shell_cmd,
 with the following fields:
 - cmd: the command that was executed;
-- exit_code: the exit code of the command (zero if it was succesful, non-zero if not);
+- exit_code: the exit code of the command (zero if it was successful, non-zero if not);
 - output: output of the command (stdout+stderr combined, only stdout if stderr was caught separately);
 - stderr: stderr output produced by the command, if caught separately (None otherwise);
 - work_dir: the working directory of the command;
