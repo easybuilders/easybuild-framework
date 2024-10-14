@@ -33,6 +33,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 import easybuild.tools.environment as env
+from easybuild.tools.build_log import EasyBuildError
 
 
 class EnvironmentTest(EnhancedTestCase):
@@ -160,6 +161,55 @@ class EnvironmentTest(EnhancedTestCase):
             self.assertEqual(os.environ[key], expected[key])
 
         self.assertEqual(os.getenv('LD_PRELOAD'), None)
+
+    def test_wrap_env(self):
+        """Test wrap_env function."""
+        os.environ['TEST_VAR_1'] = '/bar:/foo'
+        os.environ['TEST_VAR_2'] = '/bar'
+        os.environ['TEST_VAR_3'] = '/foo'
+
+        prep = {
+            'TEST_VAR_1': '/usr/bin:/usr/sbin',
+            'TEST_VAR_2': '/usr/bin',
+        }
+        appd = {
+            'TEST_VAR_1': '/usr/local/bin',
+            'TEST_VAR_3': '/usr/local/sbin',
+        }
+        seps = {
+            'TEST_VAR_3': ';'
+        }
+
+        # Test prepend and append
+        self.assertEqual(os.getenv('TEST_VAR_1'), '/bar:/foo')
+        self.assertEqual(os.getenv('TEST_VAR_2'), '/bar')
+        self.assertEqual(os.getenv('TEST_VAR_3'), '/foo')
+        with env.wrap_path_env(prep, appd, sep=seps):
+            self.assertEqual(os.getenv('TEST_VAR_1'), '/usr/bin:/usr/sbin:/bar:/foo:/usr/local/bin')
+            self.assertEqual(os.getenv('TEST_VAR_2'), '/usr/bin:/bar')
+            self.assertEqual(os.getenv('TEST_VAR_3'), '/foo;/usr/local/sbin')
+            # Test modifying the environment inside the context
+            os.environ['TEST_VAR_1'] = ''
+            os.environ['TEST_VAR_2'] = ''
+            os.environ['TEST_VAR_3'] = ''
+            self.assertEqual(os.getenv('TEST_VAR_1'), '')
+            self.assertEqual(os.getenv('TEST_VAR_2'), '')
+            self.assertEqual(os.getenv('TEST_VAR_3'), '')
+        self.assertEqual(os.getenv('TEST_VAR_1'), '/bar:/foo')
+        self.assertEqual(os.getenv('TEST_VAR_2'), '/bar')
+        self.assertEqual(os.getenv('TEST_VAR_3'), '/foo')
+
+        # Test sep with strict=True
+        def foo():
+            with env.wrap_path_env(prep, appd, sep={}, strict=True):
+                pass
+        self.assertErrorRegex(EasyBuildError, "sep must be a .*", foo)
+
+        # Test invalid value for sep
+        def foo():
+            with env.wrap_path_env(prep, appd, sep=None):
+                pass
+        self.assertErrorRegex(EasyBuildError, "sep must be a .*", foo)
 
 
 def suite():
