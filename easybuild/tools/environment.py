@@ -32,6 +32,7 @@ Authors:
 """
 import copy
 import os
+import contextlib
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
@@ -221,3 +222,35 @@ def sanitize_env():
     # unset all $PYTHON* environment variables
     keys_to_unset = [key for key in os.environ if key.startswith('PYTHON')]
     unset_env_vars(keys_to_unset, verbose=False)
+
+
+@contextlib.contextmanager
+def wrap_path_env(prepend={}, append={}, sep=os.pathsep, strict=False):
+    """This function is a context manager that temporarily modifies path-like environment variables.
+    It will prepend and append the values of the given dictionaries to the current environment and restore the
+    original environment when the context is exited.
+    """
+    orig = {}
+    for key in prepend.keys() | append.keys():
+        if isinstance(sep, dict):
+            if key not in sep:
+                if strict:
+                    raise EasyBuildError(
+                        "sep must be a dictionary of strings with keys for all keys in prepend and append"
+                        )
+                _sep = os.pathsep
+            else:
+                _sep = sep.get(key)
+        elif isinstance(sep, str):
+            _sep = sep
+        else:
+            raise EasyBuildError("sep must be a string or a dictionary of strings")
+        val = orig[key] = os.environ.get(key)
+        path = _sep.join(filter(None, [prepend.get(key, None), val, append.get(key, None)]))
+        setvar(key, path)
+
+    try:
+        yield
+    finally:
+        for key in orig:
+            setvar(key, orig[key])
