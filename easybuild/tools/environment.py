@@ -225,11 +225,20 @@ def sanitize_env():
 
 
 @contextlib.contextmanager
-def wrap_path_env(prepend={}, append={}, sep=os.pathsep, strict=False):
+def wrap_path_env(prepend=None, append=None, sep=os.pathsep, strict=False):
     """This function is a context manager that temporarily modifies path-like environment variables.
     It will prepend and append the values of the given dictionaries to the current environment and restore the
     original environment when the context is exited.
+
+    A custom separator can be specified for each variable by passing a dictionary of strings with the same keys as
+    prepend and append.
+    If a key is not present in the sep dictionary, os.pathsep will be used unless strict is True, then an error
+    will be raised.
     """
+    if prepend is None:
+        prepend = {}
+    if append is None:
+        append = {}
     orig = {}
     for key in prepend.keys() | append.keys():
         if isinstance(sep, dict):
@@ -252,5 +261,4 @@ def wrap_path_env(prepend={}, append={}, sep=os.pathsep, strict=False):
     try:
         yield
     finally:
-        for key in orig:
-            setvar(key, orig[key])
+        restore_env_vars(orig)
