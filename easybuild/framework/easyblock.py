@@ -2142,7 +2142,9 @@ class EasyBlock(object):
                         # since we assume that the required dependencies will be installed soon...
                         exts_queue.insert(max_iter, ext)
 
-                else:
+                # list of pending dependencies may be empty now after taking into account required extensions
+                # that are not being installed above, so extension may be ready to install
+                if not pending_deps:
                     tup = (ext.name, ext.version or '')
                     print_msg("starting installation of extension %s %s..." % tup, silent=self.silent, log=self.log)
 
