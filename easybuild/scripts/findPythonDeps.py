@@ -96,7 +96,7 @@ def get_dep_tree(package_spec, verbose):
         venv_dir = os.path.join(tmp_dir, 'venv')
         if verbose:
             print('Creating virtualenv at ' + venv_dir)
-        run_cmd(['virtualenv', '--system-site-packages', venv_dir], action_desc='create virtualenv')
+        run_cmd([sys.executable, '-m', 'venv', '--system-site-packages', venv_dir], action_desc='create virtualenv')
         if verbose:
             print('Updating pip in virtualenv')
         run_in_venv('pip install --upgrade pip', venv_dir, action_desc='update pip')
@@ -241,9 +241,8 @@ def main():
             out = run_cmd(cmd, action_desc='Run in new environment', shell=True, executable='/bin/bash')
             print(out)
     else:
-        if not can_run('python', '-m', 'venv', '-h'):
-            print('Virtualenv not found or executable. ' +
-                  'Make sure it is installed (e.g. in the currently loaded Python module)!')
+        if not can_run(sys.executable, '-m', 'venv', '-h'):
+            print("'venv' module not found. This should be available in Python 3.3+.")
             sys.exit(1)
         if 'PIP_PREFIX' in os.environ:
             print("$PIP_PREFIX is set. Unsetting it as it doesn't work well with virtualenv.")
