@@ -74,7 +74,7 @@ from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg
 from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES, PYTHONPATH, EBPYTHONPREFIXES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
-from easybuild.tools.config import EASYBUILD_SOURCES_URL # noqa
+from easybuild.tools.config import EASYBUILD_SOURCES_URL  # noqa
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
@@ -2134,8 +2134,10 @@ class EasyBlock(object):
                         self.log.debug(msg + ', '.join(pending_deps))
 
                     if pending_deps:
-                        self.log.info("Required dependencies not installed yet for extension %s (%s), adding it back to queue...",
-                                      ext.name, ', '.join(pending_deps))
+                        msg = f"Required dependencies not installed yet for extension {ext.name} ("
+                        msg += ', '.join(pending_deps)
+                        msg += "), adding it back to queue..."
+                        self.log.info(msg)
                         # purposely adding extension back in the queue at Nth place rather than at the end,
                         # since we assume that the required dependencies will be installed soon...
                         exts_queue.insert(max_iter, ext)
