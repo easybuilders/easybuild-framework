@@ -491,12 +491,14 @@ class RunTest(EnhancedTestCase):
                 # check error reporting output
                 stderr = stderr.getvalue()
                 patterns = [
-                    r"^ERROR: Shell command failed!",
-                    r"^\s+full command\s* ->  kill -9 \$\$",
-                    r"^\s+exit code\s* ->  -9",
-                    r"^\s+working directory\s* ->  " + work_dir,
-                    r"^\s+called from\s* ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
-                    r"^\s+output \(stdout \+ stderr\)\s* ->  .*/run-shell-cmd-output/kill-.*/out.txt",
+                    r"ERROR: Shell command failed!",
+                    r"\s+full command\s* ->  kill -9 \$\$",
+                    r"\s+exit code\s* ->  -9",
+                    r"\s+working directory\s* ->  " + work_dir,
+                    r"\s+called from\s* ->  'test_run_shell_cmd_fail' function in "
+                    r"(.|\n)*/test/(.|\n)*/run.py \(line [0-9]+\)",
+                    r"\s+output \(stdout \+ stderr\)\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/out.txt",
+                    r"\s+interactive shell script\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/cmd.sh",
                 ]
                 for pattern in patterns:
                     regex = re.compile(pattern, re.M)
@@ -526,13 +528,15 @@ class RunTest(EnhancedTestCase):
                 # check error reporting output
                 stderr = stderr.getvalue()
                 patterns = [
-                    r"^ERROR: Shell command failed!",
-                    r"^\s+full command\s+ ->  kill -9 \$\$",
-                    r"^\s+exit code\s+ ->  -9",
-                    r"^\s+working directory\s+ ->  " + work_dir,
-                    r"^\s+called from\s+ ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
-                    r"^\s+output \(stdout\)\s+ -> .*/run-shell-cmd-output/kill-.*/out.txt",
-                    r"^\s+error/warnings \(stderr\)\s+ -> .*/run-shell-cmd-output/kill-.*/err.txt",
+                    r"ERROR: Shell command failed!",
+                    r"\s+full command\s+ ->  kill -9 \$\$",
+                    r"\s+exit code\s+ ->  -9",
+                    r"\s+working directory\s+ ->  " + work_dir,
+                    r"\s+called from\s+ ->  'test_run_shell_cmd_fail' function in "
+                    r"(.|\n)*/test/(.|\n)*/run.py \(line [0-9]+\)",
+                    r"\s+output \(stdout\)\s+ -> (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/out.txt",
+                    r"\s+error/warnings \(stderr\)\s+ -> (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/err.txt",
+                    r"\s+interactive shell script\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/cmd.sh",
                 ]
                 for pattern in patterns:
                     regex = re.compile(pattern, re.M)
@@ -1383,7 +1387,7 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             cached_res = RunShellCmdResult(cmd=cmd, output="123456", exit_code=123, stderr=None,
                                            work_dir='/test_ulimit', out_file='/tmp/foo.out', err_file=None,
-                                           thread_id=None, task_id=None)
+                                           cmd_sh='/tmp/cmd.sh', thread_id=None, task_id=None)
             run_shell_cmd.update_cache({(cmd, None): cached_res})
             res = run_shell_cmd(cmd)
         self.assertEqual(res.cmd, cmd)
@@ -1403,7 +1407,7 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             cached_res = RunShellCmdResult(cmd=cmd, output="bar", exit_code=123, stderr=None,
                                            work_dir='/test_cat', out_file='/tmp/cat.out', err_file=None,
-                                           thread_id=None, task_id=None)
+                                           cmd_sh='/tmp/cmd.sh', thread_id=None, task_id=None)
             run_shell_cmd.update_cache({(cmd, 'foo'): cached_res})
             res = run_shell_cmd(cmd, stdin='foo')
         self.assertEqual(res.cmd, cmd)

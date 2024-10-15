@@ -35,7 +35,7 @@ import easybuild.tools.output
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_output_style, update_build_option
 from easybuild.tools.output import PROGRESS_BAR_EXTENSIONS, PROGRESS_BAR_TYPES
-from easybuild.tools.output import DummyRich, colorize, get_progress_bar, show_progress_bars
+from easybuild.tools.output import DummyRich, colorize, get_progress_bar, print_error, show_progress_bars
 from easybuild.tools.output import start_progress_bar, status_bar, stop_progress_bar, update_progress_bar, use_rich
 
 try:
@@ -138,6 +138,26 @@ class OutputTest(EnhancedTestCase):
             self.assertEqual(colorize('test', 'yellow'), '\x1b[1;33mtest\x1b[0m')
 
         self.assertErrorRegex(EasyBuildError, "Unknown color: nosuchcolor", colorize, 'test', 'nosuchcolor')
+
+    def test_print_error(self):
+        """
+        Test print_error function
+        """
+        msg = "This is yellow: " + colorize("a banana", color='yellow')
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        print_error(msg)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stdout, '')
+        if HAVE_RICH:
+            # when using Rich, message printed to stderr won't have funny terminal escape characters for the color
+            expected = '\n\nThis is yellow: a banana\n\n'
+        else:
+            expected = '\nThis is yellow: \x1b[1;33ma banana\x1b[0m\n\n'
+        self.assertEqual(stderr, expected)
 
     def test_get_progress_bar(self):
         """
