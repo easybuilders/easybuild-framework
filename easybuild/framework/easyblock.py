@@ -2118,16 +2118,23 @@ class EasyBlock(object):
                 # if some of the required dependencies are not installed yet, requeue this extension
                 elif pending_deps:
 
-                    # make sure all required dependencies are actually going to be installed,
-                    # to avoid getting stuck in an infinite loop!
+                    # check whether all required dependency extensions are actually going to be installed;
+                    # if not, we assume that they are be provided by dependencies;
                     missing_deps = [x for x in required_deps if x not in all_ext_names]
                     if missing_deps:
                         msg = f"Missing required extensions for {ext.name} not found "
                         msg += "in list of extensions being installed, let's assume they are provided by "
-                        msg += "by dependencies and proceed: " + ', '.join(missing_deps)
+                        msg += "dependencies and proceed: " + ', '.join(missing_deps)
                         self.log.info(msg)
-                    else:
-                        self.log.info("Required dependencies missing for extension %s (%s), adding it back to queue...",
+
+                        msg = f"Pending dependencies for {ext.name} before taking into account missing dependencies: "
+                        self.log.debug(msg + ', '.join(pending_deps))
+                        pending_deps = [x for x in pending_deps if x not in missing_deps]
+                        msg = f"Pending dependencies for {ext.name} after taking into account missing dependencies: "
+                        self.log.debug(msg + ', '.join(pending_deps))
+
+                    if pending_deps:
+                        self.log.info("Required dependencies not installed yet for extension %s (%s), adding it back to queue...",
                                       ext.name, ', '.join(pending_deps))
                         # purposely adding extension back in the queue at Nth place rather than at the end,
                         # since we assume that the required dependencies will be installed soon...
