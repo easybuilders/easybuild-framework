@@ -294,7 +294,8 @@ class RunTest(EnhancedTestCase):
         env_script = os.path.join(cmd_tmpdir, 'env.sh')
         self.assertExists(env_script)
         env_script_txt = read_file(env_script)
-        self.assertTrue(env_script_txt.startswith('unset -f $('))
+        self.assertIn('unset "$var"', env_script_txt)
+        self.assertIn('unset -f "$func"', env_script_txt)
         self.assertIn('\nexport FOOBAR=foobar\nexport PATH', env_script_txt)
 
         cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
