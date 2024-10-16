@@ -1442,6 +1442,30 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertIn('start_dir in extension configure is %s &&' % ext_start_dir, logtxt)
         self.assertIn('start_dir in extension build is %s &&' % ext_start_dir, logtxt)
 
+    def test_rpath_template(self):
+        """Test the %(rpath)s template"""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "configopts = '--with-rpath=%(rpath_enabled)s'"
+        write_file(test_ec, test_ec_txt)
+
+        ec = EasyConfig(test_ec)
+        expected = '--with-rpath=true' if get_os_name() == 'Linux' else '--with-rpath=false'
+        self.assertEqual(ec['configopts'], expected)
+
+        # force True
+        update_build_option('rpath', True)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--with-rpath=true")
+
+        # force False
+        update_build_option('rpath', False)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--with-rpath=false")
+
     def test_sysroot_template(self):
         """Test the %(sysroot)s template"""
 
@@ -3483,6 +3507,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         arch_regex = re.compile('^[a-z0-9_]+$')
 
+        rpath = 'true' if get_os_name() == 'Linux' else 'false'
+
         expected = {
             'bitbucket_account': 'gzip',
             'github_account': 'gzip',
@@ -3492,6 +3518,7 @@ class EasyConfigTest(EnhancedTestCase):
             'nameletter': 'g',
             'nameletterlower': 'g',
             'parallel': None,
+            'rpath_enabled': rpath,
             'software_commit': '',
             'sysroot': '',
             'toolchain_name': 'foss',
@@ -3576,6 +3603,7 @@ class EasyConfigTest(EnhancedTestCase):
             'pyminver': '7',
             'pyshortver': '3.7',
             'pyver': '3.7.2',
+            'rpath_enabled': rpath,
             'software_commit': '',
             'sysroot': '',
             'version': '0.01',
@@ -3642,6 +3670,7 @@ class EasyConfigTest(EnhancedTestCase):
             'namelower': 'foo',
             'nameletter': 'f',
             'nameletterlower': 'f',
+            'rpath_enabled': rpath,
             'software_commit': '',
             'sysroot': '',
             'version': '1.2.3',

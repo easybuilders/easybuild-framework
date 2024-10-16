@@ -4708,7 +4708,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--git-working-dirs-path=%s' % git_working_dir,
             ':bzip2-1.0.6.eb',
         ])
-        error_msg = "A meaningful commit message must be specified via --pr-commit-msg"
+        error_msg = "A meaningful commit message must be specified via --pr-commit-msg.*\nDeleted: bzip2-1.0.6.eb"
 
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True, testing=False)
@@ -4787,7 +4787,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             gcc_ec,
             '-D',
         ]
-        error_msg = "A meaningful commit message must be specified via --pr-commit-msg"
+        error_msg = "A meaningful commit message must be specified via --pr-commit-msg.*\n"
+        error_msg += "Modified: " + os.path.basename(gcc_ec)
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
         self.mock_stdout(False)
