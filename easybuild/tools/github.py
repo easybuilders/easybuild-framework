@@ -2112,8 +2112,8 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                     for key, cur_patch in patch.items():
                         patch_info[key] = cur_patch
                     if 'name' not in patch_info:
-                        raise EasyBuildError(f"Wrong patch spec '{patch}', when using a dict 'name' entry must be supplied",
-                                             exit_code=EasyBuildExit.EASYCONFIG_ERROR)
+                        msg = f"Wrong patch spec '{patch}', when using a dict 'name' entry must be supplied"
+                        raise EasyBuildError(msg, exit_code=EasyBuildExit.EASYCONFIG_ERROR)
                     patch = patch_info['name']
 
                 if patch not in paths['patch_files'] and not os.path.isfile(os.path.join(os.path.dirname(ec_path),
