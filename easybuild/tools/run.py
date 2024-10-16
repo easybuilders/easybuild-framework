@@ -217,8 +217,19 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
     with open(env_fp, 'w') as fid:
         # unset all environment variables in current environment first to start from a clean slate;
         # we need to be careful to filter out functions definitions, so first undefine those
-        fid.write("unset -f $(env | grep '%=' | cut -f1 -d'%' | sed 's/BASH_FUNC_//g')\n")
-        fid.write("unset $(env | cut -f1 -d=)\n")
+        fid.write('\n'.join([
+            'for var in $(compgen -e); do',
+            '    unset "$var"',
+            'done',
+        ]) + '\n')
+        # also unset any bash functions
+        fid.write('\n'.join([
+            'for func in $(compgen -A function); do',
+            '    if [[ $func != _* ]]; then',
+            '        unset -f "$func"',
+            '    fi',
+            'done',
+        ]) + '\n')
 
         # excludes bash functions (environment variables ending with %)
         fid.write('\n'.join(f'export {key}={shlex.quote(value)}' for key, value in sorted(env.items())
