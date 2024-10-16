@@ -1214,6 +1214,8 @@ def det_parallelism(par=None, maxpar=None):
             raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
 
     if maxpar is not None and maxpar < par:
+        if maxpar is False:
+            maxpar = 1
         _log.info("Limiting parallelism from %s to %s", par, maxpar)
         par = maxpar
 
