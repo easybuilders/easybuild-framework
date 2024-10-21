@@ -2861,9 +2861,9 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs, 't', 'toy-app', 'toy-app-0.0.eb')
 
         # This should just build succesfully
-        args = ['--rpath']
+        rpath_args = ['--rpath', '--strict-rpath-sanity-check']
         with self.mocked_stdout_stderr():
-            self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
+            self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=rpath_args, raise_error=True)
 
         libtoy_libdir = os.path.join(self.test_installpath, 'software', 'libtoy', '0.0', 'lib')
         toyapp_bin = os.path.join(self.test_installpath, 'software', 'toy-app', '0.0', 'bin', 'toy-app')
@@ -2884,16 +2884,16 @@ class ToyBuildTest(EnhancedTestCase):
         # test sanity error when --rpath-filter is used to filter a required library
         # In this test, libtoy.so will be linked, but not RPATH-ed due to the --rpath-filter
         # Thus, the RPATH sanity check is expected to fail with libtoy.so not being found
+        args = rpath_args + ['--rpath-filter=.*libtoy.*']
         error_pattern = r"Sanity check failed\: Library libtoy\.so not found"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
-                                  extra_args=['--rpath', '--rpath-filter=.*libtoy.*'],
-                                  name='toy-app', raise_error=True, verbose=False)
+                                  extra_args=args, name='toy-app', raise_error=True, verbose=False)
 
         # test use of --filter-rpath-sanity-libs option. In this test, we use --rpath-filter to make sure libtoy.so is
         # not rpath-ed. Then, we use --filter-rpath-sanity-libs to make sure the RPATH sanity checks ignores
         # the fact that libtoy.so is not found. Thus, this build should complete succesfully
-        args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libtoy.so']
+        args = rpath_args + ['--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libtoy.so']
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
@@ -2910,7 +2910,7 @@ class ToyBuildTest(EnhancedTestCase):
                         f"Pattern '{notfound.pattern}' should be found in: {res.output}")
 
         # test again with list of library names passed to --filter-rpath-sanity-libs
-        args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libfoo.so,libtoy.so,libbar.so']
+        args = rpath_args + ['--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libfoo.so,libtoy.so,libbar.so']
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
@@ -2925,6 +2925,19 @@ class ToyBuildTest(EnhancedTestCase):
                          f"Pattern '{libtoy_regex.pattern}' should not be found in: {res.output}")
         self.assertTrue(notfound.search(res.output),
                         f"Pattern '{notfound.pattern}' should be found in: {res.output}")
+
+        # by default, without using --strict-rpath-sanity-check, there's no failure since RPATH sanity check
+        # doesn't check for missing libraries with $LD_LIBRARY_PATH unset
+        args = ['--rpath', '--rpath-filter=.*libtoy.*']
+        with self.mocked_stdout_stderr():
+            self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True, verbose=False)
+
+        # trouble again when $LD_LIBRARY_PATH is not used in generated module file
+        args = ['libtoy-0.0.eb', '--rebuild', '--rpath', '--rpath-filter=.*libtoy.*',
+                '--filter-env-vars=LD_LIBRARY_PATH']
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
+                                  extra_args=args, name='toy-app', raise_error=True, verbose=False)
 
     def test_toy_modaltsoftname(self):
         """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
