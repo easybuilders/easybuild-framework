@@ -1469,21 +1469,28 @@ class EasyBlock(object):
         for (key, value) in self.cfg['modextravars'].items():
             lines.append(self.module_generator.set_environment(key, value))
 
-        for (key, value) in self.cfg['modextrapaths'].items():
-            if isinstance(value, str):
-                value = [value]
-            elif not isinstance(value, (tuple, list)):
-                raise EasyBuildError("modextrapaths dict value %s (type: %s) is not a list or tuple",
-                                     value, type(value))
-            lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
+        for name, prepend in [('modextrapaths', True), ('modextrapaths_append', False)]:
+            allow_abs = self.cfg['allow_prepend_abs_path'] if prepend else self.cfg['allow_append_abs_path']
 
-        for (key, value) in self.cfg['modextrapaths_append'].items():
-            if isinstance(value, str):
-                value = [value]
-            elif not isinstance(value, (tuple, list)):
-                raise EasyBuildError("modextrapaths_append dict value %s (type: %s) is not a list or tuple",
-                                     value, type(value))
-            lines.append(self.module_generator.append_paths(key, value, allow_abs=self.cfg['allow_append_abs_path']))
+            for (key, value) in self.cfg[name].items():
+                if not isinstance(value, (tuple, list, dict)):
+                    raise EasyBuildError(f"{name} dict value {value} is not a list or dict")
+                elif isinstance(value, dict):
+                    if 'paths' not in value or 'delimiter' not in value:
+                        raise EasyBuildError(f"{name} dict value {value} must contain 'path' and 'delimiter'")
+
+                    paths = value['paths']
+                    delim = value['delimiter']
+                    if not isinstance(paths, (list, str)):
+                        raise EasyBuildError("modextrapaths dict value {value} path must be list or str")
+                    if not isinstance(delim, str):
+                        raise EasyBuildError("modextrapaths dict value {value} delimiter must be a str")
+                    lines.append(self.module_generator.update_paths(key, value, prepend=prepend, delim=delim,
+                                                                    allow_abs=allow_abs))
+                else:
+                    if isinstance(value, str):
+                        value = [value]
+                    lines.append(self.module_generator.update_paths(key, value, prepend=prepend, allow_abs=allow_abs))
 
         # add lines to update $PYTHONPATH or $EBPYTHONPREFIXES
         lines.extend(self.make_module_pythonpath())
