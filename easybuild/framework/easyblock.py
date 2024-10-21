@@ -2119,7 +2119,7 @@ class EasyBlock(object):
                 elif pending_deps:
 
                     # check whether all required dependency extensions are actually going to be installed;
-                    # if not, we assume that they are be provided by dependencies;
+                    # if not, we assume that they are provided by dependencies;
                     missing_deps = [x for x in required_deps if x not in all_ext_names]
                     if missing_deps:
                         msg = f"Missing required extensions for {ext.name} not found "
