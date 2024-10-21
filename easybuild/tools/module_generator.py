@@ -981,7 +981,9 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         abspaths = []
         for path in paths:
-            if os.path.isabs(path) and not allow_abs:
+            if path == ':':
+                abspaths.append(path)
+            elif os.path.isabs(path) and not allow_abs:
                 raise EasyBuildError("Absolute path %s passed to update_paths which only expects relative paths.",
                                      path)
             elif not os.path.isabs(path):
@@ -1452,7 +1454,9 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         abspaths = []
         for path in paths:
-            if os.path.isabs(path):
+            if path == ':':
+                abspaths.append(quote_str(path))
+            elif os.path.isabs(path):
                 if allow_abs:
                     abspaths.append(quote_str(path))
                 else:
