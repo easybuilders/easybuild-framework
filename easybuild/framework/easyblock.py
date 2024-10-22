@@ -1473,8 +1473,9 @@ class EasyBlock(object):
             allow_abs = self.cfg['allow_prepend_abs_path'] if prepend else self.cfg['allow_append_abs_path']
 
             for (key, value) in self.cfg[name].items():
-                if not isinstance(value, (tuple, list, dict)):
-                    raise EasyBuildError(f'{name} dict value "{value}" (type {type(value)}) is not a list or dict')
+                if not isinstance(value, (tuple, list, dict, str)):
+                    raise EasyBuildError(f'{name} dict value "{value}" (type {type(value)}) is not a '
+                                         'list, dict or str')
                 elif isinstance(value, dict):
                     if 'paths' not in value or 'delimiter' not in value:
                         raise EasyBuildError(f'{name} dict value "{value}" must contain "path" and "delimiter"')
