@@ -82,7 +82,7 @@ class Compiler(Toolchain):
         'loose': (False, "Loose precision"),
         'veryloose': (False, "Very loose precision"),
         'verbose': (False, "Verbose output"),
-        'debug': (False, "Enable debug"),
+        'debug': (build_option('default_debug_symbols'), "Enable debug"),
         'i8': (False, "Integers are 8 byte integers"),  # fortran only -> no: MKL and icc give -DMKL_ILP64
         'r8': (False, "Real is 8 byte real"),  # fortran only
         'unroll': (False, "Unroll loops"),
