@@ -1474,17 +1474,17 @@ class EasyBlock(object):
 
             for (key, value) in self.cfg[name].items():
                 if not isinstance(value, (tuple, list, dict)):
-                    raise EasyBuildError(f"{name} dict value {value} is not a list or dict")
+                    raise EasyBuildError(f'{name} dict value "{value}" (type {type(value)}) is not a list or dict')
                 elif isinstance(value, dict):
                     if 'paths' not in value or 'delimiter' not in value:
-                        raise EasyBuildError(f"{name} dict value {value} must contain 'path' and 'delimiter'")
+                        raise EasyBuildError(f'{name} dict value "{value}" must contain "path" and "delimiter"')
 
                     paths = value['paths']
                     delim = value['delimiter']
                     if not isinstance(paths, (list, str)):
-                        raise EasyBuildError("modextrapaths dict value {value} path must be list or str")
+                        raise EasyBuildError('modextrapaths dict value "{value}" path must be list or str')
                     if not isinstance(delim, str):
-                        raise EasyBuildError("modextrapaths dict value {value} delimiter must be a str")
+                        raise EasyBuildError('modextrapaths dict value "{value}" delimiter must be a str')
                     lines.append(self.module_generator.update_paths(key, value, prepend=prepend, delim=delim,
                                                                     allow_abs=allow_abs))
                 else:
