@@ -644,7 +644,12 @@ class EasyBlock:
         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
 
         for ext in exts_list:
-            if isinstance(ext, (list, tuple)) and ext:
+            if isinstance(ext, str):
+                exts_sources.append({'name': ext})
+            else:
+                if not isinstance(ext, (list, tuple)) or not ext:
+                    raise EasyBuildError("Extension specified in unknown format (not a string/list/tuple)")
+
                 # expected format: (name, version, options (dict))
                 # name and version can use templates, resolved via parent EC
 
@@ -831,12 +836,6 @@ class EasyBlock:
                         self.log.debug('No patches found for extension %s.' % ext_name)
 
                     exts_sources.append(ext_src)
-
-            elif isinstance(ext, str):
-                exts_sources.append({'name': ext})
-
-            else:
-                raise EasyBuildError("Extension specified in unknown format (not a string/list/tuple)")
 
         return exts_sources
 
