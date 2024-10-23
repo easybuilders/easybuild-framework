@@ -666,7 +666,12 @@ class EasyBlock:
 
         orig_github_account = self.cfg['github_account']
         for ext in exts_list:
-            if isinstance(ext, (list, tuple)) and ext:
+            if isinstance(ext, str):
+                exts_sources.append({'name': resolve_template(ext, self.cfg.template_values)})
+            else:
+                if not isinstance(ext, (list, tuple)) or not ext:
+                    raise EasyBuildError("Extension specified in unknown format (not a string/list/tuple)")
+
                 # expected format: (name, version, options (dict))
                 # name and version can use templates, resolved via parent EC
 
@@ -864,11 +869,6 @@ class EasyBlock:
                         self.log.debug('No patches found for extension %s.' % ext_name)
 
                     exts_sources.append(ext_src)
-
-            elif isinstance(ext, str):
-                exts_sources.append({'name': resolve_template(ext, self.cfg.template_values)})
-            else:
-                raise EasyBuildError("Extension specified in unknown format (not a string/list/tuple)")
 
         return exts_sources
 
