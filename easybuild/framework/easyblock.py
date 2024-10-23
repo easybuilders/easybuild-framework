@@ -1399,43 +1399,40 @@ class EasyBlock(object):
         Add lines for module file to update $PYTHONPATH or $EBPYTHONPREFIXES,
         if they aren't already present and the standard lib/python*/site-packages subdirectory exists
         """
-        lines = []
-        if not os.path.isfile(os.path.join(self.installdir, 'bin', 'python')):  # only needed when not a python install
-            python_subdir_pattern = os.path.join(self.installdir, 'lib', 'python*', 'site-packages')
-            candidate_paths = (os.path.relpath(path, self.installdir) for path in glob.glob(python_subdir_pattern))
-            python_paths = [path for path in candidate_paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
+        if os.path.isfile(os.path.join(self.installdir, 'bin', 'python')):  # only needed when not a python install
+            return []
 
-            # determine whether Python is a runtime dependency;
-            # if so, we assume it was installed with EasyBuild, and hence is aware of $EBPYTHONPREFIXES
-            runtime_deps = [dep['name'] for dep in self.cfg.dependencies(runtime_only=True)]
+        python_subdir_pattern = os.path.join(self.installdir, 'lib', 'python*', 'site-packages')
+        candidate_paths = (os.path.relpath(path, self.installdir) for path in glob.glob(python_subdir_pattern))
+        python_paths = [path for path in candidate_paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
+        if not python_paths:
+            return []
 
-            # don't use $EBPYTHONPREFIXES unless we can and it's preferred or necesary (due to use of multi_deps)
-            use_ebpythonprefixes = False
-            multi_deps = self.cfg['multi_deps']
+        # determine whether Python is a runtime dependency;
+        # if so, we assume it was installed with EasyBuild, and hence is aware of $EBPYTHONPREFIXES
+        runtime_deps = [dep['name'] for dep in self.cfg.dependencies(runtime_only=True)]
 
-            if 'Python' in runtime_deps:
-                self.log.info("Found Python runtime dependency, so considering $EBPYTHONPREFIXES...")
+        # don't use $EBPYTHONPREFIXES unless we can and it's preferred or necesary (due to use of multi_deps)
+        use_ebpythonprefixes = False
+        multi_deps = self.cfg['multi_deps']
 
-                if build_option('prefer_python_search_path') == EBPYTHONPREFIXES:
-                    self.log.info("Preferred Python search path is $EBPYTHONPREFIXES, so using that")
-                    use_ebpythonprefixes = True
+        if 'Python' in runtime_deps:
+            self.log.info("Found Python runtime dependency, so considering $EBPYTHONPREFIXES...")
 
-            elif multi_deps and 'Python' in multi_deps:
-                self.log.info("Python is listed in 'multi_deps', so using $EBPYTHONPREFIXES instead of $PYTHONPATH")
+            if build_option('prefer_python_search_path') == EBPYTHONPREFIXES:
+                self.log.info("Preferred Python search path is $EBPYTHONPREFIXES, so using that")
                 use_ebpythonprefixes = True
 
-            if python_paths:
-                # add paths unless they were already added
-                if use_ebpythonprefixes:
-                    path = ''  # EBPYTHONPREFIXES are relative to the install dir
-                    if path not in self.module_generator.added_paths_per_key[EBPYTHONPREFIXES]:
-                        lines.append(self.module_generator.prepend_paths(EBPYTHONPREFIXES, path))
-                else:
-                    for python_path in python_paths:
-                        if python_path not in self.module_generator.added_paths_per_key[PYTHONPATH]:
-                            lines.append(self.module_generator.prepend_paths(PYTHONPATH, python_path))
+        elif multi_deps and 'Python' in multi_deps:
+            self.log.info("Python is listed in 'multi_deps', so using $EBPYTHONPREFIXES instead of $PYTHONPATH")
+            use_ebpythonprefixes = True
 
-        return lines
+        if use_ebpythonprefixes:
+            path = ''  # EBPYTHONPREFIXES are relative to the install dir
+            lines = self.module_generator.prepend_paths(EBPYTHONPREFIXES, path)
+        else:
+            lines = self.module_generator.prepend_paths(PYTHONPATH, python_paths)
+        return [lines] if lines else []
 
     def make_module_extra(self, altroot=None, altversion=None):
         """
