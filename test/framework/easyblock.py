@@ -1259,7 +1259,7 @@ class EasyBlockTest(EnhancedTestCase):
         modextrapaths = {
             'PATH': ('xbin', 'pibin'),
             'CPATH': 'pi/include',
-            'TCLLIBPATH': {'path': 'pi', 'delimiter': ' '},
+            'TCLLIBPATH': {'paths': 'pi', 'delimiter': ' '},
         }
         modextrapaths_append = {'APPEND_PATH': 'append_path'}
         self.contents = '\n'.join([
