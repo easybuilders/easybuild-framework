@@ -553,183 +553,183 @@ class EasyBlock(object):
         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
 
         for ext in exts_list:
-            if isinstance(ext, (list, tuple)) and ext:
-                # expected format: (name, version, options (dict))
-                # name and version can use templates, resolved via parent EC
-
-                ext_name = resolve_template(ext[0], self.cfg.template_values)
-                if len(ext) == 1:
-                    exts_sources.append({'name': ext_name})
-                else:
-                    ext_version = resolve_template(ext[1], self.cfg.template_values)
-
-                    # make sure we grab *raw* dict of default options for extension,
-                    # since it may use template values like %(name)s & %(version)s
-                    ext_options = copy.deepcopy(self.cfg.get_ref('exts_default_options'))
-
-                    if len(ext) == 3:
-                        if isinstance(ext_options, dict):
-                            ext_options.update(ext[2])
-                        else:
-                            raise EasyBuildError("Unexpected type (non-dict) for 3rd element of %s", ext)
-                    elif len(ext) > 3:
-                        raise EasyBuildError('Extension specified in unknown format (list/tuple too long)')
-
-                    ext_src = {
-                        'name': ext_name,
-                        'version': ext_version,
-                        'options': ext_options,
-                    }
-
-                    # if a particular easyblock is specified, make sure it's used
-                    # (this is picked up by init_ext_instances)
-                    ext_src['easyblock'] = ext_options.get('easyblock', None)
-
-                    # construct dictionary with template values;
-                    # inherited from parent, except for name/version templates which are specific to this extension
-                    template_values = copy.deepcopy(self.cfg.template_values)
-                    template_values.update(template_constant_dict(ext_src))
-
-                    # resolve templates in extension options
-                    ext_options = resolve_template(ext_options, template_values)
-
-                    source_urls = ext_options.get('source_urls', [])
-                    checksums = ext_options.get('checksums', [])
-
-                    download_instructions = ext_options.get('download_instructions')
-
-                    if ext_options.get('nosource', None):
-                        self.log.debug("No sources for extension %s, as indicated by 'nosource'", ext_name)
-
-                    elif ext_options.get('sources', None):
-                        sources = ext_options['sources']
-
-                        # only a single source file is supported for extensions currently,
-                        # see https://github.com/easybuilders/easybuild-framework/issues/3463
-                        if isinstance(sources, list):
-                            if len(sources) == 1:
-                                source = sources[0]
-                            else:
-                                error_msg = "'sources' spec for %s in exts_list must be single element list. Is: %s"
-                                raise EasyBuildError(error_msg, ext_name, sources)
-                        else:
-                            source = sources
-
-                        # always pass source spec as dict value to fetch_source method,
-                        # mostly so we can inject stuff like source URLs
-                        if isinstance(source, str):
-                            source = {'filename': source}
-                        elif not isinstance(source, dict):
-                            raise EasyBuildError("Incorrect value type for source of extension %s: %s",
-                                                 ext_name, source)
-
-                        # if no custom source URLs are specified in sources spec,
-                        # inject the ones specified for this extension
-                        if 'source_urls' not in source:
-                            source['source_urls'] = source_urls
-
-                        if fetch_files:
-                            src = self.fetch_source(source, checksums, extension=True,
-                                                    download_instructions=download_instructions)
-                            ext_src.update({
-                                # keep track of custom extract command (if any)
-                                'extract_cmd': src['cmd'],
-                                # copy 'path' entry to 'src' for use with extensions
-                                'src': src['path'],
-                            })
-
-                    else:
-                        # use default template for name of source file if none is specified
-                        default_source_tmpl = resolve_template('%(name)s-%(version)s.tar.gz', template_values)
-
-                        # if no sources are specified via 'sources', fall back to 'source_tmpl'
-                        src_fn = ext_options.get('source_tmpl')
-                        if src_fn is None:
-                            src_fn = default_source_tmpl
-                        elif not isinstance(src_fn, str):
-                            error_msg = "source_tmpl value must be a string! (found value of type '%s'): %s"
-                            raise EasyBuildError(error_msg, type(src_fn).__name__, src_fn)
-
-                        if fetch_files:
-                            src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
-                                                        force_download=force_download,
-                                                        download_instructions=download_instructions)
-                            if src_path:
-                                ext_src.update({'src': src_path})
-                            else:
-                                raise EasyBuildError("Source for extension %s not found.", ext)
-
-                    # verify checksum for extension sources
-                    if verify_checksums and 'src' in ext_src:
-                        src_path = ext_src['src']
-                        src_fn = os.path.basename(src_path)
-
-                        src_checksums = {}
-                        for checksum_type in [CHECKSUM_TYPE_SHA256]:
-                            src_checksum = compute_checksum(src_path, checksum_type=checksum_type)
-                            src_checksums[checksum_type] = src_checksum
-                            self.log.info("%s checksum for %s: %s", checksum_type, src_path, src_checksum)
-
-                        # verify checksum (if provided)
-                        self.log.debug('Verifying checksums for extension source...')
-                        fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
-                        if verify_checksum(src_path, fn_checksum, src_checksums):
-                            self.log.info('Checksum for extension source %s verified', src_fn)
-                        elif build_option('ignore_checksums'):
-                            print_warning("Ignoring failing checksum verification for %s" % src_fn)
-                        else:
-                            raise EasyBuildError(
-                                'Checksum verification for extension source %s failed', src_fn,
-                                exit_code=EasyBuildExit.FAIL_CHECKSUM
-                            )
-
-                    # locate extension patches (if any), and verify checksums
-                    ext_patches = ext_options.get('patches', [])
-                    if fetch_files:
-                        ext_patches = self.fetch_patches(patch_specs=ext_patches, extension=True)
-                    else:
-                        ext_patches = [create_patch_info(p) for p in ext_patches]
-
-                    if ext_patches:
-                        self.log.debug('Found patches for extension %s: %s', ext_name, ext_patches)
-                        ext_src.update({'patches': ext_patches})
-
-                        if verify_checksums:
-                            computed_checksums = {}
-                            for patch in ext_patches:
-                                patch = patch['path']
-                                computed_checksums[patch] = {}
-                                for checksum_type in [CHECKSUM_TYPE_SHA256]:
-                                    checksum = compute_checksum(patch, checksum_type=checksum_type)
-                                    computed_checksums[patch][checksum_type] = checksum
-                                    self.log.info("%s checksum for %s: %s", checksum_type, patch, checksum)
-
-                            # verify checksum (if provided)
-                            self.log.debug('Verifying checksums for extension patches...')
-                            for idx, patch in enumerate(ext_patches):
-                                patch = patch['path']
-                                patch_fn = os.path.basename(patch)
-
-                                checksum = self.get_checksum_for(checksums, filename=patch_fn, index=idx+1)
-                                if verify_checksum(patch, checksum, computed_checksums[patch]):
-                                    self.log.info('Checksum for extension patch %s verified', patch_fn)
-                                elif build_option('ignore_checksums'):
-                                    print_warning("Ignoring failing checksum verification for %s" % patch_fn)
-                                else:
-                                    raise EasyBuildError(
-                                        "Checksum verification for extension patch %s failed", patch_fn,
-                                        exit_code=EasyBuildExit.FAIL_CHECKSUM
-                                    )
-                    else:
-                        self.log.debug('No patches found for extension %s.' % ext_name)
-
-                    exts_sources.append(ext_src)
-
-            elif isinstance(ext, str):
+            if isinstance(ext, str):
                 exts_sources.append({'name': ext})
+                continue
+
+            if not isinstance(ext, (list, tuple)) or not ext:
+                raise EasyBuildError("Extension specified in unknown format (not a string/list/tuple)")
+
+            # expected format: (name, version, options (dict))
+            # name and version can use templates, resolved via parent EC
+
+            ext_name = resolve_template(ext[0], self.cfg.template_values)
+            if len(ext) == 1:
+                exts_sources.append({'name': ext_name})
+                continue
+
+            ext_version = resolve_template(ext[1], self.cfg.template_values)
+
+            # make sure we grab *raw* dict of default options for extension,
+            # since it may use template values like %(name)s & %(version)s
+            ext_options = copy.deepcopy(self.cfg.get_ref('exts_default_options'))
+
+            if len(ext) == 3:
+                if isinstance(ext_options, dict):
+                    ext_options.update(ext[2])
+                else:
+                    raise EasyBuildError("Unexpected type (non-dict) for 3rd element of %s", ext)
+            elif len(ext) > 3:
+                raise EasyBuildError('Extension specified in unknown format (list/tuple too long)')
+
+            ext_src = {
+                'name': ext_name,
+                'version': ext_version,
+                'options': ext_options,
+            }
+
+            # if a particular easyblock is specified, make sure it's used
+            # (this is picked up by init_ext_instances)
+            ext_src['easyblock'] = ext_options.get('easyblock', None)
+
+            # construct dictionary with template values;
+            # inherited from parent, except for name/version templates which are specific to this extension
+            template_values = copy.deepcopy(self.cfg.template_values)
+            template_values.update(template_constant_dict(ext_src))
+
+            # resolve templates in extension options
+            ext_options = resolve_template(ext_options, template_values)
+
+            source_urls = ext_options.get('source_urls', [])
+            checksums = ext_options.get('checksums', [])
+
+            download_instructions = ext_options.get('download_instructions')
+
+            if ext_options.get('nosource', None):
+                self.log.debug("No sources for extension %s, as indicated by 'nosource'", ext_name)
+
+            elif ext_options.get('sources', None):
+                sources = ext_options['sources']
+
+                # only a single source file is supported for extensions currently,
+                # see https://github.com/easybuilders/easybuild-framework/issues/3463
+                if isinstance(sources, list):
+                    if len(sources) == 1:
+                        source = sources[0]
+                    else:
+                        error_msg = "'sources' spec for %s in exts_list must be single element list. Is: %s"
+                        raise EasyBuildError(error_msg, ext_name, sources)
+                else:
+                    source = sources
+
+                # always pass source spec as dict value to fetch_source method,
+                # mostly so we can inject stuff like source URLs
+                if isinstance(source, str):
+                    source = {'filename': source}
+                elif not isinstance(source, dict):
+                    raise EasyBuildError("Incorrect value type for source of extension %s: %s", ext_name, source)
+
+                # if no custom source URLs are specified in sources spec,
+                # inject the ones specified for this extension
+                if 'source_urls' not in source:
+                    source['source_urls'] = source_urls
+
+                if fetch_files:
+                    src = self.fetch_source(source, checksums, extension=True,
+                                            download_instructions=download_instructions)
+                    ext_src.update({
+                        # keep track of custom extract command (if any)
+                        'extract_cmd': src['cmd'],
+                        # copy 'path' entry to 'src' for use with extensions
+                        'src': src['path'],
+                    })
 
             else:
-                raise EasyBuildError("Extension specified in unknown format (not a string/list/tuple)")
+                # use default template for name of source file if none is specified
+                default_source_tmpl = resolve_template('%(name)s-%(version)s.tar.gz', template_values)
+
+                # if no sources are specified via 'sources', fall back to 'source_tmpl'
+                src_fn = ext_options.get('source_tmpl')
+                if src_fn is None:
+                    src_fn = default_source_tmpl
+                elif not isinstance(src_fn, str):
+                    error_msg = "source_tmpl value must be a string! (found value of type '%s'): %s"
+                    raise EasyBuildError(error_msg, type(src_fn).__name__, src_fn)
+
+                if fetch_files:
+                    src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
+                                                force_download=force_download,
+                                                download_instructions=download_instructions)
+                    if src_path:
+                        ext_src.update({'src': src_path})
+                    else:
+                        raise EasyBuildError("Source for extension %s not found.", ext)
+
+            # verify checksum for extension sources
+            if verify_checksums and 'src' in ext_src:
+                src_path = ext_src['src']
+                src_fn = os.path.basename(src_path)
+
+                src_checksums = {}
+                for checksum_type in [CHECKSUM_TYPE_SHA256]:
+                    src_checksum = compute_checksum(src_path, checksum_type=checksum_type)
+                    src_checksums[checksum_type] = src_checksum
+                    self.log.info("%s checksum for %s: %s", checksum_type, src_path, src_checksum)
+
+                # verify checksum (if provided)
+                self.log.debug('Verifying checksums for extension source...')
+                fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
+                if verify_checksum(src_path, fn_checksum, src_checksums):
+                    self.log.info('Checksum for extension source %s verified', src_fn)
+                elif build_option('ignore_checksums'):
+                    print_warning("Ignoring failing checksum verification for %s" % src_fn)
+                else:
+                    raise EasyBuildError(
+                        'Checksum verification for extension source %s failed', src_fn,
+                        exit_code=EasyBuildExit.FAIL_CHECKSUM
+                    )
+
+            # locate extension patches (if any), and verify checksums
+            ext_patches = ext_options.get('patches', [])
+            if fetch_files:
+                ext_patches = self.fetch_patches(patch_specs=ext_patches, extension=True)
+            else:
+                ext_patches = [create_patch_info(p) for p in ext_patches]
+
+            if ext_patches:
+                self.log.debug('Found patches for extension %s: %s', ext_name, ext_patches)
+                ext_src.update({'patches': ext_patches})
+
+                if verify_checksums:
+                    computed_checksums = {}
+                    for patch in ext_patches:
+                        patch = patch['path']
+                        computed_checksums[patch] = {}
+                        for checksum_type in [CHECKSUM_TYPE_SHA256]:
+                            checksum = compute_checksum(patch, checksum_type=checksum_type)
+                            computed_checksums[patch][checksum_type] = checksum
+                            self.log.info("%s checksum for %s: %s", checksum_type, patch, checksum)
+
+                    # verify checksum (if provided)
+                    self.log.debug('Verifying checksums for extension patches...')
+                    for idx, patch in enumerate(ext_patches):
+                        patch = patch['path']
+                        patch_fn = os.path.basename(patch)
+
+                        checksum = self.get_checksum_for(checksums, filename=patch_fn, index=idx+1)
+                        if verify_checksum(patch, checksum, computed_checksums[patch]):
+                            self.log.info('Checksum for extension patch %s verified', patch_fn)
+                        elif build_option('ignore_checksums'):
+                            print_warning("Ignoring failing checksum verification for %s" % patch_fn)
+                        else:
+                            raise EasyBuildError(
+                                "Checksum verification for extension patch %s failed", patch_fn,
+                                exit_code=EasyBuildExit.FAIL_CHECKSUM
+                            )
+            else:
+                self.log.debug('No patches found for extension %s.' % ext_name)
+
+            exts_sources.append(ext_src)
 
         return exts_sources
 
