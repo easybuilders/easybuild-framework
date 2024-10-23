@@ -330,6 +330,7 @@ BUILD_OPTIONS_CMDLINE = {
         'cleanup_builddir',
         'cleanup_easyconfigs',
         'cleanup_tmpdir',
+        'default_debug_symbols',
         'extended_dry_run_ignore_errors',
         'fixed_installdir_naming_scheme',
         'lib_lib64_symlink',
