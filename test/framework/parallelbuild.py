@@ -290,7 +290,7 @@ class ParallelBuildTest(EnhancedTestCase):
     def test_submit_jobs(self):
         """Test submit_jobs"""
         test_easyconfigs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_easyconfigs_dir, 't', 'toy', 'toy-0.0.eb')
+        toy_ec = process_easyconfig(os.path.join(test_easyconfigs_dir, 't', 'toy', 'toy-0.0.eb'))
 
         args = [
             '--debug',
@@ -303,7 +303,7 @@ class ParallelBuildTest(EnhancedTestCase):
             '--job-cores=3',
         ]
         eb_go = parse_options(args=args)
-        cmd = submit_jobs([toy_ec], eb_go.generate_cmd_line(), testing=True)
+        cmd = submit_jobs(toy_ec, eb_go.generate_cmd_line(), testing=True)
 
         # these patterns must be found
         regexs = [
@@ -331,7 +331,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         # test again with custom EasyBuild command to use in jobs
         update_build_option('job_eb_cmd', "/just/testing/bin/eb --debug")
-        cmd = submit_jobs([toy_ec], eb_go.generate_cmd_line(), testing=True)
+        cmd = submit_jobs(toy_ec, eb_go.generate_cmd_line(), testing=True)
         regex = re.compile(r" && /just/testing/bin/eb --debug %\(spec\)s ")
         self.assertTrue(regex.search(cmd), "Pattern '%s' found in: %s" % (regex.pattern, cmd))
 
