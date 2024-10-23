@@ -45,6 +45,7 @@ from easybuild.tools import LooseVersion
 from textwrap import wrap
 
 from easybuild.base import fancylogger
+from easybuild.framework.easyblock import make_extension_string
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
@@ -610,21 +611,6 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def _generate_extension_list(self):
-        """
-        Generate a string with a list of extensions.
-
-        The name and version are separated by name_version_sep and each extension is separated by ext_sep
-        """
-        return self.app.make_extension_string()
-
-    def _generate_extensions_list(self):
-        """
-        Generate a list of all extensions in name/version format
-        """
-        exts_str = self.app.make_extension_string(name_version_sep='/', ext_sep=',')
-        return exts_str.split(',') if exts_str else []
-
     def _generate_help_text(self):
         """
         Generate syntax-independent help text used for `module help`.
@@ -671,7 +657,7 @@ class ModuleGenerator(object):
             lines.extend(self._generate_section("Compatible modules", compatible_modules_txt))
 
         # Extensions (if any)
-        extensions = self._generate_extension_list()
+        extensions = make_extension_string(self.app)
         lines.extend(self._generate_section("Included extensions", '\n'.join(wrap(extensions, 78))))
 
         return '\n'.join(lines)
@@ -686,10 +672,10 @@ class ModuleGenerator(object):
                 mod_list = []
                 txt = ''
                 vlist = self.app.cfg['multi_deps'].get(key)
-                for idx in range(len(vlist)):
+                for idx, version in enumerate(vlist):
                     for deplist in self.app.cfg.multi_deps:
                         for dep in deplist:
-                            if dep['name'] == key and dep['version'] == vlist[idx]:
+                            if dep['name'] == key and dep['version'] == version:
                                 modname = dep['short_mod_name']
                                 # indicate which version is loaded by default (unless that's disabled)
                                 if idx == 0 and self.app.cfg['multi_deps_load_default']:
@@ -728,7 +714,7 @@ class ModuleGenerator(object):
             if multi_deps:
                 whatis.append("Compatible modules: %s" % ', '.join(multi_deps))
 
-            extensions = self._generate_extension_list()
+            extensions = make_extension_string(self.app)
             if extensions:
                 whatis.append("Extensions: %s" % extensions)
 
@@ -1284,12 +1270,9 @@ class ModuleGeneratorLua(ModuleGenerator):
         elif conflict:
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
-
-        if build_option('module_extensions'):
-            extensions_list = self._generate_extensions_list()
-
+            extensions_list = self.app.make_extension_list()
             if extensions_list:
-                extensions_stmt = 'extensions("%s")' % ','.join([str(x) for x in extensions_list])
+                extensions_stmt = 'extensions("%s")' % ','.join(['/'.join(x) for x in extensions_list])
                 # put this behind a Lmod version check as 'extensions' is only (well) supported since Lmod 8.2.8,
                 # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions and
                 # https://github.com/TACC/Lmod/issues/428

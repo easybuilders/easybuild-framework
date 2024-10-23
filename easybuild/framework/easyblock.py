@@ -120,6 +120,18 @@ REPROD = 'reprod'
 _log = fancylogger.getLogger('easyblock')
 
 
+def make_extension_string(app, name_version_sep='-', ext_sep=', ', sort=True):
+    """
+    Generate a string with a list of extensions of the given EasyBlock instance.
+
+    The name and version are separated by name_version_sep and each extension is separated by ext_sep
+    """
+    exts_list = (name_version_sep.join(ext) for ext in app.make_extension_list())
+    if sort:
+        exts_list = sorted(exts_list, key=str.lower)
+    return ext_sep.join(exts_list)
+
+
 class EasyBlock(object):
     """Generic support for building and installing software, base class for actual easyblocks."""
 
@@ -1519,9 +1531,9 @@ class EasyBlock(object):
 
         # set environment variable that specifies list of extensions
         # We need only name and version, so don't resolve templates
-        exts_list = self.make_extension_string(ext_sep=',', sort=False)
-        env_var_name = convert_name(self.name, upper=True)
-        lines.append(self.module_generator.set_environment('EBEXTSLIST%s' % env_var_name, exts_list))
+        exts_list = make_extension_string(self, ext_sep=',', sort=False)
+        env_var_name = 'EBEXTSLIST' + convert_name(self.name, upper=True)
+        lines.append(self.module_generator.set_environment(env_var_name, exts_list))
 
         return ''.join(lines)
 
@@ -1800,14 +1812,19 @@ class EasyBlock(object):
     # EXTENSIONS UTILITY FUNCTIONS
     #
 
-    def _make_extension_list(self):
+    def make_extension_list(self):
         """
         Return a list of extension names and their versions included in this installation
 
-        Each entry should be a (name, version) tuple or just (name, ) if no version exists
+        Each entry should be a (name, version) tuple or just (name, ) if no version exists.
+        Custom EasyBlocks may override this to add extensions that cannot be found automatically.
         """
         # Each extension in exts_list is either a string or a list/tuple with name, version as first entries
         # As name can be a templated value we must resolve templates
+        if hasattr(self, '_make_extension_list'):
+            self.log.nosupport("self._make_extension_list is replaced by self.make_extension_list", '5.0')
+        if hasattr(self, 'make_extension_string'):
+            self.log.nosupport("self.make_extension_string was removed in favor of the free function", '5.0')
         exts_list = []
         for ext in self.cfg.get_ref('exts_list'):
             if isinstance(ext, str):
@@ -1816,17 +1833,6 @@ class EasyBlock(object):
                 exts_list.append((resolve_template(ext[0], self.cfg.template_values),
                                   resolve_template(ext[1], self.cfg.template_values)))
         return exts_list
-
-    def make_extension_string(self, name_version_sep='-', ext_sep=', ', sort=True):
-        """
-        Generate a string with a list of extensions.
-
-        The name and version are separated by name_version_sep and each extension is separated by ext_sep
-        """
-        exts_list = (name_version_sep.join(ext) for ext in self._make_extension_list())
-        if sort:
-            exts_list = sorted(exts_list, key=str.lower)
-        return ext_sep.join(exts_list)
 
     def prepare_for_extensions(self):
         """Ran before installing extensions (eg to set templates)"""
