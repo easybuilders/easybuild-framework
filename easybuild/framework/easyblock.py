@@ -120,18 +120,6 @@ REPROD = 'reprod'
 _log = fancylogger.getLogger('easyblock')
 
 
-def make_extension_string(app, name_version_sep='-', ext_sep=', ', sort=True):
-    """
-    Generate a string with a list of extensions of the given EasyBlock instance.
-
-    The name and version are separated by name_version_sep and each extension is separated by ext_sep
-    """
-    exts_list = (name_version_sep.join(ext) for ext in app.make_extension_list())
-    if sort:
-        exts_list = sorted(exts_list, key=str.lower)
-    return ext_sep.join(exts_list)
-
-
 class EasyBlock(object):
     """Generic support for building and installing software, base class for actual easyblocks."""
 
@@ -1531,7 +1519,7 @@ class EasyBlock(object):
 
         # set environment variable that specifies list of extensions
         # We need only name and version, so don't resolve templates
-        exts_list = make_extension_string(self, ext_sep=',', sort=False)
+        exts_list = self.make_extension_string(ext_sep=',', sort=False)
         env_var_name = 'EBEXTSLIST' + convert_name(self.name, upper=True)
         lines.append(self.module_generator.set_environment(env_var_name, exts_list))
 
@@ -1812,6 +1800,18 @@ class EasyBlock(object):
     # EXTENSIONS UTILITY FUNCTIONS
     #
 
+    def make_extension_string(self, name_version_sep='-', ext_sep=', ', sort=True):
+        """
+        Generate a string with a list of extensions returned by make_extension_list.
+
+        The name and version are separated by name_version_sep and each extension is separated by ext_sep.
+        For customization of extensions the make_extension_list method should be used.
+        """
+        exts_list = (name_version_sep.join(ext) for ext in self.make_extension_list())
+        if sort:
+            exts_list = sorted(exts_list, key=str.lower)
+        return ext_sep.join(exts_list)
+
     def make_extension_list(self):
         """
         Return a list of extension names and their versions included in this installation
@@ -1823,8 +1823,9 @@ class EasyBlock(object):
         # As name can be a templated value we must resolve templates
         if hasattr(self, '_make_extension_list'):
             self.log.nosupport("self._make_extension_list is replaced by self.make_extension_list", '5.0')
-        if hasattr(self, 'make_extension_string'):
-            self.log.nosupport("self.make_extension_string was removed in favor of the free function", '5.0')
+        if type(self).make_extension_string != EasyBlock.make_extension_string:
+            self.log.nosupport("self.make_extension_string should not be overridden", '5.0')
+
         exts_list = []
         for ext in self.cfg.get_ref('exts_list'):
             if isinstance(ext, str):

@@ -45,7 +45,6 @@ from easybuild.tools import LooseVersion
 from textwrap import wrap
 
 from easybuild.base import fancylogger
-from easybuild.framework.easyblock import make_extension_string
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
@@ -657,7 +656,7 @@ class ModuleGenerator(object):
             lines.extend(self._generate_section("Compatible modules", compatible_modules_txt))
 
         # Extensions (if any)
-        extensions = make_extension_string(self.app)
+        extensions = self.app.make_extension_string()
         lines.extend(self._generate_section("Included extensions", '\n'.join(wrap(extensions, 78))))
 
         return '\n'.join(lines)
@@ -714,7 +713,7 @@ class ModuleGenerator(object):
             if multi_deps:
                 whatis.append("Compatible modules: %s" % ', '.join(multi_deps))
 
-            extensions = make_extension_string(self.app)
+            extensions = self.app.make_extension_string()
             if extensions:
                 whatis.append("Extensions: %s" % extensions)
 
@@ -1270,9 +1269,9 @@ class ModuleGeneratorLua(ModuleGenerator):
         elif conflict:
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
-            extensions_list = self.app.make_extension_list()
+            extensions_list = self.app.make_extension_string(name_version_sep='/', ext_sep=',')
             if extensions_list:
-                extensions_stmt = 'extensions("%s")' % ','.join(['/'.join(x) for x in extensions_list])
+                extensions_stmt = 'extensions("%s")' % extensions_list
                 # put this behind a Lmod version check as 'extensions' is only (well) supported since Lmod 8.2.8,
                 # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions and
                 # https://github.com/TACC/Lmod/issues/428
