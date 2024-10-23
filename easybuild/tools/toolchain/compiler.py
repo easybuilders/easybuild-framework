@@ -82,7 +82,7 @@ class Compiler(Toolchain):
         'loose': (False, "Loose precision"),
         'veryloose': (False, "Very loose precision"),
         'verbose': (False, "Verbose output"),
-        'debug': (build_option('default_debug_symbols'), "Enable debug"),
+        'debug': (True, "Enable debug symbols"),
         'i8': (False, "Integers are 8 byte integers"),  # fortran only -> no: MKL and icc give -DMKL_ILP64
         'r8': (False, "Real is 8 byte real"),  # fortran only
         'unroll': (False, "Unroll loops"),
@@ -156,6 +156,7 @@ class Compiler(Toolchain):
         self.cpu_family = systemtools.get_cpu_family()
         # list of compiler prefixes
         self.prefixes = []
+        self.COMPILER_SHARED_OPTS['debug'] = build_option('default_debug_symbols')
         super(Compiler, self).__init__(*args, **kwargs)
 
     def set_options(self, options):
