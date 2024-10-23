@@ -1486,7 +1486,7 @@ class EasyBlock(object):
                         raise EasyBuildError('modextrapaths dict value "{value}" paths must be list or str')
                     if not isinstance(delim, str):
                         raise EasyBuildError('modextrapaths dict value "{value}" delimiter must be a str')
-                    lines.append(self.module_generator.update_paths(key, value, prepend=prepend, delim=delim,
+                    lines.append(self.module_generator.update_paths(key, paths, prepend=prepend, delim=delim,
                                                                     allow_abs=allow_abs))
                 else:
                     if isinstance(value, str):
