@@ -77,9 +77,9 @@ class Acml(LinAlg):
             for root in self.get_software_root(self.BLAS_MODULE_NAME):
                 subdirs = self.ACML_SUBDIRS_MAP[self.COMPILER_FAMILY]
                 self.BLAS_LIB_DIR = [os.path.join(x, 'lib') for x in subdirs]
-                self.variables.append_exists('LDFLAGS', root, self.BLAS_LIB_DIR, append_all=True)
+                self._add_dependency_linker_paths(root, extra_dirs=self.BLAS_LIB_DIR)
                 incdirs = [os.path.join(x, 'include') for x in subdirs]
-                self.variables.append_exists('CPPFLAGS', root, incdirs, append_all=True)
+                self._add_dependency_cpp_headers(root, extra_dirs=incdirs)
         except Exception:
             raise EasyBuildError("_set_blas_variables: ACML set LDFLAGS/CPPFLAGS unknown entry in ACML_SUBDIRS_MAP "
                                  "with compiler family %s", self.COMPILER_FAMILY)

@@ -31,9 +31,9 @@ Authors:
 * Kenneth Hoste (Ghent University)
 """
 
+from easybuild.tools.toolchain.variables import CommandFlagList, CommaSharedLibs, CommaStaticLibs, FlagList
+from easybuild.tools.toolchain.variables import IncludePaths, LibraryList, LinkLibraryPaths, SearchPaths
 from easybuild.tools.variables import AbsPathList
-from easybuild.tools.toolchain.variables import CommandFlagList, CommaSharedLibs, CommaStaticLibs
-from easybuild.tools.toolchain.variables import FlagList, IncludePaths, LibraryList, LinkLibraryPaths
 
 
 COMPILER_VARIABLES = [
@@ -65,7 +65,13 @@ COMPILER_MAP_CLASS = {
         ('LDFLAGS', 'Flags passed to linker'),  # TODO: overridden by command line?
     ],
     IncludePaths: [
-        ('CPPFLAGS', 'Precompiler flags'),
+        ('CPPFLAGS', 'Preprocessor flags'),
+    ],
+    SearchPaths: [
+        ('CPATH', 'Location of C/C++ header files'),
+        ('C_INCLUDE_PATH', 'Location of C header files'),
+        ('CPLUS_INCLUDE_PATH', 'Location of C++ header files'),
+        ('OBJC_INCLUDE_PATH', 'Location of Objective C header files'),
     ],
     CommandFlagList: COMPILER_VARIABLES,
 }
