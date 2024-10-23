@@ -1170,7 +1170,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
-    UPDATE_PATH_TEMPLATE_DELIM = '%s_path {"%s", delim="%s")'
+    UPDATE_PATH_TEMPLATE_DELIM = '%s_path("%s", %s, "%s")'
 
     START_STR = '[==['
     END_STR = ']==]'

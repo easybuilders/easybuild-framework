@@ -1338,9 +1338,9 @@ class EasyBlockTest(EnhancedTestCase):
                 vals = [vals]
             for val in vals:
                 if get_module_syntax() == 'Tcl':
-                    regex = re.compile(r'^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+                    regex = re.compile(r'^prepend-path\s+(-d ".")?%s\s+\$root/%s$' % (key, val), re.M)
                 elif get_module_syntax() == 'Lua':
-                    regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
+                    regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)(, ".")\)$' % (key, val), re.M)
                 else:
                     self.fail("Unknown module syntax: %s" % get_module_syntax())
                 self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
@@ -1353,9 +1353,9 @@ class EasyBlockTest(EnhancedTestCase):
                 vals = [vals]
             for val in vals:
                 if get_module_syntax() == 'Tcl':
-                    regex = re.compile(r'^append-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+                    regex = re.compile(r'^append-path\s+(-d ".")?%s\s+\$root/%s$' % (key, val), re.M)
                 elif get_module_syntax() == 'Lua':
-                    regex = re.compile(r'^append_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
+                    regex = re.compile(r'^append_path\("%s", pathJoin\(root, "%s"\)(, ".")\)$' % (key, val), re.M)
                 else:
                     self.fail("Unknown module syntax: %s" % get_module_syntax())
                 self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
