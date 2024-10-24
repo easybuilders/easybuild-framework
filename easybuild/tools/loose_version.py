@@ -77,17 +77,19 @@ class LooseVersion(object):
         if isinstance(other, str):
             other = LooseVersion(other)
 
-        # Modified: Behave the same in Python 2 & 3 when parts are of different types
-        # Taken from https://bugs.python.org/issue14894
-        for i, j in zip_longest(self.version, other.version, fillvalue=''):
-            if not type(i) is type(j):
+        # Modified: Use string comparison for different types and fill with zeroes/empty strings
+        # Based on https://bugs.python.org/issue14894
+        for i, j in zip_longest(self.version, other.version):
+            if i is None:
+                i = 0 if isinstance(j, int) else ''
+            elif j is None:
+                j = 0 if isinstance(i, int) else ''
+            elif not type(i) is type(j):
                 i = str(i)
                 j = str(j)
-            if i == j:
-                continue
-            elif i < j:
+            if i < j:
                 return -1
-            else:  # i > j
+            if i > j:
                 return 1
         return 0
 
