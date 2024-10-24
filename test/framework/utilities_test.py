@@ -148,9 +148,12 @@ class UtilitiesTest(EnhancedTestCase):
         self.assertGreater(LooseVersion('2.a'), LooseVersion('2'))
 
         # checking prereleases
-        self.assertGreater(LooseVersion('4.0.0-beta'), LooseVersion('4.0.0'))
-        self.assertTrue(LooseVersion('4.0.0-beta').is_prerelease('4.0.0', ['-beta']))
-        self.assertFalse(LooseVersion('4.0.0-beta').is_prerelease('4.0.0', ['rc']))
+        version_4beta = LooseVersion('4.0.0-beta')
+        self.assertGreater(version_4beta, LooseVersion('4.0.0'))
+        self.assertTrue(version_4beta.is_prerelease('4.0.0', ['-beta']))
+        self.assertTrue(version_4beta.is_prerelease(LooseVersion('4.0.0'), ['-beta']))
+        self.assertFalse(version_4beta.is_prerelease('4.0.0', ['rc']))
+        self.assertFalse(version_4beta.is_prerelease('4.0.0', ['rc, -beta']))
 
         # The following test is based on the Python distutils tests
         # licensed under the Python Software Foundation License Version 2
