@@ -1,13 +1,15 @@
-# This file contains the LooseVersion class based on the class with the same name
-# as present in Python 3.7.4 distutils.
-# The original class is licensed under the Python Software Foundation License Version 2.
-# It was slightly simplified as needed to make it shorter and easier to read.
-# In particular the following changes were made:
-# - Subclass object directly instead of abstract Version class
-# - Fully init the class in the constructor removing the parse method
-# - Always set self.vstring and self.version
-# - Shorten the comparison operators as the NotImplemented case doesn't apply anymore
-# - Changes to documentation and formatting
+"""
+This file contains the LooseVersion class based on the class with the same name
+as present in Python 3.7.4 distutils.
+The original class is licensed under the Python Software Foundation License Version 2.
+It was slightly simplified as needed to make it shorter and easier to read.
+In particular the following changes were made:
+- Subclass object directly instead of abstract Version class
+- Fully init the class in the constructor removing the parse method
+- Always set self.vstring and self.version
+- Shorten the comparison operators as the NotImplemented case doesn't apply anymore
+- Changes to documentation and formatting
+"""
 
 import re
 from itertools import zip_longest
