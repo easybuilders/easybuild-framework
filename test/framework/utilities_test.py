@@ -140,15 +140,22 @@ class UtilitiesTest(EnhancedTestCase):
         self.assertLess(LooseVersion('2.1.5'), LooseVersion('2.2'))
         self.assertLess(LooseVersion('2.1.3'), LooseVersion('3'))
         self.assertLessEqual(LooseVersion('2.1.0'), LooseVersion('2.2'))
-        # Careful here: 1.0 > 1 !!!
-        self.assertGreater(LooseVersion('1.0'), LooseVersion('1'))
-        self.assertLess(LooseVersion('1'), LooseVersion('1.0'))
-        # checking prereleases
-        self.assertGreater(LooseVersion('4.0.0-beta'), LooseVersion('4.0.0'))
-        self.assertEqual(LooseVersion('4.0.0-beta').is_prerelease('4.0.0', ['-beta']), True)
-        self.assertEqual(LooseVersion('4.0.0-beta').is_prerelease('4.0.0', ['rc']), False)
+        # Missing components are either empty strings or zeroes
+        self.assertEqual(LooseVersion('1.0'), LooseVersion('1'))
+        self.assertEqual(LooseVersion('1'), LooseVersion('1.0'))
+        self.assertEqual(LooseVersion('1.0'), LooseVersion('1.'))
+        self.assertGreater(LooseVersion('2.1.a'), LooseVersion('2.1'))
+        self.assertGreater(LooseVersion('2.a'), LooseVersion('2'))
 
-        # The following test is taken from Python distutils tests
+        # checking prereleases
+        version_4beta = LooseVersion('4.0.0-beta')
+        self.assertGreater(version_4beta, LooseVersion('4.0.0'))
+        self.assertTrue(version_4beta.is_prerelease('4.0.0', ['-beta']))
+        self.assertTrue(version_4beta.is_prerelease(LooseVersion('4.0.0'), ['-beta']))
+        self.assertFalse(version_4beta.is_prerelease('4.0.0', ['rc']))
+        self.assertFalse(version_4beta.is_prerelease('4.0.0', ['rc, -beta']))
+
+        # The following test is based on the Python distutils tests
         # licensed under the Python Software Foundation License Version 2
         versions = (('1.5.1', '1.5.2b2', -1),
                     ('161', '3.10a', 1),
@@ -158,16 +165,21 @@ class UtilitiesTest(EnhancedTestCase):
                     ('2g6', '11g', -1),
                     ('0.960923', '2.2beta29', -1),
                     ('1.13++', '5.5.kw', -1),
-                    # Added from https://bugs.python.org/issue14894
                     ('a.12.b.c', 'a.b.3', -1),
-                    ('1.0', '1', 1),
-                    ('1', '1.0', -1))
+                    ('1.0', '1', 0),
+                    ('1.a', '1', 1),
+                    )
 
         for v1, v2, wanted in versions:
             res = LooseVersion(v1)._cmp(LooseVersion(v2))
             self.assertEqual(res, wanted,
                              'cmp(%s, %s) should be %s, got %s' %
                              (v1, v2, wanted, res))
+            # Test the inverse
+            res = LooseVersion(v2)._cmp(LooseVersion(v1))
+            self.assertEqual(res, -wanted,
+                             'cmp(%s, %s) should be %s, got %s' %
+                             (v2, v1, -wanted, res))
             # vstring is the unparsed version
             self.assertEqual(LooseVersion(v1).vstring, v1)
 
