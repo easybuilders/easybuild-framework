@@ -40,6 +40,7 @@ Authors:
 * Maxime Boissonneault (Compute Canada)
 * Davide Vanzo (Vanderbilt University)
 * Caspar van Leeuwen (SURF)
+* Jasper Grimm (UoY)
 """
 import concurrent
 import copy
@@ -101,8 +102,9 @@ from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYC
 from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_linked_libs_raw
-from easybuild.tools.systemtools import get_shared_lib_ext, pick_system_specific_value, use_group
+from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_cuda_device_code_architectures
+from easybuild.tools.systemtools import get_linked_libs_raw, get_shared_lib_ext, pick_system_specific_value, use_group
+from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -3193,6 +3195,59 @@ class EasyBlock(object):
         self.cfg['builddependencies'] = builddeps
         self.cfg.iterating = False
 
+    def sanity_check_cuda(self, cuda_dirs=None, check_cuobjdump=True):
+        """Sanity check that binaries/libraries contain device code for the correct architecture targets."""
+
+        self.log.info("Checking binaries/libraries for CUDA device code...")
+
+        fails = []
+        cfg_ccs = build_option('cuda_compute_capabilities') or self.cfg.get('cuda_compute_capabilities', None)
+
+        if cuda_dirs is None:
+            cuda_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
+
+        if not cuda_dirs:
+            cuda_dirs = DEFAULT_BIN_LIB_SUBDIRS
+            self.log.info("Using default subdirectories for binaries/libraries to verify CUDA device code: %s",
+                          cuda_dirs)
+        else:
+            self.log.info("Using default subdirectories for binaries/libraries to verify CUDA device code: %s",
+                          cuda_dirs)
+
+        for dirpath in [os.path.join(self.installdir, d) for d in cuda_dirs]:
+            if os.path.exists(dirpath):
+                self.log.debug(f"Sanity checking files for CUDA device code in {dirpath}")
+
+                for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
+                    self.log.debug("Sanity checking for CUDA device code in %s", path)
+
+                    derived_ccs = get_cuda_device_code_architectures(path)
+
+                    if derived_ccs is None:
+                        msg = f"No CUDA device code found in {path}, so skipping it in CUDA device code sanity check"
+                        self.log.debug(msg)
+                    else:
+                        # check whether device code architectures match cuda_compute_capabilities
+                        additional_ccs = list(set(derived_ccs) - set(cfg_ccs))
+                        missing_ccs = list(set(cfg_ccs) - set(derived_ccs))
+
+                        if additional_ccs or missing_ccs:
+                            fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
+                            if additional_ccs:
+                                fail_msg += "Surplus compute capabilities: %s. " % ', '.join(sorted(additional_ccs))
+                            if missing_ccs:
+                                fail_msg += "Missing compute capabilities: %s." % ', '.join(sorted(missing_ccs))
+                            self.log.warning(fail_msg)
+                            fails.append(fail_msg)
+                        else:
+                            msg = (f"Output of 'cuobjdump' checked for {path}; device code architecures match "
+                                   "those in cuda_compute_capabilities")
+                            self.log.debug(msg)
+            else:
+                self.log.debug(f"Not sanity checking files in non-existing directory {dirpath}")
+
+        return fails
+
     def sanity_check_rpath(self, rpath_dirs=None, check_readelf_rpath=True):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
 
@@ -3781,6 +3836,14 @@ class EasyBlock(object):
                 self.sanity_check_fail_msgs.extend(rpath_fails)
         else:
             self.log.debug("Skipping RPATH sanity check")
+
+        if get_software_root('CUDA'):
+            cuda_fails = self.sanity_check_cuda()
+            if cuda_fails:
+                self.log.warning("CUDA device code sanity check failed!")
+                self.sanity_check_fail_msgs.extend(cuda_fails)
+        else:
+            self.log.debug("Skipping CUDA device code sanity check")
 
         # pass or fail
         if self.sanity_check_fail_msgs:

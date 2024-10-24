@@ -29,6 +29,7 @@ Authors:
 
 * Jens Timmerman (Ghent University)
 * Ward Poelmans (Ghent University)
+* Jasper Grimm (UoY)
 """
 import ctypes
 import errno
@@ -961,6 +962,64 @@ def get_glibc_version():
         _log.debug("No glibc on a non-Linux system, so can't determine version.")
 
     return glibc_ver
+
+
+def get_cuda_object_dump_raw(path):
+    """
+    Get raw ouput from command which extracts information from CUDA binary files in a human-readable format,
+    or None for files containing no CUDA device code.
+    See https://docs.nvidia.com/cuda/cuda-binary-utilities/index.html#cuobjdump
+    """
+
+    res = run_shell_cmd("file %s" % path, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
+    if res.exit_code != EasyBuildExit.SUCCESS:
+        fail_msg = "Failed to run 'file %s': %s" % (path, res.output)
+        _log.warning(fail_msg)
+
+    # check that the file is an executable or library/object
+    if any(x in res.output for x in ['executable', 'object', 'library']):
+        cuda_cmd = f"cuobjdump {path}"
+    else:
+        return None
+
+    res = run_shell_cmd(cuda_cmd, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
+    if res.exit_code == EasyBuildExit.SUCCESS:
+        return res.output
+    else:
+        msg = "Dumping CUDA binary file information for '%s' via '%s' failed! Output: '%s'"
+        _log.debug(msg % (path, cuda_cmd, res.output))
+        return None
+
+
+def get_cuda_device_code_architectures(path):
+    """
+    Get list of supported CUDA architectures, by inspecting the device code of an executable/library. The format is the
+    same as cuda_compute_capabilities (e.g. ['8.6', '9.0'] for sm_86 sm_90).
+    Returns None if no CUDA device code is present in the file.
+    """
+
+    # cudaobjdump uses the sm_XY format
+    device_code_regex = re.compile('(?<=arch = sm_)([0-9])([0-9]+a{0,1})')
+
+    # resolve symlinks
+    if os.path.islink(path) and os.path.exists(path):
+        path = os.path.realpath(path)
+
+    cuda_raw = get_cuda_object_dump_raw(path)
+    if cuda_raw is None:
+        return None
+
+    # extract unique architectures from raw dump
+    matches = re.findall(device_code_regex, cuda_raw)
+    if matches is not None:
+        # convert match tuples into unique list of cuda compute capabilities
+        # e.g. [('8', '6'), ('8', '6'), ('9', '0')] -> ['8.6', '9.0']
+        matches = sorted(['.'.join(m) for m in set(matches)])
+    else:
+        fail_msg = f"Failed to determine supported CUDA architectures from {path}"
+        _log.warning(fail_msg)
+
+    return matches
 
 
 def get_linked_libs_raw(path):
