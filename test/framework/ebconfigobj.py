@@ -140,8 +140,8 @@ class TestEBConfigObj(EnhancedTestCase):
 
         tc_tmpl = '%(name)s == %(version)s'
 
-        default_version = '1.0'
-        all_wrong_versions = [default_version, '>= 0.0', '< 1.0']
+        default_version = '1.1'
+        all_wrong_versions = [default_version, '>= 0.0', '< 1.1']
 
         # all txt should have default version and first toolchain unmodified
 
