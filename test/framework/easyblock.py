@@ -1336,17 +1336,33 @@ class EasyBlockTest(EnhancedTestCase):
         for (key, vals) in modextrapaths.items():
             if isinstance(vals, str):
                 vals = [vals]
-            for val in vals:
-                if get_module_syntax() == 'Tcl':
-                    regex = re.compile(r'^prepend-path\s+(-d "."\s+)?%s\s+\$root/%s$' % (key, val), re.M)
-                elif get_module_syntax() == 'Lua':
-                    regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)(, ".")?\)$' % (key, val), re.M)
-                else:
-                    self.fail("Unknown module syntax: %s" % get_module_syntax())
-                self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
-                # Check for duplicates
-                num_prepends = len(regex.findall(txt))
-                self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
+            if type(vals) == dict:
+                delim = vals['delimiter']
+                paths = vals['paths']
+
+                for val in paths:
+                    if get_module_syntax() == 'Tcl':
+                        regex = re.compile(fr'^prepend-path\s+-d\s+"{delim}"\s+{key}\s+\$root/{val}$', re.M)
+                    elif get_module_syntax() == 'Lua':
+                        regex = re.compile(fr'^prepend_path\("{key}", pathJoin\(root, "{val}"\), "{delim}"\)$', re.M)
+                    else:
+                        self.fail("Unknown module syntax: %s" % get_module_syntax())
+                    self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+                    # Check for duplicates
+                    num_prepends = len(regex.findall(txt))
+                    self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
+            else:
+                for val in vals:
+                    if get_module_syntax() == 'Tcl':
+                        regex = re.compile(fr'^prepend-path\s+{key}\s+\$root/{val}$', re.M)
+                    elif get_module_syntax() == 'Lua':
+                        regex = re.compile(fr'^prepend_path\("{key}", pathJoin\(root, "{val}"\)\)$', re.M)
+                    else:
+                        self.fail("Unknown module syntax: %s" % get_module_syntax())
+                    self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+                    # Check for duplicates
+                    num_prepends = len(regex.findall(txt))
+                    self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
 
         for (key, vals) in modextrapaths_append.items():
             if isinstance(vals, str):
