@@ -1334,11 +1334,11 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (key, vals) in modextrapaths.items():
-            if isinstance(vals, str):
-                vals = [vals]
             if isinstance(vals, dict):
                 delim = vals['delimiter']
                 paths = vals['paths']
+                if isinstance(paths, str):
+                    paths = [paths]
 
                 for val in paths:
                     if get_module_syntax() == 'Tcl':
@@ -1352,6 +1352,9 @@ class EasyBlockTest(EnhancedTestCase):
                     num_prepends = len(regex.findall(txt))
                     self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
             else:
+                if isinstance(vals, str):
+                    vals = [vals]
+
                 for val in vals:
                     if get_module_syntax() == 'Tcl':
                         regex = re.compile(fr'^prepend-path\s+{key}\s+\$root/{val}$', re.M)
