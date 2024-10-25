@@ -1336,7 +1336,7 @@ class EasyBlockTest(EnhancedTestCase):
         for (key, vals) in modextrapaths.items():
             if isinstance(vals, str):
                 vals = [vals]
-            if type(vals) == dict:
+            if isinstance(vals, dict):
                 delim = vals['delimiter']
                 paths = vals['paths']
 
