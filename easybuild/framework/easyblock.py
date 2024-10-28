@@ -63,7 +63,7 @@ from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_di
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
-from easybuild.framework.easyconfig.tools import dump_env_easyblock, get_paths_for
+from easybuild.framework.easyconfig.tools import dump_env_easyblock, get_paths_for, get_pkg_metadata, clean_pkg_metadata
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.framework.extension import Extension, resolve_exts_filter_template
 from easybuild.tools import LooseVersion, config, run
@@ -166,6 +166,7 @@ class EasyBlock(object):
 
         # extensions
         self.exts = []
+        self.exts_updated = []
         self.exts_all = None
         self.ext_instances = []
         self.skip = None
@@ -2859,6 +2860,80 @@ class EasyBlock(object):
             pbar_label += "(%d/%d done)" % (idx + 1, exts_cnt)
             self.update_exts_progress_bar(pbar_label)
 
+    def update_exts_list_versions(self):
+        """
+        Update all extensions in exts_list to the latest version.
+        """
+
+        # aesthetic print
+        print()
+
+        # loop over all extensions and update their version
+        for ext in self.exts:
+
+            # get metadata of the latest version of the extension
+            metadata = get_pkg_metadata(pkg_class=self.cfg.get('exts_defaultclass', None),
+                                        pkg_name=ext.get('name', None))
+
+            # process the metadata
+            if metadata:
+
+                # build the package
+                pkg = {"name": metadata['name'],
+                       "version": metadata['version'],
+                       "options": {"checksums": [metadata['checksum']]}}
+
+                # clean the package metadata values
+                clean_pkg_metadata(pkg)
+
+                # store the updated extension
+                self.exts_updated.append(pkg)
+
+                # print message to the user
+                if ext['version'] == pkg['version']:
+                    print_msg(f"Package {ext['name']:<{25}} v{ext['version']:<{10}} {'up-to-date':<{20}}", log=_log)
+                else:
+                    print_msg(
+                        f"Package {ext['name']:<{25}} v{ext['version']:<{10}} updated to {pkg['version']:<{20}}", log=_log)
+
+            else:
+                # no metadata found, therefore store the original extension
+                self.exts_updated.append(ext)
+
+                # print message to the user
+                print_msg(f"Package {ext['name']:<{20}} v{ext['version']:<{10}} {'info not found':<{20}}", log=_log)
+
+        # aesthetic print
+        print()
+
+    def write_new_easyconfig_exts_list(self, new_exts_list):
+        """
+        Write a new easyconfig file with the new extensions list.
+
+        :param new_exts_list: list of new extensions to be written to the easyconfig file
+        """
+
+        # format the new exts_list to be written to the easyconfig file
+        exts_list_formatted = ['exts_list = [']
+
+        for ext in new_exts_list:
+            exts_list_formatted.append("%s('%s', '%s', {" % (INDENT_4SPACES, ext['name'], ext['version']))
+            for key, value in ext['options'].items():
+                if type(value) == str:
+                    exts_list_formatted.append("%s'%s': '%s'," % (INDENT_4SPACES * 2, key, value))
+                else:
+                    exts_list_formatted.append("%s'%s': %s," % (INDENT_4SPACES * 2, key, value))
+            exts_list_formatted.append('%s}),' % (INDENT_4SPACES,))
+
+        exts_list_formatted.append(']\n')
+
+        # read the easyconfig file and replace the exts_list with the new one
+        regex = re.compile(r'^exts_list(.|\n)*?\n\]\s*$', re.M)
+        ectxt = regex.sub('\n'.join(exts_list_formatted), read_file(self.cfg.path))
+
+        # write the new easyconfig file
+        write_file(self.cfg.path, ectxt)
+
     def update_exts_progress_bar(self, info, progress_size=0, total=None):
         """
         Update extensions progress bar with specified info and amount of progress made
@@ -4849,3 +4924,36 @@ def inject_checksums(ecs, checksum_type):
             ectxt = regex.sub('\n'.join(exts_list_lines), ectxt)
 
         write_file(ec['spec'], ectxt)
+
+
+def update_exts_list(ecs):
+    """
+    Write a new EasyConfig recipe with all extensions in exts_list updated to the latest version.
+
+    :param ecs: list of EasyConfig instances to complete dependencies for
+    """
+
+    for ec in ecs:
+
+        # get the EasyBlock instance
+        print_msg("Getting easyblock instance...", log=_log)
+        app: EasyBlock = get_easyblock_instance(ec)
+
+        # initialize extension instances
+        print_msg("Initializing extension list...", log=_log)
+        app.init_ext_instances()
+
+        # update the extensions in the exts_list to their latest version
+        print_msg("Updating extension list...", log=_log)
+        app.update_exts_list_versions()
+
+        # Write the new easyconfig file
+        ec_backup = back_up_file(ec['spec'], backup_extension='bak_update')
+        print_msg("Backing up EasyConfig file at %s..." % ec_backup, log=_log)
+
+        # Write the new easyconfig file
+        print_msg('Writing updated EasyConfig file...', log=_log)
+        app.write_new_easyconfig_exts_list(app.exts_updated)
+
+        # Print success message
+        print_msg('New easyConfig file written successfully!\n', log=_log)

@@ -43,6 +43,7 @@ import fnmatch
 import glob
 import os
 import re
+import requests
 import sys
 import tempfile
 from collections import OrderedDict
@@ -69,6 +70,9 @@ from easybuild.tools.toolchain.toolchain import is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
+
+CRANDB_URL = "https://crandb.r-pkg.org"
+PYPI_URL = "https://pypi.org/pypi"
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
@@ -901,3 +905,121 @@ def det_copy_ec_specs(orig_paths, from_pr=None, from_commit=None):
                 raise EasyBuildError("Found multiple paths for %s in commit: %s", filename, commit_matches)
 
     return paths, target_path
+
+
+def get_python_package_checksum(pkg_metadata, pkg_version):
+    """
+    Get the checksum of the given Python package version
+
+    :param pkg_metadata: package metadata
+    :param pkg_version: package version
+    """
+
+    # initialize variable
+    checksum = ''
+
+    # get the data of the given package version
+    releases = pkg_metadata.get('releases', {})
+    version_info = releases.get(pkg_version, [])
+
+    # parse the version info to get the checksum
+    if version_info:
+        # look for sdist first
+        for file_info in version_info:
+            if file_info.get('packagetype') == 'sdist':
+                checksum = file_info.get('digests', {}).get('sha256', '')
+
+        # if no sdist found, take the checksum of the first distribution file
+        if not checksum:
+            checksum = version_info[0].get('digests', {}).get('sha256', '')
+
+    return checksum
+
+
+def get_pkg_metadata(pkg_class, pkg_name, pkg_version=None):
+    """
+    Get the metadata of the given package
+
+    :param pkg_class: package class (RPackage, PythonPackage, PerlPackage)
+    :param pkg_name: package name
+    :param pkg_version: package version. If None, the latest version will be retrieved.
+    """
+
+    # initialize variable
+    pkg_metadata = None
+
+    # build the  db url to get the metadata from
+    if pkg_class == "RPackage":
+        if pkg_version:
+            url = "%s/%s/%s" % (CRANDB_URL, pkg_name, pkg_version)
+        else:
+            url = "%s/%s" % (CRANDB_URL, pkg_name)
+
+    elif pkg_class == "PythonPackage":
+        url = "%s/%s/json" % (PYPI_URL, pkg_name)
+
+    else:
+        raise NotImplementedError
+
+    try:
+        # get the package's metadata from the database
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            pkg_metadata = response.json()
+
+    except Exception as err:
+        print_warning("Exception while getting metadata for extension %s: %s" % (pkg_name, err))
+
+    if pkg_metadata:
+
+        if pkg_class == "RPackage":
+            name = pkg_metadata.get('Package', '')
+            version = pkg_metadata.get('Version', '')
+            checksum = pkg_metadata.get('MD5sum', '')
+
+        elif pkg_class == "PythonPackage":
+            name = pkg_metadata.get('info', {}).get('name', '')
+            version = pkg_metadata.get('info', {}).get('version', '')
+            checksum = get_python_package_checksum(pkg_metadata, version)
+
+        else:
+            raise NotImplementedError
+
+        pkg_metadata = {"name": name, "version": version, "checksum": checksum}
+
+    return pkg_metadata
+
+
+def clean_pkg_metadata(pkg):
+    """
+    Clean the name, version and checksum fields of the given package.
+
+    :param pkg: extension data
+    """
+
+    # if not package provided, then do nothing
+    if not pkg:
+        return None
+
+    # list of allowed characters in the version field
+    allowed_version_chars = r'[^0-9><=!*. \-]'
+
+    # some dependencies have an akward format and name and version need to be parsed
+    # regular expression pattern to match names like 'RSQLite (>= 2.0)'
+    pattern = r'^(?P<name>[^\s]+) \((?P<info>.+)\)$'
+    match = re.match(pattern, pkg['name'])
+    if match:
+        pkg['name'] = match.group('name')
+        pkg['version'] = match.group('info')
+
+    # Remove any non-alphanumeric characters from the version
+    if pkg['version']:
+        pkg['version'] = re.sub(allowed_version_chars, '', pkg['version'])
+
+    # remove any new line characters from the name, version and checksum
+    pkg['name'] = pkg['name'].replace('\n', '')
+    pkg['version'] = pkg['version'].replace('\n', '')
+    checksum = pkg['options']['checksums']
+    if checksum:
+        pkg['options']['checksums'] = [checksum[0].replace('\n', '')]
