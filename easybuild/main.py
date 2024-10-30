@@ -707,7 +707,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
         pth = build_option('developer')
         if not os.path.exists(pth):
             raise EasyBuildError("Developer mode path %s does not exist" % pth)
-        
+
         pth = os.path.abspath(pth)
         options.developer = pth
         update_build_option('developer', pth)

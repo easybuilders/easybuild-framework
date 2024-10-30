@@ -191,7 +191,7 @@ class EasyBlock(object):
             self.cfg = ec
         else:
             raise EasyBuildError("Value of incorrect type passed to EasyBlock constructor: %s ('%s')", type(ec), ec)
-        
+
         # are we running in developer mode?
         self.developer = build_option('developer')
 
@@ -2814,15 +2814,17 @@ class EasyBlock(object):
             dest = os.path.join(self.builddir, dst_name)
             copy_dir(
                 developer_pth, dest,
-                ignore=lambda pth,elem: [_ for _ in elem if _ in ['.git', '.svn', '.hg']]
+                ignore=lambda pth, elem: [_ for _ in elem if _ in ['.git', '.svn', '.hg']]
             )
             self.cfg['start_dir'] = dest
             self.log.info("Content of develop path %s copied to %s (new start_dir)", developer_pth, dest)
         else:
             for src in self.src:
                 self.log.info("Unpacking source %s" % src['name'])
-                srcdir = extract_file(src['path'], self.builddir, cmd=src['cmd'],
-                                    extra_options=self.cfg['unpack_options'], change_into_dir=False)
+                srcdir = extract_file(
+                    src['path'], self.builddir, cmd=src['cmd'],
+                    extra_options=self.cfg['unpack_options'], change_into_dir=False
+                )
                 change_dir(srcdir)
                 if srcdir:
                     self.src[self.src.index(src)]['finalpath'] = srcdir
