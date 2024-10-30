@@ -49,7 +49,8 @@ import traceback
 #  expect missing log output when this not the case!
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning, stop_logging
 
-from easybuild.framework.easyblock import build_and_install_one, inject_checksums, inject_checksums_to_json, update_exts_list
+from easybuild.framework.easyblock import build_and_install_one, inject_checksums, inject_checksums_to_json
+from easybuild.framework.easyblock import update_exts_list
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easystack import parse_easystack
@@ -550,7 +551,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         _log.info("Creating dependency graph %s" % options.dep_graph)
         dep_graph(options.dep_graph, ordered_ecs)
         return True
-    
+
     # update all extensions in exts_list to the latest version and exit
     if options.update_exts_list:
         update_exts_list(ordered_ecs)
