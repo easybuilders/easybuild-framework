@@ -1017,7 +1017,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
                 abspaths.append(path)
 
         if delim != ':':
-            statements = ['%s-path -d "%s"\t%s\t\t%s \n' % (update_type, delim, key, p) for p in abspaths]
+            statements = ['%s-path -d "%s"\t%s\t\t%s\n' % (update_type, delim, key, p) for p in abspaths]
         else:
             statements = ['%s-path\t%s\t\t%s\n' % (update_type, key, p) for p in abspaths]
         return ''.join(statements)
