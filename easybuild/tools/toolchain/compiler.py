@@ -82,7 +82,7 @@ class Compiler(Toolchain):
         'loose': (False, "Loose precision"),
         'veryloose': (False, "Very loose precision"),
         'verbose': (False, "Verbose output"),
-        'debug': (True, "Enable debug symbols"),
+        'debug': (None, "Enable or disables debug symbols"),  # refers to default-debug-symbols build option by default
         'i8': (False, "Integers are 8 byte integers"),  # fortran only -> no: MKL and icc give -DMKL_ILP64
         'r8': (False, "Real is 8 byte real"),  # fortran only
         'unroll': (False, "Unroll loops"),
@@ -156,7 +156,6 @@ class Compiler(Toolchain):
         self.cpu_family = systemtools.get_cpu_family()
         # list of compiler prefixes
         self.prefixes = []
-        self.COMPILER_SHARED_OPTS['debug'] = build_option('default_debug_symbols')
         super(Compiler, self).__init__(*args, **kwargs)
 
     def set_options(self, options):
@@ -176,6 +175,8 @@ class Compiler(Toolchain):
 
     def _set_compiler_toolchainoptions(self):
         """Set the compiler related toolchain options"""
+        # Initialize default value of debug symbols
+        self.COMPILER_SHARED_OPTS['debug'][0] = build_option('default_debug_symbols')
         self.options.add_options(self.COMPILER_SHARED_OPTS, self.COMPILER_SHARED_OPTION_MAP)
 
         # always include empty infix first for non-prefixed compilers (e.g., GCC, Intel, ...)
