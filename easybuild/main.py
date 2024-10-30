@@ -445,6 +445,18 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         options.inject_checksums, options.inject_checksums_to_json, options.sanity_check_only
     ))
 
+    if build_option('developer'):
+        for ec in easyconfigs:
+            _ec = ec['ec']
+            old_vers = _ec['version']
+            new_vers = old_vers + '-dev'
+            _ec['version'] = new_vers
+            for key in ['short_mod_name', 'full_mod_name']:
+                prev = getattr(_ec, key)
+                new = prev.replace(f'/{old_vers}', f'/{new_vers}')
+                ec[key] = new
+                setattr(_ec, key, new)
+
     # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
     if not keep_available_modules:
         retained_ecs = skip_available(easyconfigs, modtool)
