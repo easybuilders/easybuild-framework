@@ -2868,6 +2868,11 @@ class EasyBlock(object):
         # aesthetic print
         print()
 
+        # offsets for printing the package information
+        PKG_NAME_OFFSET = 25
+        PKG_VERSION_OFFSET = 10
+        INFO_OFFSET = 20
+
         # loop over all extensions and update their version
         for ext in self.exts:
 
@@ -2891,17 +2896,19 @@ class EasyBlock(object):
 
                 # print message to the user
                 if ext['version'] == pkg['version']:
-                    print_msg(f"Package {ext['name']:<{25}} v{ext['version']:<{10}} {'up-to-date':<{20}}", log=_log)
+                    print_msg(
+                        f"Package {ext['name']:<{PKG_NAME_OFFSET}} v{ext['version']:<{PKG_VERSION_OFFSET}} {'up-to-date':<{INFO_OFFSET}}", log=_log)
                 else:
                     print_msg(
-                        f"Package {ext['name']:<{25}} v{ext['version']:<{10}} updated to {pkg['version']:<{20}}", log=_log)
+                        f"Package {ext['name']:<{PKG_NAME_OFFSET}} v{ext['version']:<{PKG_VERSION_OFFSET}} updated to {pkg['version']:<{INFO_OFFSET}}", log=_log)
 
             else:
                 # no metadata found, therefore store the original extension
                 self.exts_updated.append(ext)
 
                 # print message to the user
-                print_msg(f"Package {ext['name']:<{20}} v{ext['version']:<{10}} {'info not found':<{20}}", log=_log)
+                print_msg(
+                    f"Package {ext['name']:<{PKG_NAME_OFFSET}} v{ext['version']:<{PKG_VERSION_OFFSET}} {'info not found':<{INFO_OFFSET}}", log=_log)
 
         # aesthetic print
         print()
