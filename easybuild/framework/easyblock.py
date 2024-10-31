@@ -166,7 +166,6 @@ class EasyBlock(object):
 
         # extensions
         self.exts = []
-        self.exts_updated = []
         self.exts_all = None
         self.ext_instances = []
         self.skip = None
@@ -2860,9 +2859,9 @@ class EasyBlock(object):
             pbar_label += "(%d/%d done)" % (idx + 1, exts_cnt)
             self.update_exts_progress_bar(pbar_label)
 
-    def update_exts_list_versions(self):
+    def get_updated_exts_list(self):
         """
-        Update all extensions in exts_list to the latest version.
+        Get a new exts_list with all extensions in exts_list to the latest version.
         """
 
         # aesthetic print
@@ -2872,6 +2871,9 @@ class EasyBlock(object):
         PKG_NAME_OFFSET = 25
         PKG_VERSION_OFFSET = 10
         INFO_OFFSET = 20
+
+        # init variables
+        updated_exts_list = []
 
         # loop over all extensions and update their version
         for ext in self.exts:
@@ -2892,7 +2894,7 @@ class EasyBlock(object):
                 clean_pkg_metadata(pkg)
 
                 # store the updated extension
-                self.exts_updated.append(pkg)
+                updated_exts_list.append(pkg)
 
                 # print message to the user
                 if ext['version'] == pkg['version']:
@@ -2904,7 +2906,7 @@ class EasyBlock(object):
 
             else:
                 # no metadata found, therefore store the original extension
-                self.exts_updated.append(ext)
+                updated_exts_list.append(ext)
 
                 # print message to the user
                 print_msg(
@@ -2912,6 +2914,8 @@ class EasyBlock(object):
 
         # aesthetic print
         print()
+
+        return updated_exts_list
 
     def write_new_easyconfig_exts_list(self, new_exts_list):
         """
@@ -4952,7 +4956,7 @@ def update_exts_list(ecs):
 
         # update the extensions in the exts_list to their latest version
         print_msg("Updating extension list...", log=_log)
-        app.update_exts_list_versions()
+        updated_exts_list = app.get_updated_exts_list()
 
         # Write the new easyconfig file
         ec_backup = back_up_file(ec['spec'], backup_extension='bak_update')
@@ -4960,7 +4964,7 @@ def update_exts_list(ecs):
 
         # Write the new easyconfig file
         print_msg('Writing updated EasyConfig file...', log=_log)
-        app.write_new_easyconfig_exts_list(app.exts_updated)
+        app.write_new_easyconfig_exts_list(updated_exts_list)
 
         # Print success message
         print_msg('New easyConfig file written successfully!\n', log=_log)
