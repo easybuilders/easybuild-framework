@@ -2927,15 +2927,24 @@ class EasyBlock(object):
         # format the new exts_list to be written to the easyconfig file
         exts_list_formatted = ['exts_list = [']
 
+        # iterate over the new extensions list and format them
         for ext in new_exts_list:
+            # append name and version
             exts_list_formatted.append("%s('%s', '%s', {" % (INDENT_4SPACES, ext['name'], ext['version']))
+
+            # iterate over the options and format them
             for key, value in ext['options'].items():
-                if type(value) == str:
-                    exts_list_formatted.append("%s'%s': '%s'," % (INDENT_4SPACES * 2, key, value))
-                else:
-                    exts_list_formatted.append("%s'%s': %s," % (INDENT_4SPACES * 2, key, value))
+                # if value is a string, then add quotes so they are printed correctly
+                if isinstance(value, str):
+                    value = "'%s'" % value
+
+                # append the key and value of the option
+                exts_list_formatted.append("%s'%s': %s," % (INDENT_4SPACES * 2, key, value))
+
+            # close the extension
             exts_list_formatted.append('%s}),' % (INDENT_4SPACES,))
 
+        # close the exts_list
         exts_list_formatted.append(']\n')
 
         # read the easyconfig file and replace the exts_list with the new one
