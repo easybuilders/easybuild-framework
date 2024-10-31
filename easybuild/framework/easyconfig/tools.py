@@ -959,7 +959,7 @@ def get_pkg_metadata(pkg_class, pkg_name, pkg_version=None):
         url = "%s/%s/json" % (PYPI_URL, pkg_name)
 
     else:
-        raise NotImplementedError
+        raise EasyBuildError("exts_defaultclass %s not supported" % pkg_class)
 
     try:
         # get the package's metadata from the database
@@ -984,7 +984,7 @@ def get_pkg_metadata(pkg_class, pkg_name, pkg_version=None):
             checksum = get_python_package_checksum(pkg_metadata, version)
 
         else:
-            raise NotImplementedError
+            raise EasyBuildError("exts_defaultclass %s not supported" % pkg_class)
 
         pkg_metadata = {"name": name, "version": version, "checksum": checksum}
 
