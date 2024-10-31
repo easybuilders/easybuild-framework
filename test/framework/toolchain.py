@@ -1278,7 +1278,7 @@ class ToolchainTest(EnhancedTestCase):
             tc.prepare()
 
         archflags = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
-        optflags = "-O2 -ftree-vectorize -%s -fno-math-errno -fopenmp" % archflags
+        optflags = "-O2 -ftree-vectorize -%s -fno-math-errno -g -fopenmp" % archflags
         nvcc_flags = r' '.join([
             r'-Xcompiler="%s"' % optflags,
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
