@@ -392,8 +392,7 @@ class EasyBuildOptions(GeneralOption):
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),
-            'default-debug-symbols': ("Default value of debug toolchain option", 'choice', 'store', True,
-                                      [True, False]),
+            'default-debug-symbols': ("Sets default value of debug toolchain option", None, 'store_true', True),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
             'detect-loaded-modules': ("Detect loaded EasyBuild-generated modules, act accordingly; "

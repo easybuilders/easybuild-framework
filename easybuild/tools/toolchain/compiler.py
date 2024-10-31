@@ -175,8 +175,10 @@ class Compiler(Toolchain):
 
     def _set_compiler_toolchainoptions(self):
         """Set the compiler related toolchain options"""
-        # Initialize default value of debug symbols
-        self.COMPILER_SHARED_OPTS['debug'][0] = build_option('default_debug_symbols')
+        # Initialize default value of debug symbols based on global build option
+        if self.COMPILER_SHARED_OPTS:
+            _, desc = self.COMPILER_SHARED_OPTS['debug']
+            self.COMPILER_SHARED_OPTS['debug'] = (build_option('default_debug_symbols'), desc)
         self.options.add_options(self.COMPILER_SHARED_OPTS, self.COMPILER_SHARED_OPTION_MAP)
 
         # always include empty infix first for non-prefixed compilers (e.g., GCC, Intel, ...)
