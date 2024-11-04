@@ -1000,7 +1000,7 @@ def get_pkg_metadata(pkg_class, pkg_name, pkg_version=None, bioc_version=None):
     pkg_metadata = None
     bioc_packages = None
 
-    # build the  url to get the metadata from the database
+    # build the url to get the metadata from the database
     if pkg_class == "RPackage":
         if pkg_version:
             url = "%s/%s/%s" % (CRANDB_URL, pkg_name, pkg_version)
