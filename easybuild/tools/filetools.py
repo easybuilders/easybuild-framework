@@ -2775,7 +2775,8 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
 
     # Create archive
     repo_path = os.path.join(tmpdir, repo_name)
-    archive_path = make_archive(repo_path, archive_name=filename, archive_dir=target_dir, reproducible=not keep_git_dir)
+    reproducible = not keep_git_dir  # presence of .git directory renders repo unreproducible
+    archive_path = make_archive(repo_path, archive_name=filename, archive_dir=target_dir, reproducible=reproducible)
 
     # cleanup (repo_name dir does not exist in dry run mode)
     remove(tmpdir)
