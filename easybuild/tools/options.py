@@ -78,6 +78,7 @@ from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING
 from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
+from easybuild.tools.config import PYTHON_SEARCH_PATH_TYPES, PYTHONPATH
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_JSON, FORMAT_MD, FORMAT_RST, FORMAT_TXT
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
@@ -490,6 +491,10 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'pre-create-installdir': ("Create installation directory before submitting build jobs",
                                       None, 'store_true', True),
+            'prefer-python-search-path': (("Prefer using specified environment variable when possible to specify where"
+                                           " Python packages were installed; see also "
+                                           "https://docs.easybuild.io/python-search-path"),
+                                          'choice', 'store_or_None', PYTHONPATH, PYTHON_SEARCH_PATH_TYPES),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                         None, 'store_true', False, 'p'),
             'read-only-installdir': ("Set read-only permissions on installation directory after installation",
@@ -524,6 +529,9 @@ class EasyBuildOptions(GeneralOption):
                 "Git commit to use for the target software build (robot capabilities are automatically disabled)",
                 None, 'store', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
+            'strict-rpath-sanity-check': ("Perform strict RPATH sanity check, which involces unsetting "
+                                          "$LD_LIBRARY_PATH before checking whether all required libraries are found",
+                                          None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', True, 'T'),
@@ -593,7 +601,7 @@ class EasyBuildOptions(GeneralOption):
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
             'module-depends-on': ("Use depends_on (Lmod 7.6.1+) for dependencies in all generated modules "
                                   "(implies recursive unloading of modules).",
-                                  None, 'store_true', False),
+                                  None, 'store_true', True),
             'module-extensions': ("Include 'extensions' statement in generated module file (Lua syntax only)",
                                   None, 'store_true', True),
             'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
