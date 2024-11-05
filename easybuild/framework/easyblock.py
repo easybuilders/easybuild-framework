@@ -49,6 +49,7 @@ import json
 import os
 import re
 import stat
+import sys
 import tempfile
 import time
 import traceback
@@ -359,13 +360,26 @@ class EasyBlock(object):
         :param index: index of file in list
         """
         chksum_input = filename
+        chksum_input_git = None
         # if filename is provided as dict, take 'filename' key
         if isinstance(filename, dict):
             chksum_input = filename['filename']
+            chksum_input_git = filename.get('git_config', None)
         # early return if no filename given
         if chksum_input is None:
             self.log.debug("Cannot get checksum without a file name")
             return None
+
+        if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+            # ignore any checksum for given filename due to changes in python/cpython#90021
+            # checksums of tarballs made by EB of git repos cannot be reliably checked prior to Python 3.9
+            if chksum_input_git is not None:
+                self.log.deprecated(
+                    "Reproducible tarballs of git repos are only supported in Python 3.9+. "
+                    f"Checksum of {chksum_input} cannot be verified.",
+                    '5.0'
+                )
+                return None
 
         checksum = None
         # if checksums are provided as a dict, lookup by source filename as key
