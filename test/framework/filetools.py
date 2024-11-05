@@ -3145,20 +3145,32 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(os.path.join(tardir, 'lib', 'lib.so'), 'Dummy library')
         ft.write_file(os.path.join(tardir, 'include', 'header.h'), 'Dummy header')
 
+        unreprod_tar = ft.make_archive(tardir, reproducible=False)
+        unreprod_tar_chksum = ft.compute_checksum(unreprod_tar, checksum_type="sha256")
+        self.assertEqual(unreprod_tar, "test_archive.tar.xz")
+        os.remove(unreprod_tar)
+        reprod_tar = ft.make_archive(tardir, reproducible=True)
+        reprod_tar_chksum = ft.compute_checksum(reprod_tar, checksum_type="sha256")
+        self.assertEqual(reprod_tar, "test_archive.tar.xz")
+        os.remove(reprod_tar)
+        custom_tar = ft.make_archive(tardir, archive_name="custom_name", reproducible=True)
+        custom_tar_chksum = ft.compute_checksum(custom_tar, checksum_type="sha256")
+        self.assertEqual(custom_tar, "custom_name.tar.xz")
+        os.remove(custom_tar)
+        customdir_tar = ft.make_archive(tardir, archive_name="custom_name", archive_dir=tmpdir, reproducible=True)
+        customdir_tar_chksum = ft.compute_checksum(customdir_tar, checksum_type="sha256")
+        self.assertEqual(customdir_tar, os.path.join(tmpdir, "custom_name.tar.xz"))
+        os.remove(customdir_tar)
+
         reference_checksum = "ec0f91a462c2743b19b428f4c177d7109d2ccc018dcdedc12570d9d735d6fb1b"
 
-        test_tar = ft.make_archive(tardir, reproducible=False)
-        self.assertEqual(test_tar, "test_archive.tar.xz")
-        self.assertNotEqual(ft.compute_checksum(test_tar, checksum_type="sha256"), reference_checksum)
-        test_tar = ft.make_archive(tardir, reproducible=True)
-        self.assertEqual(test_tar, "test_archive.tar.xz")
-        self.assertEqual(ft.compute_checksum(test_tar, checksum_type="sha256"), reference_checksum)
-        test_tar = ft.make_archive(tardir, archive_name="custom_name", reproducible=True)
-        self.assertEqual(test_tar, "custom_name.tar.xz")
-        self.assertEqual(ft.compute_checksum(test_tar, checksum_type="sha256"), reference_checksum)
-        test_tar = ft.make_archive(tardir, archive_name="custom_name", archive_dir=tmpdir, reproducible=True)
-        self.assertEqual(test_tar, os.path.join(tmpdir, "custom_name.tar.xz"))
-        self.assertEqual(ft.compute_checksum(test_tar, checksum_type="sha256"), reference_checksum)
+        if sys.version_info[0] >= 3 and sys.version_info[1] >= 9:
+            # checksums of tarballs made by EB cannot be reliably checked prior to Python 3.9
+            # due to changes introduced in python/cpython#90021
+            self.assertNotEqual(unreprod_tar_chksum, reference_checksum)
+            self.assertEqual(reprod_tar_chksum, reference_checksum)
+            self.assertEqual(custom_tar_chksum, reference_checksum)
+            self.assertEqual(customdir_tar_chksum, reference_checksum)
 
     def test_is_sha256_checksum(self):
         """Test for is_sha256_checksum function."""
