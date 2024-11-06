@@ -106,6 +106,7 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
+from easybuild.tools.utilities import flatten
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -125,7 +126,8 @@ CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
 
 XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
 XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc/xdg').split(os.pathsep)
-DEFAULT_SYS_CFGFILES = [f for d in XDG_CONFIG_DIRS for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
+DEFAULT_SYS_CFGFILES = [[f for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
+                        for d in XDG_CONFIG_DIRS]
 DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
 DEFAULT_LIST_PR_STATE = GITHUB_PR_STATE_OPEN
@@ -213,7 +215,11 @@ class EasyBuildOptions(GeneralOption):
     VERSION = this_is_easybuild()
 
     DEFAULT_LOGLEVEL = 'INFO'
-    DEFAULT_CONFIGFILES = DEFAULT_SYS_CFGFILES[:]
+    # https://specifications.freedesktop.org/basedir-spec/latest/
+    # says precedence should be
+    # XDG_CONFIG_HOME > 1st entry of XDG_CONFIG_DIRS > 2nd entry ...
+    # EasyBuild parses this list backwards, gives priority to last entry
+    DEFAULT_CONFIGFILES = flatten(DEFAULT_SYS_CFGFILES[::-1])
     if 'XDG_CONFIG_DIRS' not in os.environ:
         old_etc_location = os.path.join('/etc', 'easybuild.d')
         if os.path.isdir(old_etc_location) and glob.glob(os.path.join(old_etc_location, '*.cfg')):
@@ -1394,9 +1400,10 @@ class EasyBuildOptions(GeneralOption):
             "* user-level: %s" % os.path.join('${XDG_CONFIG_HOME:-$HOME/.config}', 'easybuild', 'config.cfg'),
             "  -> %s => %s" % (DEFAULT_USER_CFGFILE, ('not found', 'found')[os.path.exists(DEFAULT_USER_CFGFILE)]),
             "* system-level: %s" % os.path.join('${XDG_CONFIG_DIRS:-/etc/xdg}', 'easybuild.d', '*.cfg'),
-            "  -> %s => %s" % (system_cfg_glob_paths, ', '.join(DEFAULT_SYS_CFGFILES) or "(no matches)"),
+            "  -> %s => %s" % (system_cfg_glob_paths, ', '.join(flatten(DEFAULT_SYS_CFGFILES)) or "(no matches)"),
             '',
-            "Default list of existing configuration files (%d): %s" % (found_cfgfile_cnt, found_cfgfile_list),
+            "Default list of existing configuration files (%d, most important last):" % found_cfgfile_cnt,
+            found_cfgfile_list,
         ]
         return '\n'.join(lines)
 

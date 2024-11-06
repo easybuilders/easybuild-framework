@@ -3544,7 +3544,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected_tmpl += '\n'.join([
             "%s",
             '',
-            "Default list of existing configuration files (%d): %s",
+            "Default list of existing configuration files (%d, most important last):",
+            "%s",
         ])
 
         # put dummy cfgfile in place in $HOME (to predict last line of output which only lists *existing* files)
@@ -3563,7 +3564,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         xdg_config_home = os.path.join(self.test_prefix, 'home')
         os.environ['XDG_CONFIG_HOME'] = xdg_config_home
-        xdg_config_dirs = [os.path.join(self.test_prefix, 'etc', 'xdg'), os.path.join(self.test_prefix, 'moaretc')]
+        xdg_config_dirs = [os.path.join(self.test_prefix, 'moaretc'), os.path.join(self.test_prefix, 'etc', 'xdg')]
         os.environ['XDG_CONFIG_DIRS'] = os.pathsep.join(xdg_config_dirs)
 
         # put various dummy cfgfiles in place
@@ -3585,7 +3586,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected = expected_tmpl % (xdg_config_home, os.pathsep.join(xdg_config_dirs),
                                     "%s => found" % os.path.join(xdg_config_home, 'easybuild', 'config.cfg'),
                                     '{' + ', '.join(xdg_config_dirs) + '}',
-                                    ', '.join(cfgfiles[:-1]), 4, ', '.join(cfgfiles))
+                                    ', '.join(cfgfiles[1:3]+[cfgfiles[0]]), 4, ', '.join(cfgfiles))
         self.assertIn(expected, logtxt)
 
         del os.environ['XDG_CONFIG_DIRS']
