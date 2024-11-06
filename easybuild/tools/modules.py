@@ -43,12 +43,11 @@ import re
 import shlex
 
 from easybuild.base import fancylogger
-from easybuild.base.wrapper import create_base_metaclass
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning
 from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
-from easybuild.tools.config import Singleton, build_option, get_modules_tool, install_path
+from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_HEADER_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
 from easybuild.tools.filetools import convert_name, mkdir, normalize_path, path_matches, read_file, which, write_file
@@ -169,11 +168,7 @@ class ModuleEnvironmentVariable:
         self.paths.insert(0, item)
 
 
-# singleton metaclass: only one instance is created
-BaseModuleEnvironment = create_base_metaclass('BaseModuleEnvironment', Singleton, object)
-
-
-class ModuleLoadEnvironment(BaseModuleEnvironment):
+class ModuleLoadEnvironment:
     """Environment set by modules on load"""
 
     def __init__(self):
