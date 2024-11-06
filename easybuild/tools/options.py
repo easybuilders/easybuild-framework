@@ -957,10 +957,6 @@ class EasyBuildOptions(GeneralOption):
         # set tmpdir
         self.tmpdir = set_tmpdir(self.options.tmpdir)
 
-        # early check for opt-in to installing extensions in parallel (experimental feature)
-        if self.options.parallel_extensions_install:
-            self.log.experimental("installing extensions in parallel")
-
         # take --include options into account (unless instructed otherwise)
         if self.with_include:
             self._postprocess_include()
