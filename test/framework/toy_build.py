@@ -4345,7 +4345,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec_txt += "\npostinstallcmds += ['touch %(installdir)s/toy-headers/toy.h']"
         write_file(test_toy_app_ec, toy_ec_txt)
 
-        self.run_test_toy_build_with_output(ec_file=test_toy_ec, extra_args=[test_toy_app_ec])
+        self.run_test_toy_build_with_output(ec_file=test_toy_ec, extra_args=[test_toy_app_ec], raise_error=True)
 
         toy_modtxt = read_file(os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0.lua'))
         regex = re.compile('prepend[-_]path.*CPATH.*toy-headers', re.M)
