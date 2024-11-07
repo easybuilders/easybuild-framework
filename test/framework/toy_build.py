@@ -4347,12 +4347,18 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.run_test_toy_build_with_output(ec_file=test_toy_ec, extra_args=[test_toy_app_ec], raise_error=True)
 
-        toy_modtxt = read_file(os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0.lua'))
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_mod += '.lua'
+        toy_modtxt = read_file(toy_mod)
         regex = re.compile('prepend[-_]path.*CPATH.*toy-headers', re.M)
         self.assertTrue(regex.search(toy_modtxt),
                         f"Pattern '{regex.pattern}' should be found in: {toy_modtxt}")
 
-        toy_app_modtxt = read_file(os.path.join(self.test_installpath, 'modules', 'all', 'toy-app', '0.0.lua'))
+        toy_app_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy-app', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_app_mod += '.lua'
+        toy_app_modtxt = read_file(toy_app_mod)
         self.assertFalse(regex.search(toy_app_modtxt),
                          f"Pattern '{regex.pattern}' should *not* be found in: {toy_app_modtxt}")
 
