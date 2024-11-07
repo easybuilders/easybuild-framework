@@ -58,11 +58,11 @@ COMPILER_MAP_CLASS = {
         ('PRECFLAGS', 'FP precision flags'),
     ] + COMPILER_FLAGS,
     LibraryList: [
-        ('LIBS', 'Libraries'),  # TODO: where are these used? ld?
-        ('FLIBS', 'Fortran libraries'),  # TODO: where are these used? gfortran only?
+        ('LIBS', 'Libraries'),  # -l options to pass to the linker (C/C++/Fortran)
+        ('FLIBS', 'Fortran libraries'),  # linker flags (e.g. -L and -l) for Fortran libraries
     ],
     LinkLibraryPaths: [
-        ('LDFLAGS', 'Flags passed to linker'),  # TODO: overridden by command line?
+        ('LDFLAGS', 'Linker flags'),
     ],
     IncludePaths: [
         ('CPPFLAGS', 'Preprocessor flags'),
@@ -72,6 +72,7 @@ COMPILER_MAP_CLASS = {
         ('C_INCLUDE_PATH', 'Location of C header files'),
         ('CPLUS_INCLUDE_PATH', 'Location of C++ header files'),
         ('OBJC_INCLUDE_PATH', 'Location of Objective C header files'),
+        ('LIBRARY_PATH', 'Location of linker files'),
     ],
     CommandFlagList: COMPILER_VARIABLES,
 }

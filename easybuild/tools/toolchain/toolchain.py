@@ -97,6 +97,7 @@ TOOLCHAIN_CAPABILITIES = [
 ]
 # modes to handle CPP header search paths
 # see: https://gcc.gnu.org/onlinedocs/cpp/Environment-Variables.html
+# supported on Linux by: GCC, GFortran, oneAPI C/C++ Compilers, oneAPI Fortran Compiler
 SEARCH_PATH_CPP_HEADERS_FLAGS = "CPPFLAGS"
 SEARCH_PATH_CPP_HEADERS_CPATH = "CPATH"
 SEARCH_PATH_CPP_HEADERS_INCLUDE = "INCLUDE_PATHS"
@@ -107,6 +108,16 @@ SEARCH_PATH_CPP_HEADERS = {
 }
 DEFAULT_SEARCH_PATH_CPP_HEADERS = SEARCH_PATH_CPP_HEADERS_FLAGS
 
+# modes to handle linker search paths
+# see: https://gcc.gnu.org/onlinedocs/cpp/Environment-Variables.html
+# supported on Linux by: GCC, GFortran, oneAPI C/C++ Compilers, oneAPI Fortran Compiler
+SEARCH_PATH_LINKER_FLAGS = "LDFLAGS"
+SEARCH_PATH_LINKER_LIBPATH = "LIBRARY_PATH"
+SEARCH_PATH_LINKER = {
+    SEARCH_PATH_LINKER_FLAGS: ["LDFLAGS"],
+    SEARCH_PATH_LINKER_LIBPATH: ["LIBRARY_PATH"],
+}
+DEFAULT_SEARCH_PATH_LINKER = SEARCH_PATH_LINKER_FLAGS
 
 def is_system_toolchain(tc_name):
     """Return whether toolchain with specified name is a system toolchain or not."""
@@ -1122,9 +1133,26 @@ class Toolchain(object):
         lib_dirs = ["lib64", "lib"]
         lib_dirs = unique_ordered_extend(lib_dirs, extra_dirs)
 
-        env_var = "LDFLAGS"
-        self.log.debug("Adding lib paths to toolchain variable '%s': %s", env_var, dep_root)
-        self.variables.append_subdirs(env_var, dep_root, subdirs=lib_dirs)
+        # mode of operation is defined by search-path-linker option
+        # toolchain option has precedence over build option
+        linker_mode = DEFAULT_SEARCH_PATH_LINKER
+        build_opt = build_option("search_path_linker")
+        if self.options.get("search-path-linker") is not None:
+            linker_mode = self.options.option("search-path-linker")
+            self.log.debug("search-path-linker set by toolchain option: %s", linker_mode)
+        elif build_opt is not None:
+            linker_mode = build_opt
+            self.log.debug("search-path-linker set by build option: %s", linker_mode)
+
+        if linker_mode not in SEARCH_PATH_LINKER:
+            raise EasyBuildError(
+                "Unknown value selected for option search-path-linker: %s. Choose one of: %s",
+                linker_mode, ", ".join(SEARCH_PATH_LINKER)
+            )
+
+        for env_var in SEARCH_PATH_LINKER[linker_mode]:
+            self.log.debug("Adding lib paths to toolchain variable '%s': %s", env_var, dep_root)
+            self.variables.append_subdirs(env_var, dep_root, subdirs=lib_dirs)
 
     def _setenv_variables(self, donotset=None, verbose=True):
         """Actually set the environment variables"""
