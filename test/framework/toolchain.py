@@ -937,7 +937,7 @@ class ToolchainTest(EnhancedTestCase):
         precs = ['strict', 'precise', 'loose', 'veryloose']
         prec_flags = {}
         for prec in precs:
-            prec_flags[prec] = ' '.join('-%s' % x for x in Gcc.COMPILER_UNIQUE_OPTION_MAP[prec])
+            prec_flags[prec] = ' '.join(Gcc.COMPILER_UNIQUE_OPTION_MAP[prec])
 
         for prec in prec_flags:
             for enable in [True, False]:
