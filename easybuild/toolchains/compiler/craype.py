@@ -76,8 +76,8 @@ class CrayPECompiler(Compiler):
         # handle shared and dynamic always via $CRAYPE_LINK_TYPE environment variable, don't pass flags to wrapper
         'shared': '',
         'dynamic': '',
-        'verbose': 'craype-verbose',
-        'mpich-mt': 'craympich-mt',
+        'verbose': '-craype-verbose',
+        'mpich-mt': '-craympich-mt',
     }
 
     COMPILER_CC = 'cc'
@@ -98,7 +98,7 @@ class CrayPECompiler(Compiler):
         """Constructor."""
         super(CrayPECompiler, self).__init__(*args, **kwargs)
         # 'register'  additional toolchain options that correspond to a compiler flag
-        self.COMPILER_FLAGS.extend(['dynamic', 'mpich-mt'])
+        self.COMPILER_FLAGS.extend(['-dynamic', '-mpich-mt'])
 
         # use name of PrgEnv module as name of module that provides compiler
         self.COMPILER_MODULE_NAME = ['PrgEnv-%s' % self.PRGENV_MODULE_NAME_SUFFIX]
@@ -163,7 +163,7 @@ class CrayPEPGI(CrayPECompiler):
     def __init__(self, *args, **kwargs):
         """CrayPEPGI constructor."""
         super(CrayPEPGI, self).__init__(*args, **kwargs)
-        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = 'mp'
+        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = '-mp'
         for precflag in self.COMPILER_PREC_FLAGS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = Pgi.COMPILER_UNIQUE_OPTION_MAP[precflag]
 
@@ -176,6 +176,6 @@ class CrayPECray(CrayPECompiler):
     def __init__(self, *args, **kwargs):
         """CrayPEIntel constructor."""
         super(CrayPECray, self).__init__(*args, **kwargs)
-        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = 'homp'
+        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = '-homp'
         for precflag in self.COMPILER_PREC_FLAGS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = []

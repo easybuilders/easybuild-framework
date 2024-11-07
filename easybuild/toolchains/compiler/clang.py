@@ -55,10 +55,10 @@ class Clang(Compiler):
         'basic-block-vectorize': (False, "Basic block vectorization"),
     }
     COMPILER_UNIQUE_OPTION_MAP = {
-        'unroll': 'funroll-loops',
-        'loop-vectorize': ['fvectorize'],
-        'basic-block-vectorize': ['fslp-vectorize'],
-        'optarch': 'march=native',
+        'unroll': '-funroll-loops',
+        'loop-vectorize': ['-fvectorize'],
+        'basic-block-vectorize': ['-fslp-vectorize'],
+        'optarch': '-march=native',
         # Clang's options do not map well onto these precision modes.  The flags enable and disable certain classes of
         # optimizations.
         #
@@ -80,26 +80,26 @@ class Clang(Compiler):
         #
         # 'strict', 'precise' and 'defaultprec' are all ISO C++ and IEEE complaint, but we explicitly specify details
         # flags for strict and precise for robustness against future changes.
-        'strict': ['fno-fast-math'],
-        'precise': ['fno-unsafe-math-optimizations'],
+        'strict': ['-fno-fast-math'],
+        'precise': ['-fno-unsafe-math-optimizations'],
         'defaultprec': [],
-        'loose': ['ffast-math', 'fno-unsafe-math-optimizations'],
-        'veryloose': ['ffast-math'],
-        'vectorize': {False: 'fno-vectorize', True: 'fvectorize'},
+        'loose': ['-ffast-math', '-fno-unsafe-math-optimizations'],
+        'veryloose': ['-ffast-math'],
+        'vectorize': {False: '-fno-vectorize', True: '-fvectorize'},
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        (systemtools.POWER, systemtools.POWER): 'mcpu=native',  # no support for march=native on POWER
-        (systemtools.POWER, systemtools.POWER_LE): 'mcpu=native',  # no support for march=native on POWER
-        (systemtools.X86_64, systemtools.AMD): 'march=native',
-        (systemtools.X86_64, systemtools.INTEL): 'march=native',
+        (systemtools.POWER, systemtools.POWER): '-mcpu=native',  # no support for march=native on POWER
+        (systemtools.POWER, systemtools.POWER_LE): '-mcpu=native',  # no support for march=native on POWER
+        (systemtools.X86_64, systemtools.AMD): '-march=native',
+        (systemtools.X86_64, systemtools.INTEL): '-march=native',
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        (systemtools.RISCV64, systemtools.RISCV): 'march=rv64gc -mabi=lp64d',  # default for -mabi is system-dependent
-        (systemtools.X86_64, systemtools.AMD): 'march=x86-64 -mtune=generic',
-        (systemtools.X86_64, systemtools.INTEL): 'march=x86-64 -mtune=generic',
+        (systemtools.RISCV64, systemtools.RISCV): '-march=rv64gc -mabi=lp64d',  # default for -mabi is system-dependent
+        (systemtools.X86_64, systemtools.AMD): '-march=x86-64 -mtune=generic',
+        (systemtools.X86_64, systemtools.INTEL): '-march=x86-64 -mtune=generic',
     }
 
     COMPILER_CC = 'clang'
