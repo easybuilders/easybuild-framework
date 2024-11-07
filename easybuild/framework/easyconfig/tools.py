@@ -71,8 +71,17 @@ from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
+# URLs for package repositories
 CRANDB_URL = "https://crandb.r-pkg.org"
 PYPI_URL = "https://pypi.org/pypi"
+BIOCONDUCTOR_URL = "https://bioconductor.org/packages/json"
+BIOCONDUCTOR_PKGS_URL = "bioc/packages.json"
+BIOCONDUCTOR_ANNOTATION_URL = "data/annotation/packages.json"
+BIOCONDUCTOR_EXPERIMENT_URL = "data/experiment/packages.json"
+
+# Global variable to store Bioconductor packages
+bioc_packages_cache = None
+
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
@@ -936,24 +945,71 @@ def get_python_package_checksum(pkg_metadata, pkg_version):
     return checksum
 
 
-def get_pkg_metadata(pkg_class, pkg_name, pkg_version=None):
+def get_bioconductor_packages(bioc_version):
+    """
+    Get the list of Bioconductor packages from the Bioconductor database.
+
+    :param bioc_version: Bioconductor version
+    """
+
+    # global variable to store the bioconductor packages
+    global bioc_packages_cache
+
+    # check if bioconductor version has been provided
+    if not bioc_version:
+        return None
+
+    # bioconductor URLs
+    bioc_urls = ['%s/%s/%s' % (BIOCONDUCTOR_URL, bioc_version, BIOCONDUCTOR_PKGS_URL),
+                 '%s/%s/%s' % (BIOCONDUCTOR_URL, bioc_version, BIOCONDUCTOR_ANNOTATION_URL),
+                 '%s/%s/%s' % (BIOCONDUCTOR_URL, bioc_version, BIOCONDUCTOR_EXPERIMENT_URL)]
+
+    # check if the packages are already stored in memory
+    if bioc_packages_cache is None:
+
+        # initialize the cache
+        bioc_packages_cache = {}
+
+        # retrieve packages from the cloud
+        for url in bioc_urls:
+            try:
+                response = requests.get(url)
+
+                if response.status_code == 200:
+                    bioc_packages_cache.update(response.json())
+                else:
+                    print_warning(
+                        f"Failed to get biocondcutor packages from {url}: HTTP status: {response.status_code}")
+            except Exception as err:
+                print_warning(f"Exception while getting bioconductor packages from  {url}: {err}")
+
+    return bioc_packages_cache
+
+
+def get_pkg_metadata(pkg_class, pkg_name, pkg_version=None, bioc_version=None):
     """
     Get the metadata of the given package
 
     :param pkg_class: package class (RPackage, PythonPackage, PerlPackage)
     :param pkg_name: package name
     :param pkg_version: package version. If None, the latest version will be retrieved.
+    :param bioc_version: bioconductor version
     """
 
-    # initialize variable
+    # initialize variables
     pkg_metadata = None
+    bioc_packages = None
 
-    # build the  db url to get the metadata from
+    # build the url to get the metadata from the database
     if pkg_class == "RPackage":
         if pkg_version:
             url = "%s/%s/%s" % (CRANDB_URL, pkg_name, pkg_version)
         else:
             url = "%s/%s" % (CRANDB_URL, pkg_name)
+
+        # get bioc packages if bioconductor version is provided
+        if bioc_version:
+            bioc_packages = get_bioconductor_packages(bioc_version)
 
     elif pkg_class == "PythonPackage":
         url = "%s/%s/json" % (PYPI_URL, pkg_name)
@@ -971,55 +1027,50 @@ def get_pkg_metadata(pkg_class, pkg_name, pkg_version=None):
     except Exception as err:
         print_warning("Exception while getting metadata for extension %s: %s" % (pkg_name, err))
 
-    if pkg_metadata:
-
-        if pkg_class == "RPackage":
-            name = pkg_metadata.get('Package', '')
-            version = pkg_metadata.get('Version', '')
-            checksum = pkg_metadata.get('MD5sum', '')
-
-        elif pkg_class == "PythonPackage":
-            name = pkg_metadata.get('info', {}).get('name', '')
-            version = pkg_metadata.get('info', {}).get('version', '')
-            checksum = get_python_package_checksum(pkg_metadata, version)
-
-        else:
-            raise EasyBuildError("exts_defaultclass %s not supported" % pkg_class)
-
-        pkg_metadata = {"name": name, "version": version, "checksum": checksum}
+    # if the package is not found in the database, then check if it is a bioconductor package
+    if not pkg_metadata and bioc_packages:
+        # iterate over bioconductor packages to find the package
+        for package in bioc_packages.items():
+            if package[0] == pkg_name:
+                pkg_metadata = package[1]
+                break
 
     return pkg_metadata
 
 
-def clean_pkg_metadata(pkg):
+def get_pkg_as_extension(pkg_class, pkg_metadata):
     """
-    Clean the name, version and checksum fields of the given package.
+    Get the package as an extension
 
-    :param pkg: extension data
+    :param pkg_class: package class (RPackage, PythonPackage, PerlPackage)
+    :param pkg_metadata: package metadata
     """
 
-    # if not package provided, then do nothing
-    if not pkg:
+    # if no metadata is provided, return None
+    if not pkg_metadata:
         return None
 
-    # list of allowed characters in the version field
+    # check the package class and parse the metadata accordingly
+    if pkg_class == "RPackage":
+        name = pkg_metadata.get('Package', '')
+        version = pkg_metadata.get('Version', '')
+        checksum = pkg_metadata.get('MD5sum', '')
+
+    elif pkg_class == "PythonPackage":
+        name = pkg_metadata.get('info', {}).get('name', '')
+        version = pkg_metadata.get('info', {}).get('version', '')
+        checksum = get_python_package_checksum(pkg_metadata, version)
+
+    else:
+        raise EasyBuildError("exts_defaultclass %s not supported" % pkg_class)
+
+    # remove any non-alphanumeric characters from the version
     allowed_version_chars = r'[^0-9><=!*. \-]'
+    version = re.sub(allowed_version_chars, '', version)
 
-    # some dependencies have an akward format and name and version need to be parsed
-    # regular expression pattern to match names like 'RSQLite (>= 2.0)'
-    pattern = r'^(?P<name>[^\s]+) \((?P<info>.+)\)$'
-    match = re.match(pattern, pkg['name'])
-    if match:
-        pkg['name'] = match.group('name')
-        pkg['version'] = match.group('info')
+    # remove any new line characters
+    name = name.replace('\n', '')
+    version = version.replace('\n', '')
+    checksum = checksum.replace('\n', '')
 
-    # Remove any non-alphanumeric characters from the version
-    if pkg['version']:
-        pkg['version'] = re.sub(allowed_version_chars, '', pkg['version'])
-
-    # remove any new line characters from the name, version and checksum
-    pkg['name'] = pkg['name'].replace('\n', '')
-    pkg['version'] = pkg['version'].replace('\n', '')
-    checksum = pkg['options']['checksums']
-    if checksum:
-        pkg['options']['checksums'] = [checksum[0].replace('\n', '')]
+    return {"name": name, "version": version,  "options": {"checksums": [checksum]}}

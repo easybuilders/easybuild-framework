@@ -63,7 +63,7 @@ from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_di
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
-from easybuild.framework.easyconfig.tools import dump_env_easyblock, get_paths_for, get_pkg_metadata, clean_pkg_metadata
+from easybuild.framework.easyconfig.tools import dump_env_easyblock, get_paths_for, get_pkg_metadata, get_pkg_as_extension
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.framework.extension import Extension, resolve_exts_filter_template
 from easybuild.tools import LooseVersion, config, run
@@ -282,6 +282,8 @@ class EasyBlock(object):
 
         if self.dry_run:
             self.init_dry_run()
+
+        self.bioconductor_version = fetch_parameters_from_easyconfig(self.cfg.rawtxt, ["local_biocver"])[0]
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
@@ -2875,34 +2877,40 @@ class EasyBlock(object):
         # init variables
         updated_exts_list = []
 
+        if self.bioconductor_version:
+            print_msg("Using Bioconductor v%s...\n" % (self.bioconductor_version), log=_log)
+        else:
+            print_msg("local_biocver parameter not set in easyconfig. Bioconductor packages will not be considered.\n", log=_log)
+
         # loop over all extensions and update their version
         for ext in self.exts:
 
+            # get package information
+            ext_class = self.cfg.get('exts_defaultclass', None)
+            ext_name = ext.get('name', None)
+            ext_version = ext.get('version', None)
+
             # get metadata of the latest version of the extension
-            metadata = get_pkg_metadata(pkg_class=self.cfg.get('exts_defaultclass', None),
-                                        pkg_name=ext.get('name', None))
+            metadata = get_pkg_metadata(pkg_class=ext_class,
+                                        pkg_name=ext_name,
+                                        pkg_version=None,
+                                        bioc_version=self.bioconductor_version)
 
             # process the metadata
             if metadata:
 
-                # build the package
-                pkg = {"name": metadata['name'],
-                       "version": metadata['version'],
-                       "options": {"checksums": [metadata['checksum']]}}
-
-                # clean the package metadata values
-                clean_pkg_metadata(pkg)
+                new_ext = get_pkg_as_extension(ext_class, metadata)
 
                 # store the updated extension
-                updated_exts_list.append(pkg)
+                updated_exts_list.append(new_ext)
 
                 # print message to the user
-                if ext['version'] == pkg['version']:
+                if ext_version == new_ext['version']:
                     print_msg(
-                        f"Package {ext['name']:<{PKG_NAME_OFFSET}} v{ext['version']:<{PKG_VERSION_OFFSET}} {'up-to-date':<{INFO_OFFSET}}", log=_log)
+                        f"Package {ext_name:<{PKG_NAME_OFFSET}} v{ext_version:<{PKG_VERSION_OFFSET}} {'up-to-date':<{INFO_OFFSET}}", log=_log)
                 else:
                     print_msg(
-                        f"Package {ext['name']:<{PKG_NAME_OFFSET}} v{ext['version']:<{PKG_VERSION_OFFSET}} updated to {pkg['version']:<{INFO_OFFSET}}", log=_log)
+                        f"Package {ext_name:<{PKG_NAME_OFFSET}} v{ext_version:<{PKG_VERSION_OFFSET}} updated to {new_ext['version']:<{INFO_OFFSET}}", log=_log)
 
             else:
                 # no metadata found, therefore store the original extension
@@ -2910,7 +2918,7 @@ class EasyBlock(object):
 
                 # print message to the user
                 print_msg(
-                    f"Package {ext['name']:<{PKG_NAME_OFFSET}} v{ext['version']:<{PKG_VERSION_OFFSET}} {'info not found':<{INFO_OFFSET}}", log=_log)
+                    f"Package {ext_name:<{PKG_NAME_OFFSET}} v{ext_version:<{PKG_VERSION_OFFSET}} {'info not found':<{INFO_OFFSET}}", log=_log)
 
         # aesthetic print
         print()
