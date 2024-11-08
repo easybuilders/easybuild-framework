@@ -682,7 +682,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_override_optarch(self):
         """Test whether overriding the optarch flag works."""
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
-        for optarch_var in ['march=lovelylovelysandybridge', None]:
+        for optarch_var in ['-march=lovelylovelysandybridge', None]:
             init_config(build_options={'optarch': optarch_var, 'silent': True})
             for enable in [True, False]:
                 tc = self.get_toolchain('foss', version='2018a')
@@ -761,7 +761,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({})
         with self.mocked_stdout_stderr():
             tc.prepare()
-        self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a53')
+        self.assertEqual(tc.options.options_map['optarch'], '-mcpu=cortex-a53')
         self.assertIn('-mcpu=cortex-a53', os.environ['CFLAGS'])
         self.modtool.purge()
 
@@ -769,7 +769,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({})
         with self.mocked_stdout_stderr():
             tc.prepare()
-        self.assertEqual(tc.options.options_map['optarch'], 'mcpu=native')
+        self.assertEqual(tc.options.options_map['optarch'], '-mcpu=native')
         self.assertIn('-mcpu=native', os.environ['CFLAGS'])
         self.modtool.purge()
 
@@ -778,16 +778,16 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({})
         with self.mocked_stdout_stderr():
             tc.prepare()
-        self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a72.cortex-a53')
+        self.assertEqual(tc.options.options_map['optarch'], '-mcpu=cortex-a72.cortex-a53')
         self.assertIn('-mcpu=cortex-a72.cortex-a53', os.environ['CFLAGS'])
         self.modtool.purge()
 
     def test_compiler_dependent_optarch(self):
         """Test whether specifying optarch on a per compiler basis works."""
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
-        intel_options = [('intelflag', 'intelflag'), ('GENERIC', 'xSSE2'), ('', '')]
-        gcc_options = [('gccflag', 'gccflag'), ('march=nocona', 'march=nocona'), ('', '')]
-        gcccore_options = [('gcccoreflag', 'gcccoreflag'), ('GENERIC', 'march=x86-64 -mtune=generic'), ('', '')]
+        intel_options = [('intelflag', 'intelflag'), ('GENERIC', '-xSSE2'), ('', '')]
+        gcc_options = [('gccflag', 'gccflag'), ('-march=nocona', '-march=nocona'), ('', '')]
+        gcccore_options = [('gcccoreflag', 'gcccoreflag'), ('GENERIC', '-march=x86-64 -mtune=generic'), ('', '')]
 
         tc_intel = ('iccifort', '2018.1.163')
         tc_gcc = ('GCC', '6.4.0-2.28')
@@ -849,8 +849,8 @@ class ToolchainTest(EnhancedTestCase):
                     gcc_options[1][1],
                     gcccore_options[0][1],
                     gcccore_options[1][1],
-                    'xHost',  # default optimal for Intel
-                    'march=native',  # default optimal for GCC
+                    '-xHost',  # default optimal for Intel
+                    '-march=native',  # default optimal for GCC
                 ]
             else:
                 blacklist = [flags]
@@ -880,16 +880,16 @@ class ToolchainTest(EnhancedTestCase):
         toy_txt = read_file(eb_file)
 
         # check that an optarch map raises an error
-        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': 'GCC:march=sandrybridge;Intel:xAVX'}")
+        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': 'GCC:-march=sandrybridge;Intel:-xAVX'}")
         msg = "syntax is not allowed"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, msg, self.eb_main, [test_ec], raise_error=True, do_build=True)
 
         # check that setting optarch flags work
-        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': 'march=sandybridge'}")
+        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': '-march=sandybridge'}")
         with self.mocked_stdout_stderr():
             out = self.eb_main([test_ec], raise_error=True, do_build=True)
-        regex = re.compile("_set_optimal_architecture: using march=sandybridge as optarch for x86_64")
+        regex = re.compile("_set_optimal_architecture: using -march=sandybridge as optarch for x86_64")
         self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
 
     def test_misc_flags_unique_fortran(self):
