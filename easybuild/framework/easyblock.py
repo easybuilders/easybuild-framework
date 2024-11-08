@@ -4905,24 +4905,20 @@ def get_updated_exts_list(exts_defaultclass, exts_list, bioconductor_version=Non
             new_ext = get_pkg_as_extension(exts_defaultclass, metadata)
 
             # print message to the user
-            if ext_version is None:
-                ext_version = "_"
             if ext_version == new_ext['version']:
                 print_msg(
-                    f"Package {ext_name:<{PKG_NAME_OFFSET}} v{ext_version:<{PKG_VERSION_OFFSET}} {'up-to-date':<{INFO_OFFSET}}", log=_log)
+                    f"Package {ext_name:<{PKG_NAME_OFFSET}} v{('_' if ext_version is None else ext_version):<{PKG_VERSION_OFFSET}} {'up-to-date':<{INFO_OFFSET}}", log=_log)
             else:
                 print_msg(
-                    f"Package {ext_name:<{PKG_NAME_OFFSET}} v{ext_version:<{PKG_VERSION_OFFSET}} updated to v{new_ext['version']:<{INFO_OFFSET}}", log=_log)
+                    f"Package {ext_name:<{PKG_NAME_OFFSET}} v{('_' if ext_version is None else ext_version):<{PKG_VERSION_OFFSET}} updated to v{new_ext['version']:<{INFO_OFFSET}}", log=_log)
 
         else:
             # no metadata found, therefore store the original extension
             new_ext = {"name": ext_name, "version": ext_version,  "options": ext_options}
 
             # print message to the user
-            if ext_version is None:
-                ext_version = "_"
             print_msg(
-                f"Package {ext_name:<{PKG_NAME_OFFSET}} v{ext_version:<{PKG_VERSION_OFFSET}} {'info not found':<{INFO_OFFSET}}", log=_log)
+                f"Package {ext_name:<{PKG_NAME_OFFSET}} v{('_' if ext_version is None else ext_version):<{PKG_VERSION_OFFSET}} {'info not found':<{INFO_OFFSET}}", log=_log)
 
         # store the new extension
         updated_exts_list.append(new_ext)
