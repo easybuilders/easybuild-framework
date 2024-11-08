@@ -1429,9 +1429,9 @@ class EasyBlock(object):
 
         if use_ebpythonprefixes:
             path = ''  # EBPYTHONPREFIXES are relative to the install dir
-            lines = self.module_generator.prepend_paths(EBPYTHONPREFIXES, path)
+            lines = self.module_generator.prepend_paths(EBPYTHONPREFIXES, path, warn_exists=False)
         else:
-            lines = self.module_generator.prepend_paths(PYTHONPATH, python_paths)
+            lines = self.module_generator.prepend_paths(PYTHONPATH, python_paths, warn_exists=False)
         return [lines] if lines else []
 
     def make_module_extra(self, altroot=None, altversion=None):
