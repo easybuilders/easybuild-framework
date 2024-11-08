@@ -1173,7 +1173,7 @@ class Toolchain(object):
     def get_flag(self, name):
         """Get compiler flag(s) for a certain option."""
         if isinstance(self.options.option(name), list):
-            return " ".join(list(self.options.option(name)))
+            return " ".join(self.options.option(name))
         else:
             return self.options.option(name)
 
