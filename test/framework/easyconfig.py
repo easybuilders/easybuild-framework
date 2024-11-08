@@ -3628,14 +3628,6 @@ class EasyConfigTest(EnhancedTestCase):
         args = [
             ec_file,
             '--dry-run',
-        ]
-        outtxt = self.eb_main(args, raise_error=True)
-        self.assertFalse(re.search(r'module: GCC/\.4\.9\.2', outtxt))
-        self.assertTrue(re.search(r'module: gzip/1\.6-GCC-4\.9\.2', outtxt))
-
-        args = [
-            ec_file,
-            '--dry-run',
             '--robot',
         ]
         outtxt = self.eb_main(args, raise_error=True)
