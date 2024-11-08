@@ -206,8 +206,12 @@ class ModuleGenerator(object):
 
         return os.path.join(mod_path, mod_path_suffix)
 
-    def _filter_paths(self, key, paths):
-        """Filter out paths already added to key and return the remaining ones"""
+    def _filter_paths(self, key, paths, warn_exists=True):
+        """
+        Filter out paths already added to key and return the remaining ones
+
+        :param warn_exists: Show a warning for paths already added to the key
+        """
         if self.added_paths_per_key is None:
             # For compatibility this is only a warning for now and we don't filter any paths
             print_warning('Module creation has not been started. Call start_module_creation first!')
@@ -227,10 +231,12 @@ class ModuleGenerator(object):
                 paths = list(paths)
             filtered_paths = [x for x in paths if x not in added_paths and not added_paths.add(x)]
         if filtered_paths != paths:
-            removed_paths = paths if filtered_paths is None else [x for x in paths if x not in filtered_paths]
-            print_warning("Suppressed adding the following path(s) to $%s of the module as they were already added: %s",
-                          key, removed_paths,
-                          log=self.log)
+            if warn_exists:
+                removed_paths = paths if filtered_paths is None else [x for x in paths if x not in filtered_paths]
+                print_warning("Suppressed adding the following path(s) to $%s of the module "
+                              "as they were already added: %s",
+                              key, removed_paths,
+                              log=self.log)
             if not filtered_paths:
                 filtered_paths = None
         return filtered_paths
@@ -251,7 +257,7 @@ class ModuleGenerator(object):
         return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths,
                                  delim=delim)
 
-    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True, delim=':'):
+    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True, delim=':', warn_exists=True):
         """
         Generate prepend-path statements for the given list of paths.
 
@@ -260,8 +266,9 @@ class ModuleGenerator(object):
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         :param delim: delimiter used between paths
+        :param warn_exists: Show a warning if any path was already added to the variable
         """
-        paths = self._filter_paths(key, paths)
+        paths = self._filter_paths(key, paths, warn_exists=warn_exists)
         if paths is None:
             return ''
         return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths,
