@@ -186,8 +186,8 @@ class Gcc(Compiler):
                     break
             if core_types:
                 # On big.LITTLE setups, sort core types to have big core (higher model number) first.
-                # Example: 'mcpu=cortex-a72.cortex-a53' for "ARM Cortex-A53 + Cortex-A72"
-                default_optarch = 'mcpu=%s' % '.'.join([ct[1] for ct in sorted(core_types, reverse=True)])
+                # Example: '-mcpu=cortex-a72.cortex-a53' for "ARM Cortex-A53 + Cortex-A72"
+                default_optarch = '-mcpu=%s' % '.'.join([ct[1] for ct in sorted(core_types, reverse=True)])
                 self.log.debug("Using architecture-specific compiler optimization flag '%s'", default_optarch)
 
         return default_optarch
