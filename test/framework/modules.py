@@ -686,6 +686,7 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(get_software_root(name), root)
             self.assertEqual(get_software_version(name), version)
             self.assertEqual(get_software_libdir(name), 'lib')
+            self.assertEqual(get_software_libdir(name, full_path=True), os.path.join(root, 'lib'))
 
             os.environ.pop('EBROOT%s' % env_var_name)
             os.environ.pop('EBVERSION%s' % env_var_name)
@@ -694,30 +695,39 @@ class ModulesTest(EnhancedTestCase):
         root = os.path.join(tmpdir, name)
         mkdir(os.path.join(root, 'lib64'))
         os.environ['EBROOT%s' % env_var_name] = root
+
+        def check_get_software_libdir(expected, **additional_args):
+            self.assertEqual(get_software_libdir(name, **additional_args), expected)
+            if isinstance(expected, list):
+                expected = [os.path.join(root, d) for d in expected]
+            elif expected:
+                expected = os.path.join(root, expected)
+            self.assertEqual(get_software_libdir(name, full_path=True, **additional_args), expected)
+
         write_file(os.path.join(root, 'lib', 'libfoo.a'), 'foo')
-        self.assertEqual(get_software_libdir(name), 'lib')
+        check_get_software_libdir('lib')
 
         remove_file(os.path.join(root, 'lib', 'libfoo.a'))
 
         # also check vice versa with *shared* library in lib64
         shlib_ext = get_shared_lib_ext()
         write_file(os.path.join(root, 'lib64', 'libfoo.' + shlib_ext), 'foo')
-        self.assertEqual(get_software_libdir(name), 'lib64')
+        check_get_software_libdir('lib64')
 
         remove_file(os.path.join(root, 'lib64', 'libfoo.' + shlib_ext))
 
         # check expected result of get_software_libdir with multiple lib subdirs
         self.assertErrorRegex(EasyBuildError, "Multiple library subdirectories found.*", get_software_libdir, name)
-        self.assertEqual(get_software_libdir(name, only_one=False), ['lib', 'lib64'])
+        check_get_software_libdir(only_one=False, expected=['lib', 'lib64'])
 
         # only directories containing files in specified list should be retained
         write_file(os.path.join(root, 'lib64', 'foo'), 'foo')
-        self.assertEqual(get_software_libdir(name, fs=['foo']), 'lib64')
+        check_get_software_libdir(fs=['foo'], expected='lib64')
 
         # duplicate paths due to symlink get filtered
         remove_dir(os.path.join(root, 'lib64'))
         symlink(os.path.join(root, 'lib'), os.path.join(root, 'lib64'))
-        self.assertEqual(get_software_libdir(name), 'lib')
+        check_get_software_libdir('lib')
 
         # same goes for lib symlinked to lib64
         remove_file(os.path.join(root, 'lib64'))
@@ -725,19 +735,20 @@ class ModulesTest(EnhancedTestCase):
         mkdir(os.path.join(root, 'lib64'))
         symlink(os.path.join(root, 'lib64'), os.path.join(root, 'lib'))
         # still returns 'lib' because that's the first subdir considered
-        self.assertEqual(get_software_libdir(name), 'lib')
+        check_get_software_libdir('lib')
 
         # clean up for previous tests
         os.environ.pop('EBROOT%s' % env_var_name)
 
         # if root/version for specified software package can not be found, these functions should return None
-        self.assertEqual(get_software_root('foo'), None)
-        self.assertEqual(get_software_version('foo'), None)
-        self.assertEqual(get_software_libdir('foo'), None)
+        self.assertEqual(get_software_root(name), None)
+        self.assertEqual(get_software_version(name), None)
+        check_get_software_libdir(None)
 
         # if no library subdir is found, get_software_libdir should return None
         os.environ['EBROOTFOO'] = tmpdir
         self.assertEqual(get_software_libdir('foo'), None)
+        self.assertEqual(get_software_libdir('foo', full_path=True), None)
         os.environ.pop('EBROOTFOO')
 
         shutil.rmtree(tmpdir)
