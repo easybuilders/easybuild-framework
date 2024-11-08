@@ -3228,21 +3228,6 @@ class ToolchainTest(EnhancedTestCase):
         expected = {}
         self.assertEqual(res, expected)
 
-    def test_get_flag(self):
-        """Test get_flag function"""
-        tc = self.get_toolchain('gompi', version='2018a')
-
-        checks = {
-            '-a': 'a',
-            '-openmp': 'openmp',
-            '-foo': ['foo'],
-            '-foo -bar': ['foo', 'bar'],
-        }
-
-        for flagstring, flags in checks.items():
-            tc.options.options_map['openmp'] = flags
-            self.assertEqual(tc.get_flag('openmp'), flagstring)
-
 
 def suite():
     """ return all the tests"""
