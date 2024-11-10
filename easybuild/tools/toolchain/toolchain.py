@@ -119,6 +119,7 @@ SEARCH_PATH_LINKER = {
 }
 DEFAULT_SEARCH_PATH_LINKER = SEARCH_PATH_LINKER_FLAGS
 
+
 def is_system_toolchain(tc_name):
     """Return whether toolchain with specified name is a system toolchain or not."""
     return tc_name in [SYSTEM_TOOLCHAIN_NAME]
