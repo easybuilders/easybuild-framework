@@ -377,7 +377,7 @@ class EasyBlock(object):
                 self.log.deprecated(
                     "Reproducible tarballs of git repos are only supported in Python 3.9+. "
                     f"Checksum of {chksum_input} cannot be verified.",
-                    '5.0'
+                    '6.0'
                 )
                 return None
 
