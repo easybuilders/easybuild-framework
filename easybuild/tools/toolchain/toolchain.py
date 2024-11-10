@@ -95,29 +95,20 @@ TOOLCHAIN_CAPABILITIES = [
     TOOLCHAIN_CAPABILITY_LAPACK_FAMILY,
     TOOLCHAIN_CAPABILITY_MPI_FAMILY,
 ]
-# modes to handle CPP header search paths
+# modes to handle header and linker search paths
 # see: https://gcc.gnu.org/onlinedocs/cpp/Environment-Variables.html
-# supported on Linux by: GCC, GFortran, oneAPI C/C++ Compilers, oneAPI Fortran Compiler
-SEARCH_PATH_CPP_HEADERS_FLAGS = "CPPFLAGS"
-SEARCH_PATH_CPP_HEADERS_CPATH = "CPATH"
-SEARCH_PATH_CPP_HEADERS_INCLUDE = "INCLUDE_PATHS"
+# supported on Linux by: GCC, GFortran, oneAPI C/C++ Compilers, oneAPI Fortran Compiler, LLVM-based
 SEARCH_PATH_CPP_HEADERS = {
-    SEARCH_PATH_CPP_HEADERS_FLAGS: ["CPPFLAGS"],
-    SEARCH_PATH_CPP_HEADERS_CPATH: ["CPATH"],
-    SEARCH_PATH_CPP_HEADERS_INCLUDE: ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
+    "FLAGS": ["CPPFLAGS"],
+    "CPATH": ["CPATH"],
+    "INCLUDE_PATHS": ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
 }
-DEFAULT_SEARCH_PATH_CPP_HEADERS = SEARCH_PATH_CPP_HEADERS_FLAGS
-
-# modes to handle linker search paths
-# see: https://gcc.gnu.org/onlinedocs/cpp/Environment-Variables.html
-# supported on Linux by: GCC, GFortran, oneAPI C/C++ Compilers, oneAPI Fortran Compiler
-SEARCH_PATH_LINKER_FLAGS = "LDFLAGS"
-SEARCH_PATH_LINKER_LIBPATH = "LIBRARY_PATH"
 SEARCH_PATH_LINKER = {
-    SEARCH_PATH_LINKER_FLAGS: ["LDFLAGS"],
-    SEARCH_PATH_LINKER_LIBPATH: ["LIBRARY_PATH"],
+    "FLAGS": ["LDFLAGS"],
+    "LIBRARY_PATH": ["LIBRARY_PATH"],
 }
-DEFAULT_SEARCH_PATH_LINKER = SEARCH_PATH_LINKER_FLAGS
+DEFAULT_SEARCH_PATH_CPP_HEADERS = "FLAGS"
+DEFAULT_SEARCH_PATH_LINKER = "FLAGS"
 
 
 def is_system_toolchain(tc_name):
