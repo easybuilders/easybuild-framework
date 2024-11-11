@@ -4850,7 +4850,7 @@ def inject_checksums(ecs, checksum_type):
 
         write_file(ec['spec'], ectxt)
 
-def get_updated_exts_list(exts_defaultclass, exts_list, bioconductor_version=None):
+def get_updated_exts_list(exts_list, exts_defaultclass, bioconductor_version=None):
     """
     Get a new exts_list with all extensions in exts_list to the latest version.
     
@@ -4970,6 +4970,49 @@ def write_new_easyconfig_exts_list(path, new_exts_list):
     # write the new easyconfig file
     write_file(path, ectxt)
 
+def get_exts_list(ec):
+    """
+    Get the extension list from an EasyConfig instance.
+
+    :param ec: EasyConfig instance
+    """
+
+    return ec.get('ec', {}).get('exts_list', None)
+
+def get_exts_list_class(ec):
+    """
+    Get the extension list class from an EasyConfig instance.
+
+    :param ec: EasyConfig instance
+    """
+
+    exts_list_class = ec.get('ec', {}).get('exts_defaultclass', None)
+    if not exts_list_class:
+        name = ec.get('ec', {}).get('name', None)
+        if name:
+            if name == 'R' or name.startswith('R-'):
+                exts_list_class = 'RPackage'
+            if name == 'Python' or name.startswith('Python-'):
+                exts_list_class = 'PythonPackage'
+
+    return exts_list_class
+
+def get_bioconductor_version(ec):
+    """
+    Get the Bioconductor version from an EasyConfig instance.
+
+    :param ec: EasyConfig instance
+    """
+
+    bioconductor_version = ec.get('ec', {}).get('local_biocver', None)
+
+    if bioconductor_version:
+        print_msg("Using Bioconductor v%s..." % (bioconductor_version), log=_log)
+    else:
+        print_msg("'local_biocver' parameter not set in easyconfig. Bioconductor packages will not be considered...", log=_log)
+
+    return bioconductor_version
+
 def update_exts_list(ecs):
     """
     Write a new EasyConfig recipe with all extensions in exts_list updated to the latest version.
@@ -4979,42 +5022,33 @@ def update_exts_list(ecs):
 
     for ec in ecs:
 
-        print_msg("Using EasyConfig file %s..." % ec['spec'], log=_log)
+        # welcome message
+        print()
+        print_msg("UPDATING EASYCONFIG %s" % ec['spec'], log=_log)
 
         # get the extension list
         print_msg("Getting extension list...", log=_log)
-        exts_list = ec.get('ec', {}).get('exts_list', None)
+        exts_list = get_exts_list(ec)
 
         # get the extension's list class
         print_msg("Getting extension's list class...", log=_log)
-        exts_defaultclass = ec.get('ec', {}).get('exts_defaultclass', None)
-        if not exts_defaultclass:
-            name = ec.get('ec', {}).get('name', None)
-            if name:
-                if name == 'R' or name.startswith('R-'):
-                    exts_defaultclass = 'RPackage'
-                if name == 'Python' or name.startswith('Python-'):
-                    exts_defaultclass = 'PythonPackage'
+        exts_defaultclass = get_exts_list_class(ec)
 
         # get the Bioconductor version
         print_msg("Getting Bioconductor version (if any)...", log=_log)
-        bioconductor_version = ec.get('ec', {}).get('local_biocver', None)
-        if bioconductor_version:
-            print_msg("Using Bioconductor v%s..." % (bioconductor_version), log=_log)
-        else:
-            print_msg("'local_biocver' parameter not set in easyconfig. Bioconductor packages will not be considered...", log=_log)
+        bioconductor_version = get_bioconductor_version(ec)
 
         # update the extensions in the exts_list to their latest version
         print_msg("Updating extension list...", log=_log)
-        updated_exts_list = get_updated_exts_list(exts_defaultclass, exts_list, bioconductor_version)
+        updated_exts_list = get_updated_exts_list(exts_list, exts_defaultclass, bioconductor_version)
 
-        # Write the new easyconfig file
+        # write the new easyconfig file
         ec_backup = back_up_file(ec['spec'], backup_extension='bak_update')
         print_msg("Backing up EasyConfig file at %s..." % ec_backup, log=_log)
 
-        # Write the new easyconfig file
+        # write the new easyconfig file
         print_msg('Writing updated EasyConfig file...', log=_log)
         write_new_easyconfig_exts_list(ec['spec'], updated_exts_list)
 
-        # Print success message
-        print_msg('New easyConfig file written successfully!\n', log=_log)
+        # success message
+        print_msg('EASYCONFIG SUCCESSFULLY UPDATED!\n', log=_log)
