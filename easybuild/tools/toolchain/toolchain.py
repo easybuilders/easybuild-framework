@@ -99,12 +99,12 @@ TOOLCHAIN_CAPABILITIES = [
 # see: https://gcc.gnu.org/onlinedocs/cpp/Environment-Variables.html
 # supported on Linux by: GCC, GFortran, oneAPI C/C++ Compilers, oneAPI Fortran Compiler, LLVM-based
 SEARCH_PATH = {
-    "cpp_headers" : {
+    "cpp_headers": {
         "flags": ["CPPFLAGS"],
         "cpath": ["CPATH"],
         "include_paths": ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
     },
-    "linker" : {
+    "linker": {
         "flags": ["LDFLAGS"],
         "library_path": ["LIBRARY_PATH"],
     },
