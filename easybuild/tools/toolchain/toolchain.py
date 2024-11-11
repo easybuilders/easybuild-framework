@@ -382,30 +382,15 @@ class Toolchain(object):
         return res
 
     def set_variables(self):
-        """Set generic toolchain variables. Child toolchains oversubscribe this method."""
+        """
+        No generic toolchain variables set.
+        Post-process variables set by child Toolchain classes.
+        """
 
         if self.options.option('packed-linker-options'):
             self.log.devel("set_variables: toolchain variables. packed-linker-options.")
             self.variables.try_function_on_element('set_packed_linker_options')
         self.log.devel("set_variables: toolchain variables. Do nothing.")
-
-        # mode of operation for search paths
-        # toolchain option has precedence over build option
-        for search_path in self.search_path:
-            sp_build_opt = f"search_path_{search_path}"
-            sp_toolchain_opt = sp_build_opt.replace("_", "-")
-            if self.options.get(sp_toolchain_opt) is not None:
-                self.search_path[search_path] = self.options.option(sp_toolchain_opt)
-            elif build_option(sp_build_opt) is not None:
-                self.search_path[search_path] = build_option(sp_build_opt)
-
-            if self.search_path[search_path] not in SEARCH_PATH[search_path]:
-                raise EasyBuildError(
-                    "Unknown value selected for toolchain option %s: %s. Choose one of: %s",
-                    sp_toolchain_opt, self.search_path[search_path], ", ".join(SEARCH_PATH[search_path])
-                )
-
-            self.log.debug("%s toolchain option set to: %s", sp_toolchain_opt, self.search_path[search_path])
 
     def generate_vars(self):
         """Convert the variables in simple vars"""
@@ -786,6 +771,27 @@ class Toolchain(object):
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
                                  "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
+    def _validate_search_path(self):
+        """
+        Validate search path toolchain options.
+        Toolchain option has precedence over build option
+        """
+        for search_path in self.search_path:
+            sp_build_opt = f"search_path_{search_path}"
+            sp_toolchain_opt = sp_build_opt.replace("_", "-")
+            if self.options.get(sp_toolchain_opt) is not None:
+                self.search_path[search_path] = self.options.option(sp_toolchain_opt)
+            elif build_option(sp_build_opt) is not None:
+                self.search_path[search_path] = build_option(sp_build_opt)
+
+            if self.search_path[search_path] not in SEARCH_PATH[search_path]:
+                raise EasyBuildError(
+                    "Unknown value selected for toolchain option %s: %s. Choose one of: %s",
+                    sp_toolchain_opt, self.search_path[search_path], ", ".join(SEARCH_PATH[search_path])
+                )
+
+            self.log.debug("%s toolchain option set to: %s", sp_toolchain_opt, self.search_path[search_path])
+
     def symlink_commands(self, paths):
         """
         Create a symlink for each command to binary/script at specified path.
@@ -865,7 +871,6 @@ class Toolchain(object):
             self._load_modules(silent=silent)
 
         if self.is_system_toolchain():
-
             # define minimal build environment when using system toolchain;
             # this is mostly done to try controlling which compiler commands are being used,
             # cfr. https://github.com/easybuilders/easybuild-framework/issues/3398
@@ -878,6 +883,7 @@ class Toolchain(object):
                 self._verify_toolchain()
 
             # Generate the variables to be set
+            self._validate_search_path()
             self.set_variables()
 
             # set the variables
