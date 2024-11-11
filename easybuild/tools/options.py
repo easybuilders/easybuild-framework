@@ -101,8 +101,7 @@ from easybuild.tools.robot import det_robot_path
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
-from easybuild.tools.toolchain.toolchain import DEFAULT_SEARCH_PATH_CPP_HEADERS, DEFAULT_SEARCH_PATH_LINKER
-from easybuild.tools.toolchain.toolchain import SEARCH_PATH_CPP_HEADERS, SEARCH_PATH_LINKER, SYSTEM_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import DEFAULT_SEARCH_PATH_CPP_HEADERS, DEFAULT_SEARCH_PATH_LINKER, SEARCH_PATH
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
@@ -625,9 +624,9 @@ class EasyBuildOptions(GeneralOption):
                                 "For more info, use --avail-repositories."),
                                'strlist', 'store', self.default_repositorypath),
             'search-path-cpp-headers': ("Search path used at build time for include directories", 'choice',
-                                        'store', DEFAULT_SEARCH_PATH_CPP_HEADERS, [*SEARCH_PATH_CPP_HEADERS]),
+                                        'store', DEFAULT_SEARCH_PATH_CPP_HEADERS, [*SEARCH_PATH["cpp_headers"]]),
             'search-path-linker': ("Search path used at build time by the linker for libraries", 'choice',
-                                   'store', DEFAULT_SEARCH_PATH_LINKER, [*SEARCH_PATH_LINKER]),
+                                   'store', DEFAULT_SEARCH_PATH_LINKER, [*SEARCH_PATH["linker"]]),
             'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
