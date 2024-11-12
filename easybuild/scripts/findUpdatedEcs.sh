@@ -28,6 +28,7 @@ function checkModule {
         return
     fi
     ec_installed="$ec_glob"
+#    ec_installed_filtered=<(sed '/^# Build statistics/,$d' $ec_installed | grep -v "# Built with")
     ec_filename=$(basename "$ec_installed")
     # Try with most likely location first for speed
     first_letter=${ec_filename:0:1}
@@ -43,7 +44,7 @@ function checkModule {
         printError "=== Did not find new EC $ec_filename"
     elif [[ ! -e "$ec_new" ]]; then
         printError "=== Found multiple new ECs: $ec_new"
-    elif ! out=$(diff -u "$ec_installed" "$ec_new"); then
+    elif ! out=$(diff -B -u <(sed '/^# Build statistics/,$d' $ec_installed | grep -v "# Built with") "$ec_new"); then
         if ((short == 1)); then
             basename "$ec_installed"
         else
