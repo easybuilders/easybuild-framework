@@ -33,7 +33,8 @@ Authors:
 
 from easybuild.tools.variables import Variables, join_map_class
 from easybuild.tools.toolchain.constants import ALL_MAP_CLASSES
-from easybuild.tools.toolchain.variables import LinkerFlagList, FlagList
+from easybuild.tools.toolchain.variables import LinkerFlagList
+from easybuild.tools.variables import StrList
 
 
 class ToolchainVariables(Variables):
@@ -42,7 +43,7 @@ class ToolchainVariables(Variables):
     in context of compilers (i.e. the generated string are e.g. compiler options or link flags)
     """
     MAP_CLASS = join_map_class(ALL_MAP_CLASSES)  # join_map_class strips explanation
-    DEFAULT_CLASS = FlagList
+    DEFAULT_CLASS = StrList
     LINKER_TOGGLE_START_STOP_GROUP = None
     LINKER_TOGGLE_STATIC_DYNAMIC = None
 

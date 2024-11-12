@@ -31,9 +31,9 @@ Authors:
 * Kenneth Hoste (Ghent University)
 """
 
-from easybuild.tools.toolchain.variables import CommandFlagList, CommaSharedLibs, CommaStaticLibs, FlagList
-from easybuild.tools.toolchain.variables import IncludePaths, LibraryList, LinkLibraryPaths, SearchPaths
-from easybuild.tools.variables import AbsPathList
+from easybuild.tools.toolchain.variables import CommaSharedLibs, CommaStaticLibs
+from easybuild.tools.toolchain.variables import IncludePaths, LibraryList, LinkLibraryPaths
+from easybuild.tools.variables import AbsPathList, StrList
 
 
 COMPILER_VARIABLES = [
@@ -53,10 +53,10 @@ COMPILER_FLAGS = [
 ]
 
 COMPILER_MAP_CLASS = {
-    FlagList: [
+    StrList: [
         ('OPTFLAGS', 'Optimization flags'),
         ('PRECFLAGS', 'FP precision flags'),
-    ] + COMPILER_FLAGS,
+    ] + COMPILER_FLAGS + COMPILER_VARIABLES,
     LibraryList: [
         ('LIBS', 'Libraries'),  # -l options to pass to the linker (C/C++/Fortran)
         ('FLIBS', 'Fortran libraries'),  # linker flags (e.g. -L and -l) for Fortran libraries
@@ -74,18 +74,15 @@ COMPILER_MAP_CLASS = {
         ('OBJC_INCLUDE_PATH', 'Location of Objective C header files'),
         ('LIBRARY_PATH', 'Location of linker files'),
     ],
-    CommandFlagList: COMPILER_VARIABLES,
 }
 
 CO_COMPILER_MAP_CLASS = {
-    CommandFlagList: [
+    StrList: [
         ('CUDA_CC', 'CUDA C compiler command'),
         ('CUDA_CXX', 'CUDA C++ compiler command'),
         ('CUDA_F77', 'CUDA Fortran 77 compiler command'),
         ('CUDA_F90', 'CUDA Fortran 90 compiler command'),
         ('CUDA_FC', 'CUDA Fortran 77/90 compiler command'),
-    ],
-    FlagList: [
         ('CUDA_CFLAGS', 'CUDA C compiler flags'),
         ('CUDA_CXXFLAGS', 'CUDA C++ compiler flags'),
         ('CUDA_FCFLAGS', 'CUDA Fortran 77/90 compiler flags'),
@@ -110,7 +107,7 @@ MPI_MAP_CLASS = {
         ('MPI_LIB_DIR', 'MPI library directory'),
         ('MPI_INC_DIR', 'MPI include directory'),
     ],
-    CommandFlagList: MPI_COMPILER_VARIABLES + SEQ_COMPILER_VARIABLES,
+    StrList: MPI_COMPILER_VARIABLES + SEQ_COMPILER_VARIABLES,
 }
 
 BLAS_MAP_CLASS = {
