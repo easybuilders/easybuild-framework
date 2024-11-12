@@ -50,7 +50,7 @@ import traceback
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning, stop_logging
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums, inject_checksums_to_json
-from easybuild.framework.easyblock import update_exts_list
+from easybuild.framework.easyblock import update_exts_list, check_installed_exts
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easystack import parse_easystack
@@ -345,7 +345,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         'sync_pr_with_develop',
         'update_branch_github',
         'update_pr',
-        ) if getattr(options, opt)
+    ) if getattr(options, opt)
     ]
     any_pr_option_set = len(set_pr_options) > 0
     if len(set_pr_options) > 1:
@@ -555,6 +555,11 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     # update all extensions in exts_list to the latest version and exit
     if options.update_exts_list:
         update_exts_list(ordered_ecs)
+        return True
+
+    # check the extensions already being installed by dependencies and exit
+    if options.check_installed_exts:
+        check_installed_exts(ordered_ecs)
         return True
 
     # submit build as job(s), clean up and exit

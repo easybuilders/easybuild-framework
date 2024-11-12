@@ -58,7 +58,7 @@ import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
@@ -72,8 +72,8 @@ from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warni
 from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
-from easybuild.tools.config import EASYBUILD_SOURCES_URL # noqa
-from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
+from easybuild.tools.config import EASYBUILD_SOURCES_URL  # noqa
+from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath, update_build_option
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
@@ -100,6 +100,7 @@ from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_
 from easybuild.tools.package.utilities import package
 from easybuild.tools.py2vs3 import extract_method_name, string_type
 from easybuild.tools.repository.repository import init_repository
+from easybuild.tools.robot import search_easyconfigs
 from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_linked_libs_raw
 from easybuild.tools.systemtools import get_shared_lib_ext, pick_system_specific_value, use_group
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
@@ -4850,10 +4851,11 @@ def inject_checksums(ecs, checksum_type):
 
         write_file(ec['spec'], ectxt)
 
+
 def get_updated_exts_list(exts_list, exts_defaultclass, bioconductor_version=None):
     """
     Get a new exts_list with all extensions in exts_list to the latest version.
-    
+
     :param exts_defaultclass: default class for the extensions ('RPackage', 'PythonPackage', 'PerlPackage', etc.)
     :param exts_list: list of extensions to be updated
     :param bioconductor_version: version of Bioconductor to use (if any)
@@ -4868,7 +4870,7 @@ def get_updated_exts_list(exts_list, exts_defaultclass, bioconductor_version=Non
     # check if the exts_defaultclass is empty
     if not exts_defaultclass:
         raise EasyBuildError("No default class found for the extensions")
-    
+
     # init variables
     updated_exts_list = []
 
@@ -4928,6 +4930,7 @@ def get_updated_exts_list(exts_list, exts_defaultclass, bioconductor_version=Non
 
     return updated_exts_list
 
+
 def write_new_easyconfig_exts_list(path, new_exts_list):
     """
     Write a new easyconfig file with the new extensions list.
@@ -4969,6 +4972,15 @@ def write_new_easyconfig_exts_list(path, new_exts_list):
 
     # write the new easyconfig file
     write_file(path, ectxt)
+
+def get_dependencies(ec):
+    """
+    Get the dependencies from an EasyConfig instance.
+
+    :param ec: EasyConfig instance
+    """
+    app: EasyBlock = get_easyblock_instance(ec)
+    return app.cfg.dependencies()
 
 def get_exts_list(ec):
     """
@@ -5013,6 +5025,136 @@ def get_bioconductor_version(ec):
 
     return bioconductor_version
 
+def get_extension_values(extension):
+    """
+    Extract the name, version, and options from an extension.
+
+    :param extension: extension instance
+    """
+    if isinstance(extension, str):
+        return extension, "", {}
+
+    elif isinstance(extension, tuple):
+        if len(extension) == 1:
+            return extension[0], "", {}
+        elif len(extension) == 2:
+            return extension[0], extension[1], {}
+        elif len(extension) == 3:
+            return extension[0], extension[1], extension[2]
+        else:
+            raise EasyBuildError("Invalid number of elements in extension tuple")
+
+    elif isinstance(extension, dict):
+        return (
+            extension.get('name', ""),
+            extension.get('version', ""),
+            extension.get('options', {})
+        )
+
+    else:
+        raise EasyBuildError("Invalid extension instance")
+
+def crosscheck_exts_list(exts_list, installed_exts):
+    """
+    Cross-check the exts_list with the list of installed extensions.
+
+    :param exts_list: list of extensions to be installed
+    :param installed_exts: list of installed extensions
+    """
+
+    # init variables
+    match = False
+
+    # aesthetic print
+    print()
+
+    for ext in exts_list:
+
+        # get the name and version of the exts_list extension
+        ext_name, ext_version, _ = get_extension_values(ext)
+
+        # check if the extension is already installed by a dependency
+        for inst_ext in installed_exts:
+
+            # get the name and version of the installed extension
+            inst_ext_name, inst_ext_version, _ = get_extension_values(inst_ext)
+
+            # check if the extension is already installed by a dependency
+            if inst_ext_name.lower() == ext_name.lower():
+                match = True
+                print_msg("%s v%s  in exts_list" % (ext_name, ext_version), log=_log)
+                print_msg("%s v%s  in dependency\n" % (inst_ext_name, inst_ext_version), log=_log)
+                break
+
+    if not match:
+        print_msg("No installed extensions found in the exts_list!\n", log=_log)
+
+def get_installed_exts(ec, processed_deps=[]):
+    """
+    Generate a list of extensions that will be pre-installed due to dependencies or build_dependencies specified in the easyconfig parameters.
+
+    :param ec: EasyConfig instance
+    :param processed_deps: list of processed dependencies
+    """
+
+    # init variables
+    installed_exts = []
+
+    # get the dependencies
+    dependencies = get_dependencies(ec)
+
+    # Set terse mode to avoid printing unnecessary information
+    terse = build_option('terse')
+    update_build_option('terse', True)
+
+    for dep in dependencies:
+        # Get dependency name
+        name = dep['full_mod_name'].replace('/', '-') + ".eb"
+
+        # Check if dependency was already processed
+        if name in processed_deps:
+            continue
+
+        # Add dependency to the list of processed dependencies
+        processed_deps.append(name)
+
+        # If dependency is a system dependency, store it as an extension being installed and skip futher processing
+        if dep['system']:
+            installed_exts.extend([{'name': dep['name'], 'version': dep['version']}])
+            continue
+
+        print_msg("Getting extensions from dependency: %s", name, log=_log)
+
+        # Search for the corresponding easyconfig file
+        easyconfigs = search_easyconfigs(name, print_result=False)
+
+        # If easyconfig files were found, then process them
+        if easyconfigs:
+
+            # Print warning if more than one easyconfig file was found
+            if len(easyconfigs) > 1:
+                print_warning("More than one easyconfig file found for dependency %s: %s", name, easyconfigs)
+
+            # Process the easyconfig file
+            dep_ec = process_easyconfig(easyconfigs[0], validate=False)[0]
+
+            # Search recursively for pre-installed extensions of the dependency
+            installed = get_installed_exts(dep_ec, processed_deps)
+
+            # Add extensions to the list
+            installed_exts.extend(installed)
+
+    # get the exts_list of current easyconfig
+    exts_list = get_exts_list(ec)
+
+    # add extensions to the list
+    installed_exts.extend(exts_list)
+
+    # restore the original value of the terse option
+    update_build_option('terse', terse)
+
+    return installed_exts
+
 def update_exts_list(ecs):
     """
     Write a new EasyConfig recipe with all extensions in exts_list updated to the latest version.
@@ -5052,3 +5194,31 @@ def update_exts_list(ecs):
 
         # success message
         print_msg('EASYCONFIG SUCCESSFULLY UPDATED!\n', log=_log)
+
+def check_installed_exts(ecs):
+    """
+    Print the list of exts_list that are already being installed by dependencies or build dependencies
+
+    :param ecs: list of EasyConfig instances to complete dependencies for
+    """
+
+    for ec in ecs:
+
+        # welcome message
+        print()
+        print_msg("CHECK INSTALLED EXTENSIONS IN %s" % ec['spec'], log=_log)
+
+        # get the extension list
+        print_msg("Getting extension list...", log=_log)
+        exts_list = get_exts_list(ec)
+
+        # get the extensions installed by dependencies
+        print_msg("Getting installed extensions...", log=_log)
+        installed_exts = get_installed_exts(ec)
+
+        # cross-check the installed extensions with the exts_list
+        print_msg("Checking installed extensions...", log=_log)
+        crosscheck_exts_list(exts_list, installed_exts)
+
+        # success message
+        print_msg('INSTALLED DEPENDENCY EXTENSIONS CHECKED!\n', log=_log)
