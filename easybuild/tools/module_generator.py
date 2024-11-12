@@ -1016,10 +1016,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
             else:
                 abspaths.append(path)
 
-        if delim != ':':
-            statements = ['%s-path -d "%s"\t%s\t\t%s\n' % (update_type, delim, key, p) for p in abspaths]
-        else:
-            statements = ['%s-path\t%s\t\t%s\n' % (update_type, key, p) for p in abspaths]
+        delim_opt = '' if delim != ':' else f' -d "{delim}"'
+        statements = [f'{update_type}-path{delim_opt}\t{key}\t\t{p}\n' for p in abspaths]
         return ''.join(statements)
 
     def set_alias(self, key, value):
