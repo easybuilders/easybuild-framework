@@ -104,7 +104,7 @@ class Clang(Compiler):
 
     COMPILER_CC = 'clang'
     COMPILER_CXX = 'clang++'
-    COMPILER_C_UNIQUE_FLAGS = []
+    COMPILER_C_UNIQUE_OPTIONS = []
 
     LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']

@@ -785,9 +785,9 @@ class ToolchainTest(EnhancedTestCase):
     def test_compiler_dependent_optarch(self):
         """Test whether specifying optarch on a per compiler basis works."""
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
-        intel_options = [('intelflag', 'intelflag'), ('GENERIC', '-xSSE2'), ('', '')]
-        gcc_options = [('gccflag', 'gccflag'), ('-march=nocona', '-march=nocona'), ('', '')]
-        gcccore_options = [('gcccoreflag', 'gcccoreflag'), ('GENERIC', '-march=x86-64 -mtune=generic'), ('', '')]
+        intel_options = [('intelflag', '-intelflag'), ('GENERIC', '-xSSE2'), ('', '')]
+        gcc_options = [('gccflag', '-gccflag'), ('-march=nocona', '-march=nocona'), ('', '')]
+        gcccore_options = [('gcccoreflag', '-gcccoreflag'), ('GENERIC', '-march=x86-64 -mtune=generic'), ('', '')]
 
         tc_intel = ('iccifort', '2018.1.163')
         tc_gcc = ('GCC', '6.4.0-2.28')
@@ -1356,7 +1356,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_fosscuda(self):
         """Test whether fosscuda is handled properly."""
         tc = self.get_toolchain("fosscuda", version="2018a")
-        opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10'], 'openmp': True}
+        opts = {'cuda_gencode': ['-arch=compute_35,code=sm_35', 'a-rch=compute_10,code=compute_10'], 'openmp': True}
         tc.set_options(opts)
         with self.mocked_stdout_stderr():
             tc.prepare()

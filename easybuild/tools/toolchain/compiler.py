@@ -38,7 +38,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
 
-# default optimization 'level' (see COMPILER_SHARED_OPTION_MAP/COMPILER_OPT_FLAGS)
+# default optimization 'level' (see COMPILER_SHARED_OPTION_MAP/COMPILER_OPT_OPTIONS)
 DEFAULT_OPT_LEVEL = 'defaultopt'
 
 # 'GENERIC' can  be used to enable generic compilation instead of optimized compilation (which is the default)
@@ -127,20 +127,20 @@ class Compiler(Toolchain):
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
     COMPILER_GENERIC_OPTION = None
 
-    COMPILER_FLAGS = ['debug', 'ieee', 'openmp', 'pic', 'shared', 'static', 'unroll', 'verbose']  # any compiler
-    COMPILER_OPT_FLAGS = ['noopt', 'lowopt', DEFAULT_OPT_LEVEL, 'opt']  # optimisation args, ordered !
-    COMPILER_PREC_FLAGS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose']  # precision flags, ordered !
+    COMPILER_OPTIONS = ['debug', 'ieee', 'openmp', 'pic', 'shared', 'static', 'unroll', 'verbose']  # any compiler
+    COMPILER_OPT_OPTIONS = ['noopt', 'lowopt', DEFAULT_OPT_LEVEL, 'opt']  # optimisation args, ordered !
+    COMPILER_PREC_OPTIONS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose']  # precision flags, ordered !
 
     COMPILER_CC = None
     COMPILER_CXX = None
-    COMPILER_C_FLAGS = ['-cstd']
-    COMPILER_C_UNIQUE_FLAGS = []
+    COMPILER_C_OPTIONS = ['cstd']
+    COMPILER_C_UNIQUE_OPTIONS = []
 
     COMPILER_F77 = None
     COMPILER_F90 = None
     COMPILER_FC = None
-    COMPILER_F_FLAGS = ['-i8', '-r8']
-    COMPILER_F_UNIQUE_FLAGS = []
+    COMPILER_F_OPTIONS = ['i8', 'r8']
+    COMPILER_F_UNIQUE_OPTIONS = []
 
     LINKER_TOGGLE_STATIC_DYNAMIC = None
     LINKER_TOGGLE_START_STOP_GROUP = {
@@ -245,20 +245,20 @@ class Compiler(Toolchain):
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""
 
-        flags = [self.options.option(x) for x in self.COMPILER_FLAGS if self.options.get(x, False)]
-        cflags = [self.options.option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS
+        flags = [self.options.option(x) for x in self.COMPILER_OPTIONS if self.options.get(x, False)]
+        cflags = [self.options.option(x) for x in self.COMPILER_C_OPTIONS + self.COMPILER_C_UNIQUE_OPTIONS
                   if self.options.get(x, False)]
-        fflags = [self.options.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS
+        fflags = [self.options.option(x) for x in self.COMPILER_F_OPTIONS + self.COMPILER_F_UNIQUE_OPTIONS
                   if self.options.get(x, False)]
 
         # Allow a user-defined default optimisation
         default_opt_level = build_option('default_opt_level')
-        if default_opt_level not in self.COMPILER_OPT_FLAGS:
+        if default_opt_level not in self.COMPILER_OPT_OPTIONS:
             raise EasyBuildError("Unknown value for default optimisation: %s (possibilities are %s)" %
-                                 (default_opt_level, self.COMPILER_OPT_FLAGS))
+                                 (default_opt_level, self.COMPILER_OPT_OPTIONS))
 
         # 1st one is the one to use. add default at the end so len is at least 1
-        optflags = ([self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] +
+        optflags = ([self.options.option(x) for x in self.COMPILER_OPT_OPTIONS if self.options.get(x, False)] +
                     [self.options.option(default_opt_level)])[:1]
 
         # only apply if the vectorize toolchainopt is explicitly set
@@ -280,7 +280,7 @@ class Compiler(Toolchain):
         elif self.options.get('optarch', False):
             optarchflags.append(self.options.option('optarch'))
 
-        precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
+        precflags = [self.options.option(x) for x in self.COMPILER_PREC_OPTION if self.options.get(x, False)] + \
                     [self.options.option('defaultprec')]
 
         self.variables.nextend('OPTFLAGS', optflags + optarchflags)

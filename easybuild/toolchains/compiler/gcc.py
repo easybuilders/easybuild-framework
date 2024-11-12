@@ -110,12 +110,12 @@ class Gcc(Compiler):
 
     COMPILER_CC = 'gcc'
     COMPILER_CXX = 'g++'
-    COMPILER_C_UNIQUE_FLAGS = []
+    COMPILER_C_UNIQUE_OPTIONS = []
 
     COMPILER_F77 = 'gfortran'
     COMPILER_F90 = 'gfortran'
     COMPILER_FC = 'gfortran'
-    COMPILER_F_UNIQUE_FLAGS = ['-f2c']
+    COMPILER_F_UNIQUE_OPTIONS = ['f2c']
 
     LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']

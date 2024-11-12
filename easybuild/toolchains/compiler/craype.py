@@ -98,7 +98,7 @@ class CrayPECompiler(Compiler):
         """Constructor."""
         super(CrayPECompiler, self).__init__(*args, **kwargs)
         # 'register'  additional toolchain options that correspond to a compiler flag
-        self.COMPILER_FLAGS.extend(['-dynamic', '-mpich-mt'])
+        self.COMPILER_OPTIONS.extend(['dynamic', 'mpich-mt'])
 
         # use name of PrgEnv module as name of module that provides compiler
         self.COMPILER_MODULE_NAME = ['PrgEnv-%s' % self.PRGENV_MODULE_NAME_SUFFIX]
@@ -139,7 +139,7 @@ class CrayPEGCC(CrayPECompiler):
     def __init__(self, *args, **kwargs):
         """CrayPEGCC constructor."""
         super(CrayPEGCC, self).__init__(*args, **kwargs)
-        for precflag in self.COMPILER_PREC_FLAGS:
+        for precflag in self.COMPILER_PREC_OPTIONS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = Gcc.COMPILER_UNIQUE_OPTION_MAP[precflag]
 
 
@@ -151,7 +151,7 @@ class CrayPEIntel(CrayPECompiler):
     def __init__(self, *args, **kwargs):
         """CrayPEIntel constructor."""
         super(CrayPEIntel, self).__init__(*args, **kwargs)
-        for precflag in self.COMPILER_PREC_FLAGS:
+        for precflag in self.COMPILER_PREC_OPTIONS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = IntelIccIfort.COMPILER_UNIQUE_OPTION_MAP[precflag]
 
 
@@ -164,7 +164,7 @@ class CrayPEPGI(CrayPECompiler):
         """CrayPEPGI constructor."""
         super(CrayPEPGI, self).__init__(*args, **kwargs)
         self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = '-mp'
-        for precflag in self.COMPILER_PREC_FLAGS:
+        for precflag in self.COMPILER_PREC_OPTIONS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = Pgi.COMPILER_UNIQUE_OPTION_MAP[precflag]
 
 
@@ -177,5 +177,5 @@ class CrayPECray(CrayPECompiler):
         """CrayPEIntel constructor."""
         super(CrayPECray, self).__init__(*args, **kwargs)
         self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = '-homp'
-        for precflag in self.COMPILER_PREC_FLAGS:
+        for precflag in self.COMPILER_PREC_OPTIONS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = []
