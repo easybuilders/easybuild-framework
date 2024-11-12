@@ -105,18 +105,18 @@ class Compiler(Toolchain):
 
     COMPILER_UNIQUE_OPTION_MAP = None
     COMPILER_SHARED_OPTION_MAP = {
-        DEFAULT_OPT_LEVEL: 'O2',
-        'cstd': 'std=%(value)s',
-        'debug': 'g',
-        'lowopt': 'O1',
-        'noopt': 'O0',
-        'openmp': 'fopenmp',
-        'opt': 'O3',
-        'pic': 'fPIC',
-        'shared': 'shared',
-        'static': 'static',
-        'unroll': 'unroll',
-        'verbose': 'v',
+        DEFAULT_OPT_LEVEL: '-O2',
+        'cstd': '-std=%(value)s',
+        'debug': '-g',
+        'lowopt': '-O1',
+        'noopt': '-O0',
+        'openmp': '-fopenmp',
+        'opt': '-O3',
+        'pic': '-fPIC',
+        'shared': '-shared',
+        'static': '-static',
+        'unroll': '-unroll',
+        'verbose': '-v',
         'extra_cflags': '%(value)s',
         'extra_cxxflags': '%(value)s',
         'extra_fflags': '%(value)s',
@@ -133,13 +133,13 @@ class Compiler(Toolchain):
 
     COMPILER_CC = None
     COMPILER_CXX = None
-    COMPILER_C_FLAGS = ['cstd']
+    COMPILER_C_FLAGS = ['-cstd']
     COMPILER_C_UNIQUE_FLAGS = []
 
     COMPILER_F77 = None
     COMPILER_F90 = None
     COMPILER_FC = None
-    COMPILER_F_FLAGS = ['i8', 'r8']
+    COMPILER_F_FLAGS = ['-i8', '-r8']
     COMPILER_F_UNIQUE_FLAGS = []
 
     LINKER_TOGGLE_STATIC_DYNAMIC = None
