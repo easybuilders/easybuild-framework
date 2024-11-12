@@ -28,7 +28,6 @@ function checkModule {
         return
     fi
     ec_installed="$ec_glob"
-#    ec_installed_filtered=<(sed '/^# Build statistics/,$d' $ec_installed | grep -v "# Built with")
     ec_filename=$(basename "$ec_installed")
     # Try with most likely location first for speed
     first_letter=${ec_filename:0:1}
