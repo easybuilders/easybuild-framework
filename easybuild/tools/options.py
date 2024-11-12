@@ -102,6 +102,7 @@ from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
 from easybuild.tools.toolchain.toolchain import DEFAULT_SEARCH_PATH_CPP_HEADERS, DEFAULT_SEARCH_PATH_LINKER, SEARCH_PATH
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
