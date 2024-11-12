@@ -478,16 +478,16 @@ def avail_easyconfig_templates_txt():
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     doc.append('Template names/values derived from easyconfig instance')
-    for name in TEMPLATE_NAMES_EASYCONFIG:
-        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name[0], name[1]))
+    for name, curDoc in TEMPLATE_NAMES_EASYCONFIG.items():
+        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name, curDoc))
     doc.append('')
 
     # step 2: add SOFTWARE_VERSIONS
     doc.append('Template names/values for (short) software versions')
-    for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
-        doc.append("%s%%(%smajver)s: major version for %s" % (INDENT_4SPACES, pref, name))
-        doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (INDENT_4SPACES, pref, name))
-        doc.append("%s%%(%sver)s: full version for %s" % (INDENT_4SPACES, pref, name))
+    for name, prefix in TEMPLATE_SOFTWARE_VERSIONS.items():
+        doc.append("%s%%(%smajver)s: major version for %s" % (INDENT_4SPACES, prefix, name))
+        doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (INDENT_4SPACES, prefix, name))
+        doc.append("%s%%(%sver)s: full version for %s" % (INDENT_4SPACES, prefix, name))
     doc.append('')
 
     # step 3: add remaining config
@@ -506,20 +506,20 @@ def avail_easyconfig_templates_txt():
     # step 5: template_values can/should be updated from outside easyconfig
     # (eg the run_step code in EasyBlock)
     doc.append('Template values set outside EasyBlock runstep')
-    for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name[0], name[1]))
+    for name, cur_doc in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP.items():
+        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name, cur_doc))
     doc.append('')
 
     # some template values are only defined dynamically,
     # see template_constant_dict function in easybuild.framework.easyconfigs.templates
     doc.append('Template values which are defined dynamically')
-    for name in TEMPLATE_NAMES_DYNAMIC:
-        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name[0], name[1]))
+    for name, cur_doc in TEMPLATE_NAMES_DYNAMIC.items():
+        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name, cur_doc))
     doc.append('')
 
     doc.append('Template constants that can be used in easyconfigs')
-    for cst in TEMPLATE_CONSTANTS:
-        doc.append('%s%s: %s (%s)' % (INDENT_4SPACES, cst[0], cst[2], cst[1]))
+    for name, (value, cur_doc) in TEMPLATE_CONSTANTS.items():
+        doc.append('%s%s: %s (%s)' % (INDENT_4SPACES, name, cur_doc, value))
 
     return '\n'.join(doc)
 
@@ -530,8 +530,8 @@ def avail_easyconfig_templates_rst():
 
     title = 'Template names/values derived from easyconfig instance'
     table_values = [
-        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_EASYCONFIG],
-        [name[1] for name in TEMPLATE_NAMES_EASYCONFIG],
+        ['``%%(%s)s``' % name for name in TEMPLATE_NAMES_EASYCONFIG],
+        list(TEMPLATE_NAMES_EASYCONFIG.values()),
     ]
     doc = rst_title_and_table(title, table_titles, table_values)
     doc.append('')
@@ -539,10 +539,10 @@ def avail_easyconfig_templates_rst():
     title = 'Template names/values for (short) software versions'
     ver = []
     ver_desc = []
-    for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
-        ver.append('``%%(%smajver)s``' % pref)
-        ver.append('``%%(%sshortver)s``' % pref)
-        ver.append('``%%(%sver)s``' % pref)
+    for name, prefix in TEMPLATE_SOFTWARE_VERSIONS.items():
+        ver.append('``%%(%smajver)s``' % prefix)
+        ver.append('``%%(%sshortver)s``' % prefix)
+        ver.append('``%%(%sver)s``' % prefix)
         ver_desc.append('major version for %s' % name)
         ver_desc.append('short version for %s (<major>.<minor>)' % name)
         ver_desc.append('full version for %s' % name)
@@ -565,24 +565,24 @@ def avail_easyconfig_templates_rst():
 
     title = 'Template values set outside EasyBlock runstep'
     table_values = [
-        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
-        [name[1] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
+        ['``%%(%s)s``' % name for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
+        list(TEMPLATE_NAMES_EASYBLOCK_RUN_STEP.values()),
     ]
     doc.extend(rst_title_and_table(title, table_titles, table_values))
 
     title = 'Template values which are defined dynamically'
     table_values = [
-        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_DYNAMIC],
-        [name[1] for name in TEMPLATE_NAMES_DYNAMIC],
+        ['``%%(%s)s``' % name for name in TEMPLATE_NAMES_DYNAMIC],
+        list(TEMPLATE_NAMES_DYNAMIC.values()),
     ]
     doc.extend(rst_title_and_table(title, table_titles, table_values))
 
     title = 'Template constants that can be used in easyconfigs'
-    titles = ['Constant', 'Template value', 'Template name']
+    titles = ['Constant', 'Template description', 'Template value']
     table_values = [
-        ['``%s``' % cst[0] for cst in TEMPLATE_CONSTANTS],
-        [cst[2] for cst in TEMPLATE_CONSTANTS],
-        ['``%s``' % cst[1] for cst in TEMPLATE_CONSTANTS],
+        ['``%s``' % name for name in TEMPLATE_CONSTANTS],
+        [doc for _, doc in TEMPLATE_CONSTANTS.values()],
+        ['``%s``' % value for value, _ in TEMPLATE_CONSTANTS.values()],
     ]
     doc.extend(rst_title_and_table(title, titles, table_values))
 
@@ -595,8 +595,8 @@ def avail_easyconfig_templates_md():
 
     title = 'Template names/values derived from easyconfig instance'
     table_values = [
-        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_EASYCONFIG],
-        [name[1] for name in TEMPLATE_NAMES_EASYCONFIG],
+        ['``%%(%s)s``' % name for name in TEMPLATE_NAMES_EASYCONFIG],
+        list(TEMPLATE_NAMES_EASYCONFIG.values()),
     ]
     doc = md_title_and_table(title, table_titles, table_values, title_level=2)
     doc.append('')
@@ -604,10 +604,10 @@ def avail_easyconfig_templates_md():
     title = 'Template names/values for (short) software versions'
     ver = []
     ver_desc = []
-    for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
-        ver.append('``%%(%smajver)s``' % pref)
-        ver.append('``%%(%sshortver)s``' % pref)
-        ver.append('``%%(%sver)s``' % pref)
+    for name, prefix in TEMPLATE_SOFTWARE_VERSIONS.items():
+        ver.append('``%%(%smajver)s``' % prefix)
+        ver.append('``%%(%sshortver)s``' % prefix)
+        ver.append('``%%(%sver)s``' % prefix)
         ver_desc.append('major version for %s' % name)
         ver_desc.append('short version for %s (``<major>.<minor>``)' % name)
         ver_desc.append('full version for %s' % name)
@@ -631,27 +631,28 @@ def avail_easyconfig_templates_md():
 
     title = 'Template values set outside EasyBlock runstep'
     table_values = [
-        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
-        [name[1] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
+        ['``%%(%s)s``' % name for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
+        list(TEMPLATE_NAMES_EASYBLOCK_RUN_STEP.values()),
     ]
     doc.extend(md_title_and_table(title, table_titles, table_values, title_level=2))
     doc.append('')
 
     title = 'Template values which are defined dynamically'
     table_values = [
-        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_DYNAMIC],
-        [name[1] for name in TEMPLATE_NAMES_DYNAMIC],
+        ['``%%(%s)s``' % name for name in TEMPLATE_NAMES_DYNAMIC],
+        list(TEMPLATE_NAMES_DYNAMIC.values()),
     ]
     doc.extend(md_title_and_table(title, table_titles, table_values, title_level=2))
     doc.append('')
 
     title = 'Template constants that can be used in easyconfigs'
-    titles = ['Constant', 'Template value', 'Template name']
+    titles = ['Constant', 'Template description', 'Template value']
     table_values = [
-        ['``%s``' % cst[0] for cst in TEMPLATE_CONSTANTS],
-        [cst[2] for cst in TEMPLATE_CONSTANTS],
-        ['``%s``' % cst[1] for cst in TEMPLATE_CONSTANTS],
+        ['``%s``' % name for name in TEMPLATE_CONSTANTS],
+        [doc for _, doc in TEMPLATE_CONSTANTS.values()],
+        ['``%s``' % value for value, _ in TEMPLATE_CONSTANTS.values()],
     ]
+
     doc.extend(md_title_and_table(title, titles, table_values, title_level=2))
 
     return '\n'.join(doc)
@@ -804,7 +805,7 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
         if isinstance(ec, dict):
             template_values = template_constant_dict(ec)
             for key in keys:
-                if '%(' in info[key]:
+                if info[key] and '%(' in info[key]:
                     try:
                         info[key] = info[key] % template_values
                     except (KeyError, TypeError, ValueError) as err:

@@ -46,8 +46,8 @@ import difflib
 import functools
 import os
 import re
-from contextlib import contextmanager
 from collections import OrderedDict
+from contextlib import contextmanager
 
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
@@ -65,7 +65,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMPLATES, DEPRECATED_EASYCONFIG_TEMPLATES
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
 from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
@@ -441,6 +441,8 @@ class EasyConfig(object):
             self.path = path
             self.rawtxt = read_file(path)
             self.log.debug("Raw contents from supplied easyconfig file %s: %s", path, self.rawtxt)
+            if not self.rawtxt.strip():
+                raise EasyBuildError('Easyconfig file is empty')
         else:
             self.rawtxt = rawtxt
             self.log.debug("Supplied raw easyconfig contents: %s" % self.rawtxt)
@@ -905,9 +907,12 @@ class EasyConfig(object):
                 not_found.append(dep)
 
         if not_found:
-            raise EasyBuildError("One or more OS dependencies were not found: %s", not_found)
-        else:
-            self.log.info("OS dependencies ok: %s" % self['osdependencies'])
+            raise EasyBuildError(
+                "One or more OS dependencies were not found: %s", not_found,
+                exit_code=EasyBuildExit.MISSING_SYSTEM_DEPENDENCY
+            )
+
+        self.log.info("OS dependencies ok: %s" % self['osdependencies'])
 
         return True
 
@@ -1100,15 +1105,19 @@ class EasyConfig(object):
 
         return retained_deps
 
-    def dependencies(self, build_only=False):
+    def dependencies(self, build_only=False, runtime_only=False):
         """
         Returns an array of parsed dependencies (after filtering, if requested)
         dependency = {'name': '', 'version': '', 'system': (False|True), 'versionsuffix': '', 'toolchain': ''}
         Iterable builddependencies are flattened when not iterating.
 
         :param build_only: only return build dependencies, discard others
+        :param runtime_only: only return runtime dependencies, discard others
         """
-        deps = self.builddependencies()
+        if runtime_only:
+            deps = []
+        else:
+            deps = self.builddependencies()
 
         if not build_only:
             # use += rather than .extend to get a new list rather than updating list of build deps in place...
@@ -1217,7 +1226,7 @@ class EasyConfig(object):
             default_values.update({key: value[0] for key, value in self.extra_options.items()})
 
             self.generate_template_values()
-            templ_const = {quote_py_str(const[1]): const[0] for const in TEMPLATE_CONSTANTS}
+            templ_const = {quote_py_str(value): name for name, (value, _) in TEMPLATE_CONSTANTS.items()}
 
             # create reverse map of templates, to inject template values where possible
             # longer template values are considered first, shorter template keys get preference over longer ones
@@ -1270,7 +1279,10 @@ class EasyConfig(object):
         if values is None:
             values = []
         if self[attr] and self[attr] not in values:
-            raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
+            raise EasyBuildError(
+                "%s provided '%s' is not valid: %s", attr, self[attr], values,
+                exit_code=EasyBuildExit.VALUE_ERROR
+            )
 
     def probe_external_module_metadata(self, mod_name, existing_metadata=None):
         """
@@ -1842,7 +1854,7 @@ class EasyConfig(object):
         Returns user-friendly error message in case neither are defined,
         or if an unknown key is used.
         """
-        if key.startswith('cuda_') and any(x[0] == key for x in TEMPLATE_NAMES_DYNAMIC):
+        if key.startswith('cuda_') and any(x == key for x in TEMPLATE_NAMES_DYNAMIC):
             try:
                 return self.template_values[key]
             except KeyError:
@@ -1884,7 +1896,9 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         else:
             # if no easyblock specified, try to find if one exists
             if name is None:
-                name = "UNKNOWN"
+                if error_on_missing_easyblock:
+                    raise EasyBuildError("No easyblock found as neither name nor easyblock were specified")
+                return None
             # The following is a generic way to calculate unique class names for any funny software title
             class_name = encode_class_name(name)
             # modulepath will be the namespace + encoded modulename (from the classname)
@@ -1918,12 +1932,20 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                 error_re = re.compile(r"No module named '?.*/?%s'?" % modname)
                 _log.debug("error regexp for ImportError on '%s' easyblock: %s", modname, error_re.pattern)
                 if error_re.match(str(err)):
+                    # Missing easyblock type of error
                     if error_on_missing_easyblock:
-                        raise EasyBuildError("No software-specific easyblock '%s' found for %s", class_name, name)
-                elif error_on_failed_import:
-                    raise EasyBuildError("Failed to import %s easyblock: %s", class_name, err)
+                        raise EasyBuildError(
+                            "No software-specific easyblock '%s' found for %s", class_name, name,
+                            exit_code=EasyBuildExit.MISSING_EASYBLOCK
+                        ) from err
                 else:
-                    _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
+                    # Broken import
+                    if error_on_failed_import:
+                        raise EasyBuildError(
+                            "Failed to import %s easyblock: %s", class_name, err,
+                            exit_code=EasyBuildExit.EASYBLOCK_ERROR
+                        ) from err
+                _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
 
         if cls is not None:
             _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')",
@@ -1937,7 +1959,10 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         # simply reraise rather than wrapping it into another error
         raise err
     except Exception as err:
-        raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err)
+        raise EasyBuildError(
+            "Failed to obtain class for %s easyblock (not available?): %s", easyblock, err,
+            exit_code=EasyBuildExit.EASYBLOCK_ERROR
+        )
 
 
 def get_module_path(name, generic=None, decode=True):
@@ -2082,7 +2107,11 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
         try:
             ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
         except EasyBuildError as err:
-            raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg)
+            try:
+                exit_code = err.exit_code
+            except AttributeError:
+                exit_code = EasyBuildExit.EASYCONFIG_ERROR
+            raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg, exit_code=exit_code)
 
         name = ec['name']
 

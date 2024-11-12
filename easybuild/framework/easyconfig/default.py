@@ -108,7 +108,7 @@ DEFAULT_CONFIG = {
                        BUILD],
     'hidden': [False, "Install module file as 'hidden' by prefixing its version with '.'", BUILD],
     'installopts': ['', 'Extra options for installation', BUILD],
-    'maxparallel': [None, 'Max degree of parallelism', BUILD],
+    'maxparallel': [16, 'Max degree of parallelism', BUILD],
     'module_only': [False, 'Only generate module file', BUILD],
     'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
                         'cores, active cpuset and restrictions in ulimit)'), BUILD],
@@ -206,8 +206,8 @@ DEFAULT_CONFIG = {
     'moduleclass': [MODULECLASS_BASE, 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
-    'module_depends_on': [False, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
-                          '(implies recursive unloading of modules).', MODULES],
+    'module_depends_on': [None, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
+                          '(implies recursive unloading of modules) [DEPRECATED]', MODULES],
     'recursive_module_unload': [None, "Recursive unload of all dependencies when unloading module "
                                       "(True/False to hard enable/disable; None implies honoring "
                                       "the --recursive-module-unload EasyBuild configuration setting",

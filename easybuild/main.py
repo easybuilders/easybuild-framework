@@ -133,10 +133,10 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
         ec_res = {}
         try:
-            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
+            (ec_res['success'], app_log, err_msg, err_code) = build_and_install_one(ec, init_env)
             ec_res['log_file'] = app_log
             if not ec_res['success']:
-                ec_res['err'] = EasyBuildError(err)
+                ec_res['err'] = EasyBuildError(err_msg, exit_code=err_code)
         except Exception as err:
             # purposely catch all exceptions
             ec_res['success'] = False
@@ -174,7 +174,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             if not isinstance(ec_res['err'], EasyBuildError):
                 raise ec_res['err']
             else:
-                raise EasyBuildError(test_msg)
+                raise EasyBuildError(test_msg, exit_code=err_code)
 
         res.append((ec, ec_res))
 
@@ -723,9 +723,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
         if options.ignore_test_failure:
             raise EasyBuildError("Found both ignore-test-failure and skip-test-step enabled. "
                                  "Please use only one of them.")
-        else:
-            print_warning("Will not run the test step as requested via skip-test-step. "
-                          "Consider using ignore-test-failure instead and verify the results afterwards")
+        print_warning("Will not run the test step as requested via skip-test-step. "
+                      "Consider using ignore-test-failure instead and verify the results afterwards")
+    if options.skip_sanity_check and options.sanity_check_only:
+        raise EasyBuildError("Found both skip-sanity-check and sanity-check-only enabled. "
+                             "Please use only one of them.")
 
     # if EasyStack file is provided, parse it, and loop over the items in the EasyStack file
     if options.easystack:
@@ -777,7 +779,7 @@ def main_with_hooks(args=None):
     try:
         init_session_state, eb_go, cfg_settings = prepare_main(args=args)
     except EasyBuildError as err:
-        print_error(err.msg)
+        print_error(err.msg, exit_code=err.exit_code)
 
     hooks = load_hooks(eb_go.options.hooks)
 
@@ -785,7 +787,7 @@ def main_with_hooks(args=None):
         main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])
-        print_error(err.msg, exit_on_error=True, exit_code=1)
+        print_error(err.msg, exit_on_error=True, exit_code=err.exit_code)
     except KeyboardInterrupt as err:
         run_hook(CANCEL, hooks, args=[err])
         print_error("Cancelled by user: %s" % err)

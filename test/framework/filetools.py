@@ -32,7 +32,9 @@ Unit tests for filetools.py
 @author: Maxime Boissonneault (Compute Canada, Universite Laval)
 """
 import datetime
+import filecmp
 import glob
+import logging
 import os
 import re
 import shutil
@@ -51,6 +53,8 @@ import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import IGNORE, ERROR, WARN, build_option, update_build_option
 from easybuild.tools.multidiff import multidiff
+from easybuild.tools.run import run_shell_cmd
+from easybuild.tools.systemtools import LINUX, get_os_type
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -294,10 +298,26 @@ class FileToolsTest(EnhancedTestCase):
                       'b7297da8b547d5e74b851d7c4e475900cec4744df0f887ae5c05bf1757c224b4',
         }
 
+        old_log_level = ft._log.getEffectiveLevel()
+        ft._log.setLevel(logging.DEBUG)
         # make sure checksums computation/verification is correct
         for checksum_type, checksum in known_checksums.items():
             self.assertEqual(ft.compute_checksum(fp, checksum_type=checksum_type), checksum)
-            self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum)))
+            with self.log_to_testlogfile():
+                self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum)))
+            self.assertIn('Computed ' + checksum_type, ft.read_file(self.logfile))
+            # Passing precomputed checksums reuses it
+            with self.log_to_testlogfile():
+                computed_checksums = {checksum_type: checksum}
+                self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum), computed_checksums))
+            self.assertIn('Precomputed ' + checksum_type, ft.read_file(self.logfile))
+            # If the type isn't contained the checksum will be computed
+            with self.log_to_testlogfile():
+                computed_checksums = {'doesnt exist': 'checksum'}
+                self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum), computed_checksums))
+            self.assertIn('Computed ' + checksum_type, ft.read_file(self.logfile))
+
+        ft._log.setLevel(old_log_level)
 
         # default checksum type is SHA256
         self.assertEqual(ft.compute_checksum(fp), known_checksums['sha256'])
@@ -1903,6 +1923,19 @@ class FileToolsTest(EnhancedTestCase):
             # printing this message will make test suite fail in Travis/GitHub CI,
             # since we check for unexpected output produced by the tests
             print("Skipping overwrite-file-owned-by-other-user copy_file test (%s is missing)" % test_file_to_overwrite)
+        # Copy a file to a directory owned by some other user, e.g. /tmp (owned by root)
+        # This might be a common choice for e.g. --copy-ec
+        target_file_path = tempfile.mktemp("easybuild", dir="/tmp")
+        test_file_to_copy = os.path.join(self.test_prefix, os.path.basename(target_file_path))
+        ft.write_file(test_file_to_copy, test_file_contents)
+        try:
+            ft.copy_file(test_file_to_copy, '/tmp')
+            self.assertEqual(ft.read_file(target_file_path), test_file_contents)
+        finally:
+            try:
+                os.remove(target_file_path)
+            except FileNotFoundError:
+                pass
 
         # also test behaviour of copy_file under --dry-run
         build_options = {
@@ -1945,6 +1978,49 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(re.search("^copied file %s to %s" % (src, target), txt))
         # However, if we add 'force_in_dry_run=True' it should throw an exception
         self.assertErrorRegex(EasyBuildError, "Could not copy *", ft.copy_file, src, target, force_in_dry_run=True)
+
+    def test_copy_file_xattr(self):
+        """Test copying a file with extended attributes using copy_file."""
+        # test copying a read-only files with extended attributes set
+        # first, create a special file with extended attributes
+        special_file = os.path.join(self.test_prefix, 'special.txt')
+        ft.write_file(special_file, 'special')
+        # make read-only, and set extended attributes
+        attr = ft.which('attr')
+        xattr = ft.which('xattr')
+        # try to attr (Linux) or xattr (macOS) to set extended attributes foo=bar
+        cmd = None
+        if attr:
+            cmd = "attr -s foo -V bar %s" % special_file
+        elif xattr:
+            cmd = "xattr -w foo bar %s" % special_file
+
+        if cmd:
+            with self.mocked_stdout_stderr():
+                res = run_shell_cmd(cmd, fail_on_error=False)
+
+            # need to make file read-only after setting extended attribute
+            ft.adjust_permissions(special_file, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False)
+
+            # only proceed if setting extended attribute worked
+            if res.exit_code == 0:
+                target = os.path.join(self.test_prefix, 'copy.txt')
+                ft.copy_file(special_file, target)
+                self.assertTrue(os.path.exists(target))
+                self.assertTrue(filecmp.cmp(special_file, target, shallow=False))
+
+                # only verify wheter extended attributes were also copied on Linux,
+                # since shutil.copy2 doesn't copy them on macOS;
+                # see warning at https://docs.python.org/3/library/shutil.html
+                if get_os_type() == LINUX:
+                    if attr:
+                        cmd = "attr -g foo %s" % target
+                    else:
+                        cmd = "xattr -l %s" % target
+                    with self.mocked_stdout_stderr():
+                        res = run_shell_cmd(cmd, fail_on_error=False)
+                    self.assertEqual(res.exit_code, 0)
+                    self.assertTrue(res.output.endswith('\nbar\n'))
 
     def test_copy_files(self):
         """Test copy_files function."""

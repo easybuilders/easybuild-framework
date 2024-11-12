@@ -55,7 +55,7 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 110
+TEST_MODULES_COUNT = 111
 
 
 class ModulesTest(EnhancedTestCase):
@@ -122,10 +122,10 @@ class ModulesTest(EnhancedTestCase):
             error_pattern = "Module command '.*thisdoesnotmakesense' failed with exit code [1-9]"
             self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'thisdoesnotmakesense')
 
-            # we need to use a different error pattern here with EnvironmentModulesC,
+            # we need to use a different error pattern here with Environment Modules,
             # because a load of a non-existing module doesnt' trigger a non-zero exit code...
             # it will still fail though, just differently
-            if isinstance(self.modtool, EnvironmentModulesC):
+            if isinstance(self.modtool, EnvironmentModulesC) or isinstance(self.modtool, EnvironmentModules):
                 error_pattern = "Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
             else:
                 error_pattern = "Module command '.*load nosuchmodule/1.2.3' failed with exit code [1-9]"
@@ -213,10 +213,8 @@ class ModulesTest(EnhancedTestCase):
         # test modules include 3 GCC modules and one GCCcore module
         ms = self.modtool.available('GCC')
         expected = ['GCC/12.3.0', 'GCC/4.6.3', 'GCC/4.6.4', 'GCC/6.4.0-2.28', 'GCC/7.3.0-2.30']
-        # Tcl-only modules tool does an exact match on module name, Lmod & Tcl/C do prefix matching
-        # EnvironmentModules is a subclass of EnvironmentModulesTcl, but Modules 4+ behaves similarly to Tcl/C impl.,
-        # so also append GCCcore/6.2.0 if we are an instance of EnvironmentModules
-        if not isinstance(self.modtool, EnvironmentModulesTcl) or isinstance(self.modtool, EnvironmentModules):
+        # ancient Tcl-only Environment Modules tool does an exact match on module name, others do prefix matching
+        if not isinstance(self.modtool, EnvironmentModulesTcl):
             expected.extend(['GCCcore/12.3.0', 'GCCcore/6.2.0'])
         self.assertEqual(ms, expected)
 
@@ -343,12 +341,12 @@ class ModulesTest(EnhancedTestCase):
         easybuild.tools.modules.MODULE_SHOW_CACHE.clear()
         self.assertEqual(self.modtool.exist(['Java/1.8', 'Java/1.8.0_181']), [True, True])
 
-        # mimic more verbose stderr output produced by old Tmod version,
-        # including a warning produced when multiple .modulerc files are being picked up
+        # mimic "module-*" output produced by EnvironmentModulesC or EnvironmentModulesTcl
+        # mimic warning produced by Environment Modules when a symbol is defined multiple times
         # see https://github.com/easybuilders/easybuild-framework/issues/3376
         ml_show_java18_stderr = '\n'.join([
             "module-version    Java/1.8.0_181 1.8",
-            "WARNING: Duplicate version symbol '1.8' found",
+            "WARNING: Symbolic version 'Java/1.8' already defined",
             "module-version  Java/1.8.0_181 1.8",
             "-------------------------------------------------------------------",
             "/modulefiles/lang/Java/1.8.0_181:",
@@ -460,7 +458,7 @@ class ModulesTest(EnhancedTestCase):
         # if GCC is loaded again, $EBROOTGCC should be set again, and GCC should be listed last
         self.modtool.load(['GCC/6.4.0-2.28'])
 
-        # environment modules v4+ does not reload already loaded modules
+        # Environment Modules v4+ does not reload already loaded modules
         if not isinstance(self.modtool, EnvironmentModules):
             self.assertTrue(os.environ.get('EBROOTGCC'))
 
@@ -1413,7 +1411,7 @@ class ModulesTest(EnhancedTestCase):
         if isinstance(self.modtool, Lmod):
             error_pattern = "Module command '.*load nosuchmoduleavailableanywhere' failed with exit code"
         else:
-            # Tcl implementations exit with 0 even when a non-existing module is loaded...
+            # Environment Modules exits with 0 even when a non-existing module is loaded...
             error_pattern = "Unable to locate a modulefile for 'nosuchmoduleavailableanywhere'"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
 

@@ -78,6 +78,15 @@ class Gcc(Compiler):
         COMPILER_UNIQUE_OPTION_MAP['strict'] = no_recip_alternative
         COMPILER_UNIQUE_OPTION_MAP['precise'] = no_recip_alternative
 
+    # gcc on RISC-V does not support -mno-recip, -mieee-fp, -mfno-math-errno...
+    # https://gcc.gnu.org/onlinedocs/gcc/RISC-V-Options.html
+    # there are no good alternatives, so stick to the default flags
+    if systemtools.get_cpu_family() == systemtools.RISCV:
+        COMPILER_UNIQUE_OPTION_MAP['strict'] = []
+        COMPILER_UNIQUE_OPTION_MAP['precise'] = []
+        COMPILER_UNIQUE_OPTION_MAP['loose'] = ['fno-math-errno']
+        COMPILER_UNIQUE_OPTION_MAP['veryloose'] = ['fno-math-errno']
+
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
         (systemtools.AARCH32, systemtools.ARM): 'mcpu=native',  # implies -march=native and -mtune=native

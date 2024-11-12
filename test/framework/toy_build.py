@@ -57,7 +57,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, move_file
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
-from easybuild.tools.modules import Lmod
+from easybuild.tools.modules import EnvironmentModules, Lmod
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import nub
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -774,14 +774,9 @@ class ToyBuildTest(EnhancedTestCase):
             self.mock_stdout(False)
 
             if get_module_syntax() == 'Tcl':
-                pattern = "Can't generate robust check in TCL modules for users belonging to group %s." % group_name
-                regex = re.compile(pattern, re.M)
-                self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
-
-            elif get_module_syntax() == 'Lua':
-                lmod_version = os.getenv('LMOD_VERSION', 'NOT_FOUND')
-                if LooseVersion(lmod_version) >= LooseVersion('6.0.8'):
-                    toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0.lua')
+                module_version = LooseVersion(self.modtool.version)
+                if isinstance(self.modtool, EnvironmentModules) and module_version >= LooseVersion('4.6.0'):
+                    toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
                     toy_mod_txt = read_file(toy_mod)
 
                     if isinstance(group, tuple):
@@ -792,17 +787,35 @@ class ToyBuildTest(EnhancedTestCase):
                         error_msg_pattern = "You are not part of '%s' group of users" % group_name
 
                     pattern = '\n'.join([
-                        r'^if not \( userInGroup\("%s"\) \) then' % group_name,
-                        r'    LmodError\("%s[^"]*"\)' % error_msg_pattern,
-                        r'end$',
+                        r'^if \{ \!\[ module-info usergroups %s \] \} \{' % group_name,
+                        r'    error "%s[^"]*"' % error_msg_pattern,
+                        r'\}$',
                     ])
                     regex = re.compile(pattern, re.M)
                     self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_mod_txt))
                 else:
-                    pattern = r"Can't generate robust check in Lua modules for users belonging to group %s. "
-                    pattern += r"Lmod version not recent enough \(%s\), should be >= 6.0.8" % lmod_version
-                    regex = re.compile(pattern % group_name, re.M)
+                    pattern = "Can't generate robust check in Tcl modules for users belonging to group %s." % group_name
+                    regex = re.compile(pattern, re.M)
                     self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
+
+            elif get_module_syntax() == 'Lua':
+                toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0.lua')
+                toy_mod_txt = read_file(toy_mod)
+
+                if isinstance(group, tuple):
+                    group_name = group[0]
+                    error_msg_pattern = "Hey, you're not in the '%s' group!" % group_name
+                else:
+                    group_name = group
+                    error_msg_pattern = "You are not part of '%s' group of users" % group_name
+
+                pattern = '\n'.join([
+                    r'^if not \( userInGroup\("%s"\) \) then' % group_name,
+                    r'    LmodError\("%s[^"]*"\)' % error_msg_pattern,
+                    r'end$',
+                ])
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_mod_txt))
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
 
@@ -860,9 +873,9 @@ class ToyBuildTest(EnhancedTestCase):
         # check that toolchain load is expanded to loads for toolchain dependencies,
         # except for the ones that extend $MODULEPATH to make the toy module available
         if get_module_syntax() == 'Tcl':
-            load_regex_template = "load %s"
+            load_regex_template = "(load|depends-on) %s"
         elif get_module_syntax() == 'Lua':
-            load_regex_template = r'load\("%s/.*"\)'
+            load_regex_template = r'(load|depends_on)\("%s/.*"\)'
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
@@ -1443,7 +1456,7 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ec_txt)
 
-        error_pattern = r"shell command 'unzip \.\.\.' failed in extensions step for test.eb"
+        error_pattern = r"shell command 'unzip \.\.\.' failed with exit code 9 in extensions step for test.eb"
         with self.mocked_stdout_stderr():
             # for now, we expect subprocess.CalledProcessError, but eventually 'run' function will
             # do proper error reporting
@@ -1726,8 +1739,10 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included in additional module file generated with --module-only
         modtxt = read_file(toy_mod)
-        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
-        self.assertTrue(re.search('load.*GCC/6.4.0-2.28', modtxt), "load statement for GCC/6.4.0-2.28 found in module")
+        self.assertTrue(re.search('(load|depends[-_]on).*intel/2018a', modtxt),
+                        "load statement for intel/2018a found in module")
+        self.assertTrue(re.search('(load|depends[-_]on).*GCC/6.4.0-2.28', modtxt),
+                        "load statement for GCC/6.4.0-2.28 found in module")
 
         os.remove(toy_mod)
 
@@ -1769,7 +1784,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included
         modtxt = read_file(toy_core_mod)
-        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
+        self.assertTrue(re.search('(load|depends[-_]on).*intel/2018a', modtxt),
+                        "load statement for intel/2018a found in module")
 
         # Test we can create a module even for an installation where we don't have write permissions
         os.remove(toy_core_mod)
@@ -1787,7 +1803,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure load statements for dependencies are included
         modtxt = read_file(toy_core_mod)
-        self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
+        self.assertTrue(re.search('(load|depends[-_]on).*intel/2018a', modtxt),
+                        "load statement for intel/2018a found in module")
 
         os.remove(toy_core_mod)
         os.remove(toy_mod)
@@ -1813,7 +1830,8 @@ class ToyBuildTest(EnhancedTestCase):
 
             # make sure load statements for dependencies are included
             modtxt = read_file(toy_mod + '.lua')
-            self.assertTrue(re.search('load.*intel/2018a', modtxt), "load statement for intel/2018a found in module")
+            self.assertTrue(re.search('(load|depends[-_]on).*intel/2018a', modtxt),
+                            "load statement for intel/2018a found in module")
 
     def test_module_only_extensions(self):
         """
@@ -2317,6 +2335,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_toy(self):
         """Test building two easyconfigs in a single go, with one depending on the other."""
+
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec_file)
@@ -2328,9 +2347,17 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(ec1, ec1_txt)
 
+        # adapt toy easyconfig for toy2 to produce a modulefile with a dedicated
+        # name ('toy2' instead of 'toy')
         ec2 = os.path.join(self.test_prefix, 'toy2.eb')
         ec2_txt = '\n'.join([
             toy_ec_txt,
+            "name = 'toy2'",
+            "easyblock = 'EB_toy'",
+            "sources = ['toy/toy-0.0.tar.gz']",
+            "patches = []",
+            "sanity_check_paths = { 'files': ['bin/toy2'], 'dirs': ['bin']}",
+            "prebuildopts = 'mv toy.source toy2.c &&'",
             "versionsuffix = '-two'",
             "dependencies = [('toy', '0.0', '-one')]",
         ])
@@ -2340,7 +2367,7 @@ class ToyBuildTest(EnhancedTestCase):
             self._test_toy_build(ec_file=self.test_prefix, verify=False)
 
         mod1 = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-one')
-        mod2 = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-two')
+        mod2 = os.path.join(self.test_installpath, 'modules', 'all', 'toy2', '0.0-two')
         if get_module_syntax() == 'Lua':
             mod1 += '.lua'
             mod2 += '.lua'
@@ -2349,19 +2376,19 @@ class ToyBuildTest(EnhancedTestCase):
 
         mod2_txt = read_file(mod2)
 
-        load1_regex = re.compile('load.*toy/0.0-one', re.M)
+        load1_regex = re.compile('(load|depends[-_]on).*toy/0.0-one', re.M)
         self.assertTrue(load1_regex.search(mod2_txt), "Pattern '%s' found in: %s" % (load1_regex.pattern, mod2_txt))
 
         # Check the contents of the dumped env in the reprod dir to ensure it contains the dependency load
-        reprod_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0-two', 'easybuild', 'reprod')
-        dumpenv_script = os.path.join(reprod_dir, 'toy-0.0-two.env')
+        reprod_dir = os.path.join(self.test_installpath, 'software', 'toy2', '0.0-two', 'easybuild', 'reprod')
+        dumpenv_script = os.path.join(reprod_dir, 'toy2-0.0-two.env')
         reprod_dumpenv = os.path.join(reprod_dir, dumpenv_script)
         self.assertExists(reprod_dumpenv)
 
         # Check contents of the dumpenv script
         patterns = [
             """#!/bin/bash""",
-            """# usage: source toy-0.0-two.env""",
+            """# usage: source toy2-0.0-two.env""",
             # defining build env
             """module load toy/0.0-one""",
             """# (no build environment defined)""",
@@ -2820,8 +2847,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test use of rpath toolchain option
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb'))
-        toy_ec_txt += "\ntoolchainopts = {'rpath': False}\n"
+        toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0-gompi-2018a.eb'))
+        toy_ec_txt += "\ntoolchainopts = {'rpath': False}\n"  # overwrites existing toolchainopts
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         write_file(toy_ec, toy_ec_txt)
         with self.mocked_stdout_stderr():
@@ -2834,9 +2861,9 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs, 't', 'toy-app', 'toy-app-0.0.eb')
 
         # This should just build succesfully
-        args = ['--rpath']
+        rpath_args = ['--rpath', '--strict-rpath-sanity-check']
         with self.mocked_stdout_stderr():
-            self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
+            self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=rpath_args, raise_error=True)
 
         libtoy_libdir = os.path.join(self.test_installpath, 'software', 'libtoy', '0.0', 'lib')
         toyapp_bin = os.path.join(self.test_installpath, 'software', 'toy-app', '0.0', 'bin', 'toy-app')
@@ -2857,16 +2884,16 @@ class ToyBuildTest(EnhancedTestCase):
         # test sanity error when --rpath-filter is used to filter a required library
         # In this test, libtoy.so will be linked, but not RPATH-ed due to the --rpath-filter
         # Thus, the RPATH sanity check is expected to fail with libtoy.so not being found
+        args = rpath_args + ['--rpath-filter=.*libtoy.*']
         error_pattern = r"Sanity check failed\: Library libtoy\.so not found"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
-                                  extra_args=['--rpath', '--rpath-filter=.*libtoy.*'],
-                                  name='toy-app', raise_error=True, verbose=False)
+                                  extra_args=args, name='toy-app', raise_error=True, verbose=False)
 
         # test use of --filter-rpath-sanity-libs option. In this test, we use --rpath-filter to make sure libtoy.so is
         # not rpath-ed. Then, we use --filter-rpath-sanity-libs to make sure the RPATH sanity checks ignores
         # the fact that libtoy.so is not found. Thus, this build should complete succesfully
-        args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libtoy.so']
+        args = rpath_args + ['--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libtoy.so']
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
@@ -2883,7 +2910,7 @@ class ToyBuildTest(EnhancedTestCase):
                         f"Pattern '{notfound.pattern}' should be found in: {res.output}")
 
         # test again with list of library names passed to --filter-rpath-sanity-libs
-        args = ['--rpath', '--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libfoo.so,libtoy.so,libbar.so']
+        args = rpath_args + ['--rpath-filter=.*libtoy.*', '--filter-rpath-sanity-libs=libfoo.so,libtoy.so,libbar.so']
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True)
 
@@ -2898,6 +2925,19 @@ class ToyBuildTest(EnhancedTestCase):
                          f"Pattern '{libtoy_regex.pattern}' should not be found in: {res.output}")
         self.assertTrue(notfound.search(res.output),
                         f"Pattern '{notfound.pattern}' should be found in: {res.output}")
+
+        # by default, without using --strict-rpath-sanity-check, there's no failure since RPATH sanity check
+        # doesn't check for missing libraries with $LD_LIBRARY_PATH unset
+        args = ['--rpath', '--rpath-filter=.*libtoy.*']
+        with self.mocked_stdout_stderr():
+            self._test_toy_build(ec_file=toy_ec, name='toy-app', extra_args=args, raise_error=True, verbose=False)
+
+        # trouble again when $LD_LIBRARY_PATH is not used in generated module file
+        args = ['libtoy-0.0.eb', '--rebuild', '--rpath', '--rpath-filter=.*libtoy.*',
+                '--filter-env-vars=LD_LIBRARY_PATH']
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
+                                  extra_args=args, name='toy-app', raise_error=True, verbose=False)
 
     def test_toy_modaltsoftname(self):
         """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
@@ -3154,6 +3194,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt += "\nexts_list = [('barbar', '1.2', {'start_dir': 'src'})]"
 
         test_ec_txt += "\nmulti_deps = {'GCC': ['4.6.3', '7.3.0-2.30']}"
+
         write_file(test_ec, test_ec_txt)
 
         test_mod_path = os.path.join(self.test_installpath, 'modules', 'all')
@@ -3182,15 +3223,25 @@ class ToyBuildTest(EnhancedTestCase):
         # check whether (guarded) load statement for first version listed in multi_deps is there
         if get_module_syntax() == 'Lua':
             expected = '\n'.join([
-                'if not ( isloaded("GCC/4.6.3") ) and not ( isloaded("GCC/7.3.0-2.30") ) then',
-                '    load("GCC/4.6.3")',
+                'if mode() == "unload" or isloaded("GCC/7.3.0-2.30") then',
+                '    depends_on("GCC")',
+                'else',
+                '    depends_on("GCC/4.6.3")',
                 'end',
             ])
         else:
+            if isinstance(self.modtool, EnvironmentModules):
+                load_stmt = "module load"
+            else:
+                load_stmt = "depends-on"
             expected = '\n'.join([
-                'if { ![ is-loaded GCC/4.6.3 ] && ![ is-loaded GCC/7.3.0-2.30 ] } {',
-                '    module load GCC/4.6.3',
+                '',
+                "if { [ module-info mode remove ] || [ is-loaded GCC/7.3.0-2.30 ] } {",
+                "    %s GCC" % load_stmt,
+                '} else {',
+                "    %s GCC/4.6.3" % load_stmt,
                 '}',
+                '',
             ])
 
         self.assertIn(expected, toy_mod_txt)
@@ -3753,7 +3804,9 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec_txt = read_file(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        write_file(test_ec, toy_ec_txt + '\npostinstallcmds = ["sleep 5"]')
+        write_file(test_ec, toy_ec_txt + '\npostinstallcmds = ["sleep 10"]')
+
+        extra_args = ['--locks-dir=%s' % locks_dir, '--wait-on-lock-limit=3', '--wait-on-lock-interval=3']
 
         signums = [
             (signal.SIGABRT, SystemExit),
@@ -3766,7 +3819,7 @@ class ToyBuildTest(EnhancedTestCase):
             # avoid recycling stderr of previous test
             stderr = ''
 
-            with WaitAndSignal(1, signum):
+            with WaitAndSignal(3, signum):
 
                 # change back to original working directory before each test
                 change_dir(orig_wd)
@@ -3774,7 +3827,7 @@ class ToyBuildTest(EnhancedTestCase):
                 self.mock_stderr(True)
                 self.mock_stdout(True)
                 self.assertErrorRegex(exc, '.*', self._test_toy_build, ec_file=test_ec, verify=False,
-                                      raise_error=True, testing=False, raise_systemexit=True)
+                                      extra_args=extra_args, raise_error=True, testing=False, raise_systemexit=True)
 
                 stderr = self.get_stderr().strip()
                 self.mock_stderr(False)
@@ -4202,6 +4255,70 @@ class ToyBuildTest(EnhancedTestCase):
             regex = re.compile("^ERROR: Missing dependencies", re.M)
             stderr = stderr.getvalue()
             self.assertTrue(regex.search(stderr), f"Pattern '{regex.pattern}' should be found in {stderr}")
+
+    def test_toy_python(self):
+        """
+        Test whether $PYTHONPATH or $EBPYTHONPREFIXES are set correctly.
+        """
+        # generate fake Python modules that we can use as runtime dependency for toy
+        # (required condition for use of $EBPYTHONPREFIXES)
+        fake_mods_path = os.path.join(self.test_prefix, 'modules')
+        for pyver in ('2.7', '3.6'):
+            fake_python_mod = os.path.join(fake_mods_path, 'Python', pyver)
+            if get_module_syntax() == 'Lua':
+                fake_python_mod += '.lua'
+                write_file(fake_python_mod, '')
+            else:
+                write_file(fake_python_mod, '#%Module')
+        self.modtool.use(fake_mods_path)
+
+        test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "\npostinstallcmds.append('mkdir -p %(installdir)s/lib/python3.6/site-packages')"
+        test_ec_txt += "\npostinstallcmds.append('touch %(installdir)s/lib/python3.6/site-packages/foo.py')"
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+        self.run_test_toy_build_with_output(ec_file=test_ec)
+
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_mod += '.lua'
+        toy_mod_txt = read_file(toy_mod)
+
+        pythonpath_regex = re.compile('^prepend.path.*PYTHONPATH.*lib/python3.6/site-packages', re.M)
+
+        self.assertTrue(pythonpath_regex.search(toy_mod_txt),
+                        f"Pattern '{pythonpath_regex.pattern}' found in: {toy_mod_txt}")
+
+        # also check when opting in to use $EBPYTHONPREFIXES instead of $PYTHONPATH
+        args = ['--prefer-python-search-path=EBPYTHONPREFIXES']
+        self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
+        toy_mod_txt = read_file(toy_mod)
+        # if Python is not listed as a runtime dependency then $PYTHONPATH is still used,
+        # because the Python dependency used must be aware of $EBPYTHONPREFIXES
+        # (see sitecustomize.py installed by Python easyblock)
+        self.assertTrue(pythonpath_regex.search(toy_mod_txt),
+                        f"Pattern '{pythonpath_regex.pattern}' found in: {toy_mod_txt}")
+
+        # if Python is listed as runtime dependency, then $EBPYTHONPREFIXES is used if it's preferred
+        write_file(test_ec, test_ec_txt + "\ndependencies = [('Python', '3.6', '', SYSTEM)]")
+        self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=args)
+        toy_mod_txt = read_file(toy_mod)
+
+        ebpythonprefixes_regex = re.compile('^prepend.path.*EBPYTHONPREFIXES.*root', re.M)
+        self.assertTrue(ebpythonprefixes_regex.search(toy_mod_txt),
+                        f"Pattern '{ebpythonprefixes_regex.pattern}' found in: {toy_mod_txt}")
+
+        # if Python is listed in multi_deps, then $EBPYTHONPREFIXES is used, even if it's not explicitely preferred
+        write_file(test_ec, test_ec_txt + "\nmulti_deps = {'Python': ['2.7', '3.6']}")
+        self.run_test_toy_build_with_output(ec_file=test_ec)
+        toy_mod_txt = read_file(toy_mod)
+
+        self.assertTrue(ebpythonprefixes_regex.search(toy_mod_txt),
+                        f"Pattern '{ebpythonprefixes_regex.pattern}' found in: {toy_mod_txt}")
 
 
 def suite():

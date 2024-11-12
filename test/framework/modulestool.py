@@ -209,12 +209,36 @@ class ModulesToolTest(EnhancedTestCase):
             mt = EnvironmentModules(testing=True)
             self.assertIsInstance(mt.loaded_modules(), list)  # dummy usage
 
+            # test updating module cache
+            test_modulepath = os.path.join(self.test_installpath, 'modules', 'all')
+            os.environ['MODULEPATH'] = test_modulepath
+            test_module_dir = os.path.join(test_modulepath, 'test')
+            test_module_file = os.path.join(test_module_dir, '1.2.3')
+            write_file(test_module_file, '#%Module')
+            build_options = {
+                'update_modules_tool_cache': True,
+            }
+            init_config(build_options=build_options)
+            mt = EnvironmentModules(testing=True)
+            out = mt.update()
+            os.remove(test_module_file)
+            os.rmdir(test_module_dir)
+
+            # test cache file has been created if module tool supports it
+            if LooseVersion(mt.version) >= LooseVersion('5.3.0'):
+                cache_fp = os.path.join(test_modulepath, '.modulecache')
+                expected = "Creating %s\n" % cache_fp
+                self.assertEqual(expected, out, "Module cache created")
+                self.assertTrue(os.path.exists(cache_fp))
+                os.remove(cache_fp)
+
             # initialize Environment Modules tool with non-official version number
             # pass (fake) full path to 'modulecmd.tcl' via $MODULES_CMD
             fake_path = os.path.join(self.test_installpath, 'libexec', 'modulecmd.tcl')
             fake_modulecmd_txt = '\n'.join([
-                'puts stderr {Modules Release 5.3.1+unload-188-g14b6b59b (2023-10-21)}',
-                "puts {os.environ['FOO'] = 'foo'}",
+                '#!/bin/bash',
+                'echo "Modules Release 5.3.1+unload-188-g14b6b59b (2023-10-21)" >&2',
+                'echo "os.environ[\'FOO\'] = \'foo\'"',
             ])
             write_file(fake_path, fake_modulecmd_txt)
             os.chmod(fake_path, stat.S_IRUSR | stat.S_IXUSR)

@@ -1,5 +1,8 @@
 ##
-# Copyright 2019-2024 Ghent University
+# Copyright 2013-2024 Ghent University
+#
+# This file is triple-licensed under GPLv2 (see below), MIT, and
+# BSD three-clause licenses.
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,27 +26,20 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Support for system compiler.
+EasyBuild support for gmpflf compiler toolchain (includes GCC, MPICH, FlexiBLAS, LAPACK, ScaLAPACK and FFTW).
 
 Authors:
 
-* Kenneth Hoste (Ghent University)
+* Richard Topouchian (University of Bergen)
 """
+from easybuild.toolchains.gmpich import Gmpich
+from easybuild.toolchains.gfbf import Gfbf
+from easybuild.toolchains.fft.fftw import Fftw
+from easybuild.toolchains.linalg.flexiblas import FlexiBLAS
+from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
-from easybuild.tools.toolchain.compiler import Compiler
 
-
-TC_CONSTANT_SYSTEM = 'SYSTEM'
-
-
-class SystemCompiler(Compiler):
-    """System compiler"""
-    COMPILER_MODULE_NAME = []
-    COMPILER_FAMILY = TC_CONSTANT_SYSTEM
-
-    # The system compiler does not currently support even the shared options
-    # (changing this would require updating set_minimal_build_env() of the toolchain class)
-    COMPILER_UNIQUE_OPTS = None
-    COMPILER_SHARED_OPTS = None
-    COMPILER_UNIQUE_OPTION_MAP = None
-    COMPILER_SHARED_OPTION_MAP = None
+class Gmpflf(Gmpich, FlexiBLAS,  ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, MPICH, FlexiBLAS, ScaLAPACK and FFTW."""
+    NAME = 'gmpflf'
+    SUBTOOLCHAIN = [Gmpich.NAME, Gfbf.NAME]

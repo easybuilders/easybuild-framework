@@ -31,7 +31,6 @@ Authors:
 * Ward Poelmans (Ghent University)
 """
 import re
-import sys
 from importlib import reload
 
 from easybuild.base import fancylogger
@@ -43,12 +42,7 @@ try:
     import pycodestyle
     from pycodestyle import StyleGuide, register_check, trailing_whitespace
 except ImportError:
-    try:
-        # fallback to importing from 'pep8', which was renamed to pycodestyle in 2016
-        import pep8
-        from pep8 import StyleGuide, register_check, trailing_whitespace
-    except ImportError:
-        pass
+    pass
 
 _log = fancylogger.getLogger('easyconfig.style', fname=False)
 
@@ -106,7 +100,7 @@ def _eb_check_trailing_whitespace(physical_line, lines, line_number, checker_sta
     return result
 
 
-@only_if_module_is_available(('pycodestyle', 'pep8'))
+@only_if_module_is_available('pycodestyle')
 def check_easyconfigs_style(easyconfigs, verbose=False):
     """
     Check the given list of easyconfigs for style
@@ -114,12 +108,7 @@ def check_easyconfigs_style(easyconfigs, verbose=False):
     :param verbose: print our statistics and be verbose about the errors and warning
     :return: the number of warnings and errors
     """
-    # importing autopep8 changes some pep8 functions.
-    # We reload it to be sure to get the real pep8 functions.
-    if 'pycodestyle' in sys.modules:
-        reload(pycodestyle)
-    else:
-        reload(pep8)
+    reload(pycodestyle)
 
     # register the extra checks before using pep8:
     # any function in this module starting with `_eb_check_` will be used.
@@ -137,6 +126,7 @@ def check_easyconfigs_style(easyconfigs, verbose=False):
     # note that W291 has been replaced by our custom W299
     options.ignore = (
         'W291',  # replaced by W299
+        'E741',  # 'l' is considered an ambiguous name, but we use it often for 'lib'
     )
     options.verbose = int(verbose)
 

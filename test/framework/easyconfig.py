@@ -85,11 +85,7 @@ from test.framework.utilities import find_full_path
 try:
     import pycodestyle  # noqa
 except ImportError:
-    try:
-        import pep8  # noqa
-    except ImportError:
-        pass
-
+    pass
 
 EXPECTED_DOTTXT_TOY_DEPS = """digraph graphname {
 toy;
@@ -150,10 +146,13 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_empty(self):
         """ empty files should not parse! """
+        self.assertErrorRegex(EasyBuildError, "expected a valid path", EasyConfig, "")
         self.contents = "# empty string"
         self.prep()
         self.assertRaises(EasyBuildError, EasyConfig, self.eb_file)
-        self.assertErrorRegex(EasyBuildError, "expected a valid path", EasyConfig, "")
+        self.contents = ""
+        self.prep()
+        self.assertErrorRegex(EasyBuildError, "is empty", EasyConfig, self.eb_file)
 
     def test_mandatory(self):
         """ make sure all checking of mandatory parameters works """
@@ -533,7 +532,8 @@ class EasyConfigTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             modfile = os.path.join(eb.make_module_step(), 'PI', '3.14' + eb.module_generator.MODULE_FILE_EXTENSION)
         modtxt = read_file(modfile)
-        regex = re.compile('EBEXTSLISTPI.*ext1-1.0,ext2-2.0')
+        # verify that templates used for extensions are resolved as they should
+        regex = re.compile('EBEXTSLISTPI.*"ext1-1.0,ext2-2.0,ext-PI-3.14,ext-pi-3.0')
         self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
 
     def test_extensions_templates(self):
@@ -1271,6 +1271,14 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['sanity_check_commands'], ['mpiexec -np 1 -- toy'])
 
+    def test_template_constant_import(self):
+        """Test importing template constants works"""
+        from easybuild.framework.easyconfig.templates import GITHUB_SOURCE, GNU_SOURCE, SHLIB_EXT
+        from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS
+        self.assertEqual(GITHUB_SOURCE, TEMPLATE_CONSTANTS['GITHUB_SOURCE'][0])
+        self.assertEqual(GNU_SOURCE, TEMPLATE_CONSTANTS['GNU_SOURCE'][0])
+        self.assertEqual(SHLIB_EXT, get_shared_lib_ext())
+
     def test_templating_cuda_toolchain(self):
         """Test templates via toolchain component, like setting %(cudaver)s with fosscuda toolchain."""
 
@@ -1378,7 +1386,7 @@ class EasyConfigTest(EnhancedTestCase):
         # expected length: 1 per constant and 2 extra per constantgroup (title + empty line in between)
         temps = [
             easyconfig.templates.TEMPLATE_NAMES_EASYCONFIG,
-            easyconfig.templates.TEMPLATE_SOFTWARE_VERSIONS * 3,
+            list(easyconfig.templates.TEMPLATE_SOFTWARE_VERSIONS.keys()) * 3,
             easyconfig.templates.TEMPLATE_NAMES_CONFIG,
             easyconfig.templates.TEMPLATE_NAMES_LOWER,
             easyconfig.templates.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
@@ -1434,6 +1442,30 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertIn('start_dir in extension configure is %s &&' % ext_start_dir, logtxt)
         self.assertIn('start_dir in extension build is %s &&' % ext_start_dir, logtxt)
 
+    def test_rpath_template(self):
+        """Test the %(rpath)s template"""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "configopts = '--with-rpath=%(rpath_enabled)s'"
+        write_file(test_ec, test_ec_txt)
+
+        ec = EasyConfig(test_ec)
+        expected = '--with-rpath=true' if get_os_name() == 'Linux' else '--with-rpath=false'
+        self.assertEqual(ec['configopts'], expected)
+
+        # force True
+        update_build_option('rpath', True)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--with-rpath=true")
+
+        # force False
+        update_build_option('rpath', False)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--with-rpath=false")
+
     def test_sysroot_template(self):
         """Test the %(sysroot)s template"""
 
@@ -1461,6 +1493,35 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['configopts'], "--some-opt=%s/" % self.test_prefix)
         self.assertEqual(ec['buildopts'], "--some-opt=%s/" % self.test_prefix)
         self.assertEqual(ec['installopts'], "--some-opt=%s/" % self.test_prefix)
+
+    def test_software_commit_template(self):
+        """Test the %(software_commit)s template"""
+
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nconfigopts = "--some-opt=%(software_commit)s"'
+        test_ec_txt += '\nbuildopts = "--some-opt=%(software_commit)s"'
+        test_ec_txt += '\ninstallopts = "--some-opt=%(software_commit)s"'
+        write_file(test_ec, test_ec_txt)
+
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=")
+        self.assertEqual(ec['buildopts'], "--some-opt=")
+        self.assertEqual(ec['installopts'], "--some-opt=")
+
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        # As a test, we'll set the sysroot to self.test_prefix, as it has to be a directory that is guaranteed to exist
+        software_commit = '1234bc'
+        update_build_option('software_commit', software_commit)
+
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=%s" % software_commit)
+        self.assertEqual(ec['buildopts'], "--some-opt=%s" % software_commit)
+        self.assertEqual(ec['installopts'], "--some-opt=%s" % software_commit)
 
     def test_template_deprecation_and_alternative(self):
         """Test deprecation of (and alternative) templates"""
@@ -1690,6 +1751,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
         self.assertErrorRegex(EasyBuildError, "Failed to import EB_TOY", get_easyblock_class, None, name='TOY')
         self.assertEqual(get_easyblock_class(None, name='TOY', error_on_failed_import=False), None)
+
+        # Test passing neither easyblock nor name
+        self.assertErrorRegex(EasyBuildError, "neither name nor easyblock were specified", get_easyblock_class, None)
+        self.assertEqual(get_easyblock_class(None, error_on_missing_easyblock=False), None)
 
     def test_letter_dir(self):
         """Test letter_dir_for function."""
@@ -2615,8 +2680,8 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
 
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping test_dump_extra (no pycodestyle or pep8 available)")
+        if 'pycodestyle' not in sys.modules:
+            print("Skipping test_dump_extra pycodestyle is not available")
             return
 
         rawtxt = '\n'.join([
@@ -2658,8 +2723,8 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dump_template(self):
         """ Test EasyConfig's dump() method for files containing templates"""
 
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping test_dump_template (no pycodestyle or pep8 available)")
+        if 'pycodestyle' not in sys.modules:
+            print("Skipping test_dump_template pycodestyle is not available")
             return
 
         rawtxt = '\n'.join([
@@ -2747,8 +2812,8 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dump_comments(self):
         """ Test dump() method for files containing comments """
 
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping test_dump_comments (no pycodestyle or pep8 available)")
+        if 'pycodestyle' not in sys.modules:
+            print("Skipping test_dump_comments pycodestyle is not available")
             return
 
         rawtxt = '\n'.join([
@@ -3442,6 +3507,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         arch_regex = re.compile('^[a-z0-9_]+$')
 
+        rpath = 'true' if get_os_name() == 'Linux' else 'false'
+
         expected = {
             'bitbucket_account': 'gzip',
             'github_account': 'gzip',
@@ -3451,6 +3518,8 @@ class EasyConfigTest(EnhancedTestCase):
             'nameletter': 'g',
             'nameletterlower': 'g',
             'parallel': None,
+            'rpath_enabled': rpath,
+            'software_commit': '',
             'sysroot': '',
             'toolchain_name': 'foss',
             'toolchain_version': '2018a',
@@ -3476,7 +3545,7 @@ class EasyConfigTest(EnhancedTestCase):
         except AttributeError:
             pass  # Ignore if not present
         orig_get_avail_core_count = st.get_avail_core_count
-        st.get_avail_core_count = lambda: 42
+        st.get_avail_core_count = lambda: 12
 
         # also check template values after running check_readiness_step (which runs set_parallel)
         eb = EasyBlock(ec)
@@ -3487,7 +3556,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         res = template_constant_dict(ec)
         res.pop('arch')
-        expected['parallel'] = 42
+        expected['parallel'] = 12
         self.assertEqual(res, expected)
 
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb')
@@ -3534,6 +3603,8 @@ class EasyConfigTest(EnhancedTestCase):
             'pyminver': '7',
             'pyshortver': '3.7',
             'pyver': '3.7.2',
+            'rpath_enabled': rpath,
+            'software_commit': '',
             'sysroot': '',
             'version': '0.01',
             'version_major': '0',
@@ -3599,6 +3670,8 @@ class EasyConfigTest(EnhancedTestCase):
             'namelower': 'foo',
             'nameletter': 'f',
             'nameletterlower': 'f',
+            'rpath_enabled': rpath,
+            'software_commit': '',
             'sysroot': '',
             'version': '1.2.3',
             'version_major': '1',
@@ -4624,7 +4697,7 @@ class EasyConfigTest(EnhancedTestCase):
             prebuildopts = '%(cuda_cc_semicolon_sep)s'
             buildopts = ('comma="%(cuda_int_comma_sep)s" space="%(cuda_int_space_sep)s" '
                          'semi="%(cuda_int_semicolon_sep)s"')
-            preinstallopts = '%(cuda_cc_space_sep)s'
+            preinstallopts = 'period="%(cuda_cc_space_sep)s" noperiod="%(cuda_cc_space_sep_no_period)s"'
             installopts = '%(cuda_compute_capabilities)s'
         """)
         self.prep()
@@ -4637,7 +4710,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['buildopts'], 'comma="51,70,71" '
                                           'space="51 70 71" '
                                           'semi="51;70;71"')
-        self.assertEqual(ec['preinstallopts'], '5.1 7.0 7.1')
+        self.assertEqual(ec['preinstallopts'], 'period="5.1 7.0 7.1" noperiod="51 70 71"')
         self.assertEqual(ec['installopts'], '5.1,7.0,7.1')
 
         # build options overwrite it
@@ -4650,7 +4723,7 @@ class EasyConfigTest(EnhancedTestCase):
                                           'space="42 63" '
                                           'semi="42;63"')
         self.assertEqual(ec['prebuildopts'], '4.2;6.3')
-        self.assertEqual(ec['preinstallopts'], '4.2 6.3')
+        self.assertEqual(ec['preinstallopts'], 'period="4.2 6.3" noperiod="42 63"')
         self.assertEqual(ec['installopts'], '4.2,6.3')
 
     def test_det_copy_ec_specs(self):
@@ -4741,6 +4814,10 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = read_file(toy_ec)
+
+        # this test only makes sense if depends_on is not used
+        self.allow_deprecated_behaviour()
+        test_ec_txt += '\nmodule_depends_on = False'
         write_file(test_ec, test_ec_txt)
 
         test_module = os.path.join(self.test_installpath, 'modules', 'all', 'foss', '2018a')
@@ -4751,7 +4828,10 @@ class EasyConfigTest(EnhancedTestCase):
             recursive_unload_pat = r'if mode\(\) == "unload" or not \( isloaded\("%(mod)s"\) \) then\n'
             recursive_unload_pat += r'\s*load\("%(mod)s"\)'
         else:
-            guarded_load_pat = r'if { \!\[ is-loaded %(mod)s \] } {\n\s*module load %(mod)s'
+            if self.modtool.supports_safe_auto_load:
+                guarded_load_pat = r'\nmodule load %(mod)s'
+            else:
+                guarded_load_pat = r'if { \!\[ is-loaded %(mod)s \] } {\n\s*module load %(mod)s'
             recursive_unload_pat = r'if { \[ module-info mode remove \] \|\| \!\[ is-loaded %(mod)s \] } {\n'
             recursive_unload_pat += r'\s*module load %(mod)s'
 
@@ -4780,6 +4860,8 @@ class EasyConfigTest(EnhancedTestCase):
         # recursive_module_unload easyconfig parameter is honored
         test_ec_bis = os.path.join(self.test_prefix, 'test_bis.eb')
         test_ec_bis_txt = read_file(toy_ec) + '\nrecursive_module_unload = True'
+        # this test only makes sense if depends_on is not used
+        test_ec_bis_txt += '\nmodule_depends_on = False'
         write_file(test_ec_bis, test_ec_bis_txt)
 
         ec_bis = EasyConfig(test_ec_bis)
@@ -4790,10 +4872,16 @@ class EasyConfigTest(EnhancedTestCase):
             eb_bis.prepare_step()
             eb_bis.make_module_step()
         modtxt = read_file(test_module)
-        fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
-        self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
-        fail_msg = "Pattern '%s' should be found in: %s" % (recursive_unload_regex.pattern, modtxt)
-        self.assertTrue(recursive_unload_regex.search(modtxt), fail_msg)
+        if self.modtool.supports_safe_auto_load:
+            fail_msg = "Pattern '%s' should be found in: %s" % (guarded_load_regex.pattern, modtxt)
+            self.assertTrue(guarded_load_regex.search(modtxt), fail_msg)
+            fail_msg = "Pattern '%s' should not be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+            self.assertFalse(recursive_unload_regex.search(modtxt), fail_msg)
+        else:
+            fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
+            self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
+            fail_msg = "Pattern '%s' should be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+            self.assertTrue(recursive_unload_regex.search(modtxt), fail_msg)
 
         # recursive_mod_unload build option is honored
         update_build_option('recursive_mod_unload', True)
@@ -4803,15 +4891,23 @@ class EasyConfigTest(EnhancedTestCase):
             eb.prepare_step()
             eb.make_module_step()
         modtxt = read_file(test_module)
-        fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
-        self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
-        fail_msg = "Pattern '%s' should be found in: %s" % (recursive_unload_regex.pattern, modtxt)
-        self.assertTrue(recursive_unload_regex.search(modtxt), fail_msg)
+        if self.modtool.supports_safe_auto_load:
+            fail_msg = "Pattern '%s' should be found in: %s" % (guarded_load_regex.pattern, modtxt)
+            self.assertTrue(guarded_load_regex.search(modtxt), fail_msg)
+            fail_msg = "Pattern '%s' should not be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+            self.assertFalse(recursive_unload_regex.search(modtxt), fail_msg)
+        else:
+            fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
+            self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
+            fail_msg = "Pattern '%s' should be found in: %s" % (recursive_unload_regex.pattern, modtxt)
+            self.assertTrue(recursive_unload_regex.search(modtxt), fail_msg)
 
         # disabling via easyconfig parameter works even when recursive_mod_unload build option is enabled
         self.assertTrue(build_option('recursive_mod_unload'))
         test_ec_bis = os.path.join(self.test_prefix, 'test_bis.eb')
         test_ec_bis_txt = read_file(toy_ec) + '\nrecursive_module_unload = False'
+        # this test only makes sense if depends_on is not used
+        test_ec_bis_txt += '\nmodule_depends_on = False'
         write_file(test_ec_bis, test_ec_bis_txt)
         ec_bis = EasyConfig(test_ec_bis)
         self.assertEqual(ec_bis['recursive_module_unload'], False)

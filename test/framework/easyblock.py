@@ -284,8 +284,11 @@ class EasyBlockTest(EnhancedTestCase):
         txt = eb.make_module_extend_modpath()
         if module_syntax == 'Tcl':
             regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-            home = r'\[if { \[info exists ::env\(HOME\)\] } { concat \$::env\(HOME\) } '
-            home += r'else { concat "HOME_NOT_DEFINED" } \]'
+            if self.modtool.supports_tcl_getenv:
+                home = r'\[getenv HOME "HOME_NOT_DEFINED"\]'
+            else:
+                home = r'\[if { \[info exists ::env\(HOME\)\] } { concat \$::env\(HOME\) } '
+                home += r'else { concat "HOME_NOT_DEFINED" } \]'
             fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
@@ -327,9 +330,12 @@ class EasyBlockTest(EnhancedTestCase):
         for envvar in list_of_envvars:
             if module_syntax == 'Tcl':
                 regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-                module_envvar = r'\[if \{ \[info exists ::env\(%s\)\] \} ' % envvar
-                module_envvar += r'\{ concat \$::env\(%s\) \} ' % envvar
-                module_envvar += r'else { concat "%s" } \]' % (envvar + '_NOT_DEFINED')
+                if self.modtool.supports_tcl_getenv:
+                    module_envvar = r'\[getenv %s "%s"]' % (envvar, envvar + '_NOT_DEFINED')
+                else:
+                    module_envvar = r'\[if \{ \[info exists ::env\(%s\)\] \} ' % envvar
+                    module_envvar += r'\{ concat \$::env\(%s\) \} ' % envvar
+                    module_envvar += r'else { concat "%s" } \]' % (envvar + '_NOT_DEFINED')
                 fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
                 regexs.extend([
                     # extension for user modules is guarded
@@ -754,21 +760,26 @@ class EasyBlockTest(EnhancedTestCase):
             eb.prepare_step()
 
         if get_module_syntax() == 'Tcl':
-            tc_load = '\n'.join([
-                "if { ![ is-loaded gompi/2018a ] } {",
-                "    module load gompi/2018a",
-                "}",
-            ])
-            fftw_load = '\n'.join([
-                "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
-                "    module load FFTW/3.3.7-gompi-2018a",
-                "}",
-            ])
-            lapack_load = '\n'.join([
-                "if { ![ is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28 ] } {",
-                "    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28",
-                "}",
-            ])
+            if self.modtool.supports_safe_auto_load:
+                tc_load = "module load gompi/2018a"
+                fftw_load = "module load FFTW/3.3.7-gompi-2018a"
+                lapack_load = "module load OpenBLAS/0.2.20-GCC-6.4.0-2.28"
+            else:
+                tc_load = '\n'.join([
+                    "if { ![ is-loaded gompi/2018a ] } {",
+                    "    module load gompi/2018a",
+                    "}",
+                ])
+                fftw_load = '\n'.join([
+                    "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
+                    "    module load FFTW/3.3.7-gompi-2018a",
+                    "}",
+                ])
+                lapack_load = '\n'.join([
+                    "if { ![ is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28 ] } {",
+                    "    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28",
+                    "}",
+                ])
         elif get_module_syntax() == 'Lua':
             tc_load = '\n'.join([
                 'if not ( isloaded("gompi/2018a") ) then',
@@ -798,12 +809,18 @@ class EasyBlockTest(EnhancedTestCase):
         }
 
         if get_module_syntax() == 'Tcl':
-            fftw_load = '\n'.join([
-                "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
-                "    module unload FFTW",
-                "    module load FFTW/3.3.7-gompi-2018a",
-                "}",
-            ])
+            if self.modtool.supports_safe_auto_load:
+                fftw_load = '\n'.join([
+                    "module unload FFTW",
+                    "module load FFTW/3.3.7-gompi-2018a",
+                ])
+            else:
+                fftw_load = '\n'.join([
+                    "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
+                    "    module unload FFTW",
+                    "    module load FFTW/3.3.7-gompi-2018a",
+                    "}",
+                ])
         elif get_module_syntax() == 'Lua':
             fftw_load = '\n'.join([
                 'if not ( isloaded("FFTW/3.3.7-gompi-2018a") ) then',
@@ -856,10 +873,10 @@ class EasyBlockTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             mod_dep_txt = eb.make_module_dep()
         for mod in ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2']:
-            regex = re.compile('load.*%s' % mod)
+            regex = re.compile('(load|depends[-_]on).*%s' % mod)
             self.assertFalse(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
-        regex = re.compile('load.*FFTW/3.3.7')
+        regex = re.compile('(load|depends[-_]on).*FFTW/3.3.7')
         self.assertTrue(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
     def test_make_module_dep_of_dep_hmns(self):
@@ -1344,27 +1361,27 @@ class EasyBlockTest(EnhancedTestCase):
 
         for (name, ver) in [('GCC', '6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^\s*module load %s\s*$' % os.path.join(name, ver), re.M)
+                regex = re.compile(r'^\s*(module load|depends-on) %s\s*$' % os.path.join(name, ver), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^\s*load\("%s"\)$' % os.path.join(name, ver), re.M)
+                regex = re.compile(r'^\s*(load|depends_on)\("%s"\)$' % os.path.join(name, ver), re.M)
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('test', '1.2.3')]:
             if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^\s*module load %s/.%s\s*$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(module load|depends-on) %s/.%s\s*$' % (name, ver), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^\s*load\("%s/.%s"\)$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(load|depends_on)\("%s/.%s"\)$' % (name, ver), re.M)
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^\s*module load %s/.?%s\s*$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(module load|depends-on) %s/.?%s\s*$' % (name, ver), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^\s*load\("%s/.?%s"\)$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(load|depends_on)\("%s/.?%s"\)$' % (name, ver), re.M)
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertFalse(regex.search(txt), "Pattern '%s' *not* found in %s" % (regex.pattern, txt))
@@ -1786,7 +1803,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # test no_download option
         urls = ['file://%s' % tmpdir_subdir]
-        error_pattern = "Couldn't find file toy-0.0.tar.gz anywhere, and downloading it is disabled"
+        error_pattern = "Couldn't find file 'toy-0.0.tar.gz' anywhere, and downloading it is disabled"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, eb.obtain_file,
                                   toy_tarball, urls=urls, alt_location='alt_toy', no_download=True)
@@ -2184,7 +2201,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         handle, toy_ec1 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
-        write_file(toy_ec1, toytxt + "\nparallel = 123")
+        write_file(toy_ec1, toytxt + "\nparallel = 13")
 
         handle, toy_ec2 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
@@ -2202,7 +2219,7 @@ class EasyBlockTest(EnhancedTestCase):
         # only 'parallel' easyconfig parameter specified (no 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec1))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 123)
+        self.assertEqual(test_eb.cfg['parallel'], 13)
 
         # both 'parallel' and 'maxparallel' easyconfig parameters specified (no 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec2))
@@ -2215,20 +2232,20 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(test_eb.cfg['parallel'], False)
 
         # only 'parallel' build option specified
-        init_config(build_options={'parallel': '97', 'validate': False})
+        init_config(build_options={'parallel': '9', 'validate': False})
         test_eb = EasyBlock(EasyConfig(toy_ec))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 97)
+        self.assertEqual(test_eb.cfg['parallel'], 9)
 
         # both 'parallel' build option and easyconfig parameter specified (no 'maxparallel')
         test_eb = EasyBlock(EasyConfig(toy_ec1))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 97)
+        self.assertEqual(test_eb.cfg['parallel'], 9)
 
         # both 'parallel' and 'maxparallel' easyconfig parameters specified + 'parallel' build option
         test_eb = EasyBlock(EasyConfig(toy_ec2))
         test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 67)
+        self.assertEqual(test_eb.cfg['parallel'], 9)
 
         # make sure 'parallel = False' is not overriden (with 'parallel' build option)
         test_eb = EasyBlock(EasyConfig(toy_ec3))
