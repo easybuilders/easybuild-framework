@@ -1356,7 +1356,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_fosscuda(self):
         """Test whether fosscuda is handled properly."""
         tc = self.get_toolchain("fosscuda", version="2018a")
-        opts = {'cuda_gencode': ['-arch=compute_35,code=sm_35', 'a-rch=compute_10,code=compute_10'], 'openmp': True}
+        opts = {'cuda_gencode': ['-arch=compute_35,code=sm_35', '-arch=compute_10,code=compute_10'], 'openmp': True}
         tc.set_options(opts)
         with self.mocked_stdout_stderr():
             tc.prepare()
