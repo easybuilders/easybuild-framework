@@ -1638,8 +1638,8 @@ class EasyBlock(object):
             env_var_requirements = self.module_load_environment.environ
         else:
             # Custom deprecated method used by child EasyBlock
-            self.log.devel(
-                "make_module_req_guess() is deprecated, use module_load_environment object instead.",
+            self.log.deprecated(
+                "make_module_req_guess() is deprecated, use EasyBlock.module_load_environment instead.",
                 "6.0",
             )
             env_var_requirements = self.make_module_req_guess()
