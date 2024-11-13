@@ -1016,7 +1016,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             else:
                 abspaths.append(path)
 
-        delim_opt = '' if delim != ':' else f' -d "{delim}"'
+        delim_opt = '' if delim == ':' else f' -d "{delim}"'
         statements = [f'{update_type}-path{delim_opt}\t{key}\t\t{p}\n' for p in abspaths]
         return ''.join(statements)
 
