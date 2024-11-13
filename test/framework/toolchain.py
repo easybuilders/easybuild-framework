@@ -2298,6 +2298,9 @@ class ToolchainTest(EnhancedTestCase):
                     ('CrayGNU', '2015.06-XC'),
                     ('CrayIntel', '2015.06-XC'),
                 ]
+                self.allow_deprecated_behaviour()  # test will be automatically converted to -test
+            else:
+                self.disallow_deprecated_behaviour()
 
             # purposely obtain toolchains several times in a row, value for $CFLAGS should not change
             for _ in range(3):
