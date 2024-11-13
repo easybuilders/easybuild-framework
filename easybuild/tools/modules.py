@@ -141,6 +141,9 @@ class ModuleEnvironmentVariable:
     def __str__(self):
         return ":".join(self.paths)
 
+    def __iter__(self):
+        return iter(self.paths)
+
     @property
     def paths(self):
         return self._paths
@@ -207,9 +210,9 @@ class ModuleLoadEnvironment:
             (paths, kwargs) = value
         except ValueError:
             paths, kwargs = value, {}
-        else:
-            if not isinstance(kwargs, dict):
-                paths, kwargs = value, {}
+
+        if not isinstance(kwargs, dict):
+            paths, kwargs = value, {}
 
         return super().__setattr__(name.upper(), ModuleEnvironmentVariable(paths, **kwargs))
 
