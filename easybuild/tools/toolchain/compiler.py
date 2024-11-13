@@ -33,7 +33,7 @@ Authors:
 * Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 from easybuild.tools import systemtools
-from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
@@ -299,7 +299,7 @@ class Compiler(Toolchain):
                 extraflags = self.options.option(extra)
                 if not extraflags or extraflags[0] != '-':
                     raise EasyBuildError("toolchainopts %s: '%s' must start with a '-'." % (extra, extraflags))
-                self.variables.nappend_el(var, extraflags[1:])
+                self.variables.nappend_el(var, extraflags)
 
     def _set_optimal_architecture(self, default_optarch=None):
         """
@@ -356,8 +356,8 @@ class Compiler(Toolchain):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(self.arch, self.cpu_family)]
 
         if optarch is not None:
-            if not optarch.startswith('-'):
-                print_warning(f'Specifying optarch "{optarch}" without initial dash is deprecated in EasyBuild 5.')
+            if optarch and not optarch.startswith('-'):
+                self.log.deprecated(f'Specifying optarch "{optarch}" without initial dash is deprecated.', '6.0')
                 # Add flags for backwards compatibility
                 optarch = '-' + optarch
 
