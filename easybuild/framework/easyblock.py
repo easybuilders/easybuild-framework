@@ -1469,22 +1469,27 @@ class EasyBlock(object):
         for (key, value) in self.cfg['modextravars'].items():
             lines.append(self.module_generator.set_environment(key, value))
 
-        for (key, value) in self.cfg['modextrapaths'].items():
-            if isinstance(value, str):
-                value = [value]
-            elif not isinstance(value, (tuple, list)):
-                raise EasyBuildError("modextrapaths dict value %s (type: %s) is not a list or tuple",
-                                     value, type(value))
-            lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
+        for extrapaths_type, prepend in [('modextrapaths', True), ('modextrapaths_append', False)]:
+            allow_abs = self.cfg['allow_prepend_abs_path'] if prepend else self.cfg['allow_append_abs_path']
 
-        for (key, value) in self.cfg['modextrapaths_append'].items():
-            if isinstance(value, str):
-                value = [value]
-            elif not isinstance(value, (tuple, list)):
-                raise EasyBuildError("modextrapaths_append dict value %s (type: %s) is not a list or tuple",
-                                     value, type(value))
-            lines.append(self.module_generator.append_paths(key, value, allow_abs=self.cfg['allow_append_abs_path']))
+            for (key, value) in self.cfg[extrapaths_type].items():
+                if not isinstance(value, (tuple, list, dict, str)):
+                    raise EasyBuildError(
+                        f"{extrapaths_type} dict value '{value}' (type {type(value)}) is not a 'list, dict or str'"
+                    )
 
+                try:
+                    paths = value['paths']
+                    delim = value['delimiter']
+                except KeyError:
+                    raise EasyBuildError(f'{extrapaths_type} dict "{value}" lacks "paths" or "delimiter" items')
+                except TypeError:
+                    paths = value
+                    delim = ':'
+
+                lines.append(
+                    self.module_generator.update_paths(key, paths, prepend=prepend, delim=delim, allow_abs=allow_abs)
+                )
         # add lines to update $PYTHONPATH or $EBPYTHONPREFIXES
         lines.extend(self.make_module_pythonpath())
 
