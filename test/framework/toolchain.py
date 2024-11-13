@@ -2274,7 +2274,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test independency of toolchain instances."""
 
         # tweaking --optarch is required for Cray toolchains (craypre-<optarch> module must be available)
-        custom_optarchs = ['test', '-test']  # specifying without initial - is deprecated but should still work
+        custom_optarchs = ['test', '-test']  # specifying without initial "-" is deprecated but should still work
         for custom_optarch in custom_optarchs:
             init_config(build_options={'optarch': custom_optarch, 'silent': True})
 
@@ -2288,13 +2288,16 @@ class ToolchainTest(EnhancedTestCase):
             }
 
             toolchains = [
-                ('CrayCCE', '2015.06-XC'),
-                ('CrayGNU', '2015.06-XC'),
-                ('CrayIntel', '2015.06-XC'),
                 ('GCC', '6.4.0-2.28'),
                 ('iccifort', '2018.1.163'),
                 ('intel-compilers', '2022.1.0'),
             ]
+            if custom_optarchs == 'test':  # optarch is not used as a flag for Cray
+                toolchains += [
+                    ('CrayCCE', '2015.06-XC'),
+                    ('CrayGNU', '2015.06-XC'),
+                    ('CrayIntel', '2015.06-XC'),
+                ]
 
             # purposely obtain toolchains several times in a row, value for $CFLAGS should not change
             for _ in range(3):
