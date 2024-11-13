@@ -33,7 +33,7 @@ Authors:
 * Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 from easybuild.tools import systemtools
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
@@ -244,6 +244,12 @@ class Compiler(Toolchain):
 
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""
+        variants = ['', '_F', '_F_UNIQUE', '_C', '_C_UNIQUE', '_OPT', '_PREC']
+        for variant in variants:
+            old_var = getattr(self, f'COMPILER{variant}_FLAGS', None)
+            if old_var is not None:
+                self.log.deprecated(f'COMPILER{variant}_FLAGS has been renamed to COMPILER{variant}_OPTIONS.', '6.0')
+                setattr(self, f'COMPILER{variant}_OPTIONS', old_var)
 
         flags = [self.options.option(x) for x in self.COMPILER_OPTIONS if self.options.get(x, False)]
         cflags = [self.options.option(x) for x in self.COMPILER_C_OPTIONS + self.COMPILER_C_UNIQUE_OPTIONS
@@ -260,6 +266,11 @@ class Compiler(Toolchain):
         # 1st one is the one to use. add default at the end so len is at least 1
         optflags = ([self.options.option(x) for x in self.COMPILER_OPT_OPTIONS if self.options.get(x, False)] +
                     [self.options.option(default_opt_level)])[:1]
+
+        # Normal compiler flags need to include "-" starting with EB 5.0, check the first as a sanity check.
+        # Avoiding all flags as there may be legitimate use for flags that lack -
+        if optflags and optflags[0] and not optflags[0][0].startswith('-'):
+            print_warning(f'Compiler flag "{optflags[0][0]}" does not start with a dash. See changes in EasyBuild 5.')
 
         # only apply if the vectorize toolchainopt is explicitly set
         # otherwise the individual compiler toolchain file should make sure that
