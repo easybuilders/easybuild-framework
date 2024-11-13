@@ -280,7 +280,7 @@ class Compiler(Toolchain):
         elif self.options.get('optarch', False):
             optarchflags.append(self.options.option('optarch'))
 
-        precflags = [self.options.option(x) for x in self.COMPILER_PREC_OPTION if self.options.get(x, False)] + \
+        precflags = [self.options.option(x) for x in self.COMPILER_PREC_OPTIONS if self.options.get(x, False)] + \
                     [self.options.option('defaultprec')]
 
         self.variables.nextend('OPTFLAGS', optflags + optarchflags)
