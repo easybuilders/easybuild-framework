@@ -795,6 +795,7 @@ class ToolchainTest(EnhancedTestCase):
         tc_pgi = ('PGI', '16.7-GCC-5.4.0-2.26')
         enabled = [True, False]
 
+        self.allow_deprecated_behaviour()  # when testing optarch flags without initial "-" (remove in EB 6.0)
         test_cases = []
         for i, (tc, options) in enumerate(zip((tc_intel, tc_gcc, tc_gcccore),
                                               (intel_options, gcc_options, gcccore_options))):
@@ -2298,7 +2299,7 @@ class ToolchainTest(EnhancedTestCase):
                     ('CrayGNU', '2015.06-XC'),
                     ('CrayIntel', '2015.06-XC'),
                 ]
-                self.allow_deprecated_behaviour()  # test will be automatically converted to -test
+                self.allow_deprecated_behaviour()  # test will be automatically converted to -test (remove in 6.0)
             else:
                 self.disallow_deprecated_behaviour()
 
