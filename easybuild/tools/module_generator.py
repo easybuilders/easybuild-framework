@@ -241,7 +241,7 @@ class ModuleGenerator(object):
                 filtered_paths = None
         return filtered_paths
 
-    def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True, delim=':'):
+    def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True, delim=':', warn_exists=True):
         """
         Generate append-path statements for the given list of paths.
 
@@ -250,8 +250,9 @@ class ModuleGenerator(object):
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         :param delim: delimiter used between paths
+        :param warn_exists: Show a warning if any path was already added to the variable
         """
-        paths = self._filter_paths(key, paths)
+        paths = self._filter_paths(key, paths, warn_exists=warn_exists)
         if paths is None:
             return ''
         return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths,
