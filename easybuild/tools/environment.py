@@ -258,9 +258,9 @@ def wrap_path_env(override=None, prepend=None, append=None, sep=os.pathsep, stri
             "The keys in override must not overlap with the keys in prepend or append: '%s'",
             " ".join(duplicates)
             )
-    
+
     orig = {}
-    for key in over_keys
+    for key in over_keys:
         orig[key] = os.environ.get(key)
         setvar(key, override[key])
 
