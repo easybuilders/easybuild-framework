@@ -164,20 +164,22 @@ class EnvironmentTest(EnhancedTestCase):
 
     def test_wrap_env(self):
         """Test wrap_env function."""
+
         def reset_env():
             os.environ['TEST_VAR_1'] = '/bar:/foo'
             os.environ['TEST_VAR_2'] = '/bar'
             os.environ['TEST_VAR_3'] = '/foo'
+
         def check_env():
             self.assertEqual(os.getenv('TEST_VAR_1'), '/bar:/foo')
             self.assertEqual(os.getenv('TEST_VAR_2'), '/bar')
             self.assertEqual(os.getenv('TEST_VAR_3'), '/foo')
+
         def null_and_check(vars):
             for var in vars:
                 os.environ[var] = ''
             for var in vars:
                 self.assertEqual(os.getenv(var), '')
-        reset_env()
 
         prep = {
             'TEST_VAR_1': '/usr/bin:/usr/sbin',
