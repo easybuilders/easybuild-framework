@@ -225,7 +225,7 @@ def sanitize_env():
 
 
 @contextlib.contextmanager
-def wrap_path_env(override=None, prepend=None, append=None, sep=os.pathsep, strict=False):
+def wrap_env(override=None, prepend=None, append=None, sep=os.pathsep, strict=False):
     """This function is a context manager that temporarily modifies environment variables.
     It will override or prepend/append the values of the given dictionaries to the current environment and restore the
     original environment when the context is exited.

@@ -164,9 +164,20 @@ class EnvironmentTest(EnhancedTestCase):
 
     def test_wrap_env(self):
         """Test wrap_env function."""
-        os.environ['TEST_VAR_1'] = '/bar:/foo'
-        os.environ['TEST_VAR_2'] = '/bar'
-        os.environ['TEST_VAR_3'] = '/foo'
+        def reset_env():
+            os.environ['TEST_VAR_1'] = '/bar:/foo'
+            os.environ['TEST_VAR_2'] = '/bar'
+            os.environ['TEST_VAR_3'] = '/foo'
+        def check_env():
+            self.assertEqual(os.getenv('TEST_VAR_1'), '/bar:/foo')
+            self.assertEqual(os.getenv('TEST_VAR_2'), '/bar')
+            self.assertEqual(os.getenv('TEST_VAR_3'), '/foo')
+        def null_and_check(vars):
+            for var in vars:
+                os.environ[var] = ''
+            for var in vars:
+                self.assertEqual(os.getenv(var), '')
+        reset_env()
 
         prep = {
             'TEST_VAR_1': '/usr/bin:/usr/sbin',
@@ -176,40 +187,63 @@ class EnvironmentTest(EnhancedTestCase):
             'TEST_VAR_1': '/usr/local/bin',
             'TEST_VAR_3': '/usr/local/sbin',
         }
+        over = {
+            'TEST_VAR_3': 'overridden',
+        }
         seps = {
             'TEST_VAR_3': ';'
         }
 
         # Test prepend and append
-        self.assertEqual(os.getenv('TEST_VAR_1'), '/bar:/foo')
-        self.assertEqual(os.getenv('TEST_VAR_2'), '/bar')
-        self.assertEqual(os.getenv('TEST_VAR_3'), '/foo')
-        with env.wrap_path_env(prep, appd, sep=seps):
+        reset_env()
+        check_env()
+        with env.wrap_env(prepend=prep, append=appd, sep=seps):
             self.assertEqual(os.getenv('TEST_VAR_1'), '/usr/bin:/usr/sbin:/bar:/foo:/usr/local/bin')
             self.assertEqual(os.getenv('TEST_VAR_2'), '/usr/bin:/bar')
             self.assertEqual(os.getenv('TEST_VAR_3'), '/foo;/usr/local/sbin')
             # Test modifying the environment inside the context
-            os.environ['TEST_VAR_1'] = ''
-            os.environ['TEST_VAR_2'] = ''
-            os.environ['TEST_VAR_3'] = ''
-            self.assertEqual(os.getenv('TEST_VAR_1'), '')
-            self.assertEqual(os.getenv('TEST_VAR_2'), '')
-            self.assertEqual(os.getenv('TEST_VAR_3'), '')
-        self.assertEqual(os.getenv('TEST_VAR_1'), '/bar:/foo')
-        self.assertEqual(os.getenv('TEST_VAR_2'), '/bar')
-        self.assertEqual(os.getenv('TEST_VAR_3'), '/foo')
+            null_and_check(['TEST_VAR_1', 'TEST_VAR_2', 'TEST_VAR_3'])
+        check_env()
 
         # Test sep with strict=True
         def foo():
-            with env.wrap_path_env(prep, appd, sep={}, strict=True):
+            with env.wrap_env(prepend=prep, append=appd, sep={}, strict=True):
                 pass
         self.assertErrorRegex(EasyBuildError, "sep must be a .*", foo)
 
         # Test invalid value for sep
         def foo():
-            with env.wrap_path_env(prep, appd, sep=None):
+            with env.wrap_env(prepend=prep, append=appd, sep=None):
                 pass
         self.assertErrorRegex(EasyBuildError, "sep must be a .*", foo)
+
+        # Test override
+        check_env()
+        with env.wrap_env(override=prep):
+            self.assertEqual(os.getenv('TEST_VAR_1'), '/usr/bin:/usr/sbin')
+            self.assertEqual(os.getenv('TEST_VAR_2'), '/usr/bin')
+            self.assertEqual(os.getenv('TEST_VAR_3'), '/foo')
+            # Test modifying the environment inside the context
+            null_and_check(['TEST_VAR_1', 'TEST_VAR_2'])
+        check_env()
+
+        # Test override with prepend
+        with env.wrap_env(override=over, prepend=prep):
+            self.assertEqual(os.getenv('TEST_VAR_1'), '/usr/bin:/usr/sbin:/bar:/foo')
+            self.assertEqual(os.getenv('TEST_VAR_2'), '/usr/bin:/bar')
+            self.assertEqual(os.getenv('TEST_VAR_3'), 'overridden')
+            null_and_check(['TEST_VAR_1', 'TEST_VAR_2', 'TEST_VAR_3'])
+        check_env()
+
+        # Test override duplicate key with prepend
+        def foo():
+            with env.wrap_env(override=prep, prepend=prep, sep=None):
+                pass
+        self.assertErrorRegex(
+            EasyBuildError,
+            "The keys in override must not overlap with the keys in prepend or append.*",
+            foo
+            )
 
 
 def suite():
