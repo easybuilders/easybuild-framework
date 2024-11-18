@@ -225,22 +225,46 @@ def sanitize_env():
 
 
 @contextlib.contextmanager
-def wrap_path_env(prepend=None, append=None, sep=os.pathsep, strict=False):
-    """This function is a context manager that temporarily modifies path-like environment variables.
-    It will prepend and append the values of the given dictionaries to the current environment and restore the
+def wrap_path_env(override=None, prepend=None, append=None, sep=os.pathsep, strict=False):
+    """This function is a context manager that temporarily modifies environment variables.
+    It will override or prepend/append the values of the given dictionaries to the current environment and restore the
     original environment when the context is exited.
 
-    A custom separator can be specified for each variable by passing a dictionary of strings with the same keys as
-    prepend and append.
+    For path-like variables, a custom separator can be specified for each variable by passing a dictionary of strings
+    with the same keys as prepend and append.
     If a key is not present in the sep dictionary, os.pathsep will be used unless strict is True, then an error
     will be raised.
+
+    Args:
+        override: A dictionary of environment variables to override.
+        prepend: A dictionary of environment variables to prepend to.
+        append: A dictionary of environment variables to append to.
+        sep: A string or a dictionary of strings to use as separator for each variable.
+        strict: If True, raise an error if a key is not present in the sep dictionary.
     """
     if prepend is None:
         prepend = {}
     if append is None:
         append = {}
+    if override is None:
+        override = {}
+
+    path_keys = set(prepend.keys()) | set(append.keys())
+    over_keys = set(override.keys())
+
+    duplicates = path_keys & over_keys
+    if duplicates:
+        raise EasyBuildError(
+            "The keys in override must not overlap with the keys in prepend or append: '%s'",
+            " ".join(duplicates)
+            )
+    
     orig = {}
-    for key in set(prepend.keys()) | set(append.keys()):
+    for key in over_keys
+        orig[key] = os.environ.get(key)
+        setvar(key, override[key])
+
+    for key in path_keys:
         if isinstance(sep, dict):
             if key not in sep:
                 if strict:
