@@ -1614,6 +1614,10 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod_envar.paths, ["include", "share", "lib", "lib64"])
         mod_envar.prepend("bin")
         self.assertEqual(mod_envar.paths, ["bin", "include", "share", "lib", "lib64"])
+        mod_envar.update("new_path")
+        self.assertEqual(mod_envar.paths, ["new_path"])
+        mod_envar.update(["new_path_1", "new_path_2"])
+        self.assertEqual(mod_envar.paths, ["new_path_1", "new_path_2"])
 
     def test_module_load_environment(self):
         """Test for ModuleLoadEnvironment object"""

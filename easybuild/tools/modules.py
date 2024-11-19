@@ -173,6 +173,9 @@ class ModuleEnvironmentVariable:
         """Shortcut to append to list of paths"""
         self.paths.insert(0, item)
 
+    def update(self, item):
+        """Shortcut to update list of paths"""
+        self.paths = item
 
 class ModuleLoadEnvironment:
     """Environment set by modules on load"""
