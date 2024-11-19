@@ -1595,6 +1595,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(hasattr(mod_envar, "paths"))
         self.assertTrue(hasattr(mod_envar, "top_level_file"))
         self.assertEqual(mod_envar.paths, test_paths)
+        self.assertEqual(repr(mod_envar), repr(test_paths))
         self.assertEqual(str(mod_envar), "lib:lib64")
 
         mod_envar.paths = []

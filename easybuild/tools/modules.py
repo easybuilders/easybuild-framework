@@ -138,6 +138,9 @@ class ModuleEnvironmentVariable:
         self.paths = paths
         self.top_level_file = bool(top_level_file)
 
+    def __repr__(self):
+        return repr(self.paths)
+
     def __str__(self):
         return ":".join(self.paths)
 
