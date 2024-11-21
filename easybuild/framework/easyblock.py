@@ -1657,7 +1657,7 @@ class EasyBlock(object):
                 mod_req_paths = []
                 top_level = getattr(self.module_load_environment, env_var).top_level_file
                 for path in search_paths:
-                    mod_req_paths.extend(self._expand_module_search_path(path, top_level, fake=fake))
+                    mod_req_paths.extend(self.expand_module_search_path(path, top_level, fake=fake))
 
             if mod_req_paths:
                 mod_req_paths = nub(mod_req_paths)  # remove duplicates
@@ -1668,7 +1668,7 @@ class EasyBlock(object):
 
         return "".join(mod_lines)
 
-    def _expand_module_search_path(self, search_path, top_level, fake=False):
+    def expand_module_search_path(self, search_path, top_level, fake=False):
         """
         Expand given path glob and return list of suitable paths to be used as search paths:
             - Paths are relative to installation prefix root
