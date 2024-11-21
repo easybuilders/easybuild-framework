@@ -133,61 +133,64 @@ _log = fancylogger.getLogger('modules', fname=False)
 
 
 class ModuleEnvironmentVariable:
-    """Environment variable data structure for modules"""
+    """
+    Environment variable data structure for modules
+    Contents of environment variable is a list of unique strings
+    """
 
-    def __init__(self, paths, top_level_file=False):
+    def __init__(self, contents, top_level_file=False):
         """
         Initialize new environment variable
-        Actual contents of the variable are held in "self.contents"
+        Actual contents of the environment variable are held in self.contents
         """
-        self.paths = paths
+        self.contents = contents
         self.top_level_file = bool(top_level_file)
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
     def __repr__(self):
-        return repr(self.paths)
+        return repr(self.contents)
 
     def __str__(self):
-        return ":".join(self.paths)
+        return ":".join(self.contents)
 
     def __iter__(self):
-        return iter(self.paths)
+        return iter(self.contents)
 
     @property
-    def paths(self):
-        return self._paths
+    def contents(self):
+        return self._contents
 
-    @paths.setter
-    def paths(self, value):
-        """Enforce that paths is a list of strings"""
+    @contents.setter
+    def contents(self, value):
+        """Enforce that contents is a list of strings"""
         if isinstance(value, str):
             value = [value]
         try:
-            self._paths = [str(path) for path in value]
+            self._contents = [str(path) for path in value]
         except TypeError:
-            raise TypeError("ModuleEnvironmentVariable.paths must be a list of strings") from None
+            raise TypeError("ModuleEnvironmentVariable.contents must be a list of strings") from None
 
     def append(self, *args):
-        """Shortcut to append to list of paths"""
-        self.paths.append(*args)
+        """Shortcut to append to list of contents"""
+        self.contents.append(*args)
 
     def extend(self, *args):
-        """Shortcut to extend list of paths"""
-        self.paths.extend(*args)
+        """Shortcut to extend list of contents"""
+        self.contents.extend(*args)
 
     def prepend(self, item):
-        """Shortcut to prepend item to list of paths"""
-        self.paths.insert(0, item)
+        """Shortcut to prepend item to list of contents"""
+        self.contents.insert(0, item)
 
     def update(self, item):
-        """Shortcut to replace list of paths with item"""
-        self.paths = item
+        """Shortcut to replace list of contents with item"""
+        self.contents = item
 
     def remove(self, *args):
-        """Shortcut to remove items from list of paths"""
+        """Shortcut to remove items from list of contents"""
         try:
-            self.paths.remove(*args)
+            self.contents.remove(*args)
         except ValueError:
             # item is not in the list, move along
             self.log.debug(f"ModuleEnvironmentVariable does not contain item: {' '.join(args)}")
@@ -227,14 +230,14 @@ class ModuleLoadEnvironment:
         - attributes are instances of ModuleEnvironmentVariable
         """
         try:
-            (paths, kwargs) = value
+            (contents, kwargs) = value
         except ValueError:
-            paths, kwargs = value, {}
+            contents, kwargs = value, {}
 
         if not isinstance(kwargs, dict):
-            paths, kwargs = value, {}
+            contents, kwargs = value, {}
 
-        return super().__setattr__(name.upper(), ModuleEnvironmentVariable(paths, **kwargs))
+        return super().__setattr__(name.upper(), ModuleEnvironmentVariable(contents, **kwargs))
 
     def __iter__(self):
         """Make the class iterable"""
@@ -244,20 +247,20 @@ class ModuleLoadEnvironment:
         """
         Return key-value pairs for each attribute that is a ModuleEnvironmentVariable
         - key = attribute name
-        - value = its "paths" attribute
+        - value = its "contents" attribute
         """
         for attr in self.__dict__:
-            yield attr, getattr(self, attr).paths
+            yield attr, getattr(self, attr).contents
 
     @property
     def environ(self):
         """
-        Return dict with mapping of ModuleEnvironmentVariables names with their paths
+        Return dict with mapping of ModuleEnvironmentVariables names with their contents
         Equivalent in shape to os.environ
         """
         mapping = {}
-        for envar_name, envar_paths in self.items():
-            mapping.update({envar_name: envar_paths})
+        for envar_name, envar_contents in self.items():
+            mapping.update({envar_name: envar_contents})
         return mapping
 
 
