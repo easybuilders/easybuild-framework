@@ -177,12 +177,20 @@ class ModuleEnvironmentVariable:
         self.paths.extend(*args)
 
     def prepend(self, item):
-        """Shortcut to append to list of paths"""
+        """Shortcut to prepend item to list of paths"""
         self.paths.insert(0, item)
 
     def update(self, item):
-        """Shortcut to update list of paths"""
+        """Shortcut to replace list of paths with item"""
         self.paths = item
+
+    def remove(self, *args):
+        """Shortcut to remove items from list of paths"""
+        try:
+            self.paths.remove(*args)
+        except ValueError:
+            # item is not in the list, move along
+            self.log.debug(f"ModuleEnvironmentVariable does not contain item: {' '.join(args)}")
 
 class ModuleLoadEnvironment:
     """Environment set by modules on load"""

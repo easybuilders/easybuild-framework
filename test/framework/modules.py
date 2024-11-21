@@ -1610,10 +1610,21 @@ class ModulesTest(EnhancedTestCase):
 
         mod_envar.append("share")
         self.assertEqual(mod_envar.paths, ["include", "share"])
+        self.assertRaises(TypeError, mod_envar.append, "arg1" , "arg2")
+
         mod_envar.extend(test_paths)
         self.assertEqual(mod_envar.paths, ["include", "share", "lib", "lib64"])
+        self.assertRaises(TypeError, mod_envar.append, ["list1"], ["list2"])
+
         mod_envar.prepend("bin")
         self.assertEqual(mod_envar.paths, ["bin", "include", "share", "lib", "lib64"])
+
+        mod_envar.remove("lib")
+        self.assertEqual(mod_envar.paths, ["bin", "include", "share", "lib64"])
+        mod_envar.remove("nonexistent")
+        self.assertEqual(mod_envar.paths, ["bin", "include", "share", "lib64"])
+        self.assertRaises(TypeError, mod_envar.remove, "arg1", "arg2")
+
         mod_envar.update("new_path")
         self.assertEqual(mod_envar.paths, ["new_path"])
         mod_envar.update(["new_path_1", "new_path_2"])
