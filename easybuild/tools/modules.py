@@ -134,9 +134,16 @@ _log = fancylogger.getLogger('modules', fname=False)
 
 class ModuleEnvironmentVariable:
     """Environment variable data structure for modules"""
+
     def __init__(self, paths, top_level_file=False):
+        """
+        Initialize new environment variable
+        Actual contents of the variable are held in "self.contents"
+        """
         self.paths = paths
         self.top_level_file = bool(top_level_file)
+
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
     def __repr__(self):
         return repr(self.paths)
@@ -185,7 +192,6 @@ class ModuleLoadEnvironment:
         Initialize default environment definition
         Paths are relative to root of installation directory
         """
-
         self.PATH = (
             SEARCH_PATH_BIN_DIRS + ['sbin'],
             {"top_level_file": True},
