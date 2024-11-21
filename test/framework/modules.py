@@ -1601,34 +1601,39 @@ class ModulesTest(EnhancedTestCase):
         mod_envar.contents = []
         self.assertEqual(mod_envar.contents, [])
         self.assertRaises(TypeError, setattr, mod_envar, "contents", None)
-
-        mod_envar.contents = (1, 2, 3)
-        self.assertEqual(mod_envar.contents, ["1", "2", "3"])
-
+        mod_envar.contents = (1, 3, 2, 3)
+        self.assertEqual(mod_envar.contents, ["1", "3", "2"])
         mod_envar.contents = "include"
         self.assertEqual(mod_envar.contents, ["include"])
 
+        mod_envar.append("share")
+        self.assertEqual(mod_envar.contents, ["include", "share"])
         mod_envar.append("share")
         self.assertEqual(mod_envar.contents, ["include", "share"])
         self.assertRaises(TypeError, mod_envar.append, "arg1" , "arg2")
 
         mod_envar.extend(test_paths)
         self.assertEqual(mod_envar.contents, ["include", "share", "lib", "lib64"])
+        mod_envar.extend(test_paths)
+        self.assertEqual(mod_envar.contents, ["include", "share", "lib", "lib64"])
+        mod_envar.extend(test_paths + ["lib128"])
+        self.assertEqual(mod_envar.contents, ["include", "share", "lib", "lib64", "lib128"])
         self.assertRaises(TypeError, mod_envar.append, ["list1"], ["list2"])
+
+        mod_envar.remove("lib128")
+        self.assertEqual(mod_envar.contents, ["include", "share", "lib", "lib64"])
+        mod_envar.remove("nonexistent")
+        self.assertEqual(mod_envar.contents, ["include", "share", "lib", "lib64"])
+        self.assertRaises(TypeError, mod_envar.remove, "arg1", "arg2")
 
         mod_envar.prepend("bin")
         self.assertEqual(mod_envar.contents, ["bin", "include", "share", "lib", "lib64"])
-
-        mod_envar.remove("lib")
-        self.assertEqual(mod_envar.contents, ["bin", "include", "share", "lib64"])
-        mod_envar.remove("nonexistent")
-        self.assertEqual(mod_envar.contents, ["bin", "include", "share", "lib64"])
-        self.assertRaises(TypeError, mod_envar.remove, "arg1", "arg2")
 
         mod_envar.update("new_path")
         self.assertEqual(mod_envar.contents, ["new_path"])
         mod_envar.update(["new_path_1", "new_path_2"])
         self.assertEqual(mod_envar.contents, ["new_path_1", "new_path_2"])
+        self.assertRaises(TypeError, mod_envar.update, "arg1", "arg2")
 
     def test_module_load_environment(self):
         """Test for ModuleLoadEnvironment object"""

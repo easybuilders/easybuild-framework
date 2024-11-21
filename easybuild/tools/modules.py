@@ -56,6 +56,7 @@ from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import get_subclasses, nub
 
+
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
 VERSION_ENV_VAR_NAME_PREFIX = "EBVERSION"
@@ -166,22 +167,25 @@ class ModuleEnvironmentVariable:
         """Enforce that contents is a list of strings"""
         if isinstance(value, str):
             value = [value]
+
         try:
-            self._contents = [str(path) for path in value]
+            str_list = [str(path) for path in value]
         except TypeError:
             raise TypeError("ModuleEnvironmentVariable.contents must be a list of strings") from None
 
-    def append(self, *args):
-        """Shortcut to append to list of contents"""
-        self.contents.append(*args)
+        self._contents = nub(str_list)  # remove duplicates and keep order
 
-    def extend(self, *args):
+    def append(self, item):
+        """Shortcut to append to list of contents"""
+        self.contents += [item]
+
+    def extend(self, item):
         """Shortcut to extend list of contents"""
-        self.contents.extend(*args)
+        self.contents += item
 
     def prepend(self, item):
         """Shortcut to prepend item to list of contents"""
-        self.contents.insert(0, item)
+        self.contents = [item] + self.contents
 
     def update(self, item):
         """Shortcut to replace list of contents with item"""
