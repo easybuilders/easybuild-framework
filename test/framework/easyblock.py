@@ -522,8 +522,18 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertEqual(len(re.findall(r'^prepend_path\("%s", pathJoin\(root, "lib"\)\)$' % var,
                                                 guess, re.M)), 1)
 
-        # check for behavior when a string value is used as dict value by make_module_req_guesses
-        eb.make_module_req_guess = lambda: {'PATH': 'bin'}
+        # nuke default module load environment
+        default_mod_load_vars = [
+            "PATH", "LD_LIBRARY_PATH", "LIBRARY_PATH", "CPATH", "MANPATH", "PKG_CONFIG_PATH", "ACLOCAL_PATH",
+            "CLASSPATH", "XDG_DATA_DIRS", "GI_TYPELIB_PATH", "CMAKE_PREFIX_PATH", "CMAKE_LIBRARY_PATH",
+        ]
+        for env_var in default_mod_load_vars:
+            delattr(eb.module_load_environment, env_var)
+
+        self.assertEqual(len(vars(eb.module_load_environment)), 0)
+
+        # check for behavior when a string value is used as value of module_load_environment
+        eb.module_load_environment.PATH = 'bin'
         with eb.module_generator.start_module_creation():
             txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
@@ -535,7 +545,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # check for correct behaviour if empty string is specified as one of the values
         # prepend-path statements should be included for both the 'bin' subdir and the install root
-        eb.make_module_req_guess = lambda: {'PATH': ['bin', '']}
+        eb.module_load_environment.PATH = ['bin', '']
         with eb.module_generator.start_module_creation():
             txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
@@ -548,7 +558,7 @@ class EasyBlockTest(EnhancedTestCase):
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         # check for correct order of prepend statements when providing a list (and that no duplicates are allowed)
-        eb.make_module_req_guess = lambda: {'LD_LIBRARY_PATH': ['lib/pathC', 'lib/pathA', 'lib/pathB', 'lib/pathA']}
+        eb.module_load_environment.LD_LIBRARY_PATH = ['lib/pathC', 'lib/pathA', 'lib/pathB', 'lib/pathA']
         for path in ['pathA', 'pathB', 'pathC']:
             os.mkdir(os.path.join(eb.installdir, 'lib', path))
             write_file(os.path.join(eb.installdir, 'lib', path, 'libfoo.so'), 'test')
@@ -576,7 +586,8 @@ class EasyBlockTest(EnhancedTestCase):
         # If PATH or LD_LIBRARY_PATH contain only folders, do not add an entry
         sub_lib_path = os.path.join('lib', 'path_folders')
         sub_path_path = os.path.join('bin', 'path_folders')
-        eb.make_module_req_guess = lambda: {'LD_LIBRARY_PATH': sub_lib_path, 'PATH': sub_path_path}
+        eb.module_load_environment.LD_LIBRARY_PATH = sub_lib_path
+        eb.module_load_environment.PATH = sub_path_path
         for path in (sub_lib_path, sub_path_path):
             full_path = os.path.join(eb.installdir, path, 'subpath')
             os.makedirs(full_path)
