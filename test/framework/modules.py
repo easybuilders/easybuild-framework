@@ -1594,9 +1594,15 @@ class ModulesTest(EnhancedTestCase):
         mod_envar = mod.ModuleEnvironmentVariable(test_paths)
         self.assertTrue(hasattr(mod_envar, "contents"))
         self.assertTrue(hasattr(mod_envar, "top_level_file"))
+        self.assertTrue(hasattr(mod_envar, "delim"))
         self.assertEqual(mod_envar.contents, test_paths)
         self.assertEqual(repr(mod_envar), repr(test_paths))
         self.assertEqual(str(mod_envar), "lib:lib64")
+
+        mod_envar_custom_delim = mod.ModuleEnvironmentVariable(test_paths, delim="|")
+        self.assertEqual(mod_envar_custom_delim.contents, test_paths)
+        self.assertEqual(repr(mod_envar_custom_delim), repr(test_paths))
+        self.assertEqual(str(mod_envar_custom_delim), "lib|lib64")
 
         mod_envar.contents = []
         self.assertEqual(mod_envar.contents, [])

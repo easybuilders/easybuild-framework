@@ -139,13 +139,14 @@ class ModuleEnvironmentVariable:
     Contents of environment variable is a list of unique strings
     """
 
-    def __init__(self, contents, top_level_file=False):
+    def __init__(self, contents, top_level_file=False, delim=os.pathsep):
         """
         Initialize new environment variable
         Actual contents of the environment variable are held in self.contents
         """
         self.contents = contents
         self.top_level_file = bool(top_level_file)
+        self.delim = delim
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -153,7 +154,7 @@ class ModuleEnvironmentVariable:
         return repr(self.contents)
 
     def __str__(self):
-        return ":".join(self.contents)
+        return self.delim.join(self.contents)
 
     def __iter__(self):
         return iter(self.contents)
