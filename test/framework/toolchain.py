@@ -2293,7 +2293,7 @@ class ToolchainTest(EnhancedTestCase):
                 ('iccifort', '2018.1.163'),
                 ('intel-compilers', '2022.1.0'),
             ]
-            if custom_optarchs == 'test':  # optarch is not used as a flag for Cray
+            if custom_optarch == 'test':  # optarch is not used as a flag for Cray
                 toolchains += [
                     ('CrayCCE', '2015.06-XC'),
                     ('CrayGNU', '2015.06-XC'),
