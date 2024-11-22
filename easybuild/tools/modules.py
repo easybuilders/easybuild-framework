@@ -199,6 +199,7 @@ class ModuleEnvironmentVariable:
             # item is not in the list, move along
             self.log.debug(f"ModuleEnvironmentVariable does not contain item: {' '.join(args)}")
 
+
 class ModuleLoadEnvironment:
     """Environment set by modules on load"""
 

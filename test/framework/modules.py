@@ -1610,7 +1610,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod_envar.contents, ["include", "share"])
         mod_envar.append("share")
         self.assertEqual(mod_envar.contents, ["include", "share"])
-        self.assertRaises(TypeError, mod_envar.append, "arg1" , "arg2")
+        self.assertRaises(TypeError, mod_envar.append, "arg1", "arg2")
 
         mod_envar.extend(test_paths)
         self.assertEqual(mod_envar.contents, ["include", "share", "lib", "lib64"])
