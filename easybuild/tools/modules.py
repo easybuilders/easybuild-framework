@@ -208,14 +208,8 @@ class ModuleLoadEnvironment:
         Initialize default environment definition
         Paths are relative to root of installation directory
         """
-        self.PATH = (
-            SEARCH_PATH_BIN_DIRS + ['sbin'],
-            {"top_level_file": True},
-        )
-        self.LD_LIBRARY_PATH = (
-            SEARCH_PATH_LIB_DIRS,
-            {"top_level_file": True},
-        )
+        self.PATH = SEARCH_PATH_BIN_DIRS + ['sbin']
+        self.LD_LIBRARY_PATH = SEARCH_PATH_LIB_DIRS
         self.LIBRARY_PATH = SEARCH_PATH_LIB_DIRS
         self.CPATH = SEARCH_PATH_HEADER_DIRS
         self.MANPATH = ['man', os.path.join('share', 'man')]
@@ -241,6 +235,10 @@ class ModuleLoadEnvironment:
 
         if not isinstance(kwargs, dict):
             contents, kwargs = value, {}
+
+        # special variables that require top level files
+        if name in ["PATH", "LD_LIBRARY_PATH"]:
+            kwargs.update({"top_level_file": True})
 
         return super().__setattr__(name.upper(), ModuleEnvironmentVariable(contents, **kwargs))
 
