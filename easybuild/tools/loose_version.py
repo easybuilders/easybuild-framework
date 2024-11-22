@@ -1,13 +1,15 @@
-# This file contains the LooseVersion class based on the class with the same name
-# as present in Python 3.7.4 distutils.
-# The original class is licensed under the Python Software Foundation License Version 2.
-# It was slightly simplified as needed to make it shorter and easier to read.
-# In particular the following changes were made:
-# - Subclass object directly instead of abstract Version class
-# - Fully init the class in the constructor removing the parse method
-# - Always set self.vstring and self.version
-# - Shorten the comparison operators as the NotImplemented case doesn't apply anymore
-# - Changes to documentation and formatting
+"""
+This file contains the LooseVersion class based on the class with the same name
+as present in Python 3.7.4 distutils.
+The original class is licensed under the Python Software Foundation License Version 2.
+It was slightly simplified as needed to make it shorter and easier to read.
+In particular the following changes were made:
+- Subclass object directly instead of abstract Version class
+- Fully init the class in the constructor removing the parse method
+- Always set self.vstring and self.version
+- Shorten the comparison operators as the NotImplemented case doesn't apply anymore
+- Changes to documentation and formatting
+"""
 
 import re
 from itertools import zip_longest
@@ -75,17 +77,19 @@ class LooseVersion(object):
         if isinstance(other, str):
             other = LooseVersion(other)
 
-        # Modified: Behave the same in Python 2 & 3 when parts are of different types
-        # Taken from https://bugs.python.org/issue14894
-        for i, j in zip_longest(self.version, other.version, fillvalue=''):
-            if not type(i) is type(j):
+        # Modified: Use string comparison for different types and fill with zeroes/empty strings
+        # Based on https://bugs.python.org/issue14894
+        for i, j in zip_longest(self.version, other.version):
+            if i is None:
+                i = 0 if isinstance(j, int) else ''
+            elif j is None:
+                j = 0 if isinstance(i, int) else ''
+            elif not type(i) is type(j):
                 i = str(i)
                 j = str(j)
-            if i == j:
-                continue
-            elif i < j:
+            if i < j:
                 return -1
-            else:  # i > j
+            if i > j:
                 return 1
         return 0
 
