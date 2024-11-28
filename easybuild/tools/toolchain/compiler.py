@@ -1,5 +1,6 @@
 # #
 # Copyright 2012-2024 Ghent University
+
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -82,7 +83,7 @@ class Compiler(Toolchain):
         'loose': (False, "Loose precision"),
         'veryloose': (False, "Very loose precision"),
         'verbose': (False, "Verbose output"),
-        'debug': (None, "Enable or disables debug symbols"),  # refers to default-debug-symbols build option by default
+        'debug': (None, "Keep debug symbols"),  # default value set by build option keep-debug-symbols
         'i8': (False, "Integers are 8 byte integers"),  # fortran only -> no: MKL and icc give -DMKL_ILP64
         'r8': (False, "Real is 8 byte real"),  # fortran only
         'unroll': (False, "Unroll loops"),
