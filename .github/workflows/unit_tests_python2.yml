@@ -16,9 +16,16 @@ jobs:
       # CentOS 7.9 container that already includes Lmod & co,
       # see https://github.com/easybuilders/easybuild-containers
       image: ghcr.io/easybuilders/centos-7.9-amd64
-    env: {ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true} # Allow using Node16 actions
+      volumes:
+        - '/node20217:/node20217:rw,rshared'
+        - '/node20217:/__e/node20:ro,rshared'
     steps:
-    - uses: actions/checkout@v3
+    - name: install nodejs20glibc2.17
+      run: |
+        curl -LO https://unofficial-builds.nodejs.org/download/release/v20.9.0/node-v20.9.0-linux-x64-glibc-217.tar.xz
+        tar -xf node-v20.9.0-linux-x64-glibc-217.tar.xz --strip-components 1 -C /node20217
+
+    - uses: actions/checkout@v4
 
     - name: install Python packages
       run: |
