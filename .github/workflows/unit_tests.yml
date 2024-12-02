@@ -195,7 +195,7 @@ jobs:
             IGNORE_PATTERNS+="|skipping SvnRepository test"
             IGNORE_PATTERNS+="|requires Lmod as modules tool"
             IGNORE_PATTERNS+="|stty: 'standard input': Inappropriate ioctl for device"
-            IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 3.[56]"
+            IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 3.[567]"
             IGNORE_PATTERNS+="|from cryptography.* import "
             IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 2"
             IGNORE_PATTERNS+="|Blowfish"
