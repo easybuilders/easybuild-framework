@@ -2878,6 +2878,7 @@ def make_archive(source_dir, archive_file=None, archive_dir=None, reproducible=T
 
     # TODO: replace with TarFile.add(recursive=True) when support for Python 3.6 drops
     # since Python v3.7 tarfile automatically orders the list of files added to the archive
+    # see Tarfile.add documentation: https://docs.python.org/3/library/tarfile.html#tarfile.TarFile.add
     source_files = [source_dir]
     # pathlib's glob includes hidden files
     source_files.extend([str(filepath) for filepath in pathlib.Path(source_dir).glob("**/*")])
