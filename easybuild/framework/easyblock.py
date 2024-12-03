@@ -371,7 +371,7 @@ class EasyBlock(object):
             return None
 
         if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
-            # ignore any checksum for given filename due to changes in python/cpython#90021
+            # ignore any checksum for given filename due to changes in https://github.com/python/cpython/issues/90021
             # checksums of tarballs made by EB of git repos cannot be reliably checked prior to Python 3.9
             if chksum_input_git is not None:
                 self.log.deprecated(
