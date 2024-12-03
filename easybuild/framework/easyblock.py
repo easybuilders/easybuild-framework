@@ -363,7 +363,7 @@ class EasyBlock(object):
         chksum_input_git = None
         # if filename is provided as dict, take 'filename' key
         if isinstance(filename, dict):
-            chksum_input = filename['filename']
+            chksum_input = filename.get('filename', None)
             chksum_input_git = filename.get('git_config', None)
         # early return if no filename given
         if chksum_input is None:
