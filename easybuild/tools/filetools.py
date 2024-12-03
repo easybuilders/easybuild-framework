@@ -2802,7 +2802,7 @@ def make_archive(source_dir, archive_file=None, archive_dir=None, reproducible=T
         # reset file permissions by applying go+u,go-w
         user_mode = tarinfo.mode & stat.S_IRWXU
         group_mode = (user_mode >> 3) & ~stat.S_IWGRP  # user mode without write
-        other_mode = group_mode >> 3  # user mode without write
+        other_mode = group_mode >> 3  # same as group mode
         tarinfo.mode = (tarinfo.mode & ~0o77) | group_mode | other_mode
         # reset ownership numeric UID/GID 0
         tarinfo.uid = tarinfo.gid = 0
