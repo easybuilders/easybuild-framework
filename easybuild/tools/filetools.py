@@ -2779,14 +2779,16 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
 def make_archive(source_dir, archive_file=None, archive_dir=None, reproducible=True):
     """
     Create an archive file of the given directory
+    The format of the tarball is defined by the extension of the archive file name
 
     :source_dir: string with path to directory to be archived
     :archive_file: string with filename of archive
     :archive_dir: string with path to directory to place the archive
     :reproducible: make a tarball that is reproducible accross systems
       - see https://reproducible-builds.org/docs/archives/
-      - requires uncompressed or LZMA compressed archive images, other formats like .gz are not reproducible
-        due to arbitrary strings and timestamps added into their metadata.
+      - requires uncompressed or LZMA compressed archive images
+      - gzip is currently not supported due to undeterministic data injected in its headers
+        see https://github.com/python/cpython/issues/112346
 
     Default behaviour: reproducible tarball in .tar.xz
     """
