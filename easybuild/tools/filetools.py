@@ -2804,7 +2804,8 @@ def make_archive(source_dir, archive_file=None, archive_dir=None, reproducible=T
         group_mode = (user_mode >> 3) & ~stat.S_IWGRP  # user mode without write
         other_mode = group_mode >> 3  # same as group mode
         tarinfo.mode = (tarinfo.mode & ~0o77) | group_mode | other_mode
-        # reset ownership numeric UID/GID 0
+        # reset ownership to numeric UID/GID 0
+        # equivalent in GNU tar to 'tar --owner=0 --group=0 --numeric-owner'
         tarinfo.uid = tarinfo.gid = 0
         tarinfo.uname = tarinfo.gname = ""
         return tarinfo
