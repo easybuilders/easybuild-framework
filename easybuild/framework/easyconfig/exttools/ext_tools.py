@@ -61,7 +61,7 @@ class ExtTools():
 
         if not ec:
             raise EasyBuildError("EasyConfig not provided to get the extension list class")
-        
+
         # get the extension list class from the EasyConfig parameters
         exts_list_class = ec.get('ec', {}).get('exts_defaultclass', None)
 

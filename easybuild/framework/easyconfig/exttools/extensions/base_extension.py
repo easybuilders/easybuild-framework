@@ -33,6 +33,7 @@ Authors:
 
 from easybuild.tools.build_log import EasyBuildError
 
+
 class BaseExtension:
     def __init__(self, ext):
         self.name, self.version, self.options = self._get_ext_values(ext)

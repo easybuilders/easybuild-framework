@@ -39,6 +39,7 @@ from .base_extension import BaseExtension
 CRANDB_URL = "https://crandb.r-pkg.org"
 CRANDB_CONTRIB_URL = "https://cran.r-project.org/src/contrib"
 
+
 class RPackage(BaseExtension):
 
     def __init__(self, ext):
@@ -81,9 +82,9 @@ class RPackage(BaseExtension):
     def _parse_metadata(self, metadata):
         """
         Parse the metadata for the R package.
-        
+
         :param metadata: the metadata for the R package
-        
+
         :return: the parsed metadata for the R package
         """
 
