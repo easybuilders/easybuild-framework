@@ -404,15 +404,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # Verify a wrong step name is caught
         test_ec_txt += "\nskipsteps = ['wrong-step-name']\n"
         write_file(test_ec, test_ec_txt)
-        self.assertErrorRegex(EasyBuildError, 'wrong-step-name', self.eb_main, args, do_build=True, raise_error=True)
-        test_ec_txt += "\nskipsteps = ['source']\n"  # Especially the old name -> Replaced by extract
+        error_pattern = "Found one or more unknown step names in 'skipsteps' easyconfig parameter:\n"
+        error_pattern += r"\* wrong-step-name"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+        # 'source' step was renamed to 'extract' in EasyBuild 5.0,
+        # see https://github.com/easybuilders/easybuild-framework/pull/4629
+        test_ec_txt += "\nskipsteps = ['source']\n"
         write_file(test_ec, test_ec_txt)
-        self.assertErrorRegex(EasyBuildError, 'source', self.eb_main, args, do_build=True, raise_error=True)
+        error_pattern = error_pattern.replace('wrong-step-name', 'source')
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
         # check use of skipsteps to skip sanity check
         test_ec_txt += "\nskipsteps = ['sanitycheck']\n"
         write_file(test_ec, test_ec_txt)
         self.mocked_main(args, do_build=True, raise_error=True)
+
+        toy_mod_glob = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '*')
+        self.assertEqual(len(glob.glob(toy_mod_glob)), 1)
 
     def test_skip_test_step(self):
         """Test skipping testing the build (--skip-test-step)."""
@@ -5509,9 +5517,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(r"COMPLETED: Installation STOPPED successfully \(took .* secs?\)", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+        # 'source' step was renamed to 'extract' in EasyBuild 5.0,
+        # see https://github.com/easybuilders/easybuild-framework/pull/4629
         args = ['toy-0.0.eb', '--force', '--stop=source']
         _, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
-        self.assertIn("option --stop: invalid choice", stderr)
+        self.assertIn("option --stop: invalid choice: 'source' (choose from", stderr)
 
     def test_fetch(self):
         options = EasyBuildOptions(go_args=['--fetch'])
