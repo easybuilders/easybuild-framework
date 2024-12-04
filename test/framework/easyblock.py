@@ -1025,8 +1025,9 @@ class EasyBlockTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
-        # this import only works here, since EB_toy is a test easyblock
-        from easybuild.easyblocks.toy import EB_toy, EB_toy_deprecated
+        # these imports only work here, since EB_toy is a test easyblock
+        from easybuild.easyblocks.toy import EB_toy
+        from easybuild.easyblocks.toy_deprecated import EB_toy_deprecated
 
         cwd = os.getcwd()
         toy_ec = EasyConfig(toy_ec_fn)

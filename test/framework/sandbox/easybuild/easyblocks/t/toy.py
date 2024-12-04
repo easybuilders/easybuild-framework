@@ -198,11 +198,3 @@ class EB_toy(ExtensionEasyBlock):
         txt = super(EB_toy, self).make_module_extra()
         txt += self.module_generator.set_environment('TOY', os.getenv('TOY', '<TOY_env_var_not_defined>'))
         return txt
-
-
-class EB_toy_deprecated(EB_toy):
-    """Support for building/installing toy with deprecated post_install step."""
-
-    def post_install_step(self):
-        """Any postprocessing for toy (deprecated)"""
-        super(EB_toy, self).post_install_step()
