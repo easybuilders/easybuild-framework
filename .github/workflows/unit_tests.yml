@@ -133,7 +133,7 @@ jobs:
       run: |
           # make sure there are no (top-level) "import setuptools" or "import pkg_resources" statements,
           # since EasyBuild should not have a runtime requirement on setuptools
-          SETUPTOOLS_IMPORTS=$(egrep -RI '^(from|import)[ ]*pkg_resources|^(from|import)[ ]*setuptools' * || true)
+          SETUPTOOLS_IMPORTS=$(egrep --exclude setup.py -RI '^(from|import)[ ]*pkg_resources|^(from|import)[ ]*setuptools' * || true)
           test "x$SETUPTOOLS_IMPORTS" = "x" || (echo "Found setuptools and/or pkg_resources imports in easybuild/:\n${SETUPTOOLS_IMPORTS}" && exit 1)
 
     - name: install sources
