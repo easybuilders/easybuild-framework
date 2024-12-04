@@ -1116,15 +1116,19 @@ class EasyConfig(object):
 
         return retained_deps
 
-    def dependencies(self, build_only=False):
+    def dependencies(self, build_only=False, runtime_only=False):
         """
         Returns an array of parsed dependencies (after filtering, if requested)
         dependency = {'name': '', 'version': '', 'system': (False|True), 'versionsuffix': '', 'toolchain': ''}
         Iterable builddependencies are flattened when not iterating.
 
         :param build_only: only return build dependencies, discard others
+        :param runtime_only: only return runtime dependencies, discard others
         """
-        deps = self.builddependencies()
+        if runtime_only:
+            deps = []
+        else:
+            deps = self.builddependencies()
 
         if not build_only:
             # use += rather than .extend to get a new list rather than updating list of build deps in place...

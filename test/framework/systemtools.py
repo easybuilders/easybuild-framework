@@ -341,7 +341,7 @@ def mocked_run_shell_cmd(cmd, **kwargs):
     }
     if cmd in known_cmds:
         return RunShellCmdResult(cmd=cmd, exit_code=0, output=known_cmds[cmd], stderr=None, work_dir=os.getcwd(),
-                                 out_file=None, err_file=None, thread_id=None, task_id=None)
+                                 out_file=None, err_file=None, cmd_sh=None, thread_id=None, task_id=None)
     else:
         return run_shell_cmd(cmd, **kwargs)
 
@@ -774,7 +774,7 @@ class SystemToolsTest(EnhancedTestCase):
         out = "Apple LLVM version 7.0.0 (clang-700.1.76)"
         cwd = os.getcwd()
         mocked_run_res = RunShellCmdResult(cmd="gcc --version", exit_code=0, output=out, stderr=None, work_dir=cwd,
-                                           out_file=None, err_file=None, thread_id=None, task_id=None)
+                                           out_file=None, err_file=None, cmd_sh=None, thread_id=None, task_id=None)
         st.run_shell_cmd = lambda *args, **kwargs: mocked_run_res
         self.assertEqual(get_gcc_version(), None)
 

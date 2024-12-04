@@ -96,7 +96,7 @@ DEFAULT_DOWNLOAD_TIMEOUT = 10
 DEFAULT_ENV_FOR_SHEBANG = '/usr/bin/env'
 DEFAULT_ENVVAR_USERS_MODULES = 'HOME'
 DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
-DEFAULT_JOB_BACKEND = 'GC3Pie'
+DEFAULT_JOB_BACKEND = 'Slurm'
 DEFAULT_JOB_EB_CMD = 'eb'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
@@ -174,6 +174,10 @@ OUTPUT_STYLE_BASIC = 'basic'
 OUTPUT_STYLE_NO_COLOR = 'no_color'
 OUTPUT_STYLE_RICH = 'rich'
 OUTPUT_STYLES = (OUTPUT_STYLE_AUTO, OUTPUT_STYLE_BASIC, OUTPUT_STYLE_NO_COLOR, OUTPUT_STYLE_RICH)
+
+PYTHONPATH = 'PYTHONPATH'
+EBPYTHONPREFIXES = 'EBPYTHONPREFIXES'
+PYTHON_SEARCH_PATH_TYPES = [PYTHONPATH, EBPYTHONPREFIXES]
 
 
 class Singleton(ABCMeta):
@@ -337,6 +341,7 @@ BUILD_OPTIONS_CMDLINE = {
         'mpi_tests',
         'pre_create_installdir',
         'show_progress_bar',
+        'strict_rpath_sanity_check',
         'trace',
     ],
     EMPTY_LIST: [
@@ -407,6 +412,9 @@ BUILD_OPTIONS_CMDLINE = {
     OUTPUT_STYLE_AUTO: [
         'output_style',
     ],
+    PYTHONPATH: [
+        'prefer_python_search_path',
+    ]
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {
@@ -415,13 +423,13 @@ BUILD_OPTIONS_OTHER = {
         'command_line',
         'external_modules_metadata',
         'extra_ec_paths',
+        'mod_depends_on',  # deprecated
         'robot_path',
         'valid_module_classes',
         'valid_stops',
     ],
     False: [
         'dry_run',
-        'mod_depends_on',
         'recursive_mod_unload',
         'retain_all_deps',
         'silent',

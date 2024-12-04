@@ -1442,6 +1442,30 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertIn('start_dir in extension configure is %s &&' % ext_start_dir, logtxt)
         self.assertIn('start_dir in extension build is %s &&' % ext_start_dir, logtxt)
 
+    def test_rpath_template(self):
+        """Test the %(rpath)s template"""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "configopts = '--with-rpath=%(rpath_enabled)s'"
+        write_file(test_ec, test_ec_txt)
+
+        ec = EasyConfig(test_ec)
+        expected = '--with-rpath=true' if get_os_name() == 'Linux' else '--with-rpath=false'
+        self.assertEqual(ec['configopts'], expected)
+
+        # force True
+        update_build_option('rpath', True)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--with-rpath=true")
+
+        # force False
+        update_build_option('rpath', False)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--with-rpath=false")
+
     def test_sysroot_template(self):
         """Test the %(sysroot)s template"""
 
@@ -3483,6 +3507,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         arch_regex = re.compile('^[a-z0-9_]+$')
 
+        rpath = 'true' if get_os_name() == 'Linux' else 'false'
+
         expected = {
             'bitbucket_account': 'gzip',
             'github_account': 'gzip',
@@ -3492,6 +3518,7 @@ class EasyConfigTest(EnhancedTestCase):
             'nameletter': 'g',
             'nameletterlower': 'g',
             'parallel': None,
+            'rpath_enabled': rpath,
             'software_commit': '',
             'sysroot': '',
             'toolchain_name': 'foss',
@@ -3576,6 +3603,7 @@ class EasyConfigTest(EnhancedTestCase):
             'pyminver': '7',
             'pyshortver': '3.7',
             'pyver': '3.7.2',
+            'rpath_enabled': rpath,
             'software_commit': '',
             'sysroot': '',
             'version': '0.01',
@@ -3642,6 +3670,7 @@ class EasyConfigTest(EnhancedTestCase):
             'namelower': 'foo',
             'nameletter': 'f',
             'nameletterlower': 'f',
+            'rpath_enabled': rpath,
             'software_commit': '',
             'sysroot': '',
             'version': '1.2.3',
@@ -3718,6 +3747,7 @@ class EasyConfigTest(EnhancedTestCase):
         args = [
             ec_file,
             '--dry-run',
+            '--robot',
         ]
         outtxt = self.eb_main(args, raise_error=True)
         self.assertTrue(re.search(r'module: GCC/\.4\.9\.2', outtxt))
@@ -4785,6 +4815,10 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = read_file(toy_ec)
+
+        # this test only makes sense if depends_on is not used
+        self.allow_deprecated_behaviour()
+        test_ec_txt += '\nmodule_depends_on = False'
         write_file(test_ec, test_ec_txt)
 
         test_module = os.path.join(self.test_installpath, 'modules', 'all', 'foss', '2018a')
@@ -4827,6 +4861,8 @@ class EasyConfigTest(EnhancedTestCase):
         # recursive_module_unload easyconfig parameter is honored
         test_ec_bis = os.path.join(self.test_prefix, 'test_bis.eb')
         test_ec_bis_txt = read_file(toy_ec) + '\nrecursive_module_unload = True'
+        # this test only makes sense if depends_on is not used
+        test_ec_bis_txt += '\nmodule_depends_on = False'
         write_file(test_ec_bis, test_ec_bis_txt)
 
         ec_bis = EasyConfig(test_ec_bis)
@@ -4871,6 +4907,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(build_option('recursive_mod_unload'))
         test_ec_bis = os.path.join(self.test_prefix, 'test_bis.eb')
         test_ec_bis_txt = read_file(toy_ec) + '\nrecursive_module_unload = False'
+        # this test only makes sense if depends_on is not used
+        test_ec_bis_txt += '\nmodule_depends_on = False'
         write_file(test_ec_bis, test_ec_bis_txt)
         ec_bis = EasyConfig(test_ec_bis)
         self.assertEqual(ec_bis['recursive_module_unload'], False)

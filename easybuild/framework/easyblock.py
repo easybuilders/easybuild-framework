@@ -72,9 +72,9 @@ from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
-from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
+from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES, PYTHONPATH, EBPYTHONPREFIXES
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
-from easybuild.tools.config import EASYBUILD_SOURCES_URL # noqa
+from easybuild.tools.config import EASYBUILD_SOURCES_URL  # noqa
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
@@ -1220,6 +1220,8 @@ class EasyBlock(object):
         # these should be all the dependencies and we should load them
         recursive_unload = self.cfg['recursive_module_unload']
         depends_on = self.cfg['module_depends_on']
+        if depends_on is not None:
+            self.log.deprecated("'module_depends_on' easyconfig parameter should not be used anymore", '6.0')
         for key in os.environ:
             # legacy support
             if key.startswith(DEVEL_ENV_VAR_NAME_PREFIX):
@@ -1347,6 +1349,8 @@ class EasyBlock(object):
         # include load statements for retained dependencies
         recursive_unload = self.cfg['recursive_module_unload']
         depends_on = self.cfg['module_depends_on']
+        if depends_on is not None:
+            self.log.deprecated("'module_depends_on' easyconfig parameter should not be used anymore", '6.0')
         loads = []
         for dep in deps:
             unload_modules = []
@@ -1391,6 +1395,46 @@ class EasyBlock(object):
         """
         return self.module_generator.get_description()
 
+    def make_module_pythonpath(self):
+        """
+        Add lines for module file to update $PYTHONPATH or $EBPYTHONPREFIXES,
+        if they aren't already present and the standard lib/python*/site-packages subdirectory exists
+        """
+        if os.path.isfile(os.path.join(self.installdir, 'bin', 'python')):  # only needed when not a python install
+            return []
+
+        python_subdir_pattern = os.path.join(self.installdir, 'lib', 'python*', 'site-packages')
+        candidate_paths = (os.path.relpath(path, self.installdir) for path in glob.glob(python_subdir_pattern))
+        python_paths = [path for path in candidate_paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
+        if not python_paths:
+            return []
+
+        # determine whether Python is a runtime dependency;
+        # if so, we assume it was installed with EasyBuild, and hence is aware of $EBPYTHONPREFIXES
+        runtime_deps = [dep['name'] for dep in self.cfg.dependencies(runtime_only=True)]
+
+        # don't use $EBPYTHONPREFIXES unless we can and it's preferred or necesary (due to use of multi_deps)
+        use_ebpythonprefixes = False
+        multi_deps = self.cfg['multi_deps']
+
+        if 'Python' in runtime_deps:
+            self.log.info("Found Python runtime dependency, so considering $EBPYTHONPREFIXES...")
+
+            if build_option('prefer_python_search_path') == EBPYTHONPREFIXES:
+                self.log.info("Preferred Python search path is $EBPYTHONPREFIXES, so using that")
+                use_ebpythonprefixes = True
+
+        elif multi_deps and 'Python' in multi_deps:
+            self.log.info("Python is listed in 'multi_deps', so using $EBPYTHONPREFIXES instead of $PYTHONPATH")
+            use_ebpythonprefixes = True
+
+        if use_ebpythonprefixes:
+            path = ''  # EBPYTHONPREFIXES are relative to the install dir
+            lines = self.module_generator.prepend_paths(EBPYTHONPREFIXES, path, warn_exists=False)
+        else:
+            lines = self.module_generator.prepend_paths(PYTHONPATH, python_paths, warn_exists=False)
+        return [lines] if lines else []
+
     def make_module_extra(self, altroot=None, altversion=None):
         """
         Set extra stuff in module file, e.g. $EBROOT*, $EBVERSION*, etc.
@@ -1423,21 +1467,29 @@ class EasyBlock(object):
         for (key, value) in self.cfg['modextravars'].items():
             lines.append(self.module_generator.set_environment(key, value))
 
-        for (key, value) in self.cfg['modextrapaths'].items():
-            if isinstance(value, str):
-                value = [value]
-            elif not isinstance(value, (tuple, list)):
-                raise EasyBuildError("modextrapaths dict value %s (type: %s) is not a list or tuple",
-                                     value, type(value))
-            lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
+        for extrapaths_type, prepend in [('modextrapaths', True), ('modextrapaths_append', False)]:
+            allow_abs = self.cfg['allow_prepend_abs_path'] if prepend else self.cfg['allow_append_abs_path']
 
-        for (key, value) in self.cfg['modextrapaths_append'].items():
-            if isinstance(value, str):
-                value = [value]
-            elif not isinstance(value, (tuple, list)):
-                raise EasyBuildError("modextrapaths_append dict value %s (type: %s) is not a list or tuple",
-                                     value, type(value))
-            lines.append(self.module_generator.append_paths(key, value, allow_abs=self.cfg['allow_append_abs_path']))
+            for (key, value) in self.cfg[extrapaths_type].items():
+                if not isinstance(value, (tuple, list, dict, str)):
+                    raise EasyBuildError(
+                        f"{extrapaths_type} dict value '{value}' (type {type(value)}) is not a 'list, dict or str'"
+                    )
+
+                try:
+                    paths = value['paths']
+                    delim = value['delimiter']
+                except KeyError:
+                    raise EasyBuildError(f'{extrapaths_type} dict "{value}" lacks "paths" or "delimiter" items')
+                except TypeError:
+                    paths = value
+                    delim = ':'
+
+                lines.append(
+                    self.module_generator.update_paths(key, paths, prepend=prepend, delim=delim, allow_abs=allow_abs)
+                )
+        # add lines to update $PYTHONPATH or $EBPYTHONPREFIXES
+        lines.extend(self.make_module_pythonpath())
 
         modloadmsg = self.cfg['modloadmsg']
         if modloadmsg:
@@ -1832,7 +1884,6 @@ class EasyBlock(object):
         Skip already installed extensions (checking in parallel),
         by removing them from list of Extension instances to install (self.ext_instances).
         """
-        self.log.experimental("Skipping installed extensions in parallel")
         print_msg("skipping installed extensions (in parallel)", log=self.log)
 
         installed_exts_ids = []
@@ -1889,13 +1940,12 @@ class EasyBlock(object):
         self.log.debug("List of loaded modules: %s", self.modules_tool.list())
 
         if build_option('parallel_extensions_install'):
-            self.log.experimental("installing extensions in parallel")
             try:
                 self.install_extensions_parallel(install=install)
             except NotImplementedError:
                 # If parallel extension install is not supported for this type of extension then install sequentially
                 msg = "Parallel extensions install not supported for %s - using sequential install" % self.name
-                self.log.experimental(msg)
+                self.log.info(msg)
                 self.install_extensions_sequential(install=install)
         else:
             self.install_extensions_sequential(install=install)
@@ -2069,20 +2119,33 @@ class EasyBlock(object):
                 # if some of the required dependencies are not installed yet, requeue this extension
                 elif pending_deps:
 
-                    # make sure all required dependencies are actually going to be installed,
-                    # to avoid getting stuck in an infinite loop!
+                    # check whether all required dependency extensions are actually going to be installed;
+                    # if not, we assume that they are provided by dependencies;
                     missing_deps = [x for x in required_deps if x not in all_ext_names]
                     if missing_deps:
-                        raise EasyBuildError("Missing required dependencies for %s are not going to be installed: %s",
-                                             ext.name, ', '.join(missing_deps))
-                    else:
-                        self.log.info("Required dependencies missing for extension %s (%s), adding it back to queue...",
-                                      ext.name, ', '.join(pending_deps))
+                        msg = f"Missing required extensions for {ext.name} not found "
+                        msg += "in list of extensions being installed, let's assume they are provided by "
+                        msg += "dependencies and proceed: " + ', '.join(missing_deps)
+                        self.log.info(msg)
+
+                        msg = f"Pending dependencies for {ext.name} before taking into account missing dependencies: "
+                        self.log.debug(msg + ', '.join(pending_deps))
+                        pending_deps = [x for x in pending_deps if x not in missing_deps]
+                        msg = f"Pending dependencies for {ext.name} after taking into account missing dependencies: "
+                        self.log.debug(msg + ', '.join(pending_deps))
+
+                    if pending_deps:
+                        msg = f"Required dependencies not installed yet for extension {ext.name} ("
+                        msg += ', '.join(pending_deps)
+                        msg += "), adding it back to queue..."
+                        self.log.info(msg)
                         # purposely adding extension back in the queue at Nth place rather than at the end,
                         # since we assume that the required dependencies will be installed soon...
                         exts_queue.insert(max_iter, ext)
 
-                else:
+                # list of pending dependencies may be empty now after taking into account required extensions
+                # that are not being installed above, so extension may be ready to install
+                if not pending_deps:
                     tup = (ext.name, ext.version or '')
                     print_msg("starting installation of extension %s %s..." % tup, silent=self.silent, log=self.log)
 
@@ -3138,8 +3201,13 @@ class EasyBlock(object):
 
         fails = []
 
-        # hard reset $LD_LIBRARY_PATH before running RPATH sanity check
-        orig_env = env.unset_env_vars(['LD_LIBRARY_PATH'])
+        if build_option('strict_rpath_sanity_check'):
+            self.log.info("Unsetting $LD_LIBRARY_PATH since strict RPATH sanity check is enabled...")
+            # hard reset $LD_LIBRARY_PATH before running RPATH sanity check
+            orig_env = env.unset_env_vars(['LD_LIBRARY_PATH'])
+        else:
+            self.log.info("Not unsetting $LD_LIBRARY_PATH since strict RPATH sanity check is disabled...")
+            orig_env = None
 
         ld_library_path = os.getenv('LD_LIBRARY_PATH', '(empty)')
         self.log.debug(f"$LD_LIBRARY_PATH during RPATH sanity check: {ld_library_path}")
@@ -3147,6 +3215,7 @@ class EasyBlock(object):
         self.log.debug(f"List of loaded modules: {modules_list}")
 
         not_found_regex = re.compile(r'(\S+)\s*\=\>\s*not found')
+        lib_path_regex = re.compile(r'\S+\s*\=\>\s*(\S+)')
         readelf_rpath_regex = re.compile('(RPATH)', re.M)
 
         # List of libraries that should be exempt from the RPATH sanity check;
@@ -3192,6 +3261,15 @@ class EasyBlock(object):
                                     fail_msg = f"Library {match} not found for {path}"
                                     self.log.warning(fail_msg)
                                     fails.append(fail_msg)
+
+                            # if any libraries were not found, log whether dependency libraries have an RPATH section
+                            if fails:
+                                lib_paths = re.findall(lib_path_regex, out)
+                                for lib_path in lib_paths:
+                                    self.log.info(f"Checking whether dependency library {lib_path} has RPATH section")
+                                    res = run_shell_cmd(f"readelf -d {lib_path}", fail_on_error=False)
+                                    if res.exit_code:
+                                        self.log.info(f"No RPATH section found in {lib_path}")
                         else:
                             self.log.debug(f"Output of 'ldd {path}' checked, looks OK")
 
@@ -3214,7 +3292,8 @@ class EasyBlock(object):
             else:
                 self.log.debug(f"Not sanity checking files in non-existing directory {dirpath}")
 
-        env.restore_env_vars(orig_env)
+        if orig_env:
+            env.restore_env_vars(orig_env)
 
         return fails
 
@@ -4361,7 +4440,9 @@ def build_and_install_one(ecdict, init_env):
         def ensure_writable_log_dir(log_dir):
             """Make sure we can write into the log dir"""
             if build_option('read_only_installdir'):
-                # temporarily re-enable write permissions for copying log/easyconfig to install dir
+                # temporarily re-enable write permissions for copying log/easyconfig to install dir,
+                # ensuring that we resolve symlinks
+                log_dir = os.path.realpath(log_dir)
                 if os.path.exists(log_dir):
                     adjust_permissions(log_dir, stat.S_IWUSR, add=True, recursive=True)
                 else:

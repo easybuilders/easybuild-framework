@@ -78,6 +78,7 @@ from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING
 from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
+from easybuild.tools.config import PYTHON_SEARCH_PATH_TYPES, PYTHONPATH
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_JSON, FORMAT_MD, FORMAT_RST, FORMAT_TXT
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
@@ -105,6 +106,7 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
+from easybuild.tools.utilities import flatten
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -124,7 +126,8 @@ CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
 
 XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
 XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc/xdg').split(os.pathsep)
-DEFAULT_SYS_CFGFILES = [f for d in XDG_CONFIG_DIRS for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
+DEFAULT_SYS_CFGFILES = [[f for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
+                        for d in XDG_CONFIG_DIRS]
 DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
 DEFAULT_LIST_PR_STATE = GITHUB_PR_STATE_OPEN
@@ -212,7 +215,11 @@ class EasyBuildOptions(GeneralOption):
     VERSION = this_is_easybuild()
 
     DEFAULT_LOGLEVEL = 'INFO'
-    DEFAULT_CONFIGFILES = DEFAULT_SYS_CFGFILES[:]
+    # https://specifications.freedesktop.org/basedir-spec/latest/
+    # says precedence should be
+    # XDG_CONFIG_HOME > 1st entry of XDG_CONFIG_DIRS > 2nd entry ...
+    # EasyBuild parses this list backwards, gives priority to last entry
+    DEFAULT_CONFIGFILES = flatten(DEFAULT_SYS_CFGFILES[::-1])
     if 'XDG_CONFIG_DIRS' not in os.environ:
         old_etc_location = os.path.join('/etc', 'easybuild.d')
         if os.path.isdir(old_etc_location) and glob.glob(os.path.join(old_etc_location, '*.cfg')):
@@ -490,6 +497,10 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'pre-create-installdir': ("Create installation directory before submitting build jobs",
                                       None, 'store_true', True),
+            'prefer-python-search-path': (("Prefer using specified environment variable when possible to specify where"
+                                           " Python packages were installed; see also "
+                                           "https://docs.easybuild.io/python-search-path"),
+                                          'choice', 'store_or_None', PYTHONPATH, PYTHON_SEARCH_PATH_TYPES),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                         None, 'store_true', False, 'p'),
             'read-only-installdir': ("Set read-only permissions on installation directory after installation",
@@ -524,6 +535,9 @@ class EasyBuildOptions(GeneralOption):
                 "Git commit to use for the target software build (robot capabilities are automatically disabled)",
                 None, 'store', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
+            'strict-rpath-sanity-check': ("Perform strict RPATH sanity check, which involces unsetting "
+                                          "$LD_LIBRARY_PATH before checking whether all required libraries are found",
+                                          None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', True, 'T'),
@@ -593,7 +607,7 @@ class EasyBuildOptions(GeneralOption):
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
             'module-depends-on': ("Use depends_on (Lmod 7.6.1+) for dependencies in all generated modules "
                                   "(implies recursive unloading of modules).",
-                                  None, 'store_true', False),
+                                  None, 'store_true', True),
             'module-extensions': ("Include 'extensions' statement in generated module file (Lua syntax only)",
                                   None, 'store_true', True),
             'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
@@ -942,10 +956,6 @@ class EasyBuildOptions(GeneralOption):
 
         # set tmpdir
         self.tmpdir = set_tmpdir(self.options.tmpdir)
-
-        # early check for opt-in to installing extensions in parallel (experimental feature)
-        if self.options.parallel_extensions_install:
-            self.log.experimental("installing extensions in parallel")
 
         # take --include options into account (unless instructed otherwise)
         if self.with_include:
@@ -1386,9 +1396,10 @@ class EasyBuildOptions(GeneralOption):
             "* user-level: %s" % os.path.join('${XDG_CONFIG_HOME:-$HOME/.config}', 'easybuild', 'config.cfg'),
             "  -> %s => %s" % (DEFAULT_USER_CFGFILE, ('not found', 'found')[os.path.exists(DEFAULT_USER_CFGFILE)]),
             "* system-level: %s" % os.path.join('${XDG_CONFIG_DIRS:-/etc/xdg}', 'easybuild.d', '*.cfg'),
-            "  -> %s => %s" % (system_cfg_glob_paths, ', '.join(DEFAULT_SYS_CFGFILES) or "(no matches)"),
+            "  -> %s => %s" % (system_cfg_glob_paths, ', '.join(flatten(DEFAULT_SYS_CFGFILES)) or "(no matches)"),
             '',
-            "Default list of existing configuration files (%d): %s" % (found_cfgfile_cnt, found_cfgfile_list),
+            "Default list of existing configuration files (%d, most important last):" % found_cfgfile_cnt,
+            found_cfgfile_list,
         ]
         return '\n'.join(lines)
 
@@ -2079,6 +2090,7 @@ def opts_dict_to_eb_opts(args_dict):
     :return: a list of strings representing command-line options for the 'eb' command
     """
 
+    allow_multiple_calls = ['amend', 'try-amend']
     _log.debug("Converting dictionary %s to argument list" % args_dict)
     args = []
     for arg in sorted(args_dict):
@@ -2088,14 +2100,18 @@ def opts_dict_to_eb_opts(args_dict):
             prefix = '--'
         option = prefix + str(arg)
         value = args_dict[arg]
-        if isinstance(value, (list, tuple)):
-            value = ','.join(str(x) for x in value)
 
-        if value in [True, None]:
+        if str(arg) in allow_multiple_calls:
+            if not isinstance(value, (list, tuple)):
+                value = [value]
+            args.extend(option + '=' + str(x) for x in value)
+        elif value in [True, None]:
             args.append(option)
         elif value is False:
             args.append('--disable-' + option[2:])
         elif value is not None:
+            if isinstance(value, (list, tuple)):
+                value = ','.join(str(x) for x in value)
             args.append(option + '=' + str(value))
 
     _log.debug("Converted dictionary %s to argument list %s" % (args_dict, args))

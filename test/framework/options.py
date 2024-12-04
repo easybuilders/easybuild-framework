@@ -1579,12 +1579,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_dry_run(self):
         """Test dry run (long format)."""
+
+        # first test with --robot
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
         args = [
             'gzip-1.4-GCC-4.6.3.eb',
-            '--dry-run',  # implies enabling dependency resolution
+            '--dry-run',
+            '--robot',  # implies enabling dependency resolution
             '--unittest-file=%s' % self.logfile,
         ]
         with self.mocked_stdout_stderr():
@@ -1600,6 +1603,24 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for ec, mod, mark in ecs_mods:
             regex = re.compile(r" \* \[%s\] \S+%s \(module: %s\)" % (mark, ec, mod), re.M)
             self.assertTrue(regex.search(logtxt), "Found match for pattern %s in '%s'" % (regex.pattern, logtxt))
+
+        # next test without --robot
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        args = [
+            'gzip-1.4-GCC-4.6.3.eb',
+            '--dry-run',
+            '--unittest-file=%s' % self.logfile,
+        ]
+        self.eb_main(args, logfile=dummylogfn)
+        logtxt = read_file(self.logfile)
+
+        info_msg = r"Dry run: printing build status of easyconfigs"
+        self.assertTrue(re.search(info_msg, logtxt, re.M), "Info message dry running in '%s'" % logtxt)
+        ec, mod, mark = ("gzip-1.4-GCC-4.6.3.eb", "gzip/1.4-GCC-4.6.3", ' ')
+        regex = re.compile(r" \* \[%s\] \S+%s \(module: %s\)" % (mark, ec, mod), re.M)
+        self.assertTrue(regex.search(logtxt), "Found match for pattern %s in '%s'" % (regex.pattern, logtxt))
 
     def test_missing(self):
         """Test use of --missing/-M."""
@@ -1752,6 +1773,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             gzip_ec,
             '--try-toolchain=iccifort,2016.1.150-GCC-4.9.3-2.25',
             '--dry-run',
+            '--robot',
         ]
 
         # by default, toolchain mapping is enabled
@@ -1808,6 +1830,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--try-toolchain-version=6.4.0-2.28',
             '--try-update-deps',
             '-D',
+            '--robot',
         ]
 
         with self.mocked_stdout_stderr():
@@ -1892,6 +1915,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'gzip-1.5-foss-2018a.eb',
             'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb',
             '--dry-run',
+            '--robot',
             '--unittest-file=%s' % self.logfile,
             '--module-naming-scheme=HierarchicalMNS',
             '--ignore-osdeps',
@@ -1933,6 +1957,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'gzip-1.5-foss-2018a.eb',
             'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb',
             '--dry-run',
+            '--robot',
             '--unittest-file=%s' % self.logfile,
             '--module-naming-scheme=CategorizedHMNS',
             '--ignore-osdeps',
@@ -2244,6 +2269,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--from-commit=%s' % test_commit,
             '--dry-run',
+            '--robot',
             '--tmpdir=%s' % tmpdir,
             '--include-easyblocks=' + os.path.join(self.test_prefix, 'easyblocks', '*.py'),
         ]
@@ -3086,6 +3112,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             ec_file,
             '--dry-run',
+            '--robot',
             '--hide-toolchains=GCC',
         ]
         with self.mocked_stdout_stderr():
@@ -3529,7 +3556,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected_tmpl += '\n'.join([
             "%s",
             '',
-            "Default list of existing configuration files (%d): %s",
+            "Default list of existing configuration files (%d, most important last):",
+            "%s",
         ])
 
         # put dummy cfgfile in place in $HOME (to predict last line of output which only lists *existing* files)
@@ -3548,7 +3576,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         xdg_config_home = os.path.join(self.test_prefix, 'home')
         os.environ['XDG_CONFIG_HOME'] = xdg_config_home
-        xdg_config_dirs = [os.path.join(self.test_prefix, 'etc', 'xdg'), os.path.join(self.test_prefix, 'moaretc')]
+        xdg_config_dirs = [os.path.join(self.test_prefix, 'moaretc'), os.path.join(self.test_prefix, 'etc', 'xdg')]
         os.environ['XDG_CONFIG_DIRS'] = os.pathsep.join(xdg_config_dirs)
 
         # put various dummy cfgfiles in place
@@ -3570,7 +3598,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected = expected_tmpl % (xdg_config_home, os.pathsep.join(xdg_config_dirs),
                                     "%s => found" % os.path.join(xdg_config_home, 'easybuild', 'config.cfg'),
                                     '{' + ', '.join(xdg_config_dirs) + '}',
-                                    ', '.join(cfgfiles[:-1]), 4, ', '.join(cfgfiles))
+                                    ', '.join(cfgfiles[1:3]+[cfgfiles[0]]), 4, ', '.join(cfgfiles))
         self.assertIn(expected, logtxt)
 
         del os.environ['XDG_CONFIG_DIRS']
@@ -4346,6 +4374,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--minimal-toolchains',
             '--module-naming-scheme=HierarchicalMNS',
             '--dry-run',
+            '--robot',
         ]
         self.mock_stdout(True)
         self.eb_main(args, do_build=True, raise_error=True, testing=False)
@@ -4690,7 +4719,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--git-working-dirs-path=%s' % git_working_dir,
             ':bzip2-1.0.6.eb',
         ])
-        error_msg = "A meaningful commit message must be specified via --pr-commit-msg"
+        error_msg = "A meaningful commit message must be specified via --pr-commit-msg.*\nDeleted: bzip2-1.0.6.eb"
 
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True, testing=False)
@@ -4769,7 +4798,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             gcc_ec,
             '-D',
         ]
-        error_msg = "A meaningful commit message must be specified via --pr-commit-msg"
+        error_msg = "A meaningful commit message must be specified via --pr-commit-msg.*\n"
+        error_msg += "Modified: " + os.path.basename(gcc_ec)
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
         self.mock_stdout(False)
@@ -7313,6 +7343,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--module-syntax=Tcl',
             '--robot',
         ]
+        self.assertEqual(opts_dict_to_eb_opts(opts_dict), expected)
+
+        # multi-call options
+        opts_dict = {'try-amend': ['a=1', 'b=2', 'c=3']}
+        expected = ['--try-amend=a=1', '--try-amend=b=2', '--try-amend=c=3']
+        self.assertEqual(opts_dict_to_eb_opts(opts_dict), expected)
+
+        opts_dict = {'amend': ['a=1', 'b=2', 'c=3']}
+        expected = ['--amend=a=1', '--amend=b=2', '--amend=c=3']
         self.assertEqual(opts_dict_to_eb_opts(opts_dict), expected)
 
 
