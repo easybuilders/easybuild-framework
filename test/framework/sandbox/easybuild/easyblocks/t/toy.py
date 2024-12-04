@@ -142,6 +142,12 @@ class EB_toy(ExtensionEasyBlock):
         mkdir(libdir, parents=True)
         write_file(os.path.join(libdir, 'lib%s.a' % name), name.upper())
 
+    def post_processing_step(self):
+        """Any postprocessing for toy"""
+        libdir = os.path.join(self.installdir, 'lib')
+        write_file(os.path.join(libdir, 'lib%s_post.a' % self.name), self.name.upper())
+        super(EB_toy, self).post_processing_step()
+
     @property
     def required_deps(self):
         """Return list of required dependencies for this extension."""
@@ -192,3 +198,11 @@ class EB_toy(ExtensionEasyBlock):
         txt = super(EB_toy, self).make_module_extra()
         txt += self.module_generator.set_environment('TOY', os.getenv('TOY', '<TOY_env_var_not_defined>'))
         return txt
+
+
+class EB_toy_deprecated(EB_toy):
+    """Support for building/installing toy with deprecated post_install step."""
+
+    def post_install_step(self):
+        """Any postprocessing for toy (deprecated)"""
+        super(EB_toy, self).post_install_step(*arg)

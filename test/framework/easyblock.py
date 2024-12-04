@@ -1018,6 +1018,32 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.cfg.iterating, False)
         self.assertEqual(eb.cfg['configopts'], ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"])
 
+    def test_post_processing_step(self):
+        """Test post_processing_step and deprecated post_install_step."""
+        init_config(build_options={'silent': True})
+
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+
+        # this import only works here, since EB_toy is a test easyblock
+        from easybuild.easyblocks.toy import EB_toy, EB_toy_deprecated
+
+        cwd = os.getcwd()
+        toy_ec = EasyConfig(toy_ec_fn)
+        eb = EB_toy_deprecated(toy_ec)
+        eb.silent = True
+        expected_error = r"DEPRECATED \(since v6.0\).*use EasyBlock.post_processing_step\(\) instead.*"
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, expected_error, eb.run_all_steps, True)
+
+        change_dir(cwd)
+        toy_ec = EasyConfig(toy_ec_fn)
+        eb = EB_toy(toy_ec)
+        eb.silent = True
+        with self.mocked_stdout_stderr():
+            eb.run_all_steps(True)
+        assert os.path.exists(os.path.join(eb.installdir, 'lib', 'libtoy_post.a'))
+
     def test_extensions_step(self):
         """Test the extensions_step"""
         init_config(build_options={'silent': True})
