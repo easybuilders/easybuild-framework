@@ -2460,8 +2460,8 @@ class ToyBuildTest(EnhancedTestCase):
             "rm -f %(installdir)s/lib64",
             # create empty lib64 dir
             "mkdir %(installdir)s/lib64",
-            # move libtoy.a
-            "mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/libtoy.a",
+            # move libtoy*.a
+            "mv %(installdir)s/lib/libtoy*.a %(installdir)s/lib64/",
         ])
         ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
 
