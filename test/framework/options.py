@@ -7253,6 +7253,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.assertEqual(opts_dict_to_eb_opts(opts_dict), expected)
 
+        # multi-call options
+        opts_dict = {'try-amend': ['a=1', 'b=2', 'c=3']}
+        expected = ['--try-amend=a=1', '--try-amend=b=2', '--try-amend=c=3']
+        self.assertEqual(opts_dict_to_eb_opts(opts_dict), expected)
+
+        opts_dict = {'amend': ['a=1', 'b=2', 'c=3']}
+        expected = ['--amend=a=1', '--amend=b=2', '--amend=c=3']
+        self.assertEqual(opts_dict_to_eb_opts(opts_dict), expected)
+
 
 def suite():
     """ returns all the testcases in this module """
