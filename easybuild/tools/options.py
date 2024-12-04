@@ -51,7 +51,7 @@ import easybuild.tools.environment as env
 from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.base.fancylogger import setLogLevel
 from easybuild.base.generaloption import GeneralOption
-from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, FETCH_STEP, EasyBlock
+from easybuild.framework.easyblock import MODULE_ONLY_STEPS, EXTRACT_STEP, FETCH_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
@@ -299,7 +299,7 @@ class EasyBuildOptions(GeneralOption):
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step",
-                     'choice', 'store_or_None', SOURCE_STEP, 's', all_stops),
+                     'choice', 'store_or_None', EXTRACT_STEP, 's', all_stops),
             'strict': ("Set strictness level", 'choice', 'store', WARN, strictness_options),
         })
 
