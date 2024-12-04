@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        python: [3.6, 3.7, 3.8, 3.9, '3.10', '3.11']
+        python: [3.6, 3.7, 3.8, 3.9, '3.10', '3.11', '3.12', '3.13']
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
@@ -32,6 +32,10 @@ jobs:
         # update to latest pip, check version
         pip install --upgrade pip
         pip --version
+        if ! python -c "import distutils" 2> /dev/null; then
+            # we need setuptools for distutils in Python 3.12+, needed for python setup.py sdist
+            pip install --upgrade setuptools
+        fi
 
         # for modules tool
         APT_PKGS="lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev"
@@ -68,7 +72,7 @@ jobs:
           python setup.py sdist
           ls dist
           export PREFIX=/tmp/$USER/$GITHUB_SHA
-          pip install --prefix $PREFIX dist/easybuild-framework*tar.gz
+          pip install --prefix $PREFIX dist/easybuild[-_]framework*tar.gz
 
     - name: run tests for 'eb' command
       env:

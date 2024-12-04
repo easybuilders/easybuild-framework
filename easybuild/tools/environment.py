@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -54,8 +54,8 @@ def write_changes(filename):
     """
     try:
         with open(filename, 'w') as script:
-            for key in _changes:
-                script.write('export %s=%s\n' % (key, shell_quote(_changes[key])))
+            for key, changed_value in _changes.items():
+                script.write('export %s=%s\n' % (key, shell_quote(changed_value)))
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", filename, err)
     reset_changes()
@@ -83,9 +83,9 @@ def setvar(key, value, verbose=True):
 
     :param verbose: include message in dry run output for defining this environment variable
     """
-    if key in os.environ:
+    try:
         oldval_info = "previous value: '%s'" % os.environ[key]
-    else:
+    except KeyError:
         oldval_info = "previously undefined"
     # os.putenv() is not necessary. os.environ will call this.
     os.environ[key] = value
@@ -136,7 +136,7 @@ def read_environment(env_vars, strict=False):
     :param env_vars: a dict with key a name, value a environment variable name
     :param strict: boolean, if True enforces that all specified environment variables are found
     """
-    result = dict([(k, os.environ.get(v)) for k, v in env_vars.items() if v in os.environ])
+    result = {k: os.environ.get(v) for k, v in env_vars.items() if v in os.environ}
 
     if not len(env_vars) == len(result):
         missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if k not in result])

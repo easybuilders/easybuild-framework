@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -588,8 +588,8 @@ class Toolchain(object):
         self.log.debug("Defining $EB* environment variables for software named %s", name)
 
         env_vars = env_vars_external_module(name, version, metadata)
-        for key in env_vars:
-            setvar(key, env_vars[key], verbose=verbose)
+        for var, value in env_vars.items():
+            setvar(var, value, verbose=verbose)
 
     def _load_toolchain_module(self, silent=False):
         """Load toolchain module."""
@@ -925,10 +925,11 @@ class Toolchain(object):
         """
         Check whether command at specified location already is an RPATH wrapper script rather than the actual command
         """
-        in_rpath_wrappers_dir = os.path.basename(os.path.dirname(os.path.dirname(path))) == RPATH_WRAPPERS_SUBDIR
+        if os.path.basename(os.path.dirname(os.path.dirname(path))) != RPATH_WRAPPERS_SUBDIR:
+            return False
+        # Check if `rpath_args`` is called in the file
         # need to use binary mode to read the file, since it may be an actual compiler command (which is a binary file)
-        calls_rpath_args = b'rpath_args.py $CMD' in read_file(path, mode='rb')
-        return in_rpath_wrappers_dir and calls_rpath_args
+        return b'rpath_args.py $CMD' in read_file(path, mode='rb')
 
     def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None):
         """
@@ -1027,7 +1028,7 @@ class Toolchain(object):
 
     def handle_sysroot(self):
         """
-        Extra stuff to be done when alternate system root is specified via --sysroot EasyBuild configuration option.
+        Extra stuff to be done when alternative system root is specified via --sysroot EasyBuild configuration option.
 
         * Update $PKG_CONFIG_PATH to include sysroot location to pkg-config files (*.pc).
         """

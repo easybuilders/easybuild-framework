@@ -1,4 +1,4 @@
-# Copyright 2020-2023 Ghent University
+# Copyright 2020-2024 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -188,9 +188,6 @@ class EasyStackParser(object):
 @only_if_module_is_available('yaml', pkgname='PyYAML')
 def parse_easystack(filepath):
     """Parses through easystack file, returns what EC are to be installed together with their options."""
-    log_msg = "Support for easybuild-ing from multiple easyconfigs based on "
-    log_msg += "information obtained from provided file (easystack) with build specifications."
-    _log.experimental(log_msg)
     _log.info("Building from easystack: '%s'" % filepath)
 
     # class instance which contains all info about planned build
