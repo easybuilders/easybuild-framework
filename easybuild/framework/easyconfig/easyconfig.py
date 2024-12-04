@@ -72,7 +72,7 @@ from easybuild.tools.config import Singleton, build_option, get_module_naming_sc
 from easybuild.tools.filetools import convert_name, copy_file, create_index, decode_class_name, encode_class_name
 from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, load_index
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.hooks import PARSE, STEP_NAMES, load_hooks, run_hook
+from easybuild.tools.hooks import PARSE, EXTRACT_STEP, STEP_NAMES, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -871,6 +871,10 @@ class EasyConfig(object):
                 error_line = "* %s" % step
                 # try to find close match, may be just a typo in the step name
                 close_matches = difflib.get_close_matches(step, STEP_NAMES, 2, 0.8)
+                # 'source' step was renamed to 'extract' in EasyBuild 5.0, see provide a useful suggestion in that case;
+                # see https://github.com/easybuilders/easybuild-framework/pull/4629
+                if not close_matches and step == 'source':
+                    close_matches.append(EXTRACT_STEP)
                 if close_matches:
                     error_line += " (did you mean %s?)" % ', or '.join("'%s'" % s for s in close_matches)
                 error_lines.append(error_line)

@@ -411,7 +411,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # see https://github.com/easybuilders/easybuild-framework/pull/4629
         test_ec_txt += "\nskipsteps = ['source']\n"
         write_file(test_ec, test_ec_txt)
-        error_pattern = error_pattern.replace('wrong-step-name', 'source')
+        error_pattern = error_pattern.replace('wrong-step-name', r"source \(did you mean 'extract'\?\)")
         self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
         # check use of skipsteps to skip sanity check
