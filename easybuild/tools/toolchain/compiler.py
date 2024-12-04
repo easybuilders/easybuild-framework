@@ -179,7 +179,7 @@ class Compiler(Toolchain):
         # Initialize default value of debug symbols based on global build option
         if self.COMPILER_SHARED_OPTS:
             _, desc = self.COMPILER_SHARED_OPTS['debug']
-            self.COMPILER_SHARED_OPTS['debug'] = (build_option('default_debug_symbols'), desc)
+            self.COMPILER_SHARED_OPTS['debug'] = (build_option('keep_debug_symbols'), desc)
         self.options.add_options(self.COMPILER_SHARED_OPTS, self.COMPILER_SHARED_OPTION_MAP)
 
         # always include empty infix first for non-prefixed compilers (e.g., GCC, Intel, ...)
