@@ -3110,10 +3110,23 @@ class EasyBlock(object):
             print_msg(msg, log=self.log)
 
     def post_install_step(self):
+        """[DEPRECATED] Do some postprocessing."""
+        # this is for easyblocks calling super(EB_xxx, self).post_install_step()
+        # deprecation warning is below, in post_processing_step
+        return self.post_processing_step()
+
+    def post_processing_step(self):
         """
         Do some postprocessing
         - run post install commands if any were specified
         """
+
+        if self.post_install_step.__qualname__ != "EasyBlock.post_install_step":
+            self.log.deprecated(
+                "EasyBlock.post_install_step() is deprecated, use EasyBlock.post_processing_step() instead.",
+                '6.0',
+            )
+            return self.post_install_step()
 
         lib_dir = os.path.join(self.installdir, 'lib')
         lib64_dir = os.path.join(self.installdir, 'lib64')
@@ -4194,7 +4207,7 @@ class EasyBlock(object):
         # part 3: post-iteration part
         steps_part3 = [
             (POSTITER_STEP, 'restore after iterating', [lambda x: x.post_iter_step], False),
-            (POSTPROC_STEP, 'postprocessing', [lambda x: x.post_install_step], True),
+            (POSTPROC_STEP, 'postprocessing', [lambda x: x.post_processing_step], True),
             (SANITYCHECK_STEP, 'sanity checking', [lambda x: x.sanity_check_step], True),
             (CLEANUP_STEP, 'cleaning up', [lambda x: x.cleanup_step], False),
             (MODULE_STEP, 'creating module', [lambda x: x.make_module_step], False),
