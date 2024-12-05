@@ -61,7 +61,7 @@ except ImportError:
     pass
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning
 from easybuild.tools.config import IGNORE
 from easybuild.tools.filetools import is_readable, read_file, which
 from easybuild.tools.run import run_shell_cmd, subprocess_popen_text
@@ -202,7 +202,6 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
     'graphviz-python': ('gv', "rendering dependency graph with Graphviz: --dep-graph"),
     'keyring': (None, "storing GitHub token"),
     'pbs-python': ('pbs', "using Torque as --job backend"),
-    'pep8': (None, "fallback for code style checking: --check-style, --check-contrib"),
     'pycodestyle': (None, "code style checking: --check-style, --check-contrib"),
     'pysvn': (None, "using SVN repository as easyconfigs archive"),
     'python-graph-core': ('pygraph.classes.digraph', "creating dependency graph: --dep-graph"),
@@ -312,7 +311,7 @@ def get_total_memory():
         cmd = "sysctl -n hw.memsize"
         _log.debug("Trying to determine total memory size on Darwin via cmd '%s'", cmd)
         res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, with_hooks=False, output_file=False, stream_output=False)
-        if res.exit_code == 0:
+        if res.exit_code == EasyBuildExit.SUCCESS:
             memtotal = int(res.output.strip()) // (1024**2)
 
     if memtotal is None:
@@ -396,7 +395,7 @@ def get_cpu_vendor():
         res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
                             output_file=False, stream_output=False)
         out = res.output.strip()
-        if res.exit_code == 0 and out in VENDOR_IDS:
+        if res.exit_code == EasyBuildExit.SUCCESS and out in VENDOR_IDS:
             vendor = VENDOR_IDS[out]
             _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
         else:
@@ -404,7 +403,7 @@ def get_cpu_vendor():
             res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
                                 output_file=False, stream_output=False)
             out = res.output.strip().split(' ')[0]
-            if res.exit_code == 0 and out in CPU_VENDORS:
+            if res.exit_code == EasyBuildExit.SUCCESS and out in CPU_VENDORS:
                 vendor = out
                 _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
 
@@ -506,7 +505,7 @@ def get_cpu_model():
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.brand_string"
         res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, with_hooks=False, output_file=False, stream_output=False)
-        if res.exit_code == 0:
+        if res.exit_code == EasyBuildExit.SUCCESS:
             model = res.output.strip()
             _log.debug("Determined CPU model on Darwin using cmd '%s': %s" % (cmd, model))
 
@@ -553,7 +552,7 @@ def get_cpu_speed():
         res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, with_hooks=False, output_file=False, stream_output=False)
         out = res.output.strip()
         cpu_freq = None
-        if res.exit_code == 0 and out:
+        if res.exit_code == EasyBuildExit.SUCCESS and out:
             # returns clock frequency in cycles/sec, but we want MHz
             cpu_freq = float(out) // (1000 ** 2)
 
@@ -600,7 +599,7 @@ def get_cpu_features():
             _log.debug("Trying to determine CPU features on Darwin via cmd '%s'", cmd)
             res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, fail_on_error=False, with_hooks=False,
                                 output_file=False, stream_output=False)
-            if res.exit_code == 0:
+            if res.exit_code == EasyBuildExit.SUCCESS:
                 cpu_feat.extend(res.output.strip().lower().split())
 
         cpu_feat.sort()
@@ -628,7 +627,7 @@ def get_gpu_info():
             _log.debug("Trying to determine NVIDIA GPU info on Linux via cmd '%s'", cmd)
             res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
                                 output_file=False, stream_output=False)
-            if res.exit_code == 0:
+            if res.exit_code == EasyBuildExit.SUCCESS:
                 for line in res.output.strip().split('\n'):
                     nvidia_gpu_info = gpu_info.setdefault('NVIDIA', {})
                     nvidia_gpu_info.setdefault(line, 0)
@@ -647,14 +646,14 @@ def get_gpu_info():
             _log.debug("Trying to determine AMD GPU driver on Linux via cmd '%s'", cmd)
             res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
                                 output_file=False, stream_output=False)
-            if res.exit_code == 0:
+            if res.exit_code == EasyBuildExit.SUCCESS:
                 amd_driver = res.output.strip().split('\n')[1].split(',')[1]
 
             cmd = "rocm-smi --showproductname --csv"
             _log.debug("Trying to determine AMD GPU info on Linux via cmd '%s'", cmd)
             res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
                                 output_file=False, stream_output=False)
-            if res.exit_code == 0:
+            if res.exit_code == EasyBuildExit.SUCCESS:
                 for line in res.output.strip().split('\n')[1:]:
                     amd_card_series = line.split(',')[1]
                     amd_card_model = line.split(',')[2]
@@ -873,7 +872,7 @@ def check_os_dependency(dep):
             ])
             res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True,
                                 output_file=False, stream_output=False)
-            found = res.exit_code == 0
+            found = res.exit_code == EasyBuildExit.SUCCESS
             if found:
                 break
 
@@ -887,7 +886,7 @@ def check_os_dependency(dep):
             res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True,
                                 output_file=False, stream_output=False)
             try:
-                found = (res.exit_code == 0 and int(res.output.strip()) > 0)
+                found = (res.exit_code == EasyBuildExit.SUCCESS and int(res.output.strip()) > 0)
             except ValueError:
                 # Returned something else than an int -> Error
                 found = False
@@ -902,7 +901,7 @@ def get_tool_version(tool, version_option='--version', ignore_ec=False):
     """
     res = run_shell_cmd(' '.join([tool, version_option]), fail_on_error=False, in_dry_run=True,
                         hidden=True, with_hooks=False, output_file=False, stream_output=False)
-    if not ignore_ec and res.exit_code:
+    if not ignore_ec and res.exit_code != EasyBuildExit.SUCCESS:
         _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, res.output))
         return UNKNOWN
     else:
@@ -916,7 +915,7 @@ def get_gcc_version():
     res = run_shell_cmd('gcc --version', fail_on_error=False, in_dry_run=True, hidden=True,
                         output_file=False, stream_output=False)
     gcc_ver = None
-    if res.exit_code:
+    if res.exit_code != EasyBuildExit.SUCCESS:
         _log.warning("Failed to determine the version of GCC: %s", res.output)
         gcc_ver = UNKNOWN
 
@@ -971,7 +970,7 @@ def get_linked_libs_raw(path):
     """
 
     res = run_shell_cmd("file %s" % path, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
-    if res.exit_code:
+    if res.exit_code != EasyBuildExit.SUCCESS:
         fail_msg = "Failed to run 'file %s': %s" % (path, res.output)
         _log.warning(fail_msg)
 
@@ -1006,7 +1005,7 @@ def get_linked_libs_raw(path):
     # like printing 'not a dynamic executable' when not enough memory is available
     # (see also https://bugzilla.redhat.com/show_bug.cgi?id=1817111)
     res = run_shell_cmd(linked_libs_cmd, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
-    if res.exit_code == 0:
+    if res.exit_code == EasyBuildExit.SUCCESS:
         linked_libs_out = res.output
     else:
         fail_msg = "Determining linked libraries for %s via '%s' failed! Output: '%s'"
@@ -1194,8 +1193,9 @@ def det_parallelism(par=None, maxpar=None):
                 else:
                     maxuserproc = int(res.output)
             except ValueError as err:
-                raise EasyBuildError("Failed to determine max user processes (%s, %s): %s",
-                                     res.exit_code, res.output, err)
+                raise EasyBuildError(
+                    "Failed to determine max user processes (%s, %s): %s", res.exit_code, res.output, err
+                )
             # assume 6 processes per build thread + 15 overhead
             par_guess = (maxuserproc - 15) // 6
             if par_guess < par:

@@ -65,14 +65,14 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMPLATES, DEPRECATED_EASYCONFIG_TEMPLATES
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
 from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
 from easybuild.tools.filetools import convert_name, copy_file, create_index, decode_class_name, encode_class_name
 from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, load_index
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.hooks import PARSE, load_hooks, run_hook
+from easybuild.tools.hooks import PARSE, EXTRACT_STEP, STEP_NAMES, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -860,9 +860,25 @@ class EasyConfig(object):
             self.log.info("Not checking OS dependencies")
 
         self.log.info("Checking skipsteps")
-        if not isinstance(self._config['skipsteps'][0], (list, tuple,)):
+        skipsteps = self._config['skipsteps'][0]
+        if not isinstance(skipsteps, (list, tuple,)):
             raise EasyBuildError('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)',
-                                 type(self._config['skipsteps'][0]), self._config['skipsteps'][0])
+                                 type(skipsteps), skipsteps)
+        unknown_step_names = [step for step in skipsteps if step not in STEP_NAMES]
+        if unknown_step_names:
+            error_lines = ["Found one or more unknown step names in 'skipsteps' easyconfig parameter:"]
+            for step in unknown_step_names:
+                error_line = "* %s" % step
+                # try to find close match, may be just a typo in the step name
+                close_matches = difflib.get_close_matches(step, STEP_NAMES, 2, 0.8)
+                # 'source' step was renamed to 'extract' in EasyBuild 5.0, see provide a useful suggestion in that case;
+                # see https://github.com/easybuilders/easybuild-framework/pull/4629
+                if not close_matches and step == 'source':
+                    close_matches.append(EXTRACT_STEP)
+                if close_matches:
+                    error_line += " (did you mean %s?)" % ', or '.join("'%s'" % s for s in close_matches)
+                error_lines.append(error_line)
+            raise EasyBuildError('\n'.join(error_lines))
 
         self.log.info("Checking build option lists")
         self.validate_iterate_opts_lists()
@@ -907,9 +923,12 @@ class EasyConfig(object):
                 not_found.append(dep)
 
         if not_found:
-            raise EasyBuildError("One or more OS dependencies were not found: %s", not_found)
-        else:
-            self.log.info("OS dependencies ok: %s" % self['osdependencies'])
+            raise EasyBuildError(
+                "One or more OS dependencies were not found: %s", not_found,
+                exit_code=EasyBuildExit.MISSING_SYSTEM_DEPENDENCY
+            )
+
+        self.log.info("OS dependencies ok: %s" % self['osdependencies'])
 
         return True
 
@@ -1102,15 +1121,19 @@ class EasyConfig(object):
 
         return retained_deps
 
-    def dependencies(self, build_only=False):
+    def dependencies(self, build_only=False, runtime_only=False):
         """
         Returns an array of parsed dependencies (after filtering, if requested)
         dependency = {'name': '', 'version': '', 'system': (False|True), 'versionsuffix': '', 'toolchain': ''}
         Iterable builddependencies are flattened when not iterating.
 
         :param build_only: only return build dependencies, discard others
+        :param runtime_only: only return runtime dependencies, discard others
         """
-        deps = self.builddependencies()
+        if runtime_only:
+            deps = []
+        else:
+            deps = self.builddependencies()
 
         if not build_only:
             # use += rather than .extend to get a new list rather than updating list of build deps in place...
@@ -1272,7 +1295,10 @@ class EasyConfig(object):
         if values is None:
             values = []
         if self[attr] and self[attr] not in values:
-            raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
+            raise EasyBuildError(
+                "%s provided '%s' is not valid: %s", attr, self[attr], values,
+                exit_code=EasyBuildExit.VALUE_ERROR
+            )
 
     def probe_external_module_metadata(self, mod_name, existing_metadata=None):
         """
@@ -1922,12 +1948,20 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                 error_re = re.compile(r"No module named '?.*/?%s'?" % modname)
                 _log.debug("error regexp for ImportError on '%s' easyblock: %s", modname, error_re.pattern)
                 if error_re.match(str(err)):
+                    # Missing easyblock type of error
                     if error_on_missing_easyblock:
-                        raise EasyBuildError("No software-specific easyblock '%s' found for %s", class_name, name)
-                elif error_on_failed_import:
-                    raise EasyBuildError("Failed to import %s easyblock: %s", class_name, err)
+                        raise EasyBuildError(
+                            "No software-specific easyblock '%s' found for %s", class_name, name,
+                            exit_code=EasyBuildExit.MISSING_EASYBLOCK
+                        ) from err
                 else:
-                    _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
+                    # Broken import
+                    if error_on_failed_import:
+                        raise EasyBuildError(
+                            "Failed to import %s easyblock: %s", class_name, err,
+                            exit_code=EasyBuildExit.EASYBLOCK_ERROR
+                        ) from err
+                _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
 
         if cls is not None:
             _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')",
@@ -1941,7 +1975,10 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         # simply reraise rather than wrapping it into another error
         raise err
     except Exception as err:
-        raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err)
+        raise EasyBuildError(
+            "Failed to obtain class for %s easyblock (not available?): %s", easyblock, err,
+            exit_code=EasyBuildExit.EASYBLOCK_ERROR
+        )
 
 
 def get_module_path(name, generic=None, decode=True):
@@ -2086,7 +2123,11 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
         try:
             ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
         except EasyBuildError as err:
-            raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg)
+            try:
+                exit_code = err.exit_code
+            except AttributeError:
+                exit_code = EasyBuildExit.EASYCONFIG_ERROR
+            raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg, exit_code=exit_code)
 
         name = ec['name']
 

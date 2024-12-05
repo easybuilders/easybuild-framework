@@ -873,10 +873,10 @@ class EasyBlockTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             mod_dep_txt = eb.make_module_dep()
         for mod in ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2']:
-            regex = re.compile('load.*%s' % mod)
+            regex = re.compile('(load|depends[-_]on).*%s' % mod)
             self.assertFalse(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
-        regex = re.compile('load.*FFTW/3.3.7')
+        regex = re.compile('(load|depends[-_]on).*FFTW/3.3.7')
         self.assertTrue(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
     def test_make_module_dep_of_dep_hmns(self):
@@ -1259,6 +1259,7 @@ class EasyBlockTest(EnhancedTestCase):
         modextrapaths = {
             'PATH': ('xbin', 'pibin'),
             'CPATH': 'pi/include',
+            'TCLLIBPATH': {'paths': 'pi', 'delimiter': ' '},
         }
         modextrapaths_append = {'APPEND_PATH': 'append_path'}
         self.contents = '\n'.join([
@@ -1333,55 +1334,74 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (key, vals) in modextrapaths.items():
-            if isinstance(vals, str):
-                vals = [vals]
-            for val in vals:
-                if get_module_syntax() == 'Tcl':
-                    regex = re.compile(r'^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
-                elif get_module_syntax() == 'Lua':
-                    regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
-                else:
-                    self.fail("Unknown module syntax: %s" % get_module_syntax())
-                self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
-                # Check for duplicates
-                num_prepends = len(regex.findall(txt))
-                self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
+            if isinstance(vals, dict):
+                delim = vals['delimiter']
+                paths = vals['paths']
+                if isinstance(paths, str):
+                    paths = [paths]
+
+                for val in paths:
+                    if get_module_syntax() == 'Tcl':
+                        regex = re.compile(fr'^prepend-path\s+-d\s+"{delim}"\s+{key}\s+\$root/{val}$', re.M)
+                    elif get_module_syntax() == 'Lua':
+                        regex = re.compile(fr'^prepend_path\("{key}", pathJoin\(root, "{val}"\), "{delim}"\)$', re.M)
+                    else:
+                        self.fail("Unknown module syntax: %s" % get_module_syntax())
+                    self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+                    # Check for duplicates
+                    num_prepends = len(regex.findall(txt))
+                    self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
+            else:
+                if isinstance(vals, str):
+                    vals = [vals]
+
+                for val in vals:
+                    if get_module_syntax() == 'Tcl':
+                        regex = re.compile(fr'^prepend-path\s+{key}\s+\$root/{val}$', re.M)
+                    elif get_module_syntax() == 'Lua':
+                        regex = re.compile(fr'^prepend_path\("{key}", pathJoin\(root, "{val}"\)\)$', re.M)
+                    else:
+                        self.fail("Unknown module syntax: %s" % get_module_syntax())
+                    self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+                    # Check for duplicates
+                    num_prepends = len(regex.findall(txt))
+                    self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
 
         for (key, vals) in modextrapaths_append.items():
             if isinstance(vals, str):
                 vals = [vals]
             for val in vals:
                 if get_module_syntax() == 'Tcl':
-                    regex = re.compile(r'^append-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+                    regex = re.compile(r'^append-path\s+(-d ".")?%s\s+\$root/%s$' % (key, val), re.M)
                 elif get_module_syntax() == 'Lua':
-                    regex = re.compile(r'^append_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
+                    regex = re.compile(r'^append_path\("%s", pathJoin\(root, "%s"\)(, ".")?\)$' % (key, val), re.M)
                 else:
                     self.fail("Unknown module syntax: %s" % get_module_syntax())
                 self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('GCC', '6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^\s*module load %s\s*$' % os.path.join(name, ver), re.M)
+                regex = re.compile(r'^\s*(module load|depends-on) %s\s*$' % os.path.join(name, ver), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^\s*load\("%s"\)$' % os.path.join(name, ver), re.M)
+                regex = re.compile(r'^\s*(load|depends_on)\("%s"\)$' % os.path.join(name, ver), re.M)
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('test', '1.2.3')]:
             if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^\s*module load %s/.%s\s*$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(module load|depends-on) %s/.%s\s*$' % (name, ver), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^\s*load\("%s/.%s"\)$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(load|depends_on)\("%s/.%s"\)$' % (name, ver), re.M)
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^\s*module load %s/.?%s\s*$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(module load|depends-on) %s/.?%s\s*$' % (name, ver), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^\s*load\("%s/.?%s"\)$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(load|depends_on)\("%s/.?%s"\)$' % (name, ver), re.M)
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertFalse(regex.search(txt), "Pattern '%s' *not* found in %s" % (regex.pattern, txt))
@@ -1803,7 +1823,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # test no_download option
         urls = ['file://%s' % tmpdir_subdir]
-        error_pattern = "Couldn't find file toy-0.0.tar.gz anywhere, and downloading it is disabled"
+        error_pattern = "Couldn't find file 'toy-0.0.tar.gz' anywhere, and downloading it is disabled"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, eb.obtain_file,
                                   toy_tarball, urls=urls, alt_location='alt_toy', no_download=True)

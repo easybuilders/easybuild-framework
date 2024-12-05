@@ -29,6 +29,7 @@ Unit tests for hooks.py
 """
 import os
 import sys
+import textwrap
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -280,22 +281,24 @@ class HooksTest(EnhancedTestCase):
         self.assertEqual(verify_hooks(hooks), None)
 
         test_broken_hooks_pymod = os.path.join(self.test_prefix, 'test_broken_hooks.py')
-        test_hooks_txt = '\n'.join([
-            '',
-            'def there_is_no_such_hook():',
-            '    pass',
-            'def stat_hook(self):',
-            '    pass',
-            'def post_source_hook(self):',
-            '    pass',
-            'def install_hook(self):',
-            '    pass',
-        ])
+        test_hooks_txt = textwrap.dedent("""
+            def there_is_no_such_hook():
+                pass
+            def stat_hook(self):
+                pass
+            def post_source_hook(self):
+                pass
+            def post_extract_hook(self):
+                pass
+            def install_hook(self):
+                pass
+        """)
 
         write_file(test_broken_hooks_pymod, test_hooks_txt)
 
         error_msg_pattern = r"Found one or more unknown hooks:\n"
         error_msg_pattern += r"\* install_hook \(did you mean 'pre_install_hook', or 'post_install_hook'\?\)\n"
+        error_msg_pattern += r"\* post_source_hook \(did you mean .*'\?\)\n"
         error_msg_pattern += r"\* stat_hook \(did you mean 'start_hook'\?\)\n"
         error_msg_pattern += r"\* there_is_no_such_hook\n\n"
         error_msg_pattern += r"Run 'eb --avail-hooks' to get an overview of known hooks"
