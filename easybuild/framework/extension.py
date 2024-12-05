@@ -47,6 +47,32 @@ from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import trace_msg
 
 
+def get_modulenames(ext, use_name_for_false):
+    """Return a list of modulenames for the extension
+    :param ext: Instance of Extension or dictionary like with 'name' and optionally 'options', 'version', 'source' keys
+    :param use_name_for_false: Whether to return a list with the name or an empty list when the modulename is False
+    """
+    if not isinstance(ext, dict):
+        ext = {'name': ext.name, 'options': ext.options}
+
+    try:
+        modulenames = ext['options']['modulename']
+    except KeyError:
+        modulenames = [ext['name']]
+    else:
+        if isinstance(modulenames, list):
+            if not modulenames:
+                raise EasyBuildError(f"Empty modulename list for {ext['name']} is not supported."
+                                     "Use `False` to skip checking the module!")
+        elif modulenames is False:
+            return [ext['name']] if use_name_for_false else []
+        elif not isinstance(modulenames, str):
+            raise EasyBuildError(f"Wrong type of modulename for {ext['name']}: {type(modulenames)}: {modulenames}")
+        else:
+            modulenames = [modulenames]
+    return modulenames
+
+
 def construct_exts_filter_cmds(exts_filter, ext):
     """
     Resolve the exts_filter tuple by replacing the template values using the extension
@@ -63,21 +89,7 @@ def construct_exts_filter_cmds(exts_filter, ext):
     if not isinstance(ext, dict):
         ext = {'name': ext.name, 'version': ext.version, 'src': ext.src, 'options': ext.options}
 
-    try:
-        modulenames = ext['options']['modulename']
-    except KeyError:
-        modulenames = [ext['name']]
-    else:
-        if isinstance(modulenames, list):
-            if not modulenames:
-                raise EasyBuildError(f"Empty modulename list for {ext['name']} is not supported."
-                                     "Use `False` to skip checking the module!")
-        elif modulenames is False:
-            return []  # Skip any checks
-        elif not isinstance(modulenames, str):
-            raise EasyBuildError(f"Wrong type of modulename for {ext['name']}: {type(modulenames)}: {modulenames}")
-        else:
-            modulenames = [modulenames]
+    modulenames = get_modulenames(ext, use_name_for_false=False)
 
     result = []
     for modulename in modulenames:
