@@ -223,6 +223,23 @@ def nub(list_):
     return [x for x in list_ if x not in seen and not seen_add(x)]
 
 
+def unique_ordered_extend(base, affix):
+    """Extend base list with elements of affix list keeping order and without duplicates"""
+    if isinstance(affix, str):
+        # avoid extending with strings, as iterables generate wrong result without error
+        raise EasyBuildError(f"given affix list is a string: {affix}")
+
+    try:
+        ext_base = base.copy()
+        ext_base.extend(affix)
+    except TypeError as err:
+        raise EasyBuildError(f"given affix list is not iterable: {affix}") from err
+    except AttributeError as err:
+        raise EasyBuildError(f"given base cannot be extended: {base}") from err
+
+    return nub(ext_base)  # remove duplicates
+
+
 def get_class_for(modulepath, class_name):
     """
     Get class for a given Python class name and Python module path.

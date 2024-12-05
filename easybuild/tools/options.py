@@ -102,6 +102,7 @@ from easybuild.tools.robot import det_robot_path
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
+from easybuild.tools.toolchain.toolchain import SEARCH_PATH_CPP_HEADERS, DEFAULT_SEARCH_PATH_CPP_HEADERS
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
@@ -637,6 +638,8 @@ class EasyBuildOptions(GeneralOption):
                                 "(is passed as list of arguments to create the repository instance). "
                                 "For more info, use --avail-repositories."),
                                'strlist', 'store', self.default_repositorypath),
+            'search-path-cpp-headers': ("Search path used at build time for include directories", 'choice',
+                                        'store', DEFAULT_SEARCH_PATH_CPP_HEADERS, [*SEARCH_PATH_CPP_HEADERS]),
             'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),

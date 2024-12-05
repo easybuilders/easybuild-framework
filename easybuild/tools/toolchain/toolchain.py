@@ -69,7 +69,7 @@ from easybuild.tools.modules import get_software_version, get_software_version_e
 from easybuild.tools.systemtools import LINUX, get_os_type
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
-from easybuild.tools.utilities import nub, trace_msg
+from easybuild.tools.utilities import nub, unique_ordered_extend, trace_msg
 
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
@@ -95,6 +95,17 @@ TOOLCHAIN_CAPABILITIES = [
     TOOLCHAIN_CAPABILITY_LAPACK_FAMILY,
     TOOLCHAIN_CAPABILITY_MPI_FAMILY,
 ]
+# modes to handle CPP header search paths
+# see: https://gcc.gnu.org/onlinedocs/cpp/Environment-Variables.html
+SEARCH_PATH_CPP_HEADERS_FLAGS = "CPPFLAGS"
+SEARCH_PATH_CPP_HEADERS_CPATH = "CPATH"
+SEARCH_PATH_CPP_HEADERS_INCLUDE = "INCLUDE_PATHS"
+SEARCH_PATH_CPP_HEADERS = {
+    SEARCH_PATH_CPP_HEADERS_FLAGS: ["CPPFLAGS"],
+    SEARCH_PATH_CPP_HEADERS_CPATH: ["CPATH"],
+    SEARCH_PATH_CPP_HEADERS_INCLUDE: ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
+}
+DEFAULT_SEARCH_PATH_CPP_HEADERS = SEARCH_PATH_CPP_HEADERS_FLAGS
 
 
 def is_system_toolchain(tc_name):
@@ -850,7 +861,7 @@ class Toolchain(object):
             else:
                 self.log.debug("prepare: set additional variables onlymod=%s", onlymod)
 
-                # add LDFLAGS and CPPFLAGS from dependencies to self.vars
+                # add linker and preprocessor paths of dependencies to self.vars
                 self._add_dependency_variables()
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
@@ -1049,39 +1060,71 @@ class Toolchain(object):
                 setvar('PKG_CONFIG_PATH', os.pathsep.join(pkg_config_path))
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
-        """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
-            names should be a list of strings containing the name of the dependency
         """
-        cpp_paths = ['include']
-        ld_paths = ['lib64', 'lib']
-
-        if cpp is not None:
-            for p in cpp:
-                if p not in cpp_paths:
-                    cpp_paths.append(p)
-        if ld is not None:
-            for p in ld:
-                if p not in ld_paths:
-                    ld_paths.append(p)
-
-        if not names:
-            deps = self.dependencies
-        else:
-            deps = [{'name': name} for name in names if name is not None]
+        Add linker and preprocessor paths of dependencies to self.variables
+        :names: list of strings containing the name of the dependency
+        """
+        # collect dependencies
+        dependencies = self.dependencies if names is None else [{"name": name} for name in names if name]
 
         # collect software install prefixes for dependencies
-        roots = []
-        for dep in deps:
-            if dep.get('external_module', False):
+        dependency_roots = []
+        for dep in dependencies:
+            if dep.get("external_module", False):
                 # for software names provided via external modules, install prefix may be unknown
-                names = dep['external_module_metadata'].get('name', [])
-                roots.extend([root for root in self.get_software_root(names) if root is not None])
+                names = dep["external_module_metadata"].get("name", [])
+                dependency_roots.extend([root for root in self.get_software_root(names) if root is not None])
             else:
-                roots.extend(self.get_software_root(dep['name']))
+                dependency_roots.extend(self.get_software_root(dep["name"]))
 
-        for root in roots:
-            self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
-            self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
+        for root in dependency_roots:
+            self._add_dependency_cpp_headers(root, extra_dirs=cpp)
+            self._add_dependency_linker_paths(root, extra_dirs=ld)
+
+    def _add_dependency_cpp_headers(self, dep_root, extra_dirs=None):
+        """
+        Append prepocessor paths for given dependency root directory
+        """
+        if extra_dirs is None:
+            extra_dirs = ()
+
+        header_dirs = ["include"]
+        header_dirs = unique_ordered_extend(header_dirs, extra_dirs)
+
+        # mode of operation is defined by search-path-cpp-headers option
+        # toolchain option has precedence over build option
+        cpp_headers_mode = DEFAULT_SEARCH_PATH_CPP_HEADERS
+        build_opt = build_option("search_path_cpp_headers")
+        if self.options.get("search-path-cpp-headers") is not None:
+            cpp_headers_mode = self.options.option("search-path-cpp-headers")
+            self.log.debug("search-path-cpp-headers set by toolchain option: %s", cpp_headers_mode)
+        elif build_opt is not None:
+            cpp_headers_mode = build_opt
+            self.log.debug("search-path-cpp-headers set by build option: %s", cpp_headers_mode)
+
+        if cpp_headers_mode not in SEARCH_PATH_CPP_HEADERS:
+            raise EasyBuildError(
+                "Unknown value selected for option search-path-cpp-headers: %s. Choose one of: %s",
+                cpp_headers_mode, ", ".join(SEARCH_PATH_CPP_HEADERS)
+            )
+
+        for env_var in SEARCH_PATH_CPP_HEADERS[cpp_headers_mode]:
+            self.log.debug("Adding header paths to toolchain variable '%s': %s", env_var, dep_root)
+            self.variables.append_subdirs(env_var, dep_root, subdirs=header_dirs)
+
+    def _add_dependency_linker_paths(self, dep_root, extra_dirs=None):
+        """
+        Append linker paths for given dependency root directory
+        """
+        if extra_dirs is None:
+            extra_dirs = ()
+
+        lib_dirs = ["lib64", "lib"]
+        lib_dirs = unique_ordered_extend(lib_dirs, extra_dirs)
+
+        env_var = "LDFLAGS"
+        self.log.debug("Adding lib paths to toolchain variable '%s': %s", env_var, dep_root)
+        self.variables.append_subdirs(env_var, dep_root, subdirs=lib_dirs)
 
     def _setenv_variables(self, donotset=None, verbose=True):
         """Actually set the environment variables"""

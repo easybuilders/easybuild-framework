@@ -36,10 +36,10 @@ import tempfile
 from datetime import datetime
 from unittest import TextTestRunner
 
+import easybuild.tools.utilities as tu
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.utilities import time2str, natural_keys
 
 
 class UtilitiesTest(EnhancedTestCase):
@@ -77,10 +77,10 @@ class UtilitiesTest(EnhancedTestCase):
             (datetime(2019, 8, 5, 20, 39, 44), "159 hours 25 mins 21 secs"),
         ]
         for end, expected in test_cases:
-            self.assertEqual(time2str(end - start), expected)
+            self.assertEqual(tu.time2str(end - start), expected)
 
         error_pattern = "Incorrect value type provided to time2str, should be datetime.timedelta: <.* 'int'>"
-        self.assertErrorRegex(EasyBuildError, error_pattern, time2str, 123)
+        self.assertErrorRegex(EasyBuildError, error_pattern, tu.time2str, 123)
 
     def test_natural_keys(self):
         """Test the natural_keys function"""
@@ -98,7 +98,7 @@ class UtilitiesTest(EnhancedTestCase):
         ]
         shuffled_items = sorted_items[:]
         random.shuffle(shuffled_items)
-        shuffled_items.sort(key=natural_keys)
+        shuffled_items.sort(key=tu.natural_keys)
         self.assertEqual(shuffled_items, sorted_items)
 
     def test_LooseVersion(self):
@@ -202,6 +202,26 @@ class UtilitiesTest(EnhancedTestCase):
         self.assertEqual(LooseVersion('2.a.5').version, [2, 'a', 5])
         self.assertEqual(LooseVersion('2.a').version, [2, 'a'])
         self.assertEqual(LooseVersion('2.a5').version, [2, 'a', 5])
+
+    def test_unique_ordered_extend(self):
+        """Test unique_ordered_list_append method"""
+        base = ["potato", "tomato", "orange"]
+        base_orig = base.copy()
+
+        reference = ["potato", "tomato", "orange", "apple"]
+        self.assertEqual(tu.unique_ordered_extend(base, ["apple"]), reference)
+        self.assertEqual(tu.unique_ordered_extend(base, ["apple", "apple"]), reference)
+        self.assertNotEqual(tu.unique_ordered_extend(base, ["apple"]), sorted(reference))
+        # original list should not be modified
+        self.assertEqual(base, base_orig)
+
+        error_pattern = "given affix list is a string"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, "apple")
+        error_pattern = "given affix list is not iterable"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, 0)
+        base = "potato"
+        error_pattern = "given base cannot be extended"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, reference)
 
 
 def suite():
