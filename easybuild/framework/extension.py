@@ -41,18 +41,18 @@ import os
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, raise_nosupport
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit
 from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import trace_msg
 
 
-def resolve_exts_filter_template(exts_filter, ext):
+def construct_exts_filter_cmds(exts_filter, ext):
     """
     Resolve the exts_filter tuple by replacing the template values using the extension
     :param exts_filter: Tuple of (command, input) using template values (ext_name, ext_version, src)
     :param ext: Instance of Extension or dictionary like with 'name' and optionally 'options', 'version', 'source' keys
-    :return: (cmd, input) as a tuple of strings
+    :return: (cmd, input) as a tuple of strings for each modulename. Might be empty if no filtering is intented
     """
 
     if isinstance(exts_filter, str) or len(exts_filter) != 2:
@@ -63,25 +63,35 @@ def resolve_exts_filter_template(exts_filter, ext):
     if not isinstance(ext, dict):
         ext = {'name': ext.name, 'version': ext.version, 'src': ext.src, 'options': ext.options}
 
-    name = ext['name']
-    if 'options' in ext and 'modulename' in ext['options']:
-        modname = ext['options']['modulename']
-    else:
-        modname = name
-    tmpldict = {
-        'ext_name': modname,
-        'ext_version': ext.get('version'),
-        'src': ext.get('src'),
-    }
-
     try:
-        cmd = cmd % tmpldict
-        cmdinput = cmdinput % tmpldict if cmdinput else None
-    except KeyError as err:
-        msg = "KeyError occurred on completing extension filter template: %s; "
-        msg += "'name'/'version' keys are no longer supported, should use 'ext_name'/'ext_version' instead"
-        raise_nosupport(msg % err, '2.0')
-    return cmd, cmdinput
+        modulenames = ext['options']['modulename']
+    except KeyError:
+        modulenames = [ext['name']]
+    else:
+        if isinstance(modulenames, list):
+            if not modulenames:
+                raise EasyBuildError(f"Empty modulename list for {ext['name']} is not supported."
+                                     "Use `False` to skip checking the module!")
+        elif modulenames is False:
+            return []  # Skip any checks
+        elif not isinstance(modulenames, str):
+            raise EasyBuildError(f"Wrong type of modulename for {ext['name']}: {type(modulenames)}: {modulenames}")
+        else:
+            modulenames = [modulenames]
+
+    result = []
+    for modulename in modulenames:
+        tmpldict = {
+            'ext_name': modulename,
+            'ext_version': ext.get('version'),
+            'src': ext.get('src'),
+        }
+        try:
+            result.append((cmd % tmpldict,
+                           cmdinput % tmpldict if cmdinput else None))
+        except KeyError as err:
+            raise EasyBuildError(f"KeyError occurred on completing extension filter template: {err}")
+    return result
 
 
 class Extension:
@@ -314,35 +324,34 @@ class Extension:
 
         if exts_filter is None:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
+            return res
 
-        if 'modulename' in self.options:
-            modname = self.options['modulename']
-            self.log.debug("modulename found in self.options, using it: %s", modname)
-        else:
-            modname = self.name
-            self.log.debug("self.name: %s", modname)
-
+        exts_filer_cmds = construct_exts_filter_cmds(exts_filter, self)
         # allow skipping of sanity check by setting module name to False
-        if modname is False:
+        if exts_filer_cmds is None:
             self.log.info("modulename set to False for '%s' extension, so skipping sanity check", self.name)
-        elif exts_filter:
-            cmd, stdin = resolve_exts_filter_template(exts_filter, self)
-            cmd_res = run_shell_cmd(cmd, fail_on_error=False, stdin=stdin, hidden=True)
+        else:
+            fail_msgs = []
+            for cmd, stdin in exts_filer_cmds:
+                cmd_res = run_shell_cmd(cmd, fail_on_error=False, stdin=stdin, hidden=True)
 
-            msg = f"Extension sanity check command '{cmd}': "
-            if cmd_res.exit_code == EasyBuildExit.SUCCESS:
-                trace_msg(msg + 'OK')
-            else:
-                trace_msg(msg + 'FAIL')
-                if stdin:
-                    fail_msg = 'command "%s" (stdin: "%s") failed' % (cmd, stdin)
+                msg = f"Extension sanity check command '{cmd}': "
+                if cmd_res.exit_code == EasyBuildExit.SUCCESS:
+                    trace_msg(msg + 'OK')
                 else:
-                    fail_msg = 'command "%s" failed' % cmd
-                fail_msg += "; output:\n%s" % cmd_res.output.strip()
+                    trace_msg(msg + 'FAIL')
+                    if stdin:
+                        fail_msg = 'command "%s" (stdin: "%s") failed' % (cmd, stdin)
+                    else:
+                        fail_msg = 'command "%s" failed' % cmd
+                    fail_msg += "; output:\n%s" % cmd_res.output.strip()
+                    fail_msgs.append(fail_msg)
+            if fail_msgs:
+                fail_msg = '\n'.join(fail_msgs)
                 self.log.warning("Sanity check for '%s' extension failed: %s", self.name, fail_msg)
-                res = (False, fail_msg)
                 # keep track of all reasons of failure
                 # (only relevant when this extension is installed stand-alone via ExtensionEasyBlock)
                 self.sanity_check_fail_msgs.append(fail_msg)
+                res = (False, fail_msg)
 
         return res
