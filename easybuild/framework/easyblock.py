@@ -124,8 +124,14 @@ _log = fancylogger.getLogger('easyblock')
 
 
 class LibSymlink(Enum):
-    """Possible states for symlinking of library directories"""
-    NONE, LIB, LIB64, NEITHER = range(0, 4)
+    """
+    Possible states for symlinking of lib/lib64 subdirectories:
+    - UNKNOWN: has not been determined yet
+    - LIB_TO_LIB64: 'lib' is a symlink to 'lib64'
+    - LIB64_TO_LIB: 'lib64' is a symlink to 'lib'
+    - NEITHER: neither 'lib' is a symlink to 'lib64', nor 'lib64 is a symlink to 'lib'
+    - """
+    UNKNOWN, LIB_TO_LIB64, LIB64_TO_LIB, NEITHER = range(0, 4)
 
 
 class EasyBlock(object):
@@ -216,7 +222,7 @@ class EasyBlock(object):
         self.install_subdir = None
 
         # track status of symlink between library directories
-        self.install_lib_symlink = LibSymlink.NONE
+        self.install_lib_symlink = LibSymlink.UNKNOWN
 
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']
@@ -1682,7 +1688,7 @@ class EasyBlock(object):
         exp_search_paths = [abs_glob] if search_path == "" else glob.glob(abs_glob)
 
         # Explicitly check symlink state between lib dirs if it is still undefined (e.g. --module-only)
-        if self.install_lib_symlink == LibSymlink.NONE:
+        if self.install_lib_symlink == LibSymlink.UNKNOWN:
             self.check_install_lib_symlink()
 
         retained_search_paths = []
@@ -1693,10 +1699,10 @@ class EasyBlock(object):
 
             # avoid duplicate entries between symlinked library dirs
             tentative_sep = tentative_path + os.path.sep
-            if self.install_lib_symlink == LibSymlink.LIB64 and tentative_sep.startswith("lib64" + os.path.sep):
+            if self.install_lib_symlink == LibSymlink.LIB64_TO_LIB and tentative_sep.startswith('lib64' + os.path.sep):
                 self.log.debug("Discarded search path to symlinked lib64 directory: %s", tentative_path)
                 break
-            if self.install_lib_symlink == LibSymlink.LIB and tentative_sep.startswith("lib" + os.path.sep):
+            if self.install_lib_symlink == LibSymlink.LIB_TO_LIB64 and tentative_sep.startswith('lib' + os.path.sep):
                 self.log.debug("Discarded search path to symlinked lib directory: %s", tentative_path)
                 break
 
@@ -1716,9 +1722,9 @@ class EasyBlock(object):
         if os.path.exists(lib_dir) and os.path.exists(lib64_dir):
             self.install_lib_symlink = LibSymlink.NEITHER
             if os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
-                self.install_lib_symlink = LibSymlink.LIB
+                self.install_lib_symlink = LibSymlink.LIB_TO_LIB64
             elif os.path.islink(lib64_dir) and os.path.samefile(lib_dir, lib64_dir):
-                self.install_lib_symlink = LibSymlink.LIB64
+                self.install_lib_symlink = LibSymlink.LIB64_TO_LIB
 
     def make_module_req_guess(self):
         """
