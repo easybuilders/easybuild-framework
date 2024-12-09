@@ -40,6 +40,7 @@ Authors:
 * Maxime Boissonneault (Compute Canada)
 * Davide Vanzo (Vanderbilt University)
 * Caspar van Leeuwen (SURF)
+* Jan Andre Reuter (Juelich Supercomputing Centre)
 """
 import concurrent
 import copy
@@ -143,10 +144,11 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, ec):
+    def __init__(self, ec, logfile=None):
         """
         Initialize the EasyBlock instance.
         :param ec: a parsed easyconfig file (EasyConfig instance)
+        :param logfile: pass logfile from other EasyBlock. If not passed, create logfile (optional)
         """
 
         # keep track of original working directory, so we can go back there
@@ -216,7 +218,8 @@ class EasyBlock(object):
 
         # logging
         self.log = None
-        self.logfile = None
+        self.logfile = logfile
+        self.external_logfile = logfile is not None
         self.logdebug = build_option('debug')
         self.postmsg = ''  # allow a post message to be set, which can be shown as last output
         self.current_step = None
@@ -305,11 +308,11 @@ class EasyBlock(object):
         if self.log is not None:
             return
 
-        self.logfile = get_log_filename(self.name, self.version, add_salt=True)
-        fancylogger.logToFile(self.logfile, max_bytes=0)
+        if self.logfile is None:
+            self.logfile = get_log_filename(self.name, self.version, add_salt=True)
+            fancylogger.logToFile(self.logfile, max_bytes=0)
 
         self.log = fancylogger.getLogger(name=self.__class__.__name__, fname=False)
-
         self.log.info(this_is_easybuild())
 
         this_module = inspect.getmodule(self)
@@ -325,6 +328,9 @@ class EasyBlock(object):
         """
         Shutdown the logger.
         """
+        # only close log if we created a logfile
+        if self.external_logfile:
+            return
         self.log.info("Closing log for application name %s version %s" % (self.name, self.version))
         fancylogger.logToFile(self.logfile, enable=False)
 
