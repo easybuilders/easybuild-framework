@@ -95,17 +95,22 @@ TOOLCHAIN_CAPABILITIES = [
     TOOLCHAIN_CAPABILITY_LAPACK_FAMILY,
     TOOLCHAIN_CAPABILITY_MPI_FAMILY,
 ]
-# modes to handle CPP header search paths
+# modes to handle header and linker search paths
 # see: https://gcc.gnu.org/onlinedocs/cpp/Environment-Variables.html
-SEARCH_PATH_CPP_HEADERS_FLAGS = "CPPFLAGS"
-SEARCH_PATH_CPP_HEADERS_CPATH = "CPATH"
-SEARCH_PATH_CPP_HEADERS_INCLUDE = "INCLUDE_PATHS"
-SEARCH_PATH_CPP_HEADERS = {
-    SEARCH_PATH_CPP_HEADERS_FLAGS: ["CPPFLAGS"],
-    SEARCH_PATH_CPP_HEADERS_CPATH: ["CPATH"],
-    SEARCH_PATH_CPP_HEADERS_INCLUDE: ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
+# supported on Linux by: GCC, GFortran, oneAPI C/C++ Compilers, oneAPI Fortran Compiler, LLVM-based
+SEARCH_PATH = {
+    "cpp_headers": {
+        "flags": ["CPPFLAGS"],
+        "cpath": ["CPATH"],
+        "include_paths": ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
+    },
+    "linker": {
+        "flags": ["LDFLAGS"],
+        "library_path": ["LIBRARY_PATH"],
+    },
 }
-DEFAULT_SEARCH_PATH_CPP_HEADERS = SEARCH_PATH_CPP_HEADERS_FLAGS
+DEFAULT_SEARCH_PATH_CPP_HEADERS = "flags"
+DEFAULT_SEARCH_PATH_LINKER = "flags"
 
 
 def is_system_toolchain(tc_name):
@@ -224,6 +229,11 @@ class Toolchain(object):
         self.modules_tool = modtool
 
         self.use_rpath = False
+
+        self.search_path = {
+            "cpp_headers": DEFAULT_SEARCH_PATH_CPP_HEADERS,
+            "linker": DEFAULT_SEARCH_PATH_LINKER,
+        }
 
         self.mns = mns
         self.mod_full_name = None
@@ -372,9 +382,11 @@ class Toolchain(object):
         return res
 
     def set_variables(self):
-        """Do nothing? Everything should have been set by others
-            Needs to be defined for super() relations
         """
+        No generic toolchain variables set.
+        Post-process variables set by child Toolchain classes.
+        """
+
         if self.options.option('packed-linker-options'):
             self.log.devel("set_variables: toolchain variables. packed-linker-options.")
             self.variables.try_function_on_element('set_packed_linker_options')
@@ -759,6 +771,27 @@ class Toolchain(object):
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
                                  "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
+    def _validate_search_path(self):
+        """
+        Validate search path toolchain options.
+        Toolchain option has precedence over build option
+        """
+        for search_path in self.search_path:
+            sp_build_opt = f"search_path_{search_path}"
+            sp_toolchain_opt = sp_build_opt.replace("_", "-")
+            if self.options.get(sp_toolchain_opt) is not None:
+                self.search_path[search_path] = self.options.option(sp_toolchain_opt)
+            elif build_option(sp_build_opt) is not None:
+                self.search_path[search_path] = build_option(sp_build_opt)
+
+            if self.search_path[search_path] not in SEARCH_PATH[search_path]:
+                raise EasyBuildError(
+                    "Unknown value selected for toolchain option %s: %s. Choose one of: %s",
+                    sp_toolchain_opt, self.search_path[search_path], ", ".join(SEARCH_PATH[search_path])
+                )
+
+            self.log.debug("%s toolchain option set to: %s", sp_toolchain_opt, self.search_path[search_path])
+
     def symlink_commands(self, paths):
         """
         Create a symlink for each command to binary/script at specified path.
@@ -838,7 +871,6 @@ class Toolchain(object):
             self._load_modules(silent=silent)
 
         if self.is_system_toolchain():
-
             # define minimal build environment when using system toolchain;
             # this is mostly done to try controlling which compiler commands are being used,
             # cfr. https://github.com/easybuilders/easybuild-framework/issues/3398
@@ -851,6 +883,7 @@ class Toolchain(object):
                 self._verify_toolchain()
 
             # Generate the variables to be set
+            self._validate_search_path()
             self.set_variables()
 
             # set the variables
@@ -1091,24 +1124,7 @@ class Toolchain(object):
         header_dirs = ["include"]
         header_dirs = unique_ordered_extend(header_dirs, extra_dirs)
 
-        # mode of operation is defined by search-path-cpp-headers option
-        # toolchain option has precedence over build option
-        cpp_headers_mode = DEFAULT_SEARCH_PATH_CPP_HEADERS
-        build_opt = build_option("search_path_cpp_headers")
-        if self.options.get("search-path-cpp-headers") is not None:
-            cpp_headers_mode = self.options.option("search-path-cpp-headers")
-            self.log.debug("search-path-cpp-headers set by toolchain option: %s", cpp_headers_mode)
-        elif build_opt is not None:
-            cpp_headers_mode = build_opt
-            self.log.debug("search-path-cpp-headers set by build option: %s", cpp_headers_mode)
-
-        if cpp_headers_mode not in SEARCH_PATH_CPP_HEADERS:
-            raise EasyBuildError(
-                "Unknown value selected for option search-path-cpp-headers: %s. Choose one of: %s",
-                cpp_headers_mode, ", ".join(SEARCH_PATH_CPP_HEADERS)
-            )
-
-        for env_var in SEARCH_PATH_CPP_HEADERS[cpp_headers_mode]:
+        for env_var in SEARCH_PATH["cpp_headers"][self.search_path["cpp_headers"]]:
             self.log.debug("Adding header paths to toolchain variable '%s': %s", env_var, dep_root)
             self.variables.append_subdirs(env_var, dep_root, subdirs=header_dirs)
 
@@ -1122,9 +1138,9 @@ class Toolchain(object):
         lib_dirs = ["lib64", "lib"]
         lib_dirs = unique_ordered_extend(lib_dirs, extra_dirs)
 
-        env_var = "LDFLAGS"
-        self.log.debug("Adding lib paths to toolchain variable '%s': %s", env_var, dep_root)
-        self.variables.append_subdirs(env_var, dep_root, subdirs=lib_dirs)
+        for env_var in SEARCH_PATH["linker"][self.search_path["linker"]]:
+            self.log.debug("Adding lib paths to toolchain variable '%s': %s", env_var, dep_root)
+            self.variables.append_subdirs(env_var, dep_root, subdirs=lib_dirs)
 
     def _setenv_variables(self, donotset=None, verbose=True):
         """Actually set the environment variables"""

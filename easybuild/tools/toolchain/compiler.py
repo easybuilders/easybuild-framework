@@ -94,6 +94,7 @@ class Compiler(Toolchain):
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
         'rpath': (True, "Use RPATH wrappers when --rpath is enabled in EasyBuild configuration"),
         'search-path-cpp-headers': (None, "Search path used at build time for include directories"),
+        'search-path-linker': (None, "Search path used at build time by the linker for libraries"),
         'extra_cflags': (None, "Specify extra CFLAGS options."),
         'extra_cxxflags': (None, "Specify extra CXXFLAGS options."),
         'extra_fflags': (None, "Specify extra FFLAGS options."),

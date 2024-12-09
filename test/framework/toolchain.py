@@ -958,9 +958,9 @@ class ToolchainTest(EnhancedTestCase):
     def test_search_path_cpp_headers(self):
         """Test functionality behind search-path-cpp-headers option"""
         cpp_headers_mode = {
-            "CPPFLAGS": ["CPPFLAGS"],
-            "CPATH": ["CPATH"],
-            "INCLUDE_PATHS": ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
+            "flags": ["CPPFLAGS"],
+            "cpath": ["CPATH"],
+            "include_paths": ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
         }
         # test without toolchain option
         for build_opt in cpp_headers_mode:
@@ -994,7 +994,49 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain("foss", version="2018a")
         tc.set_options({"search-path-cpp-headers": "WRONG_MODE"})
         with self.mocked_stdout_stderr():
-            error_pattern = "Unknown value selected for option search-path-cpp-headers"
+            error_pattern = "Unknown value selected for toolchain option search-path-cpp-headers"
+            self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+        self.modtool.purge()
+
+    def test_search_path_linker(self):
+        """Test functionality behind search-path-linker option"""
+        linker_mode = {
+            "flags": ["LDFLAGS"],
+            "library_path": ["LIBRARY_PATH"],
+        }
+        # test without toolchain option
+        for build_opt in linker_mode:
+            init_config(build_options={"search_path_linker": build_opt, "silent": True})
+            tc = self.get_toolchain("foss", version="2018a")
+            with self.mocked_stdout_stderr():
+                tc.prepare()
+                for env_var in linker_mode[build_opt]:
+                    assert_fail_msg = (
+                        f"Variable {env_var} required by search-path-linker build option '{build_opt}' "
+                        "not found in toolchain environment"
+                    )
+                    self.assertIn(env_var, tc.variables, assert_fail_msg)
+                self.modtool.purge()
+        # test with toolchain option
+        for build_opt in linker_mode:
+            init_config(build_options={"search_path_linker": build_opt, "silent": True})
+            for tc_opt in linker_mode:
+                tc = self.get_toolchain("foss", version="2018a")
+                tc.set_options({"search-path-linker": tc_opt})
+                with self.mocked_stdout_stderr():
+                    tc.prepare()
+                    for env_var in linker_mode[tc_opt]:
+                        assert_fail_msg = (
+                            f"Variable {env_var} required by search-path-linker toolchain option '{tc_opt}' "
+                            "not found in toolchain environment"
+                        )
+                        self.assertIn(env_var, tc.variables, assert_fail_msg)
+                self.modtool.purge()
+        # test wrong toolchain option
+        tc = self.get_toolchain("foss", version="2018a")
+        tc.set_options({"search-path-linker": "WRONG_MODE"})
+        with self.mocked_stdout_stderr():
+            error_pattern = "Unknown value selected for toolchain option search-path-linker"
             self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
         self.modtool.purge()
 
