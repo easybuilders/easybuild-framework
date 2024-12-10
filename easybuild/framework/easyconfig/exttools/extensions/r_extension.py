@@ -37,7 +37,6 @@ from easybuild.tools.build_log import EasyBuildError, print_warning
 from .base_extension import BaseExtension
 
 CRANDB_URL = "https://crandb.r-pkg.org"
-CRANDB_CONTRIB_URL = "https://cran.r-project.org/src/contrib"
 
 
 class RExtension(BaseExtension):
