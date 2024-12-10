@@ -49,7 +49,7 @@ class ExtTools():
         self.exts_list = ec.get('ec', {}).get('exts_list', [])
         self.exts_list_updated = []
 
-        # TODO: Get ext class directly from the extension using source_urls, therefore supporting EasyConfigs with multiple extensions class
+        # TODO: add support for EasyConfigs with multiple extensions class
         self.exts_list_class = self._get_exts_list_class(ec)
 
     def _get_exts_list_class(self, ec):
@@ -104,9 +104,13 @@ class ExtTools():
 
         # init variables
         self.exts_list_updated = []
+        count = 0
 
         # update the extension list
         for ext in self.exts_list:
+
+            count += 1
+            print(f"\rExtensions updated: {count}", end='')
 
             # if the extension is a string, store it as is and cskip further processing
             if isinstance(ext, str):
@@ -128,5 +132,7 @@ class ExtTools():
                 self.exts_list_updated.append(ext)
 
         # TODO: print for testing purposes. To be deleted.
+        print()
         for ext in self.exts_list_updated:
             print(ext)
+        print()
