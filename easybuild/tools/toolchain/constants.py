@@ -32,7 +32,7 @@ Authors:
 """
 
 from easybuild.tools.toolchain.variables import CommaSharedLibs, CommaStaticLibs
-from easybuild.tools.toolchain.variables import IncludePaths, LibraryList, LinkLibraryPaths
+from easybuild.tools.toolchain.variables import IncludePaths, LibraryList, LinkLibraryPaths, SearchPaths
 from easybuild.tools.variables import AbsPathList, StrList
 
 
