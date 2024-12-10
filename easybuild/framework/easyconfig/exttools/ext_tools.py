@@ -31,49 +31,60 @@ Authors:
 * Danilo Gonzalez (Do IT Now)
 """
 
+import os
 from easybuild.framework.easyconfig.exttools.extensions.r_extension import RExtension
+from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 
 
 class ExtTools():
     """Class for extension tools"""
 
-    def __init__(self, ec):
+    def __init__(self, ec_path):
         """
         Initialize the extension tools.
 
-        :param ec: a parsed easyconfig file
+        :param ec_path: the path to the EasyConfig file
         """
 
-        self.ec = ec
-        self.exts_list = ec.get('ec', {}).get('exts_list', [])
+        if not ec_path:
+            raise EasyBuildError("EasyConfig path not provided to initialize the extension tools")
+        
+        if not os.path.exists(ec_path):
+            raise EasyBuildError(f"EasyConfig path does not exist: {ec_path}")
+            
+        self.ec_path = ec_path
+        self.ec_parsed = EasyConfigParser(self.ec_path)
+        self.ec_dict = self.ec_parsed.get_config_dict()
+
+        self.exts_list = self.ec_dict.get('exts_list', [])
         self.exts_list_updated = []
 
         # TODO: add support for EasyConfigs with multiple extensions class
-        self.exts_list_class = self._get_exts_list_class(ec)
+        self.exts_list_class = self._get_exts_list_class(self.ec_dict)
 
-    def _get_exts_list_class(self, ec):
+    def _get_exts_list_class(self, ec_dict):
         """
         Get the extension list class.
 
-        :param ec: a parsed easyconfig file (EasyConfig instance)
+        :param ec_dict: the EasyConfig dictionary
 
         :return: the extension list class
         """
 
-        if not ec:
-            raise EasyBuildError("EasyConfig not provided to get the extension list class")
+        if not ec_dict:
+            raise EasyBuildError("EasyConfig dictionary not provided to get the extension list class")
 
         # get the extension list class from the EasyConfig parameters
-        exts_list_class = ec.get('ec', {}).get('exts_defaultclass', None)
+        exts_list_class = ec_dict.get('exts_defaultclass')
 
         if not exts_list_class:
 
-            # get EasyConfig parameters
-            name = ec.get('ec', {}).get('name', None)
+            # get EasyConfig name
+            name = ec_dict.get('name')
 
             # try deduce the extension list class from the EasyConfig parameters
-            if name and (name == 'R') or (name.startswith('R-')):
+            if name and ((name == 'R') or (name.startswith('R-'))):
                 exts_list_class = 'RPackage'
             else:
                 raise EasyBuildError("exts_defaultclass only supports RPackage and PythonPackage")
