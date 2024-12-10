@@ -49,10 +49,10 @@ class ExtTools():
 
         if not ec_path:
             raise EasyBuildError("EasyConfig path not provided to initialize the extension tools")
-        
+
         if not os.path.exists(ec_path):
             raise EasyBuildError(f"EasyConfig path does not exist: {ec_path}")
-            
+
         self.ec_path = ec_path
         self.ec_parsed = EasyConfigParser(self.ec_path)
         self.ec_dict = self.ec_parsed.get_config_dict()
