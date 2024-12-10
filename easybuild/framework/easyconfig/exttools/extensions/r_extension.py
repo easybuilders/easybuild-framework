@@ -40,7 +40,7 @@ CRANDB_URL = "https://crandb.r-pkg.org"
 CRANDB_CONTRIB_URL = "https://cran.r-project.org/src/contrib"
 
 
-class RPackage(BaseExtension):
+class RExtension(BaseExtension):
 
     def __init__(self, ext):
         """
@@ -49,7 +49,7 @@ class RPackage(BaseExtension):
         :param ext: the R package extension
         """
 
-        super(RPackage, self).__init__(ext)
+        super(RExtension, self).__init__(ext)
 
     def _get_metadata(self, version=None):
         """
@@ -66,7 +66,7 @@ class RPackage(BaseExtension):
         # build the url to get the package's metadata
         url = f"{CRANDB_URL}/{self.name}"
         if version:
-            url = f"{url}/{version}"
+            url += f"/{version}"
 
         # get the package's metadata from the database
         try:
@@ -97,21 +97,25 @@ class RPackage(BaseExtension):
 
         return (name, version, checksum)
 
-    def update(self):
+    def get_latest_version(self):
         """
-        Update the R package extension.
+        Get the name, version and checksum for latest version of the R package extension.
 
-        :return: the updated R package extension
+        :return: name, version and checksum for the latest version of the R package extension
         """
 
+        # init variables
+        name, version, checksum = None, None, None
+
+        # get the metadata for the R package
         metadata = self._get_metadata()
-        name, version, checksum = self._parse_metadata(metadata)
 
-        self.name = name or self.name
-        self.version = version or self.version
-        if checksum:
-            if self.options is None:
-                self.options = {}
-            self.options['checksums'] = checksum
+        if metadata:
+            name, version, checksum = self._parse_metadata(metadata)
 
-        return (self.name, self.version, self.options)
+            if name and version and not checksum:
+                # TODO: download the package and calculate the checksum
+                checksum = ""
+                pass
+
+        return (name, version, checksum)

@@ -23,7 +23,7 @@
 #
 
 """
-Base extension class for EasyBuild EasyConfig extension tools.
+Utils for extension tools.
 
 Authors:
 
@@ -31,15 +31,28 @@ Authors:
 * Danilo Gonzalez (Do IT Now)
 """
 
-from easybuild.framework.easyconfig.exttools.ext_tools_utils import get_ext_values
+from easybuild.tools.build_log import EasyBuildError
 
 
-class BaseExtension:
-    def __init__(self, ext):
-        self.name, self.version, self.options = get_ext_values(ext)
+def get_ext_values(ext):
+    """
+    Extract the name, version, and options from an extension.
 
-    def get_latest_version(self):
-        """
-        Update the package extension.
-        """
-        raise NotImplementedError("Subclasses should implement this!")
+    :param ext: extension instance
+    """
+
+    if isinstance(ext, str):
+        return ext, None, None
+    elif isinstance(ext, (tuple, list)):
+        if len(ext) == 1:
+            return ext[0], None, None
+        elif len(ext) == 2:
+            return ext[0], ext[1], None
+        elif len(ext) == 3:
+            return ext[0], ext[1], ext[2]
+        else:
+            raise EasyBuildError("Invalid number of elements in extension tuple or list")
+    elif isinstance(ext, dict):
+        return (ext.get('name'), ext.get('version'), ext.get('options'))
+    else:
+        raise EasyBuildError("Invalid extension format")

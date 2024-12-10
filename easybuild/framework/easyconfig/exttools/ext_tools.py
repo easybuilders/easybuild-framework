@@ -31,7 +31,7 @@ Authors:
 * Danilo Gonzalez (Do IT Now)
 """
 
-from easybuild.framework.easyconfig.exttools.extensions.r_package import RPackage
+from easybuild.framework.easyconfig.exttools.extensions.r_extension import RExtension
 from easybuild.tools.build_log import EasyBuildError
 
 
@@ -47,8 +47,10 @@ class ExtTools():
 
         self.ec = ec
         self.exts_list = ec.get('ec', {}).get('exts_list', [])
-        self.exts_list_class = self._get_exts_list_class(ec)
         self.exts_list_updated = []
+
+        # TODO: Get ext class directly from the extension using source_urls, therefore supporting EasyConfigs with multiple extensions class
+        self.exts_list_class = self._get_exts_list_class(ec)
 
     def _get_exts_list_class(self, ec):
         """
@@ -69,15 +71,10 @@ class ExtTools():
 
             # get EasyConfig parameters
             name = ec.get('ec', {}).get('name', None)
-            easyblock = ec.get('ec', {}).get('easyblock', None)
 
             # try deduce the extension list class from the EasyConfig parameters
             if name and (name == 'R') or (name.startswith('R-')):
                 exts_list_class = 'RPackage'
-            elif name and (name == 'Python') or (name.startswith('Python-')):
-                exts_list_class = 'PythonPackage'
-            elif easyblock and (easyblock == 'PythonBundle'):
-                exts_list_class = 'PythonPackage'
             else:
                 raise EasyBuildError("exts_defaultclass only supports RPackage and PythonPackage")
 
@@ -96,7 +93,7 @@ class ExtTools():
             raise EasyBuildError("Extension not provided to create the extension instance")
 
         if self.exts_list_class == 'RPackage':
-            return RPackage(ext)
+            return RExtension(ext)
         else:
             raise EasyBuildError("exts_defaultclass %s not supported" % self.exts_list_class)
 
@@ -105,9 +102,31 @@ class ExtTools():
         Update the extension list.
         """
 
-        updated = []
-        for ext in self.exts_list:
-            pkg = self._create_extension_instance(ext)
-            updated.append(pkg.update())
+        # init variables
+        self.exts_list_updated = []
 
-        self.exts_list_updated = updated
+        # update the extension list
+        for ext in self.exts_list:
+
+            # if the extension is a string, store it as is and cskip further processing
+            if isinstance(ext, str):
+                self.exts_list_updated.append(ext)
+                continue
+
+            # create the extension instance
+            pkg = self._create_extension_instance(ext)
+
+            # get the latest version of the package
+            name, version, checksum = pkg.get_latest_version()
+
+            # update the extension list only if all the values are available
+            if name and version and checksum:
+                options = ext[2] if len(ext) == 3 else {}
+                options['checksums'] = checksum
+                self.exts_list_updated.append((name, version, options))
+            else:
+                self.exts_list_updated.append(ext)
+
+        # TODO: print for testing purposes. To be deleted.
+        for ext in self.exts_list_updated:
+            print(ext)
