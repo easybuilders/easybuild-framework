@@ -1661,9 +1661,9 @@ class EasyBlock(object):
                 mod_req_paths = search_paths
             else:
                 mod_req_paths = []
-                top_level = getattr(self.module_load_environment, env_var).top_level_file
+                requires_files = getattr(self.module_load_environment, env_var).requires_files
                 for path in search_paths:
-                    mod_req_paths.extend(self.expand_module_search_path(path, top_level, fake=fake))
+                    mod_req_paths.extend(self.expand_module_search_path(path, requires_files, fake=fake))
 
             if mod_req_paths:
                 mod_req_paths = nub(mod_req_paths)  # remove duplicates
@@ -1674,7 +1674,7 @@ class EasyBlock(object):
 
         return "".join(mod_lines)
 
-    def expand_module_search_path(self, search_path, top_level, fake=False):
+    def expand_module_search_path(self, search_path, requires_files, fake=False):
         """
         Expand given path glob and return list of suitable paths to be used as search paths:
             - Paths are relative to installation prefix root
@@ -1707,7 +1707,7 @@ class EasyBlock(object):
                 break
 
             # only retain paths to directories that contain at least one file
-            if os.path.isdir(abs_path) and not dir_contains_files(abs_path, recursive=not top_level) and not fake:
+            if os.path.isdir(abs_path) and not dir_contains_files(abs_path, recursive=not requires_files) and not fake:
                 self.log.debug("Discarded search path to empty directory: %s", tentative_path)
                 break
 

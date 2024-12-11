@@ -139,13 +139,13 @@ class ModuleEnvironmentVariable:
     Contents of environment variable is a list of unique strings
     """
 
-    def __init__(self, contents, top_level_file=False, delim=os.pathsep):
+    def __init__(self, contents, requires_files=False, delim=os.pathsep):
         """
         Initialize new environment variable
         Actual contents of the environment variable are held in self.contents
         """
         self.contents = contents
-        self.top_level_file = bool(top_level_file)
+        self.requires_files = bool(requires_files)
         self.delim = delim
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
@@ -237,9 +237,9 @@ class ModuleLoadEnvironment:
         if not isinstance(kwargs, dict):
             contents, kwargs = value, {}
 
-        # special variables that require top level files
-        if name in ["PATH", "LD_LIBRARY_PATH"]:
-            kwargs.update({"top_level_file": True})
+        # special variables that files to be present in the specified paths
+        if name in ['PATH', 'LD_LIBRARY_PATH']:
+            kwargs.update({'requires_files': True})
 
         return super().__setattr__(name.upper(), ModuleEnvironmentVariable(contents, **kwargs))
 
