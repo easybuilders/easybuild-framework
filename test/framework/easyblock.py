@@ -28,6 +28,7 @@ Unit tests for easyblock.py
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 @author: Maxime Boissonneault (Compute Canada)
+@author: Jan Andre Reuter (Juelich Supercomputing Centre)
 """
 import os
 import re
@@ -2894,6 +2895,47 @@ class EasyBlockTest(EnhancedTestCase):
         # empty sanity_check_paths is always OK, since then the fallback to default bin + lib/lib64 kicks in
         run_sanity_check_step({}, False)
         run_sanity_check_step({}, True)
+
+    def test_create_easyblock_without_logfile(self):
+        """
+        Test creating an EasyBlock without a logfile.
+        This represents scenarios found in Bundle and QuantumESPRESSO, where an EasyBlock is
+        created within another EasyBlock.
+        """
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.writeEC()
+        # Ensure that the default case works as expected
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        self.assertNotEqual(eb.log, None)
+        self.assertNotEqual(eb.logfile, None)
+        # Get reference to the actual log instance and ensure that it works
+        # This is NOT eb.log, which represents a separate logger with a separate name.
+        file_log = fancylogger.getLogger(name=None)
+        self.assertNotEqual(getattr(file_log, 'logtofile_%s' % eb.logfile), False)
+
+        # Now, create another EasyBlock by passing logfile from first EasyBlock.
+        eb_external_logfile = EasyBlock(EasyConfig(self.eb_file), logfile=eb.logfile)
+        self.assertNotEqual(eb_external_logfile.log, None)
+        self.assertTrue(eb_external_logfile.external_logfile)
+        self.assertEqual(eb_external_logfile.logfile, eb.logfile)
+        # Try to log something in it.
+        eb_external_logfile.log.info("Test message")
+
+        # Try to close EasyBlock with external logfile. This should not affect the logger.
+        eb_external_logfile.close_log()
+        self.assertNotEqual(getattr(file_log, 'logtofile_%s' % eb.logfile), False)
+        # Then close the log from creating EasyBlock. This should work as expected.
+        eb.close_log()
+        self.assertEqual(getattr(file_log, 'logtofile_%s' % eb.logfile), False)
+
+        os.remove(eb.logfile)
 
 
 def suite():
