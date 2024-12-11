@@ -388,7 +388,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('OMPI_F77'), 'gfortran')
         self.assertEqual(os.getenv('OMPI_FC'), 'gfortran')
 
-        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno")
+        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno -g")
         for key in ['CFLAGS', 'CXXFLAGS', 'F90FLAGS', 'FCFLAGS', 'FFLAGS']:
             val = os.getenv(key)
             self.assertTrue(flags_regex.match(val), "'%s' should match pattern '%s'" % (val, flags_regex.pattern))
@@ -928,7 +928,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({})
         with self.mocked_stdout_stderr():
             tc.prepare()
-        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno")
+        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno -g")
         for var in flag_vars:
             val = os.getenv(var)
             self.assertTrue(flags_regex.match(val), "'%s' should match pattern '%s'" % (val, flags_regex.pattern))
@@ -947,7 +947,7 @@ class ToolchainTest(EnhancedTestCase):
                     tc.prepare()
                 for var in flag_vars:
                     if enable:
-                        regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native %s" % prec_flags[prec])
+                        regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native %s -g" % prec_flags[prec])
                     else:
                         regex = flags_regex
                     val = os.getenv(var)
