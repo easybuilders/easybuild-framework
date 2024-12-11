@@ -129,7 +129,7 @@ class LibSymlink(Enum):
     - UNKNOWN: has not been determined yet
     - LIB_TO_LIB64: 'lib' is a symlink to 'lib64'
     - LIB64_TO_LIB: 'lib64' is a symlink to 'lib'
-    - NEITHER: neither 'lib' is a symlink to 'lib64', nor 'lib64 is a symlink to 'lib'
+    - NEITHER: neither 'lib' is a symlink to 'lib64', nor 'lib64' is a symlink to 'lib'
     - """
     UNKNOWN, LIB_TO_LIB64, LIB64_TO_LIB, NEITHER = range(0, 4)
 
@@ -1717,10 +1717,10 @@ class EasyBlock(object):
 
     def check_install_lib_symlink(self):
         """Check symlink state between library directories in installation prefix"""
+        self.install_lib_symlink = LibSymlink.NEITHER
         lib_dir = os.path.join(self.installdir, 'lib')
         lib64_dir = os.path.join(self.installdir, 'lib64')
         if os.path.exists(lib_dir) and os.path.exists(lib64_dir):
-            self.install_lib_symlink = LibSymlink.NEITHER
             if os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
                 self.install_lib_symlink = LibSymlink.LIB_TO_LIB64
             elif os.path.islink(lib64_dir) and os.path.samefile(lib_dir, lib64_dir):
