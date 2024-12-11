@@ -3110,22 +3110,13 @@ class EasyBlock(object):
             print_msg(msg, log=self.log)
 
     def post_install_step(self):
-        """[DEPRECATED] Do some postprocessing."""
-        # this is for easyblocks calling super(EB_xxx, self).post_install_step()
-        # deprecation warning is below, in post_processing_step
-        return self.post_processing_step()
-
-    def post_processing_step(self):
         """
-        Do some postprocessing
+        [DEPRECATED] Do some postprocessing
         - run post install commands if any were specified
         """
-
-        if self.post_install_step.__qualname__ != "EasyBlock.post_install_step":
-            self.log.deprecated(
-                "EasyBlock.post_install_step() is deprecated, use EasyBlock.post_processing_step() instead.",
-                '6.0',
-            )
+        # even though post_install_step is deprecated in easyblocks we need to keep this here until it is
+        # removed in 6.0 for easyblocks calling super(EB_xxx, self).post_install_step()
+        # The deprecation warning for those is below, in post_processing_step().
 
         lib_dir = os.path.join(self.installdir, 'lib')
         lib64_dir = os.path.join(self.installdir, 'lib64')
@@ -3152,6 +3143,21 @@ class EasyBlock(object):
         self.print_post_install_messages()
 
         self.fix_shebang()
+
+    def post_processing_step(self):
+        """
+        Do some postprocessing
+        - run post install commands if any were specified
+        """
+        # if post_install_step() is present in the easyblock print a deprecation warning
+        # with EB 6.0, post_install_step() can be renamed to post_processing_step, and this method deleted.
+
+        if self.post_install_step.__qualname__ != "EasyBlock.post_install_step":
+            self.log.deprecated(
+                "EasyBlock.post_install_step() is deprecated, use EasyBlock.post_processing_step() instead.",
+                '6.0',
+            )
+        return self.post_install_step()
 
     def sanity_check_step(self, *args, **kwargs):
         """

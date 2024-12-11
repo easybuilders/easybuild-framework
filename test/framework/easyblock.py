@@ -1062,10 +1062,12 @@ class EasyBlockTest(EnhancedTestCase):
         toy_ec = EasyConfig(toy_ec_fn)
         eb = EB_toy_deprecated(toy_ec)
         eb.silent = True
-        with self.mocked_stdout_stderr() as (_, stderr):
+        with self.mocked_stdout_stderr() as (stdout, stderr):
             eb.run_all_steps(True)
 
             regex = re.compile(depr_msg, re.M)
+            stdout = stdout.getvalue()
+            self.assertTrue("This step is deprecated.\n" in stdout)
             stderr = stderr.getvalue()
             self.assertTrue(regex.search(stderr), f"Pattern {regex.pattern} found in: {stderr}")
 
