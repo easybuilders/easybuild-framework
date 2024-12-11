@@ -1381,8 +1381,7 @@ class EasyBlock(object):
             multi_dep_mod_names = {}
             for deplist in self.cfg.multi_deps:
                 for dep in deplist:
-                    multi_dep_mod_names.setdefault(dep['name'], [])
-                    multi_dep_mod_names[dep['name']].append(dep['short_mod_name'])
+                    multi_dep_mod_names.setdefault(dep['name'], []).append(dep['short_mod_name'])
 
             multi_dep_load_defaults = []
             for _, depmods in sorted(multi_dep_mod_names.items()):
