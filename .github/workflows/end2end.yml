@@ -56,6 +56,7 @@ jobs:
             "eb --show-system-info"
             "eb --check-eb-deps"
             "eb --show-config"
+            "eb -x bzip2-1.0.8.eb"
           )
           for cmd in "${cmds[@]}"; do
               echo ">>> $cmd"

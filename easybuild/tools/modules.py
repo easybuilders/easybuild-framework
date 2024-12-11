@@ -308,7 +308,7 @@ class ModulesTool(object):
                 output, exit_code = None, EasyBuildExit.FAIL_SYSTEM_CHECK
         else:
             cmd = "type module"
-            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=False, hidden=True, output_file=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, output_file=False)
             output, exit_code = res.output, res.exit_code
 
         if regex is None:
@@ -1367,7 +1367,7 @@ class EnvironmentModules(ModulesTool):
                 out, ec = None, 1
         else:
             cmd = "type _module_raw"
-            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=False, hidden=True, output_file=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, output_file=False)
             out, ec = res.output, res.exit_code
 
         if regex is None:
