@@ -3126,7 +3126,6 @@ class EasyBlock(object):
                 "EasyBlock.post_install_step() is deprecated, use EasyBlock.post_processing_step() instead.",
                 '6.0',
             )
-            return self.post_install_step()
 
         lib_dir = os.path.join(self.installdir, 'lib')
         lib64_dir = os.path.join(self.installdir, 'lib64')
