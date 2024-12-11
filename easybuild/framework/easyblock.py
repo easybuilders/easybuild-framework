@@ -1640,7 +1640,7 @@ class EasyBlock(object):
 
         # prefer deprecated make_module_req_guess on custom easyblocks
         if self.make_module_req_guess.__qualname__ == "EasyBlock.make_module_req_guess":
-            # No custom method in child Easyblock, deprecated method is defined by base EasyBlock class
+            # No custom method in child Easyblock, so make_module_req_guess is the one defined by base EasyBlock class
             env_var_requirements = self.module_load_environment.environ
         else:
             # Custom deprecated method used by child EasyBlock
@@ -1731,6 +1731,10 @@ class EasyBlock(object):
         A dictionary of common search path variables to be loaded by environment modules
         Each key contains the list of known directories related to the search path
         """
+        self.log.deprecated(
+            "make_module_req_guess() is deprecated, use EasyBlock.module_load_environment instead",
+            '6.0',
+        )
         return self.module_load_environment.environ
 
     def load_module(self, mod_paths=None, purge=True, extra_modules=None, verbose=True):
