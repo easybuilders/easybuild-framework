@@ -1757,6 +1757,8 @@ class EasyConfig(object):
 
     def resolve_template(self, value):
         """Resolve all templates in the given value using this easyconfig"""
+        if not self.template_values:
+            self.generate_template_values()
         return resolve_template(value, self.template_values)
 
     @handle_deprecated_or_replaced_easyconfig_parameters
