@@ -524,8 +524,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # nuke default module load environment
         default_mod_load_vars = [
-            "PATH", "LD_LIBRARY_PATH", "LIBRARY_PATH", "CPATH", "MANPATH", "PKG_CONFIG_PATH", "ACLOCAL_PATH",
-            "CLASSPATH", "XDG_DATA_DIRS", "GI_TYPELIB_PATH", "CMAKE_PREFIX_PATH", "CMAKE_LIBRARY_PATH",
+            'ACLOCAL_PATH', 'CLASSPATH', 'CMAKE_PREFIX_PATH', 'CMAKE_LIBRARY_PATH', 'CPATH', 'GI_TYPELIB_PATH',
+            'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'MANPATH', 'PATH', 'PKG_CONFIG_PATH', 'XDG_DATA_DIRS',
         ]
         for env_var in default_mod_load_vars:
             delattr(eb.module_load_environment, env_var)
