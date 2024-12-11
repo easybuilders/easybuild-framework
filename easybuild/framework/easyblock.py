@@ -1695,21 +1695,21 @@ class EasyBlock(object):
         for abs_path in exp_search_paths:
             # return relative paths
             tentative_path = os.path.relpath(abs_path, start=self.installdir)
-            tentative_path = "" if tentative_path == "." else tentative_path  # use empty string instead of dot
+            tentative_path = '' if tentative_path == '.' else tentative_path  # use empty string instead of dot
 
             # avoid duplicate entries between symlinked library dirs
             tentative_sep = tentative_path + os.path.sep
             if self.install_lib_symlink == LibSymlink.LIB64_TO_LIB and tentative_sep.startswith('lib64' + os.path.sep):
                 self.log.debug("Discarded search path to symlinked lib64 directory: %s", tentative_path)
-                break
+                continue
             if self.install_lib_symlink == LibSymlink.LIB_TO_LIB64 and tentative_sep.startswith('lib' + os.path.sep):
                 self.log.debug("Discarded search path to symlinked lib directory: %s", tentative_path)
-                break
+                continue
 
             # only retain paths to directories that contain at least one file
             if os.path.isdir(abs_path) and not dir_contains_files(abs_path, recursive=not requires_files) and not fake:
                 self.log.debug("Discarded search path to empty directory: %s", tentative_path)
-                break
+                continue
 
             retained_search_paths.append(tentative_path)
 
@@ -3160,7 +3160,7 @@ class EasyBlock(object):
             # create *relative* 'lib' symlink to 'lib64';
             symlink('lib64', lib_dir, use_abspath_source=False)
 
-        # refresh symlink state
+        # refresh symlink state in install_lib_symlink class variable
         self.check_install_lib_symlink()
 
         self.run_post_install_commands()
