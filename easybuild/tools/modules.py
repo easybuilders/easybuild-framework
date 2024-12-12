@@ -145,6 +145,7 @@ class ModEnvVarType(Enum):
     - """
     STRING, PATH, PATH_WITH_FILES, PATH_WITH_TOP_FILES = range(0, 4)
 
+
 class ModuleEnvironmentVariable:
     """
     Environment variable data structure for modules
@@ -237,6 +238,7 @@ class ModuleEnvironmentVariable:
             ModEnvVarType.PATH_WITH_TOP_FILES,
         ]
         return self.type in path_like_types
+
 
 class ModuleLoadEnvironment:
     """Environment set by modules on load"""
