@@ -2770,20 +2770,15 @@ class ToyBuildTest(EnhancedTestCase):
             rpath_wrappers_dir = glob.glob(os.path.join(os.getenv('TMPDIR'), '*', '*', 'rpath_wrappers'))[0]
             gcc_rpath_wrapper_txt = read_file(glob.glob(os.path.join(rpath_wrappers_dir, '*', 'gcc'))[0])
 
-            # First get the filter argument
-            rpath_args_regex = re.compile(r"^rpath_args_out=.*rpath_args.py \$CMD '([^ ]*)'.*", re.M)
-            res_filter = rpath_args_regex.search(gcc_rpath_wrapper_txt)
-            self.assertTrue(res_filter, "Pattern '%s' found in: %s" % (rpath_args_regex.pattern, gcc_rpath_wrapper_txt))
-
-            # Now get the include argument
-            rpath_args_regex = re.compile(r"^rpath_args_out=.*rpath_args.py \$CMD '.*' '([^ ]*)'.*", re.M)
-            res_include = rpath_args_regex.search(gcc_rpath_wrapper_txt)
-            self.assertTrue(res_include, "Pattern '%s' found in: %s" % (rpath_args_regex.pattern,
-                                                                        gcc_rpath_wrapper_txt))
+            # Get the filter and include arguments
+            rpath_args_regex = re.compile(r"^readarray -t CMD_ARGS .*rpath_args.py \$CMD "
+                                          r"'(?P<filter_paths>[^ ]*)' '(?P<include_paths>[^ ]*)'.*", re.M)
+            res = rpath_args_regex.search(gcc_rpath_wrapper_txt)
+            self.assertTrue(res, "Pattern '%s' found in: %s" % (rpath_args_regex.pattern, gcc_rpath_wrapper_txt))
 
             shutil.rmtree(rpath_wrappers_dir)
 
-            return {'filter_paths': res_filter.group(1), 'include_paths': res_include.group(1)}
+            return {key: res.group(key) for key in ('filter_paths', 'include_paths')}
 
         args = ['--rpath']
         self.test_toy_build(extra_args=args, raise_error=True)

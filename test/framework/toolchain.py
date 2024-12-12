@@ -82,6 +82,15 @@ class ToolchainTest(EnhancedTestCase):
         st.get_cpu_vendor = self.orig_get_cpu_vendor
         super(ToolchainTest, self).tearDown()
 
+    def run_cmd_and_split(self, cmd):
+        """Run the command, check return code and return output as list of lines"""
+        out, ec = run_cmd(cmd, simple=False)
+        self.assertEqual(ec, 0)
+        # Remove 1 trailing newline
+        if out:
+            self.assertEqual(out[-1], '\n')
+        return out[:-1].split('\n')
+
     def get_toolchain(self, name, version=None):
         """Get a toolchain object instance to test with."""
         tc_class, _ = search_toolchain(name)
@@ -2315,145 +2324,136 @@ class ToolchainTest(EnhancedTestCase):
         ])
 
         # simplest possible compiler command
-        out, ec = run_cmd("%s gcc '' '%s' -c foo.c" % (script, rpath_inc), simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split("%s gcc '' '%s' -c foo.c" % (script, rpath_inc))
         cmd_args = [
-            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
-            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
-            "'-Wl,-rpath=$ORIGIN'",
-            "'-Wl,-rpath=$ORIGIN/../lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib64'",
-            "'-Wl,--disable-new-dtags'",
-            "'-c'",
-            "'foo.c'",
+            "-Wl,-rpath=%s/lib" % self.test_prefix,
+            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            "-Wl,-rpath=$ORIGIN",
+            "-Wl,-rpath=$ORIGIN/../lib",
+            "-Wl,-rpath=$ORIGIN/../lib64",
+            "-Wl,--disable-new-dtags",
+            "-c",
+            "foo.c",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(out, cmd_args)
 
         # linker command, --enable-new-dtags should be replaced with --disable-new-dtags
-        out, ec = run_cmd("%s ld '' '%s' --enable-new-dtags foo.o" % (script, rpath_inc), simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split("%s ld '' '%s' --enable-new-dtags foo.o" % (script, rpath_inc))
         cmd_args = [
-            "'-rpath=%s/lib'" % self.test_prefix,
-            "'-rpath=%s/lib64'" % self.test_prefix,
-            "'-rpath=$ORIGIN'",
-            "'-rpath=$ORIGIN/../lib'",
-            "'-rpath=$ORIGIN/../lib64'",
-            "'--disable-new-dtags'",
-            "'--disable-new-dtags'",
-            "'foo.o'",
+            "-rpath=%s/lib" % self.test_prefix,
+            "-rpath=%s/lib64" % self.test_prefix,
+            "-rpath=$ORIGIN",
+            "-rpath=$ORIGIN/../lib",
+            "-rpath=$ORIGIN/../lib64",
+            "--disable-new-dtags",
+            "--disable-new-dtags",
+            "foo.o",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(out, cmd_args)
 
         # compiler command, -Wl,--enable-new-dtags should be replaced with -Wl,--disable-new-dtags
-        out, ec = run_cmd("%s gcc '' '%s' -Wl,--enable-new-dtags foo.c" % (script, rpath_inc), simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split("%s gcc '' '%s' -Wl,--enable-new-dtags foo.c" % (script, rpath_inc))
         cmd_args = [
-            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
-            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
-            "'-Wl,-rpath=$ORIGIN'",
-            "'-Wl,-rpath=$ORIGIN/../lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib64'",
-            "'-Wl,--disable-new-dtags'",
-            "'-Wl,--disable-new-dtags'",
-            "'foo.c'",
+            "-Wl,-rpath=%s/lib" % self.test_prefix,
+            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            "-Wl,-rpath=$ORIGIN",
+            "-Wl,-rpath=$ORIGIN/../lib",
+            "-Wl,-rpath=$ORIGIN/../lib64",
+            "-Wl,--disable-new-dtags",
+            "-Wl,--disable-new-dtags",
+            "foo.c",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(out, cmd_args)
 
         # test passing no arguments
-        out, ec = run_cmd("%s gcc '' '%s'" % (script, rpath_inc), simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split("%s gcc '' '%s'" % (script, rpath_inc))
         cmd_args = [
-            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
-            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
-            "'-Wl,-rpath=$ORIGIN'",
-            "'-Wl,-rpath=$ORIGIN/../lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib64'",
-            "'-Wl,--disable-new-dtags'",
+            "-Wl,-rpath=%s/lib" % self.test_prefix,
+            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            "-Wl,-rpath=$ORIGIN",
+            "-Wl,-rpath=$ORIGIN/../lib",
+            "-Wl,-rpath=$ORIGIN/../lib64",
+            "-Wl,--disable-new-dtags",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(out, cmd_args)
 
         # test passing a single empty argument
-        out, ec = run_cmd("%s ld.gold '' '%s' ''" % (script, rpath_inc), simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split("%s ld.gold '' '%s' ''" % (script, rpath_inc))
         cmd_args = [
-            "'-rpath=%s/lib'" % self.test_prefix,
-            "'-rpath=%s/lib64'" % self.test_prefix,
-            "'-rpath=$ORIGIN'",
-            "'-rpath=$ORIGIN/../lib'",
-            "'-rpath=$ORIGIN/../lib64'",
-            "'--disable-new-dtags'",
-            "''",
+            "-rpath=%s/lib" % self.test_prefix,
+            "-rpath=%s/lib64" % self.test_prefix,
+            "-rpath=$ORIGIN",
+            "-rpath=$ORIGIN/../lib",
+            "-rpath=$ORIGIN/../lib64",
+            "--disable-new-dtags",
+            "",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(out, cmd_args)
 
         # single -L argument, but non-existing path => not used in RPATH, but -L option is retained
         cmd = "%s gcc '' '%s' foo.c -L%s/foo -lfoo" % (script, rpath_inc, self.test_prefix)
-        out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split(cmd)
         cmd_args = [
-            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
-            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
-            "'-Wl,-rpath=$ORIGIN'",
-            "'-Wl,-rpath=$ORIGIN/../lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib64'",
-            "'-Wl,--disable-new-dtags'",
-            "'foo.c'",
-            "'-L%s/foo'" % self.test_prefix,
-            "'-lfoo'",
+            "-Wl,-rpath=%s/lib" % self.test_prefix,
+            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            "-Wl,-rpath=$ORIGIN",
+            "-Wl,-rpath=$ORIGIN/../lib",
+            "-Wl,-rpath=$ORIGIN/../lib64",
+            "-Wl,--disable-new-dtags",
+            "foo.c",
+            "-L%s/foo" % self.test_prefix,
+            "-lfoo",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(out, cmd_args)
 
         # single -L argument again, with existing path
         mkdir(os.path.join(self.test_prefix, 'foo'))
-        out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split(cmd)
         cmd_args = [
-            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
-            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
-            "'-Wl,-rpath=$ORIGIN'",
-            "'-Wl,-rpath=$ORIGIN/../lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib64'",
-            "'-Wl,--disable-new-dtags'",
-            "'-Wl,-rpath=%s/foo'" % self.test_prefix,
-            "'foo.c'",
-            "'-L%s/foo'" % self.test_prefix,
-            "'-lfoo'",
+            "-Wl,-rpath=%s/lib" % self.test_prefix,
+            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            "-Wl,-rpath=$ORIGIN",
+            "-Wl,-rpath=$ORIGIN/../lib",
+            "-Wl,-rpath=$ORIGIN/../lib64",
+            "-Wl,--disable-new-dtags",
+            "-Wl,-rpath=%s/foo" % self.test_prefix,
+            "foo.c",
+            "-L%s/foo" % self.test_prefix,
+            "-lfoo",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(out, cmd_args)
 
         # relative paths passed to -L are *not* RPATH'ed in
-        out, ec = run_cmd("%s gcc '' '%s' foo.c -L../lib -lfoo" % (script, rpath_inc), simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split("%s gcc '' '%s' foo.c -L../lib -lfoo" % (script, rpath_inc))
         cmd_args = [
-            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
-            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
-            "'-Wl,-rpath=$ORIGIN'",
-            "'-Wl,-rpath=$ORIGIN/../lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib64'",
-            "'-Wl,--disable-new-dtags'",
-            "'foo.c'",
-            "'-L../lib'",
-            "'-lfoo'",
+            "-Wl,-rpath=%s/lib" % self.test_prefix,
+            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            "-Wl,-rpath=$ORIGIN",
+            "-Wl,-rpath=$ORIGIN/../lib",
+            "-Wl,-rpath=$ORIGIN/../lib64",
+            "-Wl,--disable-new-dtags",
+            "foo.c",
+            "-L../lib",
+            "-lfoo",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(out, cmd_args)
 
         # single -L argument, with value separated by a space
         cmd = "%s gcc '' '%s' foo.c -L   %s/foo -lfoo" % (script, rpath_inc, self.test_prefix)
-        out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split(cmd)
         cmd_args = [
-            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
-            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
-            "'-Wl,-rpath=$ORIGIN'",
-            "'-Wl,-rpath=$ORIGIN/../lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib64'",
-            "'-Wl,--disable-new-dtags'",
-            "'-Wl,-rpath=%s/foo'" % self.test_prefix,
-            "'foo.c'",
-            "'-L%s/foo'" % self.test_prefix,
-            "'-lfoo'",
+            "-Wl,-rpath=%s/lib" % self.test_prefix,
+            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            "-Wl,-rpath=$ORIGIN",
+            "-Wl,-rpath=$ORIGIN/../lib",
+            "-Wl,-rpath=$ORIGIN/../lib64",
+            "-Wl,--disable-new-dtags",
+            "-Wl,-rpath=%s/foo" % self.test_prefix,
+            "foo.c",
+            "-L%s/foo" % self.test_prefix,
+            "-lfoo",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(out, cmd_args)
 
         mkdir(os.path.join(self.test_prefix, 'bar'))
         mkdir(os.path.join(self.test_prefix, 'lib64'))
@@ -2474,29 +2474,28 @@ class ToolchainTest(EnhancedTestCase):
             '-L/usr/lib',
             '-L%s/bar' % self.test_prefix,
         ])
-        out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split(cmd)
         cmd_args = [
-            "'-rpath=%s/lib'" % self.test_prefix,
-            "'-rpath=%s/lib64'" % self.test_prefix,
-            "'-rpath=$ORIGIN'",
-            "'-rpath=$ORIGIN/../lib'",
-            "'-rpath=$ORIGIN/../lib64'",
-            "'--disable-new-dtags'",
-            "'-rpath=%s/foo'" % self.test_prefix,
-            "'-rpath=%s/lib64'" % self.test_prefix,
-            "'-rpath=/usr/lib'",
-            "'-rpath=%s/bar'" % self.test_prefix,
-            "'-L%s/foo'" % self.test_prefix,
-            "'foo.o'",
-            "'-L%s/lib64'" % self.test_prefix,
-            "'-L%s/foo'" % self.test_prefix,
-            "'-lfoo'",
-            "'-lbar'",
-            "'-L/usr/lib'",
-            "'-L%s/bar'" % self.test_prefix,
+            "-rpath=%s/lib" % self.test_prefix,
+            "-rpath=%s/lib64" % self.test_prefix,
+            "-rpath=$ORIGIN",
+            "-rpath=$ORIGIN/../lib",
+            "-rpath=$ORIGIN/../lib64",
+            "--disable-new-dtags",
+            "-rpath=%s/foo" % self.test_prefix,
+            "-rpath=%s/lib64" % self.test_prefix,
+            "-rpath=/usr/lib",
+            "-rpath=%s/bar" % self.test_prefix,
+            "-L%s/foo" % self.test_prefix,
+            "foo.o",
+            "-L%s/lib64" % self.test_prefix,
+            "-L%s/foo" % self.test_prefix,
+            "-lfoo",
+            "-lbar",
+            "-L/usr/lib",
+            "-L%s/bar" % self.test_prefix,
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(out, cmd_args)
 
         # test specifying of custom rpath filter
         cmd = ' '.join([
@@ -2511,24 +2510,23 @@ class ToolchainTest(EnhancedTestCase):
             '-L/bar',
             '-lbar',
         ])
-        out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split(cmd)
         cmd_args = [
-            "'-rpath=%s/lib'" % self.test_prefix,
-            "'-rpath=%s/lib64'" % self.test_prefix,
-            "'-rpath=$ORIGIN'",
-            "'-rpath=$ORIGIN/../lib'",
-            "'-rpath=$ORIGIN/../lib64'",
-            "'--disable-new-dtags'",
-            "'-rpath=%s/lib64'" % self.test_prefix,
-            "'-L/foo'",
-            "'foo.o'",
-            "'-L%s/lib64'" % self.test_prefix,
-            "'-lfoo'",
-            "'-L/bar'",
-            "'-lbar'",
+            "-rpath=%s/lib" % self.test_prefix,
+            "-rpath=%s/lib64" % self.test_prefix,
+            "-rpath=$ORIGIN",
+            "-rpath=$ORIGIN/../lib",
+            "-rpath=$ORIGIN/../lib64",
+            "--disable-new-dtags",
+            "-rpath=%s/lib64" % self.test_prefix,
+            "-L/foo",
+            "foo.o",
+            "-L%s/lib64" % self.test_prefix,
+            "-lfoo",
+            "-L/bar",
+            "-lbar",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(out, cmd_args)
 
         # slightly trimmed down real-life example (compilation of XZ)
         for subdir in ['icc/lib/intel64', 'imkl/lib', 'imkl/mkl/lib/intel64', 'gettext/lib']:
@@ -2550,35 +2548,34 @@ class ToolchainTest(EnhancedTestCase):
             '-Wl,-rpath',
             '-Wl,/example/software/XZ/5.2.2-intel-2016b/lib',
         ])
-        out, ec = run_cmd("%s icc '' '%s' %s" % (script, rpath_inc, args), simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split("%s icc '' '%s' %s" % (script, rpath_inc, args))
         cmd_args = [
-            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
-            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
-            "'-Wl,-rpath=$ORIGIN'",
-            "'-Wl,-rpath=$ORIGIN/../lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib64'",
-            "'-Wl,--disable-new-dtags'",
-            "'-Wl,-rpath=%s/icc/lib/intel64'" % self.test_prefix,
-            "'-Wl,-rpath=%s/imkl/lib'" % self.test_prefix,
-            "'-Wl,-rpath=%s/imkl/mkl/lib/intel64'" % self.test_prefix,
-            "'-Wl,-rpath=%s/gettext/lib'" % self.test_prefix,
-            "'-fvisibility=hidden'",
-            "'-Wall'",
-            "'-O2'",
-            "'-xHost'",
-            "'-o' '.libs/lzmainfo'",
-            "'lzmainfo-lzmainfo.o' 'lzmainfo-tuklib_progname.o' 'lzmainfo-tuklib_exit.o'",
-            "'-L%s/icc/lib/intel64'" % self.test_prefix,
-            "'-L%s/imkl/lib'" % self.test_prefix,
-            "'-L%s/imkl/mkl/lib/intel64'" % self.test_prefix,
-            "'-L%s/gettext/lib'" % self.test_prefix,
-            "'../../src/liblzma/.libs/liblzma.so'",
-            "'-lrt' '-liomp5' '-lpthread'",
-            "'-Wl,-rpath'",
-            "'-Wl,/example/software/XZ/5.2.2-intel-2016b/lib'",
+            "-Wl,-rpath=%s/lib" % self.test_prefix,
+            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            "-Wl,-rpath=$ORIGIN",
+            "-Wl,-rpath=$ORIGIN/../lib",
+            "-Wl,-rpath=$ORIGIN/../lib64",
+            "-Wl,--disable-new-dtags",
+            "-Wl,-rpath=%s/icc/lib/intel64" % self.test_prefix,
+            "-Wl,-rpath=%s/imkl/lib" % self.test_prefix,
+            "-Wl,-rpath=%s/imkl/mkl/lib/intel64" % self.test_prefix,
+            "-Wl,-rpath=%s/gettext/lib" % self.test_prefix,
+            "-fvisibility=hidden",
+            "-Wall",
+            "-O2",
+            "-xHost",
+            "-o", ".libs/lzmainfo",
+            "lzmainfo-lzmainfo.o", "lzmainfo-tuklib_progname.o", "lzmainfo-tuklib_exit.o",
+            "-L%s/icc/lib/intel64" % self.test_prefix,
+            "-L%s/imkl/lib" % self.test_prefix,
+            "-L%s/imkl/mkl/lib/intel64" % self.test_prefix,
+            "-L%s/gettext/lib" % self.test_prefix,
+            "../../src/liblzma/.libs/liblzma.so",
+            "-lrt", "-liomp5", "-lpthread",
+            "-Wl,-rpath",
+            "-Wl,/example/software/XZ/5.2.2-intel-2016b/lib",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(out, cmd_args)
 
         # trimmed down real-life example involving quotes and escaped quotes (compilation of GCC)
         args = [
@@ -2594,35 +2591,33 @@ class ToolchainTest(EnhancedTestCase):
             '../../gcc/version.c',
         ]
         cmd = "%s g++ '' '%s' %s" % (script, rpath_inc, ' '.join(args))
-        out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split(cmd)
 
         cmd_args = [
-            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
-            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
-            "'-Wl,-rpath=$ORIGIN'",
-            "'-Wl,-rpath=$ORIGIN/../lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib64'",
-            "'-Wl,--disable-new-dtags'",
-            "'-DHAVE_CONFIG_H'",
-            "'-I.'",
-            "'-Ibuild'",
-            "'-I../../gcc'",
-            "'-DBASEVER=\"5.4.0\"'",
-            "'-DDATESTAMP=\"\"'",
-            "'-DPKGVERSION=\"(GCC) \"'",
-            "'-DBUGURL=\"<http://gcc.gnu.org/bugs.html>\"'",
-            "'-o' 'build/version.o'",
-            "'../../gcc/version.c'",
+            "-Wl,-rpath=%s/lib" % self.test_prefix,
+            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            "-Wl,-rpath=$ORIGIN",
+            "-Wl,-rpath=$ORIGIN/../lib",
+            "-Wl,-rpath=$ORIGIN/../lib64",
+            "-Wl,--disable-new-dtags",
+            "-DHAVE_CONFIG_H",
+            "-I.",
+            "-Ibuild",
+            "-I../../gcc",
+            "-DBASEVER=\"5.4.0\"",
+            "-DDATESTAMP=\"\"",
+            "-DPKGVERSION=\"(GCC) \"",
+            "-DBUGURL=\"<http://gcc.gnu.org/bugs.html>\"",
+            "-o", "build/version.o",
+            "../../gcc/version.c",
         ]
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        self.assertEqual(out, cmd_args)
 
         # verify that no -rpath arguments are injected when command is run in 'version check' mode
         for extra_args in ["-v", "-V", "--version", "-dumpversion", "-v -L/test/lib"]:
             cmd = "%s g++ '' '%s' %s" % (script, rpath_inc, extra_args)
-            out, ec = run_cmd(cmd, simple=False)
-            self.assertEqual(ec, 0)
-            self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(["'%s'" % x for x in extra_args.split(' ')]))
+            out = self.run_cmd_and_split(cmd)
+            self.assertEqual(out, extra_args.split(' '))
 
         # if a compiler command includes "-x c++-header" or "-x c-header" (which imply no linking is done),
         # we should *not* inject -Wl,-rpath options, since those enable linking as a side-effect;
@@ -2634,24 +2629,23 @@ class ToolchainTest(EnhancedTestCase):
         ]
         for extra_args in test_cases:
             cmd = "%s g++ '' '%s' foo.c -O2 %s" % (script, rpath_inc, extra_args)
-            out, ec = run_cmd(cmd, simple=False)
-            self.assertEqual(ec, 0)
-            cmd_args = ["'foo.c'", "'-O2'"] + ["'%s'" % x for x in extra_args.split(' ')]
-            self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+            out = self.run_cmd_and_split(cmd)
+            cmd_args = ["foo.c", "-O2"] + extra_args.split(' ')
+            self.assertEqual(out, cmd_args)
 
         # check whether $LIBRARY_PATH is taken into account
         test_cmd_gcc = "%s gcc '' '%s' -c foo.c" % (script, rpath_inc)
         pre_cmd_args_gcc = [
-            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
-            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
-            "'-Wl,-rpath=$ORIGIN'",
-            "'-Wl,-rpath=$ORIGIN/../lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib64'",
-            "'-Wl,--disable-new-dtags'",
+            "-Wl,-rpath=%s/lib" % self.test_prefix,
+            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            "-Wl,-rpath=$ORIGIN",
+            "-Wl,-rpath=$ORIGIN/../lib",
+            "-Wl,-rpath=$ORIGIN/../lib64",
+            "-Wl,--disable-new-dtags",
         ]
         post_cmd_args_gcc = [
-            "'-c'",
-            "'foo.c'",
+            "-c",
+            "foo.c",
         ]
 
         test_cmd_ld = ' '.join([
@@ -2668,25 +2662,25 @@ class ToolchainTest(EnhancedTestCase):
             '-L%s/bar' % self.test_prefix,
         ])
         pre_cmd_args_ld = [
-            "'-rpath=%s/lib'" % self.test_prefix,
-            "'-rpath=%s/lib64'" % self.test_prefix,
-            "'-rpath=$ORIGIN'",
-            "'-rpath=$ORIGIN/../lib'",
-            "'-rpath=$ORIGIN/../lib64'",
-            "'--disable-new-dtags'",
-            "'-rpath=%s/foo'" % self.test_prefix,
-            "'-rpath=%s/lib64'" % self.test_prefix,
-            "'-rpath=/usr/lib'",
-            "'-rpath=%s/bar'" % self.test_prefix,
+            "-rpath=%s/lib" % self.test_prefix,
+            "-rpath=%s/lib64" % self.test_prefix,
+            "-rpath=$ORIGIN",
+            "-rpath=$ORIGIN/../lib",
+            "-rpath=$ORIGIN/../lib64",
+            "--disable-new-dtags",
+            "-rpath=%s/foo" % self.test_prefix,
+            "-rpath=%s/lib64" % self.test_prefix,
+            "-rpath=/usr/lib",
+            "-rpath=%s/bar" % self.test_prefix,
         ]
         post_cmd_args_ld = [
-            "'-L%s/foo'" % self.test_prefix,
-            "'foo.o'",
-            "'-L%s/lib64'" % self.test_prefix,
-            "'-lfoo'",
-            "'-lbar'",
-            "'-L/usr/lib'",
-            "'-L%s/bar'" % self.test_prefix,
+            "-L%s/foo" % self.test_prefix,
+            "foo.o",
+            "-L%s/lib64" % self.test_prefix,
+            "-lfoo",
+            "-lbar",
+            "-L/usr/lib",
+            "-L%s/bar" % self.test_prefix,
         ]
 
         library_paths = [
@@ -2702,15 +2696,13 @@ class ToolchainTest(EnhancedTestCase):
 
             os.environ['LIBRARY_PATH'] = ':'.join(library_path)
 
-            out, ec = run_cmd(test_cmd_gcc, simple=False)
-            self.assertEqual(ec, 0)
-            cmd_args = pre_cmd_args_gcc + ["'-Wl,-rpath=%s'" % x for x in library_path if x] + post_cmd_args_gcc
-            self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+            out = self.run_cmd_and_split(test_cmd_gcc)
+            cmd_args = pre_cmd_args_gcc + ["-Wl,-rpath=%s" % x for x in library_path if x] + post_cmd_args_gcc
+            self.assertEqual(out, cmd_args)
 
-            out, ec = run_cmd(test_cmd_ld, simple=False)
-            self.assertEqual(ec, 0)
-            cmd_args = pre_cmd_args_ld + ["'-rpath=%s'" % x for x in library_path if x] + post_cmd_args_ld
-            self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+            out = self.run_cmd_and_split(test_cmd_ld)
+            cmd_args = pre_cmd_args_ld + ["-rpath=%s" % x for x in library_path if x] + post_cmd_args_ld
+            self.assertEqual(out, cmd_args)
 
         # paths already listed via -L don't get included again as RPATH option
         new_lib64 = os.path.join(self.test_prefix, 'new', 'lib64')
@@ -2728,18 +2720,16 @@ class ToolchainTest(EnhancedTestCase):
         ]
         os.environ['LIBRARY_PATH'] = ':'.join(library_path)
 
-        out, ec = run_cmd(test_cmd_gcc, simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split(test_cmd_gcc)
         # no -L options in GCC command, so all $LIBRARY_PATH entries are retained except for last one (lib symlink)
-        cmd_args = pre_cmd_args_gcc + ["'-Wl,-rpath=%s'" % x for x in library_path[:-1] if x] + post_cmd_args_gcc
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        cmd_args = pre_cmd_args_gcc + ["-Wl,-rpath=%s" % x for x in library_path[:-1] if x] + post_cmd_args_gcc
+        self.assertEqual(out, cmd_args)
 
-        out, ec = run_cmd(test_cmd_ld, simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split(test_cmd_ld)
         # only new path from $LIBRARY_PATH is included as -rpath option,
         # since others are already included via corresponding -L flag
-        cmd_args = pre_cmd_args_ld + ["'-rpath=%s'" % new_lib64] + post_cmd_args_ld
-        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+        cmd_args = pre_cmd_args_ld + ["-rpath=%s" % new_lib64] + post_cmd_args_ld
+        self.assertEqual(out, cmd_args)
 
     def test_toolchain_prepare_rpath(self):
         """Test toolchain.prepare under --rpath"""
@@ -2855,27 +2845,28 @@ class ToolchainTest(EnhancedTestCase):
             '-L%s/foo' % self.test_prefix,
             '-L/bar',
             "'$FOO'",
+            "''",  # Empty argument
             # C/C++ preprocessor value including a quotes
             r'-DX1="\"\""',
             r'-DX2="\"I\""',
             r"-DY1=\'\'",
             r"-DY2=\'J\'",
         ])
-        out, ec = run_cmd(cmd)
-        self.assertEqual(ec, 0)
-        expected = '\n'.join([
+        out = self.run_cmd_and_split(cmd)
+        expected = [
             '-Wl,--disable-new-dtags',
             '-Wl,-rpath=%s/foo' % self.test_prefix,
-            '%(user)s.c',
+            '%s.c' % os.getenv('USER'),
             '-L%s/foo' % self.test_prefix,
             '-L/bar',
             '$FOO',
+            '',
             '-DX1=""',
             '-DX2="I"',
             "-DY1=''",
             "-DY2='J'",
-        ])
-        self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
+        ]
+        self.assertEqual(out, expected)
 
         # check whether 'stubs' library directory are correctly filtered out
         paths = [
@@ -2903,10 +2894,9 @@ class ToolchainTest(EnhancedTestCase):
         args.append('-L"%s"' % path_with_spaces)
 
         cmd = "g++ ${USER}.c %s" % ' '.join(args)
-        out, ec = run_cmd(cmd, simple=False)
-        self.assertEqual(ec, 0)
+        out = self.run_cmd_and_split(cmd)
 
-        expected = '\n'.join([
+        expected = ('\n'.join([
             '-Wl,--disable-new-dtags',
             '-Wl,-rpath=%(libdir)s/tmp/foo/',
             '-Wl,-rpath=%(libdir)s/prefix/software/stubs/1.2.3/lib',
@@ -2930,11 +2920,8 @@ class ToolchainTest(EnhancedTestCase):
             '-L%(libdir)s/prefix/software/bleh/0/lib/stubs',
             '-L%(libdir)s/prefix/software/foobar/4.5/stubsbutnotreally',
             '-L%(path_with_spaces)s',
-        ])
-        self.assertEqual(out.strip(), expected % {'libdir': self.test_prefix,
-                                                  'user': os.getenv('USER'),
-                                                  'path_with_spaces': path_with_spaces,
-                                                  })
+        ]) % {'libdir': self.test_prefix, 'user': os.getenv('USER'), 'path_with_spaces': path_with_spaces}).split('\n')
+        self.assertEqual(out, expected)
 
         # calling prepare() again should *not* result in wrapping the existing RPATH wrappers
         # this can happen when building extensions
