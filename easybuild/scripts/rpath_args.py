@@ -25,11 +25,10 @@
 ##
 """
 Utility script used by RPATH wrapper script;
-output is statements that define the following environment variables
-* $CMD_ARGS: new list of command line arguments to pass
-* $RPATH_ARGS: command line option to specify list of paths to RPATH
+output is a list of arguments to be passed to the wrapped command, one per line
 
 author: Kenneth Hoste (HPC-UGent)
+author: Alexander Grund (TU Dresden)
 """
 import os
 import re
@@ -161,8 +160,12 @@ if add_rpath_args:
     # add -rpath flags in front
     cmd_args = cmd_args_rpath + cmd_args
 
-# wrap all arguments into single quotes to avoid further bash expansion
-cmd_args = ["'%s'" % a.replace("'", "''") for a in cmd_args]
 
-# output: statement to define $CMD_ARGS and $RPATH_ARGS
-print("CMD_ARGS=(%s)" % ' '.join(cmd_args))
+def quote(arg):
+    """Quote the argument for use in a shell to avoid further expansion"""
+    # Wrap in single quotes and replace every single quote by '"'"'
+    # This terminates the single-quoted string, inserts a literal single quote and starts a new single-quotest-string
+    return "'" + arg.replace("'", "'\"'\"'") + "'"
+
+
+print('\n'.join(cmd_args))
