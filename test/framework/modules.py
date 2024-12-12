@@ -1699,6 +1699,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(hasattr(mod_load_env, 'TEST_EXTRA'))
         self.assertEqual(mod_load_env.TEST_EXTRA.contents, test_contents)
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(ModulesTest, sys.argv[1:])
