@@ -1729,7 +1729,7 @@ class EasyBlock(object):
         lib_dir = os.path.join(self.installdir, 'lib')
         lib64_dir = os.path.join(self.installdir, 'lib64')
 
-        self.install_lib_symlink = LibSymlink.UNKNONWN
+        self.install_lib_symlink = LibSymlink.UNKNOWN
         if os.path.exists(lib_dir) and os.path.exists(lib64_dir):
             if os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
                 self.install_lib_symlink = LibSymlink.LIB_TO_LIB64
