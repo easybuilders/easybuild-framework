@@ -99,7 +99,7 @@ from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import Lmod, ModuleLoadEnvironment
+from easybuild.tools.modules import Lmod, ModEnvVarType, ModuleLoadEnvironment
 from easybuild.tools.modules import curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
@@ -1656,16 +1656,22 @@ class EasyBlock(object):
             )
             self.module_load_environment.update(self.make_module_req_guess())
 
-        for env_var, search_paths in sorted(self.module_load_environment.items()):
+        # Only inject path-like environment variables into module file
+        env_var_requirements = sorted([
+            (envar_name, envar_val) for envar_name, envar_val in self.module_load_environment.items()
+            if envar_val.is_path
+        ])
+
+        for env_var, search_paths in env_var_requirements:
             if self.dry_run:
                 self.dry_run_msg(f" ${env_var}:{', '.join(search_paths)}")
                 # Don't expand globs or do any filtering for dry run
                 mod_req_paths = search_paths
             else:
                 mod_req_paths = []
-                requires_files = getattr(self.module_load_environment, env_var).requires_files
+                requires_top_files = search_paths.type == ModEnvVarType.PATH_WITH_TOP_FILES
                 for path in search_paths:
-                    mod_req_paths.extend(self.expand_module_search_path(path, requires_files, fake=fake))
+                    mod_req_paths.extend(self.expand_module_search_path(path, requires_top_files, fake=fake))
 
             if mod_req_paths:
                 mod_req_paths = nub(mod_req_paths)  # remove duplicates
@@ -1676,13 +1682,15 @@ class EasyBlock(object):
 
         return "".join(mod_lines)
 
-    def expand_module_search_path(self, search_path, requires_files, fake=False):
+    def expand_module_search_path(self, search_path, requires_top_files, fake=False):
         """
         Expand given path glob and return list of suitable paths to be used as search paths:
             - Paths are relative to installation prefix root
-            - Paths to files must exist and directories be non-empty
-            - Fake modules can set search paths to empty directories
+            - Paths must point to existing files/directories
             - Search paths to a 'lib64' symlinked to 'lib' are discarded to avoid duplicates
+            - Directories must contain at least one file in them (empty folders are ignored)
+              - requires_top_files: increases stricness to require files in top level directory
+              - fake: fake modules can set search paths to empty directories
         """
         # Expand globs but only if the string is non-empty
         # empty string is a valid value here (i.e. to prepend the installation prefix root directory)
@@ -1708,10 +1716,12 @@ class EasyBlock(object):
                 self.log.debug("Discarded search path to symlinked lib directory: %s", tentative_path)
                 continue
 
-            # only retain paths to directories that contain at least one file
-            if os.path.isdir(abs_path) and not dir_contains_files(abs_path, recursive=not requires_files) and not fake:
-                self.log.debug("Discarded search path to empty directory: %s", tentative_path)
-                continue
+            if os.path.isdir(abs_path) and not fake:
+                # only retain paths to directories that contain at least one file
+                recursive = not requires_top_files
+                if not dir_contains_files(abs_path, recursive=recursive):
+                    self.log.debug("Discarded search path to empty directory: %s", tentative_path)
+                    continue
 
             retained_search_paths.append(tentative_path)
 

@@ -41,6 +41,7 @@ import glob
 import os
 import re
 import shlex
+from enum import Enum
 
 from easybuild.base import fancylogger
 from easybuild.tools import LooseVersion
@@ -132,20 +133,37 @@ MODULE_VERSION_CACHE = {}
 _log = fancylogger.getLogger('modules', fname=False)
 
 
+class ModEnvVarType(Enum):
+    """
+    Possible types of ModuleEnvironmentVariable:
+    - STRING: (list of) strings with no further meaning
+    - PATH: (list of) of paths to existing directories or files
+    - PATH_WITH_FILES: (list of) of paths to existing directories containing
+      one or more files
+    - PATH_WITH_TOP_FILES: (list of) of paths to existing directories
+      containing one or more files in its top directory
+    - """
+    STRING, PATH, PATH_WITH_FILES, PATH_WITH_TOP_FILES = range(0, 4)
+
 class ModuleEnvironmentVariable:
     """
     Environment variable data structure for modules
     Contents of environment variable is a list of unique strings
     """
 
-    def __init__(self, contents, requires_files=False, delim=os.pathsep):
+    def __init__(self, contents, var_type=None, delim=os.pathsep):
         """
         Initialize new environment variable
         Actual contents of the environment variable are held in self.contents
+        By default, environment variable is a (list of) paths with files in them
+        Existence of paths and their contents are not checked at init
         """
         self.contents = contents
-        self.requires_files = bool(requires_files)
         self.delim = delim
+
+        if var_type is None:
+            var_type = "PATH_WITH_FILES"
+        self.type = var_type
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -170,10 +188,22 @@ class ModuleEnvironmentVariable:
 
         try:
             str_list = [str(path) for path in value]
-        except TypeError:
-            raise TypeError("ModuleEnvironmentVariable.contents must be a list of strings") from None
+        except TypeError as err:
+            raise TypeError("ModuleEnvironmentVariable.contents must be a list of strings") from err
 
         self._contents = nub(str_list)  # remove duplicates and keep order
+
+    @property
+    def type(self):
+        return self._type
+
+    @type.setter
+    def type(self, value):
+        """Convert type to VarType"""
+        try:
+            self._type = ModEnvVarType[value]
+        except KeyError as err:
+            raise EasyBuildError(f"Cannot create ModuleEnvironmentVariable with type {value}") from err
 
     def append(self, item):
         """Shortcut to append to list of contents"""
@@ -199,6 +229,14 @@ class ModuleEnvironmentVariable:
             # item is not in the list, move along
             self.log.debug(f"ModuleEnvironmentVariable does not contain item: {' '.join(args)}")
 
+    @property
+    def is_path(self):
+        path_like_types = [
+            ModEnvVarType.PATH,
+            ModEnvVarType.PATH_WITH_FILES,
+            ModEnvVarType.PATH_WITH_TOP_FILES,
+        ]
+        return self.type in path_like_types
 
 class ModuleLoadEnvironment:
     """Environment set by modules on load"""
@@ -235,9 +273,9 @@ class ModuleLoadEnvironment:
         if not isinstance(kwargs, dict):
             contents, kwargs = value, {}
 
-        # special variables that files to be present in the specified paths
+        # special variables that require files in their top directories
         if name in ('LD_LIBRARY_PATH', 'PATH'):
-            kwargs.update({'requires_files': True})
+            kwargs.update({'var_type': 'PATH_WITH_TOP_FILES'})
 
         return super().__setattr__(name.upper(), ModuleEnvironmentVariable(contents, **kwargs))
 
@@ -259,8 +297,8 @@ class ModuleLoadEnvironment:
         try:
             for envar_name, envar_contents in new_env.items():
                 setattr(self, envar_name, envar_contents)
-        except AttributeError:
-            raise EasyBuildError("Cannot update ModuleLoadEnvironment, new environment variables must be in a dict.")
+        except AttributeError as err:
+            raise EasyBuildError("Cannot update ModuleLoadEnvironment from a non-dict variable") from err
 
     @property
     def as_dict(self):

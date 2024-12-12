@@ -1604,7 +1604,7 @@ class ModulesTest(EnhancedTestCase):
         test_paths = ['lib', 'lib64']
         mod_envar = mod.ModuleEnvironmentVariable(test_paths)
         self.assertTrue(hasattr(mod_envar, 'contents'))
-        self.assertTrue(hasattr(mod_envar, 'requires_files'))
+        self.assertTrue(hasattr(mod_envar, 'type'))
         self.assertTrue(hasattr(mod_envar, 'delim'))
         self.assertEqual(mod_envar.contents, test_paths)
         self.assertEqual(repr(mod_envar), repr(test_paths))
@@ -1614,6 +1614,22 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod_envar_custom_delim.contents, test_paths)
         self.assertEqual(repr(mod_envar_custom_delim), repr(test_paths))
         self.assertEqual(str(mod_envar_custom_delim), 'lib|lib64')
+
+        mod_envar_custom_type = mod.ModuleEnvironmentVariable(test_paths, var_type='STRING')
+        self.assertEqual(mod_envar_custom_type.contents, test_paths)
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.STRING)
+        self.assertEqual(mod_envar_custom_type.is_path, False)
+        mod_envar_custom_type.type = 'PATH'
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH)
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+        mod_envar_custom_type.type = 'PATH_WITH_FILES'
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+        mod_envar_custom_type.type = 'PATH_WITH_TOP_FILES'
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH_WITH_TOP_FILES)
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+        self.assertRaises(EasyBuildError, setattr, mod_envar_custom_type, 'type', 'NONEXISTENT')
+        self.assertRaises(EasyBuildError, mod.ModuleEnvironmentVariable, test_paths, 'NONEXISTENT')
 
         mod_envar.contents = []
         self.assertEqual(mod_envar.contents, [])
@@ -1666,10 +1682,12 @@ class ModulesTest(EnhancedTestCase):
         mod_load_env.TEST_STR = 'some/path'
         self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
         self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
-        mod_load_env.TEST_EXTRA = (test_contents, {'requires_files': True})
-        self.assertTrue(hasattr(mod_load_env, 'TEST_EXTRA'))
-        self.assertEqual(mod_load_env.TEST_EXTRA.contents, test_contents)
-        self.assertEqual(mod_load_env.TEST_EXTRA.requires_files, True)
+        mod_load_env.TEST_VARTYPE = (test_contents, {'var_type': "STRING"})
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VARTYPE'))
+        self.assertEqual(mod_load_env.TEST_VARTYPE.contents, test_contents)
+        self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.STRING)
+        mod_load_env.TEST_VARTYPE.type = "PATH"
+        self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.PATH)
         self.assertRaises(TypeError, setattr, mod_load_env, 'TEST_UNKNONW', (test_contents, {'unkown_param': True}))
         # test retrieving environment
         ref_load_env = mod_load_env.__dict__.copy()
@@ -1682,22 +1700,23 @@ class ModulesTest(EnhancedTestCase):
         self.assertDictEqual(mod_load_env.environ, ref_load_env_environ)
         # test updating environment
         new_test_env = {
-            'TEST_VAR': 'replaced_path',
+            'TEST_VARTYPE': 'replaced_path',
             'TEST_NEW_VAR': ['new_path1', 'new_path2'],
         }
         mod_load_env.update(new_test_env)
-        self.assertTrue(hasattr(mod_load_env, 'TEST_VAR'))
-        self.assertEqual(mod_load_env.TEST_VAR.contents, ['replaced_path'])
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VARTYPE'))
+        self.assertEqual(mod_load_env.TEST_VARTYPE.contents, ['replaced_path'])
+        self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.PATH_WITH_FILES)
         self.assertTrue(hasattr(mod_load_env, 'TEST_NEW_VAR'))
         self.assertEqual(mod_load_env.TEST_NEW_VAR.contents, ['new_path1', 'new_path2'])
-        self.assertEqual(mod_load_env.TEST_NEW_VAR.requires_files, False)
-        # check that existing variables still exist
+        self.assertEqual(mod_load_env.TEST_NEW_VAR.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        # check that previous variables still exist
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VAR'))
+        self.assertEqual(mod_load_env.TEST_VAR.contents, test_contents)
         self.assertTrue(hasattr(mod_load_env, 'TEST_LOWER'))
         self.assertEqual(mod_load_env.TEST_LOWER.contents, test_contents)
         self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
         self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
-        self.assertTrue(hasattr(mod_load_env, 'TEST_EXTRA'))
-        self.assertEqual(mod_load_env.TEST_EXTRA.contents, test_contents)
 
 
 def suite():
