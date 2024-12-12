@@ -1662,9 +1662,9 @@ class ModulesTest(EnhancedTestCase):
 
         ref_load_env = mod_load_env.__dict__.copy()
         self.assertCountEqual(list(mod_load_env), ref_load_env.keys())
-        ref_load_env_item_list = [(key, value.contents) for key, value in ref_load_env.items()]
+        ref_load_env_item_list = list(ref_load_env.items())
         self.assertCountEqual(list(mod_load_env.items()), ref_load_env_item_list)
-        ref_load_env_environ = {key: value.contents for key, value in ref_load_env.items()}
+        ref_load_env_environ = {key: str(value) for key, value in ref_load_env.items()}
         self.assertDictEqual(mod_load_env.environ, ref_load_env_environ)
 
         mod_load_env.test_lower = test_contents

@@ -253,16 +253,17 @@ class ModuleLoadEnvironment:
         - value = its "contents" attribute
         """
         for attr in self.__dict__:
-            yield attr, getattr(self, attr).contents
+            yield attr, getattr(self, attr)
 
     @property
     def environ(self):
         """
         Return dict with mapping of ModuleEnvironmentVariables names with their contents
+        Equivalent in shape to os.environ
         """
         mapping = {}
         for envar_name, envar_contents in self.items():
-            mapping.update({envar_name: envar_contents})
+            mapping.update({envar_name: str(envar_contents)})
         return mapping
 
 
