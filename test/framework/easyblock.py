@@ -3077,7 +3077,8 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(os.path.join(eb.installdir, 'dir_with_full_subdirs', 'subdir1', 'file12.txt'), 'test file 1.2')
         write_file(os.path.join(eb.installdir, 'dir_with_full_subdirs', 'subdir2', 'file21.txt'), 'test file 2.1')
 
-        eb.install_lib_symlink = LibSymlink.NONE
+        eb.check_install_lib_symlink()
+        self.assertEqual(eb.install_lib_symlink, LibSymlink.UNKNOWN)
 
         self.assertEqual(eb.expand_module_search_path("nonexistent", True), [])
         self.assertEqual(eb.expand_module_search_path("nonexistent", False), [])
@@ -3098,12 +3099,12 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.expand_module_search_path("nonexistent/*", True), [])
         self.assertEqual(eb.expand_module_search_path("dir_with_full_subdirs/nonexistent/*", True), [])
         # state of install_lib_symlink should not have changed
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.NONE)
+        self.assertEqual(eb.install_lib_symlink, LibSymlink.UNKNOWN)
 
         # test both lib and lib64 directories
         os.mkdir(os.path.join(eb.installdir, "lib"))
         eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.NONE)
+        self.assertEqual(eb.install_lib_symlink, LibSymlink.UNKNOWN)
         self.assertEqual(eb.expand_module_search_path("lib", True), [])
         self.assertEqual(eb.expand_module_search_path("lib", False), [])
         write_file(os.path.join(eb.installdir, "lib", "libtest.so"), "not actually a lib")
@@ -3123,7 +3124,7 @@ class EasyBlockTest(EnhancedTestCase):
         remove_dir(os.path.join(eb.installdir, "lib64"))
         os.symlink("lib", os.path.join(eb.installdir, "lib64"))
         eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.LIB64)
+        self.assertEqual(eb.install_lib_symlink, LibSymlink.LIB64_TO_LIB)
         self.assertEqual(eb.expand_module_search_path("lib", True), ["lib"])
         self.assertEqual(eb.expand_module_search_path("lib", False), ["lib"])
         self.assertEqual(eb.expand_module_search_path("lib64", True), [])
@@ -3138,7 +3139,7 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(os.path.join(eb.installdir, "lib64", "libtest.so"), "not actually a lib")
         os.symlink("lib64", os.path.join(eb.installdir, "lib"))
         eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.LIB)
+        self.assertEqual(eb.install_lib_symlink, LibSymlink.LIB_TO_LIB64)
         self.assertEqual(eb.expand_module_search_path("lib", True), [])
         self.assertEqual(eb.expand_module_search_path("lib", False), [])
         self.assertEqual(eb.expand_module_search_path("lib64", True), ["lib64"])
