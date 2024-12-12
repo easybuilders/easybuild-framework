@@ -1647,23 +1647,16 @@ class EasyBlock(object):
             note += "for paths are skipped for the statements below due to dry run"
             mod_lines.append(self.module_generator.comment(note))
 
-        # prefer deprecated make_module_req_guess on custom easyblocks
-        if self.make_module_req_guess.__qualname__ == "EasyBlock.make_module_req_guess":
-            # No custom method in child Easyblock, so make_module_req_guess is the one defined by base EasyBlock class
-            env_var_requirements = self.module_load_environment.environ
-        else:
-            # Custom deprecated method used by child EasyBlock
+        if self.make_module_req_guess.__qualname__ != "EasyBlock.make_module_req_guess":
+            # Deprecated make_module_req_guess method used in child Easyblock
+            # Update environment with custom make_module_req_guess
             self.log.deprecated(
                 "make_module_req_guess() is deprecated, use EasyBlock.module_load_environment instead.",
                 "6.0",
             )
-            env_var_requirements = self.make_module_req_guess()
-            # backward compatibility: manually convert paths defined as string to lists
-            env_var_requirements.update({
-                envar: [path] for envar, path in env_var_requirements.items() if isinstance(path, str)
-            })
+            self.module_load_environment.update(self.make_module_req_guess())
 
-        for env_var, search_paths in sorted(env_var_requirements.items()):
+        for env_var, search_paths in sorted(self.module_load_environment.items()):
             if self.dry_run:
                 self.dry_run_msg(f" ${env_var}:{', '.join(search_paths)}")
                 # Don't expand globs or do any filtering for dry run
@@ -1747,7 +1740,7 @@ class EasyBlock(object):
             "make_module_req_guess() is deprecated, use EasyBlock.module_load_environment instead",
             '6.0',
         )
-        return self.module_load_environment.environ
+        return self.module_load_environment.as_dict
 
     def load_module(self, mod_paths=None, purge=True, extra_modules=None, verbose=True):
         """
