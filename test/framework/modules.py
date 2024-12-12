@@ -1654,19 +1654,12 @@ class ModulesTest(EnhancedTestCase):
 
     def test_module_load_environment(self):
         """Test for ModuleLoadEnvironment object"""
+        # test setting attributes
         test_contents = ['lib', 'lib64']
         mod_load_env = mod.ModuleLoadEnvironment()
         mod_load_env.TEST_VAR = test_contents
         self.assertTrue(hasattr(mod_load_env, 'TEST_VAR'))
         self.assertEqual(mod_load_env.TEST_VAR.contents, test_contents)
-
-        ref_load_env = mod_load_env.__dict__.copy()
-        self.assertCountEqual(list(mod_load_env), ref_load_env.keys())
-        ref_load_env_item_list = list(ref_load_env.items())
-        self.assertCountEqual(list(mod_load_env.items()), ref_load_env_item_list)
-        ref_load_env_environ = {key: str(value) for key, value in ref_load_env.items()}
-        self.assertDictEqual(mod_load_env.environ, ref_load_env_environ)
-
         mod_load_env.test_lower = test_contents
         self.assertTrue(hasattr(mod_load_env, 'TEST_LOWER'))
         self.assertEqual(mod_load_env.TEST_LOWER.contents, test_contents)
@@ -1678,7 +1671,33 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod_load_env.TEST_EXTRA.contents, test_contents)
         self.assertEqual(mod_load_env.TEST_EXTRA.requires_files, True)
         self.assertRaises(TypeError, setattr, mod_load_env, 'TEST_UNKNONW', (test_contents, {'unkown_param': True}))
-
+        # test retrieving environment
+        ref_load_env = mod_load_env.__dict__.copy()
+        self.assertCountEqual(list(mod_load_env), ref_load_env.keys())
+        ref_load_env_item_list = list(ref_load_env.items())
+        self.assertCountEqual(list(mod_load_env.items()), ref_load_env_item_list)
+        ref_load_env_item_list = dict(ref_load_env.items())
+        self.assertCountEqual(mod_load_env.as_dict, ref_load_env_item_list)
+        ref_load_env_environ = {key: str(value) for key, value in ref_load_env.items()}
+        self.assertDictEqual(mod_load_env.environ, ref_load_env_environ)
+        # test updating environment
+        new_test_env = {
+            'TEST_VAR': 'replaced_path',
+            'TEST_NEW_VAR': ['new_path1', 'new_path2'],
+        }
+        mod_load_env.update(new_test_env)
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VAR'))
+        self.assertEqual(mod_load_env.TEST_VAR.contents, ['replaced_path'])
+        self.assertTrue(hasattr(mod_load_env, 'TEST_NEW_VAR'))
+        self.assertEqual(mod_load_env.TEST_NEW_VAR.contents, ['new_path1', 'new_path2'])
+        self.assertEqual(mod_load_env.TEST_NEW_VAR.requires_files, False)
+        # check that existing variables still exist
+        self.assertTrue(hasattr(mod_load_env, 'TEST_LOWER'))
+        self.assertEqual(mod_load_env.TEST_LOWER.contents, test_contents)
+        self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
+        self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
+        self.assertTrue(hasattr(mod_load_env, 'TEST_EXTRA'))
+        self.assertEqual(mod_load_env.TEST_EXTRA.contents, test_contents)
 
 def suite():
     """ returns all the testcases in this module """

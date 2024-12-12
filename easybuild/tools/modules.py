@@ -210,8 +210,7 @@ class ModuleLoadEnvironment:
         """
         self.ACLOCAL_PATH = [os.path.join('share', 'aclocal')]
         self.CLASSPATH = ['*.jar']
-        # only needed for installations whith standalone lib64
-        self.CMAKE_LIBRARY_PATH = ['lib64']
+        self.CMAKE_LIBRARY_PATH = ['lib64']  # only needed for installations whith standalone lib64
         self.CMAKE_PREFIX_PATH = ['']
         self.CPATH = SEARCH_PATH_HEADER_DIRS
         self.GI_TYPELIB_PATH = [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS]
@@ -254,6 +253,21 @@ class ModuleLoadEnvironment:
         """
         for attr in self.__dict__:
             yield attr, getattr(self, attr)
+
+    def update(self, new_env):
+        """Update contents of environment from given dictionary"""
+        try:
+            for envar_name, envar_contents in new_env.items():
+                setattr(self, envar_name, envar_contents)
+        except AttributeError:
+            raise EasyBuildError("Cannot update ModuleLoadEnvironment, new environment variables must be in a dict.")
+
+    @property
+    def as_dict(self):
+        """
+        Return dict with mapping of ModuleEnvironmentVariables names with their contents
+        """
+        return dict(self.items())
 
     @property
     def environ(self):
