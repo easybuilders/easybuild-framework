@@ -434,9 +434,8 @@ class EasyBlockTest(EnhancedTestCase):
         # create fake directories and files that should be guessed
         os.makedirs(eb.installdir)
         for path in ('bin', ('bin', 'testdir'), 'sbin', 'share', ('share', 'man'), 'lib', 'lib64'):
-            if isinstance(path, str):
-                path = (path, )
-            os.mkdir(os.path.join(eb.installdir, *path))
+            path_components = (path, ) if isinstance(path, str) else path
+            os.mkdir(os.path.join(eb.installdir, *path_components))
         eb.install_lib_symlink = LibSymlink.NEITHER
 
         write_file(os.path.join(eb.installdir, 'foo.jar'), 'foo.jar')
@@ -2989,6 +2988,101 @@ class EasyBlockTest(EnhancedTestCase):
         run_sanity_check_step({}, False)
         run_sanity_check_step({}, True)
 
+    def test_expand_module_search_path(self):
+        """Testcase for expand_module_search_path"""
+        top_dir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(top_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        eb = EasyBlock(EasyConfig(toy_ec))
+        eb.installdir = config.install_path()
+
+        # create test directories and files
+        os.makedirs(eb.installdir)
+        test_directories = (
+            'empty_dir',
+            'dir_with_empty_subdir',
+            ('dir_with_empty_subdir', 'empty_subdir'),
+            'dir_with_file',
+            'dir_with_full_subdirs',
+            ('dir_with_full_subdirs', 'subdir1'),
+            ('dir_with_full_subdirs', 'subdir2'),
+        )
+        for path in test_directories:
+            path_components = (path, ) if isinstance(path, str) else path
+            os.mkdir(os.path.join(eb.installdir, *path_components))
+
+        write_file(os.path.join(eb.installdir, 'dir_with_file', 'file.txt'), 'test file')
+        write_file(os.path.join(eb.installdir, 'dir_with_full_subdirs', 'subdir1', 'file11.txt'), 'test file 1.1')
+        write_file(os.path.join(eb.installdir, 'dir_with_full_subdirs', 'subdir1', 'file12.txt'), 'test file 1.2')
+        write_file(os.path.join(eb.installdir, 'dir_with_full_subdirs', 'subdir2', 'file21.txt'), 'test file 2.1')
+
+        eb.install_lib_symlink = LibSymlink.NONE
+
+        self.assertEqual(eb.expand_module_search_path("nonexistent", True), [])
+        self.assertEqual(eb.expand_module_search_path("nonexistent", False), [])
+        self.assertEqual(eb.expand_module_search_path("empty_dir", True), [])
+        self.assertEqual(eb.expand_module_search_path("empty_dir", False), [])
+        self.assertEqual(eb.expand_module_search_path("dir_with_empty_subdir", True), [])
+        self.assertEqual(eb.expand_module_search_path("dir_with_empty_subdir", False), [])
+        self.assertEqual(eb.expand_module_search_path("dir_with_file", True), ["dir_with_file"])
+        self.assertEqual(eb.expand_module_search_path("dir_with_file", False), ["dir_with_file"])
+        self.assertEqual(eb.expand_module_search_path("dir_with_full_subdirs", True), [])
+        self.assertEqual(eb.expand_module_search_path("dir_with_full_subdirs", False), ["dir_with_full_subdirs"])
+        # test globs
+        ref_expanded_paths = ["dir_with_full_subdirs/subdir1", "dir_with_full_subdirs/subdir2"]
+        self.assertEqual(eb.expand_module_search_path("dir_with_full_subdirs/*", True), ref_expanded_paths)
+        self.assertEqual(eb.expand_module_search_path("dir_with_full_subdirs/*", False), ref_expanded_paths)
+        ref_expanded_paths = ["dir_with_full_subdirs/subdir2/file21.txt"]
+        self.assertEqual(eb.expand_module_search_path("dir_with_full_subdirs/subdir2/*", True), ref_expanded_paths)
+        self.assertEqual(eb.expand_module_search_path("nonexistent/*", True), [])
+        self.assertEqual(eb.expand_module_search_path("dir_with_full_subdirs/nonexistent/*", True), [])
+        # state of install_lib_symlink should not have changed
+        self.assertEqual(eb.install_lib_symlink, LibSymlink.NONE)
+
+        # test both lib and lib64 directories
+        os.mkdir(os.path.join(eb.installdir, "lib"))
+        eb.check_install_lib_symlink()
+        self.assertEqual(eb.install_lib_symlink, LibSymlink.NONE)
+        self.assertEqual(eb.expand_module_search_path("lib", True), [])
+        self.assertEqual(eb.expand_module_search_path("lib", False), [])
+        write_file(os.path.join(eb.installdir, "lib", "libtest.so"), "not actually a lib")
+        self.assertEqual(eb.expand_module_search_path("lib", True), ["lib"])
+        self.assertEqual(eb.expand_module_search_path("lib", False), ["lib"])
+
+        os.mkdir(os.path.join(eb.installdir, "lib64"))
+        eb.check_install_lib_symlink()
+        self.assertEqual(eb.install_lib_symlink, LibSymlink.NEITHER)
+        self.assertEqual(eb.expand_module_search_path("lib*", True), ["lib"])
+        self.assertEqual(eb.expand_module_search_path("lib*", False), ["lib"])
+        write_file(os.path.join(eb.installdir, "lib64", "libtest.so"), "not actually a lib")
+        self.assertEqual(eb.expand_module_search_path("lib*", True), ["lib", "lib64"])
+        self.assertEqual(eb.expand_module_search_path("lib*", False), ["lib", "lib64"])
+
+        # test lib64 symlinked to lib
+        remove_dir(os.path.join(eb.installdir, "lib64"))
+        os.symlink("lib", os.path.join(eb.installdir, "lib64"))
+        eb.check_install_lib_symlink()
+        self.assertEqual(eb.install_lib_symlink, LibSymlink.LIB64)
+        self.assertEqual(eb.expand_module_search_path("lib", True), ["lib"])
+        self.assertEqual(eb.expand_module_search_path("lib", False), ["lib"])
+        self.assertEqual(eb.expand_module_search_path("lib64", True), [])
+        self.assertEqual(eb.expand_module_search_path("lib64", False), [])
+        self.assertEqual(eb.expand_module_search_path("lib*", True), ["lib"])
+        self.assertEqual(eb.expand_module_search_path("lib*", False), ["lib"])
+
+        # test lib symlinked to lib64
+        remove_dir(os.path.join(eb.installdir, "lib"))
+        remove_file(os.path.join(eb.installdir, "lib64"))
+        os.mkdir(os.path.join(eb.installdir, "lib64"))
+        write_file(os.path.join(eb.installdir, "lib64", "libtest.so"), "not actually a lib")
+        os.symlink("lib64", os.path.join(eb.installdir, "lib"))
+        eb.check_install_lib_symlink()
+        self.assertEqual(eb.install_lib_symlink, LibSymlink.LIB)
+        self.assertEqual(eb.expand_module_search_path("lib", True), [])
+        self.assertEqual(eb.expand_module_search_path("lib", False), [])
+        self.assertEqual(eb.expand_module_search_path("lib64", True), ["lib64"])
+        self.assertEqual(eb.expand_module_search_path("lib64", False), ["lib64"])
+        self.assertEqual(eb.expand_module_search_path("lib*", True), ["lib64"])
+        self.assertEqual(eb.expand_module_search_path("lib*", False), ["lib64"])
 
 def suite():
     """ return all the tests in this file """

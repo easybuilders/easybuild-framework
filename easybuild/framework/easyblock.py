@@ -1717,14 +1717,17 @@ class EasyBlock(object):
 
     def check_install_lib_symlink(self):
         """Check symlink state between library directories in installation prefix"""
-        self.install_lib_symlink = LibSymlink.NEITHER
         lib_dir = os.path.join(self.installdir, 'lib')
         lib64_dir = os.path.join(self.installdir, 'lib64')
+
+        self.install_lib_symlink = LibSymlink.UNKNONWN
         if os.path.exists(lib_dir) and os.path.exists(lib64_dir):
             if os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
                 self.install_lib_symlink = LibSymlink.LIB_TO_LIB64
             elif os.path.islink(lib64_dir) and os.path.samefile(lib_dir, lib64_dir):
                 self.install_lib_symlink = LibSymlink.LIB64_TO_LIB
+            else:
+                self.install_lib_symlink = LibSymlink.NEITHER
 
     def make_module_req_guess(self):
         """
