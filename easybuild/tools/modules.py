@@ -443,7 +443,7 @@ class ModulesTool(object):
                 output, exit_code = None, EasyBuildExit.FAIL_SYSTEM_CHECK
         else:
             cmd = "type module"
-            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=False, hidden=True, output_file=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, output_file=False)
             output, exit_code = res.output, res.exit_code
 
         if regex is None:
@@ -1502,7 +1502,7 @@ class EnvironmentModules(ModulesTool):
                 out, ec = None, 1
         else:
             cmd = "type _module_raw"
-            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=False, hidden=True, output_file=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, output_file=False)
             out, ec = res.output, res.exit_code
 
         if regex is None:
@@ -1832,7 +1832,7 @@ def get_software_root(name, with_env_var=False):
     return res
 
 
-def get_software_libdir(name, only_one=True, fs=None):
+def get_software_libdir(name, only_one=True, fs=None, full_path=False):
     """
     Find library subdirectories for the specified software package.
 
@@ -1843,50 +1843,56 @@ def get_software_libdir(name, only_one=True, fs=None):
     :param name: name of the software package
     :param only_one: indicates whether only one lib path is expected to be found
     :param fs: only retain library subdirs that contain one of the files in this list
+    :param full_path: Include the software root in the returned path, or just return the subfolder found
     """
     lib_subdirs = ['lib', 'lib64']
     root = get_software_root(name)
-    res = []
-    if root:
-        for lib_subdir in lib_subdirs:
-            lib_dir_path = os.path.join(root, lib_subdir)
-            if os.path.exists(lib_dir_path):
-                # take into account that lib64 could be a symlink to lib (or vice versa)
-                # see https://github.com/easybuilders/easybuild-framework/issues/3139
-                if any(os.path.samefile(lib_dir_path, os.path.join(root, x)) for x in res):
-                    _log.debug("%s is the same as one of the other paths, so skipping it", lib_dir_path)
-
-                elif fs is None or any(os.path.exists(os.path.join(lib_dir_path, f)) for f in fs):
-                    _log.debug("Retaining library subdir '%s' (found at %s)", lib_subdir, lib_dir_path)
-                    res.append(lib_subdir)
-
-            elif build_option('extended_dry_run'):
-                res.append(lib_subdir)
-                break
-
-        # if no library subdir was found, return None
-        if not res:
-            return None
-        if only_one:
-            if len(res) == 1:
-                res = res[0]
-            else:
-                if fs is None and len(res) == 2:
-                    # if both lib and lib64 were found, check if only one (exactly) has libraries;
-                    # this is needed for software with library archives in lib64 but other files/directories in lib
-                    lib_glob = ['*.%s' % ext for ext in ['a', get_shared_lib_ext()]]
-                    has_libs = [any(glob.glob(os.path.join(root, subdir, f)) for f in lib_glob) for subdir in res]
-                    if has_libs[0] and not has_libs[1]:
-                        return res[0]
-                    elif has_libs[1] and not has_libs[0]:
-                        return res[1]
-
-                raise EasyBuildError("Multiple library subdirectories found for %s in %s: %s",
-                                     name, root, ', '.join(res))
-        return res
-    else:
+    if not root:
         # return None if software package root could not be determined
         return None
+
+    found_subdirs = []
+    for lib_subdir in lib_subdirs:
+        lib_dir_path = os.path.join(root, lib_subdir)
+        if os.path.exists(lib_dir_path):
+            # take into account that lib64 could be a symlink to lib (or vice versa)
+            # see https://github.com/easybuilders/easybuild-framework/issues/3139
+            if any(os.path.samefile(lib_dir_path, os.path.join(root, x)) for x in found_subdirs):
+                _log.debug("%s is the same as one of the other paths, so skipping it", lib_dir_path)
+
+            elif fs is None or any(os.path.exists(os.path.join(lib_dir_path, f)) for f in fs):
+                _log.debug("Retaining library subdir '%s' (found at %s)", lib_subdir, lib_dir_path)
+                found_subdirs.append(lib_subdir)
+
+        elif build_option('extended_dry_run'):
+            found_subdirs.append(lib_subdir)
+            break
+
+    # if no library subdir was found, return None
+    if not found_subdirs:
+        return None
+    if full_path:
+        res = [os.path.join(root, subdir) for subdir in found_subdirs]
+    else:
+        res = found_subdirs
+    if only_one:
+        if len(res) == 1:
+            res = res[0]
+        else:
+            if fs is None and len(res) == 2:
+                # if both lib and lib64 were found, check if only one (exactly) has libraries;
+                # this is needed for software with library archives in lib64 but other files/directories in lib
+                lib_glob = ['*.%s' % ext for ext in ['a', get_shared_lib_ext()]]
+                has_libs = [any(glob.glob(os.path.join(root, subdir, f)) for f in lib_glob)
+                            for subdir in found_subdirs]
+                if has_libs[0] and not has_libs[1]:
+                    return res[0]
+                if has_libs[1] and not has_libs[0]:
+                    return res[1]
+
+            raise EasyBuildError("Multiple library subdirectories found for %s in %s: %s",
+                                 name, root, ', '.join(found_subdirs))
+    return res
 
 
 def get_software_version_env_var_name(name):

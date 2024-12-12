@@ -28,6 +28,7 @@ Unit tests for easyblock.py
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 @author: Maxime Boissonneault (Compute Canada)
+@author: Jan Andre Reuter (Juelich Supercomputing Centre)
 """
 import os
 import re
@@ -1273,6 +1274,7 @@ class EasyBlockTest(EnhancedTestCase):
         modextrapaths = {
             'PATH': ('xbin', 'pibin'),
             'CPATH': 'pi/include',
+            'TCLLIBPATH': {'paths': 'pi', 'delimiter': ' '},
         }
         modextrapaths_append = {'APPEND_PATH': 'append_path'}
         self.contents = '\n'.join([
@@ -1347,28 +1349,47 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (key, vals) in modextrapaths.items():
-            if isinstance(vals, str):
-                vals = [vals]
-            for val in vals:
-                if get_module_syntax() == 'Tcl':
-                    regex = re.compile(r'^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
-                elif get_module_syntax() == 'Lua':
-                    regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
-                else:
-                    self.fail("Unknown module syntax: %s" % get_module_syntax())
-                self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
-                # Check for duplicates
-                num_prepends = len(regex.findall(txt))
-                self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
+            if isinstance(vals, dict):
+                delim = vals['delimiter']
+                paths = vals['paths']
+                if isinstance(paths, str):
+                    paths = [paths]
+
+                for val in paths:
+                    if get_module_syntax() == 'Tcl':
+                        regex = re.compile(fr'^prepend-path\s+-d\s+"{delim}"\s+{key}\s+\$root/{val}$', re.M)
+                    elif get_module_syntax() == 'Lua':
+                        regex = re.compile(fr'^prepend_path\("{key}", pathJoin\(root, "{val}"\), "{delim}"\)$', re.M)
+                    else:
+                        self.fail("Unknown module syntax: %s" % get_module_syntax())
+                    self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+                    # Check for duplicates
+                    num_prepends = len(regex.findall(txt))
+                    self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
+            else:
+                if isinstance(vals, str):
+                    vals = [vals]
+
+                for val in vals:
+                    if get_module_syntax() == 'Tcl':
+                        regex = re.compile(fr'^prepend-path\s+{key}\s+\$root/{val}$', re.M)
+                    elif get_module_syntax() == 'Lua':
+                        regex = re.compile(fr'^prepend_path\("{key}", pathJoin\(root, "{val}"\)\)$', re.M)
+                    else:
+                        self.fail("Unknown module syntax: %s" % get_module_syntax())
+                    self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+                    # Check for duplicates
+                    num_prepends = len(regex.findall(txt))
+                    self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
 
         for (key, vals) in modextrapaths_append.items():
             if isinstance(vals, str):
                 vals = [vals]
             for val in vals:
                 if get_module_syntax() == 'Tcl':
-                    regex = re.compile(r'^append-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+                    regex = re.compile(r'^append-path\s+(-d ".")?%s\s+\$root/%s$' % (key, val), re.M)
                 elif get_module_syntax() == 'Lua':
-                    regex = re.compile(r'^append_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
+                    regex = re.compile(r'^append_path\("%s", pathJoin\(root, "%s"\)(, ".")?\)$' % (key, val), re.M)
                 else:
                     self.fail("Unknown module syntax: %s" % get_module_syntax())
                 self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
@@ -2988,6 +3009,47 @@ class EasyBlockTest(EnhancedTestCase):
         run_sanity_check_step({}, False)
         run_sanity_check_step({}, True)
 
+    def test_create_easyblock_without_logfile(self):
+        """
+        Test creating an EasyBlock without a logfile.
+        This represents scenarios found in Bundle and QuantumESPRESSO, where an EasyBlock is
+        created within another EasyBlock.
+        """
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.writeEC()
+        # Ensure that the default case works as expected
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        self.assertNotEqual(eb.log, None)
+        self.assertNotEqual(eb.logfile, None)
+        # Get reference to the actual log instance and ensure that it works
+        # This is NOT eb.log, which represents a separate logger with a separate name.
+        file_log = fancylogger.getLogger(name=None)
+        self.assertNotEqual(getattr(file_log, 'logtofile_%s' % eb.logfile), False)
+
+        # Now, create another EasyBlock by passing logfile from first EasyBlock.
+        eb_external_logfile = EasyBlock(EasyConfig(self.eb_file), logfile=eb.logfile)
+        self.assertNotEqual(eb_external_logfile.log, None)
+        self.assertTrue(eb_external_logfile.external_logfile)
+        self.assertEqual(eb_external_logfile.logfile, eb.logfile)
+        # Try to log something in it.
+        eb_external_logfile.log.info("Test message")
+
+        # Try to close EasyBlock with external logfile. This should not affect the logger.
+        eb_external_logfile.close_log()
+        self.assertNotEqual(getattr(file_log, 'logtofile_%s' % eb.logfile), False)
+        # Then close the log from creating EasyBlock. This should work as expected.
+        eb.close_log()
+        self.assertEqual(getattr(file_log, 'logtofile_%s' % eb.logfile), False)
+
+        os.remove(eb.logfile)
+
     def test_expand_module_search_path(self):
         """Testcase for expand_module_search_path"""
         top_dir = os.path.abspath(os.path.dirname(__file__))
@@ -3083,6 +3145,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.expand_module_search_path("lib64", False), ["lib64"])
         self.assertEqual(eb.expand_module_search_path("lib*", True), ["lib64"])
         self.assertEqual(eb.expand_module_search_path("lib*", False), ["lib64"])
+
 
 def suite():
     """ return all the tests in this file """

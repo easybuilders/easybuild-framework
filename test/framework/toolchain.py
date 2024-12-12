@@ -388,7 +388,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('OMPI_F77'), 'gfortran')
         self.assertEqual(os.getenv('OMPI_FC'), 'gfortran')
 
-        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno")
+        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno -g")
         for key in ['CFLAGS', 'CXXFLAGS', 'F90FLAGS', 'FCFLAGS', 'FFLAGS']:
             val = os.getenv(key)
             self.assertTrue(flags_regex.match(val), "'%s' should match pattern '%s'" % (val, flags_regex.pattern))
@@ -928,7 +928,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({})
         with self.mocked_stdout_stderr():
             tc.prepare()
-        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno")
+        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno -g")
         for var in flag_vars:
             val = os.getenv(var)
             self.assertTrue(flags_regex.match(val), "'%s' should match pattern '%s'" % (val, flags_regex.pattern))
@@ -947,13 +947,98 @@ class ToolchainTest(EnhancedTestCase):
                     tc.prepare()
                 for var in flag_vars:
                     if enable:
-                        regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native %s" % prec_flags[prec])
+                        regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native %s -g" % prec_flags[prec])
                     else:
                         regex = flags_regex
                     val = os.getenv(var)
                     self.assertTrue(regex.match(val), "%s: '%s' should match pattern '%s'" % (prec, val, regex.pattern))
 
                 self.modtool.purge()
+
+    def test_search_path_cpp_headers(self):
+        """Test functionality behind search-path-cpp-headers option"""
+        cpp_headers_mode = {
+            "flags": ["CPPFLAGS"],
+            "cpath": ["CPATH"],
+            "include_paths": ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
+        }
+        # test without toolchain option
+        for build_opt in cpp_headers_mode:
+            init_config(build_options={"search_path_cpp_headers": build_opt, "silent": True})
+            tc = self.get_toolchain("foss", version="2018a")
+            with self.mocked_stdout_stderr():
+                tc.prepare()
+                for env_var in cpp_headers_mode[build_opt]:
+                    assert_fail_msg = (
+                        f"Variable {env_var} required by search-path-cpp-headers build option '{build_opt}' "
+                        "not found in toolchain environment"
+                    )
+                    self.assertIn(env_var, tc.variables, assert_fail_msg)
+                self.modtool.purge()
+        # test with toolchain option
+        for build_opt in cpp_headers_mode:
+            init_config(build_options={"search_path_cpp_headers": build_opt, "silent": True})
+            for tc_opt in cpp_headers_mode:
+                tc = self.get_toolchain("foss", version="2018a")
+                tc.set_options({"search-path-cpp-headers": tc_opt})
+                with self.mocked_stdout_stderr():
+                    tc.prepare()
+                    for env_var in cpp_headers_mode[tc_opt]:
+                        assert_fail_msg = (
+                            f"Variable {env_var} required by search-path-cpp-headers toolchain option '{tc_opt}' "
+                            "not found in toolchain environment"
+                        )
+                        self.assertIn(env_var, tc.variables, assert_fail_msg)
+                self.modtool.purge()
+        # test wrong toolchain option
+        tc = self.get_toolchain("foss", version="2018a")
+        tc.set_options({"search-path-cpp-headers": "WRONG_MODE"})
+        with self.mocked_stdout_stderr():
+            error_pattern = "Unknown value selected for toolchain option search-path-cpp-headers"
+            self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+        self.modtool.purge()
+
+    def test_search_path_linker(self):
+        """Test functionality behind search-path-linker option"""
+        linker_mode = {
+            "flags": ["LDFLAGS"],
+            "library_path": ["LIBRARY_PATH"],
+        }
+        # test without toolchain option
+        for build_opt in linker_mode:
+            init_config(build_options={"search_path_linker": build_opt, "silent": True})
+            tc = self.get_toolchain("foss", version="2018a")
+            with self.mocked_stdout_stderr():
+                tc.prepare()
+                for env_var in linker_mode[build_opt]:
+                    assert_fail_msg = (
+                        f"Variable {env_var} required by search-path-linker build option '{build_opt}' "
+                        "not found in toolchain environment"
+                    )
+                    self.assertIn(env_var, tc.variables, assert_fail_msg)
+                self.modtool.purge()
+        # test with toolchain option
+        for build_opt in linker_mode:
+            init_config(build_options={"search_path_linker": build_opt, "silent": True})
+            for tc_opt in linker_mode:
+                tc = self.get_toolchain("foss", version="2018a")
+                tc.set_options({"search-path-linker": tc_opt})
+                with self.mocked_stdout_stderr():
+                    tc.prepare()
+                    for env_var in linker_mode[tc_opt]:
+                        assert_fail_msg = (
+                            f"Variable {env_var} required by search-path-linker toolchain option '{tc_opt}' "
+                            "not found in toolchain environment"
+                        )
+                        self.assertIn(env_var, tc.variables, assert_fail_msg)
+                self.modtool.purge()
+        # test wrong toolchain option
+        tc = self.get_toolchain("foss", version="2018a")
+        tc.set_options({"search-path-linker": "WRONG_MODE"})
+        with self.mocked_stdout_stderr():
+            error_pattern = "Unknown value selected for toolchain option search-path-linker"
+            self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+        self.modtool.purge()
 
     def test_cgoolf_toolchain(self):
         """Test for cgoolf toolchain."""
@@ -1278,7 +1363,7 @@ class ToolchainTest(EnhancedTestCase):
             tc.prepare()
 
         archflags = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
-        optflags = "-O2 -ftree-vectorize -%s -fno-math-errno -fopenmp" % archflags
+        optflags = "-O2 -ftree-vectorize -%s -fno-math-errno -g -fopenmp" % archflags
         nvcc_flags = r' '.join([
             r'-Xcompiler="%s"' % optflags,
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
@@ -2193,12 +2278,12 @@ class ToolchainTest(EnhancedTestCase):
         init_config(build_options={'optarch': 'test', 'silent': True})
 
         tc_cflags = {
-            'CrayCCE': "-O2 -homp -craype-verbose",
-            'CrayGNU': "-O2 -fno-math-errno -fopenmp -craype-verbose",
-            'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
-            'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -fopenmp",
-            'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
-            'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -qopenmp",
+            'CrayCCE': "-O2 -g -homp -craype-verbose",
+            'CrayGNU': "-O2 -fno-math-errno -g -fopenmp -craype-verbose",
+            'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -g -fopenmp -craype-verbose",
+            'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -g -fopenmp",
+            'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -g -fopenmp",
+            'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -g -qopenmp",
         }
 
         toolchains = [

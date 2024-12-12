@@ -3747,6 +3747,7 @@ class EasyConfigTest(EnhancedTestCase):
         args = [
             ec_file,
             '--dry-run',
+            '--robot',
         ]
         outtxt = self.eb_main(args, raise_error=True)
         self.assertTrue(re.search(r'module: GCC/\.4\.9\.2', outtxt))

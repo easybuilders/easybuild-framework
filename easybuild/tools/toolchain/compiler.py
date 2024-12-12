@@ -1,5 +1,6 @@
 # #
 # Copyright 2012-2024 Ghent University
+
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -82,7 +83,7 @@ class Compiler(Toolchain):
         'loose': (False, "Loose precision"),
         'veryloose': (False, "Very loose precision"),
         'verbose': (False, "Verbose output"),
-        'debug': (False, "Enable debug"),
+        'debug': (None, "Keep debug symbols"),  # default value set by build option keep-debug-symbols
         'i8': (False, "Integers are 8 byte integers"),  # fortran only -> no: MKL and icc give -DMKL_ILP64
         'r8': (False, "Real is 8 byte real"),  # fortran only
         'unroll': (False, "Unroll loops"),
@@ -93,6 +94,8 @@ class Compiler(Toolchain):
         'vectorize': (None, "Enable compiler auto-vectorization, default except for noopt and lowopt"),
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
         'rpath': (True, "Use RPATH wrappers when --rpath is enabled in EasyBuild configuration"),
+        'search-path-cpp-headers': (None, "Search path used at build time for include directories"),
+        'search-path-linker': (None, "Search path used at build time by the linker for libraries"),
         'extra_cflags': (None, "Specify extra CFLAGS options."),
         'extra_cxxflags': (None, "Specify extra CXXFLAGS options."),
         'extra_fflags': (None, "Specify extra FFLAGS options."),
@@ -175,6 +178,10 @@ class Compiler(Toolchain):
 
     def _set_compiler_toolchainoptions(self):
         """Set the compiler related toolchain options"""
+        # Initialize default value of debug symbols based on global build option
+        if self.COMPILER_SHARED_OPTS:
+            _, desc = self.COMPILER_SHARED_OPTS['debug']
+            self.COMPILER_SHARED_OPTS['debug'] = (build_option('keep_debug_symbols'), desc)
         self.options.add_options(self.COMPILER_SHARED_OPTS, self.COMPILER_SHARED_OPTION_MAP)
 
         # always include empty infix first for non-prefixed compilers (e.g., GCC, Intel, ...)

@@ -782,13 +782,16 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # check for warning that is printed when same path is added multiple times
         with self.modgen.start_module_creation():
             self.modgen.append_paths('TEST', 'path1')
-            self.mock_stderr(True)
-            self.modgen.append_paths('TEST', 'path1')
-            stderr = self.get_stderr()
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr():
+                self.modgen.append_paths('TEST', 'path1')
+                stderr = self.get_stderr()
             expected_warning = "\nWARNING: Suppressed adding the following path(s) to $TEST of the module "
             expected_warning += "as they were already added: path1\n\n"
             self.assertEqual(stderr, expected_warning)
+            with self.mocked_stdout_stderr():
+                self.modgen.append_paths('TEST', 'path1', warn_exists=False)
+                stderr = self.get_stderr()
+            self.assertEqual(stderr, '')
 
     def test_module_extensions(self):
         """test the extensions() for extensions"""
@@ -882,13 +885,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # check for warning that is printed when same path is added multiple times
         with self.modgen.start_module_creation():
             self.modgen.prepend_paths('TEST', 'path1')
-            self.mock_stderr(True)
-            self.modgen.prepend_paths('TEST', 'path1')
-            stderr = self.get_stderr()
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr():
+                self.modgen.prepend_paths('TEST', 'path1')
+                stderr = self.get_stderr()
             expected_warning = "\nWARNING: Suppressed adding the following path(s) to $TEST of the module "
             expected_warning += "as they were already added: path1\n\n"
             self.assertEqual(stderr, expected_warning)
+
+            with self.mocked_stdout_stderr():
+                self.modgen.prepend_paths('TEST', 'path1', warn_exists=False)
+                stderr = self.get_stderr()
+            self.assertEqual(stderr, '')
 
     def test_det_user_modpath(self):
         """Test for generic det_user_modpath method."""

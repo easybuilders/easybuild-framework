@@ -40,6 +40,7 @@ Authors:
 * Maxime Boissonneault (Compute Canada)
 * Davide Vanzo (Vanderbilt University)
 * Caspar van Leeuwen (SURF)
+* Jan Andre Reuter (Juelich Supercomputing Centre)
 """
 import concurrent
 import copy
@@ -88,10 +89,11 @@ from easybuild.tools.filetools import encode_class_name, extract_file, find_back
 from easybuild.tools.filetools import get_cwd, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file, symlink
-from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
-from easybuild.tools.hooks import MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP
-from easybuild.tools.hooks import POSTPROC_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP, SOURCE_STEP
-from easybuild.tools.hooks import SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook
+from easybuild.tools.hooks import (
+    BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, EXTRACT_STEP, FETCH_STEP, INSTALL_STEP, MODULE_STEP,
+    MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, PREPARE_STEP, READY_STEP,
+    SANITYCHECK_STEP, SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook,
+)
 from easybuild.tools.run import RunShellCmdError, raise_run_shell_cmd_error, run_shell_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
@@ -156,10 +158,11 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, ec):
+    def __init__(self, ec, logfile=None):
         """
         Initialize the EasyBlock instance.
         :param ec: a parsed easyconfig file (EasyConfig instance)
+        :param logfile: pass logfile from other EasyBlock. If not passed, create logfile (optional)
         """
 
         # keep track of original working directory, so we can go back there
@@ -235,7 +238,8 @@ class EasyBlock(object):
 
         # logging
         self.log = None
-        self.logfile = None
+        self.logfile = logfile
+        self.external_logfile = logfile is not None
         self.logdebug = build_option('debug')
         self.postmsg = ''  # allow a post message to be set, which can be shown as last output
         self.current_step = None
@@ -324,11 +328,11 @@ class EasyBlock(object):
         if self.log is not None:
             return
 
-        self.logfile = get_log_filename(self.name, self.version, add_salt=True)
-        fancylogger.logToFile(self.logfile, max_bytes=0)
+        if self.logfile is None:
+            self.logfile = get_log_filename(self.name, self.version, add_salt=True)
+            fancylogger.logToFile(self.logfile, max_bytes=0)
 
         self.log = fancylogger.getLogger(name=self.__class__.__name__, fname=False)
-
         self.log.info(this_is_easybuild())
 
         this_module = inspect.getmodule(self)
@@ -344,6 +348,9 @@ class EasyBlock(object):
         """
         Shutdown the logger.
         """
+        # only close log if we created a logfile
+        if self.external_logfile:
+            return
         self.log.info("Closing log for application name %s version %s" % (self.name, self.version))
         fancylogger.logToFile(self.logfile, enable=False)
 
@@ -1419,43 +1426,40 @@ class EasyBlock(object):
         Add lines for module file to update $PYTHONPATH or $EBPYTHONPREFIXES,
         if they aren't already present and the standard lib/python*/site-packages subdirectory exists
         """
-        lines = []
-        if not os.path.isfile(os.path.join(self.installdir, 'bin', 'python')):  # only needed when not a python install
-            python_subdir_pattern = os.path.join(self.installdir, 'lib', 'python*', 'site-packages')
-            candidate_paths = (os.path.relpath(path, self.installdir) for path in glob.glob(python_subdir_pattern))
-            python_paths = [path for path in candidate_paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
+        if os.path.isfile(os.path.join(self.installdir, 'bin', 'python')):  # only needed when not a python install
+            return []
 
-            # determine whether Python is a runtime dependency;
-            # if so, we assume it was installed with EasyBuild, and hence is aware of $EBPYTHONPREFIXES
-            runtime_deps = [dep['name'] for dep in self.cfg.dependencies(runtime_only=True)]
+        python_subdir_pattern = os.path.join(self.installdir, 'lib', 'python*', 'site-packages')
+        candidate_paths = (os.path.relpath(path, self.installdir) for path in glob.glob(python_subdir_pattern))
+        python_paths = [path for path in candidate_paths if re.match(r'lib/python\d+\.\d+/site-packages', path)]
+        if not python_paths:
+            return []
 
-            # don't use $EBPYTHONPREFIXES unless we can and it's preferred or necesary (due to use of multi_deps)
-            use_ebpythonprefixes = False
-            multi_deps = self.cfg['multi_deps']
+        # determine whether Python is a runtime dependency;
+        # if so, we assume it was installed with EasyBuild, and hence is aware of $EBPYTHONPREFIXES
+        runtime_deps = [dep['name'] for dep in self.cfg.dependencies(runtime_only=True)]
 
-            if 'Python' in runtime_deps:
-                self.log.info("Found Python runtime dependency, so considering $EBPYTHONPREFIXES...")
+        # don't use $EBPYTHONPREFIXES unless we can and it's preferred or necesary (due to use of multi_deps)
+        use_ebpythonprefixes = False
+        multi_deps = self.cfg['multi_deps']
 
-                if build_option('prefer_python_search_path') == EBPYTHONPREFIXES:
-                    self.log.info("Preferred Python search path is $EBPYTHONPREFIXES, so using that")
-                    use_ebpythonprefixes = True
+        if 'Python' in runtime_deps:
+            self.log.info("Found Python runtime dependency, so considering $EBPYTHONPREFIXES...")
 
-            elif multi_deps and 'Python' in multi_deps:
-                self.log.info("Python is listed in 'multi_deps', so using $EBPYTHONPREFIXES instead of $PYTHONPATH")
+            if build_option('prefer_python_search_path') == EBPYTHONPREFIXES:
+                self.log.info("Preferred Python search path is $EBPYTHONPREFIXES, so using that")
                 use_ebpythonprefixes = True
 
-            if python_paths:
-                # add paths unless they were already added
-                if use_ebpythonprefixes:
-                    path = ''  # EBPYTHONPREFIXES are relative to the install dir
-                    if path not in self.module_generator.added_paths_per_key[EBPYTHONPREFIXES]:
-                        lines.append(self.module_generator.prepend_paths(EBPYTHONPREFIXES, path))
-                else:
-                    for python_path in python_paths:
-                        if python_path not in self.module_generator.added_paths_per_key[PYTHONPATH]:
-                            lines.append(self.module_generator.prepend_paths(PYTHONPATH, python_path))
+        elif multi_deps and 'Python' in multi_deps:
+            self.log.info("Python is listed in 'multi_deps', so using $EBPYTHONPREFIXES instead of $PYTHONPATH")
+            use_ebpythonprefixes = True
 
-        return lines
+        if use_ebpythonprefixes:
+            path = ''  # EBPYTHONPREFIXES are relative to the install dir
+            lines = self.module_generator.prepend_paths(EBPYTHONPREFIXES, path, warn_exists=False)
+        else:
+            lines = self.module_generator.prepend_paths(PYTHONPATH, python_paths, warn_exists=False)
+        return [lines] if lines else []
 
     def make_module_extra(self, altroot=None, altversion=None):
         """
@@ -1489,22 +1493,27 @@ class EasyBlock(object):
         for (key, value) in self.cfg['modextravars'].items():
             lines.append(self.module_generator.set_environment(key, value))
 
-        for (key, value) in self.cfg['modextrapaths'].items():
-            if isinstance(value, str):
-                value = [value]
-            elif not isinstance(value, (tuple, list)):
-                raise EasyBuildError("modextrapaths dict value %s (type: %s) is not a list or tuple",
-                                     value, type(value))
-            lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
+        for extrapaths_type, prepend in [('modextrapaths', True), ('modextrapaths_append', False)]:
+            allow_abs = self.cfg['allow_prepend_abs_path'] if prepend else self.cfg['allow_append_abs_path']
 
-        for (key, value) in self.cfg['modextrapaths_append'].items():
-            if isinstance(value, str):
-                value = [value]
-            elif not isinstance(value, (tuple, list)):
-                raise EasyBuildError("modextrapaths_append dict value %s (type: %s) is not a list or tuple",
-                                     value, type(value))
-            lines.append(self.module_generator.append_paths(key, value, allow_abs=self.cfg['allow_append_abs_path']))
+            for (key, value) in self.cfg[extrapaths_type].items():
+                if not isinstance(value, (tuple, list, dict, str)):
+                    raise EasyBuildError(
+                        f"{extrapaths_type} dict value '{value}' (type {type(value)}) is not a 'list, dict or str'"
+                    )
 
+                try:
+                    paths = value['paths']
+                    delim = value['delimiter']
+                except KeyError:
+                    raise EasyBuildError(f'{extrapaths_type} dict "{value}" lacks "paths" or "delimiter" items')
+                except TypeError:
+                    paths = value
+                    delim = ':'
+
+                lines.append(
+                    self.module_generator.update_paths(key, paths, prepend=prepend, delim=delim, allow_abs=allow_abs)
+                )
         # add lines to update $PYTHONPATH or $EBPYTHONPREFIXES
         lines.extend(self.make_module_pythonpath())
 
@@ -1540,8 +1549,8 @@ class EasyBlock(object):
         # set environment variable that specifies list of extensions
         # We need only name and version, so don't resolve templates
         exts_list = self.make_extension_string(ext_sep=',', sort=False)
-        env_var_name = convert_name(self.name, upper=True)
-        lines.append(self.module_generator.set_environment('EBEXTSLIST%s' % env_var_name, exts_list))
+        env_var_name = 'EBEXTSLIST' + convert_name(self.name, upper=True)
+        lines.append(self.module_generator.set_environment(env_var_name, exts_list))
 
         return ''.join(lines)
 
@@ -1832,14 +1841,32 @@ class EasyBlock(object):
     # EXTENSIONS UTILITY FUNCTIONS
     #
 
-    def _make_extension_list(self):
+    def make_extension_string(self, name_version_sep='-', ext_sep=', ', sort=True):
+        """
+        Generate a string with a list of extensions returned by make_extension_list.
+
+        The name and version are separated by name_version_sep and each extension is separated by ext_sep.
+        For customization of extensions the make_extension_list method should be used.
+        """
+        exts_list = (name_version_sep.join(ext) for ext in self.make_extension_list())
+        if sort:
+            exts_list = sorted(exts_list, key=str.lower)
+        return ext_sep.join(exts_list)
+
+    def make_extension_list(self):
         """
         Return a list of extension names and their versions included in this installation
 
-        Each entry should be a (name, version) tuple or just (name, ) if no version exists
+        Each entry should be a (name, version) tuple or just (name, ) if no version exists.
+        Custom EasyBlocks may override this to add extensions that cannot be found automatically.
         """
         # Each extension in exts_list is either a string or a list/tuple with name, version as first entries
         # As name can be a templated value we must resolve templates
+        if hasattr(self, '_make_extension_list'):
+            self.log.nosupport("self._make_extension_list is replaced by self.make_extension_list", '5.0')
+        if type(self).make_extension_string != EasyBlock.make_extension_string:
+            self.log.nosupport("self.make_extension_string should not be overridden", '5.0')
+
         exts_list = []
         for ext in self.cfg.get_ref('exts_list'):
             if isinstance(ext, str):
@@ -1848,17 +1875,6 @@ class EasyBlock(object):
                 exts_list.append((resolve_template(ext[0], self.cfg.template_values),
                                   resolve_template(ext[1], self.cfg.template_values)))
         return exts_list
-
-    def make_extension_string(self, name_version_sep='-', ext_sep=', ', sort=True):
-        """
-        Generate a string with a list of extensions.
-
-        The name and version are separated by name_version_sep and each extension is separated by ext_sep
-        """
-        exts_list = (name_version_sep.join(ext) for ext in self._make_extension_list())
-        if sort:
-            exts_list = sorted(exts_list, key=str.lower)
-        return ext_sep.join(exts_list)
 
     def prepare_for_extensions(self):
         """Ran before installing extensions (eg to set templates)"""
@@ -4187,7 +4203,7 @@ class EasyBlock(object):
         # format for step specifications: (step_name, description, list of functions, skippable)
 
         # core steps that are part of the iterated loop
-        extract_step_spec = (SOURCE_STEP, "unpacking", [lambda x: x.extract_step], True)
+        extract_step_spec = (EXTRACT_STEP, "unpacking", [lambda x: x.extract_step], True)
         patch_step_spec = (PATCH_STEP, 'patching', [lambda x: x.patch_step], True)
         prepare_step_spec = (PREPARE_STEP, 'preparing', [lambda x: x.prepare_step], False)
         configure_step_spec = (CONFIGURE_STEP, 'configuring', [lambda x: x.configure_step], True)
