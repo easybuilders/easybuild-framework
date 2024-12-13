@@ -1668,10 +1668,13 @@ class EasyBlock(object):
                 # Don't expand globs or do any filtering for dry run
                 mod_req_paths = search_paths
             else:
+                path_type = search_paths.type
+                if fake:
+                    path_type = ModEnvVarType.PATH
+
                 mod_req_paths = []
-                requires_top_files = search_paths.type == ModEnvVarType.PATH_WITH_TOP_FILES
                 for path in search_paths:
-                    mod_req_paths.extend(self.expand_module_search_path(path, requires_top_files, fake=fake))
+                    mod_req_paths.extend(self.expand_module_search_path(path, path_type=path_type))
 
             if mod_req_paths:
                 mod_req_paths = nub(mod_req_paths)  # remove duplicates
@@ -1682,15 +1685,16 @@ class EasyBlock(object):
 
         return "".join(mod_lines)
 
-    def expand_module_search_path(self, search_path, requires_top_files, fake=False):
+    def expand_module_search_path(self, search_path, path_type=ModEnvVarType.PATH_WITH_FILES):
         """
         Expand given path glob and return list of suitable paths to be used as search paths:
             - Paths are relative to installation prefix root
             - Paths must point to existing files/directories
             - Search paths to a 'lib64' symlinked to 'lib' are discarded to avoid duplicates
-            - Directories must contain at least one file in them (empty folders are ignored)
-              - requires_top_files: increases stricness to require files in top level directory
-              - fake: fake modules can set search paths to empty directories
+            - :path_type: ModEnvVarType that controls requirements for population of directories
+              - PATH: no requirements, can be empty
+              - PATH_WITH_FILES: must contain at least one file in them (default)
+              - PATH_WITH_TOP_FILES: increase stricness to require files in top level directory
         """
         # Expand globs but only if the string is non-empty
         # empty string is a valid value here (i.e. to prepend the installation prefix root directory)
@@ -1716,9 +1720,10 @@ class EasyBlock(object):
                 self.log.debug("Discarded search path to symlinked lib directory: %s", tentative_path)
                 continue
 
-            if os.path.isdir(abs_path) and not fake:
+            check_dir_files = path_type in [ModEnvVarType.PATH_WITH_FILES, ModEnvVarType.PATH_WITH_TOP_FILES]
+            if os.path.isdir(abs_path) and check_dir_files:
                 # only retain paths to directories that contain at least one file
-                recursive = not requires_top_files
+                recursive = path_type == ModEnvVarType.PATH_WITH_FILES
                 if not dir_contains_files(abs_path, recursive=recursive):
                     self.log.debug("Discarded search path to empty directory: %s", tentative_path)
                     continue
