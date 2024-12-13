@@ -583,7 +583,7 @@ class ToolchainTest(EnhancedTestCase):
             tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
-            flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['lowopt']
+            flag = tc.COMPILER_SHARED_OPTION_MAP['lowopt']
             self.assertIn(flag, flags)
         self.modtool.purge()
 
@@ -593,7 +593,7 @@ class ToolchainTest(EnhancedTestCase):
             tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
-            flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['noopt']
+            flag = tc.COMPILER_SHARED_OPTION_MAP['noopt']
             self.assertIn(flag, flags)
         self.modtool.purge()
 
@@ -603,7 +603,7 @@ class ToolchainTest(EnhancedTestCase):
             tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
-            flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['noopt']
+            flag = tc.COMPILER_SHARED_OPTION_MAP['noopt']
             self.assertIn(flag, flags)
 
     def test_misc_flags_shared(self):
@@ -619,7 +619,7 @@ class ToolchainTest(EnhancedTestCase):
                 with self.mocked_stdout_stderr():
                     tc.prepare()
                 # we need to make sure we check for flags, not letter (e.g. 'v' vs '-v')
-                flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP[opt]
+                flag = tc.COMPILER_SHARED_OPTION_MAP[opt]
                 for var in flag_vars:
                     flags = tc.get_variable(var).split()
                     if enable:
@@ -672,8 +672,7 @@ class ToolchainTest(EnhancedTestCase):
                     option = {True: option}
                 for var in flag_vars:
                     flags = tc.get_variable(var)
-                    for key, value in option.items():
-                        flag = "-%s" % value
+                    for key, flag in option.items():
                         if enable == key:
                             self.assertIn(flag, flags, "%s: %s means %s in %s" % (opt, enable, flag, flags))
                         else:
@@ -692,7 +691,7 @@ class ToolchainTest(EnhancedTestCase):
                     tc.prepare()
                 flag = None
                 if optarch_var is not None:
-                    flag = '-%s' % optarch_var
+                    flag = optarch_var
                 else:
                     # default optarch flag
                     flag = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
@@ -907,9 +906,9 @@ class ToolchainTest(EnhancedTestCase):
                     tc.prepare()
                 flag = tc.COMPILER_UNIQUE_OPTION_MAP[opt]
                 if isinstance(flag, list):
-                    flag = ' '.join('-%s' % x for x in flag)
+                    flag = ' '.join(flag)
                 else:
-                    flag = '-%s' % flag
+                    flag = flag
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
@@ -1363,7 +1362,7 @@ class ToolchainTest(EnhancedTestCase):
             tc.prepare()
 
         archflags = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
-        optflags = "-O2 -ftree-vectorize -%s -fno-math-errno -g -fopenmp" % archflags
+        optflags = "-O2 -ftree-vectorize %s -fno-math-errno -g -fopenmp" % archflags
         nvcc_flags = r' '.join([
             r'-Xcompiler="%s"' % optflags,
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
