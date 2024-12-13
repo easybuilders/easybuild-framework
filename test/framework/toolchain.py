@@ -2274,47 +2274,49 @@ class ToolchainTest(EnhancedTestCase):
         """Test independency of toolchain instances."""
 
         # tweaking --optarch is required for Cray toolchains (craypre-<optarch> module must be available)
-        init_config(build_options={'optarch': 'test', 'silent': True})
+        custom_optarchs = ['test', '-test']  # specifying without initial - is deprecated but should still work
+        for custom_optarch in custom_optarchs:
+            init_config(build_options={'optarch': custom_optarch, 'silent': True})
 
-        tc_cflags = {
-            'CrayCCE': "-O2 -g -homp -craype-verbose",
-            'CrayGNU': "-O2 -fno-math-errno -g -fopenmp -craype-verbose",
-            'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -g -fopenmp -craype-verbose",
-            'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -g -fopenmp",
-            'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -g -fopenmp",
-            'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -g -qopenmp",
-        }
+            tc_cflags = {
+                'CrayCCE': "-O2 -g -homp -craype-verbose",
+                'CrayGNU': "-O2 -fno-math-errno -g -fopenmp -craype-verbose",
+                'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -g -fopenmp -craype-verbose",
+                'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -g -fopenmp",
+                'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -g -fopenmp",
+                'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -g -qopenmp",
+            }
 
-        toolchains = [
-            ('CrayCCE', '2015.06-XC'),
-            ('CrayGNU', '2015.06-XC'),
-            ('CrayIntel', '2015.06-XC'),
-            ('GCC', '6.4.0-2.28'),
-            ('iccifort', '2018.1.163'),
-            ('intel-compilers', '2022.1.0'),
-        ]
+            toolchains = [
+                ('CrayCCE', '2015.06-XC'),
+                ('CrayGNU', '2015.06-XC'),
+                ('CrayIntel', '2015.06-XC'),
+                ('GCC', '6.4.0-2.28'),
+                ('iccifort', '2018.1.163'),
+                ('intel-compilers', '2022.1.0'),
+            ]
 
-        # purposely obtain toolchains several times in a row, value for $CFLAGS should not change
-        for _ in range(3):
-            for tcname, tcversion in toolchains:
-                # Cray* modules do not unload other Cray* modules thus loading a second Cray* module
-                # makes environment inconsistent which is not allowed by Environment Modules tool
-                if isinstance(self.modtool, EnvironmentModules):
-                    self.modtool.purge()
-                tc = get_toolchain({'name': tcname, 'version': tcversion}, {},
-                                   mns=ActiveMNS(), modtool=self.modtool)
-                # also check whether correct compiler flag for OpenMP is used while we're at it
-                # and options for oneAPI compiler for Intel
-                if tcname == 'intel-compilers':
-                    tc.set_options({'oneapi': True, 'openmp': True})
-                else:
-                    tc.set_options({'openmp': True})
-                with self.mocked_stdout_stderr():
-                    tc.prepare()
-                expected_cflags = tc_cflags[tcname]
-                msg = "Expected $CFLAGS found for toolchain %s: %s" % (tcname, expected_cflags)
-                self.assertEqual(str(tc.variables['CFLAGS']), expected_cflags, msg)
-                self.assertEqual(os.environ['CFLAGS'], expected_cflags, msg)
+            # purposely obtain toolchains several times in a row, value for $CFLAGS should not change
+            for _ in range(3):
+                for tcname, tcversion in toolchains:
+                    # Cray* modules do not unload other Cray* modules thus loading a second Cray* module
+                    # makes environment inconsistent which is not allowed by Environment Modules tool
+                    if isinstance(self.modtool, EnvironmentModules):
+                        self.modtool.purge()
+                    tc = get_toolchain({'name': tcname, 'version': tcversion}, {},
+                                       mns=ActiveMNS(), modtool=self.modtool)
+                    # also check whether correct compiler flag for OpenMP is used while we're at it
+                    # and options for oneAPI compiler for Intel
+                    if tcname == 'intel-compilers':
+                        tc.set_options({'oneapi': True, 'openmp': True})
+                    else:
+                        tc.set_options({'openmp': True})
+                    with self.mocked_stdout_stderr():
+                        tc.prepare()
+                    expected_cflags = tc_cflags[tcname]
+                    msg = "Expected $CFLAGS found for toolchain %s: %s" % (tcname, expected_cflags)
+                    self.assertEqual(str(tc.variables['CFLAGS']), expected_cflags, msg)
+                    self.assertEqual(os.environ['CFLAGS'], expected_cflags, msg)
 
     def test_pgi_toolchain(self):
         """Tests for PGI toolchain."""

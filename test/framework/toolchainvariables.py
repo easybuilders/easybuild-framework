@@ -159,7 +159,7 @@ class ToolchainVariablesTest(EnhancedTestCase):
 
         tcv.nappend('MPICH_CC', 'icc', var_class=CommandFlagList)
         self.assertEqual(str(tcv['MPICH_CC']), "icc")
-        tcv.nappend('MPICH_CC', 'test')
+        tcv.nappend('MPICH_CC', '-test')
         self.assertEqual(str(tcv['MPICH_CC']), "icc -test")
 
 
