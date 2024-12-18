@@ -2810,7 +2810,7 @@ def make_archive(source_dir, archive_file=None, archive_dir=None, reproducible=T
         tarinfo.uname = tarinfo.gname = ""
         return tarinfo
 
-    compression = {
+    ext_compression_map = {
         # taken from EXTRACT_CMDS
         '.gtgz': 'gz',
         '.tar.gz': 'gz',
@@ -2823,8 +2823,8 @@ def make_archive(source_dir, archive_file=None, archive_dir=None, reproducible=T
         '.txz': 'xz',
         '.tar': '',
     }
-    reproducible_compression = ["", "xz"]
-    default_ext = ".tar.xz"
+    reproducible_compression = ['', 'xz']
+    default_ext = '.tar.xz'
 
     if archive_file is None:
         archive_file = os.path.basename(source_dir) + default_ext
@@ -2832,38 +2832,40 @@ def make_archive(source_dir, archive_file=None, archive_dir=None, reproducible=T
     try:
         archive_ext = find_extension(archive_file)
     except EasyBuildError:
-        if "." in archive_file:
+        if '.' in archive_file:
             # archive filename has unknown extension (set for raise)
-            archive_ext = ""
+            archive_ext = ''
         else:
             # archive filename has no extension, use default one
             archive_ext = default_ext
             archive_file += archive_ext
 
-    if archive_ext not in compression:
+    if archive_ext not in ext_compression_map:
         # archive filename has unsupported extension
+        supported_exts = ', '.join(ext_compression_map)
         raise EasyBuildError(
-            f"Unsupported archive format: {archive_file}. Supported tarball extensions: {', '.join(compression)}"
+            f"Unsupported archive format: {archive_file}. Supported tarball extensions: {supported_exts}"
         )
-    _log.debug(f"Archive extension and compression: {archive_ext} in {compression[archive_ext]}")
+    compression = ext_compression_map[archive_ext]
+    _log.debug(f"Archive extension and compression: {archive_ext} in {compression}")
 
     archive_path = archive_file if archive_dir is None else os.path.join(archive_dir, archive_file)
 
-    archive = {
+    archive_specs = {
         'name': archive_path,
-        'mode': f"w:{compression[archive_ext]}",
+        'mode': f"w:{compression}",
         'format': tarfile.GNU_FORMAT,
         'encoding': "utf-8",
     }
 
     if reproducible:
-        if compression[archive_ext] == "xz":
+        if compression == 'xz':
             # ensure a consistent compression level in reproducible tarballs with XZ
-            archive["preset"] = 6
-        elif compression[archive_ext] not in reproducible_compression:
+            archive_specs['preset'] = 6
+        elif compression not in reproducible_compression:
             # requested archive compression cannot be made reproducible
             print_warning(
-                f"Requested reproducible archive with unsupported file compression ({compression[archive_ext]}). "
+                f"Can not create reproducible archive due to unsupported file compression ({compression}). "
                 "Please use XZ instead."
             )
             reproducible = False
@@ -2884,7 +2886,7 @@ def make_archive(source_dir, archive_file=None, archive_dir=None, reproducible=T
     source_files.extend([str(filepath) for filepath in pathlib.Path(source_dir).glob("**/*")])
     source_files.sort()  # independent of locale
 
-    with tarfile.open(**archive) as tar_archive:
+    with tarfile.open(**archive_specs) as tar_archive:
         for filepath in source_files:
             # archive with target directory in its top level, remove any prefix in path
             file_name = os.path.relpath(filepath, start=os.path.dirname(source_dir))
