@@ -36,6 +36,7 @@ import shutil
 import sys
 import tempfile
 from inspect import cleandoc
+from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -1638,6 +1639,44 @@ class EasyBlockTest(EnhancedTestCase):
         sources[0]['nosuchkey'] = 'foobar'
         error_pattern = "Found one or more unexpected keys in 'sources' specification: {'nosuchkey': 'foobar'}"
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_sources, sources, checksums=[])
+
+    @requires_github_access()
+    def test_fetch_sources_git(self):
+        """Test fetch_sources method from git repo."""
+
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
+        eb = get_easyblock_instance(ec)
+        eb.src = []
+        sources = [
+            {
+                'filename': 'testrepository.tar.xz',
+                'git_config': {
+                    'repo_name': 'testrepository',
+                    'url': 'https://github.com/easybuilders',
+                    'tag': 'branch_tag_for_test',
+                }
+            }
+        ]
+        checksums = ["00000000"]
+        with self.mocked_stdout_stderr():
+            eb.fetch_sources(sources, checksums=checksums)
+
+        self.assertEqual(len(eb.src), 1)
+        self.assertEqual(eb.src[0]['name'], "testrepository.tar.xz")
+        self.assertExists(eb.src[0]['path'])
+        self.assertEqual(eb.src[0]['cmd'], None)
+
+        reference_checksum = "00000000"
+        if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+            # checksums of tarballs made by EB cannot be reliably checked prior to Python 3.9
+            # due to changes introduced in python/cpython#90021
+            reference_checksum = None
+
+        self.assertEqual(eb.src[0]['checksum'], reference_checksum)
+
+        # cleanup
+        remove_file(eb.src[0]['path'])
 
     def test_download_instructions(self):
         """Test use of download_instructions easyconfig parameter."""

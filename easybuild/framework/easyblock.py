@@ -50,6 +50,7 @@ import json
 import os
 import re
 import stat
+import sys
 import tempfile
 import time
 import traceback
@@ -365,34 +366,49 @@ class EasyBlock(object):
         :param filename: name of the file to obtain checksum for
         :param index: index of file in list
         """
-        checksum = None
-
-        # sometimes, filename are specified as a dict
+        chksum_input = filename
+        chksum_input_git = None
+        # if filename is provided as dict, take 'filename' key
         if isinstance(filename, dict):
-            filename = filename['filename']
+            chksum_input = filename.get('filename', None)
+            chksum_input_git = filename.get('git_config', None)
+        # early return if no filename given
+        if chksum_input is None:
+            self.log.debug("Cannot get checksum without a file name")
+            return None
 
+        if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+            # ignore any checksum for given filename due to changes in https://github.com/python/cpython/issues/90021
+            # tarballs made for git repos are not reproducible when created with Python < 3.9
+            if chksum_input_git is not None:
+                self.log.deprecated(
+                    "Reproducible tarballs of Git repos are only possible when using Python 3.9+ to run EasyBuild. "
+                    f"Skipping checksum verification of {chksum_input} since Python < 3.9 is used.",
+                    '6.0'
+                )
+                return None
+
+        checksum = None
         # if checksums are provided as a dict, lookup by source filename as key
         if isinstance(checksums, dict):
-            if filename is not None and filename in checksums:
-                checksum = checksums[filename]
-            else:
-                checksum = None
-        elif isinstance(checksums, (list, tuple)):
-            if index is not None and index < len(checksums) and (index >= 0 or abs(index) <= len(checksums)):
+            try:
+                checksum = checksums[chksum_input]
+            except KeyError:
+                self.log.debug("Checksum not found for file: %s", chksum_input)
+        elif isinstance(checksums, (list, tuple)) and index is not None:
+            try:
                 checksum = checksums[index]
-            else:
-                checksum = None
-        elif checksums is None:
-            checksum = None
-        else:
+            except IndexError:
+                self.log.debug("Checksum not found for index list: %s", index)
+        elif checksums is not None:
             raise EasyBuildError("Invalid type for checksums (%s), should be dict, list, tuple or None.",
                                  type(checksums))
 
         if checksum is None or build_option("checksum_priority") == CHECKSUM_PRIORITY_JSON:
             json_checksums = self.get_checksums_from_json()
-            return json_checksums.get(filename, None)
-        else:
-            return checksum
+            return json_checksums.get(chksum_input, None)
+
+        return checksum
 
     def get_checksums_from_json(self, always_read=False):
         """
