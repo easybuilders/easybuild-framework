@@ -3141,9 +3141,12 @@ class EasyBlock(object):
 
     def post_install_step(self):
         """
-        Do some postprocessing
+        [DEPRECATED] Do some postprocessing
         - run post install commands if any were specified
         """
+        # even though post_install_step is deprecated in easyblocks we need to keep this here until it is
+        # removed in 6.0 for easyblocks calling super(EB_xxx, self).post_install_step()
+        # The deprecation warning for those is below, in post_processing_step().
 
         lib_dir = os.path.join(self.installdir, 'lib')
         lib64_dir = os.path.join(self.installdir, 'lib64')
@@ -3170,6 +3173,21 @@ class EasyBlock(object):
         self.print_post_install_messages()
 
         self.fix_shebang()
+
+    def post_processing_step(self):
+        """
+        Do some postprocessing
+        - run post install commands if any were specified
+        """
+        # if post_install_step() is present in the easyblock print a deprecation warning
+        # with EB 6.0, post_install_step() can be renamed to post_processing_step, and this method deleted.
+
+        if self.post_install_step.__qualname__ != "EasyBlock.post_install_step":
+            self.log.deprecated(
+                "EasyBlock.post_install_step() is deprecated, use EasyBlock.post_processing_step() instead.",
+                '6.0',
+            )
+        return self.post_install_step()
 
     def sanity_check_step(self, *args, **kwargs):
         """
@@ -4224,7 +4242,7 @@ class EasyBlock(object):
         # part 3: post-iteration part
         steps_part3 = [
             (POSTITER_STEP, 'restore after iterating', [lambda x: x.post_iter_step], False),
-            (POSTPROC_STEP, 'postprocessing', [lambda x: x.post_install_step], True),
+            (POSTPROC_STEP, 'postprocessing', [lambda x: x.post_processing_step], True),
             (SANITYCHECK_STEP, 'sanity checking', [lambda x: x.sanity_check_step], True),
             (CLEANUP_STEP, 'cleaning up', [lambda x: x.cleanup_step], False),
             (MODULE_STEP, 'creating module', [lambda x: x.make_module_step], False),

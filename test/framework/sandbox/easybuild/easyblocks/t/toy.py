@@ -142,6 +142,12 @@ class EB_toy(ExtensionEasyBlock):
         mkdir(libdir, parents=True)
         write_file(os.path.join(libdir, 'lib%s.a' % name), name.upper())
 
+    def post_processing_step(self):
+        """Any postprocessing for toy"""
+        libdir = os.path.join(self.installdir, 'lib')
+        write_file(os.path.join(libdir, 'lib%s_post.a' % self.name), self.name.upper())
+        super(EB_toy, self).post_processing_step()
+
     @property
     def required_deps(self):
         """Return list of required dependencies for this extension."""

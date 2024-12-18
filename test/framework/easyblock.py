@@ -50,6 +50,7 @@ from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, update_build_option
+from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_dir, remove_file
 from easybuild.tools.filetools import verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
@@ -1019,6 +1020,60 @@ class EasyBlockTest(EnhancedTestCase):
         eb.post_iter_step()
         self.assertEqual(eb.cfg.iterating, False)
         self.assertEqual(eb.cfg['configopts'], ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"])
+
+    def test_post_processing_step(self):
+        """Test post_processing_step and deprecated post_install_step."""
+        init_config(build_options={'silent': True})
+
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+
+        # these imports only work here, since EB_toy is a test easyblock
+        from easybuild.easyblocks.toy import EB_toy
+        from easybuild.easyblocks.toy_deprecated import EB_toy_deprecated
+
+        cwd = os.getcwd()
+        toy_ec = EasyConfig(toy_ec_fn)
+        eb = EB_toy_deprecated(toy_ec)
+        eb.silent = True
+        depr_msg = r"EasyBlock.post_install_step\(\) is deprecated, use EasyBlock.post_processing_step\(\) instead"
+        expected_error = r"DEPRECATED \(since v6.0\).*" + depr_msg
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, expected_error, eb.run_all_steps, True)
+
+        change_dir(cwd)
+        toy_ec = EasyConfig(toy_ec_fn)
+        eb = EB_toy(toy_ec)
+        eb.silent = True
+        with self.mocked_stdout_stderr() as (_, stderr):
+            eb.run_all_steps(True)
+            # no deprecation warning
+            stderr = stderr.getvalue()
+            self.assertFalse(stderr)
+
+        libtoy_post_a = os.path.join(eb.installdir, 'lib', 'libtoy_post.a')
+        self.assertExists(libtoy_post_a)
+
+        # check again with toy easyblock that still uses post_install_step,
+        # to verify that the expected file is being created when deprecated functionality is allow
+        remove_file(libtoy_post_a)
+        modify_env(os.environ, self.orig_environ, verbose=False)
+        change_dir(cwd)
+
+        self.allow_deprecated_behaviour()
+        toy_ec = EasyConfig(toy_ec_fn)
+        eb = EB_toy_deprecated(toy_ec)
+        eb.silent = True
+        with self.mocked_stdout_stderr() as (stdout, stderr):
+            eb.run_all_steps(True)
+
+            regex = re.compile(depr_msg, re.M)
+            stdout = stdout.getvalue()
+            self.assertTrue("This step is deprecated.\n" in stdout)
+            stderr = stderr.getvalue()
+            self.assertTrue(regex.search(stderr), f"Pattern {regex.pattern} found in: {stderr}")
+
+        self.assertExists(libtoy_post_a)
 
     def test_extensions_step(self):
         """Test the extensions_step"""
