@@ -2720,7 +2720,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # by default, sanity check commands & paths specified by easyblock are used
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+            self._test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
             stdout = self.get_stdout()
             # Cut output to start of the toy-ec, after the Python installations
             stdout = stdout[stdout.index(test_ec):]
@@ -2747,7 +2747,7 @@ class ToyBuildTest(EnhancedTestCase):
         """)
         write_file(test_ec, test_ec_txt)
         with self.mocked_stdout_stderr():
-            self.test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+            self._test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
             stdout = self.get_stdout()
             # Cut output to start of the toy-ec, after the Python installations
             stdout = stdout[stdout.index(test_ec):]
