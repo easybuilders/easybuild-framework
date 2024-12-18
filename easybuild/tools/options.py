@@ -398,7 +398,7 @@ class EasyBuildOptions(GeneralOption):
                                           "for example: 3.5,5.0,7.2", 'strlist', 'extend', None),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
-                                  Compiler.COMPILER_OPT_FLAGS),
+                                  Compiler.COMPILER_OPT_OPTIONS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
             'detect-loaded-modules': ("Detect loaded EasyBuild-generated modules, act accordingly; "
