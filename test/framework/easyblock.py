@@ -1622,6 +1622,7 @@ class EasyBlockTest(EnhancedTestCase):
     @requires_github_access()
     def test_fetch_sources_git(self):
         """Test fetch_sources method from git repo."""
+
         testdir = os.path.abspath(os.path.dirname(__file__))
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
@@ -1652,6 +1653,9 @@ class EasyBlockTest(EnhancedTestCase):
             reference_checksum = None
 
         self.assertEqual(eb.src[0]['checksum'], reference_checksum)
+
+        # cleanup
+        remove_file(eb.src[0]['path'])
 
     def test_download_instructions(self):
         """Test use of download_instructions easyconfig parameter."""
