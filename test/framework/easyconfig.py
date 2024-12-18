@@ -1911,8 +1911,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['env_mod_class'], expected)
 
         expected = ['echo TOY > %(installdir)s/README']
-        self.assertEqual(ec['postinstallcmds'], expected)
-        self.assertEqual(ec['post_install_cmds'], expected)
+        with ec.disable_templating():
+            self.assertEqual(ec['postinstallcmds'], expected)
+            self.assertEqual(ec['post_install_cmds'], expected)
 
         # test setting of easyconfig parameter with original & alternative name
         ec['moduleclass'] = 'test1'
@@ -3865,7 +3866,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # On unknown values the value is returned unchanged
         for value in ('%(invalid)s', '%(name)s %(invalid)s', '%%%(invalid)s', '% %(invalid)s', '%s %(invalid)s'):
-            self.assertEqual(resolve_template(value, tmpl_dict), value)
+            self.assertEqual(resolve_template(value, tmpl_dict, expect_resolved=False), value)
 
     def test_det_subtoolchain_version(self):
         """Test det_subtoolchain_version function"""
@@ -5146,6 +5147,43 @@ class EasyConfigTest(EnhancedTestCase):
 
         regex = re.compile(r"libtoy/0\.0 is already installed", re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+    def test_templates(self):
+        """
+        Test use of template values like %(version)s
+        """
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\ndescription = "name: %(name)s, version: %(version)s"'
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+        ec = EasyConfig(test_ec)
+
+        # get_ref provides access to non-templated raw value
+        self.assertEqual(ec.get_ref('description'), "name: %(name)s, version: %(version)s")
+        self.assertEqual(ec['description'], "name: toy, version: 0.0")
+
+        # error when using wrong template value or using template value that can not be resolved yet too early
+        test_ec_txt += '\ndescription = "name: %(name)s, version: %(version)s, pyshortver: %(pyshortver)s"'
+        write_file(test_ec, test_ec_txt)
+        ec = EasyConfig(test_ec)
+
+        self.assertEqual(ec.get_ref('description'), "name: %(name)s, version: %(version)s, pyshortver: %(pyshortver)s")
+        error_pattern = r"Failed to resolve all templates in.* %\(pyshortver\)s.* using template dictionary:"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ec.__getitem__, 'description')
+
+        # EasyBuild can be configured to allow unresolved templates
+        update_build_option('allow_unresolved_templates', True)
+        self.assertEqual(ec.get_ref('description'), "name: %(name)s, version: %(version)s, pyshortver: %(pyshortver)s")
+        with self.mocked_stdout_stderr() as (stdout, stderr):
+            self.assertEqual(ec['description'], "name: %(name)s, version: %(version)s, pyshortver: %(pyshortver)s")
+
+        self.assertFalse(stdout.getvalue())
+        regex = re.compile(r"WARNING: Failed to resolve all templates.* %\(pyshortver\)s", re.M)
+        self.assertRegex(stderr.getvalue(), regex)
 
 
 def suite():

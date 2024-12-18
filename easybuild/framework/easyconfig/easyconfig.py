@@ -765,9 +765,13 @@ class EasyConfig(object):
         """
         Determine number of files (sources + patches) required for this easyconfig.
         """
-        cnt = len(self['sources']) + len(self['patches'])
 
-        for ext in self['exts_list']:
+        # No need to resolve templates as we only need a count not the names
+        with self.disable_templating():
+            cnt = len(self['sources']) + len(self['patches'])
+            exts = self['exts_list']
+
+        for ext in exts:
             if isinstance(ext, tuple) and len(ext) >= 3:
                 ext_opts = ext[2]
                 # check for 'sources' first, since that's also considered first by EasyBlock.collect_exts_file_info
@@ -1653,8 +1657,9 @@ class EasyConfig(object):
         filter_deps_specs = self.parse_filter_deps()
 
         for key in DEPENDENCY_PARAMETERS:
-            # loop over a *copy* of dependency dicts (with resolved templates);
-            deps = self[key]
+            # loop over a *copy* of dependency dicts with resolved templates,
+            # although some templates may not resolve yet (e.g. those relying on dependencies like %(pyver)s)
+            deps = resolve_template(self.get_ref(key), self.template_values, expect_resolved=False)
 
             # to update the original dep dict, we need to get a reference with templating disabled...
             deps_ref = self.get_ref(key)
@@ -1826,11 +1831,14 @@ class EasyConfig(object):
     # see also https://docs.python.org/2/reference/datamodel.html#object.__eq__
     def __eq__(self, ec):
         """Is this EasyConfig instance equivalent to the provided one?"""
-        return self.asdict() == ec.asdict()
+        # Compare raw values to check that templates used are the same
+        with self.disable_templating():
+            with ec.disable_templating():
+                return self.asdict() == ec.asdict()
 
     def __ne__(self, ec):
         """Is this EasyConfig instance equivalent to the provided one?"""
-        return self.asdict() != ec.asdict()
+        return not self == ec
 
     def __hash__(self):
         """Return hash value for a hashable representation of this EasyConfig instance."""
@@ -1843,8 +1851,9 @@ class EasyConfig(object):
             return val
 
         lst = []
-        for (key, val) in sorted(self.asdict().items()):
-            lst.append((key, make_hashable(val)))
+        with self.disable_templating():
+            for (key, val) in sorted(self.asdict().items()):
+                lst.append((key, make_hashable(val)))
 
         # a list is not hashable, but a tuple is
         return hash(tuple(lst))
@@ -1859,7 +1868,8 @@ class EasyConfig(object):
             if self.enable_templating:
                 if not self.template_values:
                     self.generate_template_values()
-                value = resolve_template(value, self.template_values)
+                # Not all values can be resolved, e.g. %(installdir)s
+                value = resolve_template(value, self.template_values, expect_resolved=False)
             res[key] = value
         return res
 
@@ -2007,10 +2017,11 @@ def get_module_path(name, generic=None, decode=True):
     return '.'.join(modpath + [module_name])
 
 
-def resolve_template(value, tmpl_dict):
+def resolve_template(value, tmpl_dict, expect_resolved=True):
     """Given a value, try to susbstitute the templated strings with actual values.
         - value: some python object (supported are string, tuple/list, dict or some mix thereof)
         - tmpl_dict: template dictionary
+        - expect_resolved: Expects that all templates get resolved
     """
     if isinstance(value, str):
         # simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
@@ -2063,7 +2074,14 @@ def resolve_template(value, tmpl_dict):
                             _log.deprecated(f"Easyconfig template '{old_tmpl}' is deprecated, use '{new_tmpl}' instead",
                                             ver)
                 except KeyError:
-                    _log.warning(f"Unable to resolve template value {value} with dict {tmpl_dict}")
+                    if expect_resolved:
+                        msg = (f'Failed to resolve all templates in "{value}" using template dictionary: {tmpl_dict}. '
+                               'This might cause failures or unexpected behavior, '
+                               'check for correct escaping if this is intended!')
+                        if build_option('allow_unresolved_templates'):
+                            print_warning(msg)
+                        else:
+                            raise EasyBuildError(msg)
                     value = raw_value  # Undo "%"-escaping
 
                 for key in tmpl_dict:
@@ -2084,11 +2102,12 @@ def resolve_template(value, tmpl_dict):
         # self._config['x']['y'] = z
         # it can not be intercepted with __setitem__ because the set is done at a deeper level
         if isinstance(value, list):
-            value = [resolve_template(val, tmpl_dict) for val in value]
+            value = [resolve_template(val, tmpl_dict, expect_resolved) for val in value]
         elif isinstance(value, tuple):
-            value = tuple(resolve_template(list(value), tmpl_dict))
+            value = tuple(resolve_template(list(value), tmpl_dict, expect_resolved))
         elif isinstance(value, dict):
-            value = {resolve_template(k, tmpl_dict): resolve_template(v, tmpl_dict) for k, v in value.items()}
+            value = {resolve_template(k, tmpl_dict, expect_resolved): resolve_template(v, tmpl_dict, expect_resolved)
+                     for k, v in value.items()}
 
     return value
 
