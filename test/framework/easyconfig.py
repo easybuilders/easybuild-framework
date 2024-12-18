@@ -5172,7 +5172,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(test_ec)
 
         self.assertEqual(ec.get_ref('description'), "name: %(name)s, version: %(version)s, pyshortver: %(pyshortver)s")
-        error_pattern = "Failed to resolve all templates in.* %\(pyshortver\)s.* using template dictionary:"
+        error_pattern = r"Failed to resolve all templates in.* %\(pyshortver\)s.* using template dictionary:"
         self.assertErrorRegex(EasyBuildError, error_pattern, ec.__getitem__, 'description')
 
         # EasyBuild can be configured to allow unresolved templates
