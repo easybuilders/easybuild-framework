@@ -1125,7 +1125,7 @@ def list_toolchains_md(tcs):
     none_txt = '*(none)*'
 
     # Initialize an empty list of lists for the table data
-    table_values = [[] for i in range(len(table_titles))]
+    table_values = [[] for _ in range(len(table_titles))]
 
     for col_id, col_name in enumerate(table_titles):
         if col_name == 'NAME':
@@ -1141,6 +1141,8 @@ def list_toolchains_md(tcs):
                         entry = 'cray-mpich'
                     elif col_name == 'LINALG':
                         entry = 'cray-libsci'
+                    else:
+                        entry = none_txt
                 # Combine the linear algebra libraries into a single column
                 elif col_name == 'LINALG':
                     linalg = []
@@ -1185,7 +1187,7 @@ def list_toolchains_rst(tcs):
     none_txt = '*(none)*'
 
     # Initialize an empty list of lists for the table data
-    table_values = [[] for i in range(len(table_titles))]
+    table_values = [[] for _ in range(len(table_titles))]
 
     for col_id, col_name in enumerate(table_titles):
         if col_name == 'NAME':
@@ -1201,6 +1203,8 @@ def list_toolchains_rst(tcs):
                         entry = 'cray-mpich'
                     elif col_name == 'LINALG':
                         entry = 'cray-libsci'
+                    else:
+                        entry = none_txt
                 # Combine the linear algebra libraries into a single column
                 elif col_name == 'LINALG':
                     linalg = []
