@@ -613,19 +613,16 @@ class EasyBlock(object):
                     template_values = copy.deepcopy(self.cfg.template_values)
                     template_values.update(template_constant_dict(ext_src))
 
-                    # resolve templates in extension options
-                    ext_options = resolve_template(ext_options, template_values)
-
-                    source_urls = ext_options.get('source_urls', [])
+                    source_urls = resolve_template(ext_options.get('source_urls', []), template_values)
                     checksums = ext_options.get('checksums', [])
 
-                    download_instructions = ext_options.get('download_instructions')
+                    download_instructions = resolve_template(ext_options.get('download_instructions'), template_values)
 
                     if ext_options.get('nosource', None):
                         self.log.debug("No sources for extension %s, as indicated by 'nosource'", ext_name)
 
                     elif ext_options.get('sources', None):
-                        sources = ext_options['sources']
+                        sources = resolve_template(ext_options['sources'], template_values)
 
                         # only a single source file is supported for extensions currently,
                         # see https://github.com/easybuilders/easybuild-framework/issues/3463
@@ -662,16 +659,17 @@ class EasyBlock(object):
                             })
 
                     else:
-                        # use default template for name of source file if none is specified
-                        default_source_tmpl = resolve_template('%(name)s-%(version)s.tar.gz', template_values)
 
                         # if no sources are specified via 'sources', fall back to 'source_tmpl'
                         src_fn = ext_options.get('source_tmpl')
                         if src_fn is None:
-                            src_fn = default_source_tmpl
+                            # use default template for name of source file if none is specified
+                            src_fn = '%(name)s-%(version)s.tar.gz'
                         elif not isinstance(src_fn, str):
                             error_msg = "source_tmpl value must be a string! (found value of type '%s'): %s"
                             raise EasyBuildError(error_msg, type(src_fn).__name__, src_fn)
+
+                        src_fn = resolve_template(src_fn, template_values)
 
                         if fetch_files:
                             src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
@@ -707,7 +705,7 @@ class EasyBlock(object):
                             )
 
                     # locate extension patches (if any), and verify checksums
-                    ext_patches = ext_options.get('patches', [])
+                    ext_patches = resolve_template(ext_options.get('patches', []), template_values)
                     if fetch_files:
                         ext_patches = self.fetch_patches(patch_specs=ext_patches, extension=True)
                     else:
@@ -2991,7 +2989,7 @@ class EasyBlock(object):
 
             fake_mod_data = self.load_fake_module(purge=True, extra_modules=build_dep_mods)
 
-        start_progress_bar(PROGRESS_BAR_EXTENSIONS, len(self.cfg['exts_list']))
+        start_progress_bar(PROGRESS_BAR_EXTENSIONS, len(self.cfg.get_ref('exts_list')))
 
         self.prepare_for_extensions()
 

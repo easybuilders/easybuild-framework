@@ -280,6 +280,7 @@ BUILD_OPTIONS_CMDLINE = {
     False: [
         'add_system_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
+        'allow_unresolved_templates',
         'backup_patched_files',
         'consider_archived_easyconfigs',
         'container_build_image',
