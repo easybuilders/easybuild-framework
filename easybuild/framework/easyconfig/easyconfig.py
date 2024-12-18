@@ -2075,8 +2075,8 @@ def resolve_template(value, tmpl_dict, expect_resolved=True):
                                             ver)
                 except KeyError:
                     if expect_resolved:
-                        msg = ('Failed to resolve template value %s with dict %s. ' % (value, tmpl_dict) +
-                               'This might cause failures or unexpected behavior, ' +
+                        msg = (f'Failed to resolve all templates in "{value}" using template dictionary: {tmpl_dict}. '
+                               'This might cause failures or unexpected behavior, '
                                'check for correct escaping if this is intended!')
                         if build_option('allow_unresolved_templates'):
                             print_warning(msg)
