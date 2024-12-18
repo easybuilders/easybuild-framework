@@ -3739,16 +3739,16 @@ class EasyBlock(object):
         if self.toolchain.mpi_family() and self.toolchain.mpi_family() in toolchain.OPENMPI:
             env.setvar('OMPI_MCA_rmaps_base_oversubscribe', '1')
 
-        # change to install directory (better environment for running tests)
-        if os.path.isdir(self.installdir):
-            change_dir(self.installdir)
+        # run sanity checks from an empty temp directory
+        # using the build or installation directory can produce false positives and polute them with files
+        sanity_work_dir = tempfile.mkdtemp(prefix='eb-saniy-check-')
 
         # run sanity check commands
         for cmd in commands:
 
             trace_msg(f"running command '{cmd}' ...")
 
-            res = run_shell_cmd(cmd, fail_on_error=False, hidden=True)
+            res = run_shell_cmd(cmd, work_dir=sanity_work_dir, fail_on_error=False, hidden=True)
             if res.exit_code != EasyBuildExit.SUCCESS:
                 fail_msg = f"sanity check command {cmd} failed with exit code {res.exit_code} (output: {res.output})"
                 self.sanity_check_fail_msgs.append(fail_msg)
@@ -3802,8 +3802,8 @@ class EasyBlock(object):
                 "Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs),
                 exit_code=EasyBuildExit.FAIL_SANITY_CHECK,
             )
-        else:
-            self.log.debug("Sanity check passed!")
+
+        self.log.debug("Sanity check passed!")
 
     def _set_module_as_default(self, fake=False):
         """
