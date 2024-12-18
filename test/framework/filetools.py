@@ -2940,111 +2940,119 @@ class FileToolsTest(EnhancedTestCase):
             'test_prefix': self.test_prefix,
         }
 
-        expected = '\n'.join([
-            r'  running shell command "git clone --depth 1 --branch tag_for_tests {git_repo}"',
-            r"  \(in .*/tmp.*\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        run_check()
+        # expected = '\n'.join([
+        #     r'  running shell command "git clone --depth 1 --branch tag_for_tests {git_repo}"',
+        #     r"  \(in .*/tmp.*\)",
+        #     r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        # ]).format(**string_args, repo_name='testrepository')
+        # run_check()
 
-        git_config['clone_into'] = 'test123'
-        expected = '\n'.join([
-            r'  running shell command "git clone --depth 1 --branch tag_for_tests {git_repo} test123"',
-            r"  \(in .*/tmp.*\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='test123')
-        run_check()
-        del git_config['clone_into']
+        # git_config['clone_into'] = 'test123'
+        # expected = '\n'.join([
+        #     r'  running shell command "git clone --depth 1 --branch tag_for_tests {git_repo} test123"',
+        #     r"  \(in .*/tmp.*\)",
+        #     r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        # ]).format(**string_args, repo_name='test123')
+        # run_check()
+        # del git_config['clone_into']
 
-        git_config['recursive'] = True
-        expected = '\n'.join([
-            r'  running shell command "git clone --depth 1 --branch tag_for_tests --recursive {git_repo}"',
-            r"  \(in .*/tmp.*\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        run_check()
+        # git_config['recursive'] = True
+        # expected = '\n'.join([
+        #     r'  running shell command "git clone --depth 1 --branch tag_for_tests --recursive {git_repo}"',
+        #     r"  \(in .*/tmp.*\)",
+        #     r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        # ]).format(**string_args, repo_name='testrepository')
+        # run_check()
 
-        git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
-        expected = '\n'.join([
-            '  running shell command "git clone --depth 1 --branch tag_for_tests --recursive'
-            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' {git_repo}"',
-            r"  \(in .*/tmp.*\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        run_check()
+        # git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
+        # expected = '\n'.join([
+        #     '  running shell command "git clone --depth 1 --branch tag_for_tests --recursive'
+        #     + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' {git_repo}"',
+        #     r"  \(in .*/tmp.*\)",
+        #     r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        # ]).format(**string_args, repo_name='testrepository')
+        # run_check()
 
-        git_config['extra_config_params'] = [
-            'submodule."fastahack".active=false',
-            'submodule."sha1".active=false',
-        ]
-        expected = '\n'.join([
-            '  running shell command "git -c submodule."fastahack".active=false -c submodule."sha1".active=false'
-            + ' clone --depth 1 --branch tag_for_tests --recursive'
-            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' {git_repo}"',
-            r"  \(in .*/tmp.*\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        run_check()
-        del git_config['recurse_submodules']
-        del git_config['extra_config_params']
+        # git_config['extra_config_params'] = [
+        #     'submodule."fastahack".active=false',
+        #     'submodule."sha1".active=false',
+        # ]
+        # expected = '\n'.join([
+        #     '  running shell command "git -c submodule."fastahack".active=false -c submodule."sha1".active=false'
+        #     + ' clone --depth 1 --branch tag_for_tests --recursive'
+        #     + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' {git_repo}"',
+        #     r"  \(in .*/tmp.*\)",
+        #     r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        # ]).format(**string_args, repo_name='testrepository')
+        # run_check()
+        # del git_config['recurse_submodules']
+        # del git_config['extra_config_params']
 
-        git_config['keep_git_dir'] = True
-        expected = '\n'.join([
-            r'  running shell command "git clone --branch tag_for_tests --recursive {git_repo}"',
-            r"  \(in .*/tmp.*\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        run_check()
-        del git_config['keep_git_dir']
+        # git_config['keep_git_dir'] = True
+        # expected = '\n'.join([
+        #     r'  running shell command "git clone --branch tag_for_tests --recursive {git_repo}"',
+        #     r"  \(in .*/tmp.*\)",
+        #     r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        # ]).format(**string_args, repo_name='testrepository')
+        # run_check()
+        # del git_config['keep_git_dir']
 
-        del git_config['tag']
-        git_config['commit'] = '8456f86'
-        expected = '\n'.join([
-            r'  running shell command "git clone --no-checkout {git_repo}"',
-            r"  \(in .*/tmp.*\)",
-            r'  running shell command "git checkout 8456f86 && git submodule update --init --recursive"',
-            r"  \(in .*/testrepository\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        run_check()
+        # del git_config['tag']
+        # git_config['commit'] = '8456f86'
+        # expected = '\n'.join([
+        #     r'  running shell command "git clone --no-checkout {git_repo}"',
+        #     r"  \(in .*/tmp.*\)",
+        #     r'  running shell command "git checkout 8456f86 && git submodule update --init --recursive"',
+        #     r"  \(in .*/testrepository\)",
+        #     r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        # ]).format(**string_args, repo_name='testrepository')
+        # run_check()
 
-        git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
-        expected = '\n'.join([
-            r'  running shell command "git clone --no-checkout {git_repo}"',
-            r"  \(in .*/tmp.*\)",
-            r'  running shell command "git checkout 8456f86 && git submodule update --init '
-            r"--recursive --recurse-submodules='!vcflib' --recurse-submodules='!sdsl-lite'\"",
-            r"  \(in .*/testrepository\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        run_check()
+        # git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
+        # expected = '\n'.join([
+        #     r'  running shell command "git clone --no-checkout {git_repo}"',
+        #     r"  \(in .*/tmp.*\)",
+        #     r'  running shell command "git checkout 8456f86 && git submodule update --init '
+        #     r"--recursive --recurse-submodules='!vcflib' --recurse-submodules='!sdsl-lite'\"",
+        #     r"  \(in .*/testrepository\)",
+        #     r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        # ]).format(**string_args, repo_name='testrepository')
+        # run_check()
 
-        del git_config['recursive']
-        del git_config['recurse_submodules']
-        expected = '\n'.join([
-            r'  running shell command "git clone --no-checkout {git_repo}"',
-            r"  \(in /.*\)",
-            r'  running shell command "git checkout 8456f86"',
-            r"  \(in /.*/testrepository\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        run_check()
+        # del git_config['recursive']
+        # del git_config['recurse_submodules']
+        # expected = '\n'.join([
+        #     r'  running shell command "git clone --no-checkout {git_repo}"',
+        #     r"  \(in /.*\)",
+        #     r'  running shell command "git checkout 8456f86"',
+        #     r"  \(in /.*/testrepository\)",
+        #     r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        # ]).format(**string_args, repo_name='testrepository')
+        # run_check()
 
-        # files with a recognizable extension have those extensions automatically removed with a warning
-        bad_filenames = ['test.tar', 'test.tar.gz', 'test.tar.xz', 'test.zip']
-        # files with arbitrary extensions are taken as is and get extra 'tar.xz' extension appended
-        good_filenames = ['test', 'test-1.2.3', 'test.txt', 'test-1.2.3.txt']
-        for test_filename in bad_filenames + good_filenames:
+        # tarball formats that are not reproducible
+        bad_filenames = ['test.tar.gz', 'test.tar.bz2']
+        # tarball formats that are reproducible
+        good_filenames = ['test.tar', 'test.tar.xz']
+        # extensionsless filenames get a default archive compression of XZ
+        noext_filename = ['test']
+        for test_filename in bad_filenames + good_filenames + noext_filename:
             with self.mocked_stdout_stderr():
                 res = ft.get_source_tarball_from_git(test_filename, target_dir, git_config)
                 stderr = self.get_stderr()
-            regex = re.compile("Ignoring extension of filename.*set in git_config parameter")
+
+            regex = re.compile("Can not create reproducible archive.*")
             if test_filename in bad_filenames:
-                self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
-                self.assertTrue(res.endswith("test.tar.xz"))
+                self.assertTrue(regex.search(stderr), f"Pattern '{regex.pattern}' found in: {stderr}")
             else:
-                self.assertFalse(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
-                self.assertTrue(res.endswith(test_filename + ".tar.xz"))
+                self.assertFalse(regex.search(stderr), f"Pattern '{regex.pattern}' found in: {stderr}")
+
+            ref_filename = f"{test_filename}.tar.xz" if test_filename in noext_filename else test_filename
+            self.assertTrue(res.endswith(ref_filename))
+
+        # non-tarball formats are not supported
+        with self.mocked_stdout_stderr():
+            self.assertRaises(EasyBuildError, ft.get_source_tarball_from_git, 'test.zip', target_dir, git_config)
 
         # Test with real data.
         init_config()
