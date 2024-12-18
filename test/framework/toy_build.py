@@ -2373,6 +2373,8 @@ class ToyBuildTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec_txt = read_file(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))
 
+        out_file = os.path.join(self.test_prefix, 'out.txt')
+
         toy_ec_txt = '\n'.join([
             toy_ec_txt,
             "toolchain = {'name': 'foss', 'version': '2018a'}",
@@ -2388,6 +2390,8 @@ class ToyBuildTest(EnhancedTestCase):
             "   True,",
             # test command to make sure that '-h' is not passed to commands specified as string ('env -h' fails)
             "   'env',"
+            # print current working directory, should *not* be software install directory, but empty dir
+            f"   '(pwd && ls | wc -l) > {out_file}',",
             "]",
         ])
 
@@ -2411,6 +2415,13 @@ class ToyBuildTest(EnhancedTestCase):
             toy_modfile += '.lua'
 
         self.assertExists(toy_modfile)
+
+        # check contents of output file created by sanity check commands
+        self.assertExists(out_file)
+        out_txt = read_file(out_file)
+        # working dir for sanity check command should be an empty custom temporary directory
+        regex = re.compile('^.*/eb-[^/]+/eb-sanity-check-[^/]+\n[ ]*0$')
+        self.assertTrue(regex.match(out_txt), f"Pattern '{regex.pattern}' should match in: {out_txt}")
 
     def test_sanity_check_paths_lib64(self):
         """Test whether fallback in sanity check for lib64/ equivalents of library files works."""

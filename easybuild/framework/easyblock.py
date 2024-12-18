@@ -3741,14 +3741,14 @@ class EasyBlock(object):
 
         # run sanity checks from an empty temp directory
         # using the build or installation directory can produce false positives and polute them with files
-        sanity_work_dir = tempfile.mkdtemp(prefix='eb-saniy-check-')
+        sanity_check_work_dir = tempfile.mkdtemp(prefix='eb-sanity-check-')
 
         # run sanity check commands
         for cmd in commands:
 
             trace_msg(f"running command '{cmd}' ...")
 
-            res = run_shell_cmd(cmd, work_dir=sanity_work_dir, fail_on_error=False, hidden=True)
+            res = run_shell_cmd(cmd, work_dir=sanity_check_work_dir, fail_on_error=False, hidden=True)
             if res.exit_code != EasyBuildExit.SUCCESS:
                 fail_msg = f"sanity check command {cmd} failed with exit code {res.exit_code} (output: {res.output})"
                 self.sanity_check_fail_msgs.append(fail_msg)
