@@ -3178,6 +3178,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(unreprod_tar, "custom_name.tar")
         self.assertExists(unreprod_tar)
         os.remove(unreprod_tar)
+
         # custom .tar.gz
         self.mock_stdout(True)
         self.mock_stderr(True)
@@ -3185,7 +3186,10 @@ class FileToolsTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertIn("WARNING: Can not create reproducible archive due to unsupported file compression (gz)", stderr)
+
+        warning_msg = "WARNING: Can not create reproducible archive due to unsupported file compression (gz)"
+        self.assertIn(warning_msg, stderr)
+
         custom_tgz_chksum = ft.compute_checksum(custom_tgz, checksum_type="sha256")
         self.assertEqual(custom_tgz, "custom_name.tar.gz")
         self.assertExists(custom_tgz)
@@ -3196,7 +3200,9 @@ class FileToolsTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertNotIn("WARNING: Can not create reproducible archive due to unsupported file compression (gz)", stderr)
+
+        self.assertNotIn(warning_msg, stderr)
+
         custom_tgz_chksum = ft.compute_checksum(custom_tgz, checksum_type="sha256")
         self.assertEqual(custom_tgz, "custom_name.tar.gz")
         self.assertExists(custom_tgz)
