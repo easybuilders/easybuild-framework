@@ -372,11 +372,11 @@ class EasyBlock(object):
 
         if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
             # ignore any checksum for given filename due to changes in https://github.com/python/cpython/issues/90021
-            # checksums of tarballs made by EB of git repos cannot be reliably checked prior to Python 3.9
+            # tarballs made for git repos are not reproducible when created with Python < 3.9
             if chksum_input_git is not None:
                 self.log.deprecated(
                     "Reproducible tarballs of Git repos are only possible when using Python 3.9+ to run EasyBuild. "
-                    f"Checksum of {chksum_input} cannot be verified.",
+                    f"Skipping checksum verification of {chksum_input} since Python < 3.9 is used.",
                     '6.0'
                 )
                 return None
