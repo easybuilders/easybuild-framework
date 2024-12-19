@@ -428,7 +428,10 @@ class EasyConfig(object):
         :param local_var_naming_check: mode to use when checking if local variables use the recommended naming scheme
         """
         self.template_values = None
-        self.enable_templating = True  # a boolean to control templating
+        # a boolean to control templating, can be (temporarily) disabled in easyblocks
+        self.enable_templating = True
+        # boolean to control whether all template values must be resolvable, can be (temporarily) in easyblocks
+        self.expect_resolved_template_values = True
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -1773,7 +1776,7 @@ class EasyConfig(object):
         """Resolve all templates in the given value using this easyconfig"""
         if not self.template_values:
             self.generate_template_values()
-        return resolve_template(value, self.template_values)
+        return resolve_template(value, self.template_values, expect_resolved=self.expect_resolved_template_values)
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __contains__(self, key):
