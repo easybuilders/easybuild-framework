@@ -430,7 +430,7 @@ class EasyConfig(object):
         self.template_values = None
         # a boolean to control templating, can be (temporarily) disabled in easyblocks
         self.enable_templating = True
-        # boolean to control whether all template values must be resolvable, can be (temporarily) in easyblocks
+        # boolean to control whether all template values must be resolvable, can be (temporarily) disabled in easyblocks
         self.expect_resolved_template_values = True
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
