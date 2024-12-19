@@ -1,6 +1,9 @@
 name = 'R'
 version = '4.3.3'
 
+# should be "EB_R", but OK for testing purposes
+easyblock = 'EB_toy'
+
 homepage = 'https://www.r-project.org/'
 description = """R is a free software environment for statistical computing
  and graphics."""
@@ -51,10 +54,6 @@ configopts = "--with-pic --enable-threads --enable-R-shlib"
 # some recommended packages may fail in a parallel build (e.g. Matrix), and
 # we're installing them anyway below
 configopts += " --with-recommended-packages=no"
-
-# specify that at least EasyBuild v3.5.0 is required,
-# since we rely on the updated easyblock for R to configure correctly w.r.t. BLAS/LAPACK
-easybuild_version = '3.5.0'
 
 exts_default_options = {
     'source_urls': [
