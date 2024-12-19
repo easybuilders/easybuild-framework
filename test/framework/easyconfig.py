@@ -1289,6 +1289,7 @@ class EasyConfigTest(EnhancedTestCase):
             homepage = "http://example.com"
             description = "test easyconfig %(name)s version %(version_major)s"
             toolchain = SYSTEM
+            installopts = "PREFIX=%(installdir)s"
         """)
         self.prep()
         ec = EasyConfig(self.eb_file, validate=False)
@@ -1301,6 +1302,22 @@ class EasyConfigTest(EnhancedTestCase):
         description = ec.get('description', resolve=False)
         self.assertIn('%', description, 'Description needs a template for the next test')
         self.assertEqual(ec.resolve_template(description), ec['description'])
+
+        val = "PREFIX=%(installdir)s"
+
+        # by default unresolved template value triggers an error being raised
+        error_pattern = "Failed to resolve all templates"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ec.resolve_template, val)
+        self.assertErrorRegex(EasyBuildError, error_pattern, ec.get, 'installopts')
+
+        # this can be (temporarily) disabled via expect_resolved_template_values in EasyConfig instance
+        ec.expect_resolved_template_values = False
+        self.assertEqual(ec.resolve_template(val), val)
+        self.assertEqual(ec['installopts'], val)
+
+        ec.expect_resolved_template_values = True
+        self.assertErrorRegex(EasyBuildError, error_pattern, ec.resolve_template, val)
+        self.assertErrorRegex(EasyBuildError, error_pattern, ec.get, 'installopts')
 
     def test_templating_cuda_toolchain(self):
         """Test templates via toolchain component, like setting %(cudaver)s with fosscuda toolchain."""
