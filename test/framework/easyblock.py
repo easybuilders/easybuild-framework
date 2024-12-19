@@ -2906,6 +2906,20 @@ class EasyBlockTest(EnhancedTestCase):
         eb.json_checksums = None
         self.assertEqual(eb.check_checksums(), [])
 
+        # more checks for check_checksums_for method, which also takes regular dict as input
+        self.assertEqual(eb.check_checksums_for({}), [])
+        expected = "Checksums missing for one or more sources/patches in test.eb: "
+        expected += "found 1 sources + 0 patches vs 0 checksums"
+        self.assertEqual(eb.check_checksums_for({'sources': ['test.tar.gz']}), [expected])
+
+        # example from QuantumESPRESSO easyconfig, template used in extract_cmd should not cause trouble
+        eb.cfg['sources'] = [{
+            'filename': 'q-e-qe-%(version)s.tar.gz',
+            'extract_cmd': 'mkdir -p %(builddir)s/qe-%(version)s && tar xzvf %s --strip-components=1 -C $_',
+            'source_urls': ['https://gitlab.com/QEF/q-e/-/archive/qe-%(version)s'],
+        }]
+        res = eb.check_checksums_for(eb.cfg)
+
     def test_this_is_easybuild(self):
         """Test 'this_is_easybuild' function (and get_git_revision function used by it)."""
         # make sure both return a non-Unicode string

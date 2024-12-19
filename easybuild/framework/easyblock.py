@@ -2584,9 +2584,18 @@ class EasyBlock(object):
         ec_fn = os.path.basename(self.cfg.path)
         checksum_issues = []
 
-        sources = ent.get('sources', [])
-        patches = ent.get('patches', []) + ent.get('postinstallpatches', [])
-        checksums = ent.get('checksums', [])
+        # try to get value with templates resolved, but fall back to not resolving templates;
+        # this is better for error reporting that includes names of source files
+        try:
+            sources = ent.get('sources', [])
+            patches = ent.get('patches', []) + ent.get('postinstallpatches', [])
+            checksums = ent.get('checksums', [])
+        except EasyBuildError:
+            if isinstance(ent, EasyConfig):
+                sources = ent.get_ref('sources')
+                patches = ent.get_ref('patches') + ent.get_ref('postinstallpatches')
+                checksums = ent.get_ref('checksums')
+
         # Single source should be re-wrapped as a list, and checksums with it
         if isinstance(sources, dict):
             sources = [sources]
