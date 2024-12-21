@@ -614,7 +614,7 @@ class EasyBlock(object):
                     template_values.update(template_constant_dict(ext_src))
 
                     source_urls = resolve_template(ext_options.get('source_urls', []), template_values)
-                    checksums = ext_options.get('checksums', [])
+                    checksums = resolve_template(ext_options.get('checksums', []), template_values)
 
                     download_instructions = resolve_template(ext_options.get('download_instructions'), template_values)
 
