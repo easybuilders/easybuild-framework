@@ -495,14 +495,15 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     else:
         executable, shell = None, False
 
-    stderr = subprocess.PIPE if split_stderr else subprocess.STDOUT
+    stderr_handle = subprocess.PIPE if split_stderr else subprocess.STDOUT
+    stdin_handle = subprocess.PIPE if stdin or qa_patterns else None
 
     log_msg = f"Running {interactive_msg}shell command '{cmd_str}' in {work_dir}"
     if thread_id:
         log_msg += f" (via thread with ID {thread_id})"
     _log.info(log_msg)
 
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr, stdin=subprocess.PIPE,
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr_handle, stdin=stdin_handle,
                             cwd=work_dir, env=env, shell=shell, executable=executable)
 
     # 'input' value fed to subprocess.run must be a byte sequence
@@ -515,7 +516,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             # make stdout, stderr, stdin non-blocking files
             channels = [proc.stdout, proc.stdin]
             if split_stderr:
-                channels += proc.stderr
+                channels.append(proc.stderr)
+
             for channel in channels:
                 fd = channel.fileno()
                 flags = fcntl.fcntl(fd, fcntl.F_GETFL)
