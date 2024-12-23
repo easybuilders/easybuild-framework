@@ -3087,7 +3087,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         patterns = [
             r"^  >> installation prefix: .*/software/toy/0\.0$",
-            r"^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
+            r"^== fetching files and verifying checksums\.\.\.\n"
+            r"  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
             r"^  >> applying patch toy-0\.0_fix-silly-typo-in-printf-statement\.patch$",
             r'\n'.join([
                 r"^  >> running shell command:",
