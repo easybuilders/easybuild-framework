@@ -496,7 +496,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         executable, shell = None, False
 
     stderr_handle = subprocess.PIPE if split_stderr else subprocess.STDOUT
-    stdin_handle = subprocess.PIPE if stdin or qa_patterns else None
+    stdin_handle = subprocess.PIPE if stdin or qa_patterns else subprocess.DEVNULL
 
     log_msg = f"Running {interactive_msg}shell command '{cmd_str}' in {work_dir}"
     if thread_id:
