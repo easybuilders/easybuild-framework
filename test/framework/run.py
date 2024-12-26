@@ -266,6 +266,68 @@ class RunTest(EnhancedTestCase):
             self.assertTrue(isinstance(res.output, str))
             self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
 
+    def test_run_shell_cmd_perl(self):
+        """
+        Test running of Perl script via run_shell_cmd that detects type of shell
+        """
+        perl_script = os.path.join(self.test_prefix, 'test.pl')
+        perl_script_txt = """#!/usr/bin/perl
+
+        # wait for input, see what happens (should not hang)
+        print STDOUT "foo:\n";
+        STDOUT->autoflush(1);
+        my $stdin = <STDIN>;
+        print "stdin: $stdin\n";
+
+        # conditional print statements below should *not* be triggered
+        print "stdin+stdout are terminals\n" if -t STDIN && -t STDOUT;
+        print "stdin is terminal\n" if -t STDIN;
+        print "stdout is terminal\n" if -t STDOUT;
+        my $ISA_TTY = -t STDIN && (-t STDOUT || !(-f STDOUT || -c STDOUT)) ;
+        print "ISA_TTY" if $ISA_TTY;
+
+        print "PS1 is set\n" if $ENV{PS1};
+
+        print "tty -s returns 0\n" if system("tty -s") == 0;
+
+        # check if parent process is a shell
+        my $ppid = getppid();
+        my $parent_cmd = `ps -p $ppid -o comm=`;
+        print "parent process is bash\n" if ($parent_cmd =~ '/bash$');
+        """
+        write_file(perl_script, perl_script_txt)
+        adjust_permissions(perl_script, stat.S_IXUSR)
+
+        def handler(signum, _):
+            raise RuntimeError(f"Test for running Perl script via run_shell_cmd took too long, signal {signum}")
+
+        orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
+
+        try:
+            # set the signal handler and a 3-second alarm
+            signal.signal(signal.SIGALRM, handler)
+            signal.alarm(3)
+
+            res = run_shell_cmd(perl_script, hidden=True)
+            self.assertEqual(res.exit_code, 0)
+            self.assertEqual(res.output, 'foo:\nstdin: \n')
+
+            res = run_shell_cmd(perl_script, hidden=True, stdin="test")
+            self.assertEqual(res.exit_code, 0)
+            self.assertEqual(res.output, 'foo:\nstdin: test\n')
+
+            res = run_shell_cmd(perl_script, hidden=True, qa_patterns=[('foo:', 'bar')], qa_timeout=1)
+            self.assertEqual(res.exit_code, 0)
+            self.assertEqual(res.output, 'foo:\nstdin: bar\n\n')
+
+            error_pattern = "No matching questions found for current command output"
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, perl_script,
+                                  hidden=True, qa_patterns=[('bleh', 'blah')], qa_timeout=1)
+        finally:
+            # cleanup: disable the alarm + reset signal handler for SIGALRM
+            signal.signal(signal.SIGALRM, orig_sigalrm_handler)
+            signal.alarm(0)
+
     def test_run_shell_cmd_env(self):
         """Test env option in run_shell_cmd."""
 
