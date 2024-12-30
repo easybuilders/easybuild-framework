@@ -4223,7 +4223,8 @@ class EasyBlock(object):
 
         # part 1: pre-iteration + first iteration
         steps_part1 = [
-            (FETCH_STEP, 'fetching files', [lambda x: x.fetch_step, lambda x: x.checksum_step], False),
+            (FETCH_STEP, "fetching files and verifying checksums",
+             [lambda x: x.fetch_step, lambda x: x.checksum_step], False),
             ready_step_spec(True),
             extract_step_spec,
             patch_step_spec,

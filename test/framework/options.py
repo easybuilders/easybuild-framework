@@ -5524,6 +5524,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertIn("option --stop: invalid choice: 'source' (choose from", stderr)
 
     def test_fetch(self):
+        """Test use of --fetch"""
         options = EasyBuildOptions(go_args=['--fetch'])
 
         self.assertTrue(options.options.fetch)
@@ -5547,7 +5548,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             stdout, _ = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
 
             patterns = [
-                r"^== fetching files\.\.\.$",
+                r"^== fetching files and verifying checksums\.\.\.$",
                 r"^== COMPLETED: Installation STOPPED successfully \(took .* secs?\)$",
             ]
             for pattern in patterns:
@@ -6682,7 +6683,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout = self.mocked_main(args + ['--trace'], do_build=True, raise_error=True, testing=False)
 
         skipped = [
-            "fetching files",
+            "fetching files and verifying checksums",
             "creating build dir, resetting environment",
             "unpacking",
             "patching",
