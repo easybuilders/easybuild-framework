@@ -1698,10 +1698,6 @@ class EasyBlockTest(EnhancedTestCase):
     @requires_github_access()
     def test_fetch_sources_git(self):
         """Test fetch_sources method from git repo."""
-        if sys.version_info.minor < 9:
-            print("Skipping test_fetch_sources_git as Python version is < 3.9")
-            return
-
         testdir = os.path.abspath(os.path.dirname(__file__))
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
@@ -1717,6 +1713,10 @@ class EasyBlockTest(EnhancedTestCase):
             }
         ]
         checksums = ["00000000"]
+
+        if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+            self.allow_deprecated_behaviour()
+
         with self.mocked_stdout_stderr():
             eb.fetch_sources(sources, checksums=checksums)
 
