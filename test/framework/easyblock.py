@@ -1717,7 +1717,6 @@ class EasyBlockTest(EnhancedTestCase):
             }
         ]
         checksums = ["00000000"]
-
         with self.mocked_stdout_stderr():
             eb.fetch_sources(sources, checksums=checksums)
 
