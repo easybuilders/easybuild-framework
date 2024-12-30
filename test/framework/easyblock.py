@@ -1714,8 +1714,15 @@ class EasyBlockTest(EnhancedTestCase):
             }
         ]
         checksums = ["00000000"]
+
+        if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+            self.allow_deprecated_behaviour()
+
         with self.mocked_stdout_stderr():
             eb.fetch_sources(sources, checksums=checksums)
+
+        if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+            self.disallow_deprecated_behaviour()
 
         self.assertEqual(len(eb.src), 1)
         self.assertEqual(eb.src[0]['name'], "testrepository.tar.xz")
