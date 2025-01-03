@@ -428,10 +428,10 @@ class EasyConfig(object):
         :param local_var_naming_check: mode to use when checking if local variables use the recommended naming scheme
         """
         self.template_values = None
-        # a boolean to control templating, can be (temporarily) disabled in easyblocks
+        # a boolean to control templating, can be (temporarily) disabled
         self.enable_templating = True
-        # boolean to control whether all template values must be resolvable, can be (temporarily) disabled in easyblocks
-        self.expect_resolved_template_values = True
+        # boolean to control whether all template values must be resolvable on access, can be (temporarily) disabled
+        self._expect_resolved_template_values = True
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -551,6 +551,32 @@ class EasyConfig(object):
             yield old_enable_templating
         finally:
             self.enable_templating = old_enable_templating
+
+    @contextmanager
+    def allow_unresolved_templates(self):
+        """Temporarily allow templates to be not (fully) resolved.
+
+        This should only be used when it is intended to use partially resolved templates.
+        Otherwise `ec.get(key, resolve=False)` should be used.
+        See also @ref disable_templating.
+
+        Usage:
+            with ec.allow_unresolved_templates():
+                value = ec.get('key')  # This will not raise an error
+                print(value % {'extra_key': exta_value})
+            # Resolving is enforced again if it was before
+        """
+        old_expect_resolved_template_values = self._expect_resolved_template_values
+        self._expect_resolved_template_values = False
+        try:
+            yield old_expect_resolved_template_values
+        finally:
+            self._expect_resolved_template_values = old_expect_resolved_template_values
+
+    @property
+    def expect_resolved_template_values(self):
+        """Check whether resolving all template values on access is enforced."""
+        return self._expect_resolved_template_values
 
     def __str__(self):
         """Return a string representation of this EasyConfig instance"""
@@ -1776,7 +1802,7 @@ class EasyConfig(object):
         """Resolve all templates in the given value using this easyconfig"""
         if not self.template_values:
             self.generate_template_values()
-        return resolve_template(value, self.template_values, expect_resolved=self.expect_resolved_template_values)
+        return resolve_template(value, self.template_values, expect_resolved=self._expect_resolved_template_values)
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __contains__(self, key):

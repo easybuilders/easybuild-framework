@@ -1314,12 +1314,14 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, ec.resolve_template, val)
         self.assertErrorRegex(EasyBuildError, error_pattern, ec.get, 'installopts')
 
-        # this can be (temporarily) disabled via expect_resolved_template_values in EasyConfig instance
-        ec.expect_resolved_template_values = False
-        self.assertEqual(ec.resolve_template(val), val)
-        self.assertEqual(ec['installopts'], val)
+        # this can be (temporarily) disabled
+        with ec.allow_unresolved_templates():
+            self.assertFalse(ec.expect_resolved_template_values)
+            self.assertEqual(ec.resolve_template(val), val)
+            self.assertEqual(ec['installopts'], val)
 
-        ec.expect_resolved_template_values = True
+        # Enforced again
+        self.assertTrue(ec.expect_resolved_template_values)
         self.assertErrorRegex(EasyBuildError, error_pattern, ec.resolve_template, val)
         self.assertErrorRegex(EasyBuildError, error_pattern, ec.get, 'installopts')
 
