@@ -1901,14 +1901,13 @@ class EasyConfig(object):
         Return dict representation of this EasyConfig instance.
         """
         res = {}
-        for key, tup in self._config.items():
-            value = tup[0]
-            if self._templating_enabled:
-                if not self.template_values:
-                    self.generate_template_values()
-                # Not all values can be resolved, e.g. %(installdir)s
-                value = resolve_template(value, self.template_values, expect_resolved=False)
-            res[key] = value
+        # Not all values can be resolved, e.g. %(installdir)s
+        with self.allow_unresolved_templates():
+            for key, tup in self._config.items():
+                value = tup[0]
+                if self._templating_enabled:
+                    value = self.resolve_template(value)
+                res[key] = value
         return res
 
     def get_cuda_cc_template_value(self, key):
