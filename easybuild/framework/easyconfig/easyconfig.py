@@ -557,6 +557,11 @@ class EasyConfig(object):
         """Check whether templating is enabled on this EasyConfig"""
         return self._templating_enabled
 
+    def _enable_templating(self, *_):
+        self.log.nosupport("self.enable_templating is replaced by self.templating_enabled. "
+                           "To disable it use the self.disable_templating context manager", '5.0')
+    enable_templating = property(_enable_templating, _enable_templating)
+
     @contextmanager
     def allow_unresolved_templates(self):
         """Temporarily allow templates to be not (fully) resolved.
