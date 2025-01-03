@@ -1817,10 +1817,9 @@ class EasyConfig(object):
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __getitem__(self, key):
         """Return value of specified easyconfig parameter (without help text, etc.)"""
-        value = None
-        if key in self._config:
+        try:
             value = self._config[key][0]
-        else:
+        except KeyError:
             raise EasyBuildError("Use of unknown easyconfig parameter '%s' when getting parameter value", key)
 
         if self._templating_enabled:
