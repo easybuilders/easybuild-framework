@@ -4324,7 +4324,7 @@ def build_and_install_one(ecdict, init_env):
                     adjust_permissions(log_dir, stat.S_IWUSR, add=True, recursive=True)
                 else:
                     parent_dir = os.path.dirname(log_dir)
-                    if os.path.exists(parent_dir):
+                    if os.path.exists(parent_dir) and not (os.stat(parent_dir).st_mode & stat.S_IWUSR):
                         adjust_permissions(parent_dir, stat.S_IWUSR, add=True, recursive=False)
                         mkdir(log_dir, parents=True)
                         adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
@@ -4405,7 +4405,7 @@ def build_and_install_one(ecdict, init_env):
                     copy_file(patch['path'], target)
                     _log.debug("Copied patch %s to %s", patch['path'], target)
 
-                if build_option('read_only_installdir'):
+                if build_option('read_only_installdir') and not app.cfg['stop']:
                     # take away user write permissions (again)
                     perms = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
                     adjust_permissions(new_log_dir, perms, add=False, recursive=True)
