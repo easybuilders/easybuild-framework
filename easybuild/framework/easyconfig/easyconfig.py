@@ -429,7 +429,7 @@ class EasyConfig(object):
         """
         self.template_values = None
         # a boolean to control templating, can be (temporarily) disabled
-        self.enable_templating = True
+        self._templating_enabled = True
         # boolean to control whether all template values must be resolvable on access, can be (temporarily) disabled
         self._expect_resolved_template_values = True
 
@@ -545,12 +545,17 @@ class EasyConfig(object):
                 # Do what you want without templating
             # Templating set to previous value
         """
-        old_enable_templating = self.enable_templating
-        self.enable_templating = False
+        old_templating_enabled = self._templating_enabled
+        self._templating_enabled = False
         try:
-            yield old_enable_templating
+            yield old_templating_enabled
         finally:
-            self.enable_templating = old_enable_templating
+            self._templating_enabled = old_templating_enabled
+
+    @property
+    def templating_enabled(self):
+        """Check whether templating is enabled on this EasyConfig"""
+        return self._templating_enabled
 
     @contextmanager
     def allow_unresolved_templates(self):
@@ -1818,7 +1823,7 @@ class EasyConfig(object):
         else:
             raise EasyBuildError("Use of unknown easyconfig parameter '%s' when getting parameter value", key)
 
-        if self.enable_templating:
+        if self._templating_enabled:
             value = self.resolve_template(value)
 
         return value
@@ -1898,7 +1903,7 @@ class EasyConfig(object):
         res = {}
         for key, tup in self._config.items():
             value = tup[0]
-            if self.enable_templating:
+            if self._templating_enabled:
                 if not self.template_values:
                     self.generate_template_values()
                 # Not all values can be resolved, e.g. %(installdir)s
