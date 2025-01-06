@@ -2607,8 +2607,6 @@ class EasyBlock(object):
             self.log.info("Applying patch %s" % patch['name'])
             trace_msg("applying patch %s" % patch['name'])
 
-            # patch source at specified index (first source if not specified)
-            srcind = patch.get('source', 0)
             # if patch level is specified, use that (otherwise let apply_patch derive patch level)
             level = patch.get('level', None)
             # determine suffix of source path to apply patch in (if any)
@@ -2616,16 +2614,22 @@ class EasyBlock(object):
             # determine whether 'patch' file should be copied rather than applied
             copy_patch = 'copy' in patch and 'sourcepath' not in patch
 
-            self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s",
-                           srcind, level, srcpathsuffix, copy_patch)
+            self.log.debug("Patch level: %s; source path suffix: %s; copy patch: %s",
+                           level, srcpathsuffix, copy_patch)
 
             if beginpath is None:
-                try:
-                    beginpath = self.src[srcind]['finalpath']
-                    self.log.debug("Determine begin path for patch %s: %s" % (patch['name'], beginpath))
-                except IndexError as err:
-                    raise EasyBuildError("Can't apply patch %s to source at index %s of list %s: %s",
-                                         patch['name'], srcind, self.src, err)
+                # If the src member is a string we have an extension with a single source.
+                # If that did extract the source beginpath would be set.
+                if isinstance(self.src, str):
+                    raise EasyBuildError("Cannot apply patches if sources were not extracted. "
+                                         "Patch file: " + patch['name'])
+                if self.src:
+                    # Use (extracted) location of first source.
+                    # Other sources will likely not have a reasonable finalpath set.
+                    beginpath = self.src[0]['finalpath']
+                    self.log.debug("Determined begin path for patch %s: %s" % (patch['name'], beginpath))
+                else:
+                    raise EasyBuildError("Can't apply patch %s when there are no sources!", patch['name'])
             else:
                 self.log.debug("Using specified begin path for patch %s: %s" % (patch['name'], beginpath))
 
