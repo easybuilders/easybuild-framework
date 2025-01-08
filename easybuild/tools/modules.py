@@ -241,7 +241,7 @@ class ModuleEnvironmentVariable:
 
 
 class ModuleLoadEnvironment:
-    """Environment set by modules on load"""
+    """Changes to environment variables that should be made when environment module is loaded"""
 
     def __init__(self):
         """
@@ -250,7 +250,7 @@ class ModuleLoadEnvironment:
         """
         self.ACLOCAL_PATH = [os.path.join('share', 'aclocal')]
         self.CLASSPATH = ['*.jar']
-        self.CMAKE_LIBRARY_PATH = ['lib64']  # only needed for installations whith standalone lib64
+        self.CMAKE_LIBRARY_PATH = ['lib64']  # only needed for installations with standalone lib64
         self.CMAKE_PREFIX_PATH = ['']
         self.CPATH = SEARCH_PATH_HEADER_DIRS
         self.GI_TYPELIB_PATH = [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS]
@@ -267,6 +267,8 @@ class ModuleLoadEnvironment:
         - attribute names are uppercase
         - attributes are instances of ModuleEnvironmentVariable
         """
+        if name != name.upper():
+            raise EasyBuildError(f"Names of ModuleLoadEnvironment attributes must be uppercase, got '{name}'")
         try:
             (contents, kwargs) = value
         except ValueError:
@@ -279,7 +281,7 @@ class ModuleLoadEnvironment:
         if name in ('LD_LIBRARY_PATH', 'PATH'):
             kwargs.update({'var_type': 'PATH_WITH_TOP_FILES'})
 
-        return super().__setattr__(name.upper(), ModuleEnvironmentVariable(contents, **kwargs))
+        return super().__setattr__(name, ModuleEnvironmentVariable(contents, **kwargs))
 
     def __iter__(self):
         """Make the class iterable"""

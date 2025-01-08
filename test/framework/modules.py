@@ -1670,34 +1670,43 @@ class ModulesTest(EnhancedTestCase):
 
     def test_module_load_environment(self):
         """Test for ModuleLoadEnvironment object"""
+        mod_load_env = mod.ModuleLoadEnvironment()
+
         # test setting attributes
         test_contents = ['lib', 'lib64']
-        mod_load_env = mod.ModuleLoadEnvironment()
         mod_load_env.TEST_VAR = test_contents
         self.assertTrue(hasattr(mod_load_env, 'TEST_VAR'))
         self.assertEqual(mod_load_env.TEST_VAR.contents, test_contents)
-        mod_load_env.test_lower = test_contents
-        self.assertTrue(hasattr(mod_load_env, 'TEST_LOWER'))
-        self.assertEqual(mod_load_env.TEST_LOWER.contents, test_contents)
+
+        error_pattern = "Names of ModuleLoadEnvironment attributes must be uppercase, got 'test_lower'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, setattr, mod_load_env, 'test_lower', test_contents)
+
         mod_load_env.TEST_STR = 'some/path'
         self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
         self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
+
         mod_load_env.TEST_VARTYPE = (test_contents, {'var_type': "STRING"})
         self.assertTrue(hasattr(mod_load_env, 'TEST_VARTYPE'))
         self.assertEqual(mod_load_env.TEST_VARTYPE.contents, test_contents)
         self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.STRING)
+
         mod_load_env.TEST_VARTYPE.type = "PATH"
         self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.PATH)
         self.assertRaises(TypeError, setattr, mod_load_env, 'TEST_UNKNONW', (test_contents, {'unkown_param': True}))
+
         # test retrieving environment
         ref_load_env = mod_load_env.__dict__.copy()
         self.assertCountEqual(list(mod_load_env), ref_load_env.keys())
+
         ref_load_env_item_list = list(ref_load_env.items())
         self.assertCountEqual(list(mod_load_env.items()), ref_load_env_item_list)
+
         ref_load_env_item_list = dict(ref_load_env.items())
         self.assertCountEqual(mod_load_env.as_dict, ref_load_env_item_list)
+
         ref_load_env_environ = {key: str(value) for key, value in ref_load_env.items()}
         self.assertDictEqual(mod_load_env.environ, ref_load_env_environ)
+
         # test updating environment
         new_test_env = {
             'TEST_VARTYPE': 'replaced_path',
@@ -1710,11 +1719,10 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(hasattr(mod_load_env, 'TEST_NEW_VAR'))
         self.assertEqual(mod_load_env.TEST_NEW_VAR.contents, ['new_path1', 'new_path2'])
         self.assertEqual(mod_load_env.TEST_NEW_VAR.type, mod.ModEnvVarType.PATH_WITH_FILES)
+
         # check that previous variables still exist
         self.assertTrue(hasattr(mod_load_env, 'TEST_VAR'))
         self.assertEqual(mod_load_env.TEST_VAR.contents, test_contents)
-        self.assertTrue(hasattr(mod_load_env, 'TEST_LOWER'))
-        self.assertEqual(mod_load_env.TEST_LOWER.contents, test_contents)
         self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
         self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
 
