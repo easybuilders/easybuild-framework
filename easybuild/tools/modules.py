@@ -163,7 +163,7 @@ class ModuleEnvironmentVariable:
         self.delim = delim
 
         if var_type is None:
-            var_type = "PATH_WITH_FILES"
+            var_type = ModEnvVarType.PATH_WITH_FILES
         self.type = var_type
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
@@ -201,10 +201,13 @@ class ModuleEnvironmentVariable:
     @type.setter
     def type(self, value):
         """Convert type to VarType"""
-        try:
-            self._type = ModEnvVarType[value]
-        except KeyError as err:
-            raise EasyBuildError(f"Cannot create ModuleEnvironmentVariable with type {value}") from err
+        if isinstance(value, ModEnvVarType):
+            self._type = value
+        else:
+            try:
+                self._type = ModEnvVarType[value]
+            except KeyError as err:
+                raise EasyBuildError(f"Cannot create ModuleEnvironmentVariable with type {value}") from err
 
     def append(self, item):
         """Shortcut to append to list of contents"""
@@ -279,7 +282,7 @@ class ModuleLoadEnvironment:
 
         # special variables that require files in their top directories
         if name in ('LD_LIBRARY_PATH', 'PATH'):
-            kwargs.update({'var_type': 'PATH_WITH_TOP_FILES'})
+            kwargs.update({'var_type': ModEnvVarType.PATH_WITH_TOP_FILES})
 
         return super().__setattr__(name, ModuleEnvironmentVariable(contents, **kwargs))
 

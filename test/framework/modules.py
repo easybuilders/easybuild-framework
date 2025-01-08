@@ -1622,12 +1622,24 @@ class ModulesTest(EnhancedTestCase):
         mod_envar_custom_type.type = 'PATH'
         self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH)
         self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = mod.ModEnvVarType.PATH
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
         mod_envar_custom_type.type = 'PATH_WITH_FILES'
         self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH_WITH_FILES)
         self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = mod.ModEnvVarType.PATH_WITH_FILES
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
         mod_envar_custom_type.type = 'PATH_WITH_TOP_FILES'
         self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH_WITH_TOP_FILES)
         self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = mod.ModEnvVarType.PATH_WITH_TOP_FILES
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
         self.assertRaises(EasyBuildError, setattr, mod_envar_custom_type, 'type', 'NONEXISTENT')
         self.assertRaises(EasyBuildError, mod.ModuleEnvironmentVariable, test_paths, 'NONEXISTENT')
 
