@@ -1712,11 +1712,11 @@ class EasyBlock(object):
             tentative_path = '' if tentative_path == '.' else tentative_path  # use empty string instead of dot
 
             # avoid duplicate entries between symlinked library dirs
-            tentative_sep = tentative_path + os.path.sep
-            if self.install_lib_symlink == LibSymlink.LIB64_TO_LIB and tentative_sep.startswith('lib64' + os.path.sep):
+            tent_path_sep = tentative_path + os.path.sep
+            if self.install_lib_symlink == LibSymlink.LIB64_TO_LIB and tent_path_sep.startswith('lib64' + os.path.sep):
                 self.log.debug("Discarded search path to symlinked lib64 directory: %s", tentative_path)
                 continue
-            if self.install_lib_symlink == LibSymlink.LIB_TO_LIB64 and tentative_sep.startswith('lib' + os.path.sep):
+            if self.install_lib_symlink == LibSymlink.LIB_TO_LIB64 and tent_path_sep.startswith('lib' + os.path.sep):
                 self.log.debug("Discarded search path to symlinked lib directory: %s", tentative_path)
                 continue
 
