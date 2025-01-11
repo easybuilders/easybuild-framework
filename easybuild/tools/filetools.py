@@ -3109,3 +3109,73 @@ def create_unused_dir(parent_folder, name):
     set_gid_sticky_bits(path, recursive=True)
 
     return path
+
+
+def get_first_nonexisting_parent_path(path):
+    """
+    Get first directory that does not exist, starting at path and going up.
+    """
+    path = os.path.abspath(path)
+
+    nonexisting_parent = None
+    while not os.path.exists(path):
+        nonexisting_parent = path
+        path = os.path.dirname(path)
+
+    return nonexisting_parent
+
+
+def _delete_directories(paths):
+    for p in paths:
+        shutil.rmtree(p, ignore_errors=True)
+
+
+def create_unused_dirs(paths, index_upper_bound=10000):
+    """
+    Create directories with given paths, including the parent directories
+    When a directory in the same path for any of the path  in the path list already exists, then the suffix '_<i>' is
+    appended for i=0..(index_upper_bound-1) until an index is found so that all required path as unused. All created
+    directories have the same suffix.
+
+    :param paths: list of directory paths to be created
+    :param index_upper_bound: maximum index that will be tried before failing
+    """
+    paths = [os.path.abspath(p) for p in paths]
+    for i_path, path in enumerate(paths):
+        for i_parent, parent in enumerate(paths):
+            if i_parent != i_path and is_parent_path(parent, path):
+                raise EasyBuildError(f"Path '{parent}' is a parent path of '{path}'.")
+
+    first_nonexisting_parent_paths = [get_first_nonexisting_parent_path(p) for p in paths]
+
+    final_paths = paths
+    all_paths_created = False
+    number = -1
+    while number < index_upper_bound and not all_paths_created:
+        tried_paths = []
+        if number >= 0:
+            final_paths = [f"{p}_{number}" for p in paths]
+        try:
+            for p in final_paths:
+                tried_paths.append(p)
+                os.makedirs(p)
+            all_paths_created = True
+        except OSError as err:
+            # Distinguish between error due to existing folder and anything else
+            if not os.path.exists(tried_paths[-1]):
+                _delete_directories(tried_paths[0:-1])
+                raise EasyBuildError("Failed to create directory %s: %s", tried_paths[-1], err)
+            _delete_directories(tried_paths[0:-1])
+        except BaseException as err:
+            _delete_directories(tried_paths)
+            raise err
+        number += 1
+
+    if not all_paths_created:
+        raise EasyBuildError(f"Exceeded maximum number of attempts ({number}) to generate unique directories.")
+
+    # set group ID and sticky bits, if desired
+    for p in first_nonexisting_parent_paths:
+        set_gid_sticky_bits(p, recursive=True)
+
+    return final_paths
