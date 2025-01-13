@@ -228,7 +228,7 @@ class ModuleEnvironmentVariable:
     def remove(self, *args):
         """Shortcut to remove items from list of contents"""
         try:
-            self.contents.remove(args)
+            self.contents.remove(*args)
         except ValueError:
             # item is not in the list, move along
             self.log.debug(f"ModuleEnvironmentVariable does not contain item: {' '.join(args)}")
