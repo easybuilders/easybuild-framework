@@ -1634,10 +1634,9 @@ class EasyBlock(object):
 
         return txt
 
-    def make_module_req(self, fake=False):
+    def make_module_req(self):
         """
         Generate the environment-variables required to run the module.
-        Fake modules can set search paths to empty directories.
         """
         mod_lines = ['\n']
 
@@ -1668,13 +1667,9 @@ class EasyBlock(object):
                 # Don't expand globs or do any filtering for dry run
                 mod_req_paths = search_paths
             else:
-                path_type = search_paths.type
-                if fake:
-                    path_type = ModEnvVarType.PATH
-
                 mod_req_paths = []
                 for path in search_paths:
-                    mod_req_paths.extend(self.expand_module_search_path(path, path_type=path_type))
+                    mod_req_paths.extend(self.expand_module_search_path(path, path_type=search_paths.type))
 
             if mod_req_paths:
                 mod_req_paths = nub(mod_req_paths)  # remove duplicates
@@ -3929,7 +3924,7 @@ class EasyBlock(object):
             txt += self.make_module_deppaths()
             txt += self.make_module_dep()
             txt += self.make_module_extend_modpath()
-            txt += self.make_module_req(fake=fake)
+            txt += self.make_module_req()
             txt += self.make_module_extra()
             txt += self.make_module_footer()
 
