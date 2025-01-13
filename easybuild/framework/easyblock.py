@@ -1708,15 +1708,15 @@ class EasyBlock(object):
             tentative_path = '' if tentative_path == '.' else tentative_path  # use empty string instead of dot
 
             # avoid duplicate entries between symlinked library dirs
-            tentative_sep = tentative_path + os.path.sep
-            if self.install_lib_symlink == LibSymlink.LIB64_TO_LIB and tentative_sep.startswith('lib64' + os.path.sep):
+            tent_path_sep = tentative_path + os.path.sep
+            if self.install_lib_symlink == LibSymlink.LIB64_TO_LIB and tent_path_sep.startswith('lib64' + os.path.sep):
                 self.log.debug("Discarded search path to symlinked lib64 directory: %s", tentative_path)
                 continue
-            if self.install_lib_symlink == LibSymlink.LIB_TO_LIB64 and tentative_sep.startswith('lib' + os.path.sep):
+            if self.install_lib_symlink == LibSymlink.LIB_TO_LIB64 and tent_path_sep.startswith('lib' + os.path.sep):
                 self.log.debug("Discarded search path to symlinked lib directory: %s", tentative_path)
                 continue
 
-            check_dir_files = path_type in [ModEnvVarType.PATH_WITH_FILES, ModEnvVarType.PATH_WITH_TOP_FILES]
+            check_dir_files = path_type in (ModEnvVarType.PATH_WITH_FILES, ModEnvVarType.PATH_WITH_TOP_FILES)
             if os.path.isdir(abs_path) and check_dir_files:
                 # only retain paths to directories that contain at least one file
                 recursive = path_type == ModEnvVarType.PATH_WITH_FILES
@@ -1733,14 +1733,12 @@ class EasyBlock(object):
         lib_dir = os.path.join(self.installdir, 'lib')
         lib64_dir = os.path.join(self.installdir, 'lib64')
 
-        self.install_lib_symlink = LibSymlink.UNKNOWN
+        self.install_lib_symlink = LibSymlink.NEITHER
         if os.path.exists(lib_dir) and os.path.exists(lib64_dir):
             if os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
                 self.install_lib_symlink = LibSymlink.LIB_TO_LIB64
             elif os.path.islink(lib64_dir) and os.path.samefile(lib_dir, lib64_dir):
                 self.install_lib_symlink = LibSymlink.LIB64_TO_LIB
-            else:
-                self.install_lib_symlink = LibSymlink.NEITHER
 
     def make_module_req_guess(self):
         """

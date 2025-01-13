@@ -163,7 +163,7 @@ class ModuleEnvironmentVariable:
         self.delim = delim
 
         if var_type is None:
-            var_type = "PATH_WITH_FILES"
+            var_type = ModEnvVarType.PATH_WITH_FILES
         self.type = var_type
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
@@ -201,10 +201,13 @@ class ModuleEnvironmentVariable:
     @type.setter
     def type(self, value):
         """Convert type to VarType"""
-        try:
-            self._type = ModEnvVarType[value]
-        except KeyError as err:
-            raise EasyBuildError(f"Cannot create ModuleEnvironmentVariable with type {value}") from err
+        if isinstance(value, ModEnvVarType):
+            self._type = value
+        else:
+            try:
+                self._type = ModEnvVarType[value]
+            except KeyError as err:
+                raise EasyBuildError(f"Cannot create ModuleEnvironmentVariable with type {value}") from err
 
     def append(self, item):
         """Shortcut to append to list of contents"""
@@ -241,7 +244,7 @@ class ModuleEnvironmentVariable:
 
 
 class ModuleLoadEnvironment:
-    """Environment set by modules on load"""
+    """Changes to environment variables that should be made when environment module is loaded"""
 
     def __init__(self):
         """
@@ -250,7 +253,7 @@ class ModuleLoadEnvironment:
         """
         self.ACLOCAL_PATH = [os.path.join('share', 'aclocal')]
         self.CLASSPATH = ['*.jar']
-        self.CMAKE_LIBRARY_PATH = ['lib64']  # only needed for installations whith standalone lib64
+        self.CMAKE_LIBRARY_PATH = ['lib64']  # only needed for installations with standalone lib64
         self.CMAKE_PREFIX_PATH = ['']
         self.CPATH = SEARCH_PATH_HEADER_DIRS
         self.GI_TYPELIB_PATH = [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS]
@@ -267,6 +270,8 @@ class ModuleLoadEnvironment:
         - attribute names are uppercase
         - attributes are instances of ModuleEnvironmentVariable
         """
+        if name != name.upper():
+            raise EasyBuildError(f"Names of ModuleLoadEnvironment attributes must be uppercase, got '{name}'")
         try:
             (contents, kwargs) = value
         except ValueError:
@@ -277,9 +282,9 @@ class ModuleLoadEnvironment:
 
         # special variables that require files in their top directories
         if name in ('LD_LIBRARY_PATH', 'PATH'):
-            kwargs.update({'var_type': 'PATH_WITH_TOP_FILES'})
+            kwargs.update({'var_type': ModEnvVarType.PATH_WITH_TOP_FILES})
 
-        return super().__setattr__(name.upper(), ModuleEnvironmentVariable(contents, **kwargs))
+        return super().__setattr__(name, ModuleEnvironmentVariable(contents, **kwargs))
 
     def __iter__(self):
         """Make the class iterable"""
