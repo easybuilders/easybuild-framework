@@ -1660,6 +1660,7 @@ class EasyBlock(object):
             (envar_name, envar_val) for envar_name, envar_val in self.module_load_environment.items()
             if envar_val.is_path
         ])
+        self.log.debug(f"Tentative module environment requirements before path expansion: {env_var_requirements}")
 
         for env_var, search_paths in env_var_requirements:
             if self.dry_run:
