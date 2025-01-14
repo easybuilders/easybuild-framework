@@ -1240,10 +1240,10 @@ class EasyConfig(object):
     @parallel.setter
     def parallel(self, value):
         # Update backstorage and template value
-        self._parallel = value
-        self.template_values['parallel'] = value
-        # Backwards compat only. Remove with EasyBuild 5.1
-        self._config['_parallelLegacy'][0] = value
+        self._parallel = max(1, value)  # Also handles False
+        self.template_values['parallel'] = self._parallel
+        # Backwards compat only for easyblocks reading ec['parallel']. Remove with EasyBuild 5.1
+        self._config['_parallelLegacy'][0] = self._parallel
 
     def dump(self, fp, always_overwrite=True, backup=False, explicit_toolchains=False):
         """
