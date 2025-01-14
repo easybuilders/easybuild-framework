@@ -2323,6 +2323,22 @@ class EasyBlockTest(EnhancedTestCase):
         test_eb.cfg.parallel = False
         self.assertEqual(test_eb.cfg['buildopts'], '-j 1')
 
+        # Legacy behavior. To be removed after deprecation of the parallel EC parameter
+        self.contents = toytxt + '\nmaxparallel=99'
+        self.writeEC()
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            test_eb = EasyBlock(EasyConfig(self.eb_file))
+            parallel = buildopt_parallel - 2
+            test_eb.cfg['parallel'] = parallel  # Old Easyblocks might change that before the ready step
+            test_eb.check_readiness_step()
+            self.assertEqual(test_eb.cfg.parallel, parallel)
+            self.assertEqual(test_eb.cfg['parallel'], parallel)
+            # Afterwards it also gets reflected directly ignoring maxparallel
+            parallel = buildopt_parallel * 3
+            test_eb.cfg['parallel'] = parallel
+            self.assertEqual(test_eb.cfg.parallel, parallel)
+            self.assertEqual(test_eb.cfg['parallel'], parallel)
+
         # Reset mocked value
         del st.det_parallelism._default_parallelism
 

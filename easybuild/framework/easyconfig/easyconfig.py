@@ -122,8 +122,13 @@ def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
         # map deprecated parameters to their replacements, issue deprecation warning(/error)
         if key == 'parallel':
             _log.deprecated("Easyconfig parameter 'parallel' is deprecated, "
-                            "use 'maxparallel' or the parallel property instead.", '5.1')
-            # Use a "hidden" property for now to match behavior as closely as possible
+                            "use 'max_parallel' or the parallel property instead.", '5.1')
+            # This "hidden" property allows easyblocks to continue using ec['parallel'] which contains
+            # the computed parallelism after the ready step but the EC parameter before that step.
+            # Easyblocks using `max_parallel` always get the value from the EC unmodified.
+            # Easyblocks should use either the parallel property or `max_parallel` such that the semantic is clear.
+            # In particular writes to ec['parallel'] do NOT update the %(parallel)s template.
+            # It can be removed when the deprecation expires.
             key = '_parallelLegacy'
         elif key in ALTERNATIVE_EASYCONFIG_PARAMETERS:
             key = ALTERNATIVE_EASYCONFIG_PARAMETERS[key]
@@ -1235,6 +1240,11 @@ class EasyConfig(object):
         if self._parallel is None:
             raise EasyBuildError("Parallelism in EasyConfig not set yet. "
                                  "Need to call the easyblocks set_parallel first.")
+        # This gets set when an easyblock changes ec['parallel'].
+        # It also gets set/updated in set_parallel to mirror the old behavior during the deprecation phase
+        parallelLegacy = self._config['_parallelLegacy'][0]
+        if parallelLegacy is not None:
+            return max(1, parallelLegacy)
         return self._parallel
 
     @parallel.setter
