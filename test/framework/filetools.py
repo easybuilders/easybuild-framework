@@ -476,6 +476,42 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.normalize_path('/././foo//bar/././baz/'), '/foo/bar/baz')
         self.assertEqual(ft.normalize_path('//././foo//bar/././baz/'), '//foo/bar/baz')
 
+    def test_is_parent_path(self):
+        """Test is_parent_path"""
+        self.assertTrue(ft.is_parent_path('/foo/bar', '/foo/bar/test0'))
+        self.assertTrue(ft.is_parent_path('/foo/bar', '/foo/bar/test0/test1'))
+        self.assertTrue(ft.is_parent_path('/foo/bar', '/foo/bar'))
+        self.assertFalse(ft.is_parent_path('/foo/bar', '/foo/test'))
+
+        # Check that trailing slashes are ignored
+        self.assertTrue(ft.is_parent_path('/foo/bar/', '/foo/bar'))
+        self.assertTrue(ft.is_parent_path('/foo/bar', '/foo/bar/'))
+        self.assertTrue(ft.is_parent_path('/foo/bar/', '/foo/bar/'))
+
+        # Check that is also accepts relative paths
+        self.assertTrue(ft.is_parent_path('foo/bar', 'foo/bar/test0'))
+        self.assertTrue(ft.is_parent_path('foo/bar', 'foo/bar/test0/test1'))
+        self.assertTrue(ft.is_parent_path('foo/bar', 'foo/bar'))
+        self.assertFalse(ft.is_parent_path('foo/bar', 'foo/test'))
+
+        # Check that relative paths are accounted
+        self.assertTrue(ft.is_parent_path('foo/../baz', 'bar/../baz'))
+
+        # Check that symbolic links are accounted
+        os.mkdir(os.path.join(self.test_prefix, 'base'))
+        os.mkdir(os.path.join(self.test_prefix, 'base', 'concrete'))
+        os.symlink(
+            os.path.join(self.test_prefix, 'base', 'concrete'),
+            os.path.join(self.test_prefix, 'base', 'link')
+        )
+        self.assertTrue(
+            ft.is_parent_path(
+                os.path.join(self.test_prefix, 'base', 'link'),
+                os.path.join(self.test_prefix, 'base', 'concrete', 'file')
+            )
+        )
+        shutil.rmtree(os.path.join(self.test_prefix, 'base'))
+
     def test_det_file_size(self):
         """Test det_file_size function."""
 

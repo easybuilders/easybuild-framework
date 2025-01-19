@@ -603,6 +603,19 @@ def normalize_path(path):
     return start_slashes + os.path.sep.join(filtered_comps)
 
 
+def is_parent_path(ancestor, path):
+    """
+    Return true if ancestor is prefix of path
+
+    :param ancestor: absolute or relative path
+    :param path: absolute or relative path
+    """
+    ancestor = os.path.realpath(ancestor)
+    path = os.path.realpath(path)
+    common_path = os.path.commonprefix([ancestor, path])
+    return common_path == ancestor
+
+
 def is_alt_pypi_url(url):
     """Determine whether specified URL is already an alternative PyPI URL, i.e. whether it contains a hash."""
     # example: .../packages/5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
