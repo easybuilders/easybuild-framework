@@ -73,6 +73,10 @@ class EB_toy(ExtensionEasyBlock):
 
         setvar('TOY', '%s-%s' % (self.name, self.version))
 
+        # extra paths for environment variables to consider
+        if self.name == 'toy':
+            self.module_load_environment.CPATH.append('toy-headers')
+
     def prepare_for_extensions(self):
         """
         Prepare for installing toy extensions.

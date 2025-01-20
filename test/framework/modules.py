@@ -1599,6 +1599,145 @@ class ModulesTest(EnhancedTestCase):
         res = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'NO_SUCH_VARIABLE_SET')
         self.assertEqual(res, None)
 
+    def test_module_environment_variable(self):
+        """Test for ModuleEnvironmentVariable object"""
+        test_paths = ['lib', 'lib64']
+        mod_envar = mod.ModuleEnvironmentVariable(test_paths)
+        self.assertTrue(hasattr(mod_envar, 'contents'))
+        self.assertTrue(hasattr(mod_envar, 'type'))
+        self.assertTrue(hasattr(mod_envar, 'delim'))
+        self.assertEqual(mod_envar.contents, test_paths)
+        self.assertEqual(repr(mod_envar), repr(test_paths))
+        self.assertEqual(str(mod_envar), 'lib:lib64')
+
+        mod_envar_custom_delim = mod.ModuleEnvironmentVariable(test_paths, delim='|')
+        self.assertEqual(mod_envar_custom_delim.contents, test_paths)
+        self.assertEqual(repr(mod_envar_custom_delim), repr(test_paths))
+        self.assertEqual(str(mod_envar_custom_delim), 'lib|lib64')
+
+        mod_envar_custom_type = mod.ModuleEnvironmentVariable(test_paths, var_type='STRING')
+        self.assertEqual(mod_envar_custom_type.contents, test_paths)
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.STRING)
+        self.assertEqual(mod_envar_custom_type.is_path, False)
+        mod_envar_custom_type.type = 'PATH'
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH)
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = mod.ModEnvVarType.PATH
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = 'PATH_WITH_FILES'
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = mod.ModEnvVarType.PATH_WITH_FILES
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = 'PATH_WITH_TOP_FILES'
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH_WITH_TOP_FILES)
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = mod.ModEnvVarType.PATH_WITH_TOP_FILES
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        self.assertRaises(EasyBuildError, setattr, mod_envar_custom_type, 'type', 'NONEXISTENT')
+        self.assertRaises(EasyBuildError, mod.ModuleEnvironmentVariable, test_paths, 'NONEXISTENT')
+
+        mod_envar.contents = []
+        self.assertEqual(mod_envar.contents, [])
+        self.assertRaises(TypeError, setattr, mod_envar, 'contents', None)
+        mod_envar.contents = (1, 3, 2, 3)
+        self.assertEqual(mod_envar.contents, ['1', '3', '2'])
+        mod_envar.contents = 'include'
+        self.assertEqual(mod_envar.contents, ['include'])
+
+        mod_envar.append('share')
+        self.assertEqual(mod_envar.contents, ['include', 'share'])
+        mod_envar.append('share')
+        self.assertEqual(mod_envar.contents, ['include', 'share'])
+        self.assertRaises(TypeError, mod_envar.append, 'arg1', 'arg2')
+
+        mod_envar.extend(test_paths)
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64'])
+        mod_envar.extend(test_paths)
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64'])
+        mod_envar.extend(test_paths + ['lib128'])
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64', 'lib128'])
+        self.assertRaises(TypeError, mod_envar.append, ['list1'], ['list2'])
+
+        mod_envar.remove('lib128')
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64'])
+        mod_envar.remove('nonexistent')
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64'])
+        self.assertRaises(TypeError, mod_envar.remove, 'arg1', 'arg2')
+
+        mod_envar.prepend('bin')
+        self.assertEqual(mod_envar.contents, ['bin', 'include', 'share', 'lib', 'lib64'])
+
+        mod_envar.update('new_path')
+        self.assertEqual(mod_envar.contents, ['new_path'])
+        mod_envar.update(['new_path_1', 'new_path_2'])
+        self.assertEqual(mod_envar.contents, ['new_path_1', 'new_path_2'])
+        self.assertRaises(TypeError, mod_envar.update, 'arg1', 'arg2')
+
+    def test_module_load_environment(self):
+        """Test for ModuleLoadEnvironment object"""
+        mod_load_env = mod.ModuleLoadEnvironment()
+
+        # test setting attributes
+        test_contents = ['lib', 'lib64']
+        mod_load_env.TEST_VAR = test_contents
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VAR'))
+        self.assertEqual(mod_load_env.TEST_VAR.contents, test_contents)
+
+        error_pattern = "Names of ModuleLoadEnvironment attributes must be uppercase, got 'test_lower'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, setattr, mod_load_env, 'test_lower', test_contents)
+
+        mod_load_env.TEST_STR = 'some/path'
+        self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
+        self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
+
+        mod_load_env.TEST_VARTYPE = (test_contents, {'var_type': "STRING"})
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VARTYPE'))
+        self.assertEqual(mod_load_env.TEST_VARTYPE.contents, test_contents)
+        self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.STRING)
+
+        mod_load_env.TEST_VARTYPE.type = "PATH"
+        self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.PATH)
+        self.assertRaises(TypeError, setattr, mod_load_env, 'TEST_UNKNONW', (test_contents, {'unkown_param': True}))
+
+        # test retrieving environment
+        ref_load_env = mod_load_env.__dict__.copy()
+        self.assertCountEqual(list(mod_load_env), ref_load_env.keys())
+
+        ref_load_env_item_list = list(ref_load_env.items())
+        self.assertCountEqual(list(mod_load_env.items()), ref_load_env_item_list)
+
+        ref_load_env_item_list = dict(ref_load_env.items())
+        self.assertCountEqual(mod_load_env.as_dict, ref_load_env_item_list)
+
+        ref_load_env_environ = {key: str(value) for key, value in ref_load_env.items()}
+        self.assertDictEqual(mod_load_env.environ, ref_load_env_environ)
+
+        # test updating environment
+        new_test_env = {
+            'TEST_VARTYPE': 'replaced_path',
+            'TEST_NEW_VAR': ['new_path1', 'new_path2'],
+        }
+        mod_load_env.update(new_test_env)
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VARTYPE'))
+        self.assertEqual(mod_load_env.TEST_VARTYPE.contents, ['replaced_path'])
+        self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertTrue(hasattr(mod_load_env, 'TEST_NEW_VAR'))
+        self.assertEqual(mod_load_env.TEST_NEW_VAR.contents, ['new_path1', 'new_path2'])
+        self.assertEqual(mod_load_env.TEST_NEW_VAR.type, mod.ModEnvVarType.PATH_WITH_FILES)
+
+        # check that previous variables still exist
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VAR'))
+        self.assertEqual(mod_load_env.TEST_VAR.contents, test_contents)
+        self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
+        self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
+
 
 def suite():
     """ returns all the testcases in this module """
