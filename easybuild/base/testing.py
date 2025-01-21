@@ -117,6 +117,11 @@ class TestCase(OrigTestCase):
             msg = "'%s' should not exist" % path
         self.assertFalse(os.path.exists(path), msg)
 
+    def assertAllExist(self, paths, msg=None):
+        """Assert that all paths in the given list exist"""
+        for p in paths:
+            self.assertExists(p, msg)
+
     def setUp(self):
         """Prepare test case."""
         super(TestCase, self).setUp()
