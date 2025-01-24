@@ -86,7 +86,7 @@ from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, 
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, expand_glob_paths, get_cwd
-from easybuild.tools.filetools import install_fake_vsc, move_file, which
+from easybuild.tools.filetools import install_fake_vsc, move_file, which, is_parent_path
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED
 from easybuild.tools.github import GITHUB_PR_STATE_OPEN, GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
@@ -1293,6 +1293,21 @@ class EasyBuildOptions(GeneralOption):
         # imply --disable-pre-create-installdir with --inject-checksums or --inject-checksums-to-json
         if self.options.inject_checksums or self.options.inject_checksums_to_json:
             self.options.pre_create_installdir = False
+
+        # Prevent permanent storage of logs and artifacts from modifying the build directory
+        if self.options.buildpath and self.options.log_error_path:
+            if is_parent_path(self.options.buildpath, self.options.log_error_path):
+                raise EasyBuildError(
+                    "The --log-error-path ('%s') cannot reside on a subdirectory of the --buildpath ('%s')"
+                    % (self.options.log_error_path, self.options.buildpath)
+                )
+
+        if self.options.buildpath and self.options.artifact_error_path:
+            if is_parent_path(self.options.buildpath, self.options.artifact_error_path):
+                raise EasyBuildError(
+                    "The --artifact-error-path ('%s') cannot reside on a subdirectory of the --buildpath ('%s')"
+                    % (self.options.log_error_path, self.options.buildpath)
+                )
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
