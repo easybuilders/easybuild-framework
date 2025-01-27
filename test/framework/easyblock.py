@@ -532,7 +532,7 @@ class EasyBlockTest(EnhancedTestCase):
         for env_var in default_mod_load_vars:
             delattr(eb.module_load_environment, env_var)
 
-        self.assertEqual(len(vars(eb.module_load_environment)), 0)
+        self.assertEqual(len(eb.module_load_environment.vars), 0)
 
         # check for behavior when a string value is used as value of module_load_environment
         eb.module_load_environment.PATH = 'bin'
@@ -693,7 +693,7 @@ class EasyBlockTest(EnhancedTestCase):
         # test wrong easyconfig parameter
         self.contents += '\nmodule_search_path_headers = "WRONG_OPT"'
         self.writeEC()
-        ec =EasyConfig(self.eb_file)
+        ec = EasyConfig(self.eb_file)
 
         error_pattern = "Unknown value selected for option module-search-path-headers"
         with eb.module_generator.start_module_creation():
