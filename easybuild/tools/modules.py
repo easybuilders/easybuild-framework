@@ -383,6 +383,7 @@ class ModuleLoadEnvironment:
         for envar_name in self.name_cpp_headers:
             setattr(self, envar_name, new_headers)
 
+
 class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""
     # name of this modules tool (used in log/warning/error messages)

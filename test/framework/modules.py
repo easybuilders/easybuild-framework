@@ -1776,6 +1776,7 @@ class ModulesTest(EnhancedTestCase):
         error_pattern = "Unknown value selected for option module-search-path-headers"
         self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, cpp_headers='nonexistent')
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(ModulesTest, sys.argv[1:])
