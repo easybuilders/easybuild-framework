@@ -1706,8 +1706,10 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.PATH)
         self.assertRaises(TypeError, setattr, mod_load_env, 'TEST_UNKNONW', (test_contents, {'unkown_param': True}))
 
-        # test retrieving environment
+        # test retrieval of environment
+        # use copy of public attributes as reference
         ref_load_env = mod_load_env.__dict__.copy()
+        ref_load_env = {envar: value for envar, value in ref_load_env.items() if not envar.startswith('_')}
         self.assertCountEqual(list(mod_load_env), ref_load_env.keys())
 
         ref_load_env_item_list = list(ref_load_env.items())
@@ -1738,6 +1740,41 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
         self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
 
+        # test functionality related to --module-search-path-headers
+        default_search_path_headers = 'cpath'
+        self.assertEqual(mod_load_env._cpp_headers_opt, default_search_path_headers)
+        mod_load_env = mod.ModuleLoadEnvironment(default_search_path_headers)
+        self.assertEqual(mod_load_env._cpp_headers_opt, default_search_path_headers)
+        self.assertEqual(mod_load_env.name_cpp_headers, ['CPATH'])
+        repr_mod_load_env = {k: str(v) for k, v in mod_load_env.cpp_headers.items()}
+        self.assertDictEqual(repr_mod_load_env, {'CPATH': 'include'})
+        mod_load_env.set_cpp_headers('new_include')
+        repr_mod_load_env = {k: str(v) for k, v in mod_load_env.cpp_headers.items()}
+        self.assertDictEqual(repr_mod_load_env, {'CPATH': 'new_include'})
+        mod_load_env.set_cpp_headers(["new_include_1", "new_include_2"])
+        repr_mod_load_env = {k: str(v) for k, v in mod_load_env.cpp_headers.items()}
+        self.assertDictEqual(repr_mod_load_env, {'CPATH': 'new_include_1:new_include_2'})
+
+        mod_load_env = mod.ModuleLoadEnvironment(cpp_headers='include_paths')
+        self.assertNotEqual(mod_load_env._cpp_headers_opt, default_search_path_headers)
+        ref_include_vars = ['C_INCLUDE_PATH', 'CPLUS_INCLUDE_PATH', 'OBJC_INCLUDE_PATH']
+        self.assertEqual(mod_load_env.name_cpp_headers, ref_include_vars)
+        repr_mod_load_env = {k: str(v) for k, v in mod_load_env.cpp_headers.items()}
+        ref_cpp_headers = {key: 'include' for key in ref_include_vars}
+        self.assertDictEqual(repr_mod_load_env, ref_cpp_headers)
+        mod_load_env.set_cpp_headers('new_include')
+        repr_mod_load_env = {k: str(v) for k, v in mod_load_env.cpp_headers.items()}
+        ref_cpp_headers = {key: 'new_include' for key in ref_include_vars}
+        self.assertDictEqual(repr_mod_load_env, ref_cpp_headers)
+
+        mod_load_env = mod.ModuleLoadEnvironment(cpp_headers='none')
+        self.assertEqual(mod_load_env.name_cpp_headers, [])
+        self.assertEqual(mod_load_env.cpp_headers, {})
+        mod_load_env.set_cpp_headers('new_include')
+        self.assertEqual(mod_load_env.cpp_headers, {})
+
+        error_pattern = "Unknown value selected for option module-search-path-headers"
+        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, cpp_headers='nonexistent')
 
 def suite():
     """ returns all the testcases in this module """
