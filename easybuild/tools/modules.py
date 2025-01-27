@@ -46,7 +46,8 @@ from enum import Enum
 from easybuild.base import fancylogger
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning
-from easybuild.tools.config import ERROR, EBROOT_ENV_VAR_ACTIONS, IGNORE, LOADED_MODULES_ACTIONS, PURGE
+from easybuild.tools.config import DEFAULT_MOD_SEARCH_PATH_HEADERS, ERROR, EBROOT_ENV_VAR_ACTIONS, IGNORE
+from easybuild.tools.config import LOADED_MODULES_ACTIONS, MOD_SEARCH_PATH_HEADERS, PURGE
 from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_HEADER_DIRS, SEARCH_PATH_LIB_DIRS, UNLOAD, UNSET
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
@@ -246,16 +247,18 @@ class ModuleEnvironmentVariable:
 class ModuleLoadEnvironment:
     """Changes to environment variables that should be made when environment module is loaded"""
 
-    def __init__(self):
+    def __init__(self, cpp_headers=None):
         """
         Initialize default environment definition
         Paths are relative to root of installation directory
+
+        :cpp_headers: string defining MOD_SEARCH_PATH_HEADERS setting
         """
+
         self.ACLOCAL_PATH = [os.path.join('share', 'aclocal')]
         self.CLASSPATH = ['*.jar']
         self.CMAKE_LIBRARY_PATH = ['lib64']  # only needed for installations with standalone lib64
         self.CMAKE_PREFIX_PATH = ['']
-        self.CPATH = SEARCH_PATH_HEADER_DIRS
         self.GI_TYPELIB_PATH = [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS]
         self.LD_LIBRARY_PATH = SEARCH_PATH_LIB_DIRS
         self.LIBRARY_PATH = SEARCH_PATH_LIB_DIRS
@@ -264,14 +267,39 @@ class ModuleLoadEnvironment:
         self.PKG_CONFIG_PATH = [os.path.join(x, 'pkgconfig') for x in SEARCH_PATH_LIB_DIRS + ['share']]
         self.XDG_DATA_DIRS = ['share']
 
+        # handle search paths to C/C++ headers
+        self._cpp_headers_opt = DEFAULT_MOD_SEARCH_PATH_HEADERS
+        if cpp_headers is not None and cpp_headers is not False:
+            self._cpp_headers_opt = str(cpp_headers)
+        if self._cpp_headers_opt not in MOD_SEARCH_PATH_HEADERS:
+            raise EasyBuildError(
+                f"Unknown value selected for option module-search-path-headers: {self._cpp_headers_opt}. "
+                f"Choose one of: {', '.join(MOD_SEARCH_PATH_HEADERS)}"
+            )
+        self.set_cpp_headers(SEARCH_PATH_HEADER_DIRS)
+
     def __setattr__(self, name, value):
         """
         Specific restrictions for ModuleLoadEnvironment attributes:
+        - public attributes are instances of ModuleEnvironmentVariable with uppercase names
+        - private attributes are allowed with any name
+        """
+        if name.startswith('_'):
+            # do not control protected/private attributes
+            return super().__setattr__(name, value)
+
+        return self.__set_module_environment_variable(name, value)
+
+    def __set_module_environment_variable(self, name, value):
+        """
+        Specific restrictions for ModuleEnvironmentVariable attributes:
         - attribute names are uppercase
-        - attributes are instances of ModuleEnvironmentVariable
+        - dictionaries are unpacked into arguments of ModuleEnvironmentVariable
+        - controls variables with special types (e.g. PATH, LD_LIBRARY_PATH)
         """
         if name != name.upper():
             raise EasyBuildError(f"Names of ModuleLoadEnvironment attributes must be uppercase, got '{name}'")
+
         try:
             (contents, kwargs) = value
         except ValueError:
@@ -286,9 +314,15 @@ class ModuleLoadEnvironment:
 
         return super().__setattr__(name, ModuleEnvironmentVariable(contents, **kwargs))
 
+    @property
+    def vars(self):
+        """Return list of public ModuleEnvironmentVariable"""
+
+        return [envar for envar in self.__dict__ if not str(envar).startswith('_')]
+
     def __iter__(self):
         """Make the class iterable"""
-        yield from self.__dict__
+        yield from self.vars
 
     def items(self):
         """
@@ -296,7 +330,7 @@ class ModuleLoadEnvironment:
         - key = attribute name
         - value = its "contents" attribute
         """
-        for attr in self.__dict__:
+        for attr in self.vars:
             yield attr, getattr(self, attr)
 
     def update(self, new_env):
@@ -325,6 +359,29 @@ class ModuleLoadEnvironment:
             mapping.update({envar_name: str(envar_contents)})
         return mapping
 
+    @property
+    def name_cpp_headers(self):
+        """
+        Return list of environment variable names holding search paths to CPP headers
+        According to option --module-search-path-headers
+        """
+        return MOD_SEARCH_PATH_HEADERS[self._cpp_headers_opt]
+
+    @property
+    def cpp_headers(self):
+        """
+        Return dict with search path variables for C/C++ headers
+        According to option --module-search-path-headers
+        """
+        return {envar_name: getattr(self, envar_name) for envar_name in self.name_cpp_headers}
+
+    def set_cpp_headers(self, new_headers):
+        """
+        Set search paths variables for C/C++ headers
+        According to option --module-search-path-headers
+        """
+        for envar_name in self.name_cpp_headers:
+            setattr(self, envar_name, new_headers)
 
 class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""

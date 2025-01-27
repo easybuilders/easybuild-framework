@@ -220,7 +220,13 @@ class EasyBlock(object):
             self.modules_header = read_file(modules_header_path)
 
         # environment variables on module load
-        self.module_load_environment = ModuleLoadEnvironment()
+        # apply --module-search-path-headers: easyconfig parameter has precedence
+        mod_load_cpp_headers = build_option('module_search_path_headers')
+        cfg_cpp_headers = self.cfg['module_search_path_headers']
+        if cfg_cpp_headers is not False:
+            mod_load_cpp_headers = cfg_cpp_headers
+
+        self.module_load_environment = ModuleLoadEnvironment(cpp_headers=mod_load_cpp_headers)
 
         # determine install subdirectory, based on module name
         self.install_subdir = None
