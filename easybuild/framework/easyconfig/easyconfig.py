@@ -1501,13 +1501,13 @@ class EasyConfig(object):
             # all multi_deps entries should be listed in builddependencies (if not, something is very wrong)
             if isinstance(builddeps, list) and all(isinstance(x, list) for x in builddeps):
 
-                for iter_id in range(len(builddeps)):
+                for iter_id, current_builddeps in enumerate(builddeps):
 
                     # only build dependencies that correspond to multi_deps entries should be loaded as extra modules
                     # (other build dependencies should not be required to make sanity check pass for this iteration)
                     iter_deps = []
                     for key in self['multi_deps']:
-                        hits = [d for d in builddeps[iter_id] if d['name'] == key]
+                        hits = [d for d in current_builddeps if d['name'] == key]
                         if len(hits) == 1:
                             iter_deps.append(hits[0])
                         else:
