@@ -119,8 +119,8 @@ class TestCase(OrigTestCase):
 
     def assertAllExist(self, paths, msg=None):
         """Assert that all paths in the given list exist"""
-        for p in paths:
-            self.assertExists(p, msg)
+        for path in paths:
+            self.assertExists(path, msg)
 
     def setUp(self):
         """Prepare test case."""

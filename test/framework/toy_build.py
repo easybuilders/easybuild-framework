@@ -353,30 +353,31 @@ class ToyBuildTest(EnhancedTestCase):
 
             base_ec = os.path.join(
                 os.path.dirname(__file__),
-                'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+                'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'
+            )
 
             base_ec_txt = read_file(base_ec)
             broken_compilation_ec_txt = re.sub(
                 r'toy-0\.0_fix-silly-typo-in-printf-statement\.patch',
                 r'toy-0.0_add-bug.patch',
-                base_ec_txt)
+                base_ec_txt
+            )
             broken_compilation_ec = os.path.join(tmp_easyconfig_dir, 'toy-0.0-buggy.eb')
             write_file(broken_compilation_ec, broken_compilation_ec_txt)
 
-            self.mock_stderr(True)
-            self.mock_stdout(True)
-            outtxt = self._test_toy_build(
-                ec_file=broken_compilation_ec, tmpdir=tmpdir,
-                verify=False, fails=True, verbose=False, raise_error=False, name='toy', versionsuffix='-buggy',
-                tmp_logdir=tmp_log_dir, log_error_dir=tmp_log_error_dir, artifact_error_dir=tmp_artifact_error_dir
-            )
-            self.mock_stderr(False)
-            self.mock_stdout(False)
+            with self.mocked_stdout_stderr():
+                outtxt = self._test_toy_build(
+                    ec_file=broken_compilation_ec, tmpdir=tmpdir,
+                    verify=False, fails=True, verbose=False, raise_error=False, name='toy', versionsuffix='-buggy',
+                    tmp_logdir=tmp_log_dir, log_error_dir=tmp_log_error_dir, artifact_error_dir=tmp_artifact_error_dir
+                )
 
             output_regexs = [r"^\s*toy\.c:5:44: error: expected (;|.;.) before"]
 
-            self.check_errorlog(output_regexs, outtxt, tmp_log_dir,
-                                self.test_buildpath, tmp_log_error_dir, tmp_artifact_error_dir)
+            self.check_errorlog(
+                output_regexs, outtxt, tmp_log_dir,
+                self.test_buildpath, tmp_log_error_dir, tmp_artifact_error_dir
+            )
 
     def test_toy_tweaked(self):
         """Test toy build with tweaked easyconfig, for testing extra easyconfig parameters."""

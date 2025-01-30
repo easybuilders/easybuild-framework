@@ -3825,8 +3825,8 @@ class FileToolsTest(EnhancedTestCase):
             os.path.join(test_root, 'folder_a'),
             os.path.join(test_root, 'folder_b'),
         ]
-        for p in requested_paths:
-            os.mkdir(p)
+        for path in requested_paths:
+            os.mkdir(path)
         for i in range(10):
             paths = ft.create_unused_dirs(requested_paths)
             self.assertEqual(paths, [f"{p}_{i}" for p in requested_paths])
@@ -3848,28 +3848,28 @@ class FileToolsTest(EnhancedTestCase):
 
         # Skip suffix if a directory with the suffix already exists
         os.mkdir(test_root)
-        existing_idx = 1
+        existing_suffix = 1
         requested_paths = [
-            os.path.join(test_root, "existing_idx_a"),
-            os.path.join(test_root, "existing_idx_b"),
+            os.path.join(test_root, "existing_suffix_a"),
+            os.path.join(test_root, "existing_suffix_b"),
         ]
 
-        os.mkdir(os.path.join(test_root, f"existing_idx_b_{existing_idx}"))
+        os.mkdir(os.path.join(test_root, f"existing_suffix_b_{existing_suffix}"))
 
-        def expected_idx(n):
-            if n == 0:
+        def expected_suffix(n_calls_to_create_unused_dirs):
+            if n_calls_to_create_unused_dirs == 0:
                 return ""
-            new_idx = n - 1
-            if n > existing_idx:
-                new_idx += 1
-            return f"_{new_idx}"
+            new_suffix = n_calls_to_create_unused_dirs - 1
+            if n_calls_to_create_unused_dirs > existing_suffix:
+                new_suffix += 1
+            return f"_{new_suffix}"
 
         for i in range(3):
             paths = ft.create_unused_dirs(requested_paths)
-            self.assertEqual(paths, [p + expected_idx(i) for p in requested_paths])
+            self.assertEqual(paths, [p + expected_suffix(i) for p in requested_paths])
             self.assertAllExist(paths)
-            self.assertNotExists(os.path.join(test_root, f"existing_idx_a_{existing_idx}"))
-            self.assertExists(os.path.join(test_root, f"existing_idx_b_{existing_idx}"))
+            self.assertNotExists(os.path.join(test_root, f"existing_suffix_a_{existing_suffix}"))
+            self.assertExists(os.path.join(test_root, f"existing_suffix_b_{existing_suffix}"))
 
         shutil.rmtree(test_root)
 
@@ -3901,8 +3901,10 @@ class FileToolsTest(EnhancedTestCase):
         ft.adjust_permissions(readonly_dir, stat.S_IREAD | stat.S_IEXEC, relative=False)
         requested_path = [os.path.join(readonly_dir, "new_folder")]
         try:
-            self.assertErrorRegex(EasyBuildError, "Failed to create directory",
-                                  ft.create_unused_dirs, requested_path)
+            self.assertErrorRegex(
+                EasyBuildError, "Failed to create directory",
+                ft.create_unused_dirs, requested_path
+            )
         finally:
             ft.adjust_permissions(readonly_dir, old_perms, relative=False)
         shutil.rmtree(test_root)

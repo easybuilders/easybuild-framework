@@ -3126,8 +3126,8 @@ def get_first_nonexisting_parent_path(path):
 
 
 def _delete_directories(paths):
-    for p in paths:
-        shutil.rmtree(p, ignore_errors=True)
+    for path in paths:
+        shutil.rmtree(path, ignore_errors=True)
 
 
 def create_unused_dirs(paths, index_upper_bound=10000):
@@ -3175,7 +3175,7 @@ def create_unused_dirs(paths, index_upper_bound=10000):
         raise EasyBuildError(f"Exceeded maximum number of attempts ({number}) to generate unique directories.")
 
     # set group ID and sticky bits, if desired
-    for p in first_nonexisting_parent_paths:
-        set_gid_sticky_bits(p, recursive=True)
+    for path in first_nonexisting_parent_paths:
+        set_gid_sticky_bits(path, recursive=True)
 
     return final_paths

@@ -4435,9 +4435,9 @@ def create_persistence_paths(operation_args):
 
 
 def execute_and_log_persistence_operation(operation, source_paths, target_dir, msg, silent):
-    for p in source_paths:
-        if os.path.exists(p):
-            operation(p, target_dir)
+    for path in source_paths:
+        if os.path.exists(path):
+            operation(path, target_dir)
     print_msg(msg, log=_log, silent=silent)
 
 
