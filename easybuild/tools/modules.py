@@ -272,6 +272,7 @@ class ModuleLoadEnvironment:
         """
         if name != name.upper():
             raise EasyBuildError(f"Names of ModuleLoadEnvironment attributes must be uppercase, got '{name}'")
+
         try:
             (contents, kwargs) = value
         except ValueError:

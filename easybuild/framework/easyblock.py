@@ -1668,14 +1668,23 @@ class EasyBlock(object):
             )
             self.module_load_environment.update(self.make_module_req_guess())
 
-        # Only inject path-like environment variables into module file
-        env_var_requirements = sorted([
-            (envar_name, envar_val) for envar_name, envar_val in self.module_load_environment.items()
+        # Expand and inject path-like environment variables into module file
+        env_var_requirements = {
+            envar_name: envar_val
+            for envar_name, envar_val in sorted(self.module_load_environment.items())
             if envar_val.is_path
-        ])
+        }
         self.log.debug(f"Tentative module environment requirements before path expansion: {env_var_requirements}")
+        # TODO: handle non-path variables in make_module_extra
+        # in the meantime, just report if any is found
+        non_path_envars = set(self.module_load_environment) - set(env_var_requirements)
+        if non_path_envars:
+            self.log.warning(
+                f"Non-path variables found in module load environment: {non_path_envars}."
+                "This is not yet supported by this version of EasyBuild."
+            )
 
-        for env_var, search_paths in env_var_requirements:
+        for env_var, search_paths in env_var_requirements.items():
             if self.dry_run:
                 self.dry_run_msg(f" ${env_var}:{', '.join(search_paths)}")
                 # Don't expand globs or do any filtering for dry run
