@@ -294,8 +294,7 @@ class ModuleLoadEnvironment:
         - key = attribute name
         - value = its "contents" attribute
         """
-        for attr in self.__dict__:
-            yield attr, getattr(self, attr)
+        return self.__dict__.items()
 
     def update(self, new_env):
         """Update contents of environment from given dictionary"""
@@ -318,10 +317,7 @@ class ModuleLoadEnvironment:
         Return dict with mapping of ModuleEnvironmentVariables names with their contents
         Equivalent in shape to os.environ
         """
-        mapping = {}
-        for envar_name, envar_contents in self.items():
-            mapping.update({envar_name: str(envar_contents)})
-        return mapping
+        return {envar_name: str(envar_contents) for envar_name, envar_contents in self.items()}
 
 
 class ModulesTool(object):
