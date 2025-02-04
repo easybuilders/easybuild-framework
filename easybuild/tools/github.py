@@ -1175,8 +1175,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         all_dep_info = copy_easyconfigs(dep_paths, target_dir, ignore_unchanged_files=True)
 
         # only consider new easyconfig files for dependencies (not updated ones)
-        for idx in range(len(all_dep_info['ecs'])):
-            if all_dep_info['new'][idx]:
+        for idx, new in enumerate(all_dep_info['new']):
+            if new:
                 for key, info in dep_info.items():
                     info.append(all_dep_info[key][idx])
 
