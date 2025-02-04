@@ -3041,29 +3041,32 @@ def copy_easyblocks(paths, target_dir):
     }
 
     subdir = os.path.join('easybuild', 'easyblocks')
-    if os.path.exists(os.path.join(target_dir, subdir)):
-        for path in paths:
-            cn = get_easyblock_class_name(path)
-            if not cn:
-                raise EasyBuildError("Could not determine easyblock class from file %s" % path)
-
-            eb_name = remove_unwanted_chars(decode_class_name(cn).replace('-', '_')).lower()
-
-            if is_generic_easyblock(cn):
-                pkgdir = GENERIC_EASYBLOCK_PKG
-            else:
-                pkgdir = eb_name[0]
-
-            target_path = os.path.join(subdir, pkgdir, eb_name + '.py')
-
-            full_target_path = os.path.join(target_dir, target_path)
-            file_info['eb_names'].append(eb_name)
-            file_info['paths_in_repo'].append(full_target_path)
-            file_info['new'].append(not os.path.exists(full_target_path))
-            copy_file(path, full_target_path, force_in_dry_run=True)
-
-    else:
+    if not os.path.exists(os.path.join(target_dir, subdir)):
         raise EasyBuildError("Could not find %s subdir in %s", subdir, target_dir)
+
+    for path in paths:
+        cn = get_easyblock_class_name(path)
+        if not cn:
+            raise EasyBuildError("Could not determine easyblock class from file %s" % path)
+
+        eb_name = remove_unwanted_chars(decode_class_name(cn).replace('-', '_')).lower()
+
+        if is_generic_easyblock(cn):
+            pkgdir = GENERIC_EASYBLOCK_PKG
+        else:
+            pkgdir = eb_name[0]
+
+        target_path = os.path.join(subdir, pkgdir, eb_name + '.py')
+        full_target_path = os.path.join(target_dir, target_path)
+
+        new_file = not os.path.exists(full_target_path)
+        if not new_file and filecmp.cmp(path, full_target_path):
+            continue  # Skip unmodified file
+
+        file_info['eb_names'].append(eb_name)
+        file_info['paths_in_repo'].append(full_target_path)
+        file_info['new'].append(new_file)
+        copy_file(path, full_target_path, force_in_dry_run=True)
 
     return file_info
 
@@ -3083,23 +3086,24 @@ def copy_framework_files(paths, target_dir):
         target_path = None
         dirnames = os.path.dirname(path).split(os.path.sep)
 
-        if framework_topdir in dirnames:
-            # construct subdirectory by grabbing last entry in dirnames until we hit 'easybuild-framework' dir
-            subdirs = []
-            while dirnames[-1] != framework_topdir:
-                subdirs.insert(0, dirnames.pop())
-
-            parent_dir = os.path.join(*subdirs) if subdirs else ''
-            target_path = os.path.join(target_dir, parent_dir, os.path.basename(path))
-        else:
+        if framework_topdir not in dirnames:
             raise EasyBuildError("Specified path '%s' does not include a '%s' directory!", path, framework_topdir)
 
-        if target_path:
-            file_info['paths_in_repo'].append(target_path)
-            file_info['new'].append(not os.path.exists(target_path))
-            copy_file(path, target_path)
-        else:
-            raise EasyBuildError("Couldn't find parent folder of updated file: %s", path)
+        # construct subdirectory by grabbing last entry in dirnames until we hit 'easybuild-framework' dir
+        subdirs = []
+        while dirnames[-1] != framework_topdir:
+            subdirs.insert(0, dirnames.pop())
+
+        parent_dir = os.path.join(*subdirs) if subdirs else ''
+        target_path = os.path.join(target_dir, parent_dir, os.path.basename(path))
+
+        new_file = not os.path.exists(target_path)
+        if not new_file and filecmp.cmp(path, target_path):
+            continue  # Ignore unchanged files
+
+        file_info['paths_in_repo'].append(target_path)
+        file_info['new'].append(new_file)
+        copy_file(path, target_path)
 
     return file_info
 
