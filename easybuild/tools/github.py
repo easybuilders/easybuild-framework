@@ -1025,28 +1025,6 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     print_msg("copying files to %s..." % target_dir)
     file_info = COPY_FUNCTIONS[pr_target_repo](ec_paths, target_dir)
 
-    # figure out commit message to use
-    if commit_msg:
-        cnt = len(file_info['paths_in_repo'])
-        _log.debug("Using specified commit message for all %d new/modified files at once: %s", cnt, commit_msg)
-    elif pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']:
-        # automagically derive meaningful commit message if all easyconfig files are new
-        commit_msg = "adding easyconfigs: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
-        if paths['patch_files']:
-            commit_msg += " and patches: %s" % ', '.join(os.path.basename(p) for p in paths['patch_files'])
-    elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and all(file_info['new']):
-        commit_msg = "adding easyblocks: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
-    else:
-        msg = ''
-        modified_files = [os.path.basename(p) for new, p in zip(file_info['new'], file_info['paths_in_repo'])
-                          if not new]
-        if modified_files:
-            msg += '\nModified: ' + ', '.join(modified_files)
-        if paths['files_to_delete']:
-            msg += '\nDeleted: ' + ', '.join(paths['files_to_delete'])
-        raise EasyBuildError("A meaningful commit message must be specified via --pr-commit-msg when "
-                             "modifying/deleting files or targeting the framework repo." + msg)
-
     # figure out to which software name patches relate, and copy them to the right place
     if paths['patch_files']:
         patch_specs = det_patch_specs(paths['patch_files'], file_info, [target_dir])
@@ -1125,6 +1103,28 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if not diff_stat:
         raise EasyBuildError("No changed files found when comparing to current develop branch. "
                              "Refused to make empty pull request.")
+
+    # figure out commit message to use
+    if commit_msg:
+        cnt = len(file_info['paths_in_repo'])
+        _log.debug("Using specified commit message for all %d new/modified files at once: %s", cnt, commit_msg)
+    elif pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']:
+        # automagically derive meaningful commit message if all easyconfig files are new
+        commit_msg = "adding easyconfigs: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
+        if paths['patch_files']:
+            commit_msg += " and patches: %s" % ', '.join(os.path.basename(p) for p in paths['patch_files'])
+    elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and all(file_info['new']):
+        commit_msg = "adding easyblocks: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
+    else:
+        msg = ''
+        modified_files = [os.path.basename(p) for new, p in zip(file_info['new'], file_info['paths_in_repo'])
+                          if not new]
+        if modified_files:
+            msg += '\nModified: ' + ', '.join(modified_files)
+        if paths['files_to_delete']:
+            msg += '\nDeleted: ' + ', '.join(paths['files_to_delete'])
+        raise EasyBuildError("A meaningful commit message must be specified via --pr-commit-msg when "
+                             "modifying/deleting files or targeting the framework repo." + msg)
 
     # commit
     git_repo.index.commit(commit_msg)
