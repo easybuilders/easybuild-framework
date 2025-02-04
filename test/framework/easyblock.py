@@ -439,7 +439,7 @@ class EasyBlockTest(EnhancedTestCase):
         for path in ('bin', ('bin', 'testdir'), 'sbin', 'share', ('share', 'man'), 'lib', 'lib64'):
             path_components = (path, ) if isinstance(path, str) else path
             os.mkdir(os.path.join(eb.installdir, *path_components))
-        eb.install_lib_symlink = LibSymlink.NEITHER
+        eb.check_install_lib_symlink()
 
         write_file(os.path.join(eb.installdir, 'foo.jar'), 'foo.jar')
         write_file(os.path.join(eb.installdir, 'bla.jar'), 'bla.jar')
@@ -505,7 +505,7 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'test')
         shutil.rmtree(os.path.join(eb.installdir, 'lib64'))
         os.symlink('lib', os.path.join(eb.installdir, 'lib64'))
-        eb.install_lib_symlink = LibSymlink.LIB64_TO_LIB
+        eb.check_install_lib_symlink()
         with eb.module_generator.start_module_creation():
             guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
@@ -3215,7 +3215,6 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(os.path.join(eb.installdir, 'dir_full_subdirs', 'subdir1', 'file12.txt'), 'test file 1.2')
         write_file(os.path.join(eb.installdir, 'dir_full_subdirs', 'subdir2', 'file21.txt'), 'test file 2.1')
 
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.UNKNOWN)
         eb.check_install_lib_symlink()
         self.assertEqual(eb.install_lib_symlink, LibSymlink.NEITHER)
 
