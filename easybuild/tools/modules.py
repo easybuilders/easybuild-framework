@@ -152,18 +152,15 @@ class ModuleEnvironmentVariable:
     Contents of environment variable is a list of unique strings
     """
 
-    def __init__(self, contents, var_type=None, delim=os.pathsep):
+    def __init__(self, contents, var_type=ModEnvVarType.PATH_WITH_FILES, delim=os.pathsep):
         """
         Initialize new environment variable
         Actual contents of the environment variable are held in self.contents
-        By default, environment variable is a (list of) paths with files in them
+        By default, the environment variable is a list of paths with files in them
         Existence of paths and their contents are not checked at init
         """
         self.contents = contents
         self.delim = delim
-
-        if var_type is None:
-            var_type = ModEnvVarType.PATH_WITH_FILES
         self.type = var_type
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
@@ -283,7 +280,7 @@ class ModuleLoadEnvironment:
 
         # special variables that require files in their top directories
         if name in ('LD_LIBRARY_PATH', 'PATH'):
-            kwargs.update({'var_type': ModEnvVarType.PATH_WITH_TOP_FILES})
+            kwargs['var_type'] = ModEnvVarType.PATH_WITH_TOP_FILES
 
         return super().__setattr__(name, ModuleEnvironmentVariable(contents, **kwargs))
 
