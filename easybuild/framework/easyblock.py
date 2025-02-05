@@ -134,7 +134,7 @@ class LibSymlink(Enum):
     - LIB64_TO_LIB: 'lib64' is a symlink to 'lib'
     - NEITHER: neither 'lib' is a symlink to 'lib64', nor 'lib64' is a symlink to 'lib'
     - """
-    UNKNOWN, LIB_TO_LIB64, LIB64_TO_LIB, NEITHER = range(0, 4)
+    LIB_TO_LIB64, LIB64_TO_LIB, NEITHER = range(3)
 
 
 class EasyBlock(object):
@@ -226,7 +226,7 @@ class EasyBlock(object):
         self.install_subdir = None
 
         # track status of symlink between library directories
-        self.install_lib_symlink = LibSymlink.UNKNOWN
+        self._install_lib_symlink = None
 
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']
@@ -310,6 +310,13 @@ class EasyBlock(object):
             self.init_dry_run()
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
+
+    @property
+    def install_lib_symlink(self):
+        """Return symlink state of lib/lib64 folders"""
+        if self._install_lib_symlink is None:
+            self.check_install_lib_symlink()
+        return self._install_lib_symlink
 
     def post_init(self):
         """
@@ -1719,10 +1726,6 @@ class EasyBlock(object):
         abs_glob = os.path.join(self.installdir, search_path)
         exp_search_paths = [abs_glob] if search_path == "" else glob.glob(abs_glob)
 
-        # Explicitly check symlink state between lib dirs if it is still undefined (e.g. --module-only)
-        if self.install_lib_symlink == LibSymlink.UNKNOWN:
-            self.check_install_lib_symlink()
-
         retained_search_paths = []
         for abs_path in exp_search_paths:
             # return relative paths
@@ -1751,16 +1754,16 @@ class EasyBlock(object):
         return retained_search_paths
 
     def check_install_lib_symlink(self):
-        """Check symlink state between library directories in installation prefix"""
+        """Update the symlink state between library directories in installation prefix"""
         lib_dir = os.path.join(self.installdir, 'lib')
         lib64_dir = os.path.join(self.installdir, 'lib64')
 
-        self.install_lib_symlink = LibSymlink.NEITHER
+        self._install_lib_symlink = LibSymlink.NEITHER
         if os.path.exists(lib_dir) and os.path.exists(lib64_dir):
             if os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
-                self.install_lib_symlink = LibSymlink.LIB_TO_LIB64
+                self._install_lib_symlink = LibSymlink.LIB_TO_LIB64
             elif os.path.islink(lib64_dir) and os.path.samefile(lib_dir, lib64_dir):
-                self.install_lib_symlink = LibSymlink.LIB64_TO_LIB
+                self._install_lib_symlink = LibSymlink.LIB64_TO_LIB
 
     def make_module_req_guess(self):
         """
