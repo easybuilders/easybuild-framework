@@ -35,7 +35,6 @@ Authors:
 * Toon Willems (Ghent University)
 * Ward Poelmans (Ghent University)
 """
-import fcntl
 import functools
 import inspect
 import locale
@@ -508,24 +507,12 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         stdin = stdin.encode()
 
     if stream_output or qa_patterns:
+        print_msg(f"(streaming) output for command '{cmd_str}':")
 
-        if stream_output:
-            # enable non-blocking reading of output
-            print_msg(f"(streaming) output for command '{cmd_str}':")
-            os.set_blocking(proc.stdout.fileno(), False)
-            if split_stderr:
-                os.set_blocking(proc.stderr.fileno(), False)
-
-        if qa_patterns:
-            # make stdout, stderr, stdin non-blocking files
-            channels = [proc.stdout, proc.stdin]
-            if split_stderr:
-                channels.append(proc.stderr)
-
-            for channel in channels:
-                fd = channel.fileno()
-                flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-                fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+        # make stdout, stderr, stdin non-blocking files
+        channels = [channel for channel in (proc.stdout, proc.stdin, proc.stderr) if channel is not None]
+        for channel in channels:
+            os.set_blocking(channel.fileno(), False)
 
         if stdin:
             proc.stdin.write(stdin)
