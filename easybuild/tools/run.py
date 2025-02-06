@@ -482,9 +482,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     if not hidden:
         _cmd_trace_msg(cmd_str, start_time, work_dir, stdin, tmpdir, thread_id, interactive=interactive)
 
-    if stream_output:
-        print_msg(f"(streaming) output for command '{cmd_str}':")
-
     # use bash as shell instead of the default /bin/sh used by subprocess.run
     # (which could be dash instead of bash, like on Ubuntu, see https://wiki.ubuntu.com/DashAsBinSh)
     # stick to None (default value) when not running command via a shell
@@ -511,6 +508,13 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         stdin = stdin.encode()
 
     if stream_output or qa_patterns:
+
+        if stream_output:
+            # enable non-blocking reading of output
+            print_msg(f"(streaming) output for command '{cmd_str}':")
+            os.set_blocking(proc.stdout.fileno(), False)
+            if split_stderr:
+                os.set_blocking(proc.stderr.fileno(), False)
 
         if qa_patterns:
             # make stdout, stderr, stdin non-blocking files
