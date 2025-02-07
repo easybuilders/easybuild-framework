@@ -63,7 +63,7 @@ except ImportError:
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUND_ERROR
-from easybuild.tools.build_log import dry_run_msg, print_msg, time_str_since
+from easybuild.tools.build_log import dry_run_msg, time_str_since
 from easybuild.tools.config import build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.output import COLOR_RED, COLOR_YELLOW, colorize, print_error
@@ -507,8 +507,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         stdin = stdin.encode()
 
     if stream_output or qa_patterns:
-        print_msg(f"(streaming) output for command '{cmd_str}':")
-
         # enable non-blocking access to stdout, stderr, stdin
         channels = [channel for channel in (proc.stdout, proc.stdin, proc.stderr) if channel is not None]
         for channel in channels:
