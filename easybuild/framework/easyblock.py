@@ -4436,8 +4436,8 @@ def create_persistence_paths(operation_args):
 
 def execute_and_log_persistence_operation(operation, source_paths, target_dir, msg, silent):
     for path in source_paths:
-        if os.path.exists(path):
-            operation(path, target_dir)
+        operation(path, target_dir)
+
     print_msg(msg, log=_log, silent=silent)
 
 
@@ -4470,12 +4470,13 @@ def persist_failed_compilation_log_and_artifacts(build_successful, application_l
                 silent=silent
             )
         else:
+            log_file_copies = [os.path.join(log_error_path, os.path.basename(log)) for log in logs]
             operation_args.append(
                 (
                     copy_file,
                     logs,
                     log_error_path,
-                    f"Logs of failed build copied to permanent storage: {log_error_path}"
+                    "Logs of failed build copied to permanent storage: " + ', '.join(log_file_copies)
                 )
             )
 
