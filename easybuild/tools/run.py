@@ -508,9 +508,9 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     if stream_output or qa_patterns:
         # enable non-blocking access to stdout, stderr, stdin
-        channels = [channel for channel in (proc.stdout, proc.stdin, proc.stderr) if channel is not None]
-        for channel in channels:
-            os.set_blocking(channel.fileno(), False)
+        for channel in (proc.stdout, proc.stdin, proc.stderr):
+            if channel is not None:
+                os.set_blocking(channel.fileno(), False)
 
         if stdin:
             proc.stdin.write(stdin)
