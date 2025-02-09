@@ -76,13 +76,6 @@ class TestCase(OrigTestCase):
     ASSERT_MAX_DIFF = 100
     DIFF_OFFSET = 5  # lines of text around changes
 
-    def is_string(self, x):
-        """test if the variable x is a string)"""
-        try:
-            return isinstance(x, str)
-        except NameError:
-            return isinstance(x, str)
-
     # pylint: disable=arguments-differ
     def assertEqual(self, a, b, msg=None):
         """Make assertEqual always print useful messages"""
@@ -95,11 +88,11 @@ class TestCase(OrigTestCase):
             else:
                 msg = "%s: %s" % (msg, e)
 
-            if self.is_string(a):
+            if isinstance(a, str):
                 txta = a
             else:
                 txta = pprint.pformat(a)
-            if self.is_string(b):
+            if isinstance(b, str):
                 txtb = b
             else:
                 txtb = pprint.pformat(b)
@@ -167,7 +160,7 @@ class TestCase(OrigTestCase):
             self.fail("Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
         except error as err:
             msg = self.convert_exception_to_str(err)
-            if self.is_string(regex):
+            if isinstance(regex, str):
                 regex = re.compile(regex)
             self.assertTrue(regex.search(msg), "Pattern '%s' is found in '%s'" % (regex.pattern, msg))
 
