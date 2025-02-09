@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,12 +32,12 @@ Authors:
 * Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 from easybuild.tools import systemtools
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
 
-# default optimization 'level' (see COMPILER_SHARED_OPTION_MAP/COMPILER_OPT_FLAGS)
+# default optimization 'level' (see COMPILER_SHARED_OPTION_MAP/COMPILER_OPT_OPTIONS)
 DEFAULT_OPT_LEVEL = 'defaultopt'
 
 # 'GENERIC' can  be used to enable generic compilation instead of optimized compilation (which is the default)
@@ -82,7 +82,7 @@ class Compiler(Toolchain):
         'loose': (False, "Loose precision"),
         'veryloose': (False, "Very loose precision"),
         'verbose': (False, "Verbose output"),
-        'debug': (False, "Enable debug"),
+        'debug': (None, "Keep debug symbols"),  # default value set by build option keep-debug-symbols
         'i8': (False, "Integers are 8 byte integers"),  # fortran only -> no: MKL and icc give -DMKL_ILP64
         'r8': (False, "Real is 8 byte real"),  # fortran only
         'unroll': (False, "Unroll loops"),
@@ -93,6 +93,8 @@ class Compiler(Toolchain):
         'vectorize': (None, "Enable compiler auto-vectorization, default except for noopt and lowopt"),
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
         'rpath': (True, "Use RPATH wrappers when --rpath is enabled in EasyBuild configuration"),
+        'search-path-cpp-headers': (None, "Search path used at build time for include directories"),
+        'search-path-linker': (None, "Search path used at build time by the linker for libraries"),
         'extra_cflags': (None, "Specify extra CFLAGS options."),
         'extra_cxxflags': (None, "Specify extra CXXFLAGS options."),
         'extra_fflags': (None, "Specify extra FFLAGS options."),
@@ -102,18 +104,18 @@ class Compiler(Toolchain):
 
     COMPILER_UNIQUE_OPTION_MAP = None
     COMPILER_SHARED_OPTION_MAP = {
-        DEFAULT_OPT_LEVEL: 'O2',
-        'cstd': 'std=%(value)s',
-        'debug': 'g',
-        'lowopt': 'O1',
-        'noopt': 'O0',
-        'openmp': 'fopenmp',
-        'opt': 'O3',
-        'pic': 'fPIC',
-        'shared': 'shared',
-        'static': 'static',
-        'unroll': 'unroll',
-        'verbose': 'v',
+        DEFAULT_OPT_LEVEL: '-O2',
+        'cstd': '-std=%(value)s',
+        'debug': '-g',
+        'lowopt': '-O1',
+        'noopt': '-O0',
+        'openmp': '-fopenmp',
+        'opt': '-O3',
+        'pic': '-fPIC',
+        'shared': '-shared',
+        'static': '-static',
+        'unroll': '-unroll',
+        'verbose': '-v',
         'extra_cflags': '%(value)s',
         'extra_cxxflags': '%(value)s',
         'extra_fflags': '%(value)s',
@@ -124,20 +126,20 @@ class Compiler(Toolchain):
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
     COMPILER_GENERIC_OPTION = None
 
-    COMPILER_FLAGS = ['debug', 'ieee', 'openmp', 'pic', 'shared', 'static', 'unroll', 'verbose']  # any compiler
-    COMPILER_OPT_FLAGS = ['noopt', 'lowopt', DEFAULT_OPT_LEVEL, 'opt']  # optimisation args, ordered !
-    COMPILER_PREC_FLAGS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose']  # precision flags, ordered !
+    COMPILER_OPTIONS = ['debug', 'ieee', 'openmp', 'pic', 'shared', 'static', 'unroll', 'verbose']  # any compiler
+    COMPILER_OPT_OPTIONS = ['noopt', 'lowopt', DEFAULT_OPT_LEVEL, 'opt']  # optimisation args, ordered !
+    COMPILER_PREC_OPTIONS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose']  # precision flags, ordered !
 
     COMPILER_CC = None
     COMPILER_CXX = None
-    COMPILER_C_FLAGS = ['cstd']
-    COMPILER_C_UNIQUE_FLAGS = []
+    COMPILER_C_OPTIONS = ['cstd']
+    COMPILER_C_UNIQUE_OPTIONS = []
 
     COMPILER_F77 = None
     COMPILER_F90 = None
     COMPILER_FC = None
-    COMPILER_F_FLAGS = ['i8', 'r8']
-    COMPILER_F_UNIQUE_FLAGS = []
+    COMPILER_F_OPTIONS = ['i8', 'r8']
+    COMPILER_F_UNIQUE_OPTIONS = []
 
     LINKER_TOGGLE_STATIC_DYNAMIC = None
     LINKER_TOGGLE_START_STOP_GROUP = {
@@ -175,6 +177,10 @@ class Compiler(Toolchain):
 
     def _set_compiler_toolchainoptions(self):
         """Set the compiler related toolchain options"""
+        # Initialize default value of debug symbols based on global build option
+        if self.COMPILER_SHARED_OPTS:
+            _, desc = self.COMPILER_SHARED_OPTS['debug']
+            self.COMPILER_SHARED_OPTS['debug'] = (build_option('keep_debug_symbols'), desc)
         self.options.add_options(self.COMPILER_SHARED_OPTS, self.COMPILER_SHARED_OPTION_MAP)
 
         # always include empty infix first for non-prefixed compilers (e.g., GCC, Intel, ...)
@@ -237,22 +243,33 @@ class Compiler(Toolchain):
 
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""
+        variants = ['', '_F', '_F_UNIQUE', '_C', '_C_UNIQUE', '_OPT', '_PREC']
+        for variant in variants:
+            old_var = getattr(self, f'COMPILER{variant}_FLAGS', None)
+            if old_var is not None:
+                self.log.deprecated(f'COMPILER{variant}_FLAGS has been renamed to COMPILER{variant}_OPTIONS.', '6.0')
+                setattr(self, f'COMPILER{variant}_OPTIONS', old_var)
 
-        flags = [self.options.option(x) for x in self.COMPILER_FLAGS if self.options.get(x, False)]
-        cflags = [self.options.option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS
+        flags = [self.options.option(x) for x in self.COMPILER_OPTIONS if self.options.get(x, False)]
+        cflags = [self.options.option(x) for x in self.COMPILER_C_OPTIONS + self.COMPILER_C_UNIQUE_OPTIONS
                   if self.options.get(x, False)]
-        fflags = [self.options.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS
+        fflags = [self.options.option(x) for x in self.COMPILER_F_OPTIONS + self.COMPILER_F_UNIQUE_OPTIONS
                   if self.options.get(x, False)]
 
         # Allow a user-defined default optimisation
         default_opt_level = build_option('default_opt_level')
-        if default_opt_level not in self.COMPILER_OPT_FLAGS:
+        if default_opt_level not in self.COMPILER_OPT_OPTIONS:
             raise EasyBuildError("Unknown value for default optimisation: %s (possibilities are %s)" %
-                                 (default_opt_level, self.COMPILER_OPT_FLAGS))
+                                 (default_opt_level, self.COMPILER_OPT_OPTIONS))
 
         # 1st one is the one to use. add default at the end so len is at least 1
-        optflags = ([self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] +
+        optflags = ([self.options.option(x) for x in self.COMPILER_OPT_OPTIONS if self.options.get(x, False)] +
                     [self.options.option(default_opt_level)])[:1]
+
+        # Normal compiler flags need to include "-" starting with EB 5.0, check the first as a sanity check.
+        # Avoiding all flags as there may be legitimate use for flags that lack -
+        if optflags and optflags[0] and not optflags[0][0].startswith('-'):
+            print_warning(f'Compiler flag "{optflags[0][0]}" does not start with a dash. See changes in EasyBuild 5.')
 
         # only apply if the vectorize toolchainopt is explicitly set
         # otherwise the individual compiler toolchain file should make sure that
@@ -273,7 +290,7 @@ class Compiler(Toolchain):
         elif self.options.get('optarch', False):
             optarchflags.append(self.options.option('optarch'))
 
-        precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
+        precflags = [self.options.option(x) for x in self.COMPILER_PREC_OPTIONS if self.options.get(x, False)] + \
                     [self.options.option('defaultprec')]
 
         self.variables.nextend('OPTFLAGS', optflags + optarchflags)
@@ -292,7 +309,7 @@ class Compiler(Toolchain):
                 extraflags = self.options.option(extra)
                 if not extraflags or extraflags[0] != '-':
                     raise EasyBuildError("toolchainopts %s: '%s' must start with a '-'." % (extra, extraflags))
-                self.variables.nappend_el(var, extraflags[1:])
+                self.variables.nappend_el(var, extraflags)
 
     def _set_optimal_architecture(self, default_optarch=None):
         """
@@ -349,6 +366,11 @@ class Compiler(Toolchain):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(self.arch, self.cpu_family)]
 
         if optarch is not None:
+            if optarch and not optarch.startswith('-'):
+                self.log.deprecated(f'Specifying optarch "{optarch}" without initial dash is deprecated.', '6.0')
+                # Add flags for backwards compatibility
+                optarch = '-' + optarch
+
             optarch_log_str = optarch or 'no flags'
             self.log.info("_set_optimal_architecture: using %s as optarch for %s/%s.",
                           optarch_log_str, self.arch, self.cpu_family)

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -242,7 +242,7 @@ def dry_run(easyconfigs, modtool, short=False):
     :param short: use short format for overview: use a variable for common prefixes
     """
     lines = []
-    if build_option('robot_path') is None:
+    if build_option('robot') is None:
         lines.append("Dry run: printing build status of easyconfigs")
         all_specs = easyconfigs
     else:

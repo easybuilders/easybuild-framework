@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,15 +36,16 @@ Authors:
 * Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import copy
+import itertools
 import os
 import re
 import tempfile
 from collections import defaultdict
 from contextlib import contextmanager
-from easybuild.tools import LooseVersion
 from textwrap import wrap
 
 from easybuild.base import fancylogger
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
@@ -206,8 +207,12 @@ class ModuleGenerator(object):
 
         return os.path.join(mod_path, mod_path_suffix)
 
-    def _filter_paths(self, key, paths):
-        """Filter out paths already added to key and return the remaining ones"""
+    def _filter_paths(self, key, paths, warn_exists=True):
+        """
+        Filter out paths already added to key and return the remaining ones
+
+        :param warn_exists: Show a warning for paths already added to the key
+        """
         if self.added_paths_per_key is None:
             # For compatibility this is only a warning for now and we don't filter any paths
             print_warning('Module creation has not been started. Call start_module_creation first!')
@@ -227,15 +232,17 @@ class ModuleGenerator(object):
                 paths = list(paths)
             filtered_paths = [x for x in paths if x not in added_paths and not added_paths.add(x)]
         if filtered_paths != paths:
-            removed_paths = paths if filtered_paths is None else [x for x in paths if x not in filtered_paths]
-            print_warning("Suppressed adding the following path(s) to $%s of the module as they were already added: %s",
-                          key, removed_paths,
-                          log=self.log)
+            if warn_exists:
+                removed_paths = paths if filtered_paths is None else [x for x in paths if x not in filtered_paths]
+                print_warning("Suppressed adding the following path(s) to $%s of the module "
+                              "as they were already added: %s",
+                              key, removed_paths,
+                              log=self.log)
             if not filtered_paths:
                 filtered_paths = None
         return filtered_paths
 
-    def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
+    def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True, delim=':', warn_exists=True):
         """
         Generate append-path statements for the given list of paths.
 
@@ -243,13 +250,16 @@ class ModuleGenerator(object):
         :param paths: list of paths to append
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param delim: delimiter used between paths
+        :param warn_exists: Show a warning if any path was already added to the variable
         """
-        paths = self._filter_paths(key, paths)
+        paths = self._filter_paths(key, paths, warn_exists=warn_exists)
         if paths is None:
             return ''
-        return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
+        return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths,
+                                 delim=delim)
 
-    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
+    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True, delim=':', warn_exists=True):
         """
         Generate prepend-path statements for the given list of paths.
 
@@ -257,11 +267,14 @@ class ModuleGenerator(object):
         :param paths: list of paths to append
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param delim: delimiter used between paths
+        :param warn_exists: Show a warning if any path was already added to the variable
         """
-        paths = self._filter_paths(key, paths)
+        paths = self._filter_paths(key, paths, warn_exists=warn_exists)
         if paths is None:
             return ''
-        return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
+        return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths,
+                                 delim=delim)
 
     def _modulerc_check_module_version(self, module_version):
         """
@@ -484,13 +497,13 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None, multi_dep_mods=None):
+    def load_module(self, mod_name, recursive_unload=False, depends_on=None, unload_modules=None, multi_dep_mods=None):
         """
         Generate load statement for specified module.
 
         :param mod_name: name of module to generate load statement for
         :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
-        :param depends_on: use depends_on statements rather than (guarded) load statements
+        :param depends_on: use depends_on statements rather than (guarded) load statements (DEPRECATED)
         :param unload_modules: name(s) of module to unload first
         :param multi_dep_mods: list of module names in multi_deps context, to use for guarding load statement
         """
@@ -552,15 +565,16 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True, delim=':'):
         """
         Generate prepend-path or append-path statements for the given list of paths.
 
         :param key: environment variable to prepend/append paths to
-        :param paths: list of paths to prepend
+        :param paths: list of paths to prepend/append
         :param prepend: whether to prepend (True) or append (False) paths
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param delim: delimiter used between paths
         """
         raise NotImplementedError
 
@@ -610,21 +624,6 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def _generate_extension_list(self):
-        """
-        Generate a string with a list of extensions.
-
-        The name and version are separated by name_version_sep and each extension is separated by ext_sep
-        """
-        return self.app.make_extension_string()
-
-    def _generate_extensions_list(self):
-        """
-        Generate a list of all extensions in name/version format
-        """
-        exts_str = self.app.make_extension_string(name_version_sep='/', ext_sep=',')
-        return exts_str.split(',') if exts_str else []
-
     def _generate_help_text(self):
         """
         Generate syntax-independent help text used for `module help`.
@@ -671,7 +670,7 @@ class ModuleGenerator(object):
             lines.extend(self._generate_section("Compatible modules", compatible_modules_txt))
 
         # Extensions (if any)
-        extensions = self._generate_extension_list()
+        extensions = self.app.make_extension_string()
         lines.extend(self._generate_section("Included extensions", '\n'.join(wrap(extensions, 78))))
 
         return '\n'.join(lines)
@@ -682,21 +681,13 @@ class ModuleGenerator(object):
         """
         multi_deps = []
         if self.app.cfg['multi_deps']:
-            for key in sorted(self.app.cfg['multi_deps'].keys()):
-                mod_list = []
-                txt = ''
-                vlist = self.app.cfg['multi_deps'].get(key)
-                for idx in range(len(vlist)):
-                    for deplist in self.app.cfg.multi_deps:
-                        for dep in deplist:
-                            if dep['name'] == key and dep['version'] == vlist[idx]:
-                                modname = dep['short_mod_name']
-                                # indicate which version is loaded by default (unless that's disabled)
-                                if idx == 0 and self.app.cfg['multi_deps_load_default']:
-                                    modname += ' (default)'
-                                mod_list.append(modname)
-                txt += ', '.join(mod_list)
-                multi_deps.append(txt)
+            for name in sorted(self.app.cfg['multi_deps']):
+                mod_list = [dep['short_mod_name'] for dep in itertools.chain.from_iterable(self.app.cfg.multi_deps)
+                            if dep['name'] == name]
+                # indicate that the first version is loaded by default if enabled
+                if self.app.cfg['multi_deps_load_default']:
+                    mod_list[0] += ' (default)'
+                multi_deps.append(', '.join(mod_list))
 
         return multi_deps
 
@@ -728,7 +719,7 @@ class ModuleGenerator(object):
             if multi_deps:
                 whatis.append("Compatible modules: %s" % ', '.join(multi_deps))
 
-            extensions = self._generate_extension_list()
+            extensions = self.app.make_extension_string()
             if extensions:
                 whatis.append("Extensions: %s" % extensions)
 
@@ -879,14 +870,14 @@ class ModuleGeneratorTcl(ModuleGenerator):
                 cmd = '[if { [info exists %(envvar)s] } { concat $%(envvar)s } else { concat "%(default)s" } ]' % values
         return cmd
 
-    def load_module(self, mod_name, recursive_unload=None, depends_on=False, unload_modules=None, multi_dep_mods=None):
+    def load_module(self, mod_name, recursive_unload=None, depends_on=None, unload_modules=None, multi_dep_mods=None):
         """
         Generate load statement for specified module.
 
         :param mod_name: name of module to generate load statement for
         :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
                                  (if None: enable if recursive_mod_unload build option or depends_on is True)
-        :param depends_on: use depends_on statements rather than (guarded) load statements
+        :param depends_on: use depends_on statements rather than (guarded) load statements (DEPRECATED)
         :param unload_modules: name(s) of module to unload first
         :param multi_dep_mods: list of module names in multi_deps context, to use for guarding load statement
         """
@@ -895,7 +886,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
             body.extend([self.unload_module(m).strip() for m in unload_modules])
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6.1+ supports depends-on which does this most nicely:
-        if build_option('mod_depends_on') or depends_on:
+        if (build_option('mod_depends_on') and self.modules_tool.supports_depends_on) or depends_on:
+            if depends_on is not None:
+                depr_msg = "'depends_on' argument of module generator method 'load_module' should not be used anymore"
+                self.log.deprecated(depr_msg, '6.0')
             if not self.modules_tool.supports_depends_on:
                 raise EasyBuildError("depends-on statements in generated module are not supported by modules tool")
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
@@ -967,15 +961,16 @@ class ModuleGeneratorTcl(ModuleGenerator):
         print_cmd = "puts stderr %s" % quote_str(msg, tcl=True)
         return '\n'.join(['', self.conditional_statement("module-info mode unload", print_cmd, indent=False)])
 
-    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True, delim=':'):
         """
         Generate prepend-path or append-path statements for the given list of paths.
 
         :param key: environment variable to prepend/append paths to
-        :param paths: list of paths to prepend
+        :param paths: list of paths to prepend/append
         :param prepend: whether to prepend (True) or append (False) paths
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param delim: delimiter used between paths
         """
         if prepend:
             update_type = 'prepend'
@@ -1007,7 +1002,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
             else:
                 abspaths.append(path)
 
-        statements = ['%s-path\t%s\t\t%s\n' % (update_type, key, p) for p in abspaths]
+        delim_opt = '' if delim == ':' else f' -d "{delim}"'
+        statements = [f'{update_type}-path{delim_opt}\t{key}\t\t{p}\n' for p in abspaths]
         return ''.join(statements)
 
     def set_alias(self, key, value):
@@ -1158,6 +1154,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
+    UPDATE_PATH_TEMPLATE_DELIM = '%s_path("%s", %s, "%s")'
 
     START_STR = '[==['
     END_STR = ']==]'
@@ -1281,12 +1278,9 @@ class ModuleGeneratorLua(ModuleGenerator):
         elif conflict:
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
-
-        if build_option('module_extensions'):
-            extensions_list = self._generate_extensions_list()
-
+            extensions_list = self.app.make_extension_string(name_version_sep='/', ext_sep=',')
             if extensions_list:
-                extensions_stmt = 'extensions("%s")' % ','.join([str(x) for x in extensions_list])
+                extensions_stmt = 'extensions("%s")' % extensions_list
                 # put this behind a Lmod version check as 'extensions' is only (well) supported since Lmod 8.2.8,
                 # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions and
                 # https://github.com/TACC/Lmod/issues/428
@@ -1304,14 +1298,14 @@ class ModuleGeneratorLua(ModuleGenerator):
             cmd = 'os.getenv("%s") or "%s"' % (envvar, default)
         return cmd
 
-    def load_module(self, mod_name, recursive_unload=None, depends_on=False, unload_modules=None, multi_dep_mods=None):
+    def load_module(self, mod_name, recursive_unload=None, depends_on=None, unload_modules=None, multi_dep_mods=None):
         """
         Generate load statement for specified module.
 
         :param mod_name: name of module to generate load statement for
         :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
                                  (if None: enable if recursive_mod_unload build option or depends_on is True)
-        :param depends_on: use depends_on statements rather than (guarded) load statements
+        :param depends_on: use depends_on statements rather than (guarded) load statements (DEPRECATED)
         :param unload_modules: name(s) of module to unload first
         :param multi_dep_mods: list of module names in multi_deps context, to use for guarding load statement
         """
@@ -1321,7 +1315,10 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6+ supports depends_on which does this most nicely:
-        if build_option('mod_depends_on') or depends_on:
+        if (build_option('mod_depends_on') and self.modules_tool.supports_depends_on) or depends_on:
+            if depends_on is not None:
+                depr_msg = "'depends_on' argument of module generator method 'load_module' should not be used anymore"
+                self.log.deprecated(depr_msg, '6.0')
             if not self.modules_tool.supports_depends_on:
                 raise EasyBuildError("depends_on statements in generated module are not supported by modules tool")
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
@@ -1416,7 +1413,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         return super(ModuleGeneratorLua, self).modulerc(module_version=module_version, filepath=filepath,
                                                         modulerc_txt=modulerc_txt)
 
-    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True, delim=':'):
         """
         Generate prepend_path or append_path statements for the given list of paths
 
@@ -1425,6 +1422,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param prepend: whether to prepend (True) or append (False) paths
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param delim: delimiter used between paths
         """
         if prepend:
             update_type = 'prepend'
@@ -1457,7 +1455,10 @@ class ModuleGeneratorLua(ModuleGenerator):
                 else:
                     abspaths.append('root')
 
-        statements = [self.UPDATE_PATH_TEMPLATE % (update_type, key, p) for p in abspaths]
+        if delim != ':':
+            statements = [self.UPDATE_PATH_TEMPLATE_DELIM % (update_type, key, p, delim) for p in abspaths]
+        else:
+            statements = [self.UPDATE_PATH_TEMPLATE % (update_type, key, p) for p in abspaths]
         statements.append('')
         return '\n'.join(statements)
 

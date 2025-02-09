@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -51,7 +51,7 @@ import easybuild.tools.environment as env
 from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.base.fancylogger import setLogLevel
 from easybuild.base.generaloption import GeneralOption
-from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, FETCH_STEP, EasyBlock
+from easybuild.framework.easyblock import MODULE_ONLY_STEPS, EXTRACT_STEP, FETCH_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
@@ -102,10 +102,12 @@ from easybuild.tools.robot import det_robot_path
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
+from easybuild.tools.toolchain.toolchain import DEFAULT_SEARCH_PATH_CPP_HEADERS, DEFAULT_SEARCH_PATH_LINKER, SEARCH_PATH
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
+from easybuild.tools.utilities import flatten
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -125,7 +127,8 @@ CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
 
 XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
 XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc/xdg').split(os.pathsep)
-DEFAULT_SYS_CFGFILES = [f for d in XDG_CONFIG_DIRS for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
+DEFAULT_SYS_CFGFILES = [[f for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
+                        for d in XDG_CONFIG_DIRS]
 DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
 DEFAULT_LIST_PR_STATE = GITHUB_PR_STATE_OPEN
@@ -213,7 +216,11 @@ class EasyBuildOptions(GeneralOption):
     VERSION = this_is_easybuild()
 
     DEFAULT_LOGLEVEL = 'INFO'
-    DEFAULT_CONFIGFILES = DEFAULT_SYS_CFGFILES[:]
+    # https://specifications.freedesktop.org/basedir-spec/latest/
+    # says precedence should be
+    # XDG_CONFIG_HOME > 1st entry of XDG_CONFIG_DIRS > 2nd entry ...
+    # EasyBuild parses this list backwards, gives priority to last entry
+    DEFAULT_CONFIGFILES = flatten(DEFAULT_SYS_CFGFILES[::-1])
     if 'XDG_CONFIG_DIRS' not in os.environ:
         old_etc_location = os.path.join('/etc', 'easybuild.d')
         if os.path.isdir(old_etc_location) and glob.glob(os.path.join(old_etc_location, '*.cfg')):
@@ -293,7 +300,7 @@ class EasyBuildOptions(GeneralOption):
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step",
-                     'choice', 'store_or_None', SOURCE_STEP, 's', all_stops),
+                     'choice', 'store_or_None', EXTRACT_STEP, 's', all_stops),
             'strict': ("Set strictness level", 'choice', 'store', WARN, strictness_options),
         })
 
@@ -356,6 +363,8 @@ class EasyBuildOptions(GeneralOption):
                                                  None, 'store_true', False),
             'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
                                      'strlist', 'store', DEFAULT_ALLOW_LOADED_MODULES),
+            'allow-unresolved-templates': ("Don't error out when templates such as %(name)s in EasyConfigs "
+                                           "could not be resolved", None, 'store_true', False),
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
                                             None, 'store_true', False),
             'allow-use-as-root-and-accept-consequences': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)",
@@ -391,7 +400,7 @@ class EasyBuildOptions(GeneralOption):
                                           "for example: 3.5,5.0,7.2", 'strlist', 'extend', None),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
-                                  Compiler.COMPILER_OPT_FLAGS),
+                                  Compiler.COMPILER_OPT_OPTIONS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
             'detect-loaded-modules': ("Detect loaded EasyBuild-generated modules, act accordingly; "
@@ -456,6 +465,7 @@ class EasyBuildOptions(GeneralOption):
             'insecure-download': ("Don't check the server certificate against the available certificate authorities.",
                                   None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
+            'keep-debug-symbols': ("Sets default value of debug toolchain option", None, 'store_true', True),
             'lib-lib64-symlink': ("Automatically create symlinks for lib/ pointing to lib64/ if the former is missing",
                                   None, 'store_true', True),
             'lib64-fallback-sanity-check': ("Fallback in sanity check to lib64/ equivalent for missing libraries",
@@ -529,6 +539,9 @@ class EasyBuildOptions(GeneralOption):
                 "Git commit to use for the target software build (robot capabilities are automatically disabled)",
                 None, 'store', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
+            'strict-rpath-sanity-check': ("Perform strict RPATH sanity check, which involces unsetting "
+                                          "$LD_LIBRARY_PATH before checking whether all required libraries are found",
+                                          None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', True, 'T'),
@@ -598,7 +611,7 @@ class EasyBuildOptions(GeneralOption):
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
             'module-depends-on': ("Use depends_on (Lmod 7.6.1+) for dependencies in all generated modules "
                                   "(implies recursive unloading of modules).",
-                                  None, 'store_true', False),
+                                  None, 'store_true', True),
             'module-extensions': ("Include 'extensions' statement in generated module file (Lua syntax only)",
                                   None, 'store_true', True),
             'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
@@ -628,6 +641,10 @@ class EasyBuildOptions(GeneralOption):
                                 "(is passed as list of arguments to create the repository instance). "
                                 "For more info, use --avail-repositories."),
                                'strlist', 'store', self.default_repositorypath),
+            'search-path-cpp-headers': ("Search path used at build time for include directories", 'choice',
+                                        'store', DEFAULT_SEARCH_PATH_CPP_HEADERS, [*SEARCH_PATH["cpp_headers"]]),
+            'search-path-linker': ("Search path used at build time by the linker for libraries", 'choice',
+                                   'store', DEFAULT_SEARCH_PATH_LINKER, [*SEARCH_PATH["linker"]]),
             'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
@@ -947,10 +964,6 @@ class EasyBuildOptions(GeneralOption):
 
         # set tmpdir
         self.tmpdir = set_tmpdir(self.options.tmpdir)
-
-        # early check for opt-in to installing extensions in parallel (experimental feature)
-        if self.options.parallel_extensions_install:
-            self.log.experimental("installing extensions in parallel")
 
         # take --include options into account (unless instructed otherwise)
         if self.with_include:
@@ -1391,9 +1404,10 @@ class EasyBuildOptions(GeneralOption):
             "* user-level: %s" % os.path.join('${XDG_CONFIG_HOME:-$HOME/.config}', 'easybuild', 'config.cfg'),
             "  -> %s => %s" % (DEFAULT_USER_CFGFILE, ('not found', 'found')[os.path.exists(DEFAULT_USER_CFGFILE)]),
             "* system-level: %s" % os.path.join('${XDG_CONFIG_DIRS:-/etc/xdg}', 'easybuild.d', '*.cfg'),
-            "  -> %s => %s" % (system_cfg_glob_paths, ', '.join(DEFAULT_SYS_CFGFILES) or "(no matches)"),
+            "  -> %s => %s" % (system_cfg_glob_paths, ', '.join(flatten(DEFAULT_SYS_CFGFILES)) or "(no matches)"),
             '',
-            "Default list of existing configuration files (%d): %s" % (found_cfgfile_cnt, found_cfgfile_list),
+            "Default list of existing configuration files (%d, most important last):" % found_cfgfile_cnt,
+            found_cfgfile_list,
         ]
         return '\n'.join(lines)
 
@@ -2084,6 +2098,7 @@ def opts_dict_to_eb_opts(args_dict):
     :return: a list of strings representing command-line options for the 'eb' command
     """
 
+    allow_multiple_calls = ['amend', 'try-amend']
     _log.debug("Converting dictionary %s to argument list" % args_dict)
     args = []
     for arg in sorted(args_dict):
@@ -2093,14 +2108,18 @@ def opts_dict_to_eb_opts(args_dict):
             prefix = '--'
         option = prefix + str(arg)
         value = args_dict[arg]
-        if isinstance(value, (list, tuple)):
-            value = ','.join(str(x) for x in value)
 
-        if value in [True, None]:
+        if str(arg) in allow_multiple_calls:
+            if not isinstance(value, (list, tuple)):
+                value = [value]
+            args.extend(option + '=' + str(x) for x in value)
+        elif value in [True, None]:
             args.append(option)
         elif value is False:
             args.append('--disable-' + option[2:])
         elif value is not None:
+            if isinstance(value, (list, tuple)):
+                value = ','.join(str(x) for x in value)
             args.append(option + '=' + str(value))
 
     _log.debug("Converted dictionary %s to argument list %s" % (args_dict, args))

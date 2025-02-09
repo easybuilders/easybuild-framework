@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -41,12 +41,13 @@ import glob
 import os
 import re
 import shlex
+from enum import Enum
 
 from easybuild.base import fancylogger
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning
-from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
-from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
+from easybuild.tools.config import ERROR, EBROOT_ENV_VAR_ACTIONS, IGNORE, LOADED_MODULES_ACTIONS, PURGE
+from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_HEADER_DIRS, SEARCH_PATH_LIB_DIRS, UNLOAD, UNSET
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
 from easybuild.tools.filetools import convert_name, mkdir, normalize_path, path_matches, read_file, which, write_file
@@ -54,6 +55,7 @@ from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import get_subclasses, nub
+
 
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
@@ -129,6 +131,193 @@ MODULE_VERSION_CACHE = {}
 
 
 _log = fancylogger.getLogger('modules', fname=False)
+
+
+class ModEnvVarType(Enum):
+    """
+    Possible types of ModuleEnvironmentVariable:
+    - STRING: (list of) strings with no further meaning
+    - PATH: (list of) of paths to existing directories or files
+    - PATH_WITH_FILES: (list of) of paths to existing directories containing
+      one or more files
+    - PATH_WITH_TOP_FILES: (list of) of paths to existing directories
+      containing one or more files in its top directory
+    - """
+    STRING, PATH, PATH_WITH_FILES, PATH_WITH_TOP_FILES = range(0, 4)
+
+
+class ModuleEnvironmentVariable:
+    """
+    Environment variable data structure for modules
+    Contents of environment variable is a list of unique strings
+    """
+
+    def __init__(self, contents, var_type=ModEnvVarType.PATH_WITH_FILES, delim=os.pathsep):
+        """
+        Initialize new environment variable
+        Actual contents of the environment variable are held in self.contents
+        By default, the environment variable is a list of paths with files in them
+        Existence of paths and their contents are not checked at init
+        """
+        self.contents = contents
+        self.delim = delim
+        self.type = var_type
+
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+
+    def __repr__(self):
+        return repr(self.contents)
+
+    def __str__(self):
+        return self.delim.join(self.contents)
+
+    def __iter__(self):
+        return iter(self.contents)
+
+    @property
+    def contents(self):
+        return self._contents
+
+    @contents.setter
+    def contents(self, value):
+        """Enforce that contents is a list of strings"""
+        if isinstance(value, str):
+            value = [value]
+
+        try:
+            str_list = [str(path) for path in value]
+        except TypeError as err:
+            raise TypeError("ModuleEnvironmentVariable.contents must be a list of strings") from err
+
+        self._contents = nub(str_list)  # remove duplicates and keep order
+
+    @property
+    def type(self):
+        return self._type
+
+    @type.setter
+    def type(self, value):
+        """Convert type to VarType"""
+        if isinstance(value, ModEnvVarType):
+            self._type = value
+        else:
+            try:
+                self._type = ModEnvVarType[value]
+            except KeyError as err:
+                raise EasyBuildError(f"Cannot create ModuleEnvironmentVariable with type {value}") from err
+
+    def append(self, item):
+        """Shortcut to append to list of contents"""
+        self.contents += [item]
+
+    def extend(self, item):
+        """Shortcut to extend list of contents"""
+        self.contents += item
+
+    def prepend(self, item):
+        """Shortcut to prepend item to list of contents"""
+        self.contents = [item] + self.contents
+
+    def update(self, item):
+        """Shortcut to replace list of contents with item"""
+        self.contents = item
+
+    def remove(self, *args):
+        """Shortcut to remove items from list of contents"""
+        try:
+            self.contents.remove(*args)
+        except ValueError:
+            # item is not in the list, move along
+            self.log.debug(f"ModuleEnvironmentVariable does not contain item: {' '.join(args)}")
+
+    @property
+    def is_path(self):
+        path_like_types = [
+            ModEnvVarType.PATH,
+            ModEnvVarType.PATH_WITH_FILES,
+            ModEnvVarType.PATH_WITH_TOP_FILES,
+        ]
+        return self.type in path_like_types
+
+
+class ModuleLoadEnvironment:
+    """Changes to environment variables that should be made when environment module is loaded"""
+
+    def __init__(self):
+        """
+        Initialize default environment definition
+        Paths are relative to root of installation directory
+        """
+        self.ACLOCAL_PATH = [os.path.join('share', 'aclocal')]
+        self.CLASSPATH = ['*.jar']
+        self.CMAKE_LIBRARY_PATH = ['lib64']  # only needed for installations with standalone lib64
+        self.CMAKE_PREFIX_PATH = ['']
+        self.CPATH = SEARCH_PATH_HEADER_DIRS
+        self.GI_TYPELIB_PATH = [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS]
+        self.LD_LIBRARY_PATH = SEARCH_PATH_LIB_DIRS
+        self.LIBRARY_PATH = SEARCH_PATH_LIB_DIRS
+        self.MANPATH = ['man', os.path.join('share', 'man')]
+        self.PATH = SEARCH_PATH_BIN_DIRS + ['sbin']
+        self.PKG_CONFIG_PATH = [os.path.join(x, 'pkgconfig') for x in SEARCH_PATH_LIB_DIRS + ['share']]
+        self.XDG_DATA_DIRS = ['share']
+
+    def __setattr__(self, name, value):
+        """
+        Specific restrictions for ModuleLoadEnvironment attributes:
+        - attribute names are uppercase
+        - attributes are instances of ModuleEnvironmentVariable
+        """
+        if name != name.upper():
+            raise EasyBuildError(f"Names of ModuleLoadEnvironment attributes must be uppercase, got '{name}'")
+
+        try:
+            (contents, kwargs) = value
+        except ValueError:
+            contents, kwargs = value, {}
+
+        if not isinstance(kwargs, dict):
+            contents, kwargs = value, {}
+
+        # special variables that require files in their top directories
+        if name in ('LD_LIBRARY_PATH', 'PATH'):
+            kwargs['var_type'] = ModEnvVarType.PATH_WITH_TOP_FILES
+
+        return super().__setattr__(name, ModuleEnvironmentVariable(contents, **kwargs))
+
+    def __iter__(self):
+        """Make the class iterable"""
+        yield from self.__dict__
+
+    def items(self):
+        """
+        Return key-value pairs for each attribute that is a ModuleEnvironmentVariable
+        - key = attribute name
+        - value = its "contents" attribute
+        """
+        return self.__dict__.items()
+
+    def update(self, new_env):
+        """Update contents of environment from given dictionary"""
+        try:
+            for envar_name, envar_contents in new_env.items():
+                setattr(self, envar_name, envar_contents)
+        except AttributeError as err:
+            raise EasyBuildError("Cannot update ModuleLoadEnvironment from a non-dict variable") from err
+
+    @property
+    def as_dict(self):
+        """
+        Return dict with mapping of ModuleEnvironmentVariables names with their contents
+        """
+        return dict(self.items())
+
+    @property
+    def environ(self):
+        """
+        Return dict with mapping of ModuleEnvironmentVariables names with their contents
+        Equivalent in shape to os.environ
+        """
+        return {envar_name: str(envar_contents) for envar_name, envar_contents in self.items()}
 
 
 class ModulesTool(object):
@@ -308,7 +497,7 @@ class ModulesTool(object):
                 output, exit_code = None, EasyBuildExit.FAIL_SYSTEM_CHECK
         else:
             cmd = "type module"
-            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=False, hidden=True, output_file=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, output_file=False)
             output, exit_code = res.output, res.exit_code
 
         if regex is None:
@@ -709,7 +898,8 @@ class ModulesTool(object):
             ans = MODULE_SHOW_CACHE[key]
             self.log.debug("Found cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
         else:
-            ans = self.run_module('show', mod_name, check_output=False, return_stderr=True)
+            ans = self.run_module('show', mod_name, check_output=False, return_stderr=True,
+                                  check_exit_code=False)
             MODULE_SHOW_CACHE[key] = ans
             self.log.debug("Cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
 
@@ -1367,7 +1557,7 @@ class EnvironmentModules(ModulesTool):
                 out, ec = None, 1
         else:
             cmd = "type _module_raw"
-            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=False, hidden=True, output_file=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, output_file=False)
             out, ec = res.output, res.exit_code
 
         if regex is None:
@@ -1697,7 +1887,7 @@ def get_software_root(name, with_env_var=False):
     return res
 
 
-def get_software_libdir(name, only_one=True, fs=None):
+def get_software_libdir(name, only_one=True, fs=None, full_path=False):
     """
     Find library subdirectories for the specified software package.
 
@@ -1708,50 +1898,56 @@ def get_software_libdir(name, only_one=True, fs=None):
     :param name: name of the software package
     :param only_one: indicates whether only one lib path is expected to be found
     :param fs: only retain library subdirs that contain one of the files in this list
+    :param full_path: Include the software root in the returned path, or just return the subfolder found
     """
     lib_subdirs = ['lib', 'lib64']
     root = get_software_root(name)
-    res = []
-    if root:
-        for lib_subdir in lib_subdirs:
-            lib_dir_path = os.path.join(root, lib_subdir)
-            if os.path.exists(lib_dir_path):
-                # take into account that lib64 could be a symlink to lib (or vice versa)
-                # see https://github.com/easybuilders/easybuild-framework/issues/3139
-                if any(os.path.samefile(lib_dir_path, os.path.join(root, x)) for x in res):
-                    _log.debug("%s is the same as one of the other paths, so skipping it", lib_dir_path)
-
-                elif fs is None or any(os.path.exists(os.path.join(lib_dir_path, f)) for f in fs):
-                    _log.debug("Retaining library subdir '%s' (found at %s)", lib_subdir, lib_dir_path)
-                    res.append(lib_subdir)
-
-            elif build_option('extended_dry_run'):
-                res.append(lib_subdir)
-                break
-
-        # if no library subdir was found, return None
-        if not res:
-            return None
-        if only_one:
-            if len(res) == 1:
-                res = res[0]
-            else:
-                if fs is None and len(res) == 2:
-                    # if both lib and lib64 were found, check if only one (exactly) has libraries;
-                    # this is needed for software with library archives in lib64 but other files/directories in lib
-                    lib_glob = ['*.%s' % ext for ext in ['a', get_shared_lib_ext()]]
-                    has_libs = [any(glob.glob(os.path.join(root, subdir, f)) for f in lib_glob) for subdir in res]
-                    if has_libs[0] and not has_libs[1]:
-                        return res[0]
-                    elif has_libs[1] and not has_libs[0]:
-                        return res[1]
-
-                raise EasyBuildError("Multiple library subdirectories found for %s in %s: %s",
-                                     name, root, ', '.join(res))
-        return res
-    else:
+    if not root:
         # return None if software package root could not be determined
         return None
+
+    found_subdirs = []
+    for lib_subdir in lib_subdirs:
+        lib_dir_path = os.path.join(root, lib_subdir)
+        if os.path.exists(lib_dir_path):
+            # take into account that lib64 could be a symlink to lib (or vice versa)
+            # see https://github.com/easybuilders/easybuild-framework/issues/3139
+            if any(os.path.samefile(lib_dir_path, os.path.join(root, x)) for x in found_subdirs):
+                _log.debug("%s is the same as one of the other paths, so skipping it", lib_dir_path)
+
+            elif fs is None or any(os.path.exists(os.path.join(lib_dir_path, f)) for f in fs):
+                _log.debug("Retaining library subdir '%s' (found at %s)", lib_subdir, lib_dir_path)
+                found_subdirs.append(lib_subdir)
+
+        elif build_option('extended_dry_run'):
+            found_subdirs.append(lib_subdir)
+            break
+
+    # if no library subdir was found, return None
+    if not found_subdirs:
+        return None
+    if full_path:
+        res = [os.path.join(root, subdir) for subdir in found_subdirs]
+    else:
+        res = found_subdirs
+    if only_one:
+        if len(res) == 1:
+            res = res[0]
+        else:
+            if fs is None and len(res) == 2:
+                # if both lib and lib64 were found, check if only one (exactly) has libraries;
+                # this is needed for software with library archives in lib64 but other files/directories in lib
+                lib_glob = ['*.%s' % ext for ext in ['a', get_shared_lib_ext()]]
+                has_libs = [any(glob.glob(os.path.join(root, subdir, f)) for f in lib_glob)
+                            for subdir in found_subdirs]
+                if has_libs[0] and not has_libs[1]:
+                    return res[0]
+                if has_libs[1] and not has_libs[0]:
+                    return res[1]
+
+            raise EasyBuildError("Multiple library subdirectories found for %s in %s: %s",
+                                 name, root, ', '.join(found_subdirs))
+    return res
 
 
 def get_software_version_env_var_name(name):

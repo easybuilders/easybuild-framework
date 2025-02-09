@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -122,10 +122,12 @@ class ModulesTest(EnhancedTestCase):
             error_pattern = "Module command '.*thisdoesnotmakesense' failed with exit code [1-9]"
             self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'thisdoesnotmakesense')
 
-            # we need to use a different error pattern here with Environment Modules,
-            # because a load of a non-existing module doesnt' trigger a non-zero exit code...
-            # it will still fail though, just differently
-            if isinstance(self.modtool, EnvironmentModulesC) or isinstance(self.modtool, EnvironmentModules):
+            # we need to use a different error pattern here with EnvironmentModulesC and
+            # EnvironmentModules  <5.5, because a load of a non-existing module doesnt' trigger a
+            # non-zero exit code. it will still fail though, just differently
+            version = LooseVersion(self.modtool.version)
+            if (isinstance(self.modtool, EnvironmentModulesC)
+                    or (isinstance(self.modtool, EnvironmentModules) and version < '5.5')):
                 error_pattern = "Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
             else:
                 error_pattern = "Module command '.*load nosuchmodule/1.2.3' failed with exit code [1-9]"
@@ -686,6 +688,7 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(get_software_root(name), root)
             self.assertEqual(get_software_version(name), version)
             self.assertEqual(get_software_libdir(name), 'lib')
+            self.assertEqual(get_software_libdir(name, full_path=True), os.path.join(root, 'lib'))
 
             os.environ.pop('EBROOT%s' % env_var_name)
             os.environ.pop('EBVERSION%s' % env_var_name)
@@ -694,30 +697,39 @@ class ModulesTest(EnhancedTestCase):
         root = os.path.join(tmpdir, name)
         mkdir(os.path.join(root, 'lib64'))
         os.environ['EBROOT%s' % env_var_name] = root
+
+        def check_get_software_libdir(expected, **additional_args):
+            self.assertEqual(get_software_libdir(name, **additional_args), expected)
+            if isinstance(expected, list):
+                expected = [os.path.join(root, d) for d in expected]
+            elif expected:
+                expected = os.path.join(root, expected)
+            self.assertEqual(get_software_libdir(name, full_path=True, **additional_args), expected)
+
         write_file(os.path.join(root, 'lib', 'libfoo.a'), 'foo')
-        self.assertEqual(get_software_libdir(name), 'lib')
+        check_get_software_libdir('lib')
 
         remove_file(os.path.join(root, 'lib', 'libfoo.a'))
 
         # also check vice versa with *shared* library in lib64
         shlib_ext = get_shared_lib_ext()
         write_file(os.path.join(root, 'lib64', 'libfoo.' + shlib_ext), 'foo')
-        self.assertEqual(get_software_libdir(name), 'lib64')
+        check_get_software_libdir('lib64')
 
         remove_file(os.path.join(root, 'lib64', 'libfoo.' + shlib_ext))
 
         # check expected result of get_software_libdir with multiple lib subdirs
         self.assertErrorRegex(EasyBuildError, "Multiple library subdirectories found.*", get_software_libdir, name)
-        self.assertEqual(get_software_libdir(name, only_one=False), ['lib', 'lib64'])
+        check_get_software_libdir(only_one=False, expected=['lib', 'lib64'])
 
         # only directories containing files in specified list should be retained
         write_file(os.path.join(root, 'lib64', 'foo'), 'foo')
-        self.assertEqual(get_software_libdir(name, fs=['foo']), 'lib64')
+        check_get_software_libdir(fs=['foo'], expected='lib64')
 
         # duplicate paths due to symlink get filtered
         remove_dir(os.path.join(root, 'lib64'))
         symlink(os.path.join(root, 'lib'), os.path.join(root, 'lib64'))
-        self.assertEqual(get_software_libdir(name), 'lib')
+        check_get_software_libdir('lib')
 
         # same goes for lib symlinked to lib64
         remove_file(os.path.join(root, 'lib64'))
@@ -725,19 +737,20 @@ class ModulesTest(EnhancedTestCase):
         mkdir(os.path.join(root, 'lib64'))
         symlink(os.path.join(root, 'lib64'), os.path.join(root, 'lib'))
         # still returns 'lib' because that's the first subdir considered
-        self.assertEqual(get_software_libdir(name), 'lib')
+        check_get_software_libdir('lib')
 
         # clean up for previous tests
         os.environ.pop('EBROOT%s' % env_var_name)
 
         # if root/version for specified software package can not be found, these functions should return None
-        self.assertEqual(get_software_root('foo'), None)
-        self.assertEqual(get_software_version('foo'), None)
-        self.assertEqual(get_software_libdir('foo'), None)
+        self.assertEqual(get_software_root(name), None)
+        self.assertEqual(get_software_version(name), None)
+        check_get_software_libdir(None)
 
         # if no library subdir is found, get_software_libdir should return None
         os.environ['EBROOTFOO'] = tmpdir
         self.assertEqual(get_software_libdir('foo'), None)
+        self.assertEqual(get_software_libdir('foo', full_path=True), None)
         os.environ.pop('EBROOTFOO')
 
         shutil.rmtree(tmpdir)
@@ -1587,6 +1600,145 @@ class ModulesTest(EnhancedTestCase):
 
         res = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'NO_SUCH_VARIABLE_SET')
         self.assertEqual(res, None)
+
+    def test_module_environment_variable(self):
+        """Test for ModuleEnvironmentVariable object"""
+        test_paths = ['lib', 'lib64']
+        mod_envar = mod.ModuleEnvironmentVariable(test_paths)
+        self.assertTrue(hasattr(mod_envar, 'contents'))
+        self.assertTrue(hasattr(mod_envar, 'type'))
+        self.assertTrue(hasattr(mod_envar, 'delim'))
+        self.assertEqual(mod_envar.contents, test_paths)
+        self.assertEqual(repr(mod_envar), repr(test_paths))
+        self.assertEqual(str(mod_envar), 'lib:lib64')
+
+        mod_envar_custom_delim = mod.ModuleEnvironmentVariable(test_paths, delim='|')
+        self.assertEqual(mod_envar_custom_delim.contents, test_paths)
+        self.assertEqual(repr(mod_envar_custom_delim), repr(test_paths))
+        self.assertEqual(str(mod_envar_custom_delim), 'lib|lib64')
+
+        mod_envar_custom_type = mod.ModuleEnvironmentVariable(test_paths, var_type='STRING')
+        self.assertEqual(mod_envar_custom_type.contents, test_paths)
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.STRING)
+        self.assertEqual(mod_envar_custom_type.is_path, False)
+        mod_envar_custom_type.type = 'PATH'
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH)
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = mod.ModEnvVarType.PATH
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = 'PATH_WITH_FILES'
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = mod.ModEnvVarType.PATH_WITH_FILES
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = 'PATH_WITH_TOP_FILES'
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH_WITH_TOP_FILES)
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = mod.ModEnvVarType.PATH_WITH_TOP_FILES
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        self.assertRaises(EasyBuildError, setattr, mod_envar_custom_type, 'type', 'NONEXISTENT')
+        self.assertRaises(EasyBuildError, mod.ModuleEnvironmentVariable, test_paths, 'NONEXISTENT')
+
+        mod_envar.contents = []
+        self.assertEqual(mod_envar.contents, [])
+        self.assertRaises(TypeError, setattr, mod_envar, 'contents', None)
+        mod_envar.contents = (1, 3, 2, 3)
+        self.assertEqual(mod_envar.contents, ['1', '3', '2'])
+        mod_envar.contents = 'include'
+        self.assertEqual(mod_envar.contents, ['include'])
+
+        mod_envar.append('share')
+        self.assertEqual(mod_envar.contents, ['include', 'share'])
+        mod_envar.append('share')
+        self.assertEqual(mod_envar.contents, ['include', 'share'])
+        self.assertRaises(TypeError, mod_envar.append, 'arg1', 'arg2')
+
+        mod_envar.extend(test_paths)
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64'])
+        mod_envar.extend(test_paths)
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64'])
+        mod_envar.extend(test_paths + ['lib128'])
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64', 'lib128'])
+        self.assertRaises(TypeError, mod_envar.append, ['list1'], ['list2'])
+
+        mod_envar.remove('lib128')
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64'])
+        mod_envar.remove('nonexistent')
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64'])
+        self.assertRaises(TypeError, mod_envar.remove, 'arg1', 'arg2')
+
+        mod_envar.prepend('bin')
+        self.assertEqual(mod_envar.contents, ['bin', 'include', 'share', 'lib', 'lib64'])
+
+        mod_envar.update('new_path')
+        self.assertEqual(mod_envar.contents, ['new_path'])
+        mod_envar.update(['new_path_1', 'new_path_2'])
+        self.assertEqual(mod_envar.contents, ['new_path_1', 'new_path_2'])
+        self.assertRaises(TypeError, mod_envar.update, 'arg1', 'arg2')
+
+    def test_module_load_environment(self):
+        """Test for ModuleLoadEnvironment object"""
+        mod_load_env = mod.ModuleLoadEnvironment()
+
+        # test setting attributes
+        test_contents = ['lib', 'lib64']
+        mod_load_env.TEST_VAR = test_contents
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VAR'))
+        self.assertEqual(mod_load_env.TEST_VAR.contents, test_contents)
+
+        error_pattern = "Names of ModuleLoadEnvironment attributes must be uppercase, got 'test_lower'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, setattr, mod_load_env, 'test_lower', test_contents)
+
+        mod_load_env.TEST_STR = 'some/path'
+        self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
+        self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
+
+        mod_load_env.TEST_VARTYPE = (test_contents, {'var_type': "STRING"})
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VARTYPE'))
+        self.assertEqual(mod_load_env.TEST_VARTYPE.contents, test_contents)
+        self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.STRING)
+
+        mod_load_env.TEST_VARTYPE.type = "PATH"
+        self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.PATH)
+        self.assertRaises(TypeError, setattr, mod_load_env, 'TEST_UNKNONW', (test_contents, {'unkown_param': True}))
+
+        # test retrieving environment
+        ref_load_env = mod_load_env.__dict__.copy()
+        self.assertCountEqual(list(mod_load_env), ref_load_env.keys())
+
+        ref_load_env_item_list = list(ref_load_env.items())
+        self.assertCountEqual(list(mod_load_env.items()), ref_load_env_item_list)
+
+        ref_load_env_item_list = dict(ref_load_env.items())
+        self.assertCountEqual(mod_load_env.as_dict, ref_load_env_item_list)
+
+        ref_load_env_environ = {key: str(value) for key, value in ref_load_env.items()}
+        self.assertDictEqual(mod_load_env.environ, ref_load_env_environ)
+
+        # test updating environment
+        new_test_env = {
+            'TEST_VARTYPE': 'replaced_path',
+            'TEST_NEW_VAR': ['new_path1', 'new_path2'],
+        }
+        mod_load_env.update(new_test_env)
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VARTYPE'))
+        self.assertEqual(mod_load_env.TEST_VARTYPE.contents, ['replaced_path'])
+        self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertTrue(hasattr(mod_load_env, 'TEST_NEW_VAR'))
+        self.assertEqual(mod_load_env.TEST_NEW_VAR.contents, ['new_path1', 'new_path2'])
+        self.assertEqual(mod_load_env.TEST_NEW_VAR.type, mod.ModEnvVarType.PATH_WITH_FILES)
+
+        # check that previous variables still exist
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VAR'))
+        self.assertEqual(mod_load_env.TEST_VAR.contents, test_contents)
+        self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
+        self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
 
 
 def suite():

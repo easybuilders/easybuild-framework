@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -168,12 +168,15 @@ LOCAL_VAR_NAMING_CHECK_LOG = 'log'
 LOCAL_VAR_NAMING_CHECK_WARN = WARN
 LOCAL_VAR_NAMING_CHECKS = [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN]
 
-
 OUTPUT_STYLE_AUTO = 'auto'
 OUTPUT_STYLE_BASIC = 'basic'
 OUTPUT_STYLE_NO_COLOR = 'no_color'
 OUTPUT_STYLE_RICH = 'rich'
 OUTPUT_STYLES = (OUTPUT_STYLE_AUTO, OUTPUT_STYLE_BASIC, OUTPUT_STYLE_NO_COLOR, OUTPUT_STYLE_RICH)
+
+SEARCH_PATH_BIN_DIRS = ['bin']
+SEARCH_PATH_HEADER_DIRS = ['include']
+SEARCH_PATH_LIB_DIRS = ['lib', 'lib64']
 
 PYTHONPATH = 'PYTHONPATH'
 EBPYTHONPREFIXES = 'EBPYTHONPREFIXES'
@@ -265,6 +268,8 @@ BUILD_OPTIONS_CMDLINE = {
         'rpath_filter',
         'rpath_override_dirs',
         'required_linked_shared_libs',
+        'search_path_cpp_headers',
+        'search_path_linker',
         'skip',
         'software_commit',
         'stop',
@@ -278,6 +283,7 @@ BUILD_OPTIONS_CMDLINE = {
     False: [
         'add_system_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
+        'allow_unresolved_templates',
         'backup_patched_files',
         'consider_archived_easyconfigs',
         'container_build_image',
@@ -332,6 +338,7 @@ BUILD_OPTIONS_CMDLINE = {
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
         'fixed_installdir_naming_scheme',
+        'keep_debug_symbols',
         'lib_lib64_symlink',
         'lib64_fallback_sanity_check',
         'lib64_lib_symlink',
@@ -341,6 +348,7 @@ BUILD_OPTIONS_CMDLINE = {
         'mpi_tests',
         'pre_create_installdir',
         'show_progress_bar',
+        'strict_rpath_sanity_check',
         'trace',
     ],
     EMPTY_LIST: [
@@ -422,13 +430,13 @@ BUILD_OPTIONS_OTHER = {
         'command_line',
         'external_modules_metadata',
         'extra_ec_paths',
+        'mod_depends_on',  # deprecated
         'robot_path',
         'valid_module_classes',
         'valid_stops',
     ],
     False: [
         'dry_run',
-        'mod_depends_on',
         'recursive_mod_unload',
         'retain_all_deps',
         'silent',

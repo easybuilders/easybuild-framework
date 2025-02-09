@@ -1,6 +1,6 @@
 # #
 # -*- coding: utf-8 -*-
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -266,6 +266,68 @@ class RunTest(EnhancedTestCase):
             self.assertTrue(isinstance(res.output, str))
             self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
 
+    def test_run_shell_cmd_perl(self):
+        """
+        Test running of Perl script via run_shell_cmd that detects type of shell
+        """
+        perl_script = os.path.join(self.test_prefix, 'test.pl')
+        perl_script_txt = """#!/usr/bin/perl
+
+        # wait for input, see what happens (should not hang)
+        print STDOUT "foo:\n";
+        STDOUT->autoflush(1);
+        my $stdin = <STDIN>;
+        print "stdin: $stdin\n";
+
+        # conditional print statements below should *not* be triggered
+        print "stdin+stdout are terminals\n" if -t STDIN && -t STDOUT;
+        print "stdin is terminal\n" if -t STDIN;
+        print "stdout is terminal\n" if -t STDOUT;
+        my $ISA_TTY = -t STDIN && (-t STDOUT || !(-f STDOUT || -c STDOUT)) ;
+        print "ISA_TTY" if $ISA_TTY;
+
+        print "PS1 is set\n" if $ENV{PS1};
+
+        print "tty -s returns 0\n" if system("tty -s") == 0;
+
+        # check if parent process is a shell
+        my $ppid = getppid();
+        my $parent_cmd = `ps -p $ppid -o comm=`;
+        print "parent process is bash\n" if ($parent_cmd =~ '/bash$');
+        """
+        write_file(perl_script, perl_script_txt)
+        adjust_permissions(perl_script, stat.S_IXUSR)
+
+        def handler(signum, _):
+            raise RuntimeError(f"Test for running Perl script via run_shell_cmd took too long, signal {signum}")
+
+        orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
+
+        try:
+            # set the signal handler and a 3-second alarm
+            signal.signal(signal.SIGALRM, handler)
+            signal.alarm(3)
+
+            res = run_shell_cmd(perl_script, hidden=True)
+            self.assertEqual(res.exit_code, 0)
+            self.assertEqual(res.output, 'foo:\nstdin: \n')
+
+            res = run_shell_cmd(perl_script, hidden=True, stdin="test")
+            self.assertEqual(res.exit_code, 0)
+            self.assertEqual(res.output, 'foo:\nstdin: test\n')
+
+            res = run_shell_cmd(perl_script, hidden=True, qa_patterns=[('foo:', 'bar')], qa_timeout=1)
+            self.assertEqual(res.exit_code, 0)
+            self.assertEqual(res.output, 'foo:\nstdin: bar\n\n')
+
+            error_pattern = "No matching questions found for current command output"
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, perl_script,
+                                  hidden=True, qa_patterns=[('bleh', 'blah')], qa_timeout=1)
+        finally:
+            # cleanup: disable the alarm + reset signal handler for SIGALRM
+            signal.signal(signal.SIGALRM, orig_sigalrm_handler)
+            signal.alarm(0)
+
     def test_run_shell_cmd_env(self):
         """Test env option in run_shell_cmd."""
 
@@ -294,7 +356,8 @@ class RunTest(EnhancedTestCase):
         env_script = os.path.join(cmd_tmpdir, 'env.sh')
         self.assertExists(env_script)
         env_script_txt = read_file(env_script)
-        self.assertTrue(env_script_txt.startswith('unset -f $('))
+        self.assertIn('unset "$var"', env_script_txt)
+        self.assertIn('unset -f "$func"', env_script_txt)
         self.assertIn('\nexport FOOBAR=foobar\nexport PATH', env_script_txt)
 
         cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
@@ -491,12 +554,14 @@ class RunTest(EnhancedTestCase):
                 # check error reporting output
                 stderr = stderr.getvalue()
                 patterns = [
-                    r"^ERROR: Shell command failed!",
-                    r"^\s+full command\s* ->  kill -9 \$\$",
-                    r"^\s+exit code\s* ->  -9",
-                    r"^\s+working directory\s* ->  " + work_dir,
-                    r"^\s+called from\s* ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
-                    r"^\s+output \(stdout \+ stderr\)\s* ->  .*/run-shell-cmd-output/kill-.*/out.txt",
+                    r"ERROR: Shell command failed!",
+                    r"\s+full command\s* ->  kill -9 \$\$",
+                    r"\s+exit code\s* ->  -9",
+                    r"\s+working directory\s* ->  " + work_dir,
+                    r"\s+called from\s* ->  'test_run_shell_cmd_fail' function in "
+                    r"(.|\n)*/test/(.|\n)*/run.py \(line [0-9]+\)",
+                    r"\s+output \(stdout \+ stderr\)\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/out.txt",
+                    r"\s+interactive shell script\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/cmd.sh",
                 ]
                 for pattern in patterns:
                     regex = re.compile(pattern, re.M)
@@ -526,13 +591,15 @@ class RunTest(EnhancedTestCase):
                 # check error reporting output
                 stderr = stderr.getvalue()
                 patterns = [
-                    r"^ERROR: Shell command failed!",
-                    r"^\s+full command\s+ ->  kill -9 \$\$",
-                    r"^\s+exit code\s+ ->  -9",
-                    r"^\s+working directory\s+ ->  " + work_dir,
-                    r"^\s+called from\s+ ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
-                    r"^\s+output \(stdout\)\s+ -> .*/run-shell-cmd-output/kill-.*/out.txt",
-                    r"^\s+error/warnings \(stderr\)\s+ -> .*/run-shell-cmd-output/kill-.*/err.txt",
+                    r"ERROR: Shell command failed!",
+                    r"\s+full command\s+ ->  kill -9 \$\$",
+                    r"\s+exit code\s+ ->  -9",
+                    r"\s+working directory\s+ ->  " + work_dir,
+                    r"\s+called from\s+ ->  'test_run_shell_cmd_fail' function in "
+                    r"(.|\n)*/test/(.|\n)*/run.py \(line [0-9]+\)",
+                    r"\s+output \(stdout\)\s+ -> (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/out.txt",
+                    r"\s+error/warnings \(stderr\)\s+ -> (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/err.txt",
+                    r"\s+interactive shell script\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/cmd.sh",
                 ]
                 for pattern in patterns:
                     regex = re.compile(pattern, re.M)
@@ -1383,7 +1450,7 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             cached_res = RunShellCmdResult(cmd=cmd, output="123456", exit_code=123, stderr=None,
                                            work_dir='/test_ulimit', out_file='/tmp/foo.out', err_file=None,
-                                           thread_id=None, task_id=None)
+                                           cmd_sh='/tmp/cmd.sh', thread_id=None, task_id=None)
             run_shell_cmd.update_cache({(cmd, None): cached_res})
             res = run_shell_cmd(cmd)
         self.assertEqual(res.cmd, cmd)
@@ -1403,7 +1470,7 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             cached_res = RunShellCmdResult(cmd=cmd, output="bar", exit_code=123, stderr=None,
                                            work_dir='/test_cat', out_file='/tmp/cat.out', err_file=None,
-                                           thread_id=None, task_id=None)
+                                           cmd_sh='/tmp/cmd.sh', thread_id=None, task_id=None)
             run_shell_cmd.update_cache({(cmd, 'foo'): cached_res})
             res = run_shell_cmd(cmd, stdin='foo')
         self.assertEqual(res.cmd, cmd)
@@ -1636,7 +1703,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.output, expected_output)
 
         self.assertEqual(stderr, '')
-        expected = ("== (streaming) output for command 'echo hello" + '\n' + expected_output).split('\n')
+        expected = ("running shell command:\n\techo hello" + '\n' + expected_output).split('\n')
         for line in expected:
             self.assertIn(line, stdout)
 

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -35,7 +35,6 @@ Authors:
 * Toon Willems (Ghent University)
 * Ward Poelmans (Ghent University)
 """
-import fcntl
 import functools
 import inspect
 import locale
@@ -45,7 +44,6 @@ import shlex
 import shutil
 import string
 import subprocess
-import sys
 import tempfile
 import time
 from collections import namedtuple
@@ -65,9 +63,10 @@ except ImportError:
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUND_ERROR
-from easybuild.tools.build_log import dry_run_msg, print_msg, time_str_since
+from easybuild.tools.build_log import dry_run_msg, time_str_since
 from easybuild.tools.config import build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
+from easybuild.tools.output import COLOR_RED, COLOR_YELLOW, colorize, print_error
 from easybuild.tools.utilities import trace_msg
 
 
@@ -86,7 +85,20 @@ CACHED_COMMANDS = (
 )
 
 RunShellCmdResult = namedtuple('RunShellCmdResult', ('cmd', 'exit_code', 'output', 'stderr', 'work_dir',
-                                                     'out_file', 'err_file', 'thread_id', 'task_id'))
+                                                     'out_file', 'err_file', 'cmd_sh', 'thread_id', 'task_id'))
+RunShellCmdResult.__doc__ = """A namedtuple that represents the result of a call to run_shell_cmd,
+with the following fields:
+- cmd: the command that was executed;
+- exit_code: the exit code of the command (zero if it was successful, non-zero if not);
+- output: output of the command (stdout+stderr combined, only stdout if stderr was caught separately);
+- stderr: stderr output produced by the command, if caught separately (None otherwise);
+- work_dir: the working directory of the command;
+- out_file: path to file with output of command (stdout+stderr combined, only stdout if stderr was caught separately);
+- err_file: path to file with stderr output of command, if caught separately (None otherwise);
+- cmd_sh: path to script to set up interactive shell with environment in which command was executed;
+- thread_id: thread ID of command that was executed (None unless asynchronous mode was enabled for running command);
+- task_id: task ID of command, if it was specified (None otherwise);
+"""
 
 
 class RunShellCmdError(BaseException):
@@ -101,6 +113,7 @@ class RunShellCmdError(BaseException):
         self.out_file = cmd_result.out_file
         self.stderr = cmd_result.stderr
         self.err_file = cmd_result.err_file
+        self.cmd_sh = cmd_result.cmd_sh
 
         self.caller_info = caller_info
 
@@ -112,33 +125,36 @@ class RunShellCmdError(BaseException):
         Report failed shell command for this RunShellCmdError instance
         """
 
-        def pad_4_spaces(msg):
-            return ' ' * 4 + msg
+        def pad_4_spaces(msg, color=None):
+            padded_msg = ' ' * 4 + msg
+            if color:
+                return colorize(padded_msg, color)
+            else:
+                return padded_msg
+
+        caller_file_name, caller_line_nr, caller_function_name = self.caller_info
+        called_from_info = f"'{caller_function_name}' function in {caller_file_name} (line {caller_line_nr})"
 
         error_info = [
-            '',
-            "ERROR: Shell command failed!",
+            colorize("ERROR: Shell command failed!", COLOR_RED),
             pad_4_spaces(f"full command              ->  {self.cmd}"),
             pad_4_spaces(f"exit code                 ->  {self.exit_code}"),
+            pad_4_spaces(f"called from               ->  {called_from_info}"),
             pad_4_spaces(f"working directory         ->  {self.work_dir}"),
         ]
 
         if self.out_file is not None:
             # if there's no separate file for error/warnings, then out_file includes both stdout + stderr
             out_info_msg = "output (stdout + stderr)" if self.err_file is None else "output (stdout)         "
-            error_info.append(pad_4_spaces(f"{out_info_msg}  ->  {self.out_file}"))
+            error_info.append(pad_4_spaces(f"{out_info_msg}  ->  {self.out_file}", color=COLOR_YELLOW))
 
         if self.err_file is not None:
-            error_info.append(pad_4_spaces(f"error/warnings (stderr)   ->  {self.err_file}"))
+            error_info.append(pad_4_spaces(f"error/warnings (stderr)   ->  {self.err_file}", color=COLOR_YELLOW))
 
-        caller_file_name, caller_line_nr, caller_function_name = self.caller_info
-        called_from_info = f"'{caller_function_name}' function in {caller_file_name} (line {caller_line_nr})"
-        error_info.extend([
-            pad_4_spaces(f"called from               ->  {called_from_info}"),
-            '',
-        ])
+        if self.cmd_sh is not None:
+            error_info.append(pad_4_spaces(f"interactive shell script  ->  {self.cmd_sh}", color=COLOR_YELLOW))
 
-        sys.stderr.write('\n'.join(error_info) + '\n')
+        print_error('\n'.join(error_info), rich_highlight=False)
 
 
 def raise_run_shell_cmd_error(cmd_res):
@@ -217,8 +233,19 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
     with open(env_fp, 'w') as fid:
         # unset all environment variables in current environment first to start from a clean slate;
         # we need to be careful to filter out functions definitions, so first undefine those
-        fid.write("unset -f $(env | grep '%=' | cut -f1 -d'%' | sed 's/BASH_FUNC_//g')\n")
-        fid.write("unset $(env | cut -f1 -d=)\n")
+        fid.write('\n'.join([
+            'for var in $(compgen -e); do',
+            '    unset "$var"',
+            'done',
+        ]) + '\n')
+        # also unset any bash functions
+        fid.write('\n'.join([
+            'for func in $(compgen -A function); do',
+            '    if [[ $func != _* ]]; then',
+            '        unset -f "$func"',
+            '    fi',
+            'done',
+        ]) + '\n')
 
         # excludes bash functions (environment variables ending with %)
         fid.write('\n'.join(f'export {key}={shlex.quote(value)}' for key, value in sorted(env.items())
@@ -253,6 +280,8 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
             'bash --rcfile $EB_SCRIPT_DIR/env.sh -i "$@"',
             ]))
     os.chmod(cmd_fp, 0o775)
+
+    return cmd_fp
 
 
 def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
@@ -430,9 +459,9 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         else:
             cmd_err_fp = None
 
-        create_cmd_scripts(cmd_str, work_dir, env, tmpdir, cmd_out_fp, cmd_err_fp)
+        cmd_sh = create_cmd_scripts(cmd_str, work_dir, env, tmpdir, cmd_out_fp, cmd_err_fp)
     else:
-        tmpdir, cmd_out_fp, cmd_err_fp = None, None, None
+        tmpdir, cmd_out_fp, cmd_err_fp, cmd_sh = None, None, None, None
 
     interactive_msg = 'interactive ' if interactive else ''
 
@@ -445,14 +474,12 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             dry_run_msg(msg, silent=silent)
 
         return RunShellCmdResult(cmd=cmd_str, exit_code=0, output='', stderr=None, work_dir=work_dir,
-                                 out_file=cmd_out_fp, err_file=cmd_err_fp, thread_id=thread_id, task_id=task_id)
+                                 out_file=cmd_out_fp, err_file=cmd_err_fp, cmd_sh=cmd_sh,
+                                 thread_id=thread_id, task_id=task_id)
 
     start_time = datetime.now()
     if not hidden:
         _cmd_trace_msg(cmd_str, start_time, work_dir, stdin, tmpdir, thread_id, interactive=interactive)
-
-    if stream_output:
-        print_msg(f"(streaming) output for command '{cmd_str}':")
 
     # use bash as shell instead of the default /bin/sh used by subprocess.run
     # (which could be dash instead of bash, like on Ubuntu, see https://wiki.ubuntu.com/DashAsBinSh)
@@ -464,14 +491,15 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     else:
         executable, shell = None, False
 
-    stderr = subprocess.PIPE if split_stderr else subprocess.STDOUT
+    stderr_handle = subprocess.PIPE if split_stderr else subprocess.STDOUT
+    stdin_handle = subprocess.PIPE if stdin or qa_patterns else subprocess.DEVNULL
 
     log_msg = f"Running {interactive_msg}shell command '{cmd_str}' in {work_dir}"
     if thread_id:
         log_msg += f" (via thread with ID {thread_id})"
     _log.info(log_msg)
 
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr, stdin=subprocess.PIPE,
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr_handle, stdin=stdin_handle,
                             cwd=work_dir, env=env, shell=shell, executable=executable)
 
     # 'input' value fed to subprocess.run must be a byte sequence
@@ -479,16 +507,10 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         stdin = stdin.encode()
 
     if stream_output or qa_patterns:
-
-        if qa_patterns:
-            # make stdout, stderr, stdin non-blocking files
-            channels = [proc.stdout, proc.stdin]
-            if split_stderr:
-                channels += proc.stderr
-            for channel in channels:
-                fd = channel.fileno()
-                flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-                fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+        # enable non-blocking access to stdout, stderr, stdin
+        for channel in (proc.stdout, proc.stdin, proc.stderr):
+            if channel is not None:
+                os.set_blocking(channel.fileno(), False)
 
         if stdin:
             proc.stdin.write(stdin)
@@ -502,28 +524,16 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         time_no_match = 0
         prev_stdout = ''
 
-        # collect output piece-wise, while checking for questions to answer (if qa_patterns is provided)
         while exit_code is None:
-
-            # use small read size (128 bytes) when streaming output, to make it stream more fluently
-            # -1 means reading until EOF
-            read_size = 128 if exit_code is None else -1
-
-            # get output as long as output is available;
-            # note: can't use proc.stdout.read without read_size argument,
-            # since that will always wait until EOF
-            more_stdout = True
-            while more_stdout:
-                more_stdout = proc.stdout.read(read_size) or b''
-                _log.debug(f"Obtained more stdout: {more_stdout}")
-                stdout += more_stdout
+            # collect output line by line, while checking for questions to answer (if qa_patterns is provided)
+            for line in iter(proc.stdout.readline, b''):
+                _log.debug(f"Captured stdout: {line.decode(errors='ignore').rstrip()}")
+                stdout += line
 
             # note: we assume that there won't be any questions in stderr output
             if split_stderr:
-                more_stderr = True
-                while more_stderr:
-                    more_stderr = proc.stderr.read(read_size) or b''
-                    stderr += more_stderr
+                for line in iter(proc.stderr.readline, b''):
+                    stderr += line
 
             if qa_patterns:
                 # only check for question patterns if additional output is available
@@ -542,17 +552,18 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                         error_msg = "No matching questions found for current command output, "
                         error_msg += f"giving up after {qa_timeout} seconds!"
                         raise EasyBuildError(error_msg)
-                    else:
-                        _log.debug(f"{time_no_match:0.1f} seconds without match in output of interactive shell command")
+                    _log.debug(f"{time_no_match:0.1f} seconds without match in output of interactive shell command")
 
             time.sleep(check_interval_secs)
 
             exit_code = proc.poll()
 
         # collect last bit of output once processed has exited
-        stdout += proc.stdout.read()
+        for line in iter(proc.stdout.readline, b''):
+            _log.debug(f"Captured stdout: {line.decode(errors='ignore').rstrip()}")
+            stdout += line
         if split_stderr:
-            stderr += proc.stderr.read()
+            stderr += proc.stderr.read() or b''
     else:
         (stdout, stderr) = proc.communicate(input=stdin)
 
@@ -574,8 +585,9 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         except IOError as err:
             raise EasyBuildError(f"Failed to dump command output to temporary file: {err}")
 
-    res = RunShellCmdResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr, work_dir=work_dir,
-                            out_file=cmd_out_fp, err_file=cmd_err_fp, thread_id=thread_id, task_id=task_id)
+    res = RunShellCmdResult(cmd=cmd_str, exit_code=proc.returncode, output=output, stderr=stderr,
+                            work_dir=work_dir, out_file=cmd_out_fp, err_file=cmd_err_fp, cmd_sh=cmd_sh,
+                            thread_id=thread_id, task_id=task_id)
 
     # always log command output
     cmd_name = cmd_str.split(' ')[0]
