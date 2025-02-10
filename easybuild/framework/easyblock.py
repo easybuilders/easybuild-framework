@@ -133,8 +133,9 @@ class LibSymlink(Enum):
     - LIB_TO_LIB64: 'lib' is a symlink to 'lib64'
     - LIB64_TO_LIB: 'lib64' is a symlink to 'lib'
     - NEITHER: neither 'lib' is a symlink to 'lib64', nor 'lib64' is a symlink to 'lib'
+    - BOTH_TO_DIR: 'lib' and 'lib64' are symlinks to some other directory
     - """
-    LIB_TO_LIB64, LIB64_TO_LIB, NEITHER = range(3)
+    LIB_TO_LIB64, LIB64_TO_LIB, NEITHER, BOTH_TO_DIR = range(4)
 
 
 class EasyBlock(object):
@@ -1760,7 +1761,9 @@ class EasyBlock(object):
 
         self._install_lib_symlink = LibSymlink.NEITHER
         if os.path.exists(lib_dir) and os.path.exists(lib64_dir):
-            if os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
+            if os.path.islink(lib_dir) and os.path.islink(lib64_dir):
+                self._install_lib_symlink = LibSymlink.BOTH_TO_DIR
+            elif os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
                 self._install_lib_symlink = LibSymlink.LIB_TO_LIB64
             elif os.path.islink(lib64_dir) and os.path.samefile(lib_dir, lib64_dir):
                 self._install_lib_symlink = LibSymlink.LIB64_TO_LIB

@@ -3312,6 +3312,25 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
         self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
 
+        # test both lib and lib64 symlinked to some other folder
+        remove_dir(os.path.join(eb.installdir, "lib64"))
+        remove_file(os.path.join(eb.installdir, "lib"))
+        os.mkdir(os.path.join(eb.installdir, "random_lib_dir"))
+        write_file(os.path.join(eb.installdir, "random_lib_dir", "libtest.so"), "not actually a lib")
+        os.symlink("random_lib_dir", os.path.join(eb.installdir, "lib"))
+        os.symlink("random_lib_dir", os.path.join(eb.installdir, "lib64"))
+        eb.check_install_lib_symlink()
+        self.assertEqual(eb.install_lib_symlink, LibSymlink.BOTH_TO_DIR)
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), ["lib64"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH), ["lib", "lib64"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib", "lib64"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib", "lib64"])
+
 
 def suite():
     """ return all the tests in this file """
