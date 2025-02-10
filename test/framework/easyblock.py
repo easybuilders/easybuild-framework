@@ -42,7 +42,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.base import fancylogger
-from easybuild.framework.easyblock import EasyBlock, LibSymlink, get_easyblock_instance
+from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig

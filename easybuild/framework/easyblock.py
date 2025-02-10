@@ -109,7 +109,7 @@ from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_linked_libs_raw
 from easybuild.tools.systemtools import get_shared_lib_ext, pick_system_specific_value, use_group
-from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
+from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
@@ -124,17 +124,6 @@ PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 REPROD = 'reprod'
 
 _log = fancylogger.getLogger('easyblock')
-
-
-class LibSymlink(Enum):
-    """
-    Possible states for symlinking of lib/lib64 subdirectories:
-    - UNKNOWN: has not been determined yet
-    - LIB_TO_LIB64: 'lib' is a symlink to 'lib64'
-    - LIB64_TO_LIB: 'lib64' is a symlink to 'lib'
-    - NEITHER: neither 'lib' is a symlink to 'lib64', nor 'lib64' is a symlink to 'lib'
-    - """
-    LIB_TO_LIB64, LIB64_TO_LIB, NEITHER = range(3)
 
 
 class EasyBlock(object):
