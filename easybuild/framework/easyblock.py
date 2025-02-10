@@ -225,9 +225,6 @@ class EasyBlock(object):
         # determine install subdirectory, based on module name
         self.install_subdir = None
 
-        # track status of symlink between library directories
-        self._install_lib_symlink = None
-
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']
 
@@ -310,13 +307,6 @@ class EasyBlock(object):
             self.init_dry_run()
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
-
-    @property
-    def install_lib_symlink(self):
-        """Return symlink state of lib/lib64 folders"""
-        if self._install_lib_symlink is None:
-            self.check_install_lib_symlink()
-        return self._install_lib_symlink
 
     def post_init(self):
         """
@@ -1752,15 +1742,6 @@ class EasyBlock(object):
             tentative_path = os.path.relpath(abs_path, start=self.installdir)
             tentative_path = '' if tentative_path == '.' else tentative_path  # use empty string instead of dot
 
-            # avoid duplicate entries between symlinked library dirs
-            #tent_path_sep = tentative_path + os.path.sep
-            #if self.install_lib_symlink == LibSymlink.LIB64_TO_LIB and tent_path_sep.startswith('lib64' + os.path.sep):
-            #    self.log.debug("Discarded search path to symlinked lib64 directory: %s", tentative_path)
-            #    continue
-            #if self.install_lib_symlink == LibSymlink.LIB_TO_LIB64 and tent_path_sep.startswith('lib' + os.path.sep):
-            #    self.log.debug("Discarded search path to symlinked lib directory: %s", tentative_path)
-            #    continue
-
             check_dir_files = path_type in (ModEnvVarType.PATH_WITH_FILES, ModEnvVarType.PATH_WITH_TOP_FILES)
             if os.path.isdir(abs_path) and check_dir_files:
                 # only retain paths to directories that contain at least one file
@@ -1772,18 +1753,6 @@ class EasyBlock(object):
             retained_search_paths.append(tentative_path)
 
         return retained_search_paths
-
-    def check_install_lib_symlink(self):
-        """Update the symlink state between library directories in installation prefix"""
-        lib_dir = os.path.join(self.installdir, 'lib')
-        lib64_dir = os.path.join(self.installdir, 'lib64')
-
-        self._install_lib_symlink = LibSymlink.NEITHER
-        if os.path.exists(lib_dir) and os.path.exists(lib64_dir):
-            if os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
-                self._install_lib_symlink = LibSymlink.LIB_TO_LIB64
-            elif os.path.islink(lib64_dir) and os.path.samefile(lib_dir, lib64_dir):
-                self._install_lib_symlink = LibSymlink.LIB64_TO_LIB
 
     def make_module_req_guess(self):
         """
@@ -3237,9 +3206,6 @@ class EasyBlock(object):
         if build_option('lib_lib64_symlink') and os.path.exists(lib64_dir) and not os.path.exists(lib_dir):
             # create *relative* 'lib' symlink to 'lib64';
             symlink('lib64', lib_dir, use_abspath_source=False)
-
-        # refresh symlink state in install_lib_symlink class variable
-        self.check_install_lib_symlink()
 
         self.run_post_install_commands()
         self.apply_post_install_patches()
