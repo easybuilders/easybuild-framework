@@ -1778,6 +1778,12 @@ class ModulesTest(EnhancedTestCase):
         for envar in alias_load_env.alias('ALIAS3'):
             self.assertEqual(envar.contents, ['alias3_path'])
             self.assertEqual(envar.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        # append path to existing alias
+        for envar in alias_load_env.alias('ALIAS3'):
+            envar.append('new_path')
+            self.assertEqual(sorted(envar.contents), ['alias3_path', 'new_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR31.contents, ['alias3_path', 'new_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR32.contents, ['alias3_path', 'new_path'])
 
         error_pattern = "Wrong format for aliases defitions passed to ModuleLoadEnvironment"
         self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=False)
