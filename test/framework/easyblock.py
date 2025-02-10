@@ -3364,9 +3364,9 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), ["lib64"])
         self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
         self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH), ["lib", "lib64"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib", "lib64"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib", "lib64"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH)), ["lib", "lib64"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES)), ["lib", "lib64"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES)), ["lib", "lib64"])
 
 
 def suite():
