@@ -52,7 +52,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, update_build_option
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_dir, remove_file
-from easybuild.tools.filetools import verify_checksum, write_file
+from easybuild.tools.filetools import symlink, verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
 from easybuild.tools.modules import EnvironmentModules, Lmod, ModEnvVarType, reset_module_caches
 from easybuild.tools.version import get_git_revision, this_is_easybuild
@@ -626,6 +626,43 @@ class EasyBlockTest(EnhancedTestCase):
 
         logtxt = read_file(eb.logfile)
         self.assertTrue(re.search(r"WARNING Non-path variables found in module load env.*NONPATH", logtxt, re.M))
+
+        delattr(eb.module_load_environment, 'NONPATH')
+
+        # make sure that entries that symlink to another directory are retained;
+        # the test case inspired by the directory structure for old imkl versions (like 2020.4)
+        remove_dir(eb.installdir)
+
+        # lib/ symlinked to libraries/
+        real_libdir = os.path.join(eb.installdir, 'libraries')
+        mkdir(real_libdir, parents=True)
+        symlink(real_libdir, os.path.join(eb.installdir, 'lib'))
+
+        # lib/intel64/ symlinked to lib/intel64_lin/
+        mkdir(os.path.join(eb.installdir, 'lib', 'intel64_lin'), parents=True)
+        symlink(os.path.join(eb.installdir, 'lib', 'intel64_lin'), os.path.join(eb.installdir, 'lib', 'intel64'))
+
+        # library file present in lib/intel64
+        write_file(os.path.join(eb.installdir, 'lib', 'intel64', 'libfoo.so'), 'libfoo.so')
+
+        # lib64/ symlinked to lib/
+        symlink(os.path.join(eb.installdir, 'lib'), os.path.join(eb.installdir, 'lib64'))
+
+        eb.module_load_environment.LD_LIBRARY_PATH = [os.path.join('lib', 'intel64')]
+        eb.module_load_environment.LIBRARY_PATH = eb.module_load_environment.LD_LIBRARY_PATH
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
+
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search(r"^prepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/intel64$", txt, re.M))
+            self.assertTrue(re.search(r"^prepend-path\s+LIBRARY_PATH\s+\$root/lib/intel64\n$", txt, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.search(r'^prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/intel64"\)\)$',
+                                      txt, re.M))
+            self.assertTrue(re.search(r'^prepend_path\("LIBRARY_PATH", pathJoin\(root, "lib/intel64"\)\)$',
+                                      txt, re.M))
+        else:
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         # cleanup
         eb.close_log()
@@ -3311,6 +3348,25 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH), ["lib64"])
         self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
         self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
+
+        # test both lib and lib64 symlinked to some other folder
+        remove_dir(os.path.join(eb.installdir, "lib64"))
+        remove_file(os.path.join(eb.installdir, "lib"))
+        os.mkdir(os.path.join(eb.installdir, "random_lib_dir"))
+        write_file(os.path.join(eb.installdir, "random_lib_dir", "libtest.so"), "not actually a lib")
+        os.symlink("random_lib_dir", os.path.join(eb.installdir, "lib"))
+        os.symlink("random_lib_dir", os.path.join(eb.installdir, "lib64"))
+        eb.check_install_lib_symlink()
+        self.assertEqual(eb.install_lib_symlink, LibSymlink.BOTH_TO_DIR)
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), ["lib64"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH)), ["lib", "lib64"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES)), ["lib", "lib64"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES)), ["lib", "lib64"])
 
 
 def suite():
