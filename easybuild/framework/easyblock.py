@@ -1692,26 +1692,37 @@ class EasyBlock(object):
                     mod_req_paths.extend(self.expand_module_search_path(path, path_type=search_paths.type))
 
             if mod_req_paths:
-                full_mod_req_paths = []
-                for path in mod_req_paths:
-                    full_path = os.path.join(self.installdir, path)
-                    if os.path.exists(full_path):
-                        full_mod_req_paths.append(full_path)
-
                 # find duplicate paths (taking into account possible symlinks)
                 dup_paths = []
-                for idx, path in enumerate(mod_req_paths):
+                # always retain first entry
+                retained_paths = [mod_req_paths[0]]
+                full_retained_paths = [os.path.join(self.installdir, retained_paths[0])]
+
+                for idx, path in enumerate(mod_req_paths[1:]):
                     full_path = os.path.join(self.installdir, path)
-                    other_paths = full_mod_req_paths[idx+1:]
-                    if os.path.exists(full_path) and any(os.path.samefile(full_path, p) for p in other_paths):
+                    # retain all paths in dry run mode (since then paths may not exist)
+                    if self.dry_run:
+                        retained_paths.append(path)
+                    elif os.path.exists(full_path) and any(os.path.samefile(full_path, p) for p in full_retained_paths):
                         dup_paths.append(path)
+                    else:
+                        retained_paths.append(path)
+                        full_retained_paths = [os.path.join(self.installdir, p) for p in retained_paths]
 
                 if dup_paths:
                     self.log.info(f"Filtering out duplicate paths for ${env_var}: {dup_paths}")
-                    mod_req_paths = [p for p in mod_req_paths if p not in dup_paths]
+                    mod_req_paths = retained_paths
                     self.log.info(f"Retained paths for ${env_var}: {mod_req_paths}")
                 else:
                     self.log.info(f"No duplicate paths found for ${env_var}: {mod_req_paths}")
+
+                # for $CMAKE_LIBRARY_PATH, only retain 'lib64' if it's standalone (*not* a symlink to 'lib')
+                if env_var == 'CMAKE_LIBRARY_PATH' and 'lib64' in mod_req_paths:
+                    full_lib = os.path.join(self.installdir, 'lib')
+                    full_lib64 = os.path.join(self.installdir, 'lib64')
+                    if os.path.exists(full_lib64) and os.path.exists(full_lib):
+                        if os.path.samefile(full_lib64, full_lib):
+                            mod_req_paths.remove('lib64')
 
                 mod_lines.append(self.module_generator.prepend_paths(env_var, mod_req_paths))
 
