@@ -1486,10 +1486,13 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(new_testtxt, expected_testtxt)
         # Supports capture groups
         ft.write_file(testfile, testtxt)
-        repl = ('This si( .*)\n(.*)mkae right$', r'This is\1.\n\2make right')
-        ft.apply_regex_substitutions(testfile, [repl], backup=False, on_missing_match=ERROR, single_line=False)
+        repls = [
+            ('This si( .*)\n(.*)mkae right$', r'This is\1.\n\2make right'),
+            ('Lea(ve)', r'Do \g<0>\1'),  # Reference to full match
+        ]
+        ft.apply_regex_substitutions(testfile, repls, backup=False, on_missing_match=ERROR, single_line=False)
         new_testtxt = ft.read_file(testfile)
-        self.assertEqual(new_testtxt, expected_testtxt)
+        self.assertEqual(new_testtxt, expected_testtxt.replace('Leave', 'Do Leaveve'))
 
         # make sure apply_regex_substitutions can patch files that include UTF-8 characters
         testtxt = b"foo \xe2\x80\x93 bar"  # This is an UTF-8 "-"
