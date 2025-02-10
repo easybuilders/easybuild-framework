@@ -1698,7 +1698,7 @@ class EasyBlock(object):
                 retained_paths = [mod_req_paths[0]]
                 full_retained_paths = [os.path.join(self.installdir, retained_paths[0])]
 
-                for idx, path in enumerate(mod_req_paths[1:]):
+                for path in mod_req_paths[1:]:
                     full_path = os.path.join(self.installdir, path)
                     # retain all paths in dry run mode (since then paths may not exist)
                     if self.dry_run:
