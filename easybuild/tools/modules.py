@@ -46,8 +46,7 @@ from enum import Enum
 from easybuild.base import fancylogger
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning
-from easybuild.tools.config import DEFAULT_MOD_SEARCH_PATH_HEADERS, ERROR, EBROOT_ENV_VAR_ACTIONS, IGNORE
-from easybuild.tools.config import LOADED_MODULES_ACTIONS, MOD_SEARCH_PATH_HEADERS, PURGE
+from easybuild.tools.config import ERROR, EBROOT_ENV_VAR_ACTIONS, IGNORE, LOADED_MODULES_ACTIONS, PURGE
 from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_HEADER_DIRS, SEARCH_PATH_LIB_DIRS, UNLOAD, UNSET
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
@@ -242,15 +241,33 @@ class ModuleEnvironmentVariable:
 
 
 class ModuleLoadEnvironment:
-    """Changes to environment variables that should be made when environment module is loaded"""
+    """
+    Changes to environment variables that should be made when environment module is loaded.
+    - Environment variables are defined as ModuleEnvironmentVariables instances
+      with attribute name equal to environment variable name.
+    - Aliases are arbitrary names that serve to apply changes to lists of
+      environment variables
+    - Only environment variables attributes are public. Other attributes like
+      aliases are private.
+    """
 
-    def __init__(self, cpp_headers=None):
+    def __init__(self, aliases=None):
         """
         Initialize default environment definition
         Paths are relative to root of installation directory
 
-        :cpp_headers: string defining MOD_SEARCH_PATH_HEADERS setting
+        :aliases: dict defining environment variables aliases
         """
+        self._aliases = {}
+        if aliases is not None:
+            try:
+                for alias_name, alias_vars in aliases.items():
+                    self.update_alias(alias_name, alias_vars)
+            except AttributeError as err:
+                raise EasyBuildError(
+                    "Wrong format for aliases defitions passed to ModuleLoadEnvironment. "
+                    f"Expected a dictionary but got: {type(aliases)}."
+                ) from err
 
         self.ACLOCAL_PATH = [os.path.join('share', 'aclocal')]
         self.CLASSPATH = ['*.jar']
@@ -264,16 +281,11 @@ class ModuleLoadEnvironment:
         self.PKG_CONFIG_PATH = [os.path.join(x, 'pkgconfig') for x in SEARCH_PATH_LIB_DIRS + ['share']]
         self.XDG_DATA_DIRS = ['share']
 
-        # handle search paths to C/C++ headers
-        self._cpp_headers_opt = DEFAULT_MOD_SEARCH_PATH_HEADERS
-        if cpp_headers is not None and cpp_headers is not False:
-            self._cpp_headers_opt = str(cpp_headers)
-        if self._cpp_headers_opt not in MOD_SEARCH_PATH_HEADERS:
-            raise EasyBuildError(
-                f"Unknown value selected for option module-search-path-headers: {self._cpp_headers_opt}. "
-                f"Choose one of: {', '.join(MOD_SEARCH_PATH_HEADERS)}"
-            )
-        self.set_cpp_headers(SEARCH_PATH_HEADER_DIRS)
+        # environment variables with known aliases
+        # e.g. search paths to C/C++ headers
+        if 'HEADERS' in self._aliases:
+            for envar_name in self._aliases['HEADERS']:
+                setattr(self, envar_name, SEARCH_PATH_HEADER_DIRS)
 
     def __setattr__(self, name, value):
         """
@@ -353,29 +365,47 @@ class ModuleLoadEnvironment:
         """
         return {envar_name: str(envar_contents) for envar_name, envar_contents in self.items()}
 
-    @property
-    def name_cpp_headers(self):
+    def alias(self, alias):
         """
-        Return list of environment variable names holding search paths to CPP headers
-        According to option --module-search-path-headers
+        Return iterator to search path variables for given alias
         """
-        return MOD_SEARCH_PATH_HEADERS[self._cpp_headers_opt]
+        try:
+            yield from [getattr(self, envar) for envar in self._aliases[alias]]
+        except KeyError as err:
+            raise EasyBuildError(f"Unknown search path alias: {alias}") from err
+        except AttributeError as err:
+            raise EasyBuildError(f"Missing environment variable in '{alias} alias") from err
 
-    @property
-    def cpp_headers(self):
+    def alias_vars(self, alias):
         """
-        Return dict with search path variables for C/C++ headers
-        According to option --module-search-path-headers
+        Return list of environment variable names aliased by given alias
         """
-        return {envar_name: getattr(self, envar_name) for envar_name in self.name_cpp_headers}
+        try:
+            return self._aliases[alias]
+        except KeyError as err:
+            raise EasyBuildError(f"Unknown search path alias: {alias}") from err
 
-    def set_cpp_headers(self, new_headers):
+    def update_alias(self, alias, value):
         """
-        Set search paths variables for C/C++ headers
-        According to option --module-search-path-headers
+        Update existing or non-existing alias with given search paths variables
         """
-        for envar_name in self.name_cpp_headers:
-            setattr(self, envar_name, new_headers)
+        if isinstance(value, str):
+            value = [value]
+
+        try:
+            self._aliases[alias] = [str(envar) for envar in value]
+        except TypeError as err:
+            raise TypeError("ModuleLoadEnvironment aliases must be a list of strings") from err
+
+    def set_alias_vars(self, alias, value):
+        """
+        Set value of search paths variables for given alias
+        """
+        try:
+            for envar_name in self._aliases[alias]:
+                setattr(self, envar_name, value)
+        except KeyError as err:
+            raise EasyBuildError(f"Unknown search path alias: {alias}") from err
 
 
 class ModulesTool(object):

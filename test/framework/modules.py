@@ -1740,41 +1740,49 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
         self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
 
-        # test functionality related to --module-search-path-headers
-        default_search_path_headers = 'cpath'
-        self.assertEqual(mod_load_env._cpp_headers_opt, default_search_path_headers)
-        mod_load_env = mod.ModuleLoadEnvironment(default_search_path_headers)
-        self.assertEqual(mod_load_env._cpp_headers_opt, default_search_path_headers)
-        self.assertEqual(mod_load_env.name_cpp_headers, ['CPATH'])
-        repr_mod_load_env = {k: str(v) for k, v in mod_load_env.cpp_headers.items()}
-        self.assertDictEqual(repr_mod_load_env, {'CPATH': 'include'})
-        mod_load_env.set_cpp_headers('new_include')
-        repr_mod_load_env = {k: str(v) for k, v in mod_load_env.cpp_headers.items()}
-        self.assertDictEqual(repr_mod_load_env, {'CPATH': 'new_include'})
-        mod_load_env.set_cpp_headers(["new_include_1", "new_include_2"])
-        repr_mod_load_env = {k: str(v) for k, v in mod_load_env.cpp_headers.items()}
-        self.assertDictEqual(repr_mod_load_env, {'CPATH': 'new_include_1:new_include_2'})
+        # test aliases
+        aliases = {
+            'ALIAS1': ['ALIAS_VAR11', 'ALIAS_VAR12'],
+            'ALIAS2': ['ALIAS_VAR21'],
+        }
+        alias_load_env = mod.ModuleLoadEnvironment(aliases=aliases)
+        self.assertEqual(alias_load_env._aliases, aliases)
+        self.assertEqual(sorted(alias_load_env.alias_vars('ALIAS1')), ['ALIAS_VAR11', 'ALIAS_VAR12'])
+        self.assertEqual(alias_load_env.alias_vars('ALIAS2'), ['ALIAS_VAR21'])
+        # set a known alias
+        alias_load_env.set_alias_vars('ALIAS1', 'alias1_path')
+        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR11'))
+        self.assertEqual(alias_load_env.ALIAS_VAR11.contents, ['alias1_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR11.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR12'))
+        self.assertEqual(alias_load_env.ALIAS_VAR12.contents, ['alias1_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR12.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertFalse(hasattr(alias_load_env, 'ALIAS_VAR21'))
+        for envar in alias_load_env.alias('ALIAS1'):
+            self.assertEqual(envar.contents, ['alias1_path'])
+            self.assertEqual(envar.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        # set a second known alias
+        alias_load_env.set_alias_vars('ALIAS2', 'alias2_path')
+        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR11'))
+        self.assertEqual(alias_load_env.ALIAS_VAR11.contents, ['alias1_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR11.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR21'))
+        self.assertEqual(alias_load_env.ALIAS_VAR21.contents, ['alias2_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR21.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        # add a new alias
+        alias_load_env.update_alias('ALIAS3', 'ALIAS_VAR31')
+        self.assertEqual(alias_load_env.alias_vars('ALIAS3'), ['ALIAS_VAR31'])
+        alias_load_env.update_alias('ALIAS3', ['ALIAS_VAR31', 'ALIAS_VAR32'])
+        self.assertEqual(sorted(alias_load_env.alias_vars('ALIAS3')), ['ALIAS_VAR31', 'ALIAS_VAR32'])
+        alias_load_env.set_alias_vars('ALIAS3', 'alias3_path')
+        for envar in alias_load_env.alias('ALIAS3'):
+            self.assertEqual(envar.contents, ['alias3_path'])
+            self.assertEqual(envar.type, mod.ModEnvVarType.PATH_WITH_FILES)
 
-        mod_load_env = mod.ModuleLoadEnvironment(cpp_headers='include_paths')
-        self.assertNotEqual(mod_load_env._cpp_headers_opt, default_search_path_headers)
-        ref_include_vars = ['C_INCLUDE_PATH', 'CPLUS_INCLUDE_PATH', 'OBJC_INCLUDE_PATH']
-        self.assertEqual(mod_load_env.name_cpp_headers, ref_include_vars)
-        repr_mod_load_env = {k: str(v) for k, v in mod_load_env.cpp_headers.items()}
-        ref_cpp_headers = {key: 'include' for key in ref_include_vars}
-        self.assertDictEqual(repr_mod_load_env, ref_cpp_headers)
-        mod_load_env.set_cpp_headers('new_include')
-        repr_mod_load_env = {k: str(v) for k, v in mod_load_env.cpp_headers.items()}
-        ref_cpp_headers = {key: 'new_include' for key in ref_include_vars}
-        self.assertDictEqual(repr_mod_load_env, ref_cpp_headers)
-
-        mod_load_env = mod.ModuleLoadEnvironment(cpp_headers='none')
-        self.assertEqual(mod_load_env.name_cpp_headers, [])
-        self.assertEqual(mod_load_env.cpp_headers, {})
-        mod_load_env.set_cpp_headers('new_include')
-        self.assertEqual(mod_load_env.cpp_headers, {})
-
-        error_pattern = "Unknown value selected for option module-search-path-headers"
-        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, cpp_headers='nonexistent')
+        error_pattern = "Wrong format for aliases defitions passed to ModuleLoadEnvironment"
+        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=False)
+        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases='wrong')
+        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=['some', 'list'])
 
 
 def suite():
