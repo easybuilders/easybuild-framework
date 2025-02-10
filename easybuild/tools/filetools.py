@@ -1664,11 +1664,14 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb',
         on_missing_match = build_option('strict')
     allowed_values = (ERROR, IGNORE, WARN)
     if on_missing_match not in allowed_values:
-        raise EasyBuildError('Invalid value passed to on_missing_match: %s (allowed: %s)',
-                             on_missing_match, ', '.join(allowed_values))
+        raise ValueError('Invalid value passed to on_missing_match: %s (allowed: %s)',
+                         on_missing_match, ', '.join(allowed_values))
 
     if isinstance(paths, string_type):
         paths = [paths]
+    if (not isinstance(regex_subs, (list, tuple)) or
+            not all(isinstance(sub, (list, tuple)) and len(sub) == 2 for sub in regex_subs)):
+        raise ValueError('Parameter regex_subs must be a list of 2-element tuples. Got:', regex_subs)
 
     flags = 0 if single_line else re.M
     compiled_regex_subs = [(re.compile(regex, flags) if isinstance(regex, str) else regex, subtxt)
