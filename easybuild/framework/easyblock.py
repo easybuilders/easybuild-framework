@@ -1684,8 +1684,9 @@ class EasyBlock(object):
         for env_var, search_paths in env_var_requirements.items():
             if self.dry_run:
                 self.dry_run_msg(f" ${env_var}:{', '.join(search_paths)}")
-                # Don't expand globs or do any filtering for dry run
-                mod_req_paths = search_paths
+                # Don't expand globs or do any filtering for dry run,
+                # convert to regular list that can be subscripted below
+                mod_req_paths = list(search_paths)
             else:
                 mod_req_paths = []
                 for path in search_paths:
