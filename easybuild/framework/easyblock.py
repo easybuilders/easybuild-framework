@@ -1702,7 +1702,27 @@ class EasyBlock(object):
                     mod_req_paths.extend(self.expand_module_search_path(path, path_type=search_paths.type))
 
             if mod_req_paths:
-                mod_req_paths = nub(mod_req_paths)  # remove duplicates
+                full_mod_req_paths = []
+                for path in mod_req_paths:
+                    full_path = os.path.join(self.installdir, path)
+                    if os.path.exists(full_path):
+                        full_mod_req_paths.append(full_path)
+
+                # find duplicate paths (taking into account possible symlinks)
+                dup_paths = []
+                for idx, path in enumerate(mod_req_paths):
+                    full_path = os.path.join(self.installdir, path)
+                    other_paths = full_mod_req_paths[idx+1:]
+                    if os.path.exists(full_path) and any(os.path.samefile(full_path, p) for p in other_paths):
+                        dup_paths.append(path)
+
+                if dup_paths:
+                    self.log.info(f"Filtering out duplicate paths for ${env_var}: {dup_paths}")
+                    mod_req_paths = [p for p in mod_req_paths if p not in dup_paths]
+                    self.log.info(f"Retained paths for ${env_var}: {mod_req_paths}")
+                else:
+                    self.log.info(f"No duplicate paths found for ${env_var}: {mod_req_paths}")
+
                 mod_lines.append(self.module_generator.prepend_paths(env_var, mod_req_paths))
 
         if self.dry_run:
@@ -1733,13 +1753,13 @@ class EasyBlock(object):
             tentative_path = '' if tentative_path == '.' else tentative_path  # use empty string instead of dot
 
             # avoid duplicate entries between symlinked library dirs
-            tent_path_sep = tentative_path + os.path.sep
-            if self.install_lib_symlink == LibSymlink.LIB64_TO_LIB and tent_path_sep.startswith('lib64' + os.path.sep):
-                self.log.debug("Discarded search path to symlinked lib64 directory: %s", tentative_path)
-                continue
-            if self.install_lib_symlink == LibSymlink.LIB_TO_LIB64 and tent_path_sep.startswith('lib' + os.path.sep):
-                self.log.debug("Discarded search path to symlinked lib directory: %s", tentative_path)
-                continue
+            #tent_path_sep = tentative_path + os.path.sep
+            #if self.install_lib_symlink == LibSymlink.LIB64_TO_LIB and tent_path_sep.startswith('lib64' + os.path.sep):
+            #    self.log.debug("Discarded search path to symlinked lib64 directory: %s", tentative_path)
+            #    continue
+            #if self.install_lib_symlink == LibSymlink.LIB_TO_LIB64 and tent_path_sep.startswith('lib' + os.path.sep):
+            #    self.log.debug("Discarded search path to symlinked lib directory: %s", tentative_path)
+            #    continue
 
             check_dir_files = path_type in (ModEnvVarType.PATH_WITH_FILES, ModEnvVarType.PATH_WITH_TOP_FILES)
             if os.path.isdir(abs_path) and check_dir_files:
