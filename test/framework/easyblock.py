@@ -655,8 +655,10 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(re.search(r"^prepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/intel64$", txt, re.M))
             self.assertTrue(re.search(r"^prepend-path\s+LIBRARY_PATH\s+\$root/lib/intel64\n$", txt, re.M))
         elif get_module_syntax() == 'Lua':
-            self.assertTrue(re.search(r'^prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/intel64"\)\)$', txt, re.M))
-            self.assertTrue(re.search(r'^prepend_path\("LIBRARY_PATH", pathJoin\(root, "lib/intel64"\)\)$', txt, re.M))
+            self.assertTrue(re.search(r'^prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/intel64"\)\)$',
+                                      txt, re.M))
+            self.assertTrue(re.search(r'^prepend_path\("LIBRARY_PATH", pathJoin\(root, "lib/intel64"\)\)$',
+                                      txt, re.M))
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
