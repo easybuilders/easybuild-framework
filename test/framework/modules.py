@@ -1742,6 +1742,11 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
         self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
 
+        # test removal of envars
+        mod_load_env.remove('TEST_VARTYPE')
+        self.assertFalse(hasattr(mod_load_env, 'TEST_VARTYPE'))
+        mod_load_env.remove('NONEXISTENT')
+
         # test aliases
         aliases = {
             'ALIAS1': ['ALIAS_VAR11', 'ALIAS_VAR12'],
