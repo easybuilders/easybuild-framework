@@ -1013,7 +1013,6 @@ class ModulesTool(object):
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         stdout, stderr = res.output, res.stderr
-        self.log.debug("Output of module command '%s': stdout: %s; stderr: %s", cmd, stdout, stderr)
 
         # also catch and check exit code
         if kwargs.get('check_exit_code', True) and res.exit_code != EasyBuildExit.SUCCESS:
