@@ -185,11 +185,9 @@ PYTHON_SEARCH_PATH_TYPES = [PYTHONPATH, EBPYTHONPREFIXES]
 # options to handle header search paths in environment of modules
 MOD_SEARCH_PATH_HEADERS_CPATH = 'cpath'
 MOD_SEARCH_PATH_HEADERS_INCLUDE_PATHS = 'include_paths'
-MOD_SEARCH_PATH_HEADERS_NONE = 'none'
 MOD_SEARCH_PATH_HEADERS = {
     MOD_SEARCH_PATH_HEADERS_CPATH: ['CPATH'],
     MOD_SEARCH_PATH_HEADERS_INCLUDE_PATHS: ['C_INCLUDE_PATH', 'CPLUS_INCLUDE_PATH', 'OBJC_INCLUDE_PATH'],
-    MOD_SEARCH_PATH_HEADERS_NONE: [],
 }
 DEFAULT_MOD_SEARCH_PATH_HEADERS = MOD_SEARCH_PATH_HEADERS_CPATH
 
@@ -318,7 +316,6 @@ BUILD_OPTIONS_CMDLINE = {
         'logtostdout',
         'minimal_toolchains',
         'module_only',
-        'module_search_path_headers',
         'package',
         'parallel_extensions_install',
         'read_only_installdir',
@@ -400,6 +397,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_MINIMAL_BUILD_ENV: [
         'minimal_build_env',
+    ],
+    DEFAULT_MOD_SEARCH_PATH_HEADERS: [
+        'module_search_path_headers',
     ],
     DEFAULT_PKG_RELEASE: [
         'package_release',

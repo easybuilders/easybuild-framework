@@ -37,7 +37,7 @@ Authors:
 """
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import DEFAULT_MOD_SEARCH_PATH_HEADERS, MODULECLASS_BASE
+from easybuild.tools.config import MODULECLASS_BASE
 
 
 _log = fancylogger.getLogger('easyconfig.default', fname=False)
@@ -208,8 +208,8 @@ DEFAULT_CONFIG = {
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
     'module_depends_on': [None, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
                           '(implies recursive unloading of modules) [DEPRECATED]', MODULES],
-    'module_search_path_headers': [DEFAULT_MOD_SEARCH_PATH_HEADERS, "Environment variable set by modules on load "
-                                   "with search paths to header files", MODULES],
+    'module_search_path_headers': [None, "Environment variable set by modules on load "
+                                   "with search paths to header files (if None, use $CPATH)", MODULES],
     'recursive_module_unload': [None, "Recursive unload of all dependencies when unloading module "
                                 "(True/False to hard enable/disable; None implies honoring the "
                                 "--recursive-module-unload EasyBuild configuration setting", MODULES],
