@@ -78,7 +78,7 @@ from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import EASYBUILD_SOURCES_URL, EBPYTHONPREFIXES  # noqa
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
-from easybuild.tools.config import PYTHONPATH, SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
+from easybuild.tools.config import MOD_SEARCH_PATH_HEADERS, PYTHONPATH, SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
@@ -100,7 +100,7 @@ from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import Lmod, ModEnvVarType, ModuleLoadEnvironment
+from easybuild.tools.modules import Lmod, ModEnvVarType, ModuleLoadEnvironment, MODULE_LOAD_ENV_HEADERS
 from easybuild.tools.modules import curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
@@ -221,7 +221,19 @@ class EasyBlock(object):
             self.modules_header = read_file(modules_header_path)
 
         # environment variables on module load
-        self.module_load_environment = ModuleLoadEnvironment()
+        mod_load_aliases = {}
+        # apply --module-search-path-headers: easyconfig parameter has precedence
+        mod_load_cpp_headers = self.cfg['module_search_path_headers'] or build_option('module_search_path_headers')
+
+        try:
+            mod_load_aliases[MODULE_LOAD_ENV_HEADERS] = MOD_SEARCH_PATH_HEADERS[mod_load_cpp_headers]
+        except KeyError as err:
+            raise EasyBuildError(
+                f"Unknown value selected for option module-search-path-headers: {mod_load_cpp_headers}. "
+                f"Choose one of: {', '.join(MOD_SEARCH_PATH_HEADERS)}"
+            ) from err
+
+        self.module_load_environment = ModuleLoadEnvironment(aliases=mod_load_aliases)
 
         # determine install subdirectory, based on module name
         self.install_subdir = None

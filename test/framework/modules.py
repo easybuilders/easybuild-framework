@@ -1708,8 +1708,10 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.PATH)
         self.assertRaises(TypeError, setattr, mod_load_env, 'TEST_UNKNONW', (test_contents, {'unkown_param': True}))
 
-        # test retrieving environment
+        # test retrieval of environment
+        # use copy of public attributes as reference
         ref_load_env = mod_load_env.__dict__.copy()
+        ref_load_env = {envar: value for envar, value in ref_load_env.items() if not envar.startswith('_')}
         self.assertCountEqual(list(mod_load_env), ref_load_env.keys())
 
         ref_load_env_item_list = list(ref_load_env.items())
@@ -1739,6 +1741,61 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod_load_env.TEST_VAR.contents, test_contents)
         self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
         self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
+
+        # test removal of envars
+        mod_load_env.remove('TEST_VARTYPE')
+        self.assertFalse(hasattr(mod_load_env, 'TEST_VARTYPE'))
+        mod_load_env.remove('NONEXISTENT')
+
+        # test aliases
+        aliases = {
+            'ALIAS1': ['ALIAS_VAR11', 'ALIAS_VAR12'],
+            'ALIAS2': ['ALIAS_VAR21'],
+        }
+        alias_load_env = mod.ModuleLoadEnvironment(aliases=aliases)
+        self.assertEqual(alias_load_env._aliases, aliases)
+        self.assertEqual(sorted(alias_load_env.alias_vars('ALIAS1')), ['ALIAS_VAR11', 'ALIAS_VAR12'])
+        self.assertEqual(alias_load_env.alias_vars('ALIAS2'), ['ALIAS_VAR21'])
+        # set a known alias
+        alias_load_env.set_alias_vars('ALIAS1', 'alias1_path')
+        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR11'))
+        self.assertEqual(alias_load_env.ALIAS_VAR11.contents, ['alias1_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR11.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR12'))
+        self.assertEqual(alias_load_env.ALIAS_VAR12.contents, ['alias1_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR12.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertFalse(hasattr(alias_load_env, 'ALIAS_VAR21'))
+        for envar in alias_load_env.alias('ALIAS1'):
+            self.assertEqual(envar.contents, ['alias1_path'])
+            self.assertEqual(envar.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        # set a second known alias
+        alias_load_env.set_alias_vars('ALIAS2', 'alias2_path')
+        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR11'))
+        self.assertEqual(alias_load_env.ALIAS_VAR11.contents, ['alias1_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR11.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR21'))
+        self.assertEqual(alias_load_env.ALIAS_VAR21.contents, ['alias2_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR21.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        # add a new alias
+        alias_load_env.update_alias('ALIAS3', 'ALIAS_VAR31')
+        self.assertEqual(alias_load_env.alias_vars('ALIAS3'), ['ALIAS_VAR31'])
+        alias_load_env.update_alias('ALIAS3', ['ALIAS_VAR31', 'ALIAS_VAR32'])
+        self.assertEqual(sorted(alias_load_env.alias_vars('ALIAS3')), ['ALIAS_VAR31', 'ALIAS_VAR32'])
+        alias_load_env.set_alias_vars('ALIAS3', 'alias3_path')
+        for envar in alias_load_env.alias('ALIAS3'):
+            self.assertEqual(envar.contents, ['alias3_path'])
+            self.assertEqual(envar.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        # append path to existing alias
+        for envar in alias_load_env.alias('ALIAS3'):
+            envar.append('new_path')
+            self.assertEqual(sorted(envar.contents), ['alias3_path', 'new_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR31.contents, ['alias3_path', 'new_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR32.contents, ['alias3_path', 'new_path'])
+
+        error_pattern = "Wrong format for aliases defitions passed to ModuleLoadEnvironment"
+        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=False)
+        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases='wrong')
+        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=['some', 'list'])
 
 
 def suite():

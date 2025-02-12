@@ -69,6 +69,7 @@ from easybuild.tools.config import DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE
 from easybuild.tools.config import DEFAULT_JOB_EB_CMD, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
 from easybuild.tools.config import DEFAULT_MINIMAL_BUILD_ENV, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL
+from easybuild.tools.config import DEFAULT_MOD_SEARCH_PATH_HEADERS, MOD_SEARCH_PATH_HEADERS
 from easybuild.tools.config import DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_EXTRA_SOURCE_URLS
 from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_WAIT_ON_LOCK_INTERVAL, DEFAULT_WAIT_ON_LOCK_LIMIT
 from easybuild.tools.config import DEFAULT_PR_TARGET_ACCOUNT, DEFAULT_FILTER_RPATH_SANITY_LIBS
@@ -615,6 +616,9 @@ class EasyBuildOptions(GeneralOption):
             'module-extensions': ("Include 'extensions' statement in generated module file (Lua syntax only)",
                                   None, 'store_true', True),
             'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
+            'module-search-path-headers': ("Environment variable set by modules on load with search paths "
+                                           "to header files", 'choice', 'store', DEFAULT_MOD_SEARCH_PATH_HEADERS,
+                                           sorted(MOD_SEARCH_PATH_HEADERS.keys())),
             'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
                               sorted(avail_module_generators().keys())),
             'moduleclasses': (("Extend supported module classes "
