@@ -223,10 +223,8 @@ class EasyBlock(object):
         # environment variables on module load
         mod_load_aliases = {}
         # apply --module-search-path-headers: easyconfig parameter has precedence
-        mod_load_cpp_headers = self.cfg['module_search_path_headers']
-        if mod_load_cpp_headers is False:
-            mod_load_cpp_headers = build_option('module_search_path_headers')
-        if mod_load_cpp_headers is False or mod_load_cpp_headers is None:
+        mod_load_cpp_headers = self.cfg['module_search_path_headers'] or build_option('module_search_path_headers')
+        if mod_load_cpp_headers is None:
             mod_load_cpp_headers = DEFAULT_MOD_SEARCH_PATH_HEADERS
 
         try:
