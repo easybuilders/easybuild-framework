@@ -75,7 +75,7 @@ from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
-from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES, DEFAULT_MOD_SEARCH_PATH_HEADERS
+from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import EASYBUILD_SOURCES_URL, EBPYTHONPREFIXES  # noqa
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import MOD_SEARCH_PATH_HEADERS, PYTHONPATH, SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
@@ -100,7 +100,7 @@ from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import Lmod, ModEnvVarType, ModuleLoadEnvironment
+from easybuild.tools.modules import Lmod, ModEnvVarType, ModuleLoadEnvironment, MODULE_LOAD_ENV_HEADERS
 from easybuild.tools.modules import curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
@@ -223,14 +223,10 @@ class EasyBlock(object):
         # environment variables on module load
         mod_load_aliases = {}
         # apply --module-search-path-headers: easyconfig parameter has precedence
-        mod_load_cpp_headers = self.cfg['module_search_path_headers']
-        if mod_load_cpp_headers is False:
-            mod_load_cpp_headers = build_option('module_search_path_headers')
-        if mod_load_cpp_headers is False or mod_load_cpp_headers is None:
-            mod_load_cpp_headers = DEFAULT_MOD_SEARCH_PATH_HEADERS
+        mod_load_cpp_headers = self.cfg['module_search_path_headers'] or build_option('module_search_path_headers')
 
         try:
-            mod_load_aliases['HEADERS'] = MOD_SEARCH_PATH_HEADERS[mod_load_cpp_headers]
+            mod_load_aliases[MODULE_LOAD_ENV_HEADERS] = MOD_SEARCH_PATH_HEADERS[mod_load_cpp_headers]
         except KeyError as err:
             raise EasyBuildError(
                 f"Unknown value selected for option module-search-path-headers: {mod_load_cpp_headers}. "

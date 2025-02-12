@@ -671,7 +671,6 @@ class EasyBlockTest(EnhancedTestCase):
     def test_module_search_path_headers(self):
         """Test functionality of module-search-path-headers option"""
         sp_headers_mode = {
-            "none": [],
             "cpath": ["CPATH"],
             "include_paths": ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
         }
@@ -687,7 +686,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.writeEC()
 
         for build_opt, sp_headers in sp_headers_mode.items():
-            init_config(build_options={"module_search_path_headers": build_opt, "silent": True})
+            update_build_option('module_search_path_headers', build_opt)
             eb = EasyBlock(EasyConfig(self.eb_file))
             eb.installdir = config.install_path()
             try:
@@ -729,7 +728,7 @@ class EasyBlockTest(EnhancedTestCase):
                 pass
 
             for build_opt in sp_headers_mode:
-                init_config(build_options={"module_search_path_headers": build_opt, "silent": True})
+                update_build_option('module_search_path_headers', build_opt)
                 with eb.module_generator.start_module_creation():
                     guess = eb.make_module_req()
                 if not sp_headers:

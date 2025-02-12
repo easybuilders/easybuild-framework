@@ -618,7 +618,7 @@ class EasyBuildOptions(GeneralOption):
             'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
             'module-search-path-headers': ("Environment variable set by modules on load with search paths "
                                            "to header files", 'choice', 'store', DEFAULT_MOD_SEARCH_PATH_HEADERS,
-                                           [*MOD_SEARCH_PATH_HEADERS]),
+                                           sorted(MOD_SEARCH_PATH_HEADERS.keys())),
             'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
                               sorted(avail_module_generators().keys())),
             'moduleclasses': (("Extend supported module classes "
