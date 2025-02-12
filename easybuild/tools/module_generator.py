@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,15 +36,16 @@ Authors:
 * Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import copy
+import itertools
 import os
 import re
 import tempfile
 from collections import defaultdict
 from contextlib import contextmanager
-from easybuild.tools import LooseVersion
 from textwrap import wrap
 
 from easybuild.base import fancylogger
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
@@ -623,21 +624,6 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def _generate_extension_list(self):
-        """
-        Generate a string with a list of extensions.
-
-        The name and version are separated by name_version_sep and each extension is separated by ext_sep
-        """
-        return self.app.make_extension_string()
-
-    def _generate_extensions_list(self):
-        """
-        Generate a list of all extensions in name/version format
-        """
-        exts_str = self.app.make_extension_string(name_version_sep='/', ext_sep=',')
-        return exts_str.split(',') if exts_str else []
-
     def _generate_help_text(self):
         """
         Generate syntax-independent help text used for `module help`.
@@ -684,7 +670,7 @@ class ModuleGenerator(object):
             lines.extend(self._generate_section("Compatible modules", compatible_modules_txt))
 
         # Extensions (if any)
-        extensions = self._generate_extension_list()
+        extensions = self.app.make_extension_string()
         lines.extend(self._generate_section("Included extensions", '\n'.join(wrap(extensions, 78))))
 
         return '\n'.join(lines)
@@ -695,21 +681,13 @@ class ModuleGenerator(object):
         """
         multi_deps = []
         if self.app.cfg['multi_deps']:
-            for key in sorted(self.app.cfg['multi_deps'].keys()):
-                mod_list = []
-                txt = ''
-                vlist = self.app.cfg['multi_deps'].get(key)
-                for idx in range(len(vlist)):
-                    for deplist in self.app.cfg.multi_deps:
-                        for dep in deplist:
-                            if dep['name'] == key and dep['version'] == vlist[idx]:
-                                modname = dep['short_mod_name']
-                                # indicate which version is loaded by default (unless that's disabled)
-                                if idx == 0 and self.app.cfg['multi_deps_load_default']:
-                                    modname += ' (default)'
-                                mod_list.append(modname)
-                txt += ', '.join(mod_list)
-                multi_deps.append(txt)
+            for name in sorted(self.app.cfg['multi_deps']):
+                mod_list = [dep['short_mod_name'] for dep in itertools.chain.from_iterable(self.app.cfg.multi_deps)
+                            if dep['name'] == name]
+                # indicate that the first version is loaded by default if enabled
+                if self.app.cfg['multi_deps_load_default']:
+                    mod_list[0] += ' (default)'
+                multi_deps.append(', '.join(mod_list))
 
         return multi_deps
 
@@ -741,7 +719,7 @@ class ModuleGenerator(object):
             if multi_deps:
                 whatis.append("Compatible modules: %s" % ', '.join(multi_deps))
 
-            extensions = self._generate_extension_list()
+            extensions = self.app.make_extension_string()
             if extensions:
                 whatis.append("Extensions: %s" % extensions)
 
@@ -1300,12 +1278,9 @@ class ModuleGeneratorLua(ModuleGenerator):
         elif conflict:
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
-
-        if build_option('module_extensions'):
-            extensions_list = self._generate_extensions_list()
-
+            extensions_list = self.app.make_extension_string(name_version_sep='/', ext_sep=',')
             if extensions_list:
-                extensions_stmt = 'extensions("%s")' % ','.join([str(x) for x in extensions_list])
+                extensions_stmt = 'extensions("%s")' % extensions_list
                 # put this behind a Lmod version check as 'extensions' is only (well) supported since Lmod 8.2.8,
                 # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions and
                 # https://github.com/TACC/Lmod/issues/428

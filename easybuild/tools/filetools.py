@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -48,6 +48,7 @@ import hashlib
 import inspect
 import itertools
 import os
+import pathlib
 import platform
 import re
 import shutil
@@ -55,6 +56,7 @@ import signal
 import stat
 import ssl
 import sys
+import tarfile
 import tempfile
 import time
 import zlib
@@ -1303,6 +1305,9 @@ def verify_checksum(path, checksums, computed_checksums=None):
                 checksum = checksum[filename]
             except KeyError:
                 raise EasyBuildError("Missing checksum for %s in %s", filename, checksum)
+            if not verify_checksum(path, checksum, computed_checksums):
+                return False
+            continue
 
         if isinstance(checksum, str):
             # if no checksum type is specified, it is assumed to be MD5 (32 characters) or SHA256 (64 characters)
@@ -1408,12 +1413,11 @@ def find_extension(filename):
     suffixes = sorted(EXTRACT_CMDS.keys(), key=len, reverse=True)
     pat = r'(?P<ext>%s)$' % '|'.join([s.replace('.', '\\.') for s in suffixes])
     res = re.search(pat, filename, flags=re.IGNORECASE)
+
     if res:
-        ext = res.group('ext')
+        return res.group('ext')
     else:
         raise EasyBuildError("%s has unknown file extension", filename)
-
-    return ext
 
 
 def extract_cmd(filepath, overwrite=False):
@@ -2644,7 +2648,7 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     """
     Downloads a git repository, at a specific tag or commit, recursively or not, and make an archive with it
 
-    :param filename: name of the archive to save the code to (must be .tar.gz)
+    :param filename: name of the archive file to save the code to (including extension)
     :param target_dir: target directory where to save the archive to
     :param git_config: dictionary containing url, repo_name, recursive, and one of tag or commit
     """
@@ -2679,9 +2683,6 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
 
     if not url:
         raise EasyBuildError("url not specified in git_config parameter")
-
-    if not filename.endswith('.tar.gz'):
-        raise EasyBuildError("git_config currently only supports filename ending in .tar.gz")
 
     # prepare target directory and clone repository
     mkdir(target_dir, parents=True)
@@ -2768,33 +2769,134 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
                 run_shell_cmd(cmd, work_dir=work_dir, hidden=True, verbose_dry_run=True)
 
     # Create archive
-    archive_path = os.path.join(target_dir, filename)
-
-    if keep_git_dir:
-        # create archive of git repo including .git directory
-        tar_cmd = ['tar', 'cfvz', archive_path, repo_name]
-    else:
-        # create reproducible archive
-        # see https://reproducible-builds.org/docs/archives/
-        tar_cmd = [
-            # print names of all files and folders excluding .git directory
-            'find', repo_name, '-name ".git"', '-prune', '-o', '-print0',
-            # reset access and modification timestamps to epoch 0 (equivalent to --mtime in GNU tar)
-            '-exec', 'touch', '--date=@0', '{}', r'\;',
-            # reset file permissions of cloned repo (equivalent to --mode in GNU tar)
-            '-exec', 'chmod', '"go+u,go-w"', '{}', r'\;', '|',
-            # sort file list (equivalent to --sort in GNU tar)
-            'LC_ALL=C', 'sort', '--zero-terminated', '|',
-            # create tarball in GNU format with ownership and permissions reset
-            'tar', '--create', '--no-recursion', '--owner=0', '--group=0', '--numeric-owner',
-            '--format=gnu', '--null', '--files-from', '-', '|',
-            # compress tarball with gzip without original file name and timestamp
-            'gzip', '--no-name', '>', archive_path
-        ]
-    run_shell_cmd(' '.join(tar_cmd), work_dir=tmpdir, hidden=True, verbose_dry_run=True)
+    repo_path = os.path.join(tmpdir, repo_name)
+    reproducible = not keep_git_dir  # presence of .git directory renders repo unreproducible
+    archive_path = make_archive(repo_path, archive_file=filename, archive_dir=target_dir, reproducible=reproducible)
 
     # cleanup (repo_name dir does not exist in dry run mode)
     remove(tmpdir)
+
+    return archive_path
+
+
+def make_archive(source_dir, archive_file=None, archive_dir=None, reproducible=True):
+    """
+    Create an archive file of the given directory
+    The format of the tarball is defined by the extension of the archive file name
+
+    :source_dir: string with path to directory to be archived
+    :archive_file: string with filename of archive
+    :archive_dir: string with path to directory to place the archive
+    :reproducible: make a tarball that is reproducible accross systems
+      - see https://reproducible-builds.org/docs/archives/
+      - requires uncompressed or LZMA compressed archive images
+      - gzip is currently not supported due to undeterministic data injected in its headers
+        see https://github.com/python/cpython/issues/112346
+
+    Default behaviour: reproducible tarball in .tar.xz
+    """
+    def reproducible_filter(tarinfo):
+        "Filter out system-dependent data from tarball"
+        # contents of '.git' subdir are inherently system dependent
+        if "/.git/" in tarinfo.name or tarinfo.name.endswith("/.git"):
+            return None
+        # set timestamp to epoch 0
+        tarinfo.mtime = 0
+        # reset file permissions by applying go+u,go-w
+        user_mode = tarinfo.mode & stat.S_IRWXU
+        group_mode = (user_mode >> 3) & ~stat.S_IWGRP  # user mode without write
+        other_mode = group_mode >> 3  # same as group mode
+        tarinfo.mode = (tarinfo.mode & ~0o77) | group_mode | other_mode
+        # reset ownership to numeric UID/GID 0
+        # equivalent in GNU tar to 'tar --owner=0 --group=0 --numeric-owner'
+        tarinfo.uid = tarinfo.gid = 0
+        tarinfo.uname = tarinfo.gname = ""
+        return tarinfo
+
+    ext_compression_map = {
+        # taken from EXTRACT_CMDS
+        '.gtgz': 'gz',
+        '.tar.gz': 'gz',
+        '.tgz': 'gz',
+        '.tar.bz2': 'bz2',
+        '.tb2': 'bz2',
+        '.tbz': 'bz2',
+        '.tbz2': 'bz2',
+        '.tar.xz': 'xz',
+        '.txz': 'xz',
+        '.tar': '',
+    }
+    reproducible_compression = ['', 'xz']
+    default_ext = '.tar.xz'
+
+    if archive_file is None:
+        archive_file = os.path.basename(source_dir) + default_ext
+
+    try:
+        archive_ext = find_extension(archive_file)
+    except EasyBuildError:
+        if '.' in archive_file:
+            # archive filename has unknown extension (set for raise)
+            archive_ext = ''
+        else:
+            # archive filename has no extension, use default one
+            archive_ext = default_ext
+            archive_file += archive_ext
+
+    if archive_ext not in ext_compression_map:
+        # archive filename has unsupported extension
+        supported_exts = ', '.join(ext_compression_map)
+        raise EasyBuildError(
+            f"Unsupported archive format: {archive_file}. Supported tarball extensions: {supported_exts}"
+        )
+    compression = ext_compression_map[archive_ext]
+    _log.debug(f"Archive extension and compression: {archive_ext} in {compression}")
+
+    archive_path = archive_file if archive_dir is None else os.path.join(archive_dir, archive_file)
+
+    archive_specs = {
+        'name': archive_path,
+        'mode': f"w:{compression}",
+        'format': tarfile.GNU_FORMAT,
+        'encoding': "utf-8",
+    }
+
+    if reproducible:
+        if compression == 'xz':
+            # ensure a consistent compression level in reproducible tarballs with XZ
+            archive_specs['preset'] = 6
+        elif compression not in reproducible_compression:
+            # requested archive compression cannot be made reproducible
+            print_warning(
+                f"Can not create reproducible archive due to unsupported file compression ({compression}). "
+                "Please use XZ instead."
+            )
+            reproducible = False
+
+    archive_filter = reproducible_filter if reproducible else None
+
+    if build_option('extended_dry_run'):
+        # early return in dry run mode
+        dry_run_msg("Archiving '%s' into '%s'...", source_dir, archive_path)
+        return archive_path
+    _log.info("Archiving '%s' into '%s'...", source_dir, archive_path)
+
+    # TODO: replace with TarFile.add(recursive=True) when support for Python 3.6 drops
+    # since Python v3.7 tarfile automatically orders the list of files added to the archive
+    # see Tarfile.add documentation: https://docs.python.org/3/library/tarfile.html#tarfile.TarFile.add
+    source_files = [source_dir]
+    # pathlib's glob includes hidden files
+    source_files.extend([str(filepath) for filepath in pathlib.Path(source_dir).glob("**/*")])
+    source_files.sort()  # independent of locale
+
+    with tarfile.open(**archive_specs) as tar_archive:
+        for filepath in source_files:
+            # archive with target directory in its top level, remove any prefix in path
+            file_name = os.path.relpath(filepath, start=os.path.dirname(source_dir))
+            tar_archive.add(filepath, arcname=file_name, recursive=False, filter=archive_filter)
+            _log.debug("File/folder added to archive '%s': %s", archive_file, filepath)
+
+    _log.info("Archive '%s' created successfully", archive_file)
 
     return archive_path
 

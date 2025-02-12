@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -72,7 +72,7 @@ from easybuild.tools.config import Singleton, build_option, get_module_naming_sc
 from easybuild.tools.filetools import convert_name, copy_file, create_index, decode_class_name, encode_class_name
 from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, load_index
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.hooks import PARSE, load_hooks, run_hook
+from easybuild.tools.hooks import PARSE, EXTRACT_STEP, STEP_NAMES, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -440,7 +440,10 @@ class EasyConfig(object):
         :param local_var_naming_check: mode to use when checking if local variables use the recommended naming scheme
         """
         self.template_values = None
-        self.enable_templating = True  # a boolean to control templating
+        # a boolean to control templating, can be (temporarily) disabled in easyblocks
+        self.enable_templating = True
+        # boolean to control whether all template values must be resolvable, can be (temporarily) disabled in easyblocks
+        self.expect_resolved_template_values = True
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -787,9 +790,13 @@ class EasyConfig(object):
         """
         Determine number of files (sources + patches) required for this easyconfig.
         """
-        cnt = len(self['sources']) + len(self['patches'])
 
-        for ext in self['exts_list']:
+        # No need to resolve templates as we only need a count not the names
+        with self.disable_templating():
+            cnt = len(self['sources']) + len(self['patches'])
+            exts = self['exts_list']
+
+        for ext in exts:
             if isinstance(ext, tuple) and len(ext) >= 3:
                 ext_opts = ext[2]
                 # check for 'sources' first, since that's also considered first by EasyBlock.collect_exts_file_info
@@ -882,9 +889,25 @@ class EasyConfig(object):
             self.log.info("Not checking OS dependencies")
 
         self.log.info("Checking skipsteps")
-        if not isinstance(self._config['skipsteps'][0], (list, tuple,)):
+        skipsteps = self._config['skipsteps'][0]
+        if not isinstance(skipsteps, (list, tuple,)):
             raise EasyBuildError('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)',
-                                 type(self._config['skipsteps'][0]), self._config['skipsteps'][0])
+                                 type(skipsteps), skipsteps)
+        unknown_step_names = [step for step in skipsteps if step not in STEP_NAMES]
+        if unknown_step_names:
+            error_lines = ["Found one or more unknown step names in 'skipsteps' easyconfig parameter:"]
+            for step in unknown_step_names:
+                error_line = "* %s" % step
+                # try to find close match, may be just a typo in the step name
+                close_matches = difflib.get_close_matches(step, STEP_NAMES, 2, 0.8)
+                # 'source' step was renamed to 'extract' in EasyBuild 5.0, see provide a useful suggestion in that case;
+                # see https://github.com/easybuilders/easybuild-framework/pull/4629
+                if not close_matches and step == 'source':
+                    close_matches.append(EXTRACT_STEP)
+                if close_matches:
+                    error_line += " (did you mean %s?)" % ', or '.join("'%s'" % s for s in close_matches)
+                error_lines.append(error_line)
+            raise EasyBuildError('\n'.join(error_lines))
 
         self.log.info("Checking build option lists")
         self.validate_iterate_opts_lists()
@@ -1521,13 +1544,13 @@ class EasyConfig(object):
             # all multi_deps entries should be listed in builddependencies (if not, something is very wrong)
             if isinstance(builddeps, list) and all(isinstance(x, list) for x in builddeps):
 
-                for iter_id in range(len(builddeps)):
+                for iter_id, current_builddeps in enumerate(builddeps):
 
                     # only build dependencies that correspond to multi_deps entries should be loaded as extra modules
                     # (other build dependencies should not be required to make sanity check pass for this iteration)
                     iter_deps = []
                     for key in self['multi_deps']:
-                        hits = [d for d in builddeps[iter_id] if d['name'] == key]
+                        hits = [d for d in current_builddeps if d['name'] == key]
                         if len(hits) == 1:
                             iter_deps.append(hits[0])
                         else:
@@ -1680,8 +1703,9 @@ class EasyConfig(object):
         filter_deps_specs = self.parse_filter_deps()
 
         for key in DEPENDENCY_PARAMETERS:
-            # loop over a *copy* of dependency dicts (with resolved templates);
-            deps = self[key]
+            # loop over a *copy* of dependency dicts with resolved templates,
+            # although some templates may not resolve yet (e.g. those relying on dependencies like %(pyver)s)
+            deps = resolve_template(self.get_ref(key), self.template_values, expect_resolved=False)
 
             # to update the original dep dict, we need to get a reference with templating disabled...
             deps_ref = self.get_ref(key)
@@ -1791,6 +1815,12 @@ class EasyConfig(object):
             if self.template_values[key] is None:
                 del self.template_values[key]
 
+    def resolve_template(self, value):
+        """Resolve all templates in the given value using this easyconfig"""
+        if not self.template_values:
+            self.generate_template_values()
+        return resolve_template(value, self.template_values, expect_resolved=self.expect_resolved_template_values)
+
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __contains__(self, key):
         """Check whether easyconfig parameter is defined"""
@@ -1806,9 +1836,7 @@ class EasyConfig(object):
             raise EasyBuildError("Use of unknown easyconfig parameter '%s' when getting parameter value", key)
 
         if self.enable_templating:
-            if self.template_values is None or len(self.template_values) == 0:
-                self.generate_template_values()
-            value = resolve_template(value, self.template_values)
+            value = self.resolve_template(value)
 
         return value
 
@@ -1853,11 +1881,14 @@ class EasyConfig(object):
     # see also https://docs.python.org/2/reference/datamodel.html#object.__eq__
     def __eq__(self, ec):
         """Is this EasyConfig instance equivalent to the provided one?"""
-        return self.asdict() == ec.asdict()
+        # Compare raw values to check that templates used are the same
+        with self.disable_templating():
+            with ec.disable_templating():
+                return self.asdict() == ec.asdict()
 
     def __ne__(self, ec):
         """Is this EasyConfig instance equivalent to the provided one?"""
-        return self.asdict() != ec.asdict()
+        return not self == ec
 
     def __hash__(self):
         """Return hash value for a hashable representation of this EasyConfig instance."""
@@ -1870,8 +1901,9 @@ class EasyConfig(object):
             return val
 
         lst = []
-        for (key, val) in sorted(self.asdict().items()):
-            lst.append((key, make_hashable(val)))
+        with self.disable_templating():
+            for (key, val) in sorted(self.asdict().items()):
+                lst.append((key, make_hashable(val)))
 
         # a list is not hashable, but a tuple is
         return hash(tuple(lst))
@@ -1886,7 +1918,8 @@ class EasyConfig(object):
             if self.enable_templating:
                 if not self.template_values:
                     self.generate_template_values()
-                value = resolve_template(value, self.template_values)
+                # Not all values can be resolved, e.g. %(installdir)s
+                value = resolve_template(value, self.template_values, expect_resolved=False)
             res[key] = value
         return res
 
@@ -2034,10 +2067,11 @@ def get_module_path(name, generic=None, decode=True):
     return '.'.join(modpath + [module_name])
 
 
-def resolve_template(value, tmpl_dict):
+def resolve_template(value, tmpl_dict, expect_resolved=True):
     """Given a value, try to susbstitute the templated strings with actual values.
         - value: some python object (supported are string, tuple/list, dict or some mix thereof)
         - tmpl_dict: template dictionary
+        - expect_resolved: Expects that all templates get resolved
     """
     if isinstance(value, str):
         # simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
@@ -2090,7 +2124,14 @@ def resolve_template(value, tmpl_dict):
                             _log.deprecated(f"Easyconfig template '{old_tmpl}' is deprecated, use '{new_tmpl}' instead",
                                             ver)
                 except KeyError:
-                    _log.warning(f"Unable to resolve template value {value} with dict {tmpl_dict}")
+                    if expect_resolved:
+                        msg = (f'Failed to resolve all templates in "{value}" using template dictionary: {tmpl_dict}. '
+                               'This might cause failures or unexpected behavior, '
+                               'check for correct escaping if this is intended!')
+                        if build_option('allow_unresolved_templates'):
+                            print_warning(msg)
+                        else:
+                            raise EasyBuildError(msg)
                     value = raw_value  # Undo "%"-escaping
 
                 for key in tmpl_dict:
@@ -2111,11 +2152,12 @@ def resolve_template(value, tmpl_dict):
         # self._config['x']['y'] = z
         # it can not be intercepted with __setitem__ because the set is done at a deeper level
         if isinstance(value, list):
-            value = [resolve_template(val, tmpl_dict) for val in value]
+            value = [resolve_template(val, tmpl_dict, expect_resolved) for val in value]
         elif isinstance(value, tuple):
-            value = tuple(resolve_template(list(value), tmpl_dict))
+            value = tuple(resolve_template(list(value), tmpl_dict, expect_resolved))
         elif isinstance(value, dict):
-            value = {resolve_template(k, tmpl_dict): resolve_template(v, tmpl_dict) for k, v in value.items()}
+            value = {resolve_template(k, tmpl_dict, expect_resolved): resolve_template(v, tmpl_dict, expect_resolved)
+                     for k, v in value.items()}
 
     return value
 

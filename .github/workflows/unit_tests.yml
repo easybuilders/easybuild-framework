@@ -133,7 +133,7 @@ jobs:
       run: |
           # make sure there are no (top-level) "import setuptools" or "import pkg_resources" statements,
           # since EasyBuild should not have a runtime requirement on setuptools
-          SETUPTOOLS_IMPORTS=$(egrep -RI '^(from|import)[ ]*pkg_resources|^(from|import)[ ]*setuptools' * || true)
+          SETUPTOOLS_IMPORTS=$(egrep --exclude setup.py -RI '^(from|import)[ ]*pkg_resources|^(from|import)[ ]*setuptools' * || true)
           test "x$SETUPTOOLS_IMPORTS" = "x" || (echo "Found setuptools and/or pkg_resources imports in easybuild/:\n${SETUPTOOLS_IMPORTS}" && exit 1)
 
     - name: install sources
@@ -197,7 +197,7 @@ jobs:
             IGNORE_PATTERNS+="|skipping SvnRepository test"
             IGNORE_PATTERNS+="|requires Lmod as modules tool"
             IGNORE_PATTERNS+="|stty: 'standard input': Inappropriate ioctl for device"
-            IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 3.[56]"
+            IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 3.[567]"
             IGNORE_PATTERNS+="|from cryptography.* import "
             IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 2"
             IGNORE_PATTERNS+="|Blowfish"

@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -64,6 +64,7 @@ LIST_EASYBLOCKS_SIMPLE_TXT = """EasyBlock
 |   |   |-- DeprecatedDummyExtension
 |   |   |   |-- ChildDeprecatedDummyExtension
 |   |-- EB_toy
+|   |   |-- EB_toy_deprecated
 |   |   |-- EB_toy_eula
 |   |   |-- EB_toytoy
 |   |-- Toy_Extension
@@ -78,6 +79,7 @@ Extension
 |   |   |-- DeprecatedDummyExtension
 |   |   |   |-- ChildDeprecatedDummyExtension
 |   |-- EB_toy
+|   |   |-- EB_toy_deprecated
 |   |   |-- EB_toy_eula
 |   |   |-- EB_toytoy
 |   |-- Toy_Extension"""  # noqa
@@ -104,6 +106,7 @@ LIST_EASYBLOCKS_DETAILED_TXT = """EasyBlock (easybuild.framework.easyblock)
 |   |   |-- DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
 |   |   |   |-- ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
 |   |-- EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
+|   |   |-- EB_toy_deprecated (easybuild.easyblocks.toy_deprecated @ %(topdir)s/t/toy_deprecated.py)
 |   |   |-- EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
 |   |   |-- EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
 |   |-- Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)
@@ -118,6 +121,7 @@ Extension (easybuild.framework.extension)
 |   |   |-- DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
 |   |   |   |-- ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
 |   |-- EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
+|   |   |-- EB_toy_deprecated (easybuild.easyblocks.toy_deprecated @ %(topdir)s/t/toy_deprecated.py)
 |   |   |-- EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
 |   |   |-- EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
 |   |-- Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)"""  # noqa
@@ -157,6 +161,7 @@ LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
 
     * EB_toy
 
+      * EB_toy_deprecated
       * EB_toy_eula
       * EB_toytoy
 
@@ -183,6 +188,7 @@ LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
 
     * EB_toy
 
+      * EB_toy_deprecated
       * EB_toy_eula
       * EB_toytoy
 
@@ -225,6 +231,7 @@ LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock
 
     * EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
 
+      * EB_toy_deprecated (easybuild.easyblocks.toy_deprecated @ %(topdir)s/t/toy_deprecated.py)
       * EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
       * EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
 
@@ -251,6 +258,7 @@ LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock
 
     * EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
 
+      * EB_toy_deprecated (easybuild.easyblocks.toy_deprecated @ %(topdir)s/t/toy_deprecated.py)
       * EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
       * EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
 
@@ -280,6 +288,7 @@ LIST_EASYBLOCKS_SIMPLE_MD = """- **EasyBlock**
       - DeprecatedDummyExtension
         - ChildDeprecatedDummyExtension
     - EB_toy
+      - EB_toy_deprecated
       - EB_toy_eula
       - EB_toytoy
     - Toy_Extension
@@ -294,6 +303,7 @@ LIST_EASYBLOCKS_SIMPLE_MD = """- **EasyBlock**
       - DeprecatedDummyExtension
         - ChildDeprecatedDummyExtension
     - EB_toy
+      - EB_toy_deprecated
       - EB_toy_eula
       - EB_toytoy
     - Toy_Extension"""  # noqa
@@ -320,6 +330,7 @@ LIST_EASYBLOCKS_DETAILED_MD = """- **EasyBlock** (easybuild.framework.easyblock)
       - DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
         - ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
     - EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
+      - EB_toy_deprecated (easybuild.easyblocks.toy_deprecated @ %(topdir)s/t/toy_deprecated.py)
       - EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
       - EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
     - Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)
@@ -334,6 +345,7 @@ LIST_EASYBLOCKS_DETAILED_MD = """- **EasyBlock** (easybuild.framework.easyblock)
       - DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
         - ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
     - EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
+      - EB_toy_deprecated (easybuild.easyblocks.toy_deprecated @ %(topdir)s/t/toy_deprecated.py)
       - EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
       - EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
     - Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)"""  # noqa
