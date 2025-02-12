@@ -57,6 +57,8 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import get_subclasses, nub
 
 
+MODULE_LOAD_ENV_HEADERS = 'HEADERS'
+
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
 VERSION_ENV_VAR_NAME_PREFIX = "EBVERSION"
@@ -283,9 +285,8 @@ class ModuleLoadEnvironment:
 
         # environment variables with known aliases
         # e.g. search paths to C/C++ headers
-        if 'HEADERS' in self._aliases:
-            for envar_name in self._aliases['HEADERS']:
-                setattr(self, envar_name, SEARCH_PATH_HEADER_DIRS)
+        for envar_name in self._aliases.get(MODULE_LOAD_ENV_HEADERS, []):
+            setattr(self, envar_name, SEARCH_PATH_HEADER_DIRS)
 
     def __setattr__(self, name, value):
         """

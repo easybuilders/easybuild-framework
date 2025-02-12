@@ -100,7 +100,7 @@ from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import Lmod, ModEnvVarType, ModuleLoadEnvironment
+from easybuild.tools.modules import Lmod, ModEnvVarType, ModuleLoadEnvironment, MODULE_LOAD_ENV_HEADERS
 from easybuild.tools.modules import curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
@@ -228,7 +228,7 @@ class EasyBlock(object):
             mod_load_cpp_headers = DEFAULT_MOD_SEARCH_PATH_HEADERS
 
         try:
-            mod_load_aliases['HEADERS'] = MOD_SEARCH_PATH_HEADERS[mod_load_cpp_headers]
+            mod_load_aliases[MODULE_LOAD_ENV_HEADERS] = MOD_SEARCH_PATH_HEADERS[mod_load_cpp_headers]
         except KeyError as err:
             raise EasyBuildError(
                 f"Unknown value selected for option module-search-path-headers: {mod_load_cpp_headers}. "
