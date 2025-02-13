@@ -3340,8 +3340,8 @@ class EasyBlock(object):
         # For example, libcuda.so.1 should never be RPATH-ed by design,
         # see https://github.com/easybuilders/easybuild-framework/issues/4095
         filter_rpath_sanity_libs = build_option('filter_rpath_sanity_libs')
-        msg = "Ignoring the following libraries if they are not found by RPATH sanity check: {filter_rpath_sanity_libs}"
-        self.log.info(msg)
+        self.log.info("Ignoring the following libraries if they are not found by RPATH sanity check: %s",
+                      filter_rpath_sanity_libs)
 
         if rpath_dirs is None:
             rpath_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
