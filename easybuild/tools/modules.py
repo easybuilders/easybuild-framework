@@ -353,9 +353,8 @@ class ModuleLoadEnvironment:
 
     def replace(self, new_env):
         """Replace contents of environment with given dictionary"""
-        env_vars = [e for e in dir(self) if e.isupper()]
-        for env_var in env_vars:
-            self.remove(env_var)
+        for var in self.vars:
+            self.remove(var)
         self.update(new_env)
 
     def remove(self, var_name):
