@@ -1681,12 +1681,12 @@ class EasyBlock(object):
 
         if self.make_module_req_guess.__qualname__ != "EasyBlock.make_module_req_guess":
             # Deprecated make_module_req_guess method used in child Easyblock
-            # Update environment with custom make_module_req_guess
+            # adjust environment with custom make_module_req_guess
             self.log.deprecated(
                 "make_module_req_guess() is deprecated, use EasyBlock.module_load_environment instead.",
                 "6.0",
             )
-            self.module_load_environment.update(self.make_module_req_guess())
+            self.module_load_environment.replace(self.make_module_req_guess())
 
         # Expand and inject path-like environment variables into module file
         env_var_requirements = {
