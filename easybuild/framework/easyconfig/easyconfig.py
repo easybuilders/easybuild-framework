@@ -1261,8 +1261,7 @@ class EasyConfig(object):
     def parallel(self):
         """Number of parallel jobs to be used for building etc."""
         if self._parallel is None:
-            raise EasyBuildError("Parallelism in EasyConfig not set yet. "
-                                 "Need to call the easyblocks set_parallel first.")
+            raise ValueError("Parallelism in EasyConfig not set yet. Need to call the easyblocks set_parallel first.")
         # This gets set when an easyblock changes ec['parallel'].
         # It also gets set/updated in set_parallel to mirror the old behavior during the deprecation phase
         parallelLegacy = self._config['_parallelLegacy'][0]
