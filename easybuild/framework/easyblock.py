@@ -4483,7 +4483,7 @@ def build_and_install_one(ecdict, init_env):
     try:
         app_class = get_easyblock_class(easyblock, name=name)
         app = app_class(ecdict['ec'])
-        _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
+        _log.info("Obtained application instance for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError as err:
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),
                     silent=silent)
