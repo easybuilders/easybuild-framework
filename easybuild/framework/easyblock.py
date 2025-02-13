@@ -2422,7 +2422,7 @@ class EasyBlock(object):
             else:
                 par = min(int(par), int(cfg_par))
 
-        par = det_parallelism(par, maxpar=self.cfg['maxparallel'])
+        par = det_parallelism(par, maxpar=self.cfg['max_parallel'])
         self.log.info("Setting parallelism: %s" % par)
         self.cfg.parallel = par
 

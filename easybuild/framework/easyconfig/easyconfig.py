@@ -615,6 +615,7 @@ class EasyConfig(object):
         ec = EasyConfig(self.path, validate=validate, hidden=self.hidden, rawtxt=self.rawtxt)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
+        ec._parallel = self._parallel  # Might be already set, e.g. for extensions
         # since rawtxt is defined, self.path may not get inherited, make sure it does
         if self.path:
             ec.path = self.path
@@ -721,7 +722,7 @@ class EasyConfig(object):
 
         if 'parallel' in ec_vars:
             # Replace value and issue better warning for EC params (as opposed to warnings meant for easyblocks)
-            self.log.deprecated("Easyconfig parameter 'parallel' is deprecated, use 'maxparallel' instead.", '5.1')
+            self.log.deprecated("Easyconfig parameter 'parallel' is deprecated, use 'max_parallel' instead.", '5.1')
             ec_vars['_parallelLegacy'] = ec_vars.pop('parallel')
 
         # provide suggestions for typos. Local variable names are excluded from this check
