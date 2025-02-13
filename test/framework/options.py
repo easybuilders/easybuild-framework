@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2024 Ghent University
+# Copyright 2013-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -576,7 +576,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
 
         self.assertIn("Auto-enabling streaming output", stdout)
-        self.assertIn("== (streaming) output for command 'gcc toy.c -o toy':", stdout)
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)

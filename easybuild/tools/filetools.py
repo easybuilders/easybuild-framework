@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1305,6 +1305,9 @@ def verify_checksum(path, checksums, computed_checksums=None):
                 checksum = checksum[filename]
             except KeyError:
                 raise EasyBuildError("Missing checksum for %s in %s", filename, checksum)
+            if not verify_checksum(path, checksum, computed_checksums):
+                return False
+            continue
 
         if isinstance(checksum, str):
             # if no checksum type is specified, it is assumed to be MD5 (32 characters) or SHA256 (64 characters)

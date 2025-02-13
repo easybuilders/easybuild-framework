@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -122,10 +122,12 @@ class ModulesTest(EnhancedTestCase):
             error_pattern = "Module command '.*thisdoesnotmakesense' failed with exit code [1-9]"
             self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'thisdoesnotmakesense')
 
-            # we need to use a different error pattern here with Environment Modules,
-            # because a load of a non-existing module doesnt' trigger a non-zero exit code...
-            # it will still fail though, just differently
-            if isinstance(self.modtool, EnvironmentModulesC) or isinstance(self.modtool, EnvironmentModules):
+            # we need to use a different error pattern here with EnvironmentModulesC and
+            # EnvironmentModules  <5.5, because a load of a non-existing module doesnt' trigger a
+            # non-zero exit code. it will still fail though, just differently
+            version = LooseVersion(self.modtool.version)
+            if (isinstance(self.modtool, EnvironmentModulesC)
+                    or (isinstance(self.modtool, EnvironmentModules) and version < '5.5')):
                 error_pattern = "Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
             else:
                 error_pattern = "Module command '.*load nosuchmodule/1.2.3' failed with exit code [1-9]"
@@ -1598,6 +1600,202 @@ class ModulesTest(EnhancedTestCase):
 
         res = self.modtool.get_setenv_value_from_modulefile('toy/0.0', 'NO_SUCH_VARIABLE_SET')
         self.assertEqual(res, None)
+
+    def test_module_environment_variable(self):
+        """Test for ModuleEnvironmentVariable object"""
+        test_paths = ['lib', 'lib64']
+        mod_envar = mod.ModuleEnvironmentVariable(test_paths)
+        self.assertTrue(hasattr(mod_envar, 'contents'))
+        self.assertTrue(hasattr(mod_envar, 'type'))
+        self.assertTrue(hasattr(mod_envar, 'delim'))
+        self.assertEqual(mod_envar.contents, test_paths)
+        self.assertEqual(repr(mod_envar), repr(test_paths))
+        self.assertEqual(str(mod_envar), 'lib:lib64')
+
+        mod_envar_custom_delim = mod.ModuleEnvironmentVariable(test_paths, delim='|')
+        self.assertEqual(mod_envar_custom_delim.contents, test_paths)
+        self.assertEqual(repr(mod_envar_custom_delim), repr(test_paths))
+        self.assertEqual(str(mod_envar_custom_delim), 'lib|lib64')
+
+        mod_envar_custom_type = mod.ModuleEnvironmentVariable(test_paths, var_type='STRING')
+        self.assertEqual(mod_envar_custom_type.contents, test_paths)
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.STRING)
+        self.assertEqual(mod_envar_custom_type.is_path, False)
+        mod_envar_custom_type.type = 'PATH'
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH)
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = mod.ModEnvVarType.PATH
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = 'PATH_WITH_FILES'
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = mod.ModEnvVarType.PATH_WITH_FILES
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = 'PATH_WITH_TOP_FILES'
+        self.assertEqual(mod_envar_custom_type.type, mod.ModEnvVarType.PATH_WITH_TOP_FILES)
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        mod_envar_custom_type.type = mod.ModEnvVarType.PATH_WITH_TOP_FILES
+        self.assertEqual(mod_envar_custom_type.is_path, True)
+
+        self.assertRaises(EasyBuildError, setattr, mod_envar_custom_type, 'type', 'NONEXISTENT')
+        self.assertRaises(EasyBuildError, mod.ModuleEnvironmentVariable, test_paths, 'NONEXISTENT')
+
+        mod_envar.contents = []
+        self.assertEqual(mod_envar.contents, [])
+        self.assertRaises(TypeError, setattr, mod_envar, 'contents', None)
+        mod_envar.contents = (1, 3, 2, 3)
+        self.assertEqual(mod_envar.contents, ['1', '3', '2'])
+        mod_envar.contents = 'include'
+        self.assertEqual(mod_envar.contents, ['include'])
+
+        mod_envar.append('share')
+        self.assertEqual(mod_envar.contents, ['include', 'share'])
+        mod_envar.append('share')
+        self.assertEqual(mod_envar.contents, ['include', 'share'])
+        self.assertRaises(TypeError, mod_envar.append, 'arg1', 'arg2')
+
+        mod_envar.extend(test_paths)
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64'])
+        mod_envar.extend(test_paths)
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64'])
+        mod_envar.extend(test_paths + ['lib128'])
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64', 'lib128'])
+        self.assertRaises(TypeError, mod_envar.append, ['list1'], ['list2'])
+
+        mod_envar.remove('lib128')
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64'])
+        mod_envar.remove('nonexistent')
+        self.assertEqual(mod_envar.contents, ['include', 'share', 'lib', 'lib64'])
+        self.assertRaises(TypeError, mod_envar.remove, 'arg1', 'arg2')
+
+        mod_envar.prepend('bin')
+        self.assertEqual(mod_envar.contents, ['bin', 'include', 'share', 'lib', 'lib64'])
+
+        mod_envar.update('new_path')
+        self.assertEqual(mod_envar.contents, ['new_path'])
+        mod_envar.update(['new_path_1', 'new_path_2'])
+        self.assertEqual(mod_envar.contents, ['new_path_1', 'new_path_2'])
+        self.assertRaises(TypeError, mod_envar.update, 'arg1', 'arg2')
+
+    def test_module_load_environment(self):
+        """Test for ModuleLoadEnvironment object"""
+        mod_load_env = mod.ModuleLoadEnvironment()
+
+        # test setting attributes
+        test_contents = ['lib', 'lib64']
+        mod_load_env.TEST_VAR = test_contents
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VAR'))
+        self.assertEqual(mod_load_env.TEST_VAR.contents, test_contents)
+
+        error_pattern = "Names of ModuleLoadEnvironment attributes must be uppercase, got 'test_lower'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, setattr, mod_load_env, 'test_lower', test_contents)
+
+        mod_load_env.TEST_STR = 'some/path'
+        self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
+        self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
+
+        mod_load_env.TEST_VARTYPE = (test_contents, {'var_type': "STRING"})
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VARTYPE'))
+        self.assertEqual(mod_load_env.TEST_VARTYPE.contents, test_contents)
+        self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.STRING)
+
+        mod_load_env.TEST_VARTYPE.type = "PATH"
+        self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.PATH)
+        self.assertRaises(TypeError, setattr, mod_load_env, 'TEST_UNKNONW', (test_contents, {'unkown_param': True}))
+
+        # test retrieval of environment
+        # use copy of public attributes as reference
+        ref_load_env = mod_load_env.__dict__.copy()
+        ref_load_env = {envar: value for envar, value in ref_load_env.items() if not envar.startswith('_')}
+        self.assertCountEqual(list(mod_load_env), ref_load_env.keys())
+
+        ref_load_env_item_list = list(ref_load_env.items())
+        self.assertCountEqual(list(mod_load_env.items()), ref_load_env_item_list)
+
+        ref_load_env_item_list = dict(ref_load_env.items())
+        self.assertCountEqual(mod_load_env.as_dict, ref_load_env_item_list)
+
+        ref_load_env_environ = {key: str(value) for key, value in ref_load_env.items()}
+        self.assertDictEqual(mod_load_env.environ, ref_load_env_environ)
+
+        # test updating environment
+        new_test_env = {
+            'TEST_VARTYPE': 'replaced_path',
+            'TEST_NEW_VAR': ['new_path1', 'new_path2'],
+        }
+        mod_load_env.update(new_test_env)
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VARTYPE'))
+        self.assertEqual(mod_load_env.TEST_VARTYPE.contents, ['replaced_path'])
+        self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertTrue(hasattr(mod_load_env, 'TEST_NEW_VAR'))
+        self.assertEqual(mod_load_env.TEST_NEW_VAR.contents, ['new_path1', 'new_path2'])
+        self.assertEqual(mod_load_env.TEST_NEW_VAR.type, mod.ModEnvVarType.PATH_WITH_FILES)
+
+        # check that previous variables still exist
+        self.assertTrue(hasattr(mod_load_env, 'TEST_VAR'))
+        self.assertEqual(mod_load_env.TEST_VAR.contents, test_contents)
+        self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
+        self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
+
+        # test removal of envars
+        mod_load_env.remove('TEST_VARTYPE')
+        self.assertFalse(hasattr(mod_load_env, 'TEST_VARTYPE'))
+        mod_load_env.remove('NONEXISTENT')
+
+        # test aliases
+        aliases = {
+            'ALIAS1': ['ALIAS_VAR11', 'ALIAS_VAR12'],
+            'ALIAS2': ['ALIAS_VAR21'],
+        }
+        alias_load_env = mod.ModuleLoadEnvironment(aliases=aliases)
+        self.assertEqual(alias_load_env._aliases, aliases)
+        self.assertEqual(sorted(alias_load_env.alias_vars('ALIAS1')), ['ALIAS_VAR11', 'ALIAS_VAR12'])
+        self.assertEqual(alias_load_env.alias_vars('ALIAS2'), ['ALIAS_VAR21'])
+        # set a known alias
+        alias_load_env.set_alias_vars('ALIAS1', 'alias1_path')
+        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR11'))
+        self.assertEqual(alias_load_env.ALIAS_VAR11.contents, ['alias1_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR11.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR12'))
+        self.assertEqual(alias_load_env.ALIAS_VAR12.contents, ['alias1_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR12.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertFalse(hasattr(alias_load_env, 'ALIAS_VAR21'))
+        for envar in alias_load_env.alias('ALIAS1'):
+            self.assertEqual(envar.contents, ['alias1_path'])
+            self.assertEqual(envar.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        # set a second known alias
+        alias_load_env.set_alias_vars('ALIAS2', 'alias2_path')
+        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR11'))
+        self.assertEqual(alias_load_env.ALIAS_VAR11.contents, ['alias1_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR11.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR21'))
+        self.assertEqual(alias_load_env.ALIAS_VAR21.contents, ['alias2_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR21.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        # add a new alias
+        alias_load_env.update_alias('ALIAS3', 'ALIAS_VAR31')
+        self.assertEqual(alias_load_env.alias_vars('ALIAS3'), ['ALIAS_VAR31'])
+        alias_load_env.update_alias('ALIAS3', ['ALIAS_VAR31', 'ALIAS_VAR32'])
+        self.assertEqual(sorted(alias_load_env.alias_vars('ALIAS3')), ['ALIAS_VAR31', 'ALIAS_VAR32'])
+        alias_load_env.set_alias_vars('ALIAS3', 'alias3_path')
+        for envar in alias_load_env.alias('ALIAS3'):
+            self.assertEqual(envar.contents, ['alias3_path'])
+            self.assertEqual(envar.type, mod.ModEnvVarType.PATH_WITH_FILES)
+        # append path to existing alias
+        for envar in alias_load_env.alias('ALIAS3'):
+            envar.append('new_path')
+            self.assertEqual(sorted(envar.contents), ['alias3_path', 'new_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR31.contents, ['alias3_path', 'new_path'])
+        self.assertEqual(alias_load_env.ALIAS_VAR32.contents, ['alias3_path', 'new_path'])
+
+        error_pattern = "Wrong format for aliases defitions passed to ModuleLoadEnvironment"
+        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=False)
+        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases='wrong')
+        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=['some', 'list'])
 
 
 def suite():

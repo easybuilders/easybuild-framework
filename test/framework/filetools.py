@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -356,6 +356,8 @@ class FileToolsTest(EnhancedTestCase):
         # Check dictionary
         alt_checksums = (known_checksums['sha256'],)
         self.assertTrue(ft.verify_checksum(fp, {os.path.basename(fp): known_checksums['sha256']}))
+        # None is accepted
+        self.assertTrue(ft.verify_checksum(fp, {os.path.basename(fp): None}))
         faulty_dict = {'wrong-name': known_checksums['sha256']}
         self.assertErrorRegex(EasyBuildError,
                               "Missing checksum for " + os.path.basename(fp) + " in .*wrong-name.*",
@@ -371,6 +373,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
 
         # Test dictionary-type checksums
+        self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum,
+                              fp, {os.path.basename(fp): None})
         for checksum in [known_checksums[x] for x in ['sha256']]:
             dict_checksum = {os.path.basename(fp): checksum, 'foo': 'baa'}
             self.assertTrue(ft.verify_checksum(fp, dict_checksum))

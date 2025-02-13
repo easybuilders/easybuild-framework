@@ -1,6 +1,6 @@
 # #
 # -*- coding: utf-8 -*-
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1703,7 +1703,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.output, expected_output)
 
         self.assertEqual(stderr, '')
-        expected = ("== (streaming) output for command 'echo hello" + '\n' + expected_output).split('\n')
+        expected = ("running shell command:\n\techo hello" + '\n' + expected_output).split('\n')
         for line in expected:
             self.assertIn(line, stdout)
 

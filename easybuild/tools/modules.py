@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -41,12 +41,13 @@ import glob
 import os
 import re
 import shlex
+from enum import Enum
 
 from easybuild.base import fancylogger
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning
-from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
-from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
+from easybuild.tools.config import ERROR, EBROOT_ENV_VAR_ACTIONS, IGNORE, LOADED_MODULES_ACTIONS, PURGE
+from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_HEADER_DIRS, SEARCH_PATH_LIB_DIRS, UNLOAD, UNSET
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
 from easybuild.tools.filetools import convert_name, mkdir, normalize_path, path_matches, read_file, which, write_file
@@ -54,6 +55,9 @@ from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import get_subclasses, nub
+
+
+MODULE_LOAD_ENV_HEADERS = 'HEADERS'
 
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
@@ -129,6 +133,288 @@ MODULE_VERSION_CACHE = {}
 
 
 _log = fancylogger.getLogger('modules', fname=False)
+
+
+class ModEnvVarType(Enum):
+    """
+    Possible types of ModuleEnvironmentVariable:
+    - STRING: (list of) strings with no further meaning
+    - PATH: (list of) of paths to existing directories or files
+    - PATH_WITH_FILES: (list of) of paths to existing directories containing
+      one or more files
+    - PATH_WITH_TOP_FILES: (list of) of paths to existing directories
+      containing one or more files in its top directory
+    - """
+    STRING, PATH, PATH_WITH_FILES, PATH_WITH_TOP_FILES = range(0, 4)
+
+
+class ModuleEnvironmentVariable:
+    """
+    Environment variable data structure for modules
+    Contents of environment variable is a list of unique strings
+    """
+
+    def __init__(self, contents, var_type=ModEnvVarType.PATH_WITH_FILES, delim=os.pathsep):
+        """
+        Initialize new environment variable
+        Actual contents of the environment variable are held in self.contents
+        By default, the environment variable is a list of paths with files in them
+        Existence of paths and their contents are not checked at init
+        """
+        self.contents = contents
+        self.delim = delim
+        self.type = var_type
+
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+
+    def __repr__(self):
+        return repr(self.contents)
+
+    def __str__(self):
+        return self.delim.join(self.contents)
+
+    def __iter__(self):
+        return iter(self.contents)
+
+    @property
+    def contents(self):
+        return self._contents
+
+    @contents.setter
+    def contents(self, value):
+        """Enforce that contents is a list of strings"""
+        if isinstance(value, str):
+            value = [value]
+
+        try:
+            str_list = [str(path) for path in value]
+        except TypeError as err:
+            raise TypeError("ModuleEnvironmentVariable.contents must be a list of strings") from err
+
+        self._contents = nub(str_list)  # remove duplicates and keep order
+
+    @property
+    def type(self):
+        return self._type
+
+    @type.setter
+    def type(self, value):
+        """Convert type to VarType"""
+        if isinstance(value, ModEnvVarType):
+            self._type = value
+        else:
+            try:
+                self._type = ModEnvVarType[value]
+            except KeyError as err:
+                raise EasyBuildError(f"Cannot create ModuleEnvironmentVariable with type {value}") from err
+
+    def append(self, item):
+        """Shortcut to append to list of contents"""
+        self.contents += [item]
+
+    def extend(self, item):
+        """Shortcut to extend list of contents"""
+        self.contents += item
+
+    def prepend(self, item):
+        """Shortcut to prepend item to list of contents"""
+        self.contents = [item] + self.contents
+
+    def update(self, item):
+        """Shortcut to replace list of contents with item"""
+        self.contents = item
+
+    def remove(self, *args):
+        """Shortcut to remove items from list of contents"""
+        try:
+            self.contents.remove(*args)
+        except ValueError:
+            # item is not in the list, move along
+            self.log.debug(f"ModuleEnvironmentVariable does not contain item: {' '.join(args)}")
+
+    @property
+    def is_path(self):
+        path_like_types = [
+            ModEnvVarType.PATH,
+            ModEnvVarType.PATH_WITH_FILES,
+            ModEnvVarType.PATH_WITH_TOP_FILES,
+        ]
+        return self.type in path_like_types
+
+
+class ModuleLoadEnvironment:
+    """
+    Changes to environment variables that should be made when environment module is loaded.
+    - Environment variables are defined as ModuleEnvironmentVariables instances
+      with attribute name equal to environment variable name.
+    - Aliases are arbitrary names that serve to apply changes to lists of
+      environment variables
+    - Only environment variables attributes are public. Other attributes like
+      aliases are private.
+    """
+
+    def __init__(self, aliases=None):
+        """
+        Initialize default environment definition
+        Paths are relative to root of installation directory
+
+        :aliases: dict defining environment variables aliases
+        """
+        self._aliases = {}
+        if aliases is not None:
+            try:
+                for alias_name, alias_vars in aliases.items():
+                    self.update_alias(alias_name, alias_vars)
+            except AttributeError as err:
+                raise EasyBuildError(
+                    "Wrong format for aliases defitions passed to ModuleLoadEnvironment. "
+                    f"Expected a dictionary but got: {type(aliases)}."
+                ) from err
+
+        self.ACLOCAL_PATH = [os.path.join('share', 'aclocal')]
+        self.CLASSPATH = ['*.jar']
+        self.CMAKE_LIBRARY_PATH = ['lib64']  # only needed for installations with standalone lib64
+        self.CMAKE_PREFIX_PATH = ['']
+        self.GI_TYPELIB_PATH = [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS]
+        self.LD_LIBRARY_PATH = SEARCH_PATH_LIB_DIRS
+        self.LIBRARY_PATH = SEARCH_PATH_LIB_DIRS
+        self.MANPATH = ['man', os.path.join('share', 'man')]
+        self.PATH = SEARCH_PATH_BIN_DIRS + ['sbin']
+        self.PKG_CONFIG_PATH = [os.path.join(x, 'pkgconfig') for x in SEARCH_PATH_LIB_DIRS + ['share']]
+        self.XDG_DATA_DIRS = ['share']
+
+        # environment variables with known aliases
+        # e.g. search paths to C/C++ headers
+        for envar_name in self._aliases.get(MODULE_LOAD_ENV_HEADERS, []):
+            setattr(self, envar_name, SEARCH_PATH_HEADER_DIRS)
+
+    def __setattr__(self, name, value):
+        """
+        Specific restrictions for ModuleLoadEnvironment attributes:
+        - public attributes are instances of ModuleEnvironmentVariable with uppercase names
+        - private attributes are allowed with any name
+        """
+        if name.startswith('_'):
+            # do not control protected/private attributes
+            return super().__setattr__(name, value)
+
+        return self.__set_module_environment_variable(name, value)
+
+    def __set_module_environment_variable(self, name, value):
+        """
+        Specific restrictions for ModuleEnvironmentVariable attributes:
+        - attribute names are uppercase
+        - dictionaries are unpacked into arguments of ModuleEnvironmentVariable
+        - controls variables with special types (e.g. PATH, LD_LIBRARY_PATH)
+        """
+        if name != name.upper():
+            raise EasyBuildError(f"Names of ModuleLoadEnvironment attributes must be uppercase, got '{name}'")
+
+        try:
+            (contents, kwargs) = value
+        except ValueError:
+            contents, kwargs = value, {}
+
+        if not isinstance(kwargs, dict):
+            contents, kwargs = value, {}
+
+        # special variables that require files in their top directories
+        if name in ('LD_LIBRARY_PATH', 'PATH'):
+            kwargs['var_type'] = ModEnvVarType.PATH_WITH_TOP_FILES
+
+        return super().__setattr__(name, ModuleEnvironmentVariable(contents, **kwargs))
+
+    @property
+    def vars(self):
+        """Return list of public ModuleEnvironmentVariable"""
+
+        return [envar for envar in self.__dict__ if not str(envar).startswith('_')]
+
+    def __iter__(self):
+        """Make the class iterable"""
+        yield from self.vars
+
+    def items(self):
+        """
+        Return key-value pairs for each attribute that is a ModuleEnvironmentVariable
+        - key = attribute name
+        - value = its "contents" attribute
+        """
+        for attr in self.vars:
+            yield attr, getattr(self, attr)
+
+    def update(self, new_env):
+        """Update contents of environment from given dictionary"""
+        try:
+            for envar_name, envar_contents in new_env.items():
+                setattr(self, envar_name, envar_contents)
+        except AttributeError as err:
+            raise EasyBuildError("Cannot update ModuleLoadEnvironment from a non-dict variable") from err
+
+    def remove(self, var_name):
+        """
+        Remove ModuleEnvironmentVariable attribute from instance
+        Silently goes through if attribute is already missing
+        """
+        if var_name in self.vars:
+            delattr(self, var_name)
+
+    @property
+    def as_dict(self):
+        """
+        Return dict with mapping of ModuleEnvironmentVariables names with their contents
+        """
+        return dict(self.items())
+
+    @property
+    def environ(self):
+        """
+        Return dict with mapping of ModuleEnvironmentVariables names with their contents
+        Equivalent in shape to os.environ
+        """
+        return {envar_name: str(envar_contents) for envar_name, envar_contents in self.items()}
+
+    def alias(self, alias):
+        """
+        Return iterator to search path variables for given alias
+        """
+        try:
+            yield from [getattr(self, envar) for envar in self._aliases[alias]]
+        except KeyError as err:
+            raise EasyBuildError(f"Unknown search path alias: {alias}") from err
+        except AttributeError as err:
+            raise EasyBuildError(f"Missing environment variable in '{alias} alias") from err
+
+    def alias_vars(self, alias):
+        """
+        Return list of environment variable names aliased by given alias
+        """
+        try:
+            return self._aliases[alias]
+        except KeyError as err:
+            raise EasyBuildError(f"Unknown search path alias: {alias}") from err
+
+    def update_alias(self, alias, value):
+        """
+        Update existing or non-existing alias with given search paths variables
+        """
+        if isinstance(value, str):
+            value = [value]
+
+        try:
+            self._aliases[alias] = [str(envar) for envar in value]
+        except TypeError as err:
+            raise TypeError("ModuleLoadEnvironment aliases must be a list of strings") from err
+
+    def set_alias_vars(self, alias, value):
+        """
+        Set value of search paths variables for given alias
+        """
+        try:
+            for envar_name in self._aliases[alias]:
+                setattr(self, envar_name, value)
+        except KeyError as err:
+            raise EasyBuildError(f"Unknown search path alias: {alias}") from err
 
 
 class ModulesTool(object):
@@ -709,7 +995,8 @@ class ModulesTool(object):
             ans = MODULE_SHOW_CACHE[key]
             self.log.debug("Found cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
         else:
-            ans = self.run_module('show', mod_name, check_output=False, return_stderr=True)
+            ans = self.run_module('show', mod_name, check_output=False, return_stderr=True,
+                                  check_exit_code=False)
             MODULE_SHOW_CACHE[key] = ans
             self.log.debug("Cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
 
@@ -823,7 +1110,6 @@ class ModulesTool(object):
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         stdout, stderr = res.output, res.stderr
-        self.log.debug("Output of module command '%s': stdout: %s; stderr: %s", cmd, stdout, stderr)
 
         # also catch and check exit code
         if kwargs.get('check_exit_code', True) and res.exit_code != EasyBuildExit.SUCCESS:

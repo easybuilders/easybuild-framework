@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -72,6 +72,10 @@ class EB_toy(ExtensionEasyBlock):
         super(EB_toy, self).__init__(*args, **kwargs)
 
         setvar('TOY', '%s-%s' % (self.name, self.version))
+
+        # extra paths for environment variables to consider
+        if self.name == 'toy':
+            self.module_load_environment.CPATH.append('toy-headers')
 
     def prepare_for_extensions(self):
         """
