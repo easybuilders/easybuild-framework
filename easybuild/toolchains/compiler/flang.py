@@ -26,25 +26,26 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Support for Clang as toolchain compiler.
+Support for Flang as toolchain compiler.
 
 Authors:
 
 * Dmitri Gribenko (National Technical University of Ukraine "KPI")
+* Davide Grassano (CECAM EPFL)
 """
 
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler, DEFAULT_OPT_LEVEL
 
 
-TC_CONSTANT_CLANG = "Clang"
+TC_CONSTANT_FLANG = "Flang"
 
 
-class Clang(Compiler):
+class Flang(Compiler):
     """Clang compiler class"""
 
-    COMPILER_MODULE_NAME = ['Clang']
-    COMPILER_FAMILY = TC_CONSTANT_CLANG
+    COMPILER_MODULE_NAME = ['Flang']
+    COMPILER_FAMILY = TC_CONSTANT_FLANG
 
     # Don't set COMPILER_FAMILY in this class because Clang does not have
     # Fortran support, and thus it is not a complete compiler as far as
@@ -58,7 +59,8 @@ class Clang(Compiler):
         'unroll': '-funroll-loops',
         'loop-vectorize': ['-fvectorize'],
         'basic-block-vectorize': ['-fslp-vectorize'],
-        'optarch': '-march=native',
+        'optarch': '',
+        # 'optarch': '-march=native',
         # Clang's options do not map well onto these precision modes.  The flags enable and disable certain classes of
         # optimizations.
         #
@@ -86,28 +88,34 @@ class Clang(Compiler):
         'loose': ['-ffast-math', '-fno-unsafe-math-optimizations'],
         'veryloose': ['-ffast-math'],
         'vectorize': {False: '-fno-vectorize', True: '-fvectorize'},
-        DEFAULT_OPT_LEVEL: ['-O2', '-ftree-vectorize'],
+        DEFAULT_OPT_LEVEL: ['-O2'],
     }
 
-    # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
-    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        (systemtools.POWER, systemtools.POWER): '-mcpu=native',  # no support for march=native on POWER
-        (systemtools.POWER, systemtools.POWER_LE): '-mcpu=native',  # no support for march=native on POWER
-        (systemtools.X86_64, systemtools.AMD): '-march=native',
-        (systemtools.X86_64, systemtools.INTEL): '-march=native',
-    }
-    # used with --optarch=GENERIC
-    COMPILER_GENERIC_OPTION = {
-        (systemtools.RISCV64, systemtools.RISCV): '-march=rv64gc -mabi=lp64d',  # default for -mabi is system-dependent
-        (systemtools.X86_64, systemtools.AMD): '-march=x86-64 -mtune=generic',
-        (systemtools.X86_64, systemtools.INTEL): '-march=x86-64 -mtune=generic',
-    }
+    # # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
+    # COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+    #     (systemtools.POWER, systemtools.POWER): '-mcpu=native',  # no support for march=native on POWER
+    #     (systemtools.POWER, systemtools.POWER_LE): '-mcpu=native',  # no support for march=native on POWER
+    #     # (systemtools.X86_64, systemtools.AMD): '-march=native',
+    #     # (systemtools.X86_64, systemtools.INTEL): '-march=native',
+    # }
+    # # used with --optarch=GENERIC
+    # COMPILER_GENERIC_OPTION = {
+    #     (systemtools.RISCV64, systemtools.RISCV): '-march=rv64gc -mabi=lp64d',  # default for -mabi is system-dependent
+    #     (systemtools.X86_64, systemtools.AMD): '-march=x86-64 -mtune=generic',
+    #     (systemtools.X86_64, systemtools.INTEL): '-march=x86-64 -mtune=generic',
+    # }
 
-    COMPILER_CC = 'clang'
-    COMPILER_CXX = 'clang++'
-    COMPILER_C_UNIQUE_OPTIONS = [
+    # COMPILER_CC = 'clang'
+    # COMPILER_CXX = 'clang++'
+    # COMPILER_C_UNIQUE_OPTIONS = []
+
+    COMPILER_F77 = 'flang-new'
+    COMPILER_F90 = 'flang-new'
+    COMPILER_FC = 'flang-new'
+    COMPILER_F_UNIQUE_OPTIONS = [
         # 'lld_undefined_version'
     ]
+    COMPILER_F_UNIQUE_OPTIONS = []
 
     LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']
