@@ -1747,6 +1747,19 @@ class ModulesTest(EnhancedTestCase):
         self.assertFalse(hasattr(mod_load_env, 'TEST_VARTYPE'))
         mod_load_env.remove('NONEXISTENT')
 
+        # test replacing of env vars
+        env_vars = sorted(mod_load_env.as_dict.keys())
+        expected = ['ACLOCAL_PATH', 'CLASSPATH', 'CMAKE_LIBRARY_PATH', 'CMAKE_PREFIX_PATH', 'GI_TYPELIB_PATH',
+                    'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'MANPATH', 'PATH', 'PKG_CONFIG_PATH', 'TEST_NEW_VAR',
+                    'TEST_STR', 'TEST_VAR', 'XDG_DATA_DIRS']
+        self.assertEqual(env_vars, expected)
+
+        mod_load_env.replace({'FOO': 'foo', 'BAR': 'bar'})
+        env_vars = sorted(mod_load_env.as_dict.keys())
+        self.assertEqual(env_vars, ['BAR', 'FOO'])
+        self.assertEqual(mod_load_env.BAR.contents, ['bar'])
+        self.assertEqual(mod_load_env.FOO.contents, ['foo'])
+
         # test aliases
         aliases = {
             'ALIAS1': ['ALIAS_VAR11', 'ALIAS_VAR12'],
