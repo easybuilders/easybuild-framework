@@ -87,7 +87,7 @@ from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_f
 from easybuild.tools.filetools import compute_checksum, convert_name, copy_file, create_lock, create_patch_info
 from easybuild.tools.filetools import derive_alt_pypi_url, diff_files, dir_contains_files, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, find_backup_name_candidate
-from easybuild.tools.filetools import get_cwd, get_source_tarball_from_git, is_alt_pypi_url
+from easybuild.tools.filetools import copy_dir, get_cwd, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file, symlink
 from easybuild.tools.hooks import (
@@ -200,6 +200,19 @@ class EasyBlock(object):
             self.cfg = ec
         else:
             raise EasyBuildError("Value of incorrect type passed to EasyBlock constructor: %s ('%s')", type(ec), ec)
+
+        # are we running in developer mode?
+        self.developer = build_option('developer')
+
+        # This is needed in case custom easyblocks do a reparse of the EC file (e.g. quantum espresso)
+        if self.developer and not self.version.endswith('-dev'):
+            old_vers = ec['version']
+            new_vers = old_vers + '-dev'
+            ec['version'] = new_vers
+            for key in ['short_mod_name', 'full_mod_name']:
+                prev = getattr(ec, key)
+                new = prev.replace(f'/{old_vers}', f'/{new_vers}')
+                setattr(ec, key, new)
 
         # modules interface with default MODULEPATH
         self.modules_tool = self.cfg.modules_tool
@@ -2751,15 +2764,31 @@ class EasyBlock(object):
         """
         Unpack the source files.
         """
-        for src in self.src:
-            self.log.info("Unpacking source %s" % src['name'])
-            srcdir = extract_file(src['path'], self.builddir, cmd=src['cmd'],
-                                  extra_options=self.cfg['unpack_options'], change_into_dir=False)
-            change_dir(srcdir)
-            if srcdir:
-                self.src[self.src.index(src)]['finalpath'] = srcdir
+        developer_pth = self.developer
+        if developer_pth:
+            if self.start_dir:
+                dst_name = self.start_dir
             else:
-                raise EasyBuildError("Unpacking source %s failed", src['name'])
+                dst_name = os.path.basename(developer_pth)
+            dest = os.path.join(self.builddir, dst_name)
+            copy_dir(
+                developer_pth, dest,
+                ignore=lambda pth, elem: [_ for _ in elem if _ in ['.git', '.svn', '.hg']]
+            )
+            self.cfg['start_dir'] = dest
+            self.log.info("Content of develop path %s copied to %s (new start_dir)", developer_pth, dest)
+        else:
+            for src in self.src:
+                self.log.info("Unpacking source %s" % src['name'])
+                srcdir = extract_file(
+                    src['path'], self.builddir, cmd=src['cmd'],
+                    extra_options=self.cfg['unpack_options'], change_into_dir=False
+                )
+                change_dir(srcdir)
+                if srcdir:
+                    self.src[self.src.index(src)]['finalpath'] = srcdir
+                else:
+                    raise EasyBuildError("Unpacking source %s failed", src['name'])
 
     def patch_step(self, beginpath=None, patches=None):
         """
@@ -4154,6 +4183,12 @@ class EasyBlock(object):
         skip_test_step = build_option('skip_test_step')
         skipsteps = self.cfg['skipsteps']
 
+        developer_skip = (
+            FETCH_STEP,
+            PATCH_STEP,
+            EXTENSIONS_STEP,
+        )
+
         # under --skip, sanity check is not skipped
         cli_skip = self.skip and step != SANITYCHECK_STEP
 
@@ -4188,6 +4223,9 @@ class EasyBlock(object):
 
         elif skip_test_step and step == TEST_STEP:
             self.log.info("Skipping %s step as requested via skip-test-step", step)
+            skip = True
+        elif self.developer and step in developer_skip:
+            self.log.info("Skipping %s step because of --developer", step)
             skip = True
 
         else:
