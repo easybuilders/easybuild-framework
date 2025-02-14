@@ -2535,7 +2535,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.writeEC()
                 with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
                     test_eb = EasyBlock(EasyConfig(self.eb_file))
-                test_eb.check_readiness_step()
+                test_eb.post_init()
                 self.assertEqual(test_eb.cfg.parallel, expected)
                 with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
                     self.assertEqual(test_eb.cfg['parallel'], expected)
@@ -2568,7 +2568,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.writeEC()
                 with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
                     test_eb = EasyBlock(EasyConfig(self.eb_file))
-                test_eb.check_readiness_step()
+                test_eb.post_init()
                 self.assertEqual(test_eb.cfg.parallel, expected)
                 with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
                     self.assertEqual(test_eb.cfg['parallel'], expected)
@@ -2577,7 +2577,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.contents = toytxt + '\nmaxparallel=2'
         self.writeEC()
         test_eb = EasyBlock(EasyConfig(self.eb_file))
-        test_eb.check_readiness_step()
+        test_eb.post_init()
 
         test_eb.cfg['buildopts'] = '-j %(parallel)s'
         self.assertEqual(test_eb.cfg['buildopts'], '-j 2')
@@ -2598,7 +2598,7 @@ class EasyBlockTest(EnhancedTestCase):
             test_eb = EasyBlock(EasyConfig(self.eb_file))
             parallel = buildopt_parallel - 2
             test_eb.cfg['parallel'] = parallel  # Old Easyblocks might change that before the ready step
-            test_eb.check_readiness_step()
+            test_eb.post_init()
             self.assertEqual(test_eb.cfg.parallel, parallel)
             self.assertEqual(test_eb.cfg['parallel'], parallel)
             # Afterwards it also gets reflected directly ignoring maxparallel

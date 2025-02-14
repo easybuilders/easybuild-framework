@@ -1259,6 +1259,11 @@ class EasyConfig(object):
         return self._all_dependencies
 
     @property
+    def is_parallel_set(self):
+        """Return if the desired parallelism has been determined yet"""
+        return self._parallel is not None
+
+    @property
     def parallel(self):
         """Number of parallel jobs to be used for building etc."""
         if self._parallel is None:

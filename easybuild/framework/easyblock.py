@@ -340,6 +340,7 @@ class EasyBlock(object):
             # but needs to be correct if the build is performed in the installation directory
             self.log.info("Changing build dir to %s", self.installdir)
             self.builddir = self.installdir
+        self.set_parallel()
 
     # INIT/CLOSE LOG
     def _init_log(self):
@@ -2470,8 +2471,6 @@ class EasyBlock(object):
         """
         Verify if all is ok to start build.
         """
-        self.set_parallel()
-
         # check whether modules are loaded
         loadedmods = self.modules_tool.loaded_modules()
         if len(loadedmods) > 0:

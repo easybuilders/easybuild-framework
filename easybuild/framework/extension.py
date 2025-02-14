@@ -153,10 +153,11 @@ class Extension(object):
                 self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
                                key, name, version, value)
 
-        # Take potentially new value into account
-        max_par = self.cfg['max_parallel']
-        if max_par is not None and max_par < self.cfg.parallel:
-            self.cfg.parallel = max_par
+        # If parallelism has been set already take potentially new limitation into account
+        if self.cfg.is_parallel_set:
+            max_par = self.cfg['max_parallel']
+            if max_par is not None and max_par < self.cfg.parallel:
+                self.cfg.parallel = max_par
 
         self.sanity_check_fail_msgs = []
         self.sanity_check_module_loaded = False
