@@ -466,7 +466,7 @@ class EasyBuildOptions(GeneralOption):
             'insecure-download': ("Don't check the server certificate against the available certificate authorities.",
                                   None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
-            'keep-debug-symbols': ("Sets default value of debug toolchain option", None, 'store_true', True),
+            'keep-debug-symbols': ("Sets default value of debug toolchain option", None, 'store_true', False),
             'lib-lib64-symlink': ("Automatically create symlinks for lib/ pointing to lib64/ if the former is missing",
                                   None, 'store_true', True),
             'lib64-fallback-sanity-check': ("Fallback in sanity check to lib64/ equivalent for missing libraries",
