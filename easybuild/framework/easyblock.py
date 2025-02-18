@@ -3340,8 +3340,8 @@ class EasyBlock(object):
         # For example, libcuda.so.1 should never be RPATH-ed by design,
         # see https://github.com/easybuilders/easybuild-framework/issues/4095
         filter_rpath_sanity_libs = build_option('filter_rpath_sanity_libs')
-        msg = "Ignoring the following libraries if they are not found by RPATH sanity check: {filter_rpath_sanity_libs}"
-        self.log.info(msg)
+        self.log.info("Ignoring the following libraries if they are not found by RPATH sanity check: %s",
+                      filter_rpath_sanity_libs)
 
         if rpath_dirs is None:
             rpath_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
@@ -4483,7 +4483,7 @@ def build_and_install_one(ecdict, init_env):
     try:
         app_class = get_easyblock_class(easyblock, name=name)
         app = app_class(ecdict['ec'])
-        _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
+        _log.info("Obtained application instance for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError as err:
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),
                     silent=silent)
