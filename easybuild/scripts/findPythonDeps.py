@@ -1,5 +1,21 @@
 #!/usr/bin/env python
-
+##
+# Copyright 2021-2025 Alexander Grund
+#
+# https://github.com/easybuilders/easybuild
+#
+# EasyBuild is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation v2.
+#
+# EasyBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
+##
 """
 Find Python dependencies for a given Python package after loading dependencies specified in an EasyConfig.
 This is intended for writing or updating PythonBundle EasyConfigs:
