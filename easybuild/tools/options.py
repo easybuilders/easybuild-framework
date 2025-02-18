@@ -76,7 +76,7 @@ from easybuild.tools.config import DEFAULT_PR_TARGET_ACCOUNT, DEFAULT_FILTER_RPA
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, ERROR, FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS
-from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN
+from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN, build_option
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
@@ -1572,6 +1572,7 @@ def handle_include_easyblocks_from(options, log):
             print_warning(warning_msg)
 
     if options.include_easyblocks_from_pr or options.include_easyblocks_from_commit:
+        terse = build_option('terse')
 
         if options.include_easyblocks:
             # check if you are including the same easyblock twice
@@ -1593,7 +1594,7 @@ def handle_include_easyblocks_from(options, log):
                     included_easyblocks |= included_from_pr
 
                 for easyblock in included_from_pr:
-                    print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log)
+                    print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log, silent=terse)
 
                 include_easyblocks(options.tmpdir, easyblocks_from_pr)
 
@@ -1606,7 +1607,8 @@ def handle_include_easyblocks_from(options, log):
                 check_included_multiple(included_from_commit, "commit %s" % easyblock_commit)
 
             for easyblock in included_from_commit:
-                print_msg("easyblock %s included from commit %s" % (easyblock, easyblock_commit), log=log)
+                print_msg("easyblock %s included from commit %s" % (easyblock, easyblock_commit),
+                          log=log, silent=terse)
 
             include_easyblocks(options.tmpdir, easyblocks_from_commit)
 
