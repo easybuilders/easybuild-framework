@@ -2378,6 +2378,14 @@ class EasyBlock(object):
                 raise EasyBuildError("EasyBuild-version %s is newer than the currently running one. Aborting!",
                                      easybuild_version)
 
+        source_deps = self.cfg['source_deps']
+        pre_fetch_env = None
+        # load modules for source dependencies (if any)
+        if source_deps:
+            pre_fetch_env = copy.deepcopy(os.environ)
+            source_deps_mod_names = [d['short_mod_name'] for d in source_deps]
+            self.modules_tool.load(source_deps_mod_names)
+
         start_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, self.cfg.count_files())
 
         if self.dry_run:
@@ -2463,6 +2471,9 @@ class EasyBlock(object):
             self.log.info("Skipped installation dirs check per user request")
 
         stop_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL)
+
+        if pre_fetch_env:
+            restore_env(pre_fetch_env)
 
     def checksum_step(self):
         """Verify checksum of sources and patches, if a checksum is available."""
@@ -4324,7 +4335,7 @@ def build_and_install_one(ecdict, init_env):
                     adjust_permissions(log_dir, stat.S_IWUSR, add=True, recursive=True)
                 else:
                     parent_dir = os.path.dirname(log_dir)
-                    if os.path.exists(parent_dir) and not (os.stat(parent_dir).st_mode & stat.S_IWUSR):
+                    if os.path.exists(parent_dir):
                         adjust_permissions(parent_dir, stat.S_IWUSR, add=True, recursive=False)
                         mkdir(log_dir, parents=True)
                         adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
@@ -4405,7 +4416,7 @@ def build_and_install_one(ecdict, init_env):
                     copy_file(patch['path'], target)
                     _log.debug("Copied patch %s to %s", patch['path'], target)
 
-                if build_option('read_only_installdir') and not app.cfg['stop']:
+                if build_option('read_only_installdir'):
                     # take away user write permissions (again)
                     perms = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
                     adjust_permissions(new_log_dir, perms, add=False, recursive=True)
