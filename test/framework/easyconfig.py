@@ -737,6 +737,32 @@ class EasyConfigTest(EnhancedTestCase):
         # cleanup
         os.remove(tweaked_fn)
 
+    def test_parse_easyconfig(self):
+        """Test parse_easyconfig function"""
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "PI"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig"
+            toolchain = SYSTEM
+        """)
+        self.prep()
+        ecs, gen_ecs = parse_easyconfigs([(self.eb_file, False)])
+        self.assertEqual(len(ecs), 1)
+        self.assertEqual(ecs[0]['spec'], self.eb_file)
+        self.assertIsInstance(ecs[0]['ec'], EasyConfig)
+        self.assertFalse(gen_ecs)
+        # Passing the same EC multiple times is ignored
+        ecs, gen_ecs = parse_easyconfigs([(self.eb_file, False), (self.eb_file, False)])
+        self.assertEqual(len(ecs), 1)
+        # Similar for symlinks
+        linked_ec = os.path.join(self.test_prefix, 'linked.eb')
+        os.symlink(self.eb_file, linked_ec)
+        ecs, gen_ecs = parse_easyconfigs([(self.eb_file, False), (linked_ec, False)])
+        self.assertEqual(len(ecs), 1)
+        self.assertEqual(ecs[0]['spec'], self.eb_file)
+
     def test_alt_easyconfig_paths(self):
         """Test alt_easyconfig_paths function that collects list of additional paths for easyconfig files."""
 

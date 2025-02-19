@@ -404,9 +404,15 @@ def parse_easyconfigs(paths, validate=True):
     """
     easyconfigs = []
     generated_ecs = False
+    parsed_paths = []
 
     for (path, generated) in paths:
+        # Avoid processing the same file multiple times
         path = os.path.abspath(path)
+        if any(os.path.samefile(path, p) for p in parsed_paths):
+            continue
+        parsed_paths.append(path)
+
         # keep track of whether any files were generated
         generated_ecs |= generated
         if not os.path.exists(path):
