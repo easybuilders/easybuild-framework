@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2024 Ghent University
+# Copyright 2013-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -45,7 +45,16 @@ TOOLCHAIN_NAMES = {}
 
 
 class EasyVersion(LooseVersion):
-    """Exact LooseVersion. No modifications needed (yet)"""
+    """Represent a version"""
+
+    def __init__(self, vstring, is_default=False):
+        super().__init__(vstring)
+        self._is_default = is_default
+
+    @property
+    def is_default(self):
+        """Return whether this is the default version used when no explicit version is specified"""
+        return self._is_default
 
     def __len__(self):
         """Determine length of this EasyVersion instance."""
@@ -74,7 +83,7 @@ class VersionOperator(object):
     OPERATOR_FAMILIES = [['>', '>='], ['<', '<=']]  # similar operators
 
     # default version and operator when version is undefined
-    DEFAULT_UNDEFINED_VERSION = EasyVersion('0.0.0')
+    DEFAULT_UNDEFINED_VERSION = EasyVersion('0.0', is_default=True)
     DEFAULT_UNDEFINED_VERSION_OPERATOR = OPERATOR_MAP['>']
     # default operator when operator is undefined (but version is)
     DEFAULT_UNDEFINED_OPERATOR = OPERATOR_MAP['==']
@@ -256,7 +265,7 @@ class VersionOperator(object):
         """Return the operator"""
         operator = None
         if operator_str is None:
-            if version == self.DEFAULT_UNDEFINED_VERSION or version is None:
+            if version is None or version.is_default:
                 operator = self.DEFAULT_UNDEFINED_VERSION_OPERATOR
             else:
                 operator = self.DEFAULT_UNDEFINED_OPERATOR

@@ -1,5 +1,5 @@
 # #
-# Copyright 2017-2024 Ghent University
+# Copyright 2017-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -44,6 +44,7 @@ BUILD_STEP = 'build'
 CLEANUP_STEP = 'cleanup'
 CONFIGURE_STEP = 'configure'
 EXTENSIONS_STEP = 'extensions'
+EXTRACT_STEP = 'extract'
 FETCH_STEP = 'fetch'
 INSTALL_STEP = 'install'
 MODULE_STEP = 'module'
@@ -55,7 +56,6 @@ POSTPROC_STEP = 'postproc'
 PREPARE_STEP = 'prepare'
 READY_STEP = 'ready'
 SANITYCHECK_STEP = 'sanitycheck'
-SOURCE_STEP = 'source'
 TEST_STEP = 'test'
 TESTCASES_STEP = 'testcases'
 
@@ -77,7 +77,7 @@ POST_PREF = 'post_'
 HOOK_SUFF = '_hook'
 
 # list of names for steps in installation procedure (in order of execution)
-STEP_NAMES = [FETCH_STEP, READY_STEP, SOURCE_STEP, PATCH_STEP, PREPARE_STEP, CONFIGURE_STEP, BUILD_STEP, TEST_STEP,
+STEP_NAMES = [FETCH_STEP, READY_STEP, EXTRACT_STEP, PATCH_STEP, PREPARE_STEP, CONFIGURE_STEP, BUILD_STEP, TEST_STEP,
               INSTALL_STEP, EXTENSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, SANITYCHECK_STEP, CLEANUP_STEP, MODULE_STEP,
               PERMISSIONS_STEP, PACKAGE_STEP, TESTCASES_STEP]
 

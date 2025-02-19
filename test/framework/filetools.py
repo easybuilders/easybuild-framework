@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -356,6 +356,8 @@ class FileToolsTest(EnhancedTestCase):
         # Check dictionary
         alt_checksums = (known_checksums['sha256'],)
         self.assertTrue(ft.verify_checksum(fp, {os.path.basename(fp): known_checksums['sha256']}))
+        # None is accepted
+        self.assertTrue(ft.verify_checksum(fp, {os.path.basename(fp): None}))
         faulty_dict = {'wrong-name': known_checksums['sha256']}
         self.assertErrorRegex(EasyBuildError,
                               "Missing checksum for " + os.path.basename(fp) + " in .*wrong-name.*",
@@ -371,6 +373,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
 
         # Test dictionary-type checksums
+        self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum,
+                              fp, {os.path.basename(fp): None})
         for checksum in [known_checksums[x] for x in ['sha256']]:
             dict_checksum = {os.path.basename(fp): checksum, 'foo': 'baa'}
             self.assertTrue(ft.verify_checksum(fp, dict_checksum))
@@ -2545,7 +2549,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 92)
+            self.assertEqual(len(index), 94)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
@@ -2920,7 +2924,7 @@ class FileToolsTest(EnhancedTestCase):
         def run_check():
             """Helper function to run get_source_tarball_from_git & check dry run output"""
             with self.mocked_stdout_stderr():
-                res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+                res = ft.get_source_tarball_from_git('test', target_dir, git_config)
                 stdout = self.get_stdout()
                 stderr = self.get_stderr()
             self.assertEqual(stderr, '')
@@ -2928,7 +2932,7 @@ class FileToolsTest(EnhancedTestCase):
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
             self.assertEqual(os.path.dirname(res), target_dir)
-            self.assertEqual(os.path.basename(res), 'test.tar.gz')
+            self.assertEqual(os.path.basename(res), 'test.tar.xz')
 
         git_config = {
             'repo_name': 'testrepository',
@@ -2939,47 +2943,38 @@ class FileToolsTest(EnhancedTestCase):
             'git_repo': 'git@github.com:easybuilders/testrepository.git',
             'test_prefix': self.test_prefix,
         }
-        reprod_tar_cmd_pattern = (
-            r' running shell command "find {} -name \".git\" -prune -o -print0 -exec touch -t 197001010100 {{}} \; |'
-            r' LC_ALL=C sort --zero-terminated | tar --create --no-recursion --owner=0 --group=0 --numeric-owner'
-            r' --format=gnu --null --files-from - | gzip --no-name > %(test_prefix)s/target/test.tar.gz'
-        )
 
         expected = '\n'.join([
-            r'  running shell command "git clone --depth 1 --branch tag_for_tests %(git_repo)s"',
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests {git_repo}"',
             r"  \(in .*/tmp.*\)",
-            reprod_tar_cmd_pattern.format("testrepository"),
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
 
         git_config['clone_into'] = 'test123'
         expected = '\n'.join([
-            r'  running shell command "git clone --depth 1 --branch tag_for_tests %(git_repo)s test123"',
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests {git_repo} test123"',
             r"  \(in .*/tmp.*\)",
-            reprod_tar_cmd_pattern.format("test123"),
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='test123')
         run_check()
         del git_config['clone_into']
 
         git_config['recursive'] = True
         expected = '\n'.join([
-            r'  running shell command "git clone --depth 1 --branch tag_for_tests --recursive %(git_repo)s"',
+            r'  running shell command "git clone --depth 1 --branch tag_for_tests --recursive {git_repo}"',
             r"  \(in .*/tmp.*\)",
-            reprod_tar_cmd_pattern.format("testrepository"),
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
         expected = '\n'.join([
             '  running shell command "git clone --depth 1 --branch tag_for_tests --recursive'
-            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
+            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' {git_repo}"',
             r"  \(in .*/tmp.*\)",
-            reprod_tar_cmd_pattern.format("testrepository"),
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
 
         git_config['extra_config_params'] = [
@@ -2989,59 +2984,79 @@ class FileToolsTest(EnhancedTestCase):
         expected = '\n'.join([
             '  running shell command "git -c submodule."fastahack".active=false -c submodule."sha1".active=false'
             + ' clone --depth 1 --branch tag_for_tests --recursive'
-            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' %(git_repo)s"',
+            + ' --recurse-submodules=\'!vcflib\' --recurse-submodules=\'!sdsl-lite\' {git_repo}"',
             r"  \(in .*/tmp.*\)",
-            reprod_tar_cmd_pattern.format("testrepository"),
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
         del git_config['recurse_submodules']
         del git_config['extra_config_params']
 
         git_config['keep_git_dir'] = True
         expected = '\n'.join([
-            r'  running shell command "git clone --branch tag_for_tests --recursive %(git_repo)s"',
+            r'  running shell command "git clone --branch tag_for_tests --recursive {git_repo}"',
             r"  \(in .*/tmp.*\)",
-            r'  running shell command "tar cfvz .*/target/test.tar.gz testrepository"',
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
         del git_config['keep_git_dir']
 
         del git_config['tag']
         git_config['commit'] = '8456f86'
         expected = '\n'.join([
-            r'  running shell command "git clone --no-checkout %(git_repo)s"',
+            r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in .*/tmp.*\)",
             r'  running shell command "git checkout 8456f86 && git submodule update --init --recursive"',
-            r"  \(in testrepository\)",
-            reprod_tar_cmd_pattern.format("testrepository"),
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r"  \(in .*/testrepository\)",
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
         expected = '\n'.join([
-            r'  running shell command "git clone --no-checkout %(git_repo)s"',
+            r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in .*/tmp.*\)",
-            r'  running shell command "git checkout 8456f86"',
-            r"  \(in testrepository\)",
-            reprod_tar_cmd_pattern.format("testrepository"),
-            r"  \(in .*/tmp.*\)",
-        ]) % string_args
+            r'  running shell command "git checkout 8456f86 && git submodule update --init '
+            r"--recursive --recurse-submodules='!vcflib' --recurse-submodules='!sdsl-lite'\"",
+            r"  \(in .*/testrepository\)",
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
 
         del git_config['recursive']
         del git_config['recurse_submodules']
         expected = '\n'.join([
-            r'  running shell command "git clone --no-checkout %(git_repo)s"',
+            r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in /.*\)",
             r'  running shell command "git checkout 8456f86"',
             r"  \(in /.*/testrepository\)",
-            reprod_tar_cmd_pattern.format("testrepository"),
-            r"  \(in /.*\)",
-        ]) % string_args
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
         run_check()
+
+        # tarball formats that are not reproducible
+        bad_filenames = ['test.tar.gz', 'test.tar.bz2']
+        # tarball formats that are reproducible
+        good_filenames = ['test.tar', 'test.tar.xz']
+        # extensionsless filenames get a default archive compression of XZ
+        noext_filename = ['test']
+        for test_filename in bad_filenames + good_filenames + noext_filename:
+            with self.mocked_stdout_stderr():
+                res = ft.get_source_tarball_from_git(test_filename, target_dir, git_config)
+                stderr = self.get_stderr()
+
+            regex = re.compile("Can not create reproducible archive.*")
+            if test_filename in bad_filenames:
+                self.assertTrue(regex.search(stderr), f"Pattern '{regex.pattern}' found in: {stderr}")
+            else:
+                self.assertFalse(regex.search(stderr), f"Pattern '{regex.pattern}' found in: {stderr}")
+
+            ref_filename = f"{test_filename}.tar.xz" if test_filename in noext_filename else test_filename
+            self.assertTrue(res.endswith(ref_filename))
+
+        # non-tarball formats are not supported
+        with self.mocked_stdout_stderr():
+            self.assertRaises(EasyBuildError, ft.get_source_tarball_from_git, 'test.zip', target_dir, git_config)
 
         # Test with real data.
         init_config()
@@ -3052,13 +3067,13 @@ class FileToolsTest(EnhancedTestCase):
         }
 
         try:
-            res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+            res = ft.get_source_tarball_from_git('test', target_dir, git_config)
             # (only) tarball is created in specified target dir
-            test_file = os.path.join(target_dir, 'test.tar.gz')
+            test_file = os.path.join(target_dir, 'test.tar.xz')
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
-            test_tar_gzs = [os.path.basename(test_file)]
-            self.assertEqual(os.listdir(target_dir), ['test.tar.gz'])
+            test_tar_files = [os.path.basename(test_file)]
+            self.assertEqual(os.listdir(target_dir), ['test.tar.xz'])
             # Check that we indeed downloaded the right tag
             extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
             with self.mocked_stdout_stderr():
@@ -3069,7 +3084,7 @@ class FileToolsTest(EnhancedTestCase):
             # use a tag that clashes with a branch name and make sure this is handled correctly
             git_config['tag'] = 'tag_for_tests'
             with self.mocked_stdout_stderr():
-                res = ft.get_source_tarball_from_git('test.tar.gz', target_dir, git_config)
+                res = ft.get_source_tarball_from_git('test', target_dir, git_config)
                 stderr = self.get_stderr()
             self.assertIn('Tag tag_for_tests was not downloaded in the first try', stderr)
             self.assertEqual(res, test_file)
@@ -3082,20 +3097,20 @@ class FileToolsTest(EnhancedTestCase):
 
             del git_config['tag']
             git_config['commit'] = '90366ea'
-            res = ft.get_source_tarball_from_git('test2.tar.gz', target_dir, git_config)
-            test_file = os.path.join(target_dir, 'test2.tar.gz')
+            res = ft.get_source_tarball_from_git('test2', target_dir, git_config)
+            test_file = os.path.join(target_dir, 'test2.tar.xz')
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
-            test_tar_gzs.append(os.path.basename(test_file))
-            self.assertEqual(sorted(os.listdir(target_dir)), test_tar_gzs)
+            test_tar_files.append(os.path.basename(test_file))
+            self.assertEqual(sorted(os.listdir(target_dir)), test_tar_files)
 
             git_config['keep_git_dir'] = True
-            res = ft.get_source_tarball_from_git('test3.tar.gz', target_dir, git_config)
-            test_file = os.path.join(target_dir, 'test3.tar.gz')
+            res = ft.get_source_tarball_from_git('test3', target_dir, git_config)
+            test_file = os.path.join(target_dir, 'test3.tar.xz')
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
-            test_tar_gzs.append(os.path.basename(test_file))
-            self.assertEqual(sorted(os.listdir(target_dir)), test_tar_gzs)
+            test_tar_files.append(os.path.basename(test_file))
+            self.assertEqual(sorted(os.listdir(target_dir)), test_tar_files)
 
         except EasyBuildError as err:
             if "Network is down" in str(err):
@@ -3108,7 +3123,7 @@ class FileToolsTest(EnhancedTestCase):
             'url': 'git@github.com:easybuilders',
             'tag': 'tag_for_tests',
         }
-        args = ['test.tar.gz', self.test_prefix, git_config]
+        args = ['test', self.test_prefix, git_config]
 
         for key in ['repo_name', 'url', 'tag']:
             orig_value = git_config.pop(key)
@@ -3129,10 +3144,97 @@ class FileToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
         del git_config['unknown']
 
-        args[0] = 'test.txt'
-        error_pattern = "git_config currently only supports filename ending in .tar.gz"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ft.get_source_tarball_from_git, *args)
-        args[0] = 'test.tar.gz'
+    def test_make_archive(self):
+        """Test for make_archive method"""
+        # create fake directories and files to be archived
+        tmpdir = tempfile.mkdtemp()
+        tardir = os.path.join(tmpdir, "test_archive")
+        os.mkdir(tardir)
+        for path in ('bin', 'lib', 'include'):
+            os.mkdir(os.path.join(tardir, path))
+        ft.write_file(os.path.join(tardir, 'README'), 'Dummy readme')
+        ft.write_file(os.path.join(tardir, 'bin', 'executable'), 'Dummy binary')
+        ft.write_file(os.path.join(tardir, 'lib', 'lib.so'), 'Dummy library')
+        ft.write_file(os.path.join(tardir, 'include', 'header.h'), 'Dummy header')
+
+        # default behaviour
+        unreprod_txz = ft.make_archive(tardir, reproducible=False)
+        unreprod_txz_chksum = ft.compute_checksum(unreprod_txz, checksum_type="sha256")
+        self.assertEqual(unreprod_txz, "test_archive.tar.xz")
+        self.assertExists(unreprod_txz)
+        os.remove(unreprod_txz)
+        reprod_txz = ft.make_archive(tardir, reproducible=True)
+        reprod_txz_chksum = ft.compute_checksum(reprod_txz, checksum_type="sha256")
+        self.assertEqual(reprod_txz, "test_archive.tar.xz")
+        self.assertExists(reprod_txz)
+        os.remove(reprod_txz)
+        # custom filenames
+        custom_txz = ft.make_archive(tardir, archive_file="custom_name", reproducible=True)
+        custom_txz_chksum = ft.compute_checksum(custom_txz, checksum_type="sha256")
+        self.assertEqual(custom_txz, "custom_name.tar.xz")
+        self.assertExists(custom_txz)
+        os.remove(custom_txz)
+        customdir_txz = ft.make_archive(tardir, archive_file="custom_name", archive_dir=tmpdir, reproducible=True)
+        customdir_txz_chksum = ft.compute_checksum(customdir_txz, checksum_type="sha256")
+        self.assertEqual(customdir_txz, os.path.join(tmpdir, "custom_name.tar.xz"))
+        self.assertExists(customdir_txz)
+        os.remove(customdir_txz)
+        # custom .tar
+        reprod_tar = ft.make_archive(tardir, archive_file="custom_name.tar", reproducible=True)
+        reprod_tar_chksum = ft.compute_checksum(reprod_tar, checksum_type="sha256")
+        self.assertEqual(reprod_tar, "custom_name.tar")
+        self.assertExists(reprod_tar)
+        os.remove(reprod_tar)
+        unreprod_tar = ft.make_archive(tardir, archive_file="custom_name.tar", reproducible=False)
+        unreprod_tar_chksum = ft.compute_checksum(unreprod_tar, checksum_type="sha256")
+        self.assertEqual(unreprod_tar, "custom_name.tar")
+        self.assertExists(unreprod_tar)
+        os.remove(unreprod_tar)
+
+        # custom .tar.gz
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        custom_tgz = ft.make_archive(tardir, archive_file="custom_name.tar.gz", reproducible=True)
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        warning_msg = "WARNING: Can not create reproducible archive due to unsupported file compression (gz)"
+        self.assertIn(warning_msg, stderr)
+
+        custom_tgz_chksum = ft.compute_checksum(custom_tgz, checksum_type="sha256")
+        self.assertEqual(custom_tgz, "custom_name.tar.gz")
+        self.assertExists(custom_tgz)
+        os.remove(custom_tgz)
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        custom_tgz = ft.make_archive(tardir, archive_file="custom_name.tar.gz", reproducible=False)
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        self.assertNotIn(warning_msg, stderr)
+
+        custom_tgz_chksum = ft.compute_checksum(custom_tgz, checksum_type="sha256")
+        self.assertEqual(custom_tgz, "custom_name.tar.gz")
+        self.assertExists(custom_tgz)
+        os.remove(custom_tgz)
+
+        self.assertErrorRegex(EasyBuildError, "Unsupported archive format.*", ft.make_archive, tardir, "unknown.ext")
+
+        reference_checksum_txz = "ec0f91a462c2743b19b428f4c177d7109d2ccc018dcdedc12570d9d735d6fb1b"
+        reference_checksum_tar = "6e902e77925ab2faeef8377722434d4482f1fcc74af958c984c3f22509ae5084"
+
+        if sys.version_info[0] >= 3 and sys.version_info[1] >= 9:
+            # checksums of tarballs made by EB cannot be reliably checked prior to Python 3.9
+            # due to changes introduced in python/cpython#90021
+            self.assertNotEqual(unreprod_txz_chksum, reference_checksum_txz)
+            self.assertEqual(reprod_txz_chksum, reference_checksum_txz)
+            self.assertEqual(custom_txz_chksum, reference_checksum_txz)
+            self.assertEqual(customdir_txz_chksum, reference_checksum_txz)
+            self.assertNotEqual(unreprod_tar_chksum, reference_checksum_tar)
+            self.assertEqual(reprod_tar_chksum, reference_checksum_tar)
+            self.assertNotEqual(custom_tgz_chksum, reference_checksum_txz)
 
     def test_is_sha256_checksum(self):
         """Test for is_sha256_checksum function."""

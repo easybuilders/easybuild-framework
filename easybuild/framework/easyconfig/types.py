@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2024 Ghent University
+# Copyright 2015-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -510,33 +510,51 @@ def to_dependencies(dep_list):
     return [to_dependency(dep) for dep in dep_list]
 
 
+def _to_checksum(checksum, list_level=0, allow_dict=True):
+    """Ensure the correct element type for each checksum in the checksum list"""
+    # each entry can be:
+    # * None (indicates no checksum)
+    # * a string (SHA256 checksum)
+    # * a list or tuple with 2 elements: checksum type + checksum value
+    # * a list or tuple of checksums (i.e. multiple checksums for a single file)
+    # * a dict (filename to checksum mapping)
+    if checksum is None or isinstance(checksum, str):
+        return checksum
+    elif isinstance(checksum, (list, tuple)):
+        if len(checksum) == 2 and isinstance(checksum[0], str) and isinstance(checksum[1], (str, int)):
+            # 2 elements so either:
+            #  - a checksum tuple (2nd element string or int)
+            #  - 2 alternative checksums (tuple)
+            #  - 2 checksums that must each match (list)
+            # --> Convert to tuple only if we can exclude the 3rd case
+            if not isinstance(checksum[1], str) or list_level > 0:
+                return tuple(checksum)
+            else:
+                return checksum
+        elif list_level < 2:
+            # Alternative checksums or multiple checksums for a single file
+            # Allowed to nest (at most) 2 times, e.g. [[[type, value]]] == [[(type, value)]]
+            # None is not allowed here
+            if any(x is None for x in checksum):
+                raise ValueError('Unexpected None in ' + str(checksum))
+            if isinstance(checksum, tuple) or list_level > 0:
+                # When we already are in a tuple no further recursion is allowed -> set list_level very high
+                return tuple(_to_checksum(x, list_level=99, allow_dict=allow_dict) for x in checksum)
+            else:
+                return list(_to_checksum(x, list_level=list_level+1, allow_dict=allow_dict) for x in checksum)
+    elif isinstance(checksum, dict) and allow_dict:
+        return {key: _to_checksum(value, allow_dict=False) for key, value in checksum.items()}
+
+    # Not returned -> Wrong type/format
+    raise ValueError('Unexpected type of "%s": %s' % (type(checksum), str(checksum)))
+
+
 def to_checksums(checksums):
     """Ensure correct element types for list of checksums: convert list elements to tuples."""
-    res = []
-    for checksum in checksums:
-        # each list entry can be:
-        # * None (indicates no checksum)
-        # * a string (SHA256 checksum)
-        # * a tuple with 2 elements: checksum type + checksum value
-        # * a list of checksums (i.e. multiple checksums for a single file)
-        # * a dict (filename to checksum mapping)
-        if isinstance(checksum, str):
-            res.append(checksum)
-        elif isinstance(checksum, (list, tuple)):
-            # 2 elements + only string/int values => a checksum tuple
-            if len(checksum) == 2 and all(isinstance(x, (str, int)) for x in checksum):
-                res.append(tuple(checksum))
-            else:
-                res.append(to_checksums(checksum))
-        elif isinstance(checksum, dict):
-            validated_dict = {}
-            for key, value in checksum.items():
-                validated_dict[key] = to_checksums(value)
-            res.append(validated_dict)
-        else:
-            res.append(checksum)
-
-    return res
+    try:
+        return [_to_checksum(checksum) for checksum in checksums]
+    except ValueError as e:
+        raise EasyBuildError('Invalid checksums: %s\n\tError: %s', checksums, e)
 
 
 def ensure_iterable_license_specs(specs):
@@ -613,19 +631,39 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
 }))
 # checksums is a list of checksums, one entry per file (source/patch)
 # each entry can be:
+# None
 # a single checksum value (string)
 # a single checksum value of a specified type (2-tuple, 1st element is checksum type, 2nd element is checksum)
 # a list of checksums (of different types, perhaps different formats), which should *all* be valid
-# a dictionary with a mapping from filename to checksum value
-CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT]}))
-CHECKSUMS = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT, CHECKSUM_LIST]}))
+# a tuple of checksums (of different types, perhaps different formats), where one should be valid
+# a dictionary with a mapping from filename to checksum (None, value, type&value, alternatives)
 
-CHECKABLE_TYPES = [CHECKSUM_LIST, CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
+# Type & value, value may be an int for type "size"
+# This is a bit too permissive as it allows the first element to be an int and doesn't restrict the number of elements
+CHECKSUM_AND_TYPE = (tuple, as_hashable({'elem_types': [str, int]}))
+CHECKSUM_LIST = (list, as_hashable({'elem_types': [str, CHECKSUM_AND_TYPE]}))
+CHECKSUM_TUPLE = (tuple, as_hashable({'elem_types': [str, CHECKSUM_AND_TYPE]}))
+CHECKSUM_DICT = (dict, as_hashable(
+    {
+        'elem_types': [type(None), str, CHECKSUM_AND_TYPE, CHECKSUM_TUPLE, CHECKSUM_LIST],
+        'key_types': [str],
+    }
+))
+# At the top-level we allow tuples/lists containing a dict
+CHECKSUM_LIST_W_DICT = (list, as_hashable({'elem_types': [str, CHECKSUM_AND_TYPE, CHECKSUM_DICT]}))
+CHECKSUM_TUPLE_W_DICT = (tuple, as_hashable({'elem_types': [str, CHECKSUM_AND_TYPE, CHECKSUM_DICT]}))
+
+CHECKSUMS = (list, as_hashable({'elem_types': [type(None), str, CHECKSUM_AND_TYPE,
+                                               CHECKSUM_LIST_W_DICT, CHECKSUM_TUPLE_W_DICT, CHECKSUM_DICT]}))
+
+CHECKABLE_TYPES = [CHECKSUM_AND_TYPE, CHECKSUM_LIST, CHECKSUM_TUPLE,
+                   CHECKSUM_LIST_W_DICT, CHECKSUM_TUPLE_W_DICT, CHECKSUM_DICT, CHECKSUMS,
+                   DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
                    SANITY_CHECK_PATHS_DICT, SANITY_CHECK_PATHS_ENTRY, STRING_DICT, STRING_OR_TUPLE_LIST,
                    STRING_OR_TUPLE_DICT, STRING_OR_TUPLE_OR_DICT_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
-EASY_TYPES = [str, bool, dict, int, list, str, tuple]
+EASY_TYPES = [str, bool, dict, int, list, str, tuple, type(None)]
 
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
