@@ -30,6 +30,7 @@ Unit tests for easyblock.py
 @author: Maxime Boissonneault (Compute Canada)
 @author: Jan Andre Reuter (Juelich Supercomputing Centre)
 """
+import copy
 import os
 import re
 import shutil
@@ -2933,17 +2934,23 @@ class EasyBlockTest(EnhancedTestCase):
 
         cwd = os.getcwd()
         self.assertExists(cwd)
+        # Take environment with test-specific variable set up
+        orig_environ = copy.deepcopy(os.environ)
 
         def run_extension_step():
-            change_dir(cwd)
-            eb = EasyBlock(ec)
-            # Cleanup build directory
-            if os.path.exists(eb.builddir):
-                remove_dir(eb.builddir)
-            eb.make_builddir()
-            eb.update_config_template_run_step()
-            eb.extensions_step(fetch=True, install=True)
-            return os.path.join(eb.builddir)
+            try:
+                change_dir(cwd)
+                eb = EasyBlock(ec)
+                # Cleanup build directory
+                if os.path.exists(eb.builddir):
+                    remove_dir(eb.builddir)
+                eb.make_builddir()
+                eb.update_config_template_run_step()
+                eb.extensions_step(fetch=True, install=True)
+                return os.path.join(eb.builddir)
+            finally:
+                # restore original environment to continue testing with a clean slate
+                modify_env(os.environ, orig_environ, verbose=False)
 
         ec['exts_defaultclass'] = 'DummyExtension'
         ec['exts_list'] = [('toy', '0.0', {'easyblock': 'DummyExtension'})]
