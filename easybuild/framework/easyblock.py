@@ -3350,7 +3350,6 @@ class EasyBlock(object):
                         msg = f"{path} does not appear to be a CUDA executable (no CUDA device code found), "
                         msg += "so skipping CUDA sanity check."
                         self.log.debug(msg)
-                        return fails
                     else:
                         # unpack results
                         derived_ccs = res.device_code_archs
