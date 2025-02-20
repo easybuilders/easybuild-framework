@@ -3127,7 +3127,7 @@ class EasyBlock(object):
         self.cfg['builddependencies'] = builddeps
         self.cfg.iterating = False
 
-    def sanity_check_rpath(self, rpath_dirs=None, check_readelf_rpath=True):
+    def sanity_check_rpath(self, rpath_dirs=None, check_readelf_rpath=None):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
 
         self.log.info("Checking RPATH linkage for binaries/libraries...")
