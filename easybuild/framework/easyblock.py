@@ -3322,6 +3322,10 @@ class EasyBlock(object):
         fails = []
         cfg_ccs = build_option('cuda_compute_capabilities') or self.cfg.get('cuda_compute_capabilities', None)
 
+        # Construct the list of files to ignore as full paths (cuda_sanity_ignore_files contains the paths
+        # to ignore, relative to the installation prefix)
+        ignore_file_list = [os.path.join(self.installdir, d) for d in self.cfg['cuda_sanity_ignore_files']]
+
         # If there are no CUDA compute capabilities defined, return
         if cfg_ccs is None or len(cfg_ccs) == 0:
             self.log.info("Skipping CUDA sanity check, as no CUDA compute capabilities where configured")
@@ -3364,9 +3368,15 @@ class EasyBlock(object):
                             if additional_ccs:
                                 fail_msg += "Surplus compute capabilities: %s. " % ', '.join(sorted(additional_ccs))
                             if missing_ccs:
-                                fail_msg += "Missing compute capabilities: %s." % ', '.join(sorted(missing_ccs))
-                            self.log.warning(fail_msg)
-                            fails.append(fail_msg)
+                                fail_msg += "Missing compute capabilities: %s. " % ', '.join(sorted(missing_ccs))
+                            # We still log the result, but don't fail:
+                            if path in ignore_file_list:
+                                fail_msg += f"This failure will be ignored as {path} is listed in "
+                                fail_msg += "'ignore_cuda_sanity_failures'."
+                                self.log.warning(fail_msg)
+                            else:
+                                self.log.warning(fail_msg)
+                                fails.append(fail_msg)
                         else:
                             msg = (f"Output of 'cuobjdump' checked for {path}; device code architecures match "
                                    "those in cuda_compute_capabilities")
