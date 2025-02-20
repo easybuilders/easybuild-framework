@@ -43,7 +43,7 @@ import struct
 import sys
 import termios
 import warnings
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 from ctypes.util import find_library
 from socket import gethostname
 
@@ -214,6 +214,14 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
     'setuptools': ('pkg_resources', "obtaining information on Python packages via pkg_resources module"),
 }
 
+
+# A named tuple, to be returned by e.g. `get_cuda_device_code_architectures`
+cuda_dev_ptx_archs = namedtuple('cuda_dev_ptx_archs', ('device_code_archs', 'ptx_archs'))
+cuda_dev_ptx_archs.__doc__ = """A namedtuple that represents the result of a call to get_cuda_device_code_architectures,
+with the following fields:
+- device_code_archs: a list of CUDA device compute capabilities for which device code was found
+- ptx_archs: a list of CUDA (virtual) device compute capabilities for which ptx code was found
+"""
 
 class SystemToolsException(Exception):
     """raised when systemtools fails"""
@@ -986,8 +994,15 @@ def get_cuda_object_dump_raw(path):
     if res.exit_code == EasyBuildExit.SUCCESS:
         return res.output
     else:
-        msg = "Dumping CUDA binary file information for '%s' via '%s' failed! Output: '%s'"
-        _log.debug(msg % (path, cuda_cmd, res.output))
+        # Check and report for the common case that this is simply not a CUDA binary, i.e. does not
+        # contain CUDA device code
+        no_device_code_match = re.search(r'does not contain device code', res.output)
+        if no_device_code_match is not None:
+            msg = "'%s' does not appear to be a CUDA binary: cuobjdump failed to find device code in this file"
+            _log.debug(msg, path)
+        else:
+            msg = "Dumping CUDA binary file information for '%s' via '%s' failed! Output: '%s'"
+            _log.debug(msg, path, cuda_cmd, res.output)
         return None
 
 
@@ -998,8 +1013,27 @@ def get_cuda_device_code_architectures(path):
     Returns None if no CUDA device code is present in the file.
     """
 
-    # cudaobjdump uses the sm_XY format
-    device_code_regex = re.compile('(?<=arch = sm_)([0-9])([0-9]+a{0,1})')
+    # Note that typical output for a cuobjdump call will look like this for device code:
+    #
+    # Fatbin elf code:
+    # ================
+    # arch = sm_90
+    # code version = [1,7]
+    # host = linux
+    # compile_size = 64bit
+    #
+    # And for ptx code, it will look like this:
+    #
+    # Fatbin ptx code:
+    # ================
+    # arch = sm_90
+    # code version = [8,1]
+    # host = linux
+    # compile_size = 64bit
+
+    # Pattern to extract elf code architectures and ptx code architectures respectively
+    device_code_regex = re.compile('Fatbin elf code:\n=+\narch = sm_([0-9])([0-9]+a{0,1})')
+    ptx_code_regex = re.compile('Fatbin ptx code:\n=+\narch = sm_([0-9])([0-9]+a{0,1})')
 
     # resolve symlinks
     if os.path.islink(path) and os.path.exists(path):
@@ -1009,17 +1043,49 @@ def get_cuda_device_code_architectures(path):
     if cuda_raw is None:
         return None
 
-    # extract unique architectures from raw dump
-    matches = re.findall(device_code_regex, cuda_raw)
-    if matches is not None:
+    # extract unique device code architectures from raw dump
+    device_code_matches = re.findall(device_code_regex, cuda_raw)
+    if device_code_matches is not None:
         # convert match tuples into unique list of cuda compute capabilities
         # e.g. [('8', '6'), ('8', '6'), ('9', '0')] -> ['8.6', '9.0']
-        matches = sorted(['.'.join(m) for m in set(matches)])
+        device_code_matches = sorted(['.'.join(m) for m in set(device_code_matches)])
     else:
-        fail_msg = f"Failed to determine supported CUDA architectures from {path}"
+        # Try to be clear in the warning... did we not find elf code sections at all? or was the arch missing?
+        device_section_regex = re.compile('Fatbin elf code')
+        device_section_matches = re.findall(device_section_regex, cuda_raw)
+        if device_section_matches is not None:
+            fail_msg = f"Found Fatbin elf code section(s) in cuobjdump output for {path}, "
+            fail_msg += "but failed to extract CUDA architecture"
+        else:
+            # In this case, the cuobjdump command _likely_ already returned a non-zero exit
+            # This error message would only be displayed if cuobjdump somehow completely successfully
+            # but still no Fatbin elf code section was found
+            fail_msg = f"Failed to find Fatbin elf code section(s) in cuobjdump output for {path}, "
+            fail_msg += "are you sure this is a CUDA binary?"
         _log.warning(fail_msg)
 
-    return matches
+    # extract unique ptx code architectures from raw dump
+    ptx_code_matches = re.findall(ptx_code_regex, cuda_raw)
+    if ptx_code_matches is not None:
+        # convert match tuples into unique list of cuda compute capabilities
+        # e.g. [('8', '6'), ('8', '6'), ('9', '0')] -> ['8.6', '9.0']
+        ptx_code_matches = sorted(['.'.join(m) for m in set(ptx_code_matches)])
+    else:
+        # Try to be clear in the warning... did we not find ptx code sections at all? or was the arch missing?
+        ptx_section_regex = re.compile('Fatbin ptx code')
+        ptx_section_matches = re.findall(ptx_section_regex, cuda_raw)
+        if ptx_section_matches is not None:
+            fail_msg = f"Found Fatbin ptx code section(s) in cuobjdump output for {path}, "
+            fail_msg += "but failed to extract CUDA architecture"
+        else:
+            # In this case, the cuobjdump command _likely_ already returned a non-zero exit
+            # This error message would only be displayed if cuobjdump somehow completely successfully
+            # but still no Fatbin ptx code section was found
+            fail_msg = f"Failed to find Fatbin ptx code section(s) in cuobjdump output for {path}, "
+            fail_msg += "are you sure this is a CUDA binary?"
+        _log.warning(fail_msg)
+
+    return cuda_dev_ptx_archs(ptx_archs=ptx_code_matches, device_code_archs=device_code_matches)
 
 
 def get_linked_libs_raw(path):

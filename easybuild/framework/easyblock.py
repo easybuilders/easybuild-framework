@@ -3322,6 +3322,11 @@ class EasyBlock(object):
         fails = []
         cfg_ccs = build_option('cuda_compute_capabilities') or self.cfg.get('cuda_compute_capabilities', None)
 
+        # If there are no CUDA compute capabilities defined, return
+        if cfg_ccs is None or len(cfg_ccs) == 0:
+            self.log.info("Skipping CUDA sanity check, as no CUDA compute capabilities where configured")
+            return fails
+
         if cuda_dirs is None:
             cuda_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
 
@@ -3340,12 +3345,17 @@ class EasyBlock(object):
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
                     self.log.debug("Sanity checking for CUDA device code in %s", path)
 
-                    derived_ccs = get_cuda_device_code_architectures(path)
-
-                    if derived_ccs is None:
-                        msg = f"No CUDA device code found in {path}, so skipping it in CUDA device code sanity check"
+                    res = get_cuda_device_code_architectures(path)
+                    if res is None:
+                        msg = f"{path} does not appear to be a CUDA executable (no CUDA device code found), "
+                        msg += "so skipping CUDA sanity check."
                         self.log.debug(msg)
+                        return fails
                     else:
+                        # unpack results
+                        derived_ccs = res.device_code_archs
+                        derived_ptx_ccs = res.ptx_archs
+
                         # check whether device code architectures match cuda_compute_capabilities
                         additional_ccs = list(set(derived_ccs) - set(cfg_ccs))
                         missing_ccs = list(set(cfg_ccs) - set(derived_ccs))
@@ -3361,6 +3371,19 @@ class EasyBlock(object):
                         else:
                             msg = (f"Output of 'cuobjdump' checked for {path}; device code architecures match "
                                    "those in cuda_compute_capabilities")
+                            self.log.debug(msg)
+
+                        # Check whether there is ptx code for the highest CC in cfg_ccs
+                        highest_cc = sorted(cfg_ccs)[-1]
+                        missing_ptx_ccs = list(set(highest_cc) - set(derived_ptx_ccs))
+
+                        if missing_ptx_ccs:
+                            fail_msg = "Configured highest compute capability was '%s', "
+                            fail_msg += "but no PTX code for this compute capability was found in '%s'"
+                            self.log.warning(fail_msg, highest_cc, missing_ptx_ccs)
+                        else:
+                            msg = (f"Output of 'cuobjdump' checked for {path}; ptx code was present for (at least) the"
+                                   " highest CUDA compute capability in cuda_compute_capabilities")
                             self.log.debug(msg)
             else:
                 self.log.debug(f"Not sanity checking files in non-existing directory {dirpath}")
