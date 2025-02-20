@@ -3373,13 +3373,14 @@ class EasyBlock(object):
                             self.log.debug(msg)
 
                         # Check whether there is ptx code for the highest CC in cfg_ccs
-                        highest_cc = sorted(cfg_ccs)[-1]
+                        highest_cc = [sorted(cfg_ccs)[-1]]
                         missing_ptx_ccs = list(set(highest_cc) - set(derived_ptx_ccs))
 
                         if missing_ptx_ccs:
                             fail_msg = "Configured highest compute capability was '%s', "
-                            fail_msg += "but no PTX code for this compute capability was found in '%s'"
-                            self.log.warning(fail_msg, highest_cc, missing_ptx_ccs)
+                            fail_msg += "but no PTX code for this compute capability was found in '%s' "
+                            fail_msg += "PTX architectures supported in that file: %s"
+                            self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
                         else:
                             msg = (f"Output of 'cuobjdump' checked for {path}; ptx code was present for (at least) the"
                                    " highest CUDA compute capability in cuda_compute_capabilities")
