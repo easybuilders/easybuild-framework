@@ -53,7 +53,7 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.main import main_with_hooks
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
-from easybuild.tools.environment import modify_env
+from easybuild.tools.environment import modify_env, setvar
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, move_file
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
@@ -3007,6 +3007,97 @@ class ToyBuildTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
                                   extra_args=args, name='toy-app', raise_error=True, verbose=False)
+
+    def test_toy_cuda_sanity_check(self):
+        """Test the CUDA sanity check"""
+        # We need to mock a cuobjdump executable and prepend in on the PATH
+        # First, make sure we can restore environment at the end of this test
+        start_env = copy.deepcopy(os.environ)
+
+        # Create mock cuobjdump
+        # First, lets define sections of echo's for cuobjdump for various scenarios
+
+        # Shebang for cuobjdump
+        cuobjdump_txt_shebang = "#!/bin/bash\n"
+
+        # Section for cuobjdump printing output for sm_80 architecture
+        cuobjdump_txt_sm80 = '\n'.join([
+            "echo 'Fatbin elf code:'"
+            "echo '================'"
+            "echo 'arch = sm_80'"
+            "echo 'code version = [1,7]'"
+            "echo 'host = linux'"
+            "echo 'compile_size = 64bit'"
+            "echo ''"
+        ])
+
+        # Section for cuobjdump printing output for sm_90 architecture
+        cuobjdump_txt_sm90 = '\n'.join([
+            "echo 'Fatbin elf code:'"
+            "echo '================'"
+            "echo 'arch = sm_90'"
+            "echo 'code version = [1,7]'"
+            "echo 'host = linux'"
+            "echo 'compile_size = 64bit'"
+            "echo ''"
+        ])
+
+        # Section for cuobjdump printing output for sm_80 PTX code
+        cuobjdump_txt_sm80_ptx = '\n'.join([
+            "echo 'Fatbin ptx code:'"
+            "echo '================'"
+            "echo 'arch = sm_80'"
+            "echo 'code version = [8,1]'"
+            "echo 'host = linux'"
+            "echo 'compile_size = 64bit'"
+            "echo 'compressed'"
+        ])
+
+        # Section for cuobjdump printing output for sm_90 PTX code
+        cuobjdump_txt_sm90_ptx = '\n'.join([
+            "echo 'Fatbin ptx code:'"
+            "echo '================'"
+            "echo 'arch = sm_90'"
+            "echo 'code version = [8,1]'"
+            "echo 'host = linux'"
+            "echo 'compile_size = 64bit'"
+            "echo 'compressed'"
+        ])
+
+        # Create temporary subdir for cuobjdump, so that we don't have to add self.test_prefix itself to the PATH
+        cuobjdump_dir = os.path.join(self.test_prefix, 'cuobjdump_dir')
+        mkdir(cuobjdump_dir, parents=True)
+
+        # Add cuobjdump_dir to the path
+        setvar('PATH', '%s:%s' % (cuobjdump_dir, os.getenv('PATH')))
+
+        # Filepath to cuobjdump
+        cuobjdump_file = os.path.join(cuobjdump_dir, 'cuobjdump')
+
+        # Test case 1: --cuda-compute-capabilities=8.0 and mocking a binary that contains 8.0 EFL code
+        write_file(cuobjdump_file, cuobjdump_txt_shebang),
+        write_file(cuobjdump_file, cuobjdump_txt_sm80, append=True)
+        adjust_permission(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        args = ['--cuda-compute-capabilities=8.0', '--debug']  # Need debug so we can check output
+        test_report_fp = os.path.join(self.test_buildpath, 'full_test_report.md')
+        # We expect this to pass, so no need to check errors
+        regex = r"DEBUG Output of 'cuobjdump' checked for .*toy; "
+        regex += "device code architectures match those in cuda_compute_capabilities"
+        self.test_toy_build(extra_args=args, test_report=test_report_fp, raise_error=True
+                            test_report_regexs=[regex])
+            
+
+        
+
+
+        # Test single CUDA compute capability with --cuda-compute-capabilities=8.0
+
+        # Test multiple CUDA compute capabilities with --cuda-compute-capabilities=8.0,9.0
+
+        # Test stric CUDA check with --cuda-compute-capabilities=8.0 and a binary that also contains also 9.0 code
+
+        # Restore original environment
+        modify_env(os.environ, start_env, verbose=False)
 
     def test_toy_modaltsoftname(self):
         """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
