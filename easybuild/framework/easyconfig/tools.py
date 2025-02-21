@@ -768,39 +768,37 @@ def avail_easyblocks():
         __import__(pkg)
 
         # determine paths for this package
-        paths = sys.modules[pkg].__path__
+        paths = [path for path in sys.modules[pkg].__path__ if os.path.exists(path)]
 
         # import all modules in these paths
         for path in paths:
-            if os.path.exists(path):
-                for fn in os.listdir(path):
-                    res = module_regexp.match(fn)
-                    if res:
-                        easyblock_mod_name = '%s.%s' % (pkg, res.group(1))
+            for fn in os.listdir(path):
+                res = module_regexp.match(fn)
+                if not res:
+                    continue
+                easyblock_mod_name = '%s.%s' % (pkg, res.group(1))
 
-                        if easyblock_mod_name not in easyblocks:
-                            __import__(easyblock_mod_name)
-                            easyblock_loc = os.path.join(path, fn)
+                if easyblock_mod_name in easyblocks:
+                    _log.debug("%s already imported from %s, ignoring %s",
+                               easyblock_mod_name, easyblocks[easyblock_mod_name]['loc'], path)
+                else:
+                    __import__(easyblock_mod_name)
+                    easyblock_loc = os.path.join(path, fn)
 
-                            class_names = class_regex.findall(read_file(easyblock_loc))
-                            if len(class_names) > 1:
-                                # If there is exactly one software specific easyblock we use that
-                                sw_specific_class_names = [name for name in class_names
-                                                           if not is_generic_easyblock(name)]
-                                if len(sw_specific_class_names) == 1:
-                                    class_names = sw_specific_class_names
-                            if len(class_names) == 1:
-                                easyblock_class = class_names[0]
-                            elif class_names:
-                                raise EasyBuildError("Found multiple class names for easyblock %s: %s",
-                                                     easyblock_loc, class_names)
-                            else:
-                                raise EasyBuildError("Failed to determine easyblock class name for %s", easyblock_loc)
-
-                            easyblocks[easyblock_mod_name] = {'class': easyblock_class, 'loc': easyblock_loc}
-                        else:
-                            _log.debug("%s already imported from %s, ignoring %s",
-                                       easyblock_mod_name, easyblocks[easyblock_mod_name]['loc'], path)
+                    class_names = class_regex.findall(read_file(easyblock_loc))
+                    if len(class_names) > 1:
+                        # If there is exactly one software specific easyblock we use that
+                        sw_specific_class_names = [name for name in class_names
+                                                   if not is_generic_easyblock(name)]
+                        if len(sw_specific_class_names) == 1:
+                            class_names = sw_specific_class_names
+                    if len(class_names) == 1:
+                        easyblocks[easyblock_mod_name] = {'class': class_names[0], 'loc': easyblock_loc}
+                    elif class_names:
+                        raise EasyBuildError("Found multiple class names for easyblock %s: %s",
+                                             easyblock_loc, class_names)
+                    else:
+                        raise EasyBuildError("Failed to determine easyblock class name for %s", easyblock_loc)
 
     return easyblocks
 
