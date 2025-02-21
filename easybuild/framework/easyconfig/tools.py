@@ -58,7 +58,7 @@ from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
+from easybuild.tools.filetools import find_easyconfigs, is_generic_easyblock, is_patch_file, locate_files
 from easybuild.tools.filetools import read_file, resolve_path, which, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, fetch_easyconfigs_from_commit
@@ -783,6 +783,12 @@ def avail_easyblocks():
                             easyblock_loc = os.path.join(path, fn)
 
                             class_names = class_regex.findall(read_file(easyblock_loc))
+                            if len(class_names) > 1:
+                                # If there is exactly one software specific easyblock we use that
+                                sw_specific_class_names = [name for name in class_names
+                                                           if not is_generic_easyblock(name)]
+                                if len(sw_specific_class_names) == 1:
+                                    class_names = sw_specific_class_names
                             if len(class_names) == 1:
                                 easyblock_class = class_names[0]
                             elif class_names:
