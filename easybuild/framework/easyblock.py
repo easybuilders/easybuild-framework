@@ -3321,6 +3321,7 @@ class EasyBlock(object):
 
         fails = []
         cfg_ccs = build_option('cuda_compute_capabilities') or self.cfg.get('cuda_compute_capabilities', None)
+        strict_cc_check = build_option('strict_cuda_sanity_check')
 
         # Construct the list of files to ignore as full paths (cuda_sanity_ignore_files contains the paths
         # to ignore, relative to the installation prefix)
@@ -3364,21 +3365,29 @@ class EasyBlock(object):
                         missing_ccs = list(set(cfg_ccs) - set(derived_ccs))
 
                         if additional_ccs or missing_ccs:
+                            # Do we log this as warning or produce a sanity failure?
+                            is_failure = False
                             fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
                             if additional_ccs:
                                 fail_msg += "Surplus compute capabilities: %s. " % ', '.join(sorted(additional_ccs))
+                                if strict_cc_check:
+                                    is_failure = True
                             if missing_ccs:
                                 fail_msg += "Missing compute capabilities: %s. " % ', '.join(sorted(missing_ccs))
+                                is_failure = True
                             # We still log the result, but don't fail:
                             if path in ignore_file_list:
                                 fail_msg += f"This failure will be ignored as {path} is listed in "
                                 fail_msg += "'ignore_cuda_sanity_failures'."
-                                self.log.warning(fail_msg)
+                                is_failure = False
+
+                            # Log warning or sanity error
+                            if is_failure:
+                                fails.append(fail_msg)
                             else:
                                 self.log.warning(fail_msg)
-                                fails.append(fail_msg)
                         else:
-                            msg = (f"Output of 'cuobjdump' checked for {path}; device code architecures match "
+                            msg = (f"Output of 'cuobjdump' checked for {path}; device code architectures match "
                                    "those in cuda_compute_capabilities")
                             self.log.debug(msg)
 

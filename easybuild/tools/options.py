@@ -540,9 +540,16 @@ class EasyBuildOptions(GeneralOption):
                 "Git commit to use for the target software build (robot capabilities are automatically disabled)",
                 None, 'store', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
-            'strict-rpath-sanity-check': ("Perform strict RPATH sanity check, which involces unsetting "
+            'strict-rpath-sanity-check': ("Perform strict RPATH sanity check, which involves unsetting "
                                           "$LD_LIBRARY_PATH before checking whether all required libraries are found",
                                           None, 'store_true', False),
+            'strict-cuda-sanity-check': ("Perform strict CUDA sanity check. Without this option, the CUDA sanity "
+                                         "check will fail if the CUDA binaries don't contain code for (at least) "
+                                         "all compute capabilities defined in --cude-compute-capabilities, but will "
+                                         "accept if code for additional compute capabilities is present. "
+                                         "With this setting, the sanity check will also fail if code is present for "
+                                         "more compute capabilities than defined in --cuda-compute-capabilities.",
+                                         None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', True, 'T'),
