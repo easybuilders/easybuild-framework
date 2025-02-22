@@ -3014,6 +3014,10 @@ class ToyBuildTest(EnhancedTestCase):
         # First, make sure we can restore environment at the end of this test
         start_env = copy.deepcopy(os.environ)
 
+        # Define the toy_ec file we want to use
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
         # Create mock cuobjdump
         # First, lets define sections of echo's for cuobjdump for various scenarios
 
@@ -3022,47 +3026,53 @@ class ToyBuildTest(EnhancedTestCase):
 
         # Section for cuobjdump printing output for sm_80 architecture
         cuobjdump_txt_sm80 = '\n'.join([
-            "echo 'Fatbin elf code:'"
-            "echo '================'"
-            "echo 'arch = sm_80'"
-            "echo 'code version = [1,7]'"
-            "echo 'host = linux'"
-            "echo 'compile_size = 64bit'"
+            "echo 'Fatbin elf code:'",
+            "echo '================'",
+            "echo 'arch = sm_80'",
+            "echo 'code version = [1,7]'",
+            "echo 'host = linux'",
+            "echo 'compile_size = 64bit'",
             "echo ''"
         ])
 
         # Section for cuobjdump printing output for sm_90 architecture
         cuobjdump_txt_sm90 = '\n'.join([
-            "echo 'Fatbin elf code:'"
-            "echo '================'"
-            "echo 'arch = sm_90'"
-            "echo 'code version = [1,7]'"
-            "echo 'host = linux'"
-            "echo 'compile_size = 64bit'"
+            "echo 'Fatbin elf code:'",
+            "echo '================'",
+            "echo 'arch = sm_90'",
+            "echo 'code version = [1,7]'",
+            "echo 'host = linux'",
+            "echo 'compile_size = 64bit'",
             "echo ''"
         ])
 
         # Section for cuobjdump printing output for sm_80 PTX code
         cuobjdump_txt_sm80_ptx = '\n'.join([
-            "echo 'Fatbin ptx code:'"
-            "echo '================'"
-            "echo 'arch = sm_80'"
-            "echo 'code version = [8,1]'"
-            "echo 'host = linux'"
-            "echo 'compile_size = 64bit'"
+            "echo 'Fatbin ptx code:'",
+            "echo '================'",
+            "echo 'arch = sm_80'",
+            "echo 'code version = [8,1]'",
+            "echo 'host = linux'",
+            "echo 'compile_size = 64bit'",
             "echo 'compressed'"
         ])
 
         # Section for cuobjdump printing output for sm_90 PTX code
         cuobjdump_txt_sm90_ptx = '\n'.join([
-            "echo 'Fatbin ptx code:'"
-            "echo '================'"
-            "echo 'arch = sm_90'"
-            "echo 'code version = [8,1]'"
-            "echo 'host = linux'"
-            "echo 'compile_size = 64bit'"
+            "echo 'Fatbin ptx code:'",
+            "echo '================'",
+            "echo 'arch = sm_90'",
+            "echo 'code version = [8,1]'",
+            "echo 'host = linux'",
+            "echo 'compile_size = 64bit'",
             "echo 'compressed'"
         ])
+
+        # Created regex for success and failures
+        device_code_regex_pattern = r"DEBUG Output of 'cuobjdump' checked for .*/bin/toy; device code "
+        device_code_regex_pattern += "architectures match those in cuda_compute_capabilities"
+        device_code_regex = re.compile(device_code_regex_pattern, re.M)
+        # TODO: create regex for failures
 
         # Create temporary subdir for cuobjdump, so that we don't have to add self.test_prefix itself to the PATH
         cuobjdump_dir = os.path.join(self.test_prefix, 'cuobjdump_dir')
@@ -3071,20 +3081,24 @@ class ToyBuildTest(EnhancedTestCase):
         # Add cuobjdump_dir to the path
         setvar('PATH', '%s:%s' % (cuobjdump_dir, os.getenv('PATH')))
 
+        # Pretend we have CUDA loaded, or the sanity check won't run
+        setvar('EBROOTCUDA', '/foo/bar')
+
         # Filepath to cuobjdump
         cuobjdump_file = os.path.join(cuobjdump_dir, 'cuobjdump')
 
         # Test case 1: --cuda-compute-capabilities=8.0 and mocking a binary that contains 8.0 EFL code
         write_file(cuobjdump_file, cuobjdump_txt_shebang),
         write_file(cuobjdump_file, cuobjdump_txt_sm80, append=True)
-        adjust_permission(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
-        args = ['--cuda-compute-capabilities=8.0', '--debug']  # Need debug so we can check output
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        args = ['--cuda-compute-capabilities=8.0']
         test_report_fp = os.path.join(self.test_buildpath, 'full_test_report.md')
         # We expect this to pass, so no need to check errors
-        regex = r"DEBUG Output of 'cuobjdump' checked for .*toy; "
-        regex += "device code architectures match those in cuda_compute_capabilities"
-        self.test_toy_build(extra_args=args, test_report=test_report_fp, raise_error=True
-                            test_report_regexs=[regex])
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=False)
+        msg = "Patter %s found in full build log:\n%s" % (device_code_regex.pattern, outtxt)
+        self.assertTrue(device_code_regex.search(outtxt), msg)
+
             
 
         
