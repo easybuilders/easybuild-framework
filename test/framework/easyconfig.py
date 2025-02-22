@@ -805,7 +805,8 @@ class EasyConfigTest(EnhancedTestCase):
         untweaked_openmpi_2 = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-3.1.1-GCC-7.3.0-2.30.eb')
         easyconfigs, _ = parse_easyconfigs([(untweaked_openmpi_1, False), (untweaked_openmpi_2, False)])
         tweak_specs = {'moduleclass': 'debugger'}
-        easyconfigs = tweak(easyconfigs, tweak_specs, self.modtool, targetdirs=tweaked_ecs_paths)
+        easyconfigs, tweak_map = tweak(easyconfigs, tweak_specs, self.modtool, targetdirs=tweaked_ecs_paths,
+                                       return_map=True)
         # Check that all expected tweaked easyconfigs exists
         tweaked_openmpi_1 = os.path.join(tweaked_ecs_paths[0], os.path.basename(untweaked_openmpi_1))
         tweaked_openmpi_2 = os.path.join(tweaked_ecs_paths[0], os.path.basename(untweaked_openmpi_2))
@@ -817,6 +818,7 @@ class EasyConfigTest(EnhancedTestCase):
                         "Tweaked value not found in " + tweaked_openmpi_content_1)
         self.assertTrue('moduleclass = "debugger"' in tweaked_openmpi_content_2,
                         "Tweaked value not found in " + tweaked_openmpi_content_2)
+        self.assertEqual(tweak_map, {tweaked_openmpi_1: untweaked_openmpi_1, tweaked_openmpi_2: untweaked_openmpi_2})
 
     def test_installversion(self):
         """Test generation of install version."""
