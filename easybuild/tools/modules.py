@@ -57,6 +57,8 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import get_subclasses, nub
 
 
+MODULE_LOAD_ENV_HEADERS = 'HEADERS'
+
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
 VERSION_ENV_VAR_NAME_PREFIX = "EBVERSION"
@@ -241,18 +243,38 @@ class ModuleEnvironmentVariable:
 
 
 class ModuleLoadEnvironment:
-    """Changes to environment variables that should be made when environment module is loaded"""
+    """
+    Changes to environment variables that should be made when environment module is loaded.
+    - Environment variables are defined as ModuleEnvironmentVariables instances
+      with attribute name equal to environment variable name.
+    - Aliases are arbitrary names that serve to apply changes to lists of
+      environment variables
+    - Only environment variables attributes are public. Other attributes like
+      aliases are private.
+    """
 
-    def __init__(self):
+    def __init__(self, aliases=None):
         """
         Initialize default environment definition
         Paths are relative to root of installation directory
+
+        :aliases: dict defining environment variables aliases
         """
+        self._aliases = {}
+        if aliases is not None:
+            try:
+                for alias_name, alias_vars in aliases.items():
+                    self.update_alias(alias_name, alias_vars)
+            except AttributeError as err:
+                raise EasyBuildError(
+                    "Wrong format for aliases defitions passed to ModuleLoadEnvironment. "
+                    f"Expected a dictionary but got: {type(aliases)}."
+                ) from err
+
         self.ACLOCAL_PATH = [os.path.join('share', 'aclocal')]
         self.CLASSPATH = ['*.jar']
         self.CMAKE_LIBRARY_PATH = ['lib64']  # only needed for installations with standalone lib64
         self.CMAKE_PREFIX_PATH = ['']
-        self.CPATH = SEARCH_PATH_HEADER_DIRS
         self.GI_TYPELIB_PATH = [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS]
         self.LD_LIBRARY_PATH = SEARCH_PATH_LIB_DIRS
         self.LIBRARY_PATH = SEARCH_PATH_LIB_DIRS
@@ -261,11 +283,29 @@ class ModuleLoadEnvironment:
         self.PKG_CONFIG_PATH = [os.path.join(x, 'pkgconfig') for x in SEARCH_PATH_LIB_DIRS + ['share']]
         self.XDG_DATA_DIRS = ['share']
 
+        # environment variables with known aliases
+        # e.g. search paths to C/C++ headers
+        for envar_name in self._aliases.get(MODULE_LOAD_ENV_HEADERS, []):
+            setattr(self, envar_name, SEARCH_PATH_HEADER_DIRS)
+
     def __setattr__(self, name, value):
         """
         Specific restrictions for ModuleLoadEnvironment attributes:
+        - public attributes are instances of ModuleEnvironmentVariable with uppercase names
+        - private attributes are allowed with any name
+        """
+        if name.startswith('_'):
+            # do not control protected/private attributes
+            return super().__setattr__(name, value)
+
+        return self.__set_module_environment_variable(name, value)
+
+    def __set_module_environment_variable(self, name, value):
+        """
+        Specific restrictions for ModuleEnvironmentVariable attributes:
         - attribute names are uppercase
-        - attributes are instances of ModuleEnvironmentVariable
+        - dictionaries are unpacked into arguments of ModuleEnvironmentVariable
+        - controls variables with special types (e.g. PATH, LD_LIBRARY_PATH)
         """
         if name != name.upper():
             raise EasyBuildError(f"Names of ModuleLoadEnvironment attributes must be uppercase, got '{name}'")
@@ -284,9 +324,15 @@ class ModuleLoadEnvironment:
 
         return super().__setattr__(name, ModuleEnvironmentVariable(contents, **kwargs))
 
+    @property
+    def vars(self):
+        """Return list of public ModuleEnvironmentVariable"""
+
+        return [envar for envar in self.__dict__ if not str(envar).startswith('_')]
+
     def __iter__(self):
         """Make the class iterable"""
-        yield from self.__dict__
+        yield from self.vars
 
     def items(self):
         """
@@ -294,7 +340,8 @@ class ModuleLoadEnvironment:
         - key = attribute name
         - value = its "contents" attribute
         """
-        return self.__dict__.items()
+        for attr in self.vars:
+            yield attr, getattr(self, attr)
 
     def update(self, new_env):
         """Update contents of environment from given dictionary"""
@@ -303,6 +350,20 @@ class ModuleLoadEnvironment:
                 setattr(self, envar_name, envar_contents)
         except AttributeError as err:
             raise EasyBuildError("Cannot update ModuleLoadEnvironment from a non-dict variable") from err
+
+    def replace(self, new_env):
+        """Replace contents of environment with given dictionary"""
+        for var in self.vars:
+            self.remove(var)
+        self.update(new_env)
+
+    def remove(self, var_name):
+        """
+        Remove ModuleEnvironmentVariable attribute from instance
+        Silently goes through if attribute is already missing
+        """
+        if var_name in self.vars:
+            delattr(self, var_name)
 
     @property
     def as_dict(self):
@@ -318,6 +379,48 @@ class ModuleLoadEnvironment:
         Equivalent in shape to os.environ
         """
         return {envar_name: str(envar_contents) for envar_name, envar_contents in self.items()}
+
+    def alias(self, alias):
+        """
+        Return iterator to search path variables for given alias
+        """
+        try:
+            yield from [getattr(self, envar) for envar in self._aliases[alias]]
+        except KeyError as err:
+            raise EasyBuildError(f"Unknown search path alias: {alias}") from err
+        except AttributeError as err:
+            raise EasyBuildError(f"Missing environment variable in '{alias} alias") from err
+
+    def alias_vars(self, alias):
+        """
+        Return list of environment variable names aliased by given alias
+        """
+        try:
+            return self._aliases[alias]
+        except KeyError as err:
+            raise EasyBuildError(f"Unknown search path alias: {alias}") from err
+
+    def update_alias(self, alias, value):
+        """
+        Update existing or non-existing alias with given search paths variables
+        """
+        if isinstance(value, str):
+            value = [value]
+
+        try:
+            self._aliases[alias] = [str(envar) for envar in value]
+        except TypeError as err:
+            raise TypeError("ModuleLoadEnvironment aliases must be a list of strings") from err
+
+    def set_alias_vars(self, alias, value):
+        """
+        Set value of search paths variables for given alias
+        """
+        try:
+            for envar_name in self._aliases[alias]:
+                setattr(self, envar_name, value)
+        except KeyError as err:
+            raise EasyBuildError(f"Unknown search path alias: {alias}") from err
 
 
 class ModulesTool(object):
@@ -1013,7 +1116,6 @@ class ModulesTool(object):
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         stdout, stderr = res.output, res.stderr
-        self.log.debug("Output of module command '%s': stdout: %s; stderr: %s", cmd, stdout, stderr)
 
         # also catch and check exit code
         if kwargs.get('check_exit_code', True) and res.exit_code != EasyBuildExit.SUCCESS:

@@ -78,7 +78,7 @@ from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import EASYBUILD_SOURCES_URL, EBPYTHONPREFIXES  # noqa
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
-from easybuild.tools.config import PYTHONPATH, SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
+from easybuild.tools.config import MOD_SEARCH_PATH_HEADERS, PYTHONPATH, SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
@@ -100,7 +100,7 @@ from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import Lmod, ModEnvVarType, ModuleLoadEnvironment
+from easybuild.tools.modules import Lmod, ModEnvVarType, ModuleLoadEnvironment, MODULE_LOAD_ENV_HEADERS
 from easybuild.tools.modules import curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
@@ -133,8 +133,9 @@ class LibSymlink(Enum):
     - LIB_TO_LIB64: 'lib' is a symlink to 'lib64'
     - LIB64_TO_LIB: 'lib64' is a symlink to 'lib'
     - NEITHER: neither 'lib' is a symlink to 'lib64', nor 'lib64' is a symlink to 'lib'
+    - BOTH_TO_DIR: 'lib' and 'lib64' are symlinks to some other directory
     - """
-    LIB_TO_LIB64, LIB64_TO_LIB, NEITHER = range(3)
+    LIB_TO_LIB64, LIB64_TO_LIB, NEITHER, BOTH_TO_DIR = range(4)
 
 
 class EasyBlock(object):
@@ -220,7 +221,19 @@ class EasyBlock(object):
             self.modules_header = read_file(modules_header_path)
 
         # environment variables on module load
-        self.module_load_environment = ModuleLoadEnvironment()
+        mod_load_aliases = {}
+        # apply --module-search-path-headers: easyconfig parameter has precedence
+        mod_load_cpp_headers = self.cfg['module_search_path_headers'] or build_option('module_search_path_headers')
+
+        try:
+            mod_load_aliases[MODULE_LOAD_ENV_HEADERS] = MOD_SEARCH_PATH_HEADERS[mod_load_cpp_headers]
+        except KeyError as err:
+            raise EasyBuildError(
+                f"Unknown value selected for option module-search-path-headers: {mod_load_cpp_headers}. "
+                f"Choose one of: {', '.join(MOD_SEARCH_PATH_HEADERS)}"
+            ) from err
+
+        self.module_load_environment = ModuleLoadEnvironment(aliases=mod_load_aliases)
 
         # determine install subdirectory, based on module name
         self.install_subdir = None
@@ -1668,12 +1681,12 @@ class EasyBlock(object):
 
         if self.make_module_req_guess.__qualname__ != "EasyBlock.make_module_req_guess":
             # Deprecated make_module_req_guess method used in child Easyblock
-            # Update environment with custom make_module_req_guess
+            # adjust environment with custom make_module_req_guess
             self.log.deprecated(
                 "make_module_req_guess() is deprecated, use EasyBlock.module_load_environment instead.",
                 "6.0",
             )
-            self.module_load_environment.update(self.make_module_req_guess())
+            self.module_load_environment.replace(self.make_module_req_guess())
 
         # Expand and inject path-like environment variables into module file
         env_var_requirements = {
@@ -1760,7 +1773,9 @@ class EasyBlock(object):
 
         self._install_lib_symlink = LibSymlink.NEITHER
         if os.path.exists(lib_dir) and os.path.exists(lib64_dir):
-            if os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
+            if os.path.islink(lib_dir) and os.path.islink(lib64_dir):
+                self._install_lib_symlink = LibSymlink.BOTH_TO_DIR
+            elif os.path.islink(lib_dir) and os.path.samefile(lib_dir, lib64_dir):
                 self._install_lib_symlink = LibSymlink.LIB_TO_LIB64
             elif os.path.islink(lib64_dir) and os.path.samefile(lib_dir, lib64_dir):
                 self._install_lib_symlink = LibSymlink.LIB64_TO_LIB
@@ -3325,8 +3340,8 @@ class EasyBlock(object):
         # For example, libcuda.so.1 should never be RPATH-ed by design,
         # see https://github.com/easybuilders/easybuild-framework/issues/4095
         filter_rpath_sanity_libs = build_option('filter_rpath_sanity_libs')
-        msg = "Ignoring the following libraries if they are not found by RPATH sanity check: {filter_rpath_sanity_libs}"
-        self.log.info(msg)
+        self.log.info("Ignoring the following libraries if they are not found by RPATH sanity check: %s",
+                      filter_rpath_sanity_libs)
 
         if rpath_dirs is None:
             rpath_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
@@ -4468,7 +4483,7 @@ def build_and_install_one(ecdict, init_env):
     try:
         app_class = get_easyblock_class(easyblock, name=name)
         app = app_class(ecdict['ec'])
-        _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
+        _log.info("Obtained application instance for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError as err:
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),
                     silent=silent)

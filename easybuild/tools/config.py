@@ -182,6 +182,15 @@ PYTHONPATH = 'PYTHONPATH'
 EBPYTHONPREFIXES = 'EBPYTHONPREFIXES'
 PYTHON_SEARCH_PATH_TYPES = [PYTHONPATH, EBPYTHONPREFIXES]
 
+# options to handle header search paths in environment of modules
+MOD_SEARCH_PATH_HEADERS_CPATH = 'cpath'
+MOD_SEARCH_PATH_HEADERS_INCLUDE_PATHS = 'include_paths'
+MOD_SEARCH_PATH_HEADERS = {
+    MOD_SEARCH_PATH_HEADERS_CPATH: ['CPATH'],
+    MOD_SEARCH_PATH_HEADERS_INCLUDE_PATHS: ['C_INCLUDE_PATH', 'CPLUS_INCLUDE_PATH', 'OBJC_INCLUDE_PATH'],
+}
+DEFAULT_MOD_SEARCH_PATH_HEADERS = MOD_SEARCH_PATH_HEADERS_CPATH
+
 
 class Singleton(ABCMeta):
     """Serves as metaclass for classes that should implement the Singleton pattern.
@@ -304,6 +313,7 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_locks',
         'ignore_test_failure',
         'install_latest_eb_release',
+        'keep_debug_symbols',
         'logtostdout',
         'minimal_toolchains',
         'module_only',
@@ -338,7 +348,6 @@ BUILD_OPTIONS_CMDLINE = {
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
         'fixed_installdir_naming_scheme',
-        'keep_debug_symbols',
         'lib_lib64_symlink',
         'lib64_fallback_sanity_check',
         'lib64_lib_symlink',
@@ -388,6 +397,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_MINIMAL_BUILD_ENV: [
         'minimal_build_env',
+    ],
+    DEFAULT_MOD_SEARCH_PATH_HEADERS: [
+        'module_search_path_headers',
     ],
     DEFAULT_PKG_RELEASE: [
         'package_release',
