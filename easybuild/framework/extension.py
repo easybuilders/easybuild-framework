@@ -133,8 +133,9 @@ class Extension(object):
                                         self.cfg.template_values,
                                         expect_resolved=False)
         if 'parallel' in self.options:
-            # Replace value and issue better warning for EC params (as opposed to warnings meant for easyblocks)
-            self.log.deprecated("Easyconfig parameter 'parallel' is deprecated, use 'max_parallel' instead.", '5.1')
+            # Replace value and issue better warning for easyconfig parameters,
+            # as opposed to warnings meant for easyblocks
+            self.log.deprecated("Easyconfig parameter 'parallel' is deprecated, use 'max_parallel' instead.", '6.0')
             self.options['max_parallel'] = self.options.pop('parallel')
 
         if extra_params:

@@ -2415,7 +2415,6 @@ class EasyBlock(object):
 
         # Transitional only in case some easyblocks still set/change cfg['parallel']
         # Use _parallelLegacy to avoid deprecation warnings
-        # Remove for EasyBuild 5.1
         cfg_par = self.cfg['_parallelLegacy']
         if cfg_par is not None:
             if par is None:
