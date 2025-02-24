@@ -157,7 +157,8 @@ def verify_imports(pymods, pypkg, from_path):
 
 def is_software_specific_easyblock(module):
     """Determine whether Python module at specified location is a software-specific easyblock."""
-    return bool(re.search(r'^class %s.*\(.*\):\s*$' % EASYBLOCK_CLASS_PREFIX, read_file(module), re.M))
+    # All software-specific easyblocks start with the prefix and derive from another class, at least EasyBlock
+    return bool(re.search(r"^class %s[^(:]+\([^)]+\):\s*$" % EASYBLOCK_CLASS_PREFIX, read_file(module), re.M))
 
 
 def include_easyblocks(tmpdir, paths):
