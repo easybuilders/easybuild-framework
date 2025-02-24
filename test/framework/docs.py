@@ -25,7 +25,6 @@
 """
 Unit tests for docs.py.
 """
-import inspect
 import os
 import re
 import sys
@@ -38,7 +37,7 @@ from easybuild.tools.docs import get_easyblock_classes, gen_easyblocks_overview_
 from easybuild.tools.docs import list_easyblocks, list_software, list_toolchains
 from easybuild.tools.docs import md_title_and_table, rst_title_and_table
 from easybuild.tools.options import EasyBuildOptions
-from easybuild.tools.utilities import import_available_modules, mk_md_table, mk_rst_table
+from easybuild.tools.utilities import mk_md_table, mk_rst_table
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 
 

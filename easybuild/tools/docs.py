@@ -1317,11 +1317,15 @@ def get_easyblock_classes(package_name):
     modules = import_available_modules(package_name)
 
     for mod in modules:
+        easyblock_found = False
         for name, _ in inspect.getmembers(mod, inspect.isclass):
             eb_class = getattr(mod, name)
             # skip imported classes that are not easyblocks
             if eb_class.__module__.startswith(package_name) and EasyBlock in inspect.getmro(eb_class):
                 easyblocks.add(eb_class)
+                easyblock_found = True
+        if not easyblock_found:
+            raise RuntimeError("No easyblocks found in module: %s", mod.__name__)
 
     return easyblocks
 
