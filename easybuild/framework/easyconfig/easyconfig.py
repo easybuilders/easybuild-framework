@@ -442,9 +442,10 @@ class EasyConfig(object):
         :param local_var_naming_check: mode to use when checking if local variables use the recommended naming scheme
         """
         self.template_values = None
-        # a boolean to control templating, can be (temporarily) disabled
+        # a boolean to control templating, can be (temporarily) disabled via disable_templating context manager
         self._templating_enabled = True
-        # boolean to control whether all template values must be resolvable on access, can be (temporarily) disabled
+        # boolean to control whether all template values must be resolvable on access,
+        # can be (temporarily) disabled via allow_unresolved_templates context manager
         self._expect_resolved_template_values = True
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
@@ -1865,7 +1866,7 @@ class EasyConfig(object):
         """Resolve all templates in the given value using this easyconfig"""
         if not self.template_values:
             self.generate_template_values()
-        return resolve_template(value, self.template_values, expect_resolved=self._expect_resolved_template_values)
+        return resolve_template(value, self.template_values, expect_resolved=self.expect_resolved_template_values)
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __contains__(self, key):
@@ -1880,7 +1881,7 @@ class EasyConfig(object):
         except KeyError:
             raise EasyBuildError("Use of unknown easyconfig parameter '%s' when getting parameter value", key)
 
-        if self._templating_enabled:
+        if self.templating_enabled:
             value = self.resolve_template(value)
 
         return value
@@ -1962,7 +1963,7 @@ class EasyConfig(object):
         with self.allow_unresolved_templates():
             for key, tup in self._config.items():
                 value = tup[0]
-                if self._templating_enabled:
+                if self.templating_enabled:
                     value = self.resolve_template(value)
                 res[key] = value
         return res
