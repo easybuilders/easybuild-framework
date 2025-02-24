@@ -351,6 +351,12 @@ class ModuleLoadEnvironment:
         except AttributeError as err:
             raise EasyBuildError("Cannot update ModuleLoadEnvironment from a non-dict variable") from err
 
+    def replace(self, new_env):
+        """Replace contents of environment with given dictionary"""
+        for var in self.vars:
+            self.remove(var)
+        self.update(new_env)
+
     def remove(self, var_name):
         """
         Remove ModuleEnvironmentVariable attribute from instance

@@ -388,7 +388,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('OMPI_F77'), 'gfortran')
         self.assertEqual(os.getenv('OMPI_FC'), 'gfortran')
 
-        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno -g")
+        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno")
         for key in ['CFLAGS', 'CXXFLAGS', 'F90FLAGS', 'FCFLAGS', 'FFLAGS']:
             val = os.getenv(key)
             self.assertTrue(flags_regex.match(val), "'%s' should match pattern '%s'" % (val, flags_regex.pattern))
@@ -928,7 +928,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({})
         with self.mocked_stdout_stderr():
             tc.prepare()
-        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno -g")
+        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno")
         for var in flag_vars:
             val = os.getenv(var)
             self.assertTrue(flags_regex.match(val), "'%s' should match pattern '%s'" % (val, flags_regex.pattern))
@@ -947,7 +947,7 @@ class ToolchainTest(EnhancedTestCase):
                     tc.prepare()
                 for var in flag_vars:
                     if enable:
-                        regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native %s -g" % prec_flags[prec])
+                        regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native %s" % prec_flags[prec])
                     else:
                         regex = flags_regex
                     val = os.getenv(var)
@@ -1363,7 +1363,7 @@ class ToolchainTest(EnhancedTestCase):
             tc.prepare()
 
         archflags = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
-        optflags = "-O2 -ftree-vectorize %s -fno-math-errno -g -fopenmp" % archflags
+        optflags = "-O2 -ftree-vectorize %s -fno-math-errno -fopenmp" % archflags
         nvcc_flags = r' '.join([
             r'-Xcompiler="%s"' % optflags,
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
@@ -2280,12 +2280,12 @@ class ToolchainTest(EnhancedTestCase):
             init_config(build_options={'optarch': custom_optarch, 'silent': True})
 
             tc_cflags = {
-                'CrayCCE': "-O2 -g -homp -craype-verbose",
-                'CrayGNU': "-O2 -fno-math-errno -g -fopenmp -craype-verbose",
-                'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -g -fopenmp -craype-verbose",
-                'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -g -fopenmp",
-                'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -g -fopenmp",
-                'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -g -qopenmp",
+                'CrayCCE': "-O2 -homp -craype-verbose",
+                'CrayGNU': "-O2 -fno-math-errno -fopenmp -craype-verbose",
+                'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
+                'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -fopenmp",
+                'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
+                'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -qopenmp",
             }
 
             toolchains = [

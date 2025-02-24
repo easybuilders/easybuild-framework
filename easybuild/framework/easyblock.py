@@ -340,6 +340,7 @@ class EasyBlock(object):
             # but needs to be correct if the build is performed in the installation directory
             self.log.info("Changing build dir to %s", self.installdir)
             self.builddir = self.installdir
+        self.set_parallel()
 
     # INIT/CLOSE LOG
     def _init_log(self):
@@ -1681,12 +1682,12 @@ class EasyBlock(object):
 
         if self.make_module_req_guess.__qualname__ != "EasyBlock.make_module_req_guess":
             # Deprecated make_module_req_guess method used in child Easyblock
-            # Update environment with custom make_module_req_guess
+            # adjust environment with custom make_module_req_guess
             self.log.deprecated(
                 "make_module_req_guess() is deprecated, use EasyBlock.module_load_environment instead.",
                 "6.0",
             )
-            self.module_load_environment.update(self.make_module_req_guess())
+            self.module_load_environment.replace(self.make_module_req_guess())
 
         # Expand and inject path-like environment variables into module file
         env_var_requirements = {
@@ -1978,7 +1979,7 @@ class EasyBlock(object):
         exts_cnt = len(self.ext_instances)
         cmds = [resolve_exts_filter_template(exts_filter, ext) for ext in self.ext_instances]
 
-        with ThreadPoolExecutor(max_workers=self.cfg['parallel']) as thread_pool:
+        with ThreadPoolExecutor(max_workers=self.cfg.parallel) as thread_pool:
 
             # list of command to run asynchronously
             async_cmds = [thread_pool.submit(run_shell_cmd, cmd, stdin=stdin, hidden=True, fail_on_error=False,
@@ -2108,7 +2109,7 @@ class EasyBlock(object):
         """
         self.log.info("Installing extensions in parallel...")
 
-        thread_pool = ThreadPoolExecutor(max_workers=self.cfg['parallel'])
+        thread_pool = ThreadPoolExecutor(max_workers=self.cfg.parallel)
 
         running_exts = []
         installed_ext_names = []
@@ -2170,7 +2171,7 @@ class EasyBlock(object):
 
             for _ in range(max_iter):
 
-                if not (exts_queue and len(running_exts) < self.cfg['parallel']):
+                if not (exts_queue and len(running_exts) < self.cfg.parallel):
                     break
 
                 # check whether extension at top of the queue is ready to install
@@ -2409,19 +2410,21 @@ class EasyBlock(object):
         """Set 'parallel' easyconfig parameter to determine how many cores can/should be used for parallel builds."""
         # set level of parallelism for build
         par = build_option('parallel')
-        cfg_par = self.cfg['parallel']
-        if cfg_par is None:
+        if par is not None:
             self.log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
-        elif par is None:
-            par = cfg_par
-            self.log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
-        else:
-            par = min(int(par), int(cfg_par))
-            self.log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
 
-        par = det_parallelism(par, maxpar=self.cfg['maxparallel'])
+        # Transitional only in case some easyblocks still set/change cfg['parallel']
+        # Use _parallelLegacy to avoid deprecation warnings
+        cfg_par = self.cfg['_parallelLegacy']
+        if cfg_par is not None:
+            if par is None:
+                par = cfg_par
+            else:
+                par = min(int(par), int(cfg_par))
+
+        par = det_parallelism(par, maxpar=self.cfg['max_parallel'])
         self.log.info("Setting parallelism: %s" % par)
-        self.cfg['parallel'] = par
+        self.cfg.parallel = par
 
     def remove_module_file(self):
         """Remove module file (if it exists), and check for ghost installation directory (and deal with it)."""
@@ -2467,8 +2470,6 @@ class EasyBlock(object):
         """
         Verify if all is ok to start build.
         """
-        self.set_parallel()
-
         # check whether modules are loaded
         loadedmods = self.modules_tool.loaded_modules()
         if len(loadedmods) > 0:
@@ -3340,8 +3341,8 @@ class EasyBlock(object):
         # For example, libcuda.so.1 should never be RPATH-ed by design,
         # see https://github.com/easybuilders/easybuild-framework/issues/4095
         filter_rpath_sanity_libs = build_option('filter_rpath_sanity_libs')
-        msg = "Ignoring the following libraries if they are not found by RPATH sanity check: {filter_rpath_sanity_libs}"
-        self.log.info(msg)
+        self.log.info("Ignoring the following libraries if they are not found by RPATH sanity check: %s",
+                      filter_rpath_sanity_libs)
 
         if rpath_dirs is None:
             rpath_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
@@ -4483,7 +4484,7 @@ def build_and_install_one(ecdict, init_env):
     try:
         app_class = get_easyblock_class(easyblock, name=name)
         app = app_class(ecdict['ec'])
-        _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
+        _log.info("Obtained application instance for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError as err:
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),
                     silent=silent)
@@ -4565,7 +4566,7 @@ def build_and_install_one(ecdict, init_env):
                     adjust_permissions(log_dir, stat.S_IWUSR, add=True, recursive=True)
                 else:
                     parent_dir = os.path.dirname(log_dir)
-                    if os.path.exists(parent_dir):
+                    if os.path.exists(parent_dir) and not (os.stat(parent_dir).st_mode & stat.S_IWUSR):
                         adjust_permissions(parent_dir, stat.S_IWUSR, add=True, recursive=False)
                         mkdir(log_dir, parents=True)
                         adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
@@ -4646,7 +4647,7 @@ def build_and_install_one(ecdict, init_env):
                     copy_file(patch['path'], target)
                     _log.debug("Copied patch %s to %s", patch['path'], target)
 
-                if build_option('read_only_installdir'):
+                if build_option('read_only_installdir') and not app.cfg['stop']:
                     # take away user write permissions (again)
                     perms = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
                     adjust_permissions(new_log_dir, perms, add=False, recursive=True)

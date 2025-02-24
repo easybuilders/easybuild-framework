@@ -59,7 +59,6 @@ TEMPLATE_NAMES_CONFIG = [
     'bitbucket_account',
     'github_account',
     'name',
-    'parallel',
     'version',
     'versionsuffix',
     'versionprefix',
@@ -103,12 +102,12 @@ TEMPLATE_NAMES_DYNAMIC = {
     'cuda_sm_comma_sep': 'Comma-separated list of sm_* values that correspond with CUDA compute capabilities',
     'cuda_sm_space_sep': 'Space-separated list of sm_* values that correspond with CUDA compute capabilities',
     'mpi_cmd_prefix': 'Prefix command for running MPI programs (with default number of ranks)',
+    'parallel': "Degree of parallelism for e.g. make",
     # can't be a boolean (True/False), must be a string value since it's a string template
     'rpath_enabled': "String value indicating whether or not RPATH linking is used ('true' or 'false')",
     'software_commit': "Git commit id to use for the software as specified by --software-commit command line option",
     'sysroot': "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
                "as specify by the --sysroot configuration option",
-
 }
 
 # constant templates that can be used in easyconfigs
