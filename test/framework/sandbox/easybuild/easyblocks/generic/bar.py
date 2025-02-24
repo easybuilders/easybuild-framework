@@ -40,7 +40,7 @@ class dummy2(dummy1):
     """Same but with inheritance"""
 
 
-class dummy1:
+class dummy3:
     """Class without inheritance before the real easyblock to verify the regex not being too greedy"""
 
 
