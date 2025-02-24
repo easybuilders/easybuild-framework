@@ -758,7 +758,7 @@ def avail_easyblocks():
     """Return a list of all available easyblocks."""
 
     module_regexp = re.compile(r"^([^_].*)\.py$")
-    class_regex = re.compile(r"^class ([^(]*)\(", re.M)
+    class_regex = re.compile(r"^class ([^(:]*)\(", re.M)
 
     # finish initialisation of the toolchain module (ie set the TC_CONSTANT constants)
     search_toolchain('')
