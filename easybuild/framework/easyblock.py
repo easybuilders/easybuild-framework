@@ -340,6 +340,7 @@ class EasyBlock(object):
             # but needs to be correct if the build is performed in the installation directory
             self.log.info("Changing build dir to %s", self.installdir)
             self.builddir = self.installdir
+        self.set_parallel()
 
     # INIT/CLOSE LOG
     def _init_log(self):
@@ -1978,7 +1979,7 @@ class EasyBlock(object):
         exts_cnt = len(self.ext_instances)
         cmds = [resolve_exts_filter_template(exts_filter, ext) for ext in self.ext_instances]
 
-        with ThreadPoolExecutor(max_workers=self.cfg['parallel']) as thread_pool:
+        with ThreadPoolExecutor(max_workers=self.cfg.parallel) as thread_pool:
 
             # list of command to run asynchronously
             async_cmds = [thread_pool.submit(run_shell_cmd, cmd, stdin=stdin, hidden=True, fail_on_error=False,
@@ -2108,7 +2109,7 @@ class EasyBlock(object):
         """
         self.log.info("Installing extensions in parallel...")
 
-        thread_pool = ThreadPoolExecutor(max_workers=self.cfg['parallel'])
+        thread_pool = ThreadPoolExecutor(max_workers=self.cfg.parallel)
 
         running_exts = []
         installed_ext_names = []
@@ -2170,7 +2171,7 @@ class EasyBlock(object):
 
             for _ in range(max_iter):
 
-                if not (exts_queue and len(running_exts) < self.cfg['parallel']):
+                if not (exts_queue and len(running_exts) < self.cfg.parallel):
                     break
 
                 # check whether extension at top of the queue is ready to install
@@ -2409,19 +2410,21 @@ class EasyBlock(object):
         """Set 'parallel' easyconfig parameter to determine how many cores can/should be used for parallel builds."""
         # set level of parallelism for build
         par = build_option('parallel')
-        cfg_par = self.cfg['parallel']
-        if cfg_par is None:
+        if par is not None:
             self.log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
-        elif par is None:
-            par = cfg_par
-            self.log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
-        else:
-            par = min(int(par), int(cfg_par))
-            self.log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
 
-        par = det_parallelism(par, maxpar=self.cfg['maxparallel'])
+        # Transitional only in case some easyblocks still set/change cfg['parallel']
+        # Use _parallelLegacy to avoid deprecation warnings
+        cfg_par = self.cfg['_parallelLegacy']
+        if cfg_par is not None:
+            if par is None:
+                par = cfg_par
+            else:
+                par = min(int(par), int(cfg_par))
+
+        par = det_parallelism(par, maxpar=self.cfg['max_parallel'])
         self.log.info("Setting parallelism: %s" % par)
-        self.cfg['parallel'] = par
+        self.cfg.parallel = par
 
     def remove_module_file(self):
         """Remove module file (if it exists), and check for ghost installation directory (and deal with it)."""
@@ -2467,8 +2470,6 @@ class EasyBlock(object):
         """
         Verify if all is ok to start build.
         """
-        self.set_parallel()
-
         # check whether modules are loaded
         loadedmods = self.modules_tool.loaded_modules()
         if len(loadedmods) > 0:

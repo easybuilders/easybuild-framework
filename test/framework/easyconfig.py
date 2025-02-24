@@ -675,7 +675,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
             'toolchain = {"name": "GCC", "version": "4.6.3"}',
             'patches = %s',
-            'parallel = 1',
+            'maxparallel = 1',
             'keepsymlinks = True',
         ]) % str(patches)
         self.prep()
@@ -698,7 +698,7 @@ class EasyConfigTest(EnhancedTestCase):
             # It should be possible to overwrite values with True/False/None as they often have special meaning
             'runtest': 'False',
             'hidden': 'True',
-            'parallel': 'None',  # Good example: parallel=None means "Auto detect"
+            'maxparallel': 'None',  # Good example: maxparallel=None means "unlimitted"
             # Adding new options (added only by easyblock) should also be possible
             # and in case the string "True/False/None" is really wanted it is possible to quote it first
             'test_none': '"False"',
@@ -715,7 +715,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['patches'], new_patches)
         self.assertIs(eb['runtest'], False)
         self.assertIs(eb['hidden'], True)
-        self.assertIsNone(eb['parallel'])
+        self.assertIsNone(eb['maxparallel'])
         self.assertEqual(eb['test_none'], 'False')
         self.assertEqual(eb['test_bool'], 'True')
         self.assertEqual(eb['test_123'], 'None')
@@ -1978,8 +1978,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_deprecated_easyconfig_parameters(self):
         """Test handling of deprecated easyconfig parameters."""
-        os.environ.pop('EASYBUILD_DEPRECATED')
-        easybuild.tools.build_log.CURRENT_VERSION = self.orig_current_version
+        self.allow_deprecated_behaviour()
         init_config()
 
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
@@ -3564,7 +3563,6 @@ class EasyConfigTest(EnhancedTestCase):
             'namelower': 'gzip',
             'nameletter': 'g',
             'nameletterlower': 'g',
-            'parallel': None,
             'rpath_enabled': rpath,
             'software_commit': '',
             'sysroot': '',
@@ -3603,7 +3601,6 @@ class EasyConfigTest(EnhancedTestCase):
 
         res = template_constant_dict(ec)
         res.pop('arch')
-        expected['parallel'] = 12
         self.assertEqual(res, expected)
 
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb')
@@ -3645,7 +3642,6 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain_name': 'system',
             'toolchain_version': 'system',
             'nameletterlower': 't',
-            'parallel': None,
             'pymajver': '3',
             'pyminver': '7',
             'pyshortver': '3.7',
@@ -3681,7 +3677,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfigParser(filename=test_ec).get_config_dict()
 
         expected['module_name'] = None
-        for key in ('bitbucket_account', 'github_account', 'parallel', 'versionprefix'):
+        for key in ('bitbucket_account', 'github_account', 'versionprefix'):
             del expected[key]
 
         dep_names = [x[0] for x in ec['dependencies']]
