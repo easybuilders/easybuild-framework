@@ -1672,14 +1672,6 @@ class EasyBlock(object):
         """
         Generate the environment-variables required to run the module.
         """
-        mod_lines = ['\n']
-
-        if self.dry_run:
-            self.dry_run_msg("List of paths that would be searched and added to module file:\n")
-            note = "note: glob patterns are not expanded and existence checks "
-            note += "for paths are skipped for the statements below due to dry run"
-            mod_lines.append(self.module_generator.comment(note))
-
         if self.make_module_req_guess.__qualname__ != "EasyBlock.make_module_req_guess":
             # Deprecated make_module_req_guess method used in child Easyblock
             # adjust environment with custom make_module_req_guess
@@ -1705,22 +1697,30 @@ class EasyBlock(object):
                 "This is not yet supported by this version of EasyBuild."
             )
 
-        for env_var, search_paths in env_var_requirements.items():
-            if self.dry_run:
+        mod_lines = ['\n']
+
+        if self.dry_run:
+            # Don't expand globs or do any filtering for dry run
+            self.dry_run_msg("List of paths that would be searched and added to module file:\n")
+            note = "note: glob patterns are not expanded and existence checks "
+            note += "for paths are skipped for the statements below due to dry run"
+            mod_lines.append(self.module_generator.comment(note))
+
+            for env_var, search_paths in env_var_requirements.items():
                 self.dry_run_msg(f" ${env_var}:{', '.join(search_paths)}")
-                # Don't expand globs or do any filtering for dry run
-                mod_req_paths = search_paths
-            else:
-                mod_req_paths = []
-                for path in search_paths:
-                    mod_req_paths.extend(self.expand_module_search_path(path, path_type=search_paths.type))
+                mod_lines.append(self.module_generator.prepend_paths(env_var, search_paths))
+
+            self.dry_run_msg('')
+            return "".join(mod_lines)
+
+        for env_var, search_paths in env_var_requirements.items():
+            mod_req_paths = []
+            for path in search_paths:
+                mod_req_paths.extend(self.expand_module_search_path(path, path_type=search_paths.type))
 
             if mod_req_paths:
                 mod_req_paths = nub(mod_req_paths)  # remove duplicates
                 mod_lines.append(self.module_generator.prepend_paths(env_var, mod_req_paths))
-
-        if self.dry_run:
-            self.dry_run_msg('')
 
         return "".join(mod_lines)
 
