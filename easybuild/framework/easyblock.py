@@ -1527,27 +1527,6 @@ class EasyBlock(object):
         for (key, value) in self.cfg['modextravars'].items():
             lines.append(self.module_generator.set_environment(key, value))
 
-        for extrapaths_type, prepend in [('modextrapaths', True), ('modextrapaths_append', False)]:
-            allow_abs = self.cfg['allow_prepend_abs_path'] if prepend else self.cfg['allow_append_abs_path']
-
-            for (key, value) in self.cfg[extrapaths_type].items():
-                if not isinstance(value, (tuple, list, dict, str)):
-                    raise EasyBuildError(
-                        f"{extrapaths_type} dict value '{value}' (type {type(value)}) is not a 'list, dict or str'"
-                    )
-
-                try:
-                    paths = value['paths']
-                    delim = value['delimiter']
-                except KeyError:
-                    raise EasyBuildError(f'{extrapaths_type} dict "{value}" lacks "paths" or "delimiter" items')
-                except TypeError:
-                    paths = value
-                    delim = ':'
-
-                lines.append(
-                    self.module_generator.update_paths(key, paths, prepend=prepend, delim=delim, allow_abs=allow_abs)
-                )
         # add lines to update $PYTHONPATH or $EBPYTHONPREFIXES
         lines.extend(self.make_module_pythonpath())
 
@@ -1681,6 +1660,9 @@ class EasyBlock(object):
             )
             self.module_load_environment.replace(self.make_module_req_guess())
 
+        # update module load environment with extra paths defined in easyconfig
+        self.inject_module_extra_paths()
+
         # Expand and inject path-like environment variables into module file
         env_var_requirements = {
             envar_name: envar_val
@@ -1722,7 +1704,52 @@ class EasyBlock(object):
                 mod_req_paths = nub(mod_req_paths)  # remove duplicates
                 mod_lines.append(self.module_generator.prepend_paths(env_var, mod_req_paths))
 
-        return "".join(mod_lines)
+        return ''.join(mod_lines)
+
+    def inject_module_extra_paths(self):
+        """
+        Parse search paths and delimiters defined in 'modextrapaths' easyconfig parameter
+        and inject them into module load environment
+        """
+        for envar_name, extra_opts in self.cfg['modextrapaths'].items():
+            # default settings for environment variables
+            envar_opts = {
+                'delim': os.pathsep,
+                'var_type': ModEnvVarType.PATH_WITH_FILES,
+            }
+
+            try:
+                paths = extra_opts['paths']
+                envar_opts['delim'] = extra_opts['delimiter']
+                envar_opts['var_type'] = extra_opts['type']
+            except KeyError:
+                # not mandatory to define all available options
+                pass
+            except TypeError:
+                # no options provided
+                paths = extra_opts
+
+            if isinstance(paths, str):
+                paths = [paths]
+
+            if envar_name in self.module_load_environment:
+                envar = getattr(self.module_load_environment, envar_name)
+                envar.extend(paths)
+                envar.delim = envar_opts['delimiter']
+                envar.type = envar_opts['var_type']
+                self.log.debug(
+                    f"Variable ${envar_name} from 'modextrapaths' extended in module load environment with "
+                    f"delimiter '{envar.delim}', type '{envar.type}' and paths: {envar}"
+                )
+            else:
+                setattr(self.module_load_environment, envar_name, (paths, envar_opts))
+                envar = getattr(self.module_load_environment, envar_name)
+                self.log.debug(
+                    f"Variable ${envar_name} from 'modextrapaths' added to module load environment with "
+                    f"delimiter '{envar.delim}', type '{envar.type}' and paths: {envar}"
+                )
+
+        return True
 
     def expand_module_search_path(self, search_path, path_type=ModEnvVarType.PATH_WITH_FILES):
         """
