@@ -608,7 +608,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # Module load environement may contain non-path variables
         # TODO: remove whenever this is properly supported, in the meantime check warning
-        eb.module_load_environment.NONPATH = ('non_path', {'var_type': "STRING"})
+        eb.module_load_environment.NONPATH = {'contents': 'non_path', 'var_type': "STRING"}
         eb.module_load_environment.PATH = ['bin']
         with self.mocked_stdout_stderr():
             txt = eb.make_module_req()
@@ -663,6 +663,47 @@ class EasyBlockTest(EnhancedTestCase):
                                       txt, re.M))
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
+
+        # Test modextrapaths
+        remove_dir(eb.installdir)
+        self.contents += '\n'.join([
+            "",
+            "modextrapaths = {",
+            "    'TEST_VAR': ['foo', 'baz'],",
+            "    'TEST_VAR_APPEND': {'paths': ['foo', 'baz'], 'prepend': False},",
+            "    'LD_LIBRARY_PATH': 'foo',",
+            "}",
+        ])
+        self.writeEC()
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        eb.installdir = config.install_path()
+
+        # populate install dir
+        mkdir(os.path.join(eb.installdir, 'lib'), parents=True)
+        write_file(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'install lib')
+        mkdir(os.path.join(eb.installdir, 'foo'), parents=True)
+        write_file(os.path.join(eb.installdir, 'foo', 'bar'), 'install file')
+        mkdir(os.path.join(eb.installdir, 'baz'), parents=True)
+
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
+
+        expected_patterns = [
+            r"^prepend[-_]path.*LD_LIBRARY_PATH.*root.*lib",
+            r"^prepend[-_]path.*LD_LIBRARY_PATH.*root.*foo",
+            r"^prepend[-_]path.*TEST_VAR.*root.*foo",
+            r"^append[-_]path.*TEST_VAR_APPEND.*root.*foo",
+        ]
+        for pattern in expected_patterns:
+            self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
+
+        non_expected_patterns = [
+            r"^prepend[-_]path.*TEST_VAR.*root.*baz",
+            r"^append[-_]path.*TEST_VAR_APPEND.*root.*baz",
+        ]
+        for pattern in non_expected_patterns:
+            self.assertFalse(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
 
         # cleanup
         eb.close_log()
@@ -813,51 +854,6 @@ class EasyBlockTest(EnhancedTestCase):
         alttxt = eb.make_module_extra(altroot='/opt/software/tau/6.28', altversion='6.28').strip()
         self.assertTrue(expected_alt.match(alttxt),
                         "Pattern %s found in %s" % (expected_alt.pattern, alttxt))
-
-        installver = '3.14-gompi-2018a'
-
-        # also check how absolute paths specified in modexself.contents = '\n'.join([
-        self.contents += "\nmodextrapaths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
-        self.contents += "\nmodextrapaths_append = {'TEST_PATH_VAR_APPEND': ['foo', '/test/absolute/path', 'bar']}"
-        self.writeEC()
-        ec = EasyConfig(self.eb_file)
-        eb = EasyBlock(ec)
-        eb.installdir = os.path.join(config.install_path(), 'pi', installver)
-        eb.check_readiness_step()
-
-        # absolute paths are not allowed by default
-        error_pattern = "Absolute path .* passed to update_paths which only expects relative paths"
-        with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, eb.make_module_step)
-
-        # allow use of absolute paths, and verify contents of module
-        self.contents += "\nallow_prepend_abs_path = True"
-        self.contents += "\nallow_append_abs_path = True"
-        self.writeEC()
-        ec = EasyConfig(self.eb_file)
-        eb = EasyBlock(ec)
-        eb.installdir = os.path.join(config.install_path(), 'pi', installver)
-        eb.check_readiness_step()
-
-        with self.mocked_stdout_stderr():
-            modrootpath = eb.make_module_step()
-
-        modpath = os.path.join(modrootpath, 'pi', installver)
-        if get_module_syntax() == 'Lua':
-            modpath += '.lua'
-
-        self.assertExists(modpath)
-        txt = read_file(modpath)
-        patterns = [
-            r"^prepend[-_]path.*TEST_PATH_VAR.*root.*foo",
-            r"^prepend[-_]path.*TEST_PATH_VAR.*/test/absolute/path",
-            r"^prepend[-_]path.*TEST_PATH_VAR.*root.*bar",
-            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*root.*foo",
-            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*/test/absolute/path",
-            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*root.*bar",
-        ]
-        for pattern in patterns:
-            self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
 
     def test_make_module_deppaths(self):
         """Test for make_module_deppaths"""
@@ -1483,8 +1479,8 @@ class EasyBlockTest(EnhancedTestCase):
             'PATH': ('xbin', 'pibin'),
             'CPATH': 'pi/include',
             'TCLLIBPATH': {'paths': 'pi', 'delimiter': ' '},
+            'APPEND_PATH': {'paths': 'pi', 'prepend': False},
         }
-        modextrapaths_append = {'APPEND_PATH': 'append_path'}
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
@@ -1498,7 +1494,6 @@ class EasyBlockTest(EnhancedTestCase):
             "hiddendependencies = [('test', '1.2.3'), ('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             "modextravars = %s" % str(modextravars),
             "modextrapaths = %s" % str(modextrapaths),
-            "modextrapaths_append = %s" % str(modextrapaths_append),
         ])
 
         # test if module is generated correctly
@@ -1511,9 +1506,12 @@ class EasyBlockTest(EnhancedTestCase):
             eb.make_builddir()
             eb.prepare_step()
 
-        # Create a dummy file in bin to test if the duplicate entry of modextrapaths is ignored
-        os.makedirs(os.path.join(eb.installdir, 'bin'))
-        write_file(os.path.join(eb.installdir, 'bin', 'dummy_exe'), 'hello')
+        # populate install dir
+        for bin_dir in ('bin', 'xbin', 'pibin'):
+            mkdir(os.path.join(eb.installdir, bin_dir), parents=True)
+            write_file(os.path.join(eb.installdir, bin_dir, 'dummy.exe'), 'hello')
+        mkdir(os.path.join(eb.installdir, 'pi', 'include'), parents=True)
+        write_file(os.path.join(eb.installdir, 'pi', 'include', 'dummy.h'), 'hello')
 
         with self.mocked_stdout_stderr():
             modpath = os.path.join(eb.make_module_step(), name, version)
@@ -1557,50 +1555,34 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (key, vals) in modextrapaths.items():
+            placement = 'prepend'
+            delim_tcl = ''
+            delim_lua = ''
             if isinstance(vals, dict):
-                delim = vals['delimiter']
                 paths = vals['paths']
                 if isinstance(paths, str):
                     paths = [paths]
-
-                for val in paths:
-                    if get_module_syntax() == 'Tcl':
-                        regex = re.compile(fr'^prepend-path\s+-d\s+"{delim}"\s+{key}\s+\$root/{val}$', re.M)
-                    elif get_module_syntax() == 'Lua':
-                        regex = re.compile(fr'^prepend_path\("{key}", pathJoin\(root, "{val}"\), "{delim}"\)$', re.M)
-                    else:
-                        self.fail("Unknown module syntax: %s" % get_module_syntax())
-                    self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
-                    # Check for duplicates
-                    num_prepends = len(regex.findall(txt))
-                    self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
+                if 'delimiter' in vals:
+                    delim_tcl = fr'+-d\s+"{vals["delimiter"]}"\s'
+                    delim_lua = fr', "{vals["delimiter"]}"'
+                if 'prepend' in vals:
+                    placement = 'prepend' if vals['prepend'] else 'append'
+            elif isinstance(vals, str):
+                paths = [vals]
             else:
-                if isinstance(vals, str):
-                    vals = [vals]
+                paths = vals
 
-                for val in vals:
-                    if get_module_syntax() == 'Tcl':
-                        regex = re.compile(fr'^prepend-path\s+{key}\s+\$root/{val}$', re.M)
-                    elif get_module_syntax() == 'Lua':
-                        regex = re.compile(fr'^prepend_path\("{key}", pathJoin\(root, "{val}"\)\)$', re.M)
-                    else:
-                        self.fail("Unknown module syntax: %s" % get_module_syntax())
-                    self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
-                    # Check for duplicates
-                    num_prepends = len(regex.findall(txt))
-                    self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
-
-        for (key, vals) in modextrapaths_append.items():
-            if isinstance(vals, str):
-                vals = [vals]
-            for val in vals:
+            for val in paths:
                 if get_module_syntax() == 'Tcl':
-                    regex = re.compile(r'^append-path\s+(-d ".")?%s\s+\$root/%s$' % (key, val), re.M)
+                    regex = re.compile(fr'^{placement}-path\s{delim_tcl}+{key}\s+\$root/{val}$', re.M)
                 elif get_module_syntax() == 'Lua':
-                    regex = re.compile(r'^append_path\("%s", pathJoin\(root, "%s"\)(, ".")?\)$' % (key, val), re.M)
+                    regex = re.compile(fr'^{placement}_path\("{key}", pathJoin\(root, "{val}"\){delim_lua}\)$', re.M)
                 else:
-                    self.fail("Unknown module syntax: %s" % get_module_syntax())
-                self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+                    self.fail(f"Unknown module syntax: {get_module_syntax()}")
+                self.assertTrue(regex.search(txt), f"Pattern {regex.pattern} found in {txt}")
+                # Check for duplicates
+                num_prepends = len(regex.findall(txt))
+                self.assertEqual(num_prepends, 1, f"Expected exactly 1 {regex.pattern} command in {txt}")
 
         for (name, ver) in [('GCC', '6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':

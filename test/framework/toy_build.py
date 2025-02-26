@@ -294,8 +294,10 @@ class ToyBuildTest(EnhancedTestCase):
         # tweak easyconfig by appending to it
         ec_extra = '\n'.join([
             "versionsuffix = '-tweaked'",
-            "modextrapaths = {'SOMEPATH': ['foo/bar', 'baz', '']}",
-            "modextrapaths_append = {'SOMEPATH_APPEND': ['qux/fred', 'thud', '']}",
+            "modextrapaths = {",
+            "    'SOMEPATH': ['foo/bar', 'baz', ''],",
+            "    'SOMEPATH_APPEND': {'paths': ['qux/fred', 'thud', ''], 'prepend': False},",
+            "}",
             "modextravars = {'FOO': 'bar'}",
             "modloadmsg =  '%s'" % modloadmsg,
             "modtclfooter = 'puts stderr \"oh hai!\"'",  # ignored when module syntax is Lua
@@ -307,8 +309,22 @@ class ToyBuildTest(EnhancedTestCase):
             "docurls = ['https://easybuilders.github.io/easybuild/toy/docs.html']",
             "upstream_contacts = 'support@toy.org'",
             "site_contacts = ['Jim Admin', 'Jane Admin']",
+            "postinstallcmds = [",
+            "    'mkdir \"%(installdir)s/foo\"',"
+            "    'touch \"%(installdir)s/foo/bar\"',"
+            "    'touch \"%(installdir)s/baz\"',"
+            "    'mkdir \"%(installdir)s/qux\"',"
+            "    'touch \"%(installdir)s/qux/fred\"',"
+            "    'touch \"%(installdir)s/thud\"',"
+            "]",
         ])
         write_file(ec_file, ec_extra, append=True)
+
+        # populate test install dir
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0-tweaked')
+        mkdir(os.path.join(toy_installdir, 'foo'), parents=True)
+        write_file(os.path.join(toy_installdir, 'foo', 'bar'), "Test install file")
+        mkdir(os.path.join(toy_installdir, 'baz'), parents=True)
 
         args = [
             ec_file,

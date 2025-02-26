@@ -154,7 +154,7 @@ class ModuleEnvironmentVariable:
     Contents of environment variable is a list of unique strings
     """
 
-    def __init__(self, contents, var_type=ModEnvVarType.PATH_WITH_FILES, delimiter=os.pathsep):
+    def __init__(self, contents, delimiter=os.pathsep, prepend=True, var_type=ModEnvVarType.PATH_WITH_FILES):
         """
         Initialize new environment variable
         Actual contents of the environment variable are held in self.contents
@@ -163,6 +163,7 @@ class ModuleEnvironmentVariable:
         """
         self.contents = contents
         self.delimiter = delimiter
+        self.prepend = prepend
         self.type = var_type
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)

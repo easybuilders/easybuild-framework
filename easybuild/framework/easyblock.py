@@ -1707,7 +1707,7 @@ class EasyBlock(object):
                     self.module_generator.update_paths(
                         env_var,
                         mod_req_paths,
-                        prepend=True,
+                        prepend=search_paths.prepend,
                         delim=search_paths.delimiter,
                     )
                 )
@@ -1719,11 +1719,13 @@ class EasyBlock(object):
         Parse search paths and delimiters defined in 'modextrapaths' easyconfig parameter
         and inject them into module load environment
         """
-        for envar_name, extra_opts in self.cfg['modextrapaths'].items():
+        ec_param = 'modextrapaths'
+        for envar_name, extra_opts in self.cfg[ec_param].items():
             # default settings for environment variables
             envar_opts = {
                 'delimiter': os.pathsep,
                 'var_type': ModEnvVarType.PATH_WITH_FILES,
+                'prepend': True,
             }
 
             try:
@@ -1734,7 +1736,7 @@ class EasyBlock(object):
             else:
                 if 'paths' not in envar_opts:
                     raise EasyBuildError(
-                        f"Variable ${envar_name} in 'modextrapaths' defined with a dict missing any 'paths' item"
+                        f"Variable ${envar_name} in '{ec_param}' defined with a dict missing any 'paths' item"
                     )
 
             if isinstance(envar_opts['paths'], str):
@@ -1744,10 +1746,11 @@ class EasyBlock(object):
                 envar = getattr(self.module_load_environment, envar_name)
                 envar.extend(envar_opts['paths'])
                 envar.delimiter = envar_opts['delimiter']
+                envar.prepend = envar_opts['prepend']
                 envar.type = envar_opts['var_type']
                 self.log.debug(
-                    f"Variable ${envar_name} from 'modextrapaths' extended in module load environment with "
-                    f"delimiter='{envar.delimiter}', type='{envar.type}' and paths='{envar}'"
+                    f"Variable ${envar_name} from '{ec_param}' extended in module load environment with "
+                    f"delimiter='{envar.delimiter}', prepend='{envar.prepend}', type='{envar.type}' and paths='{envar}'"
                 )
             else:
                 # rename 'modextrapaths' options to match ModuleEnvironmentVariable constructor parameters
@@ -1755,8 +1758,8 @@ class EasyBlock(object):
                 setattr(self.module_load_environment, envar_name, envar_opts)
                 envar = getattr(self.module_load_environment, envar_name)
                 self.log.debug(
-                    f"Variable ${envar_name} from 'modextrapaths' added to module load environment with "
-                    f"delimiter='{envar.delimiter}', type='{envar.type}' and paths='{envar}'"
+                    f"Variable ${envar_name} from '{ec_param}' added to module load environment with "
+                    f"delimiter='{envar.delimiter}', prepend='{envar.prepend}', type='{envar.type}' and paths='{envar}'"
                 )
 
         return True
