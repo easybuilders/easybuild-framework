@@ -317,7 +317,14 @@ class ModuleLoadEnvironment:
         if name in ('LD_LIBRARY_PATH', 'PATH'):
             value.update({'var_type': ModEnvVarType.PATH_WITH_TOP_FILES})
 
-        return super().__setattr__(name, ModuleEnvironmentVariable(**value))
+        try:
+            res = super().__setattr__(name, ModuleEnvironmentVariable(**value))
+        except TypeError as err:
+            raise EasyBuildError(
+                f"Cannot define ModuleEnvironmentVariable ${name} with the following attributes: {value}"
+            ) from err
+
+        return res
 
     @property
     def vars(self):

@@ -1707,7 +1707,7 @@ class ModulesTest(EnhancedTestCase):
         mod_load_env.TEST_VARTYPE.type = "PATH"
         self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.PATH)
         env_wrong_params = {'contents': test_contents, 'unkown_param': True}
-        self.assertRaises(TypeError, setattr, mod_load_env, 'TEST_UNKNONW', env_wrong_params)
+        self.assertRaises(EasyBuildError, setattr, mod_load_env, 'TEST_UNKNONW', env_wrong_params)
 
         # test retrieval of environment
         # use copy of public attributes as reference
