@@ -1738,7 +1738,7 @@ class EasyBlock(object):
             if envar_name in self.module_load_environment:
                 envar = getattr(self.module_load_environment, envar_name)
                 envar.extend(paths)
-                envar.delim = envar_opts['delimiter']
+                envar.delim = envar_opts['delim']
                 envar.type = envar_opts['var_type']
                 self.log.debug(
                     f"Variable ${envar_name} from 'modextrapaths' extended in module load environment with "

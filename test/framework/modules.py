@@ -1699,14 +1699,15 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
         self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
 
-        mod_load_env.TEST_VARTYPE = (test_contents, {'var_type': "STRING"})
+        mod_load_env.TEST_VARTYPE = {'contents': test_contents, 'var_type': "STRING"}
         self.assertTrue(hasattr(mod_load_env, 'TEST_VARTYPE'))
         self.assertEqual(mod_load_env.TEST_VARTYPE.contents, test_contents)
         self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.STRING)
 
         mod_load_env.TEST_VARTYPE.type = "PATH"
         self.assertEqual(mod_load_env.TEST_VARTYPE.type, mod.ModEnvVarType.PATH)
-        self.assertRaises(TypeError, setattr, mod_load_env, 'TEST_UNKNONW', (test_contents, {'unkown_param': True}))
+        env_wrong_params = {'contents': test_contents, 'unkown_param': True}
+        self.assertRaises(TypeError, setattr, mod_load_env, 'TEST_UNKNONW', env_wrong_params)
 
         # test retrieval of environment
         # use copy of public attributes as reference

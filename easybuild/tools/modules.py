@@ -310,19 +310,14 @@ class ModuleLoadEnvironment:
         if name != name.upper():
             raise EasyBuildError(f"Names of ModuleLoadEnvironment attributes must be uppercase, got '{name}'")
 
-        try:
-            (contents, kwargs) = value
-        except ValueError:
-            contents, kwargs = value, {}
-
-        if not isinstance(kwargs, dict):
-            contents, kwargs = value, {}
+        if not isinstance(value, dict):
+            value = {'contents': value}
 
         # special variables that require files in their top directories
         if name in ('LD_LIBRARY_PATH', 'PATH'):
-            kwargs['var_type'] = ModEnvVarType.PATH_WITH_TOP_FILES
+            value.update({'var_type': ModEnvVarType.PATH_WITH_TOP_FILES})
 
-        return super().__setattr__(name, ModuleEnvironmentVariable(contents, **kwargs))
+        return super().__setattr__(name, ModuleEnvironmentVariable(**value))
 
     @property
     def vars(self):
