@@ -154,8 +154,8 @@ DEFAULT_CONFIG = {
                              FILEMANAGEMENT],
     'keeppreviousinstall': [False, ('Boolean to keep the previous installation with identical '
                                     'name. Experts only!'), FILEMANAGEMENT],
-    'keepsymlinks': [False, ('Boolean to determine whether symlinks are to be kept during copying '
-                             'or if the content of the files pointed to should be copied'),
+    'keepsymlinks': [True, ('Boolean to determine whether symlinks are to be kept during copying '
+                            'or if the content of the files pointed to should be copied'),
                      FILEMANAGEMENT],
     'start_dir': [None, ('Path to start the make in. If the path is absolute, use that path. '
                          'If not, this is added to the guessed path.'), FILEMANAGEMENT],

@@ -6331,7 +6331,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'patches': [bar_patch, bar_patch_bis],
             'toy_ext_param': "mv anotherbar bar_bis",
             'unknowneasyconfigparameterthatshouldbeignored': 'foo',
-            'keepsymlinks': True,
+            'keepsymlinks': False,
         }))
         self.assertEqual(ec['exts_list'][2], ('barbar', '1.2', {
             'checksums': ['d5bd9908cdefbe2d29c6f8d5b45b2aaed9fd904b5e6397418bb5094fbdb3d838'],
