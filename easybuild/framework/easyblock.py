@@ -1696,13 +1696,16 @@ class EasyBlock(object):
             return "".join(mod_lines)
 
         for env_var, search_paths in env_var_requirements.items():
-            mod_req_paths = []
-            for path in search_paths:
-                mod_req_paths.extend(self.expand_module_search_path(path, path_type=search_paths.type))
+            mod_req_paths = [
+                expanded_path for unexpanded_path in search_paths
+                for expanded_path in self.expand_module_search_path(unexpanded_path, path_type=search_paths.type)
+            ]
 
             if mod_req_paths:
                 mod_req_paths = nub(mod_req_paths)  # remove duplicates
-                mod_lines.append(self.module_generator.prepend_paths(env_var, mod_req_paths))
+                mod_lines.append(
+                    self.module_generator.update_paths(env_var, mod_req_paths, prepend=True, delim=search_paths.delim)
+                )
 
         return ''.join(mod_lines)
 
