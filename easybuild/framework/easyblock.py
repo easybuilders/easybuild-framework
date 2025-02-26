@@ -1704,7 +1704,12 @@ class EasyBlock(object):
             if mod_req_paths:
                 mod_req_paths = nub(mod_req_paths)  # remove duplicates
                 mod_lines.append(
-                    self.module_generator.update_paths(env_var, mod_req_paths, prepend=True, delim=search_paths.delim)
+                    self.module_generator.update_paths(
+                        env_var,
+                        mod_req_paths,
+                        prepend=True,
+                        delim=search_paths.delimiter,
+                    )
                 )
 
         return ''.join(mod_lines)
@@ -1717,39 +1722,41 @@ class EasyBlock(object):
         for envar_name, extra_opts in self.cfg['modextrapaths'].items():
             # default settings for environment variables
             envar_opts = {
-                'delim': os.pathsep,
+                'delimiter': os.pathsep,
                 'var_type': ModEnvVarType.PATH_WITH_FILES,
             }
 
             try:
-                paths = extra_opts['paths']
-                envar_opts['delim'] = extra_opts['delimiter']
-                envar_opts['var_type'] = extra_opts['type']
-            except KeyError:
-                # not mandatory to define all available options
-                pass
-            except TypeError:
+                envar_opts.update(extra_opts)
+            except ValueError:
                 # no options provided
-                paths = extra_opts
+                envar_opts['paths'] = extra_opts
+            else:
+                if 'paths' not in envar_opts:
+                    raise EasyBuildError(
+                        f"Variable ${envar_name} in 'modextrapaths' defined with a dict missing any 'paths' item"
+                    )
 
-            if isinstance(paths, str):
-                paths = [paths]
+            if isinstance(envar_opts['paths'], str):
+                envar_opts['paths'] = [envar_opts['paths']]
 
             if envar_name in self.module_load_environment:
                 envar = getattr(self.module_load_environment, envar_name)
-                envar.extend(paths)
-                envar.delim = envar_opts['delim']
+                envar.extend(envar_opts['paths'])
+                envar.delimiter = envar_opts['delimiter']
                 envar.type = envar_opts['var_type']
                 self.log.debug(
                     f"Variable ${envar_name} from 'modextrapaths' extended in module load environment with "
-                    f"delimiter '{envar.delim}', type '{envar.type}' and paths: {envar}"
+                    f"delimiter='{envar.delimiter}', type='{envar.type}' and paths='{envar}'"
                 )
             else:
-                setattr(self.module_load_environment, envar_name, (paths, envar_opts))
+                # rename 'modextrapaths' options to match ModuleEnvironmentVariable constructor parameters
+                envar_opts['contents'] = envar_opts.pop('paths')
+                setattr(self.module_load_environment, envar_name, envar_opts)
                 envar = getattr(self.module_load_environment, envar_name)
                 self.log.debug(
                     f"Variable ${envar_name} from 'modextrapaths' added to module load environment with "
-                    f"delimiter '{envar.delim}', type '{envar.type}' and paths: {envar}"
+                    f"delimiter='{envar.delimiter}', type='{envar.type}' and paths='{envar}'"
                 )
 
         return True
