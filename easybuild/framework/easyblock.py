@@ -1690,7 +1690,15 @@ class EasyBlock(object):
 
             for env_var, search_paths in env_var_requirements.items():
                 self.dry_run_msg(f" ${env_var}:{', '.join(search_paths)}")
-                mod_lines.append(self.module_generator.prepend_paths(env_var, search_paths))
+                mod_lines.append(
+                    self.module_generator.update_paths(
+                        env_var,
+                        search_paths,
+                        allow_abs=True,
+                        prepend=search_paths.mod_prepend,
+                        delim=search_paths.delimiter,
+                    )
+                )
 
             self.dry_run_msg('')
             return "".join(mod_lines)
