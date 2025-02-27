@@ -1707,6 +1707,7 @@ class EasyBlock(object):
                     self.module_generator.update_paths(
                         env_var,
                         mod_req_paths,
+                        allow_abs=True,
                         prepend=search_paths.prepend,
                         delim=search_paths.delimiter,
                     )
@@ -1767,43 +1768,41 @@ class EasyBlock(object):
     def expand_module_search_path(self, search_path, path_type=ModEnvVarType.PATH_WITH_FILES):
         """
         Expand given path glob and return list of suitable paths to be used as search paths:
-            - Paths are relative to installation prefix root
             - Paths must point to existing files/directories
-            - Search paths to a 'lib64' symlinked to 'lib' are discarded to avoid duplicates
+            - Relative paths are relative to installation prefix root and are kept relative after expansion
+            - Absolute paths are kept as absolute paths after expansion
+            - Follow symlinks and resolve their paths (avoids duplicate paths through symlinks)
             - :path_type: ModEnvVarType that controls requirements for population of directories
               - PATH: no requirements, can be empty
               - PATH_WITH_FILES: must contain at least one file in them (default)
               - PATH_WITH_TOP_FILES: increase stricness to require files in top level directory
         """
-        # Expand globs but only if the string is non-empty
-        # empty string is a valid value here (i.e. to prepend the installation prefix root directory)
-        abs_glob = os.path.join(self.installdir, search_path)
-        exp_search_paths = [abs_glob] if search_path == "" else glob.glob(abs_glob)
+        if os.path.isabs(search_path):
+            abs_glob = search_path
+        else:
+            real_installdir = os.path.realpath(self.installdir)
+            abs_glob = os.path.join(real_installdir, search_path)
+
+        exp_search_paths = glob.glob(abs_glob)
 
         retained_search_paths = []
         for abs_path in exp_search_paths:
-            # return relative paths
-            tentative_path = os.path.relpath(abs_path, start=self.installdir)
-            tentative_path = '' if tentative_path == '.' else tentative_path  # use empty string instead of dot
-
-            # avoid duplicate entries between symlinked library dirs
-            tent_path_sep = tentative_path + os.path.sep
-            if self.install_lib_symlink == LibSymlink.LIB64_TO_LIB and tent_path_sep.startswith('lib64' + os.path.sep):
-                self.log.debug("Discarded search path to symlinked lib64 directory: %s", tentative_path)
-                continue
-            if self.install_lib_symlink == LibSymlink.LIB_TO_LIB64 and tent_path_sep.startswith('lib' + os.path.sep):
-                self.log.debug("Discarded search path to symlinked lib directory: %s", tentative_path)
-                continue
-
             check_dir_files = path_type in (ModEnvVarType.PATH_WITH_FILES, ModEnvVarType.PATH_WITH_TOP_FILES)
             if os.path.isdir(abs_path) and check_dir_files:
                 # only retain paths to directories that contain at least one file
                 recursive = path_type == ModEnvVarType.PATH_WITH_FILES
                 if not dir_contains_files(abs_path, recursive=recursive):
-                    self.log.debug("Discarded search path to empty directory: %s", tentative_path)
+                    self.log.debug("Discarded search path to empty directory: %s", abs_path)
                     continue
 
-            retained_search_paths.append(tentative_path)
+            if os.path.isabs(search_path):
+                retain_path = abs_path
+            else:
+                # recover relative path
+                retain_path = os.path.relpath(os.path.realpath(abs_path), start=real_installdir)
+                retain_path = '' if retain_path == '.' else retain_path  # root of install dir is empty string
+
+            retained_search_paths.append(retain_path)
 
         return retained_search_paths
 

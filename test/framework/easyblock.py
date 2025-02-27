@@ -632,19 +632,15 @@ class EasyBlockTest(EnhancedTestCase):
         # make sure that entries that symlink to another directory are retained;
         # the test case inspired by the directory structure for old imkl versions (like 2020.4)
         remove_dir(eb.installdir)
-
         # lib/ symlinked to libraries/
         real_libdir = os.path.join(eb.installdir, 'libraries')
         mkdir(real_libdir, parents=True)
         symlink(real_libdir, os.path.join(eb.installdir, 'lib'))
-
         # lib/intel64/ symlinked to lib/intel64_lin/
         mkdir(os.path.join(eb.installdir, 'lib', 'intel64_lin'), parents=True)
         symlink(os.path.join(eb.installdir, 'lib', 'intel64_lin'), os.path.join(eb.installdir, 'lib', 'intel64'))
-
         # library file present in lib/intel64
         write_file(os.path.join(eb.installdir, 'lib', 'intel64', 'libfoo.so'), 'libfoo.so')
-
         # lib64/ symlinked to lib/
         symlink(os.path.join(eb.installdir, 'lib'), os.path.join(eb.installdir, 'lib64'))
 
@@ -654,23 +650,23 @@ class EasyBlockTest(EnhancedTestCase):
             txt = eb.make_module_req()
 
         if get_module_syntax() == 'Tcl':
-            self.assertTrue(re.search(r"^prepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/intel64$", txt, re.M))
-            self.assertTrue(re.search(r"^prepend-path\s+LIBRARY_PATH\s+\$root/lib/intel64\n$", txt, re.M))
+            self.assertTrue(re.search(r"^prepend-path\s+LD_LIBRARY_PATH\s+\$root/libraries/intel64_lin$", txt, re.M))
+            self.assertTrue(re.search(r"^prepend-path\s+LIBRARY_PATH\s+\$root/libraries/intel64_lin\n$", txt, re.M))
         elif get_module_syntax() == 'Lua':
-            self.assertTrue(re.search(r'^prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/intel64"\)\)$',
+            self.assertTrue(re.search(r'^prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "libraries/intel64_lin"\)\)$',
                                       txt, re.M))
-            self.assertTrue(re.search(r'^prepend_path\("LIBRARY_PATH", pathJoin\(root, "lib/intel64"\)\)$',
+            self.assertTrue(re.search(r'^prepend_path\("LIBRARY_PATH", pathJoin\(root, "libraries/intel64_lin"\)\)$',
                                       txt, re.M))
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
-        # Test modextrapaths
+        # Test modextrapaths: with absolute paths, appending and custom delimiters
         remove_dir(eb.installdir)
         self.contents += '\n'.join([
             "",
             "modextrapaths = {",
-            "    'TEST_VAR': ['foo', 'baz'],",
-            "    'TEST_VAR_APPEND': {'paths': ['foo', 'baz'], 'prepend': False},",
+            "    'TEST_VAR': ['foo', 'baz', '/bin'],",
+            "    'TEST_VAR_CUSTOM': {'paths': ['foo', 'baz'], 'delimiter': ';', 'prepend': False},",
             "    'LD_LIBRARY_PATH': 'foo',",
             "}",
         ])
@@ -693,7 +689,8 @@ class EasyBlockTest(EnhancedTestCase):
             r"^prepend[-_]path.*LD_LIBRARY_PATH.*root.*lib",
             r"^prepend[-_]path.*LD_LIBRARY_PATH.*root.*foo",
             r"^prepend[-_]path.*TEST_VAR.*root.*foo",
-            r"^append[-_]path.*TEST_VAR_APPEND.*root.*foo",
+            r"^prepend[-_]path.*TEST_VAR.*/bin",
+            r"^append[-_]path.*TEST_VAR_CUSTOM.*root.*foo.*;",
         ]
         for pattern in expected_patterns:
             self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
