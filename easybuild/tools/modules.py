@@ -266,9 +266,9 @@ class ModuleLoadEnvironment:
         # between public environment variables and private attributes. Set them
         # directly into __dict__ to bypass class getter and setter.
         self.__dict__['regex'] = {}
-        self.regex['mangled_attr'] = re.compile('^_[A-Za-z]+__')       # mangled attributes: _ClassName__VAR_NAME
-        self.regex['private_attr'] = re.compile('^_[a-z][a-z_]+$')     # private attributes: _var_name
-        self.regex['env_var_name'] = re.compile('^[A-Z_]+[A-Z0-9_]+$') # environment variables: {__}VAR_NAME_00_SUFFIX
+        self.regex['mangled_attr'] = re.compile('^_[A-Za-z]+__')        # mangled attributes: _ClassName__VAR_NAME
+        self.regex['private_attr'] = re.compile('^_[a-z][a-z_]+$')      # private attributes: _var_name
+        self.regex['env_var_name'] = re.compile('^[A-Z_]+[A-Z0-9_]+$')  # environment variables: {__}VAR_NAME_00_SUFFIX
 
         self._aliases = {}
         if aliases is not None:
