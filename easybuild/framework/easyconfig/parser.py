@@ -102,6 +102,8 @@ ALTERNATIVE_EASYCONFIG_PARAMETERS = {
 # deprecated easyconfig parameters, and their replacements
 DEPRECATED_EASYCONFIG_PARAMETERS = {
     # <old_param>: (<new_param>, <deprecation_version>),
+    'allow_append_abs_path': ('modextrapaths', '6.0'),
+    'allow_prepend_abs_path': ('modextrapaths', '6.0'),
     'modextrapaths_append': ('modextrapaths', '6.0'),
 }
 
