@@ -1800,7 +1800,14 @@ class EasyBlock(object):
             else:
                 # recover relative path
                 retain_path = os.path.relpath(os.path.realpath(abs_path), start=real_installdir)
-                retain_path = '' if retain_path == '.' else retain_path  # root of install dir is empty string
+                if retain_path == '.':
+                    retain_path = ''  # use empty string to represent root of install dir
+
+            if retain_path.startswith('..' + os.path.sep):
+                raise EasyBuildError(
+                    f"Expansion of search path glob pattern '{search_path}' resulted in a relative path "
+                    f"pointing outside of install directory: {retain_path}"
+                )
 
             retained_search_paths.append(retain_path)
 

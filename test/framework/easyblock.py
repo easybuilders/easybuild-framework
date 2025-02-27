@@ -660,6 +660,27 @@ class EasyBlockTest(EnhancedTestCase):
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
+        # test absolute paths
+        eb.module_load_environment.PATH = ['/bin']
+
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
+
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search(r"^prepend-path\s+PATH\s+/bin$", txt, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.search(r'^prepend_path\("PATH", "/bin"\)$', txt, re.M))
+        else:
+            self.fail(f"Unknown module syntax: %s" % get_module_syntax())
+
+        # make sure that relative entries that symlink to directories outside of install dir trigger an error
+        symlink("/bin", os.path.join(eb.installdir, 'bin'))
+        eb.module_load_environment.PATH = ['bin']
+
+        with eb.module_generator.start_module_creation():
+            err_regex = "Expansion of search path glob.*pointing outside of install directory.*"
+            self.assertErrorRegex(EasyBuildError, err_regex, eb.make_module_req)
+
         # Test modextrapaths: with absolute paths, appending and custom delimiters
         remove_dir(eb.installdir)
         self.contents += '\n'.join([
