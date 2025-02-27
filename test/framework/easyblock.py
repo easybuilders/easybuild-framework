@@ -671,7 +671,7 @@ class EasyBlockTest(EnhancedTestCase):
         elif get_module_syntax() == 'Lua':
             self.assertTrue(re.search(r'^prepend_path\("PATH", "/bin"\)$', txt, re.M))
         else:
-            self.fail(f"Unknown module syntax: %s" % get_module_syntax())
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         # make sure that relative entries that symlink to directories outside of install dir trigger an error
         symlink("/bin", os.path.join(eb.installdir, 'bin'))
