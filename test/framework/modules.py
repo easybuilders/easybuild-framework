@@ -1643,7 +1643,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod_envar_custom_type.is_path, True)
 
         self.assertRaises(EasyBuildError, setattr, mod_envar_custom_type, 'type', 'NONEXISTENT')
-        self.assertRaises(EasyBuildError, mod.ModuleEnvironmentVariable, test_paths, 'NONEXISTENT')
+        self.assertRaises(EasyBuildError, mod.ModuleEnvironmentVariable, test_paths, var_type='NONEXISTENT')
 
         mod_envar.contents = []
         self.assertEqual(mod_envar.contents, [])
