@@ -42,7 +42,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.base import fancylogger
-from easybuild.framework.easyblock import EasyBlock, LibSymlink, get_easyblock_instance
+from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
@@ -439,7 +439,6 @@ class EasyBlockTest(EnhancedTestCase):
         for path in ('bin', ('bin', 'testdir'), 'sbin', 'share', ('share', 'man'), 'lib', 'lib64'):
             path_components = (path, ) if isinstance(path, str) else path
             os.mkdir(os.path.join(eb.installdir, *path_components))
-        eb.check_install_lib_symlink()
 
         write_file(os.path.join(eb.installdir, 'foo.jar'), 'foo.jar')
         write_file(os.path.join(eb.installdir, 'bla.jar'), 'bla.jar')
@@ -505,7 +504,6 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'test')
         shutil.rmtree(os.path.join(eb.installdir, 'lib64'))
         os.symlink('lib', os.path.join(eb.installdir, 'lib64'))
-        eb.check_install_lib_symlink()
         with eb.module_generator.start_module_creation():
             guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
@@ -3422,9 +3420,6 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(os.path.join(eb.installdir, 'dir_full_subdirs', 'subdir1', 'file12.txt'), 'test file 1.2')
         write_file(os.path.join(eb.installdir, 'dir_full_subdirs', 'subdir2', 'file21.txt'), 'test file 2.1')
 
-        eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.NEITHER)
-
         self.assertEqual(test_emsp("nonexistent", ModEnvVarType.PATH), [])
         self.assertEqual(test_emsp("nonexistent", ModEnvVarType.PATH_WITH_FILES), [])
         self.assertEqual(test_emsp("nonexistent", ModEnvVarType.PATH_WITH_TOP_FILES), [])
@@ -3459,13 +3454,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(test_emsp("nonexistent/*", ModEnvVarType.PATH_WITH_FILES), [])
         self.assertEqual(test_emsp("nonexistent/*", ModEnvVarType.PATH_WITH_TOP_FILES), [])
 
-        # state of install_lib_symlink should not have changed
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.NEITHER)
-
         # test just one lib directory
         os.mkdir(os.path.join(eb.installdir, "lib"))
-        eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.NEITHER)
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib"])
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), [])
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), [])
@@ -3476,8 +3466,6 @@ class EasyBlockTest(EnhancedTestCase):
 
         # test both lib and lib64 directories
         os.mkdir(os.path.join(eb.installdir, "lib64"))
-        eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.NEITHER)
         self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH)), ["lib", "lib64"])
         self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib"])
         self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
@@ -3489,8 +3477,6 @@ class EasyBlockTest(EnhancedTestCase):
         # test lib64 symlinked to lib
         remove_dir(os.path.join(eb.installdir, "lib64"))
         os.symlink("lib", os.path.join(eb.installdir, "lib64"))
-        eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.LIB64_TO_LIB)
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib"])
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["lib"])
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
@@ -3507,8 +3493,6 @@ class EasyBlockTest(EnhancedTestCase):
         os.mkdir(os.path.join(eb.installdir, "lib64"))
         write_file(os.path.join(eb.installdir, "lib64", "libtest.so"), "not actually a lib")
         os.symlink("lib64", os.path.join(eb.installdir, "lib"))
-        eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.LIB_TO_LIB64)
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib64"])
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
@@ -3526,8 +3510,6 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(os.path.join(eb.installdir, "some_dir", "libtest.so"), "not actually a lib")
         os.symlink("some_dir", os.path.join(eb.installdir, "lib"))
         os.symlink("some_dir", os.path.join(eb.installdir, "lib64"))
-        eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.BOTH_TO_DIR)
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["some_dir"])
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["some_dir"])
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["some_dir"])
