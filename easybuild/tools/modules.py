@@ -57,7 +57,7 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import get_subclasses, nub
 
 
-MODULE_LOAD_ENV_HEADERS = 'HEADERS'
+MODULE_LOAD_ENV_HEADERS = 'CPP_HEADERS'
 
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
