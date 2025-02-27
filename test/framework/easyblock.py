@@ -530,7 +530,7 @@ class EasyBlockTest(EnhancedTestCase):
             'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'MANPATH', 'PATH', 'PKG_CONFIG_PATH', 'XDG_DATA_DIRS',
         ]
         for env_var in default_mod_load_vars:
-            delattr(eb.module_load_environment, env_var)
+            eb.module_load_environment.remove(env_var)
 
         self.assertEqual(len(eb.module_load_environment.vars), 0)
 
@@ -627,7 +627,7 @@ class EasyBlockTest(EnhancedTestCase):
         logtxt = read_file(eb.logfile)
         self.assertTrue(re.search(r"WARNING Non-path variables found in module load env.*NONPATH", logtxt, re.M))
 
-        delattr(eb.module_load_environment, 'NONPATH')
+        eb.module_load_environment.remove('NONPATH')
 
         # make sure that entries that symlink to another directory are retained;
         # the test case inspired by the directory structure for old imkl versions (like 2020.4)
