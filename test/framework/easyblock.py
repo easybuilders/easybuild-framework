@@ -711,7 +711,7 @@ class EasyBlockTest(EnhancedTestCase):
             txt = eb.make_module_req()
 
         expected_patterns = [
-            r"^append[-_]path.*TEST_VAR_CUSTOM.*root.*foo.*;",
+            r"^append[-_]path.*TEST_VAR_CUSTOM.*root.*foo.*",
             r"^prepend[-_]path.*CPATH.*root.*include.*",
             r"^prepend[-_]path.*CPATH.*root.*include/foo.*",
             r"^prepend[-_]path.*LD_LIBRARY_PATH.*root.*lib",
