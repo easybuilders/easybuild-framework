@@ -689,6 +689,7 @@ class EasyBlockTest(EnhancedTestCase):
             "    'TEST_VAR': ['foo', 'baz', '/bin'],",
             "    'TEST_VAR_CUSTOM': {'paths': ['foo', 'baz'], 'delimiter': ';', 'prepend': False},",
             "    'LD_LIBRARY_PATH': 'foo',",
+            "    MODULE_LOAD_ENV_HEADERS: ['include/foo', 'include/bar'],",
             "}",
         ])
         self.writeEC()
@@ -702,23 +703,29 @@ class EasyBlockTest(EnhancedTestCase):
         mkdir(os.path.join(eb.installdir, 'foo'), parents=True)
         write_file(os.path.join(eb.installdir, 'foo', 'bar'), 'install file')
         mkdir(os.path.join(eb.installdir, 'baz'), parents=True)
+        mkdir(os.path.join(eb.installdir, 'include', 'foo'), parents=True)
+        write_file(os.path.join(eb.installdir, 'include', 'foo', 'foo.h'), 'header file')
+        mkdir(os.path.join(eb.installdir, 'include', 'bar'), parents=True)
 
         with eb.module_generator.start_module_creation():
             txt = eb.make_module_req()
 
         expected_patterns = [
+            r"^append[-_]path.*TEST_VAR_CUSTOM.*root.*foo.*;",
+            r"^prepend[-_]path.*CPATH.*root.*include.*",
+            r"^prepend[-_]path.*CPATH.*root.*include/foo.*",
             r"^prepend[-_]path.*LD_LIBRARY_PATH.*root.*lib",
             r"^prepend[-_]path.*LD_LIBRARY_PATH.*root.*foo",
             r"^prepend[-_]path.*TEST_VAR.*root.*foo",
             r"^prepend[-_]path.*TEST_VAR.*/bin",
-            r"^append[-_]path.*TEST_VAR_CUSTOM.*root.*foo.*;",
         ]
         for pattern in expected_patterns:
             self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
 
         non_expected_patterns = [
-            r"^prepend[-_]path.*TEST_VAR.*root.*baz",
             r"^append[-_]path.*TEST_VAR_APPEND.*root.*baz",
+            r"^prepend[-_]path.*CPATH.*root.*include/bar.*",
+            r"^prepend[-_]path.*TEST_VAR.*root.*baz",
         ]
         for pattern in non_expected_patterns:
             self.assertFalse(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))

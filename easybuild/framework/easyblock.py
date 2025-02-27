@@ -1721,6 +1721,8 @@ class EasyBlock(object):
         and inject them into module load environment
         """
         ec_param = 'modextrapaths'
+        known_aliases = [MODULE_LOAD_ENV_HEADERS]
+
         for envar_name, extra_opts in self.cfg[ec_param].items():
             # default settings for environment variables
             envar_opts = {
@@ -1743,17 +1745,25 @@ class EasyBlock(object):
             if isinstance(envar_opts['paths'], str):
                 envar_opts['paths'] = [envar_opts['paths']]
 
+            existing_vars = []
             if envar_name in self.module_load_environment:
-                envar = getattr(self.module_load_environment, envar_name)
+                # update existing variable
+                existing_vars.append(envar_name)
+            elif envar_name in known_aliases:
+                # update existing alias to variables
+                existing_vars = self.module_load_environment.alias_vars(envar_name)
+            for existing_var_name in existing_vars:
+                envar = getattr(self.module_load_environment, existing_var_name)
                 envar.extend(envar_opts['paths'])
                 envar.delimiter = envar_opts['delimiter']
                 envar.prepend = envar_opts['prepend']
                 envar.type = envar_opts['var_type']
                 self.log.debug(
-                    f"Variable ${envar_name} from '{ec_param}' extended in module load environment with "
+                    f"Variable ${existing_var_name} from '{ec_param}' extended in module load environment with "
                     f"delimiter='{envar.delimiter}', prepend='{envar.prepend}', type='{envar.type}' and paths='{envar}'"
                 )
-            else:
+
+            if not existing_vars:
                 # rename 'modextrapaths' options to match ModuleEnvironmentVariable constructor parameters
                 envar_opts['contents'] = envar_opts.pop('paths')
                 setattr(self.module_load_environment, envar_name, envar_opts)
