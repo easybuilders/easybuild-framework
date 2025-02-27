@@ -1692,7 +1692,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(hasattr(mod_load_env, 'TEST_VAR'))
         self.assertEqual(mod_load_env.TEST_VAR.contents, test_contents)
 
-        error_pattern = "Names of ModuleLoadEnvironment attributes must be uppercase, got 'test_lower'"
+        error_pattern = "Name of ModuleLoadEnvironment attribute does not conform to shell naming rules.*'test_lower'"
         self.assertErrorRegex(EasyBuildError, error_pattern, setattr, mod_load_env, 'test_lower', test_contents)
 
         mod_load_env.TEST_STR = 'some/path'
@@ -1709,10 +1709,21 @@ class ModulesTest(EnhancedTestCase):
         env_wrong_params = {'contents': test_contents, 'unkown_param': True}
         self.assertRaises(EasyBuildError, setattr, mod_load_env, 'TEST_UNKNONW', env_wrong_params)
 
+        mod_load_env._UNDERSCORE_VAR = test_contents
+        self.assertTrue(hasattr(mod_load_env, '_UNDERSCORE_VAR'))
+        self.assertEqual(mod_load_env._UNDERSCORE_VAR.contents, test_contents)
+
+        mod_load_env.__DOUBLE_UNDERSCORE_VAR = test_contents
+        self.assertTrue(hasattr(mod_load_env, '__DOUBLE_UNDERSCORE_VAR'))
+        self.assertEqual(mod_load_env.__DOUBLE_UNDERSCORE_VAR.contents, test_contents)
+
+        mod_load_env.___TRIPLE__UNDERSCORE_VAR = test_contents
+        self.assertTrue(hasattr(mod_load_env, '___TRIPLE__UNDERSCORE_VAR'))
+        self.assertEqual(mod_load_env.___TRIPLE__UNDERSCORE_VAR.contents, test_contents)
+
         # test retrieval of environment
         # use copy of public attributes as reference
-        ref_load_env = mod_load_env.__dict__.copy()
-        ref_load_env = {envar: value for envar, value in ref_load_env.items() if not envar.startswith('_')}
+        ref_load_env = mod_load_env._env_vars.copy()
         self.assertCountEqual(list(mod_load_env), ref_load_env.keys())
 
         ref_load_env_item_list = list(ref_load_env.items())
@@ -1745,14 +1756,15 @@ class ModulesTest(EnhancedTestCase):
 
         # test removal of envars
         mod_load_env.remove('TEST_VARTYPE')
-        self.assertFalse(hasattr(mod_load_env, 'TEST_VARTYPE'))
+        self.assertFalse('TEST_VARTYPE' in mod_load_env.vars)
         mod_load_env.remove('NONEXISTENT')
 
         # test replacing of env vars
         env_vars = sorted(mod_load_env.as_dict.keys())
         expected = ['ACLOCAL_PATH', 'CLASSPATH', 'CMAKE_LIBRARY_PATH', 'CMAKE_PREFIX_PATH', 'GI_TYPELIB_PATH',
                     'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'MANPATH', 'PATH', 'PKG_CONFIG_PATH', 'TEST_NEW_VAR',
-                    'TEST_STR', 'TEST_VAR', 'XDG_DATA_DIRS']
+                    'TEST_STR', 'TEST_VAR', 'XDG_DATA_DIRS', '_UNDERSCORE_VAR', '__DOUBLE_UNDERSCORE_VAR',
+                    '___TRIPLE__UNDERSCORE_VAR']
         self.assertEqual(env_vars, expected)
 
         mod_load_env.replace({'FOO': 'foo', 'BAR': 'bar'})
@@ -1772,22 +1784,22 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(alias_load_env.alias_vars('ALIAS2'), ['ALIAS_VAR21'])
         # set a known alias
         alias_load_env.set_alias_vars('ALIAS1', 'alias1_path')
-        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR11'))
+        self.assertTrue('ALIAS_VAR11' in alias_load_env.vars)
         self.assertEqual(alias_load_env.ALIAS_VAR11.contents, ['alias1_path'])
         self.assertEqual(alias_load_env.ALIAS_VAR11.type, mod.ModEnvVarType.PATH_WITH_FILES)
-        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR12'))
+        self.assertTrue('ALIAS_VAR12' in alias_load_env.vars)
         self.assertEqual(alias_load_env.ALIAS_VAR12.contents, ['alias1_path'])
         self.assertEqual(alias_load_env.ALIAS_VAR12.type, mod.ModEnvVarType.PATH_WITH_FILES)
-        self.assertFalse(hasattr(alias_load_env, 'ALIAS_VAR21'))
+        self.assertFalse('ALIAS_VAR21' in alias_load_env.vars)
         for envar in alias_load_env.alias('ALIAS1'):
             self.assertEqual(envar.contents, ['alias1_path'])
             self.assertEqual(envar.type, mod.ModEnvVarType.PATH_WITH_FILES)
         # set a second known alias
         alias_load_env.set_alias_vars('ALIAS2', 'alias2_path')
-        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR11'))
+        self.assertTrue('ALIAS_VAR11' in alias_load_env.vars)
         self.assertEqual(alias_load_env.ALIAS_VAR11.contents, ['alias1_path'])
         self.assertEqual(alias_load_env.ALIAS_VAR11.type, mod.ModEnvVarType.PATH_WITH_FILES)
-        self.assertTrue(hasattr(alias_load_env, 'ALIAS_VAR21'))
+        self.assertTrue('ALIAS_VAR21' in alias_load_env.vars)
         self.assertEqual(alias_load_env.ALIAS_VAR21.contents, ['alias2_path'])
         self.assertEqual(alias_load_env.ALIAS_VAR21.type, mod.ModEnvVarType.PATH_WITH_FILES)
         # add a new alias
