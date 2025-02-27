@@ -1716,7 +1716,7 @@ class EasyBlock(object):
                         env_var,
                         mod_req_paths,
                         allow_abs=True,
-                        prepend=search_paths.prepend,
+                        prepend=search_paths.mod_prepend,
                         delim=search_paths.delimiter,
                     )
                 )

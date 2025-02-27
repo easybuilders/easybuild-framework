@@ -163,7 +163,7 @@ class ModuleEnvironmentVariable:
         """
         self.contents = contents
         self.delimiter = delimiter
-        self.prepend = prepend
+        self.mod_prepend = prepend
         self.type = var_type
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
