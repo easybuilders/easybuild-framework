@@ -1783,7 +1783,7 @@ class EasyBlock(object):
             real_installdir = os.path.realpath(self.installdir)
             abs_glob = os.path.join(real_installdir, search_path)
 
-        exp_search_paths = glob.glob(abs_glob)
+        exp_search_paths = glob.glob(abs_glob, recursive=True)
 
         retained_search_paths = []
         for abs_path in exp_search_paths:
