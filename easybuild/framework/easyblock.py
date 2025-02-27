@@ -56,7 +56,6 @@ import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from enum import Enum
 from textwrap import indent
 
 import easybuild.tools.environment as env
