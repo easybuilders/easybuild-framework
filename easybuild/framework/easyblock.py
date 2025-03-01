@@ -91,7 +91,7 @@ from easybuild.tools.filetools import encode_class_name, extract_file, find_back
 from easybuild.tools.filetools import get_cwd, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file, symlink
-from easybuild.tools.filetools import copy_dir, is_parent_path, create_unused_dirs
+from easybuild.tools.filetools import copy_dir, create_non_existing_paths, is_parent_path
 from easybuild.tools.hooks import (
     BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, EXTRACT_STEP, FETCH_STEP, INSTALL_STEP, MODULE_STEP,
     MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, PREPARE_STEP, READY_STEP,
@@ -4426,7 +4426,7 @@ def print_dry_run_note(loc, silent=True):
 
 def create_persistence_paths(operation_args):
     persistence_paths = [target_path for (_, _, target_path, _) in operation_args]
-    persistence_paths = create_unused_dirs(persistence_paths)
+    persistence_paths = create_non_existing_paths(persistence_paths)
 
     for i, (operation, source, _, msg) in enumerate(operation_args):
         operation_args[i] = (operation, source, persistence_paths[i], msg)
