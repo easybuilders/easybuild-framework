@@ -4800,60 +4800,62 @@ class EasyConfigTest(EnhancedTestCase):
             return
 
         # use fixed PR (speeds up the test due to caching in fetch_files_from_pr;
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/8007
-        from_pr = 8007
-        arrow_ec_fn = 'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb'
-        bat_ec_fn = 'bat-0.3.3-intel-2017b-Python-3.6.3.eb'
-        bat_patch_fn = 'bat-0.3.3-fix-pyspark.patch'
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/22365
+        from_pr = 22365
+        environ_ec_fn = 'Environ-3.1-foss-2024a.eb'
+        qe1_ec_fn = 'QuantumESPRESSO-7.4-foss-2024a-Environ-3.1.eb'
+        qe2_ec_fn = 'QuantumESPRESSO-7.4-foss-2024a.eb'
+        qe_patch_fn = 'QuantumESPRESSO-7.4-parallel-symmetrization.patch'
         pr_files = [
-            arrow_ec_fn,
-            bat_ec_fn,
-            bat_patch_fn,
+            environ_ec_fn,
+            qe1_ec_fn,
+            qe2_ec_fn,
+            qe_patch_fn,
         ]
 
         # if no paths are specified, default is to copy all files touched by PR to current working directory
         paths, target_path = det_copy_ec_specs([], from_pr)
-        self.assertEqual(len(paths), 3)
+        self.assertEqual(len(paths), 4)
         filenames = sorted([os.path.basename(x) for x in paths])
         self.assertEqual(filenames, sorted(pr_files))
         self.assertTrue(os.path.samefile(target_path, cwd))
 
         # last argument is used as target directory,
         # unless it corresponds to a file touched by PR
-        args = [bat_ec_fn, 'target_dir']
+        args = [qe2_ec_fn, 'target_dir']
         paths, target_path = det_copy_ec_specs(args, from_pr)
         self.assertEqual(len(paths), 1)
-        self.assertEqual(os.path.basename(paths[0]), bat_ec_fn)
+        self.assertEqual(os.path.basename(paths[0]), qe2_ec_fn)
         self.assertEqual(target_path, 'target_dir')
 
-        args = [bat_ec_fn]
+        args = [qe2_ec_fn]
         paths, target_path = det_copy_ec_specs(args, from_pr)
         self.assertEqual(len(paths), 1)
-        self.assertEqual(os.path.basename(paths[0]), bat_ec_fn)
+        self.assertEqual(os.path.basename(paths[0]), qe2_ec_fn)
         self.assertTrue(os.path.samefile(target_path, cwd))
 
-        args = [arrow_ec_fn, bat_ec_fn]
+        args = [environ_ec_fn, qe1_ec_fn]
         paths, target_path = det_copy_ec_specs(args, from_pr)
         self.assertEqual(len(paths), 2)
-        self.assertEqual(os.path.basename(paths[0]), arrow_ec_fn)
-        self.assertEqual(os.path.basename(paths[1]), bat_ec_fn)
+        self.assertEqual(os.path.basename(paths[0]), environ_ec_fn)
+        self.assertEqual(os.path.basename(paths[1]), qe1_ec_fn)
         self.assertTrue(os.path.samefile(target_path, cwd))
 
-        args = [bat_ec_fn, bat_patch_fn]
+        args = [qe2_ec_fn, qe_patch_fn]
         paths, target_path = det_copy_ec_specs(args, from_pr)
         self.assertEqual(len(paths), 2)
-        self.assertEqual(os.path.basename(paths[0]), bat_ec_fn)
-        self.assertEqual(os.path.basename(paths[1]), bat_patch_fn)
+        self.assertEqual(os.path.basename(paths[0]), qe2_ec_fn)
+        self.assertEqual(os.path.basename(paths[1]), qe_patch_fn)
         self.assertTrue(os.path.samefile(target_path, cwd))
 
         # also test with combination of local files and files from PR
-        args = [arrow_ec_fn, 'test.eb', 'test.patch', bat_patch_fn]
+        args = [environ_ec_fn, 'test.eb', 'test.patch', qe_patch_fn]
         paths, target_path = det_copy_ec_specs(args, from_pr)
         self.assertEqual(len(paths), 4)
-        self.assertEqual(os.path.basename(paths[0]), arrow_ec_fn)
+        self.assertEqual(os.path.basename(paths[0]), environ_ec_fn)
         self.assertEqual(paths[1], 'test.eb')
         self.assertEqual(paths[2], 'test.patch')
-        self.assertEqual(os.path.basename(paths[3]), bat_patch_fn)
+        self.assertEqual(os.path.basename(paths[3]), qe_patch_fn)
         self.assertTrue(os.path.samefile(target_path, cwd))
 
     def test_recursive_module_unload(self):
