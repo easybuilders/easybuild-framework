@@ -438,40 +438,26 @@ class GithubTest(EnhancedTestCase):
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
 
-        # PR for rename of arrow to Arrow,
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/8007/files
-        all_ecs_pr8007 = [
-            'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb',
-            'bat-0.3.3-fix-pyspark.patch',
-            'bat-0.3.3-intel-2017b-Python-3.6.3.eb',
+        # PR for XCrySDen,
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227/files
+        all_ecs_pr22227 = [
+            'bwidget-1.10.1-GCCcore-13.3.0.eb',
+            'quarto-1.5.57-x64.eb',
+            'Sabre-2013-09-28-GCC-13.3.0.eb',
+            'Togl-2.0-GCCcore-13.3.0.eb',
+            'XCrySDen-1.6.2-foss-2024a.eb',
         ]
-        # PR where also files are patched in test/
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/6587/files
-        all_ecs_pr6587 = [
-            'WIEN2k-18.1-foss-2018a.eb',
-            'WIEN2k-18.1-gimkl-2017a.eb',
-            'WIEN2k-18.1-intel-2018a.eb',
-            'libxc-4.2.3-foss-2018a.eb',
-            'libxc-4.2.3-gimkl-2017a.eb',
-            'libxc-4.2.3-intel-2018a.eb',
+        # PR where only files are patched in test/
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/22061/files
+        all_ecs_pr22061 = [
         ]
-        # PR where files are renamed
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/7159/files
-        all_ecs_pr7159 = [
-            'DOLFIN-2018.1.0.post1-foss-2018a-Python-3.6.4.eb',
-            'OpenFOAM-5.0-20180108-foss-2018a.eb',
-            'OpenFOAM-5.0-20180108-intel-2018a.eb',
-            'OpenFOAM-6-foss-2018b.eb',
-            'OpenFOAM-6-intel-2018a.eb',
-            'OpenFOAM-v1806-foss-2018b.eb',
-            'PETSc-3.9.3-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018b.eb',
-            'SCOTCH-6.0.6-intel-2018a.eb',
-            'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
+        # PR where files are unarchived
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/19834/files
+        all_ecs_pr19834 = [
+            'Gblocks-0.91b.eb',
         ]
 
-        for pr, all_ecs in [(8007, all_ecs_pr8007), (6587, all_ecs_pr6587), (7159, all_ecs_pr7159)]:
+        for pr, all_ecs in [(22227, all_ecs_pr22227), (22061, all_ecs_pr22061), (19834, all_ecs_pr19834)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
                 with self.mocked_stdout_stderr():

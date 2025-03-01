@@ -1441,60 +1441,61 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # Make sure the test target directory doesn't exist
         remove_dir(test_target_dir)
 
-        all_files_pr8007 = [
-            'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb',
-            'bat-0.3.3-fix-pyspark.patch',
-            'bat-0.3.3-intel-2017b-Python-3.6.3.eb',
+        all_files_pr22365 = [
+            'Environ-3.1-foss-2024a.eb',
+            'QuantumESPRESSO-7.4-foss-2024a-Environ-3.1.eb',
+            'QuantumESPRESSO-7.4-foss-2024a.eb',
+            'QuantumESPRESSO-7.4-parallel-symmetrization.patch',
         ]
 
         # test use of --copy-ec with --from-pr to the current working directory
         cwd = change_dir(test_working_dir)
-        args = ['--copy-ec', '--from-pr', '8007']
+        args = ['--copy-ec', '--from-pr', '22365']
         stdout = self.mocked_main(args)
 
-        regex = re.compile(r"3 file\(s\) copied to .*/%s" % os.path.basename(test_working_dir))
+        regex = re.compile(r"4 file\(s\) copied to .*/%s" % os.path.basename(test_working_dir))
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
         # check that the files exist
-        for pr_file in all_files_pr8007:
+        for pr_file in all_files_pr22365:
             self.assertExists(os.path.join(test_working_dir, pr_file))
             remove_file(os.path.join(test_working_dir, pr_file))
 
         # copying all files touched by PR to a non-existing target directory (which is created automatically)
         self.assertNotExists(test_target_dir)
-        args = ['--copy-ec', '--from-pr', '8007', test_target_dir]
+        args = ['--copy-ec', '--from-pr', '22365', test_target_dir]
         stdout = self.mocked_main(args)
 
-        regex = re.compile(r"3 file\(s\) copied to .*/%s" % os.path.basename(test_target_dir))
+        regex = re.compile(r"4 file\(s\) copied to .*/%s" % os.path.basename(test_target_dir))
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
-        for pr_file in all_files_pr8007:
+        for pr_file in all_files_pr22365:
             self.assertExists(os.path.join(test_target_dir, pr_file))
         remove_dir(test_target_dir)
 
         # test where we select a single easyconfig file from a PR
         mkdir(test_target_dir)
-        ec_filename = 'bat-0.3.3-intel-2017b-Python-3.6.3.eb'
-        args = ['--copy-ec', '--from-pr', '8007', ec_filename, test_target_dir]
+        ec_filename = 'Environ-3.1-foss-2024a.eb'
+        args = ['--copy-ec', '--from-pr', '22365', ec_filename, test_target_dir]
         stdout = self.mocked_main(args)
 
         regex = re.compile(r"%s copied to .*/%s" % (ec_filename, os.path.basename(test_target_dir)))
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
         self.assertEqual(os.listdir(test_target_dir), [ec_filename])
-        self.assertIn("name = 'bat'", read_file(os.path.join(test_target_dir, ec_filename)))
+        self.assertIn("name = 'Environ'", read_file(os.path.join(test_target_dir, ec_filename)))
         remove_dir(test_target_dir)
 
         # test copying of a single easyconfig file from a PR to a non-existing path
-        bat_ec = os.path.join(self.test_prefix, 'bat.eb')
-        args[-1] = bat_ec
+        environ_ec = os.path.join(self.test_prefix, 'Environ.eb')
+        args[-1] = environ_ec
         stdout = self.mocked_main(args)
 
-        regex = re.compile(r"%s copied to .*/bat.eb" % ec_filename)
+        regex = re.compile(r"%s copied to .*/Environ.eb" % ec_filename)
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
-        self.assertExists(bat_ec)
-        self.assertIn("name = 'bat'", read_file(bat_ec))
+        self.assertExists(environ_ec)
+        self.assertIn("name = 'Environ'", read_file(environ_ec))
 
         change_dir(cwd)
         remove_dir(test_working_dir)
@@ -1502,8 +1503,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         change_dir(test_working_dir)
 
         # test copying of a patch file from a PR via --copy-ec to current directory
-        patch_fn = 'bat-0.3.3-fix-pyspark.patch'
-        args = ['--copy-ec', '--from-pr', '8007', patch_fn, '.']
+        patch_fn = 'QuantumESPRESSO-7.4-parallel-symmetrization.patch'
+        args = ['--copy-ec', '--from-pr', '22365', patch_fn, '.']
         stdout = self.mocked_main(args)
 
         self.assertEqual(os.listdir(test_working_dir), [patch_fn])
@@ -1514,18 +1515,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # test the same thing but where we don't provide a target location
         change_dir(test_working_dir)
-        args = ['--copy-ec', '--from-pr', '8007', ec_filename]
+        args = ['--copy-ec', '--from-pr', '22365', ec_filename]
         stdout = self.mocked_main(args)
 
         regex = re.compile(r"%s copied to .*/%s" % (ec_filename, os.path.basename(test_working_dir)))
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
         self.assertEqual(os.listdir(test_working_dir), [ec_filename])
-        self.assertIn("name = 'bat'", read_file(os.path.join(test_working_dir, ec_filename)))
+        self.assertIn("name = 'Environ'", read_file(os.path.join(test_working_dir, ec_filename)))
 
         # also test copying of patch file to current directory (without specifying target location)
         change_dir(test_working_dir)
-        args = ['--copy-ec', '--from-pr', '8007', patch_fn]
+        args = ['--copy-ec', '--from-pr', '22365', patch_fn]
         stdout = self.mocked_main(args)
 
         regex = re.compile(r"%s copied to .*/%s" % (patch_fn, os.path.basename(test_working_dir)))
@@ -1539,13 +1540,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # test with only one ec in the PR (final argument is taken as a filename)
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        args = ['--copy-ec', '--from-pr', '11521', test_ec]
-        ec_pr11521 = "ExifTool-12.00-GCCcore-9.3.0.eb"
+        args = ['--copy-ec', '--from-pr', '20545', test_ec]
+        ec_pr20545 = "HEEDS-2310.eb"
         stdout = self.mocked_main(args)
-        regex = re.compile(r'.*/%s copied to %s' % (ec_pr11521, test_ec))
+        regex = re.compile(r'.*/%s copied to %s' % (ec_pr20545, test_ec))
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         self.assertExists(test_ec)
-        self.assertIn("name = 'ExifTool'", read_file(test_ec))
+        self.assertIn("name = 'HEEDS'", read_file(test_ec))
         remove_file(test_ec)
 
     def test_copy_ec_from_commit(self):
