@@ -498,9 +498,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.is_parent_path('foo/../baz', 'bar/../baz'))
 
         # Check that symbolic links are accounted
-        os.mkdir(os.path.join(self.test_prefix, 'base'))
-        os.mkdir(os.path.join(self.test_prefix, 'base', 'concrete'))
-        os.symlink(
+        ft.mkdir(os.path.join(self.test_prefix, 'base'))
+        ft.mkdir(os.path.join(self.test_prefix, 'base', 'concrete'))
+        ft.symlink(
             os.path.join(self.test_prefix, 'base', 'concrete'),
             os.path.join(self.test_prefix, 'base', 'link')
         )
@@ -510,7 +510,6 @@ class FileToolsTest(EnhancedTestCase):
                 os.path.join(self.test_prefix, 'base', 'concrete', 'file')
             )
         )
-        shutil.rmtree(os.path.join(self.test_prefix, 'base'))
 
     def test_det_file_size(self):
         """Test det_file_size function."""
@@ -3747,25 +3746,25 @@ class FileToolsTest(EnhancedTestCase):
         """Test get_first_nonexisting_parent_path function."""
         root_path = os.path.join(self.test_prefix, 'a')
         target_path = os.path.join(self.test_prefix, 'a', 'b', 'c')
-        os.makedirs(root_path)
+        ft.mkdir(root_path, parents=True)
         first_nonexisting_parent = ft.get_first_nonexisting_parent_path(target_path)
         self.assertEqual(first_nonexisting_parent, os.path.join(self.test_prefix, 'a', 'b'))
-        shutil.rmtree(root_path)
+        ft.remove_dir(root_path)
 
         # Use a reflexive parent relation
         root_path = os.path.join(self.test_prefix, 'a', 'b')
         target_path = os.path.join(self.test_prefix, 'a', 'b', 'c')
-        os.makedirs(root_path)
+        ft.mkdir(root_path, parents=True)
         first_nonexisting_parent = ft.get_first_nonexisting_parent_path(target_path)
         self.assertEqual(first_nonexisting_parent, os.path.join(self.test_prefix, 'a', 'b', 'c'))
-        shutil.rmtree(root_path)
+        ft.remove_dir(root_path)
 
         root_path = os.path.join(self.test_prefix, 'a', 'b', 'c')
         target_path = os.path.join(self.test_prefix, 'a', 'b', 'c')
-        os.makedirs(root_path)
+        ft.mkdir(root_path, parents=True)
         first_nonexisting_parent = ft.get_first_nonexisting_parent_path(target_path)
         self.assertEqual(first_nonexisting_parent, None)
-        shutil.rmtree(root_path)
+        ft.remove_dir(root_path)
 
     def test_create_unused_dir(self):
         """Test create_unused_dir function."""
@@ -3809,7 +3808,7 @@ class FileToolsTest(EnhancedTestCase):
         """Test create_unused_dirs function."""
         test_root = os.path.join(self.test_prefix, 'test_create_unused_dirs')
 
-        os.mkdir(test_root)
+        ft.mkdir(test_root)
         requested_paths = [
             os.path.join(test_root, 'folder_a'),
             os.path.join(test_root, 'folder_b'),
@@ -3817,44 +3816,44 @@ class FileToolsTest(EnhancedTestCase):
         paths = ft.create_unused_dirs(requested_paths)
         self.assertEqual(paths, requested_paths)
         self.assertAllExist(paths)
-        shutil.rmtree(test_root)
+        ft.remove_dir(test_root)
 
         # Repeat with existing folder(s) should create new ones
-        os.mkdir(test_root)
+        ft.mkdir(test_root)
         requested_paths = [
             os.path.join(test_root, 'folder_a'),
             os.path.join(test_root, 'folder_b'),
         ]
         for path in requested_paths:
-            os.mkdir(path)
+            ft.mkdir(path)
         for i in range(10):
             paths = ft.create_unused_dirs(requested_paths)
-            self.assertEqual(paths, [f"{p}_{i}" for p in requested_paths])
+            self.assertEqual(paths, [f'{p}_{i}' for p in requested_paths])
             self.assertAllExist(paths)
-        shutil.rmtree(test_root)
+        ft.remove_dir(test_root)
 
         # Add a suffix in both directories if a suffix already exists
-        os.mkdir(test_root)
+        ft.mkdir(test_root)
         requested_paths = [
-            os.path.join(test_root, "existing_a"),
-            os.path.join(test_root, "existing_b"),
+            os.path.join(test_root, 'existing_a'),
+            os.path.join(test_root, 'existing_b'),
         ]
-        os.mkdir(os.path.join(test_root, "existing_b"))
+        ft.mkdir(os.path.join(test_root, 'existing_b'))
         paths = ft.create_unused_dirs(requested_paths)
-        self.assertEqual(paths, [f"{p}_0" for p in requested_paths])
-        self.assertNotExists(os.path.join(test_root, "existing_a"))
+        self.assertEqual(paths, [f'{p}_0' for p in requested_paths])
+        self.assertNotExists(os.path.join(test_root, 'existing_a'))
         self.assertAllExist(paths)
-        shutil.rmtree(test_root)
+        ft.remove_dir(test_root)
 
         # Skip suffix if a directory with the suffix already exists
-        os.mkdir(test_root)
+        ft.mkdir(test_root)
         existing_suffix = 1
         requested_paths = [
-            os.path.join(test_root, "existing_suffix_a"),
-            os.path.join(test_root, "existing_suffix_b"),
+            os.path.join(test_root, 'existing_suffix_a'),
+            os.path.join(test_root, 'existing_suffix_b'),
         ]
 
-        os.mkdir(os.path.join(test_root, f"existing_suffix_b_{existing_suffix}"))
+        ft.mkdir(os.path.join(test_root, f'existing_suffix_b_{existing_suffix}'))
 
         def expected_suffix(n_calls_to_create_unused_dirs):
             if n_calls_to_create_unused_dirs == 0:
@@ -3868,38 +3867,38 @@ class FileToolsTest(EnhancedTestCase):
             paths = ft.create_unused_dirs(requested_paths)
             self.assertEqual(paths, [p + expected_suffix(i) for p in requested_paths])
             self.assertAllExist(paths)
-            self.assertNotExists(os.path.join(test_root, f"existing_suffix_a_{existing_suffix}"))
-            self.assertExists(os.path.join(test_root, f"existing_suffix_b_{existing_suffix}"))
+            self.assertNotExists(os.path.join(test_root, f'existing_suffix_a_{existing_suffix}'))
+            self.assertExists(os.path.join(test_root, f'existing_suffix_b_{existing_suffix}'))
 
-        shutil.rmtree(test_root)
+        ft.remove_dir(test_root)
 
         # Support creation of parent directories
-        os.mkdir(test_root)
-        requested_paths = [os.path.join(test_root, "parent_folder", "folder")]
+        ft.mkdir(test_root)
+        requested_paths = [os.path.join(test_root, 'parent_folder', 'folder')]
         paths = ft.create_unused_dirs(requested_paths)
         self.assertEqual(paths, requested_paths)
         self.assertAllExist(paths)
-        shutil.rmtree(test_root)
+        ft.remove_dir(test_root)
 
         # Not influenced by similar folder
-        os.mkdir(test_root)
-        requested_paths = [os.path.join(test_root, "folder_a2")]
+        ft.mkdir(test_root)
+        requested_paths = [os.path.join(test_root, 'folder_a2')]
         paths = ft.create_unused_dirs(requested_paths)
         self.assertEqual(paths, requested_paths)
         self.assertAllExist(paths)
         for i in range(10):
             paths = ft.create_unused_dirs(requested_paths)
-            self.assertEqual(paths, [f"{p}_{i}" for p in requested_paths])
+            self.assertEqual(paths, [f'{p}_{i}' for p in requested_paths])
             self.assertAllExist(paths)
-        shutil.rmtree(test_root)
+        ft.remove_dir(test_root)
 
         # Fail cleanly if passed a readonly folder
-        os.mkdir(test_root)
-        readonly_dir = os.path.join(test_root, "ro_folder")
+        ft.mkdir(test_root)
+        readonly_dir = os.path.join(test_root, 'ro_folder')
         ft.mkdir(readonly_dir)
         old_perms = os.lstat(readonly_dir)[stat.ST_MODE]
         ft.adjust_permissions(readonly_dir, stat.S_IREAD | stat.S_IEXEC, relative=False)
-        requested_path = [os.path.join(readonly_dir, "new_folder")]
+        requested_path = [os.path.join(readonly_dir, 'new_folder')]
         try:
             self.assertErrorRegex(
                 EasyBuildError, "Failed to create directory",
@@ -3907,16 +3906,16 @@ class FileToolsTest(EnhancedTestCase):
             )
         finally:
             ft.adjust_permissions(readonly_dir, old_perms, relative=False)
-        shutil.rmtree(test_root)
+        ft.remove_dir(test_root)
 
         # Fail if the number of attempts to create the directory is exceeded
-        os.mkdir(test_root)
-        requested_paths = [os.path.join(test_root, "attempt")]
-        os.mkdir(os.path.join(test_root, "attempt"))
-        os.mkdir(os.path.join(test_root, "attempt_0"))
-        os.mkdir(os.path.join(test_root, "attempt_1"))
-        os.mkdir(os.path.join(test_root, "attempt_2"))
-        os.mkdir(os.path.join(test_root, "attempt_3"))
+        ft.mkdir(test_root)
+        requested_paths = [os.path.join(test_root, 'attempt')]
+        ft.mkdir(os.path.join(test_root, 'attempt'))
+        ft.mkdir(os.path.join(test_root, 'attempt_0'))
+        ft.mkdir(os.path.join(test_root, 'attempt_1'))
+        ft.mkdir(os.path.join(test_root, 'attempt_2'))
+        ft.mkdir(os.path.join(test_root, 'attempt_3'))
         idx_ub = 4
         self.assertErrorRegex(
             EasyBuildError,
@@ -3924,21 +3923,21 @@ class FileToolsTest(EnhancedTestCase):
             ft.create_unused_dirs,
             requested_paths, index_upper_bound=idx_ub
         )
-        shutil.rmtree(test_root)
+        ft.remove_dir(test_root)
 
         # Ignore files same as folders. So first just create a file with no contents
-        os.mkdir(test_root)
-        requested_path = os.path.join(test_root, "file")
+        ft.mkdir(test_root)
+        requested_path = os.path.join(test_root, 'file')
         ft.write_file(requested_path, '')
         paths = ft.create_unused_dirs([requested_path])
-        self.assertEqual(paths, [requested_path + "_0"])
+        self.assertEqual(paths, [requested_path + '_0'])
         self.assertAllExist(paths)
-        shutil.rmtree(test_root)
+        ft.remove_dir(test_root)
 
         # Deny creation of nested directories
         requested_paths = [
-            os.path.join(test_root, "foo/bar"),
-            os.path.join(test_root, "foo/bar/baz"),
+            os.path.join(test_root, 'foo/bar'),
+            os.path.join(test_root, 'foo/bar/baz'),
         ]
         self.assertErrorRegex(
             EasyBuildError,
@@ -3949,8 +3948,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertNotExists(test_root)  # Fail early, do not create intermediate directories
 
         requested_paths = [
-            os.path.join(test_root, "foo/bar/baz"),
-            os.path.join(test_root, "foo/bar"),
+            os.path.join(test_root, 'foo/bar/baz'),
+            os.path.join(test_root, 'foo/bar'),
         ]
         self.assertErrorRegex(
             EasyBuildError,
@@ -3961,8 +3960,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertNotExists(test_root)  # Fail early, do not create intermediate directories
 
         requested_paths = [
-            os.path.join(test_root, "foo/bar"),
-            os.path.join(test_root, "foo/bar"),
+            os.path.join(test_root, 'foo/bar'),
+            os.path.join(test_root, 'foo/bar'),
         ]
         self.assertErrorRegex(
             EasyBuildError,
@@ -3973,62 +3972,65 @@ class FileToolsTest(EnhancedTestCase):
         self.assertNotExists(test_root)  # Fail early, do not create intermediate directories
 
         # Allow creation of non-nested directories
-        os.mkdir(test_root)
+        ft.mkdir(test_root)
         requested_paths = [
-            os.path.join(test_root, "nested/foo/bar"),
-            os.path.join(test_root, "nested/foo/baz"),
-            os.path.join(test_root, "nested/buz"),
+            os.path.join(test_root, 'nested/foo/bar'),
+            os.path.join(test_root, 'nested/foo/baz'),
+            os.path.join(test_root, 'nested/buz'),
         ]
         paths = ft.create_unused_dirs(requested_paths)
         self.assertEqual(paths, requested_paths)
         self.assertAllExist(paths)
-        shutil.rmtree(test_root)
+        ft.remove_dir(test_root)
 
         # Test that permissions are set in single directories
-        os.mkdir(test_root)
+        ft.mkdir(test_root)
         init_config(build_options={'set_gid_bit': True, 'sticky_bit': True})
-        requested_path = os.path.join(test_root, "directory")
+        requested_path = os.path.join(test_root, 'directory')
         paths = ft.create_unused_dirs([requested_path])
         self.assertEqual(len(paths), 1)
         dir_perms = os.lstat(paths[0])[stat.ST_MODE]
         self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
         self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
         init_config(build_options={'set_gid_bit': None, 'sticky_bit': None})
-        shutil.rmtree(test_root)
+        ft.remove_dir(test_root)
 
         # Test that permissions are set correctly across a whole path
-        os.mkdir(test_root)
+        ft.mkdir(test_root)
         init_config(build_options={'set_gid_bit': True, 'sticky_bit': True})
-        requested_path = os.path.join(test_root, "directory", "subdirectory")
+        requested_path = os.path.join(test_root, 'directory', 'subdirectory')
         paths = ft.create_unused_dirs([requested_path])
         self.assertEqual(len(paths), 1)
         tested_paths = [
-            os.path.join(test_root, "directory"),
-            os.path.join(test_root, "directory", "subdirectory"),
+            os.path.join(test_root, 'directory'),
+            os.path.join(test_root, 'directory', 'subdirectory'),
         ]
         for path in tested_paths:
             dir_perms = os.lstat(path)[stat.ST_MODE]
             self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
             self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
         init_config(build_options={'set_gid_bit': None, 'sticky_bit': None})
-        shutil.rmtree(test_root)
+        ft.remove_dir(test_root)
 
         # Test that existing directory permissions are not modified
-        os.mkdir(test_root)
+        ft.mkdir(test_root)
         init_config(build_options={'set_gid_bit': True, 'sticky_bit': True})
-        requested_path = os.path.join(test_root, "directory", "subdirectory")
-        existing_parent = os.path.join(test_root, "directory")
-        os.mkdir(existing_parent)
+        existing_parent = os.path.join(test_root, 'directory')
+        requested_path = os.path.join(existing_parent, 'subdirectory')
+
+        ft.mkdir(existing_parent, set_gid=False, sticky=False)
         paths = ft.create_unused_dirs([requested_path])
         self.assertEqual(len(paths), 1)
+
         dir_perms = os.lstat(paths[0])[stat.ST_MODE]
         self.assertEqual(dir_perms & stat.S_ISGID, stat.S_ISGID)
         self.assertEqual(dir_perms & stat.S_ISVTX, stat.S_ISVTX)
+
         dir_perms = os.lstat(existing_parent)[stat.ST_MODE]
         self.assertEqual(dir_perms & stat.S_ISGID, 0)
         self.assertEqual(dir_perms & stat.S_ISVTX, 0)
         init_config(build_options={'set_gid_bit': None, 'sticky_bit': None})
-        shutil.rmtree(test_root)
+        ft.remove_dir(test_root)
 
 
 def suite():
