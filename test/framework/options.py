@@ -1656,7 +1656,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     f"{option_flag}={persist_path}",
                 ]
 
-                pattern = rf"The {option_flag} \(.*\) cannot reside on a subdirectory of the --buildpath \(.*\)"
+                pattern = rf"The {option_flag} \(.*\) cannot reside in a subdirectory of the --buildpath \(.*\)"
 
                 args = base_args
                 args.extend(extra_args)
@@ -1671,10 +1671,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 else:
                     self.assertErrorRegex(EasyBuildError, pattern, self.eb_main, args, raise_error=True)
 
-        test_eb_with(option_flag='--log-error-path', is_valid=True)
-        test_eb_with(option_flag='--log-error-path', is_valid=False)
-        test_eb_with(option_flag='--artifact-error-path', is_valid=True)
-        test_eb_with(option_flag='--artifact-error-path', is_valid=False)
+        test_eb_with(option_flag='--failed-installs-logs-path', is_valid=True)
+        test_eb_with(option_flag='--failed-installs-logs-path', is_valid=False)
+        test_eb_with(option_flag='--failed-installs-build-dirs-path', is_valid=True)
+        test_eb_with(option_flag='--failed-installs-build-dirs-path', is_valid=False)
 
     def test_missing(self):
         """Test use of --missing/-M."""
@@ -5460,11 +5460,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(r"(?P<cfg_opt>\S*).*%s.*" % self.test_prefix, re.M)
 
         expected = [
-            'artifact-error-path',
             'buildpath',
             'containerpath',
+            'failed-installs-build-dirs-path',
+            'failed-installs-logs-path',
             'installpath',
-            'log-error-path',
             'packagepath',
             'prefix',
             'repositorypath',
