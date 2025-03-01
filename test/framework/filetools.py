@@ -481,6 +481,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.is_parent_path('/foo/bar', '/foo/bar/test0'))
         self.assertTrue(ft.is_parent_path('/foo/bar', '/foo/bar/test0/test1'))
         self.assertTrue(ft.is_parent_path('/foo/bar', '/foo/bar'))
+        self.assertFalse(ft.is_parent_path('/foo/bar/test0', '/foo/bar'))
         self.assertFalse(ft.is_parent_path('/foo/bar', '/foo/test'))
 
         # Check that trailing slashes are ignored
@@ -492,6 +493,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.is_parent_path('foo/bar', 'foo/bar/test0'))
         self.assertTrue(ft.is_parent_path('foo/bar', 'foo/bar/test0/test1'))
         self.assertTrue(ft.is_parent_path('foo/bar', 'foo/bar'))
+        self.assertFalse(ft.is_parent_path('foo/bar/test0', 'foo/bar'))
         self.assertFalse(ft.is_parent_path('foo/bar', 'foo/test'))
 
         # Check that relative paths are accounted
