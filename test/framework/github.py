@@ -410,6 +410,7 @@ class GithubTest(EnhancedTestCase):
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
 
+        # TODO: no 5.x PRs for new easyblocks
         # PR with new easyblock plus non-easyblock file
         # all_ebs_pr1964 = ['lammps.py']
 
