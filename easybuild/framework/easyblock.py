@@ -4451,7 +4451,6 @@ def copy_build_dirs_logs_failed_installs(application_log, silent, app, easyconfi
                 silent=silent
             )
         else:
-            log_file_copies = [os.path.join(logs_path, os.path.basename(log)) for log in logs]
             operation_args.append(
                 (
                     copy_file,
@@ -4484,9 +4483,9 @@ def copy_build_dirs_logs_failed_installs(application_log, silent, app, easyconfi
     persistence_paths = [target_path for (_, _, target_path, _) in operation_args]
     persistence_paths = create_non_existing_paths(persistence_paths)
 
-    for idx, (operation, source_paths, _, msg) in enumerate(operation_args):
-        for source_path in source_paths:
-            operation(source_path, persistence_paths[idx])
+    for idx, (operation, paths, _, msg) in enumerate(operation_args):
+        for path in paths:
+            operation(path, persistence_paths[idx])
 
         print_msg(msg, log=_log, silent=silent)
 
