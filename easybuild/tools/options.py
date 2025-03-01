@@ -576,9 +576,6 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Configuration options", "Configure EasyBuild behavior.")
 
         opts = OrderedDict({
-            'artifact-error-path': ("Location where artifacts are copied in case of an error; "
-                                    "an empty value disables copying the logs.",
-                                    None, 'store', None, {'metavar': "PATH"}),
             'avail-module-naming-schemes': ("Show all supported module naming schemes",
                                             None, 'store_true', False,),
             'avail-modules-tools': ("Show all supported module tools",
@@ -593,6 +590,12 @@ class EasyBuildOptions(GeneralOption):
                                      [DEFAULT_ENVVAR_USERS_MODULES]),
             'external-modules-metadata': ("List of (glob patterns for) paths to files specifying metadata "
                                           "for external modules (INI format)", 'strlist', 'store', None),
+            'failed-installs-build-dirs-path': ("Location where build directories are copied if installation fails; "
+                                                "an empty value disables copying of build directories",
+                                                None, 'store', None, {'metavar': "PATH"}),
+            'failed-installs-logs-path': ("Location where log files are copied if installation fails; "
+                                          "an empty value disables copying of log files",
+                                          None, 'store', None, {'metavar': "PATH"}),
             'hooks': ("Location of Python module with hook implementations", 'str', 'store', None),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
@@ -609,9 +612,6 @@ class EasyBuildOptions(GeneralOption):
                                      None, 'store', None),
             'job-backend': ("Backend to use for submitting jobs", 'choice', 'store',
                             DEFAULT_JOB_BACKEND, sorted(avail_job_backends().keys())),
-            'log-error-path': ("Location where logs are copied in case of an error; "
-                               "an empty value disables copying the logs.",
-                               None, 'store', None, {'metavar': "PATH"}),
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
@@ -1224,9 +1224,9 @@ class EasyBuildOptions(GeneralOption):
         # - the <path> could also specify the location of a *remote* (Git( repository,
         #   which can be done in variety of formats (git@<url>:<org>/<repo>), https://<url>, etc.)
         #   (see also https://github.com/easybuilders/easybuild-framework/issues/3892);
-        path_opt_names = ['artifact_error_path', 'buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
-                          'installpath_modules', 'installpath_software', 'log_error_path', 'prefix', 'packagepath',
-                          'robot_paths', 'sourcepath']
+        path_opt_names = ['buildpath', 'containerpath', 'failed_installs_build_dirs_path', 'failed_installs_logs_path',
+                          'git_working_dirs_path', 'installpath', 'installpath_modules', 'installpath_software',
+                          'prefix', 'packagepath', 'robot_paths', 'sourcepath']
 
         for opt_name in path_opt_names:
             self._ensure_abs_path(opt_name)
@@ -1234,8 +1234,8 @@ class EasyBuildOptions(GeneralOption):
         if self.options.prefix is not None:
             # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath in account
             # in the legacy-style configuration, repository is initialised in configuration file itself
-            path_opts = ['artifact_error_path', 'buildpath', 'containerpath', 'installpath', 'log_error_path',
-                         'packagepath', 'repository', 'repositorypath', 'sourcepath']
+            path_opts = ['buildpath', 'containerpath', 'failed_installs_build_dirs_path', 'failed_installs_logs_path',
+                         'installpath', 'packagepath', 'repository', 'repositorypath', 'sourcepath']
             for dest in path_opts:
                 if not self.options._action_taken.get(dest, False):
                     if dest == 'repository':
@@ -1294,19 +1294,18 @@ class EasyBuildOptions(GeneralOption):
         if self.options.inject_checksums or self.options.inject_checksums_to_json:
             self.options.pre_create_installdir = False
 
-        # Prevent permanent storage of logs and artifacts from modifying the build directory
-        if self.options.buildpath and self.options.log_error_path:
-            if is_parent_path(self.options.buildpath, self.options.log_error_path):
+        # Prevent that build directories and logs for failed installations are copied to location for build directories
+        if self.options.buildpath and self.options.failed_installs_logs_path:
+            if is_parent_path(self.options.buildpath, self.options.failed_installs_logs_path):
                 raise EasyBuildError(
-                    "The --log-error-path ('%s') cannot reside on a subdirectory of the --buildpath ('%s')"
-                    % (self.options.log_error_path, self.options.buildpath)
+                    f"The --failed-installs-logs-paths --log-error-path ('{self.options.failed_installs_logs_path}') "
+                    f"cannot reside on a subdirectory of the --buildpath ('{self.options.buildpath}')"
                 )
-
-        if self.options.buildpath and self.options.artifact_error_path:
-            if is_parent_path(self.options.buildpath, self.options.artifact_error_path):
+        if self.options.buildpath and self.options.failed_installs_build_dirs_path:
+            if is_parent_path(self.options.buildpath, self.options.failed_installs_build_dirs_path):
                 raise EasyBuildError(
-                    "The --artifact-error-path ('%s') cannot reside on a subdirectory of the --buildpath ('%s')"
-                    % (self.options.log_error_path, self.options.buildpath)
+                    f"The --failed-installs-build-dirs-paths ('{self.options.failed_installs_build_dirs_path}') "
+                    f"cannot reside on a subdirectory of the --buildpath ('{self.options.buildpath}')"
                 )
 
     def _postprocess_list_avail(self):

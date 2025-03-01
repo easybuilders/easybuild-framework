@@ -81,7 +81,7 @@ from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, F
 from easybuild.tools.config import PYTHONPATH, SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
-from easybuild.tools.config import get_log_error_path, get_artifact_error_path
+from easybuild.tools.config import get_failed_installs_build_dirs_path, get_failed_installs_logs_path
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
@@ -4459,7 +4459,7 @@ def persist_failed_compilation_log_and_artifacts(build_successful, application_l
     datetime_stamp = time.strftime("%Y%m%d") + '-' + time.strftime("%H%M%S")
     operation_args = []
 
-    log_error_path = get_log_error_path(easyconfig)
+    log_error_path = get_failed_installs_logs_path(easyconfig)
     if log_error_path:
         log_error_path = os.path.join(log_error_path, datetime_stamp)
 
@@ -4480,7 +4480,7 @@ def persist_failed_compilation_log_and_artifacts(build_successful, application_l
                 )
             )
 
-    artifact_error_path = get_artifact_error_path(easyconfig)
+    artifact_error_path = get_failed_installs_build_dirs_path(easyconfig)
     if artifact_error_path and os.path.isdir(app.builddir):
         artifact_error_path = os.path.join(artifact_error_path, datetime_stamp)
 

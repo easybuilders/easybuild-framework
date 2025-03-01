@@ -301,12 +301,12 @@ class ToyBuildTest(EnhancedTestCase):
         # set up subdirectories where stuff should go
         tmpdir = os.path.join(self.test_prefix, 'tmp')
         tmp_log_dir = os.path.join(self.test_prefix, 'tmp-logs')
-        tmp_log_error_dir = os.path.join(self.test_prefix, 'logs-failures')
-        build_dirs_failures_path = os.path.join(self.test_prefix, 'build-dirs-failures')
+        failed_installs_build_dirs_path = os.path.join(self.test_prefix, 'failed-installs-build-dirs')
+        failed_installs_logs_path = os.path.join(self.test_prefix, 'failed-installs-logs')
 
         extra_args = [
-            f'--artifact-error-path={build_dirs_failures_path}',
-            f'--log-error-path={tmp_log_error_dir}',
+            f'--failed-installs-build-dirs-path={failed_installs_build_dirs_path}',
+            f'--failed-installs-logs-path={failed_installs_logs_path}',
             f'--tmp-logdir={tmp_log_dir}',
         ]
         with self.mocked_stdout_stderr():
@@ -319,7 +319,7 @@ class ToyBuildTest(EnhancedTestCase):
         log_file = log_files[0]
 
         # check that log files were copied
-        saved_log_files = glob.glob(os.path.join(tmp_log_error_dir, log_file))
+        saved_log_files = glob.glob(os.path.join(failed_installs_logs_path, log_file))
         self.assertTrue(len(saved_log_files) == 1, f"Unique copy of log file '{log_file}' made")
         saved_log_file = saved_log_files[0]
         self.assertTrue(filecmp.cmp(log_file, saved_log_file, shallow=False),
@@ -327,7 +327,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # check that build directories were copied
         build_dir = self.test_buildpath
-        topdir = build_dirs_failures_path
+        topdir = failed_installs_build_dirs_path
 
         app_build_dir = os.path.join(build_dir, 'toy', '0.0', 'system-system')
         subdir_pattern = '????????-??????'

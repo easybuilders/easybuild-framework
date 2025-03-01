@@ -104,12 +104,13 @@ DEFAULT_MINIMAL_BUILD_ENV = 'CC:gcc,CXX:g++'
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Lua'
 DEFAULT_MODULES_TOOL = 'Lmod'
+FAILED_INSTALLS_SUBDIR = 'failed-installs'
 DEFAULT_PATH_SUBDIRS = {
-    'artifact_error_path': 'error_artifacts',
     'buildpath': 'build',
     'containerpath': 'containers',
+    'failed_installs_build_dirs_path': os.path.join(FAILED_INSTALLS_SUBDIR, 'build-dirs'),
+    'failed_installs_logs_path': os.path.join(FAILED_INSTALLS_SUBDIR, 'logs'),
     'installpath': '',
-    'log_error_path': 'error_logs',
     'packagepath': 'packages',
     'repositorypath': 'ebfiles_repo',
     'sourcepath': 'sources',
@@ -492,15 +493,15 @@ class ConfigurationVariables(BaseConfigurationVariables):
 
     # list of known/required keys
     REQUIRED = [
-        'artifact_error_path',
         'buildpath',
         'config',
         'containerpath',
+        'failed_installs_build_dirs_path',
+        'failed_installs_logs_path',
         'installpath',
         'installpath_modules',
         'installpath_software',
         'job_backend',
-        'log_error_path',
         'logfile_format',
         'moduleclasses',
         'module_naming_scheme',
@@ -869,15 +870,16 @@ def log_path(ec=None):
     return log_file_format(return_directory=True, ec=ec, date=date, timestamp=timestamp)
 
 
-def get_log_error_path(ec):
+def get_failed_installs_build_dirs_path(ec):
     """
-    Return the 'log_error_path', the location where logs are copied in case of failure
+    Return the 'failed_installs_build_dirs_path',
+    the location where build directories are copied if installation failed
 
     :param ec:  dict-like value with 'name' and 'version' keys defined
     """
-    log_error_path = ConfigurationVariables()['log_error_path']
+    failed_installs_build_dirs_path = ConfigurationVariables()['failed_installs_build_dirs_path']
 
-    if not log_error_path:
+    if not failed_installs_build_dirs_path:
         return None
 
     try:
@@ -885,20 +887,19 @@ def get_log_error_path(ec):
     except KeyError:
         raise EasyBuildError("The 'name' and 'version' keys are required.")
 
-    path = os.path.join(log_error_path, name + '-' + version)
-
-    return path
+    return os.path.join(failed_installs_build_dirs_path, name + '-' + version)
 
 
-def get_artifact_error_path(ec):
+def get_failed_installs_logs_path(ec):
     """
-    Return the 'artifact_error_path', the location where build directories are copied in case of failure
+    Return the 'failed_installs_logs_path',
+    the location where log files are copied if installation failed
 
     :param ec:  dict-like value with 'name' and 'version' keys defined
     """
-    artifact_error_path = ConfigurationVariables()['artifact_error_path']
+    failed_installs_logs_path = ConfigurationVariables()['failed_installs_logs_path']
 
-    if not artifact_error_path:
+    if not failed_installs_logs_path:
         return None
 
     try:
@@ -906,9 +907,7 @@ def get_artifact_error_path(ec):
     except KeyError:
         raise EasyBuildError("The 'name' and 'version' keys are required.")
 
-    path = os.path.join(artifact_error_path, name + '-' + version)
-
-    return path
+    return os.path.join(failed_installs_logs_path, name + '-' + version)
 
 
 def get_build_log_path():
