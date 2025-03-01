@@ -411,15 +411,15 @@ class GithubTest(EnhancedTestCase):
         })
 
         # PR with new easyblock plus non-easyblock file
-        all_ebs_pr1964 = ['lammps.py']
+        # all_ebs_pr1964 = ['lammps.py']
 
         # PR with changed easyblock
-        all_ebs_pr1967 = ['siesta.py']
+        all_ebs_pr3631 = ['root.py']
 
         # PR with more than one easyblock
-        all_ebs_pr1949 = ['configuremake.py', 'rpackage.py']
+        all_ebs_pr3596 = ['wps.py', 'wrf.py']
 
-        for pr, all_ebs in [(1964, all_ebs_pr1964), (1967, all_ebs_pr1967), (1949, all_ebs_pr1949)]:
+        for pr, all_ebs in [(3631, all_ebs_pr3631), (3596, all_ebs_pr3596)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
                 with self.mocked_stdout_stderr():
