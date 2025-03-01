@@ -48,6 +48,7 @@ import glob
 import inspect
 import json
 import os
+import random
 import re
 import stat
 import sys
@@ -57,6 +58,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from enum import Enum
+from string import ascii_letters
 from textwrap import indent
 
 import easybuild.tools.environment as env
@@ -4424,85 +4426,69 @@ def print_dry_run_note(loc, silent=True):
     dry_run_msg(msg, silent=silent)
 
 
-def create_persistence_paths(operation_args):
-    persistence_paths = [target_path for (_, _, target_path, _) in operation_args]
-    persistence_paths = create_non_existing_paths(persistence_paths)
-
-    for i, (operation, source, _, msg) in enumerate(operation_args):
-        operation_args[i] = (operation, source, persistence_paths[i], msg)
-
-    return operation_args
-
-
-def execute_and_log_persistence_operation(operation, source_paths, target_dir, msg, silent):
-    for path in source_paths:
-        operation(path, target_dir)
-
-    print_msg(msg, log=_log, silent=silent)
-
-
-def persist_failed_compilation_log_and_artifacts(build_successful, application_log, silent, app, easyconfig):
-    if not application_log:
-        return
-
+def copy_build_dirs_logs_failed_installs(application_log, silent, app, easyconfig):
+    """
+    Copy build directories and log files for failed installation (if desired)
+    """
     # there may be multiple log files, or the file name may be different due to zipping
     logs = glob.glob(f"{application_log}*")
-    print_msg(
-        "Results of the build can be found in the temporary log file(s): " + ", ".join(logs),
-        log=_log,
-        silent=silent
-    )
 
-    if build_successful:
-        return
+    datestamp = time.strftime('%Y%m%d')
+    timestamp = time.strftime('%H%M%S')
+    salt = ''.join(random.choice(ascii_letters) for i in range(5))
+    unique_subdir = f'{datestamp}-{timestamp}-{salt}'
 
-    datetime_stamp = time.strftime("%Y%m%d") + '-' + time.strftime("%H%M%S")
     operation_args = []
 
-    log_error_path = get_failed_installs_logs_path(easyconfig)
-    if log_error_path:
-        log_error_path = os.path.join(log_error_path, datetime_stamp)
+    logs_path = get_failed_installs_logs_path(easyconfig)
+    if logs_path:
+        logs_path = os.path.join(logs_path, unique_subdir)
 
-        if is_parent_path(app.builddir, log_error_path):
+        if is_parent_path(app.builddir, logs_path):
             print_warning(
-                "Persistent log directory is subdirectory of build directory; not copying logs.",
+                "Path to copy log files to for failed installs is subdirectory of build directory; not copying",
                 log=_log,
                 silent=silent
             )
         else:
-            log_file_copies = [os.path.join(log_error_path, os.path.basename(log)) for log in logs]
+            log_file_copies = [os.path.join(logs_path, os.path.basename(log)) for log in logs]
             operation_args.append(
                 (
                     copy_file,
                     logs,
-                    log_error_path,
-                    "Logs of failed build copied to permanent storage: " + ', '.join(log_file_copies)
+                    logs_path,
+                    f"Log file(s) of failed installation copied to {logs_path}"
                 )
             )
 
-    artifact_error_path = get_failed_installs_build_dirs_path(easyconfig)
-    if artifact_error_path and os.path.isdir(app.builddir):
-        artifact_error_path = os.path.join(artifact_error_path, datetime_stamp)
+    build_dirs_path = get_failed_installs_build_dirs_path(easyconfig)
+    if build_dirs_path and os.path.isdir(app.builddir):
+        build_dirs_path = os.path.join(build_dirs_path, unique_subdir)
 
-        if is_parent_path(app.builddir, artifact_error_path):
+        if is_parent_path(app.builddir, build_dirs_path):
             print_warning(
-                "Persistent artifact directory is subdirectory of build directory; not copying artifacts.",
+                "Path to copy build dirs to for failed installs is subdirectory of build directory; not copying",
                 log=_log,
                 silent=silent
             )
         else:
             operation_args.append(
                 (
-                    lambda source, destination: copy_dir(source, destination, dirs_exist_ok=True),
+                    lambda src, dest: copy_dir(src, dest, dirs_exist_ok=True),
                     [app.builddir],
-                    artifact_error_path,
-                    f"Artifacts of failed build copied to permanent storage: {artifact_error_path}"
+                    build_dirs_path,
+                    f"Build directory of failed installation copied to {build_dirs_path}"
                 )
             )
 
-    operation_args = create_persistence_paths(operation_args)
-    for args in operation_args:
-        execute_and_log_persistence_operation(*args, silent=silent)
+    persistence_paths = [target_path for (_, _, target_path, _) in operation_args]
+    persistence_paths = create_non_existing_paths(persistence_paths)
+
+    for idx, (operation, source_paths, _, msg) in enumerate(operation_args):
+        for source_path in source_paths:
+            operation(source_path, persistence_paths[idx])
+
+        print_msg(msg, log=_log, silent=silent)
 
 
 def build_and_install_one(ecdict, init_env):
@@ -4758,7 +4744,13 @@ def build_and_install_one(ecdict, init_env):
         else:
             dry_run_msg("(no ignored errors during dry run)\n", silent=silent)
 
-    persist_failed_compilation_log_and_artifacts(success, application_log, silent, app, ecdict['ec'])
+    if application_log:
+        # there may be multiple log files, or the file name may be different due to zipping
+        logs = glob.glob('%s*' % application_log)
+        print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=_log, silent=silent)
+
+    if not success:
+        copy_build_dirs_logs_failed_installs(application_log, silent, app, ecdict['ec'])
 
     del app
 

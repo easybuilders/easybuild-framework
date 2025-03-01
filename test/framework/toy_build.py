@@ -330,15 +330,17 @@ class ToyBuildTest(EnhancedTestCase):
         topdir = failed_installs_build_dirs_path
 
         app_build_dir = os.path.join(build_dir, 'toy', '0.0', 'system-system')
-        subdir_pattern = '????????-??????'
+        # pattern: <datestamp>-<timestamp>-<salt>
+        subdir_pattern = '????????-??????-?????'
 
         # find path to toy.c
         toy_c_files = glob.glob(os.path.join(app_build_dir, '**', 'toy.c'))
         self.assertTrue(len(toy_c_files) == 1, f"Exactly one toy.c file found: {toy_c_files}")
         toy_c_file = toy_c_files[0]
 
-        res = glob.glob(os.path.join(topdir, 'toy-0.0', subdir_pattern, 'toy-0.0', os.path.basename(toy_c_file)))
-        self.assertTrue(len(res) == 1, f"Exactly one build dir found in {app_build_dir}: {res}")
+        path = os.path.join(topdir, 'toy-0.0', subdir_pattern, 'toy-0.0', os.path.basename(toy_c_file))
+        res = glob.glob(path)
+        self.assertTrue(len(res) == 1, f"Exactly one hit found for {path}: {res}")
         copied_toy_c_file = res[0]
         self.assertTrue(filecmp.cmp(toy_c_file, copied_toy_c_file, shallow=False),
                         f"Copy of {toy_c_file} should be found under {topdir}")

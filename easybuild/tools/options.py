@@ -1298,7 +1298,7 @@ class EasyBuildOptions(GeneralOption):
         if self.options.buildpath and self.options.failed_installs_logs_path:
             if is_parent_path(self.options.buildpath, self.options.failed_installs_logs_path):
                 raise EasyBuildError(
-                    f"The --failed-installs-logs-paths --log-error-path ('{self.options.failed_installs_logs_path}') "
+                    f"The --failed-installs-logs-paths ('{self.options.failed_installs_logs_path}') "
                     f"cannot reside on a subdirectory of the --buildpath ('{self.options.buildpath}')"
                 )
         if self.options.buildpath and self.options.failed_installs_build_dirs_path:
