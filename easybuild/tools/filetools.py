@@ -603,17 +603,17 @@ def normalize_path(path):
     return start_slashes + os.path.sep.join(filtered_comps)
 
 
-def is_parent_path(ancestor, path):
+def is_parent_path(path1, path2):
     """
-    Return true if ancestor is prefix of path
+    Return True if path1 is a prefix of path2
 
-    :param ancestor: absolute or relative path
-    :param path: absolute or relative path
+    :param path1: absolute or relative path
+    :param path2: absolute or relative path
     """
-    ancestor = os.path.realpath(ancestor)
-    path = os.path.realpath(path)
-    common_path = os.path.commonprefix([ancestor, path])
-    return common_path == ancestor
+    path1 = os.path.realpath(path1)
+    path2 = os.path.realpath(path2)
+    common_path = os.path.commonprefix([path1, path2])
+    return common_path == path1
 
 
 def is_alt_pypi_url(url):
