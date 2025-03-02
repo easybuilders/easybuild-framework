@@ -2125,7 +2125,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         args = [
-            # PR for XCrySDen/1.6.2-foss-2024a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227/files
+            # PR for XCrySDen/1.6.2-foss-2024a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
             '--from-pr=22227',
             '--dry-run',
             '--debug',

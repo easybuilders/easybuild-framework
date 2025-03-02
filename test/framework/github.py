@@ -262,11 +262,11 @@ class GithubTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        gh.add_pr_labels(22010)  # closed, unmerged, unlabeled PR
+        gh.add_pr_labels(22088)  # closed, unmerged, unlabeled PR
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertIn("PR #22010 should be labelled 'update'", stdout)
+        self.assertIn("Could not determine any missing labels for PR #22088", stdout)
 
     def test_github_fetch_pr_data(self):
         """Test fetch_pr_data function."""
