@@ -26,7 +26,6 @@
 Dummy easyblock for bundle of Perl modules.
 """
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig import CUSTOM
 
 
 class PerlBundle(EasyBlock):
