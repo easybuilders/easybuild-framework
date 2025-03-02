@@ -869,14 +869,12 @@ def log_path(ec=None):
 
 def get_failed_installs_build_dirs_path(ec):
     """
-    Return the 'failed_installs_build_dirs_path',
-    the location where build directories are copied if installation failed
+    Return the location where the build directory is copied to if installation failed
 
     :param ec:  dict-like value with 'name' and 'version' keys defined
     """
-    failed_installs_build_dirs_path = ConfigurationVariables()['failed_installs_build_dirs_path']
-
-    if not failed_installs_build_dirs_path:
+    base_path = ConfigurationVariables()['failed_installs_build_dirs_path']
+    if not base_path:
         return None
 
     try:
@@ -884,19 +882,17 @@ def get_failed_installs_build_dirs_path(ec):
     except KeyError:
         raise EasyBuildError("The 'name' and 'version' keys are required.")
 
-    return os.path.join(failed_installs_build_dirs_path, name + '-' + version)
+    return os.path.join(base_path, f'{name}-{version}')
 
 
 def get_failed_installs_logs_path(ec):
     """
-    Return the 'failed_installs_logs_path',
-    the location where log files are copied if installation failed
+    Return the location where log files are copied to if installation failed
 
     :param ec:  dict-like value with 'name' and 'version' keys defined
     """
-    failed_installs_logs_path = ConfigurationVariables()['failed_installs_logs_path']
-
-    if not failed_installs_logs_path:
+    base_path = ConfigurationVariables()['failed_installs_logs_path']
+    if not base_path:
         return None
 
     try:
@@ -904,7 +900,7 @@ def get_failed_installs_logs_path(ec):
     except KeyError:
         raise EasyBuildError("The 'name' and 'version' keys are required.")
 
-    return os.path.join(failed_installs_logs_path, name + '-' + version)
+    return os.path.join(base_path, f'{name}-{version}')
 
 
 def get_build_log_path():
