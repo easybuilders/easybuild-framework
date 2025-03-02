@@ -1698,7 +1698,7 @@ class EasyBlock(object):
         for env_var_name, extra_opts in self.cfg[ec_param].items():
             # default settings for environment variables
             env_var_opts = {
-                'delimiter': os.pathsep,
+                'delimiter': os.pathsep,  # ':'
                 'var_type': ModEnvVarType.PATH_WITH_FILES,
                 'prepend': True,
             }
@@ -1706,46 +1706,45 @@ class EasyBlock(object):
             try:
                 env_var_opts.update(extra_opts)
             except ValueError:
-                # no options provided
+                # no options provided, so must be only a list of string values specifying paths
                 env_var_opts['paths'] = extra_opts
             else:
                 if 'paths' not in env_var_opts:
-                    raise EasyBuildError(
-                        f"Variable ${env_var_name} in '{ec_param}' defined with a dict missing any 'paths' item"
-                    )
+                    error_msg = f"'paths' key not set for ${env_var_name} in '{ec_param}' easyconfig parameter"
+                    raise EasyBuildError(error_msg)
 
+            # make sure that we have a list of paths, even if there's only one
             if isinstance(env_var_opts['paths'], str):
                 env_var_opts['paths'] = [env_var_opts['paths']]
 
-            existing_vars = []
+            existing_env_vars = []
             if env_var_name in self.module_load_environment:
                 # update existing variable
-                existing_vars.append(env_var_name)
+                existing_env_vars.append(env_var_name)
             elif env_var_name in known_aliases:
                 # update existing alias to variables
-                existing_vars = self.module_load_environment.alias_vars(env_var_name)
-            for existing_var_name in existing_vars:
-                env_var = getattr(self.module_load_environment, existing_var_name)
+                existing_env_vars = self.module_load_environment.alias_vars(env_var_name)
+
+            for env_var_name in existing_env_vars:
+                env_var = getattr(self.module_load_environment, env_var_name)
                 env_var.extend(env_var_opts['paths'])
                 env_var.delimiter = env_var_opts['delimiter']
                 env_var.prepend = env_var_opts['prepend']
                 env_var.type = env_var_opts['var_type']
-                msg = f"Variable ${existing_var_name} from '{ec_param}' extended in module load environment with "
+                msg = f"Variable ${env_var_name} from '{ec_param}' extended in module load environment with "
                 msg += f"delimiter='{env_var.delimiter}', prepend='{env_var.prepend}', type='{env_var.type}' "
                 msg += f"and paths='{env_var}'"
                 self.log.debug(msg)
 
-            if not existing_vars:
+            if not existing_env_vars:
                 # rename 'modextrapaths' options to match ModuleEnvironmentVariable constructor parameters
-                envar_opts['contents'] = envar_opts.pop('paths')
-                setattr(self.module_load_environment, env_var_name, envar_opts)
-                envar = getattr(self.module_load_environment, env_var_name)
-                self.log.debug(
-                    f"Variable ${env_var_name} from '{ec_param}' added to module load environment with "
-                    f"delimiter='{envar.delimiter}', prepend='{envar.prepend}', type='{envar.type}' and paths='{envar}'"
-                )
-
-        return True
+                env_var_opts['contents'] = env_var_opts.pop('paths')
+                setattr(self.module_load_environment, env_var_name, env_var_opts)
+                env_var = getattr(self.module_load_environment, env_var_name)
+                msg = f"Variable ${env_var_name} from '{ec_param}' added to module load environment with "
+                msg += f"delimiter='{env_var.delimiter}', prepend='{env_var.prepend}', type='{env_var.type}' "
+                msg += f"and paths='{env_var}'"
+                self.log.debug(msg)
 
     def expand_module_search_path(self, search_path, path_type=ModEnvVarType.PATH_WITH_FILES):
         """
