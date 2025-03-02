@@ -4459,8 +4459,11 @@ def copy_build_dirs_logs_failed_install(application_log, silent, app, easyconfig
             msg = "Path to copy build dirs of failed installs to is subdirectory of build directory; not copying"
             print_warning(msg, log=_log, silent=silent)
         else:
-            operation = lambda src, dest: copy_dir(src, dest, dirs_exist_ok=True)
             msg = f"Build directory of failed installation copied to {build_dirs_path}"
+
+            def operation(src, dest):
+                copy_dir(src, dest, dirs_exist_ok=True)
+
             operation_args.append((operation, [app.builddir], build_dirs_path, msg))
 
     persistence_paths = create_non_existing_paths(target_path for (_, _, target_path, _) in operation_args)
