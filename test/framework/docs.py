@@ -718,15 +718,22 @@ class DocsTest(EnhancedTestCase):
         eb_classes = get_easyblock_classes('easybuild.easyblocks.generic')
         eb_names = [x.__name__ for x in eb_classes]
         expected = [
+            'Bundle',
+            'CMakeMake',
             'ChildCustomDummyExtension',
             'ChildDeprecatedDummyExtension',
+            'CmdCp',
             'ConfigureMake',
             'CustomDummyExtension',
             'DeprecatedDummyExtension',
             'DummyExtension',
             'MakeCp',
+            'MesonNinja',
             'ModuleRC',
+            'PerlBundle',
             'PythonBundle',
+            'PythonPackage',
+            'Tarball',
             'Toolchain',
             'Toy_Extension',
             'bar',
