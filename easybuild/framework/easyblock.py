@@ -4441,12 +4441,12 @@ def copy_build_dirs_logs_failed_installs(application_log, silent, app, easyconfi
     operation_args = []
 
     logs_path = get_failed_installs_logs_path(easyconfig)
-    if logs_path:
+    if logs and logs_path:
         logs_path = os.path.join(logs_path, unique_subdir)
 
         if is_parent_path(app.builddir, logs_path):
             print_warning(
-                "Path to copy log files to for failed installs is subdirectory of build directory; not copying",
+                "Path to copy log files of failed installs to is subdirectory of build directory; not copying",
                 log=_log,
                 silent=silent
             )
@@ -4466,7 +4466,7 @@ def copy_build_dirs_logs_failed_installs(application_log, silent, app, easyconfi
 
         if is_parent_path(app.builddir, build_dirs_path):
             print_warning(
-                "Path to copy build dirs to for failed installs is subdirectory of build directory; not copying",
+                "Path to copy build dirs of failed installs to is subdirectory of build directory; not copying",
                 log=_log,
                 silent=silent
             )
@@ -4486,7 +4486,6 @@ def copy_build_dirs_logs_failed_installs(application_log, silent, app, easyconfi
     for idx, (operation, paths, _, msg) in enumerate(operation_args):
         for path in paths:
             operation(path, persistence_paths[idx])
-
         print_msg(msg, log=_log, silent=silent)
 
 
