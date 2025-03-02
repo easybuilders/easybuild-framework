@@ -5462,8 +5462,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected = [
             'buildpath',
             'containerpath',
-            'failed-installs-build-dirs-path',
-            'failed-installs-logs-path',
             'installpath',
             'packagepath',
             'prefix',

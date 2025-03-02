@@ -104,12 +104,9 @@ DEFAULT_MINIMAL_BUILD_ENV = 'CC:gcc,CXX:g++'
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Lua'
 DEFAULT_MODULES_TOOL = 'Lmod'
-FAILED_INSTALLS_SUBDIR = 'failed-installs'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
     'containerpath': 'containers',
-    'failed_installs_build_dirs_path': os.path.join(FAILED_INSTALLS_SUBDIR, 'build-dirs'),
-    'failed_installs_logs_path': os.path.join(FAILED_INSTALLS_SUBDIR, 'logs'),
     'installpath': '',
     'packagepath': 'packages',
     'repositorypath': 'ebfiles_repo',

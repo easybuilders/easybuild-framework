@@ -1218,7 +1218,7 @@ class EasyBuildOptions(GeneralOption):
         # to avoid incorrect paths being used when EasyBuild changes the current working directory
         # (see https://github.com/easybuilders/easybuild-framework/issues/3619);
         # ensuring absolute paths for 'robot' is handled separately below,
-        # because we need to be careful with the argument pass to --robot;
+        # because we need to be careful with the argument passed to --robot;
         # note: repositorypath is purposely not listed here, because it's a special case:
         # - the value could consist of a 2-tuple (<path>, <relative_subdir>);
         # - the <path> could also specify the location of a *remote* (Git( repository,
@@ -1232,10 +1232,11 @@ class EasyBuildOptions(GeneralOption):
             self._ensure_abs_path(opt_name)
 
         if self.options.prefix is not None:
-            # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath in account
-            # in the legacy-style configuration, repository is initialised in configuration file itself
-            path_opts = ['buildpath', 'containerpath', 'failed_installs_build_dirs_path', 'failed_installs_logs_path',
-                         'installpath', 'packagepath', 'repository', 'repositorypath', 'sourcepath']
+            # prefix applies to selected path configuration options;
+            # repository has to be reinitialised to take new repositorypath in account;
+            # in the legacy-style configuration, repository is initialised in configuration file itself;
+            path_opts = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'repository', 'repositorypath',
+                         'sourcepath']
             for dest in path_opts:
                 if not self.options._action_taken.get(dest, False):
                     if dest == 'repository':
