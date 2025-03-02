@@ -87,7 +87,7 @@ from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, 
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, expand_glob_paths, get_cwd
-from easybuild.tools.filetools import install_fake_vsc, move_file, which
+from easybuild.tools.filetools import install_fake_vsc, move_file, which, is_parent_path
 from easybuild.tools.github import GITHUB_PR_DIRECTION_DESC, GITHUB_PR_ORDER_CREATED
 from easybuild.tools.github import GITHUB_PR_STATE_OPEN, GITHUB_PR_STATES, GITHUB_PR_ORDERS, GITHUB_PR_DIRECTIONS
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
@@ -496,8 +496,9 @@ class EasyBuildOptions(GeneralOption):
             'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
                              "with fallback to basic colored output",
                              'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),
-            'parallel': ("Specify (maximum) level of parallelism used during build procedure",
-                         'int', 'store', None),
+            'parallel': ("Specify (maximum) level of parallelism used during build procedure "
+                         "(actual value is determined by available cores + 'max_parallel' easyconfig parameter)",
+                         'int', 'store', 16),
             'parallel-extensions-install': ("Install list of extensions in parallel (if supported)",
                                             None, 'store_true', False),
             'pre-create-installdir': ("Create installation directory before submitting build jobs",
@@ -591,6 +592,12 @@ class EasyBuildOptions(GeneralOption):
                                      [DEFAULT_ENVVAR_USERS_MODULES]),
             'external-modules-metadata': ("List of (glob patterns for) paths to files specifying metadata "
                                           "for external modules (INI format)", 'strlist', 'store', None),
+            'failed-install-build-dirs-path': ("Location where build directories are copied if installation fails; "
+                                               "an empty value disables copying of build directories",
+                                               None, 'store', None, {'metavar': "PATH"}),
+            'failed-install-logs-path': ("Location where log files are copied if installation fails; "
+                                         "an empty value disables copying of log files",
+                                         None, 'store', None, {'metavar': "PATH"}),
             'hooks': ("Location of Python module with hook implementations", 'str', 'store', None),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
@@ -1216,22 +1223,23 @@ class EasyBuildOptions(GeneralOption):
         # to avoid incorrect paths being used when EasyBuild changes the current working directory
         # (see https://github.com/easybuilders/easybuild-framework/issues/3619);
         # ensuring absolute paths for 'robot' is handled separately below,
-        # because we need to be careful with the argument pass to --robot;
+        # because we need to be careful with the argument passed to --robot;
         # note: repositorypath is purposely not listed here, because it's a special case:
         # - the value could consist of a 2-tuple (<path>, <relative_subdir>);
         # - the <path> could also specify the location of a *remote* (Git( repository,
         #   which can be done in variety of formats (git@<url>:<org>/<repo>), https://<url>, etc.)
         #   (see also https://github.com/easybuilders/easybuild-framework/issues/3892);
-        path_opt_names = ['buildpath', 'containerpath', 'git_working_dirs_path', 'installpath',
-                          'installpath_modules', 'installpath_software', 'prefix', 'packagepath',
-                          'robot_paths', 'sourcepath']
+        path_opt_names = ['buildpath', 'containerpath', 'failed_install_build_dirs_path', 'failed_install_logs_path',
+                          'git_working_dirs_path', 'installpath', 'installpath_modules', 'installpath_software',
+                          'prefix', 'packagepath', 'robot_paths', 'sourcepath']
 
         for opt_name in path_opt_names:
             self._ensure_abs_path(opt_name)
 
         if self.options.prefix is not None:
-            # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath in account
-            # in the legacy-style configuration, repository is initialised in configuration file itself
+            # prefix applies to selected path configuration options;
+            # repository has to be reinitialised to take new repositorypath in account;
+            # in the legacy-style configuration, repository is initialised in configuration file itself;
             path_opts = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'repository', 'repositorypath',
                          'sourcepath']
             for dest in path_opts:
@@ -1291,6 +1299,20 @@ class EasyBuildOptions(GeneralOption):
         # imply --disable-pre-create-installdir with --inject-checksums or --inject-checksums-to-json
         if self.options.inject_checksums or self.options.inject_checksums_to_json:
             self.options.pre_create_installdir = False
+
+        # Prevent that build directories and logs for failed installations are copied to location for build directories
+        if self.options.buildpath and self.options.failed_install_logs_path:
+            if is_parent_path(self.options.buildpath, self.options.failed_install_logs_path):
+                raise EasyBuildError(
+                    f"The --failed-install-logs-path ('{self.options.failed_install_logs_path}') "
+                    f"cannot reside in a subdirectory of the --buildpath ('{self.options.buildpath}')"
+                )
+        if self.options.buildpath and self.options.failed_install_build_dirs_path:
+            if is_parent_path(self.options.buildpath, self.options.failed_install_build_dirs_path):
+                raise EasyBuildError(
+                    f"The --failed-install-build-dirs-path ('{self.options.failed_install_build_dirs_path}') "
+                    f"cannot reside in a subdirectory of the --buildpath ('{self.options.buildpath}')"
+                )
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""

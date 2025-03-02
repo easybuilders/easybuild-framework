@@ -442,10 +442,11 @@ class EasyConfig(object):
         :param local_var_naming_check: mode to use when checking if local variables use the recommended naming scheme
         """
         self.template_values = None
-        # a boolean to control templating, can be (temporarily) disabled in easyblocks
-        self.enable_templating = True
-        # boolean to control whether all template values must be resolvable, can be (temporarily) disabled in easyblocks
-        self.expect_resolved_template_values = True
+        # a boolean to control templating, can be (temporarily) disabled via disable_templating context manager
+        self._templating_enabled = True
+        # boolean to control whether all template values must be resolvable on access,
+        # can be (temporarily) disabled via allow_unresolved_templates context manager
+        self._expect_resolved_template_values = True
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -565,12 +566,48 @@ class EasyConfig(object):
                 # Do what you want without templating
             # Templating set to previous value
         """
-        old_enable_templating = self.enable_templating
-        self.enable_templating = False
+        old_templating_enabled = self._templating_enabled
+        self._templating_enabled = False
         try:
-            yield old_enable_templating
+            yield old_templating_enabled
         finally:
-            self.enable_templating = old_enable_templating
+            self._templating_enabled = old_templating_enabled
+
+    @property
+    def templating_enabled(self):
+        """Check whether templating is enabled on this EasyConfig"""
+        return self._templating_enabled
+
+    def _enable_templating(self, *_):
+        self.log.nosupport("self.enable_templating is replaced by self.templating_enabled. "
+                           "To disable it use the self.disable_templating context manager", '5.0')
+    enable_templating = property(_enable_templating, _enable_templating)
+
+    @contextmanager
+    def allow_unresolved_templates(self):
+        """Temporarily allow templates to be not (fully) resolved.
+
+        This should only be used when it is intended to use partially resolved templates.
+        Otherwise `ec.get(key, resolve=False)` should be used.
+        See also @ref disable_templating.
+
+        Usage:
+            with ec.allow_unresolved_templates():
+                value = ec.get('key')  # This will not raise an error
+                print(value % {'extra_key': exta_value})
+            # Resolving is enforced again if it was before
+        """
+        old_expect_resolved_template_values = self._expect_resolved_template_values
+        self._expect_resolved_template_values = False
+        try:
+            yield old_expect_resolved_template_values
+        finally:
+            self._expect_resolved_template_values = old_expect_resolved_template_values
+
+    @property
+    def expect_resolved_template_values(self):
+        """Check whether resolving all template values on access is enforced."""
+        return self._expect_resolved_template_values
 
     def __str__(self):
         """Return a string representation of this EasyConfig instance"""
@@ -1839,13 +1876,12 @@ class EasyConfig(object):
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __getitem__(self, key):
         """Return value of specified easyconfig parameter (without help text, etc.)"""
-        value = None
-        if key in self._config:
+        try:
             value = self._config[key][0]
-        else:
+        except KeyError:
             raise EasyBuildError("Use of unknown easyconfig parameter '%s' when getting parameter value", key)
 
-        if self.enable_templating:
+        if self.templating_enabled:
             value = self.resolve_template(value)
 
         return value
@@ -1923,14 +1959,13 @@ class EasyConfig(object):
         Return dict representation of this EasyConfig instance.
         """
         res = {}
-        for key, tup in self._config.items():
-            value = tup[0]
-            if self.enable_templating:
-                if not self.template_values:
-                    self.generate_template_values()
-                # Not all values can be resolved, e.g. %(installdir)s
-                value = resolve_template(value, self.template_values, expect_resolved=False)
-            res[key] = value
+        # Not all values can be resolved, e.g. %(installdir)s
+        with self.allow_unresolved_templates():
+            for key, tup in self._config.items():
+                value = tup[0]
+                if self.templating_enabled:
+                    value = self.resolve_template(value)
+                res[key] = value
         return res
 
     def get_cuda_cc_template_value(self, key):
