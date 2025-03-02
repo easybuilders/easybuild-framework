@@ -2037,8 +2037,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         tmpdir = tempfile.mkdtemp()
         args = [
-            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
-            '--from-pr=6424',
+            # PR for XCrySDen/1.6.2-foss-2024a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
+            '--from-pr=22227',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
@@ -2050,15 +2050,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
-                (tmpdir, 'FFTW/3.3.8-gompi-2018b'),
-                (tmpdir, 'foss/2018b'),
-                ('.*', 'GCC/7.3.0-2.30'),  # not included in PR
-                (tmpdir, 'gompi/2018b'),
-                (tmpdir, 'HPL/2.2-foss-2018b'),
-                ('.*', 'hwloc/1.11.8-GCC-7.3.0-2.30'),
-                ('.*', 'OpenBLAS/0.3.1-GCC-7.3.0-2.30'),
-                ('.*', 'OpenMPI/3.1.1-GCC-7.3.0-2.30'),
-                (tmpdir, 'ScaLAPACK/2.0.2-gompi-2018b-OpenBLAS-0.3.1'),
+                (tmpdir, 'XCrySDen/1.6.2-foss-2024a'),
             ]
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
@@ -2066,7 +2058,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
                 self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
-            # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
             self.assertEqual(sorted(x[1] for x in regex.findall(outtxt)), sorted(x[1] for x in modules))
 
