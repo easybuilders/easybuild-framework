@@ -4268,17 +4268,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        # PR for gzip 1.10 easyconfig, see https://github.com/easybuilders/easybuild-easyconfigs/pull/9921
+        # PR for bwidget 1.10.1 easyconfig, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
         args = [
             '--color=never',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
-            '--review-pr=9921',
+            '--review-pr=22227',
         ]
         self.eb_main(args, raise_error=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        regex = re.compile(r"^Comparing gzip-1.10-\S* with gzip-1.10-")
+        regex = re.compile(r"^Comparing bwidget-1.10.1-\S* with bwidget-")
         self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 
         self.mock_stdout(True)
