@@ -83,7 +83,7 @@ from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, F
 from easybuild.tools.config import PYTHONPATH, SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
-from easybuild.tools.config import get_failed_installs_build_dirs_path, get_failed_installs_logs_path
+from easybuild.tools.config import get_failed_install_build_dirs_path, get_failed_install_logs_path
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
@@ -4426,7 +4426,7 @@ def print_dry_run_note(loc, silent=True):
     dry_run_msg(msg, silent=silent)
 
 
-def copy_build_dirs_logs_failed_installs(application_log, silent, app, easyconfig):
+def copy_build_dirs_logs_failed_install(application_log, silent, app, easyconfig):
     """
     Copy build directories and log files for failed installation (if desired)
     """
@@ -4439,7 +4439,7 @@ def copy_build_dirs_logs_failed_installs(application_log, silent, app, easyconfi
 
     operation_args = []
 
-    logs_path = get_failed_installs_logs_path(easyconfig)
+    logs_path = get_failed_install_logs_path(easyconfig)
     if logs and logs_path:
         logs_path = os.path.join(logs_path, unique_subdir)
 
@@ -4459,7 +4459,7 @@ def copy_build_dirs_logs_failed_installs(application_log, silent, app, easyconfi
                 )
             )
 
-    build_dirs_path = get_failed_installs_build_dirs_path(easyconfig)
+    build_dirs_path = get_failed_install_build_dirs_path(easyconfig)
     if build_dirs_path and os.path.isdir(app.builddir):
         build_dirs_path = os.path.join(build_dirs_path, unique_subdir)
 
@@ -4747,7 +4747,7 @@ def build_and_install_one(ecdict, init_env):
         print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=_log, silent=silent)
 
     if not success:
-        copy_build_dirs_logs_failed_installs(application_log, silent, app, ecdict['ec'])
+        copy_build_dirs_logs_failed_install(application_log, silent, app, ecdict['ec'])
 
     del app
 

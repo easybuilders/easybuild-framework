@@ -590,12 +590,12 @@ class EasyBuildOptions(GeneralOption):
                                      [DEFAULT_ENVVAR_USERS_MODULES]),
             'external-modules-metadata': ("List of (glob patterns for) paths to files specifying metadata "
                                           "for external modules (INI format)", 'strlist', 'store', None),
-            'failed-installs-build-dirs-path': ("Location where build directories are copied if installation fails; "
-                                                "an empty value disables copying of build directories",
-                                                None, 'store', None, {'metavar': "PATH"}),
-            'failed-installs-logs-path': ("Location where log files are copied if installation fails; "
-                                          "an empty value disables copying of log files",
-                                          None, 'store', None, {'metavar': "PATH"}),
+            'failed-install-build-dirs-path': ("Location where build directories are copied if installation fails; "
+                                               "an empty value disables copying of build directories",
+                                               None, 'store', None, {'metavar': "PATH"}),
+            'failed-install-logs-path': ("Location where log files are copied if installation fails; "
+                                         "an empty value disables copying of log files",
+                                         None, 'store', None, {'metavar': "PATH"}),
             'hooks': ("Location of Python module with hook implementations", 'str', 'store', None),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
@@ -1224,7 +1224,7 @@ class EasyBuildOptions(GeneralOption):
         # - the <path> could also specify the location of a *remote* (Git( repository,
         #   which can be done in variety of formats (git@<url>:<org>/<repo>), https://<url>, etc.)
         #   (see also https://github.com/easybuilders/easybuild-framework/issues/3892);
-        path_opt_names = ['buildpath', 'containerpath', 'failed_installs_build_dirs_path', 'failed_installs_logs_path',
+        path_opt_names = ['buildpath', 'containerpath', 'failed_install_build_dirs_path', 'failed_install_logs_path',
                           'git_working_dirs_path', 'installpath', 'installpath_modules', 'installpath_software',
                           'prefix', 'packagepath', 'robot_paths', 'sourcepath']
 
@@ -1296,16 +1296,16 @@ class EasyBuildOptions(GeneralOption):
             self.options.pre_create_installdir = False
 
         # Prevent that build directories and logs for failed installations are copied to location for build directories
-        if self.options.buildpath and self.options.failed_installs_logs_path:
-            if is_parent_path(self.options.buildpath, self.options.failed_installs_logs_path):
+        if self.options.buildpath and self.options.failed_install_logs_path:
+            if is_parent_path(self.options.buildpath, self.options.failed_install_logs_path):
                 raise EasyBuildError(
-                    f"The --failed-installs-logs-path ('{self.options.failed_installs_logs_path}') "
+                    f"The --failed-install-logs-path ('{self.options.failed_install_logs_path}') "
                     f"cannot reside in a subdirectory of the --buildpath ('{self.options.buildpath}')"
                 )
-        if self.options.buildpath and self.options.failed_installs_build_dirs_path:
-            if is_parent_path(self.options.buildpath, self.options.failed_installs_build_dirs_path):
+        if self.options.buildpath and self.options.failed_install_build_dirs_path:
+            if is_parent_path(self.options.buildpath, self.options.failed_install_build_dirs_path):
                 raise EasyBuildError(
-                    f"The --failed-installs-build-dirs-path ('{self.options.failed_installs_build_dirs_path}') "
+                    f"The --failed-install-build-dirs-path ('{self.options.failed_install_build_dirs_path}') "
                     f"cannot reside in a subdirectory of the --buildpath ('{self.options.buildpath}')"
                 )
 

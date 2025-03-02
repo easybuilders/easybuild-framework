@@ -1671,10 +1671,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 else:
                     self.assertErrorRegex(EasyBuildError, pattern, self.eb_main, args, raise_error=True)
 
-        test_eb_with(option_flag='--failed-installs-logs-path', is_valid=True)
-        test_eb_with(option_flag='--failed-installs-logs-path', is_valid=False)
-        test_eb_with(option_flag='--failed-installs-build-dirs-path', is_valid=True)
-        test_eb_with(option_flag='--failed-installs-build-dirs-path', is_valid=False)
+        test_eb_with(option_flag='--failed-install-logs-path', is_valid=True)
+        test_eb_with(option_flag='--failed-install-logs-path', is_valid=False)
+        test_eb_with(option_flag='--failed-install-build-dirs-path', is_valid=True)
+        test_eb_with(option_flag='--failed-install-build-dirs-path', is_valid=False)
 
     def test_missing(self):
         """Test use of --missing/-M."""
