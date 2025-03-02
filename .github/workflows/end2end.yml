@@ -8,12 +8,13 @@ jobs:
       matrix:
         container:
           - centos-8.5
-          - fedora-36
+          - fedora-41
           - opensuse-15.4
-          - rockylinux-8.8
-          - rockylinux-9.2
+          - rockylinux-8.10
+          - rockylinux-9.5
           - ubuntu-20.04
           - ubuntu-22.04
+          - ubuntu-24.04
       fail-fast: false
     container:
       image: ghcr.io/easybuilders/${{ matrix.container }}-amd64
@@ -27,7 +28,7 @@ jobs:
           curl -LO https://unofficial-builds.nodejs.org/download/release/v20.9.0/node-v20.9.0-linux-x64-glibc-217.tar.xz
           tar -xf node-v20.9.0-linux-x64-glibc-217.tar.xz --strip-components 1 -C /node20217
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
 
       - name: download and unpack easyblocks and easyconfigs repositories
         run: |
