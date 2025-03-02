@@ -42,7 +42,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.base import fancylogger
-from easybuild.framework.easyblock import EasyBlock, LibSymlink, get_easyblock_instance
+from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
@@ -439,7 +439,6 @@ class EasyBlockTest(EnhancedTestCase):
         for path in ('bin', ('bin', 'testdir'), 'sbin', 'share', ('share', 'man'), 'lib', 'lib64'):
             path_components = (path, ) if isinstance(path, str) else path
             os.mkdir(os.path.join(eb.installdir, *path_components))
-        eb.check_install_lib_symlink()
 
         write_file(os.path.join(eb.installdir, 'foo.jar'), 'foo.jar')
         write_file(os.path.join(eb.installdir, 'bla.jar'), 'bla.jar')
@@ -505,7 +504,6 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'test')
         shutil.rmtree(os.path.join(eb.installdir, 'lib64'))
         os.symlink('lib', os.path.join(eb.installdir, 'lib64'))
-        eb.check_install_lib_symlink()
         with eb.module_generator.start_module_creation():
             guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
@@ -530,7 +528,7 @@ class EasyBlockTest(EnhancedTestCase):
             'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'MANPATH', 'PATH', 'PKG_CONFIG_PATH', 'XDG_DATA_DIRS',
         ]
         for env_var in default_mod_load_vars:
-            delattr(eb.module_load_environment, env_var)
+            eb.module_load_environment.remove(env_var)
 
         self.assertEqual(len(eb.module_load_environment.vars), 0)
 
@@ -608,7 +606,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # Module load environement may contain non-path variables
         # TODO: remove whenever this is properly supported, in the meantime check warning
-        eb.module_load_environment.NONPATH = ('non_path', {'var_type': "STRING"})
+        eb.module_load_environment.NONPATH = {'contents': 'non_path', 'var_type': "STRING"}
         eb.module_load_environment.PATH = ['bin']
         with self.mocked_stdout_stderr():
             txt = eb.make_module_req()
@@ -627,24 +625,20 @@ class EasyBlockTest(EnhancedTestCase):
         logtxt = read_file(eb.logfile)
         self.assertTrue(re.search(r"WARNING Non-path variables found in module load env.*NONPATH", logtxt, re.M))
 
-        delattr(eb.module_load_environment, 'NONPATH')
+        eb.module_load_environment.remove('NONPATH')
 
         # make sure that entries that symlink to another directory are retained;
         # the test case inspired by the directory structure for old imkl versions (like 2020.4)
         remove_dir(eb.installdir)
-
         # lib/ symlinked to libraries/
         real_libdir = os.path.join(eb.installdir, 'libraries')
         mkdir(real_libdir, parents=True)
         symlink(real_libdir, os.path.join(eb.installdir, 'lib'))
-
         # lib/intel64/ symlinked to lib/intel64_lin/
         mkdir(os.path.join(eb.installdir, 'lib', 'intel64_lin'), parents=True)
         symlink(os.path.join(eb.installdir, 'lib', 'intel64_lin'), os.path.join(eb.installdir, 'lib', 'intel64'))
-
         # library file present in lib/intel64
         write_file(os.path.join(eb.installdir, 'lib', 'intel64', 'libfoo.so'), 'libfoo.so')
-
         # lib64/ symlinked to lib/
         symlink(os.path.join(eb.installdir, 'lib'), os.path.join(eb.installdir, 'lib64'))
 
@@ -654,15 +648,85 @@ class EasyBlockTest(EnhancedTestCase):
             txt = eb.make_module_req()
 
         if get_module_syntax() == 'Tcl':
-            self.assertTrue(re.search(r"^prepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/intel64$", txt, re.M))
-            self.assertTrue(re.search(r"^prepend-path\s+LIBRARY_PATH\s+\$root/lib/intel64\n$", txt, re.M))
+            self.assertTrue(re.search(r"^prepend-path\s+LD_LIBRARY_PATH\s+\$root/libraries/intel64_lin$", txt, re.M))
+            self.assertTrue(re.search(r"^prepend-path\s+LIBRARY_PATH\s+\$root/libraries/intel64_lin\n$", txt, re.M))
         elif get_module_syntax() == 'Lua':
-            self.assertTrue(re.search(r'^prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/intel64"\)\)$',
+            self.assertTrue(re.search(r'^prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "libraries/intel64_lin"\)\)$',
                                       txt, re.M))
-            self.assertTrue(re.search(r'^prepend_path\("LIBRARY_PATH", pathJoin\(root, "lib/intel64"\)\)$',
+            self.assertTrue(re.search(r'^prepend_path\("LIBRARY_PATH", pathJoin\(root, "libraries/intel64_lin"\)\)$',
                                       txt, re.M))
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
+
+        # test absolute paths
+        eb.module_load_environment.PATH = ['/bin']
+
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
+
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search(r"^prepend-path\s+PATH\s+/bin$", txt, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.search(r'^prepend_path\("PATH", "/bin"\)$', txt, re.M))
+        else:
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
+
+        # make sure that relative entries that symlink to directories outside of install dir trigger an error
+        symlink("/bin", os.path.join(eb.installdir, 'bin'))
+        eb.module_load_environment.PATH = ['bin']
+
+        with eb.module_generator.start_module_creation():
+            err_regex = "Expansion of search path glob.*pointing outside of install directory.*"
+            self.assertErrorRegex(EasyBuildError, err_regex, eb.make_module_req)
+
+        # Test modextrapaths: with absolute paths, appending and custom delimiters
+        remove_dir(eb.installdir)
+        self.contents += '\n'.join([
+            "",
+            "modextrapaths = {",
+            "    'TEST_VAR': ['foo', 'baz', '/bin'],",
+            "    'TEST_VAR_CUSTOM': {'paths': ['foo', 'baz'], 'delimiter': ';', 'prepend': False},",
+            "    'LD_LIBRARY_PATH': 'foo',",
+            "    MODULE_LOAD_ENV_HEADERS: ['include/foo', 'include/bar'],",
+            "}",
+        ])
+        self.writeEC()
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        eb.installdir = config.install_path()
+
+        # populate install dir
+        mkdir(os.path.join(eb.installdir, 'lib'), parents=True)
+        write_file(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'install lib')
+        mkdir(os.path.join(eb.installdir, 'foo'), parents=True)
+        write_file(os.path.join(eb.installdir, 'foo', 'bar'), 'install file')
+        mkdir(os.path.join(eb.installdir, 'baz'), parents=True)
+        mkdir(os.path.join(eb.installdir, 'include', 'foo'), parents=True)
+        write_file(os.path.join(eb.installdir, 'include', 'foo', 'foo.h'), 'header file')
+        mkdir(os.path.join(eb.installdir, 'include', 'bar'), parents=True)
+
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
+
+        expected_patterns = [
+            r"^append[-_]path.*TEST_VAR_CUSTOM.*root.*foo.*",
+            r"^prepend[-_]path.*CPATH.*root.*include.*",
+            r"^prepend[-_]path.*CPATH.*root.*include/foo.*",
+            r"^prepend[-_]path.*LD_LIBRARY_PATH.*root.*lib",
+            r"^prepend[-_]path.*LD_LIBRARY_PATH.*root.*foo",
+            r"^prepend[-_]path.*TEST_VAR.*root.*foo",
+            r"^prepend[-_]path.*TEST_VAR.*/bin",
+        ]
+        for pattern in expected_patterns:
+            self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
+
+        non_expected_patterns = [
+            r"^append[-_]path.*TEST_VAR_APPEND.*root.*baz",
+            r"^prepend[-_]path.*CPATH.*root.*include/bar.*",
+            r"^prepend[-_]path.*TEST_VAR.*root.*baz",
+        ]
+        for pattern in non_expected_patterns:
+            self.assertFalse(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
 
         # cleanup
         eb.close_log()
@@ -813,51 +877,6 @@ class EasyBlockTest(EnhancedTestCase):
         alttxt = eb.make_module_extra(altroot='/opt/software/tau/6.28', altversion='6.28').strip()
         self.assertTrue(expected_alt.match(alttxt),
                         "Pattern %s found in %s" % (expected_alt.pattern, alttxt))
-
-        installver = '3.14-gompi-2018a'
-
-        # also check how absolute paths specified in modexself.contents = '\n'.join([
-        self.contents += "\nmodextrapaths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
-        self.contents += "\nmodextrapaths_append = {'TEST_PATH_VAR_APPEND': ['foo', '/test/absolute/path', 'bar']}"
-        self.writeEC()
-        ec = EasyConfig(self.eb_file)
-        eb = EasyBlock(ec)
-        eb.installdir = os.path.join(config.install_path(), 'pi', installver)
-        eb.check_readiness_step()
-
-        # absolute paths are not allowed by default
-        error_pattern = "Absolute path .* passed to update_paths which only expects relative paths"
-        with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, eb.make_module_step)
-
-        # allow use of absolute paths, and verify contents of module
-        self.contents += "\nallow_prepend_abs_path = True"
-        self.contents += "\nallow_append_abs_path = True"
-        self.writeEC()
-        ec = EasyConfig(self.eb_file)
-        eb = EasyBlock(ec)
-        eb.installdir = os.path.join(config.install_path(), 'pi', installver)
-        eb.check_readiness_step()
-
-        with self.mocked_stdout_stderr():
-            modrootpath = eb.make_module_step()
-
-        modpath = os.path.join(modrootpath, 'pi', installver)
-        if get_module_syntax() == 'Lua':
-            modpath += '.lua'
-
-        self.assertExists(modpath)
-        txt = read_file(modpath)
-        patterns = [
-            r"^prepend[-_]path.*TEST_PATH_VAR.*root.*foo",
-            r"^prepend[-_]path.*TEST_PATH_VAR.*/test/absolute/path",
-            r"^prepend[-_]path.*TEST_PATH_VAR.*root.*bar",
-            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*root.*foo",
-            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*/test/absolute/path",
-            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*root.*bar",
-        ]
-        for pattern in patterns:
-            self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
 
     def test_make_module_deppaths(self):
         """Test for make_module_deppaths"""
@@ -1483,8 +1502,8 @@ class EasyBlockTest(EnhancedTestCase):
             'PATH': ('xbin', 'pibin'),
             'CPATH': 'pi/include',
             'TCLLIBPATH': {'paths': 'pi', 'delimiter': ' '},
+            'APPEND_PATH': {'paths': 'pi', 'prepend': False},
         }
-        modextrapaths_append = {'APPEND_PATH': 'append_path'}
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
@@ -1498,7 +1517,6 @@ class EasyBlockTest(EnhancedTestCase):
             "hiddendependencies = [('test', '1.2.3'), ('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             "modextravars = %s" % str(modextravars),
             "modextrapaths = %s" % str(modextrapaths),
-            "modextrapaths_append = %s" % str(modextrapaths_append),
         ])
 
         # test if module is generated correctly
@@ -1511,9 +1529,12 @@ class EasyBlockTest(EnhancedTestCase):
             eb.make_builddir()
             eb.prepare_step()
 
-        # Create a dummy file in bin to test if the duplicate entry of modextrapaths is ignored
-        os.makedirs(os.path.join(eb.installdir, 'bin'))
-        write_file(os.path.join(eb.installdir, 'bin', 'dummy_exe'), 'hello')
+        # populate install dir
+        for bin_dir in ('bin', 'xbin', 'pibin'):
+            mkdir(os.path.join(eb.installdir, bin_dir), parents=True)
+            write_file(os.path.join(eb.installdir, bin_dir, 'dummy.exe'), 'hello')
+        mkdir(os.path.join(eb.installdir, 'pi', 'include'), parents=True)
+        write_file(os.path.join(eb.installdir, 'pi', 'include', 'dummy.h'), 'hello')
 
         with self.mocked_stdout_stderr():
             modpath = os.path.join(eb.make_module_step(), name, version)
@@ -1557,50 +1578,34 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (key, vals) in modextrapaths.items():
+            placement = 'prepend'
+            delim_tcl = ''
+            delim_lua = ''
             if isinstance(vals, dict):
-                delim = vals['delimiter']
                 paths = vals['paths']
                 if isinstance(paths, str):
                     paths = [paths]
-
-                for val in paths:
-                    if get_module_syntax() == 'Tcl':
-                        regex = re.compile(fr'^prepend-path\s+-d\s+"{delim}"\s+{key}\s+\$root/{val}$', re.M)
-                    elif get_module_syntax() == 'Lua':
-                        regex = re.compile(fr'^prepend_path\("{key}", pathJoin\(root, "{val}"\), "{delim}"\)$', re.M)
-                    else:
-                        self.fail("Unknown module syntax: %s" % get_module_syntax())
-                    self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
-                    # Check for duplicates
-                    num_prepends = len(regex.findall(txt))
-                    self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
+                if 'delimiter' in vals:
+                    delim_tcl = fr'+-d\s+"{vals["delimiter"]}"\s'
+                    delim_lua = fr', "{vals["delimiter"]}"'
+                if 'prepend' in vals:
+                    placement = 'prepend' if vals['prepend'] else 'append'
+            elif isinstance(vals, str):
+                paths = [vals]
             else:
-                if isinstance(vals, str):
-                    vals = [vals]
+                paths = vals
 
-                for val in vals:
-                    if get_module_syntax() == 'Tcl':
-                        regex = re.compile(fr'^prepend-path\s+{key}\s+\$root/{val}$', re.M)
-                    elif get_module_syntax() == 'Lua':
-                        regex = re.compile(fr'^prepend_path\("{key}", pathJoin\(root, "{val}"\)\)$', re.M)
-                    else:
-                        self.fail("Unknown module syntax: %s" % get_module_syntax())
-                    self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
-                    # Check for duplicates
-                    num_prepends = len(regex.findall(txt))
-                    self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
-
-        for (key, vals) in modextrapaths_append.items():
-            if isinstance(vals, str):
-                vals = [vals]
-            for val in vals:
+            for val in paths:
                 if get_module_syntax() == 'Tcl':
-                    regex = re.compile(r'^append-path\s+(-d ".")?%s\s+\$root/%s$' % (key, val), re.M)
+                    regex = re.compile(fr'^{placement}-path\s{delim_tcl}+{key}\s+\$root/{val}$', re.M)
                 elif get_module_syntax() == 'Lua':
-                    regex = re.compile(r'^append_path\("%s", pathJoin\(root, "%s"\)(, ".")?\)$' % (key, val), re.M)
+                    regex = re.compile(fr'^{placement}_path\("{key}", pathJoin\(root, "{val}"\){delim_lua}\)$', re.M)
                 else:
-                    self.fail("Unknown module syntax: %s" % get_module_syntax())
-                self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+                    self.fail(f"Unknown module syntax: {get_module_syntax()}")
+                self.assertTrue(regex.search(txt), f"Pattern {regex.pattern} found in {txt}")
+                # Check for duplicates
+                num_prepends = len(regex.findall(txt))
+                self.assertEqual(num_prepends, 1, f"Expected exactly 1 {regex.pattern} command in {txt}")
 
         for (name, ver) in [('GCC', '6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
@@ -3435,9 +3440,6 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(os.path.join(eb.installdir, 'dir_full_subdirs', 'subdir1', 'file12.txt'), 'test file 1.2')
         write_file(os.path.join(eb.installdir, 'dir_full_subdirs', 'subdir2', 'file21.txt'), 'test file 2.1')
 
-        eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.NEITHER)
-
         self.assertEqual(test_emsp("nonexistent", ModEnvVarType.PATH), [])
         self.assertEqual(test_emsp("nonexistent", ModEnvVarType.PATH_WITH_FILES), [])
         self.assertEqual(test_emsp("nonexistent", ModEnvVarType.PATH_WITH_TOP_FILES), [])
@@ -3472,13 +3474,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(test_emsp("nonexistent/*", ModEnvVarType.PATH_WITH_FILES), [])
         self.assertEqual(test_emsp("nonexistent/*", ModEnvVarType.PATH_WITH_TOP_FILES), [])
 
-        # state of install_lib_symlink should not have changed
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.NEITHER)
-
         # test just one lib directory
         os.mkdir(os.path.join(eb.installdir, "lib"))
-        eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.NEITHER)
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib"])
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), [])
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), [])
@@ -3489,8 +3486,6 @@ class EasyBlockTest(EnhancedTestCase):
 
         # test both lib and lib64 directories
         os.mkdir(os.path.join(eb.installdir, "lib64"))
-        eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.NEITHER)
         self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH)), ["lib", "lib64"])
         self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib"])
         self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
@@ -3502,17 +3497,15 @@ class EasyBlockTest(EnhancedTestCase):
         # test lib64 symlinked to lib
         remove_dir(os.path.join(eb.installdir, "lib64"))
         os.symlink("lib", os.path.join(eb.installdir, "lib64"))
-        eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.LIB64_TO_LIB)
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib"])
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["lib"])
         self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), [])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), [])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), [])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH), ["lib"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), ["lib"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH), ["lib", "lib"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib", "lib"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib", "lib"])
 
         # test lib symlinked to lib64
         remove_dir(os.path.join(eb.installdir, "lib"))
@@ -3520,36 +3513,32 @@ class EasyBlockTest(EnhancedTestCase):
         os.mkdir(os.path.join(eb.installdir, "lib64"))
         write_file(os.path.join(eb.installdir, "lib64", "libtest.so"), "not actually a lib")
         os.symlink("lib64", os.path.join(eb.installdir, "lib"))
-        eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.LIB_TO_LIB64)
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), [])
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), [])
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), [])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib64"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
         self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), ["lib64"])
         self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
         self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH), ["lib64"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH), ["lib64", "lib64"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib64", "lib64"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64", "lib64"])
 
         # test both lib and lib64 symlinked to some other folder
         remove_dir(os.path.join(eb.installdir, "lib64"))
         remove_file(os.path.join(eb.installdir, "lib"))
-        os.mkdir(os.path.join(eb.installdir, "random_lib_dir"))
-        write_file(os.path.join(eb.installdir, "random_lib_dir", "libtest.so"), "not actually a lib")
-        os.symlink("random_lib_dir", os.path.join(eb.installdir, "lib"))
-        os.symlink("random_lib_dir", os.path.join(eb.installdir, "lib64"))
-        eb.check_install_lib_symlink()
-        self.assertEqual(eb.install_lib_symlink, LibSymlink.BOTH_TO_DIR)
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib"])
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["lib"])
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), ["lib64"])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
-        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH)), ["lib", "lib64"])
-        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES)), ["lib", "lib64"])
-        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES)), ["lib", "lib64"])
+        os.mkdir(os.path.join(eb.installdir, "some_dir"))
+        write_file(os.path.join(eb.installdir, "some_dir", "libtest.so"), "not actually a lib")
+        os.symlink("some_dir", os.path.join(eb.installdir, "lib"))
+        os.symlink("some_dir", os.path.join(eb.installdir, "lib64"))
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["some_dir"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["some_dir"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["some_dir"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), ["some_dir"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), ["some_dir"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), ["some_dir"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH)), ["some_dir", "some_dir"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES)), ["some_dir", "some_dir"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES)), ["some_dir", "some_dir"])
 
 
 def suite():

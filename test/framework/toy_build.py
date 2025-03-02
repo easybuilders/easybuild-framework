@@ -371,8 +371,10 @@ class ToyBuildTest(EnhancedTestCase):
         # tweak easyconfig by appending to it
         ec_extra = '\n'.join([
             "versionsuffix = '-tweaked'",
-            "modextrapaths = {'SOMEPATH': ['foo/bar', 'baz', '']}",
-            "modextrapaths_append = {'SOMEPATH_APPEND': ['qux/fred', 'thud', '']}",
+            "modextrapaths = {",
+            "    'SOMEPATH': ['foo/bar', 'baz', ''],",
+            "    'SOMEPATH_APPEND': {'paths': ['qux/fred', 'thud', ''], 'prepend': False},",
+            "}",
             "modextravars = {'FOO': 'bar'}",
             "modloadmsg =  '%s'" % modloadmsg,
             "modtclfooter = 'puts stderr \"oh hai!\"'",  # ignored when module syntax is Lua
@@ -384,8 +386,22 @@ class ToyBuildTest(EnhancedTestCase):
             "docurls = ['https://easybuilders.github.io/easybuild/toy/docs.html']",
             "upstream_contacts = 'support@toy.org'",
             "site_contacts = ['Jim Admin', 'Jane Admin']",
+            "postinstallcmds = [",
+            "    'mkdir \"%(installdir)s/foo\"',"
+            "    'touch \"%(installdir)s/foo/bar\"',"
+            "    'touch \"%(installdir)s/baz\"',"
+            "    'mkdir \"%(installdir)s/qux\"',"
+            "    'touch \"%(installdir)s/qux/fred\"',"
+            "    'touch \"%(installdir)s/thud\"',"
+            "]",
         ])
         write_file(ec_file, ec_extra, append=True)
+
+        # populate test install dir
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0-tweaked')
+        mkdir(os.path.join(toy_installdir, 'foo'), parents=True)
+        write_file(os.path.join(toy_installdir, 'foo', 'bar'), "Test install file")
+        mkdir(os.path.join(toy_installdir, 'baz'), parents=True)
 
         args = [
             ec_file,
@@ -1619,21 +1635,22 @@ class ToyBuildTest(EnhancedTestCase):
                 r'',
                 r'conflict\("toy"\)',
                 r'',
+                r'prepend_path\("CMAKE_LIBRARY_PATH", pathJoin\(root, "lib"\)\)',
                 r'prepend_path\("CMAKE_PREFIX_PATH", root\)',
                 r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib"\)\)',
                 r'prepend_path\("LIBRARY_PATH", pathJoin\(root, "lib"\)\)',
                 r'prepend_path\("PATH", pathJoin\(root, "bin"\)\)',
-                r'setenv\("EBROOTTOY", root\)',
-                r'setenv\("EBVERSIONTOY", "0.0"\)',
-                r'setenv\("EBDEVELTOY", pathJoin\(root, "easybuild/toy-0.0-tweaked-easybuild-devel"\)\)',
-                r'',
-                r'setenv\("FOO", "bar"\)',
                 r'prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)',
                 r'prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)',
                 r'prepend_path\("SOMEPATH", root\)',
                 r'append_path\("SOMEPATH_APPEND", pathJoin\(root, "qux/fred"\)\)',
                 r'append_path\("SOMEPATH_APPEND", pathJoin\(root, "thud"\)\)',
                 r'append_path\("SOMEPATH_APPEND", root\)',
+                r'setenv\("EBROOTTOY", root\)',
+                r'setenv\("EBVERSIONTOY", "0.0"\)',
+                r'setenv\("EBDEVELTOY", pathJoin\(root, "easybuild/toy-0.0-tweaked-easybuild-devel"\)\)',
+                r'',
+                r'setenv\("FOO", "bar"\)',
                 r'',
                 r'if mode\(\) == "load" then',
             ] + modloadmsg_lua + [
@@ -1660,21 +1677,22 @@ class ToyBuildTest(EnhancedTestCase):
                 r'',
                 r'conflict toy',
                 r'',
+                r'prepend-path	CMAKE_LIBRARY_PATH		\$root/lib',
                 r'prepend-path	CMAKE_PREFIX_PATH		\$root',
                 r'prepend-path	LD_LIBRARY_PATH		\$root/lib',
                 r'prepend-path	LIBRARY_PATH		\$root/lib',
                 r'prepend-path	PATH		\$root/bin',
-                r'setenv	EBROOTTOY		"\$root"',
-                r'setenv	EBVERSIONTOY		"0.0"',
-                r'setenv	EBDEVELTOY		"\$root/easybuild/toy-0.0-tweaked-easybuild-devel"',
-                r'',
-                r'setenv	FOO		"bar"',
                 r'prepend-path	SOMEPATH		\$root/foo/bar',
                 r'prepend-path	SOMEPATH		\$root/baz',
                 r'prepend-path	SOMEPATH		\$root',
                 r'append-path	SOMEPATH_APPEND		\$root/qux/fred',
                 r'append-path	SOMEPATH_APPEND		\$root/thud',
                 r'append-path	SOMEPATH_APPEND		\$root',
+                r'setenv	EBROOTTOY		"\$root"',
+                r'setenv	EBVERSIONTOY		"0.0"',
+                r'setenv	EBDEVELTOY		"\$root/easybuild/toy-0.0-tweaked-easybuild-devel"',
+                r'',
+                r'setenv	FOO		"bar"',
                 r'',
                 r'if { \[ module-info mode load \] } {',
             ] + modloadmsg_tcl + [

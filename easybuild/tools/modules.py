@@ -57,7 +57,7 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import get_subclasses, nub
 
 
-MODULE_LOAD_ENV_HEADERS = 'HEADERS'
+MODULE_LOAD_ENV_HEADERS = 'CPP_HEADERS'
 
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
@@ -154,7 +154,7 @@ class ModuleEnvironmentVariable:
     Contents of environment variable is a list of unique strings
     """
 
-    def __init__(self, contents, var_type=ModEnvVarType.PATH_WITH_FILES, delim=os.pathsep):
+    def __init__(self, contents, delimiter=os.pathsep, prepend=True, var_type=ModEnvVarType.PATH_WITH_FILES):
         """
         Initialize new environment variable
         Actual contents of the environment variable are held in self.contents
@@ -162,7 +162,8 @@ class ModuleEnvironmentVariable:
         Existence of paths and their contents are not checked at init
         """
         self.contents = contents
-        self.delim = delim
+        self.delimiter = delimiter
+        self.mod_prepend = prepend
         self.type = var_type
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
@@ -171,7 +172,7 @@ class ModuleEnvironmentVariable:
         return repr(self.contents)
 
     def __str__(self):
-        return self.delim.join(self.contents)
+        return self.delimiter.join(self.contents)
 
     def __iter__(self):
         return iter(self.contents)
@@ -249,17 +250,26 @@ class ModuleLoadEnvironment:
       with attribute name equal to environment variable name.
     - Aliases are arbitrary names that serve to apply changes to lists of
       environment variables
-    - Only environment variables attributes are public. Other attributes like
-      aliases are private.
+    - Environment variables are public attributes, with names containing
+      uppercase letters and '_'
+    - Other attributes like aliases are private, with names starting with '_'
+    - Environment variables are kept in a private dict to avoid name collisions
     """
 
     def __init__(self, aliases=None):
         """
         Initialize default environment definition
-        Paths are relative to root of installation directory
 
         :aliases: dict defining environment variables aliases
         """
+        # The following regex patterns are needed to properly distinguish
+        # between public environment variables and private attributes. Set them
+        # directly into __dict__ to bypass class getter and setter.
+        self.__dict__['regex'] = {}
+        self.regex['mangled_attr'] = re.compile('^_[A-Za-z]+__')        # mangled attributes: _ClassName__VAR_NAME
+        self.regex['private_attr'] = re.compile('^_[a-z][a-z_]+$')      # private attributes: _var_name
+        self.regex['env_var_name'] = re.compile('^[A-Z_]+[A-Z0-9_]+$')  # environment variables: {__}VAR_NAME_00_SUFFIX
+
         self._aliases = {}
         if aliases is not None:
             try:
@@ -271,6 +281,7 @@ class ModuleLoadEnvironment:
                     f"Expected a dictionary but got: {type(aliases)}."
                 ) from err
 
+        self._env_vars = {}
         self.ACLOCAL_PATH = [os.path.join('share', 'aclocal')]
         self.CLASSPATH = ['*.jar']
         self.CMAKE_LIBRARY_PATH = ['lib64']  # only needed for installations with standalone lib64
@@ -288,47 +299,76 @@ class ModuleLoadEnvironment:
         for envar_name in self._aliases.get(MODULE_LOAD_ENV_HEADERS, []):
             setattr(self, envar_name, SEARCH_PATH_HEADER_DIRS)
 
+    def __getattr__(self, name):
+        """
+        Return requested attribute from either the private attributes in self.__dict__
+        or the public ModuleEnvironmentVariables in self._env_vars
+        """
+        if self.regex['private_attr'].match(name):
+            return self.__dict__[name]
+
+        name = self._unmangle_env_var_name(name)
+        return self.__dict__['_env_vars'][name]
+
     def __setattr__(self, name, value):
         """
         Specific restrictions for ModuleLoadEnvironment attributes:
-        - public attributes are instances of ModuleEnvironmentVariable with uppercase names
-        - private attributes are allowed with any name
+        - public attributes are instances of ModuleEnvironmentVariable
+        - private attributes are allowed with lowercase names starting with single underscore
         """
-        if name.startswith('_'):
+        if self.regex['private_attr'].match(name):
             # do not control protected/private attributes
             return super().__setattr__(name, value)
 
-        return self.__set_module_environment_variable(name, value)
+        try:
+            # set public environment variable
+            name = self._unmangle_env_var_name(name)
+            self._env_vars[name] = self._set_module_environment_variable(name, value)
+        except TypeError as err:
+            raise EasyBuildError(
+                f"Cannot define ModuleEnvironmentVariable ${name} with the following attributes: {value}"
+            ) from err
 
-    def __set_module_environment_variable(self, name, value):
+        return True
+
+    def _unmangle_env_var_name(self, name):
+        """
+        Unmangle environment variable names that were originally set with a leading double underscore
+        """
+        if self.regex['mangled_attr'].match(name):
+            # environment variable with 2+ leading underscores: __UPPER_CASE
+            # undo mangling into _ClassName__UPPER_CASE
+            split_name = name.split('__')
+            split_name[0] = ''
+            name = '__'.join(split_name)
+        return name
+
+    def _set_module_environment_variable(self, name, value):
         """
         Specific restrictions for ModuleEnvironmentVariable attributes:
-        - attribute names are uppercase
+        - attribute names are uppercase with underscores
         - dictionaries are unpacked into arguments of ModuleEnvironmentVariable
         - controls variables with special types (e.g. PATH, LD_LIBRARY_PATH)
         """
-        if name != name.upper():
-            raise EasyBuildError(f"Names of ModuleLoadEnvironment attributes must be uppercase, got '{name}'")
+        if not self.regex['env_var_name'].match(name):
+            raise EasyBuildError(
+                "Name of ModuleLoadEnvironment attribute does not conform to shell naming rules, "
+                f"it must only have upper-case letters and underscores: '{name}'"
+            )
 
-        try:
-            (contents, kwargs) = value
-        except ValueError:
-            contents, kwargs = value, {}
-
-        if not isinstance(kwargs, dict):
-            contents, kwargs = value, {}
+        if not isinstance(value, dict):
+            value = {'contents': value}
 
         # special variables that require files in their top directories
         if name in ('LD_LIBRARY_PATH', 'PATH'):
-            kwargs['var_type'] = ModEnvVarType.PATH_WITH_TOP_FILES
+            value.update({'var_type': ModEnvVarType.PATH_WITH_TOP_FILES})
 
-        return super().__setattr__(name, ModuleEnvironmentVariable(contents, **kwargs))
+        return ModuleEnvironmentVariable(**value)
 
     @property
     def vars(self):
         """Return list of public ModuleEnvironmentVariable"""
-
-        return [envar for envar in self.__dict__ if not str(envar).startswith('_')]
+        return list(self._env_vars)
 
     def __iter__(self):
         """Make the class iterable"""
@@ -341,7 +381,7 @@ class ModuleLoadEnvironment:
         - value = its "contents" attribute
         """
         for attr in self.vars:
-            yield attr, getattr(self, attr)
+            yield attr, self._env_vars[attr]
 
     def update(self, new_env):
         """Update contents of environment from given dictionary"""
@@ -363,7 +403,7 @@ class ModuleLoadEnvironment:
         Silently goes through if attribute is already missing
         """
         if var_name in self.vars:
-            delattr(self, var_name)
+            del self._env_vars[var_name]
 
     @property
     def as_dict(self):
@@ -385,7 +425,7 @@ class ModuleLoadEnvironment:
         Return iterator to search path variables for given alias
         """
         try:
-            yield from [getattr(self, envar) for envar in self._aliases[alias]]
+            yield from [self._env_vars[var_name] for var_name in self._aliases[alias]]
         except KeyError as err:
             raise EasyBuildError(f"Unknown search path alias: {alias}") from err
         except AttributeError as err:

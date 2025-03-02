@@ -632,6 +632,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     r'^``ARCH``\s*``(aarch64|ppc64le|x86_64)``\s*CPU architecture .*',
                     r'^``EXTERNAL_MODULE``.*',
                     r'^``HOME``.*',
+                    r'^``MODULE_LOAD_ENV_HEADERS``.*Environment variables .*',
                     r'``OS_NAME``.*',
                     r'``OS_PKG_IBVERBS_DEV``.*',
                 ]
@@ -640,6 +641,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     r'^\s*ARCH: (aarch64|ppc64le|x86_64) \(CPU architecture .*\)',
                     r'^\s*EXTERNAL_MODULE:.*',
                     r'^\s*HOME:.*',
+                    r'^\s*MODULE_LOAD_ENV_HEADERS:.*\(Environment variables.*\)',
                     r'\s*OS_NAME: .*',
                     r'\s*OS_PKG_IBVERBS_DEV: .*',
                 ]
