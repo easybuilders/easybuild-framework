@@ -81,9 +81,9 @@ from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_
 from easybuild.tools.config import EASYBUILD_SOURCES_URL, EBPYTHONPREFIXES  # noqa
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import PYTHONPATH, SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
-from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
+from easybuild.tools.config import build_option, build_path, get_failed_install_build_dirs_path
+from easybuild.tools.config import get_failed_install_logs_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
-from easybuild.tools.config import get_failed_install_build_dirs_path, get_failed_install_logs_path
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
