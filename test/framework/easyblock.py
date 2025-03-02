@@ -52,7 +52,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, update_build_option
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_dir, remove_file
-from easybuild.tools.filetools import verify_checksum, write_file
+from easybuild.tools.filetools import symlink, verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
 from easybuild.tools.modules import EnvironmentModules, Lmod, ModEnvVarType, reset_module_caches
 from easybuild.tools.version import get_git_revision, this_is_easybuild
@@ -532,7 +532,7 @@ class EasyBlockTest(EnhancedTestCase):
         for env_var in default_mod_load_vars:
             delattr(eb.module_load_environment, env_var)
 
-        self.assertEqual(len(vars(eb.module_load_environment)), 0)
+        self.assertEqual(len(eb.module_load_environment.vars), 0)
 
         # check for behavior when a string value is used as value of module_load_environment
         eb.module_load_environment.PATH = 'bin'
@@ -626,6 +626,136 @@ class EasyBlockTest(EnhancedTestCase):
 
         logtxt = read_file(eb.logfile)
         self.assertTrue(re.search(r"WARNING Non-path variables found in module load env.*NONPATH", logtxt, re.M))
+
+        delattr(eb.module_load_environment, 'NONPATH')
+
+        # make sure that entries that symlink to another directory are retained;
+        # the test case inspired by the directory structure for old imkl versions (like 2020.4)
+        remove_dir(eb.installdir)
+
+        # lib/ symlinked to libraries/
+        real_libdir = os.path.join(eb.installdir, 'libraries')
+        mkdir(real_libdir, parents=True)
+        symlink(real_libdir, os.path.join(eb.installdir, 'lib'))
+
+        # lib/intel64/ symlinked to lib/intel64_lin/
+        mkdir(os.path.join(eb.installdir, 'lib', 'intel64_lin'), parents=True)
+        symlink(os.path.join(eb.installdir, 'lib', 'intel64_lin'), os.path.join(eb.installdir, 'lib', 'intel64'))
+
+        # library file present in lib/intel64
+        write_file(os.path.join(eb.installdir, 'lib', 'intel64', 'libfoo.so'), 'libfoo.so')
+
+        # lib64/ symlinked to lib/
+        symlink(os.path.join(eb.installdir, 'lib'), os.path.join(eb.installdir, 'lib64'))
+
+        eb.module_load_environment.LD_LIBRARY_PATH = [os.path.join('lib', 'intel64')]
+        eb.module_load_environment.LIBRARY_PATH = eb.module_load_environment.LD_LIBRARY_PATH
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
+
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search(r"^prepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/intel64$", txt, re.M))
+            self.assertTrue(re.search(r"^prepend-path\s+LIBRARY_PATH\s+\$root/lib/intel64\n$", txt, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.search(r'^prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/intel64"\)\)$',
+                                      txt, re.M))
+            self.assertTrue(re.search(r'^prepend_path\("LIBRARY_PATH", pathJoin\(root, "lib/intel64"\)\)$',
+                                      txt, re.M))
+        else:
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
+
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
+
+    def test_module_search_path_headers(self):
+        """Test functionality of module-search-path-headers option"""
+        sp_headers_mode = {
+            "cpath": ["CPATH"],
+            "include_paths": ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
+        }
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.writeEC()
+
+        for build_opt, sp_headers in sp_headers_mode.items():
+            update_build_option('module_search_path_headers', build_opt)
+            eb = EasyBlock(EasyConfig(self.eb_file))
+            eb.installdir = config.install_path()
+            try:
+                os.makedirs(os.path.join(eb.installdir, 'include'))
+                write_file(os.path.join(eb.installdir, 'include', 'header.h'), 'dummy header file')
+            except FileExistsError:
+                pass
+
+            with eb.module_generator.start_module_creation():
+                guess = eb.make_module_req()
+
+            if not sp_headers:
+                # none option adds nothing to module file
+                if get_module_syntax() == 'Tcl':
+                    tcl_ref_pattern = r"^prepend-path\s+CPATH\s+\$root/include$"
+                    self.assertFalse(re.search(tcl_ref_pattern, guess, re.M))
+                elif get_module_syntax() == 'Lua':
+                    lua_ref_pattern = r'^prepend_path\("CPATH", pathJoin\(root, "include"\)\)$'
+                    self.assertFalse(re.search(lua_ref_pattern, guess, re.M))
+            else:
+                for env_var in sp_headers:
+                    if get_module_syntax() == 'Tcl':
+                        tcl_ref_pattern = rf"^prepend-path\s+{env_var}\s+\$root/include$"
+                        self.assertTrue(re.search(tcl_ref_pattern, guess, re.M))
+                    elif get_module_syntax() == 'Lua':
+                        lua_ref_pattern = rf'^prepend_path\("{env_var}", pathJoin\(root, "include"\)\)$'
+                        self.assertTrue(re.search(lua_ref_pattern, guess, re.M))
+
+        # test with easyconfig parameter
+        for ec_param, sp_headers in sp_headers_mode.items():
+            self.contents += f'\nmodule_search_path_headers = "{ec_param}"'
+            self.writeEC()
+            eb = EasyBlock(EasyConfig(self.eb_file))
+            eb.installdir = config.install_path()
+            try:
+                os.makedirs(os.path.join(eb.installdir, 'include'))
+                write_file(os.path.join(eb.installdir, 'include', 'header.h'), 'dummy header file')
+            except FileExistsError:
+                pass
+
+            for build_opt in sp_headers_mode:
+                update_build_option('module_search_path_headers', build_opt)
+                with eb.module_generator.start_module_creation():
+                    guess = eb.make_module_req()
+                if not sp_headers:
+                    # none option adds nothing to module file
+                    if get_module_syntax() == 'Tcl':
+                        tcl_ref_pattern = r"^prepend-path\s+CPATH\s+\$root/include$"
+                        self.assertFalse(re.search(tcl_ref_pattern, guess, re.M))
+                    elif get_module_syntax() == 'Lua':
+                        lua_ref_pattern = r'^prepend_path\("CPATH", pathJoin\(root, "include"\)\)$'
+                        self.assertFalse(re.search(lua_ref_pattern, guess, re.M))
+                else:
+                    for env_var in sp_headers:
+                        if get_module_syntax() == 'Tcl':
+                            tcl_ref_pattern = rf"^prepend-path\s+{env_var}\s+\$root/include$"
+                            self.assertTrue(re.search(tcl_ref_pattern, guess, re.M))
+                        elif get_module_syntax() == 'Lua':
+                            lua_ref_pattern = rf'^prepend_path\("{env_var}", pathJoin\(root, "include"\)\)$'
+                            self.assertTrue(re.search(lua_ref_pattern, guess, re.M))
+
+        # test wrong easyconfig parameter
+        self.contents += '\nmodule_search_path_headers = "WRONG_OPT"'
+        self.writeEC()
+        ec = EasyConfig(self.eb_file)
+
+        error_pattern = "Unknown value selected for option module-search-path-headers"
+        with eb.module_generator.start_module_creation():
+            self.assertErrorRegex(EasyBuildError, error_pattern, EasyBlock, ec)
 
         # cleanup
         eb.close_log()
@@ -2363,52 +2493,142 @@ class EasyBlockTest(EnhancedTestCase):
 
         handle, toy_ec2 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
-        write_file(toy_ec2, toytxt + "\nparallel = 123\nmaxparallel = 67")
+        write_file(toy_ec2, toytxt + "\nparallel = 12\nmaxparallel = 6")
 
         handle, toy_ec3 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
         write_file(toy_ec3, toytxt + "\nparallel = False")
 
+        handle, toy_ec4 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
+        os.close(handle)
+        write_file(toy_ec4, toytxt + "\nmaxparallel = 6")
+
+        handle, toy_ec5 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
+        os.close(handle)
+        write_file(toy_ec5, toytxt + "\nmaxparallel = False")
+
         # default: parallelism is derived from # available cores + ulimit
-        test_eb = EasyBlock(EasyConfig(toy_ec))
-        test_eb.check_readiness_step()
-        self.assertTrue(isinstance(test_eb.cfg['parallel'], int) and test_eb.cfg['parallel'] > 0)
+        # Note that maxparallel has a default of 16, so we need a lower auto_parallel value here
+        auto_parallel = 16 - 4  # Using + 3 below which must still be less
+        st.det_parallelism._default_parallelism = auto_parallel
 
-        # only 'parallel' easyconfig parameter specified (no 'parallel' build option)
-        test_eb = EasyBlock(EasyConfig(toy_ec1))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 13)
+        # 'parallel' build option NOT specified
+        test_cases = {
+            '': auto_parallel,
+            'parallel = False': 1,
+            'parallel = 1': 1,
+            'parallel = 6': 6,
+            f'parallel = {auto_parallel + 3}': auto_parallel + 3,  # Setting parallel disables auto-detection
+            'maxparallel = False': 1,
+            'maxparallel = 1': 1,
+            'maxparallel = 6': 6,
+            f'maxparallel = {auto_parallel + 3}': auto_parallel,
+            'parallel = 8\nmaxparallel = 6': 6,
+            'parallel = 8\nmaxparallel = 9': 8,
+            'parallel = False\nmaxparallel = 6': 1,
+            'parallel = 8\nmaxparallel = False': 1,
+        }
 
-        # both 'parallel' and 'maxparallel' easyconfig parameters specified (no 'parallel' build option)
-        test_eb = EasyBlock(EasyConfig(toy_ec2))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 67)
+        for txt, expected in test_cases.items():
+            with self.subTest(ec_params=txt):
+                self.contents = toytxt + '\n' + txt
+                self.writeEC()
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    test_eb = EasyBlock(EasyConfig(self.eb_file))
+                test_eb.post_init()
+                self.assertEqual(test_eb.cfg.parallel, expected)
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    self.assertEqual(test_eb.cfg['parallel'], expected)
 
-        # make sure 'parallel = False' is not overriden (no 'parallel' build option)
-        test_eb = EasyBlock(EasyConfig(toy_ec3))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], False)
+        # 'parallel' build option specified
+        buildopt_parallel = 11
+        # When build option is given the auto-parallelism is ignored. Verify by setting it very low
+        st.det_parallelism._default_parallelism = 2
+        init_config(build_options={'parallel': str(buildopt_parallel), 'validate': False})
 
-        # only 'parallel' build option specified
-        init_config(build_options={'parallel': '9', 'validate': False})
-        test_eb = EasyBlock(EasyConfig(toy_ec))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 9)
+        test_cases = {
+            '': buildopt_parallel,
+            'parallel = False': 1,
+            'parallel = 1': 1,
+            'parallel = 6': 6,
+            f'parallel = {buildopt_parallel + 2}': buildopt_parallel,
+            'maxparallel = False': 1,
+            'maxparallel = 1': 1,
+            'maxparallel = 6': 6,
+            f'maxparallel = {buildopt_parallel + 2}': buildopt_parallel,
+            'parallel = 8\nmaxparallel = 6': 6,
+            'parallel = 8\nmaxparallel = 9': 8,
+            'parallel = False\nmaxparallel = 6': 1,
+            'parallel = 8\nmaxparallel = False': 1,
+        }
 
-        # both 'parallel' build option and easyconfig parameter specified (no 'maxparallel')
-        test_eb = EasyBlock(EasyConfig(toy_ec1))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 9)
+        for txt, expected in test_cases.items():
+            with self.subTest(ec_params=txt):
+                self.contents = toytxt + '\n' + txt
+                self.writeEC()
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    test_eb = EasyBlock(EasyConfig(self.eb_file))
+                test_eb.post_init()
+                self.assertEqual(test_eb.cfg.parallel, expected)
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    self.assertEqual(test_eb.cfg['parallel'], expected)
 
-        # both 'parallel' and 'maxparallel' easyconfig parameters specified + 'parallel' build option
-        test_eb = EasyBlock(EasyConfig(toy_ec2))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 9)
+        # Template updated correctly
+        self.contents = toytxt + '\nmaxparallel=2'
+        self.writeEC()
+        test_eb = EasyBlock(EasyConfig(self.eb_file))
+        test_eb.post_init()
 
-        # make sure 'parallel = False' is not overriden (with 'parallel' build option)
-        test_eb = EasyBlock(EasyConfig(toy_ec3))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 0)
+        test_eb.cfg['buildopts'] = '-j %(parallel)s'
+        self.assertEqual(test_eb.cfg['buildopts'], '-j 2')
+        # Might be done in an easyblock step
+        test_eb.cfg.parallel = 42
+        self.assertEqual(test_eb.cfg['buildopts'], '-j 42')
+        # Unaffected by build settings
+        test_eb.cfg.parallel = 421337
+        self.assertEqual(test_eb.cfg['buildopts'], '-j 421337')
+        # False is equal to 1
+        test_eb.cfg.parallel = False
+        self.assertEqual(test_eb.cfg['buildopts'], '-j 1')
+
+        # Legacy behavior. To be removed after deprecation of the parallel EC parameter
+        self.contents = toytxt + '\nmaxparallel=99'
+        self.writeEC()
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            test_eb = EasyBlock(EasyConfig(self.eb_file))
+            parallel = buildopt_parallel - 2
+            test_eb.cfg['parallel'] = parallel  # Old Easyblocks might change that before the ready step
+            test_eb.post_init()
+            self.assertEqual(test_eb.cfg.parallel, parallel)
+            self.assertEqual(test_eb.cfg['parallel'], parallel)
+            # Afterwards it also gets reflected directly ignoring maxparallel
+            parallel = buildopt_parallel * 3
+            test_eb.cfg['parallel'] = parallel
+            self.assertEqual(test_eb.cfg.parallel, parallel)
+            self.assertEqual(test_eb.cfg['parallel'], parallel)
+
+        # Reset mocked value
+        del st.det_parallelism._default_parallelism
+
+    def test_keepsymlinks(self):
+        """Test keepsymlinks parameter (default: True)."""
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toytxt = read_file(toy_ec)
+
+        test_cases = {
+            '': True,
+            'keepsymlinks = False': False,
+            'keepsymlinks = True': True,
+        }
+
+        for txt, expected in test_cases.items():
+            with self.subTest(ec_params=txt):
+                self.contents = toytxt + '\n' + txt
+                self.writeEC()
+                test_eb = EasyBlock(EasyConfig(self.eb_file))
+                test_eb.post_init()
+                self.assertEqual(test_eb.cfg['keepsymlinks'], expected)
 
     def test_guess_start_dir(self):
         """Test guessing the start dir."""
@@ -3311,6 +3531,25 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH), ["lib64"])
         self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
         self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
+
+        # test both lib and lib64 symlinked to some other folder
+        remove_dir(os.path.join(eb.installdir, "lib64"))
+        remove_file(os.path.join(eb.installdir, "lib"))
+        os.mkdir(os.path.join(eb.installdir, "random_lib_dir"))
+        write_file(os.path.join(eb.installdir, "random_lib_dir", "libtest.so"), "not actually a lib")
+        os.symlink("random_lib_dir", os.path.join(eb.installdir, "lib"))
+        os.symlink("random_lib_dir", os.path.join(eb.installdir, "lib64"))
+        eb.check_install_lib_symlink()
+        self.assertEqual(eb.install_lib_symlink, LibSymlink.BOTH_TO_DIR)
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), ["lib64"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH)), ["lib", "lib64"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES)), ["lib", "lib64"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES)), ["lib", "lib64"])
 
 
 def suite():

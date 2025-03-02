@@ -1703,7 +1703,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.output, expected_output)
 
         self.assertEqual(stderr, '')
-        expected = ("== (streaming) output for command 'echo hello" + '\n' + expected_output).split('\n')
+        expected = ("running shell command:\n\techo hello" + '\n' + expected_output).split('\n')
         for line in expected:
             self.assertIn(line, stdout)
 

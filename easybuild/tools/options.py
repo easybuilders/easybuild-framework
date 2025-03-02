@@ -69,13 +69,14 @@ from easybuild.tools.config import DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE
 from easybuild.tools.config import DEFAULT_JOB_EB_CMD, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
 from easybuild.tools.config import DEFAULT_MINIMAL_BUILD_ENV, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL
+from easybuild.tools.config import DEFAULT_MOD_SEARCH_PATH_HEADERS, MOD_SEARCH_PATH_HEADERS
 from easybuild.tools.config import DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_EXTRA_SOURCE_URLS
 from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_WAIT_ON_LOCK_INTERVAL, DEFAULT_WAIT_ON_LOCK_LIMIT
 from easybuild.tools.config import DEFAULT_PR_TARGET_ACCOUNT, DEFAULT_FILTER_RPATH_SANITY_LIBS
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, ERROR, FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS
-from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN
+from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN, build_option
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.config import PYTHON_SEARCH_PATH_TYPES, PYTHONPATH
@@ -465,7 +466,7 @@ class EasyBuildOptions(GeneralOption):
             'insecure-download': ("Don't check the server certificate against the available certificate authorities.",
                                   None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
-            'keep-debug-symbols': ("Sets default value of debug toolchain option", None, 'store_true', True),
+            'keep-debug-symbols': ("Sets default value of debug toolchain option", None, 'store_true', False),
             'lib-lib64-symlink': ("Automatically create symlinks for lib/ pointing to lib64/ if the former is missing",
                                   None, 'store_true', True),
             'lib64-fallback-sanity-check': ("Fallback in sanity check to lib64/ equivalent for missing libraries",
@@ -495,8 +496,9 @@ class EasyBuildOptions(GeneralOption):
             'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
                              "with fallback to basic colored output",
                              'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),
-            'parallel': ("Specify (maximum) level of parallelism used during build procedure",
-                         'int', 'store', None),
+            'parallel': ("Specify (maximum) level of parallelism used during build procedure "
+                         "(actual value is determined by available cores + 'max_parallel' easyconfig parameter)",
+                         'int', 'store', 16),
             'parallel-extensions-install': ("Install list of extensions in parallel (if supported)",
                                             None, 'store_true', False),
             'pre-create-installdir': ("Create installation directory before submitting build jobs",
@@ -621,6 +623,9 @@ class EasyBuildOptions(GeneralOption):
             'module-extensions': ("Include 'extensions' statement in generated module file (Lua syntax only)",
                                   None, 'store_true', True),
             'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
+            'module-search-path-headers': ("Environment variable set by modules on load with search paths "
+                                           "to header files", 'choice', 'store', DEFAULT_MOD_SEARCH_PATH_HEADERS,
+                                           sorted(MOD_SEARCH_PATH_HEADERS.keys())),
             'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
                               sorted(avail_module_generators().keys())),
             'moduleclasses': (("Extend supported module classes "
@@ -1670,6 +1675,7 @@ def handle_include_easyblocks_from(options, log):
             print_warning(warning_msg)
 
     if options.include_easyblocks_from_pr or options.include_easyblocks_from_commit:
+        terse = build_option('terse')
 
         if options.include_easyblocks:
             # check if you are including the same easyblock twice
@@ -1694,7 +1700,7 @@ def handle_include_easyblocks_from(options, log):
                     included_easyblocks |= included_from_pr
 
                 for easyblock in included_from_pr:
-                    print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log)
+                    print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log, silent=terse)
 
                 include_easyblocks(options.tmpdir, easyblocks_from_pr)
 
@@ -1707,7 +1713,8 @@ def handle_include_easyblocks_from(options, log):
                 check_included_multiple(included_from_commit, "commit %s" % easyblock_commit)
 
             for easyblock in included_from_commit:
-                print_msg("easyblock %s included from commit %s" % (easyblock, easyblock_commit), log=log)
+                print_msg("easyblock %s included from commit %s" % (easyblock, easyblock_commit),
+                          log=log, silent=terse)
 
             include_easyblocks(options.tmpdir, easyblocks_from_commit)
 

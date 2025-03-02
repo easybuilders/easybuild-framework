@@ -108,10 +108,8 @@ DEFAULT_CONFIG = {
                        BUILD],
     'hidden': [False, "Install module file as 'hidden' by prefixing its version with '.'", BUILD],
     'installopts': ['', 'Extra options for installation', BUILD],
-    'maxparallel': [16, 'Max degree of parallelism', BUILD],
+    'maxparallel': [None, 'Max degree of parallelism', BUILD],
     'module_only': [False, 'Only generate module file', BUILD],
-    'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
-                        'cores, active cpuset and restrictions in ulimit)'), BUILD],
     'patches': [[], "List of patches to apply", BUILD],
     'prebuildopts': ['', 'Extra options pre-passed to build command.', BUILD],
     'preconfigopts': ['', 'Extra options pre-passed to configure.', BUILD],
@@ -156,8 +154,8 @@ DEFAULT_CONFIG = {
                              FILEMANAGEMENT],
     'keeppreviousinstall': [False, ('Boolean to keep the previous installation with identical '
                                     'name. Experts only!'), FILEMANAGEMENT],
-    'keepsymlinks': [False, ('Boolean to determine whether symlinks are to be kept during copying '
-                             'or if the content of the files pointed to should be copied'),
+    'keepsymlinks': [True, ('Boolean to determine whether symlinks are to be kept during copying '
+                            'or if the content of the files pointed to should be copied'),
                      FILEMANAGEMENT],
     'start_dir': [None, ('Path to start the make in. If the path is absolute, use that path. '
                          'If not, this is added to the guessed path.'), FILEMANAGEMENT],
@@ -208,10 +206,11 @@ DEFAULT_CONFIG = {
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
     'module_depends_on': [None, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
                           '(implies recursive unloading of modules) [DEPRECATED]', MODULES],
+    'module_search_path_headers': [None, "Environment variable set by modules on load "
+                                   "with search paths to header files (if None, use $CPATH)", MODULES],
     'recursive_module_unload': [None, "Recursive unload of all dependencies when unloading module "
-                                      "(True/False to hard enable/disable; None implies honoring "
-                                      "the --recursive-module-unload EasyBuild configuration setting",
-                                MODULES],
+                                "(True/False to hard enable/disable; None implies honoring the "
+                                "--recursive-module-unload EasyBuild configuration setting", MODULES],
 
     # MODULES documentation easyconfig parameters
     #    (docurls is part of MANDATORY)
