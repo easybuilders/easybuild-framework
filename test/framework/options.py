@@ -4022,7 +4022,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(ec_regex.search(logtxt), "Pattern '%s' found in: %s" % (ec_regex.pattern, logtxt))
 
         # easyblock included from pr is found
-        eb_regex = re.compile(r"Successfully obtained Bundle class instance from easybuild.easyblocks.generic.bundle", re.M)
+        eb_regex = re.compile(r"Successfully obtained Bundle class instance from easybuild.easyblocks.generic.bundle",
+                              re.M)
         self.assertTrue(eb_regex.search(logtxt), "Pattern '%s' found in: %s" % (eb_regex.pattern, logtxt))
 
         # easyblock is found via get_easyblock_class
