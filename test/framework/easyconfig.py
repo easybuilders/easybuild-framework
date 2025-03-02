@@ -676,7 +676,7 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain = {"name": "GCC", "version": "4.6.3"}',
             'patches = %s',
             'maxparallel = 1',
-            'keepsymlinks = True',
+            'keepsymlinks = False',
         ]) % str(patches)
         self.prep()
 
@@ -694,7 +694,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionsuffix': versuff,
             'toolchain_version': tcver,
             'patches': new_patches,
-            'keepsymlinks': 'True',  # Don't change this
+            'keepsymlinks': 'False',  # Don't change this
             # It should be possible to overwrite values with True/False/None as they often have special meaning
             'runtest': 'False',
             'hidden': 'True',

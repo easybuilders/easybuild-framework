@@ -2610,6 +2610,26 @@ class EasyBlockTest(EnhancedTestCase):
         # Reset mocked value
         del st.det_parallelism._default_parallelism
 
+    def test_keepsymlinks(self):
+        """Test keepsymlinks parameter (default: True)."""
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toytxt = read_file(toy_ec)
+
+        test_cases = {
+            '': True,
+            'keepsymlinks = False': False,
+            'keepsymlinks = True': True,
+        }
+
+        for txt, expected in test_cases.items():
+            with self.subTest(ec_params=txt):
+                self.contents = toytxt + '\n' + txt
+                self.writeEC()
+                test_eb = EasyBlock(EasyConfig(self.eb_file))
+                test_eb.post_init()
+                self.assertEqual(test_eb.cfg['keepsymlinks'], expected)
+
     def test_guess_start_dir(self):
         """Test guessing the start dir."""
         test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
