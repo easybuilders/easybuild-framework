@@ -4433,10 +4433,9 @@ def copy_build_dirs_logs_failed_installs(application_log, silent, app, easyconfi
     # there may be multiple log files, or the file name may be different due to zipping
     logs = glob.glob(f"{application_log}*")
 
-    datestamp = time.strftime('%Y%m%d')
-    timestamp = time.strftime('%H%M%S')
-    salt = ''.join(random.choice(ascii_letters) for i in range(5))
-    unique_subdir = f'{datestamp}-{timestamp}-{salt}'
+    timestamp = time.strftime('%Y%m%d-%H%M%S')
+    salt = ''.join(random.choices(ascii_letters, k=5))
+    unique_subdir = f'{timestamp}-{salt}'
 
     operation_args = []
 
