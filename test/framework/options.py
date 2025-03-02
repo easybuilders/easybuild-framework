@@ -2214,19 +2214,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         args = [
-            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
-            '--from-pr=6424',
-            'FFTW-3.3.8-gompi-2018b.eb',
+            # PR for XCrySDen/1.6.2-foss-2024a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
+            '--from-pr=22227',
+            'XCrySDen-1.6.2-foss-2024a.eb',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % self.test_prefix,
             '--extended-dry-run',
         ]
         try:
-            # PR #6424 includes easyconfigs that use 'dummy' toolchain,
-            # so we need to allow triggering deprecated behaviour
-            self.allow_deprecated_behaviour()
-
             self.mock_stderr(True)  # just to capture deprecation warning
             self.mock_stdout(True)
             self.mock_stderr(True)
@@ -2237,8 +2233,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             msg_regexs = [
                 re.compile(r"^== Build succeeded for 1 out of 1", re.M),
-                re.compile(r"^\*\*\* DRY RUN using 'EB_FFTW' easyblock", re.M),
-                re.compile(r"^== building and installing FFTW/3.3.8-gompi-2018b\.\.\.", re.M),
+                re.compile(r"^\*\*\* DRY RUN using 'EB_XCrySDen' easyblock", re.M),
+                re.compile(r"^== building and installing XCrySDen/1.6.2-foss-2024a\.\.\.", re.M),
                 re.compile(r"^building... \[DRY RUN\]", re.M),
                 re.compile(r"^== COMPLETED: Installation ended successfully \(took .* secs?\)", re.M),
             ]
@@ -3909,7 +3905,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             '--include-easyblocks=%s/*.py' % self.test_prefix,  # this shouldn't interfere
-            '--include-easyblocks-from-pr=1915',  # a PR for CMakeMake easyblock
+            '--include-easyblocks-from-pr=3399',  # a PR for CMakeMake easyblock
             '--list-easyblocks=detailed',
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -3923,7 +3919,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         self.assertFalse(stderr)
-        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #1915\n")
+        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #3399\n")
 
         # easyblock included from pr is found
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
@@ -3953,7 +3949,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # including the same easyblock twice should work and give priority to the one from the PR
         args = [
             '--include-easyblocks=%s/*.py' % self.test_prefix,
-            '--include-easyblocks-from-pr=1915',
+            '--include-easyblocks-from-pr=3399',
             '--list-easyblocks=detailed',
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -3967,9 +3963,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         expected = "WARNING: One or more easyblocks included from multiple locations: "
-        expected += "cmakemake.py (the one(s) from PR #1915 will be used)"
+        expected += "cmakemake.py (the one(s) from PR #3399 will be used)"
         self.assertEqual(stderr.strip(), expected)
-        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #1915\n")
+        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #3399\n")
 
         # easyblock included from pr is found
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
@@ -4003,8 +3999,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(self.logfile, '')
 
         args = [
-            '--from-pr=10487',  # PR for CMake easyconfig
-            '--include-easyblocks-from-pr=1936,2204',  # PRs for EB_CMake and Siesta easyblock
+            '--from-pr=22227',  # PR for Togl easyconfig
+            '--include-easyblocks-from-pr=3547,3634',  # PRs for Bundle and GROMACS easyblock
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             '--extended-dry-run',
@@ -4018,25 +4014,25 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         self.assertFalse(stderr)
-        self.assertEqual(stdout, "== easyblock cmake.py included from PR #1936\n" +
-                         "== easyblock siesta.py included from PR #2204\n")
+        self.assertEqual(stdout, "== easyblock bundle.py included from PR #3547\n" +
+                         "== easyblock gromacs.py included from PR #3634\n")
 
         # easyconfig from pr is found
-        ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr10487', 'c', 'CMake',
-                                  'CMake-3.16.4-GCCcore-9.3.0.eb')
+        ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr22227', 'x', 'XCrySDen',
+                                  'XCrySDen-1.6.2-foss-2024a.eb')
         ec_regex = re.compile(r"Parsing easyconfig file %s" % ec_pattern, re.M)
         self.assertTrue(ec_regex.search(logtxt), "Pattern '%s' found in: %s" % (ec_regex.pattern, logtxt))
 
         # easyblock included from pr is found
-        eb_regex = re.compile(r"Successfully obtained EB_CMake class instance from easybuild.easyblocks.cmake", re.M)
+        eb_regex = re.compile(r"Successfully obtained Bundle class instance from easybuild.easyblocks.generic.bundle", re.M)
         self.assertTrue(eb_regex.search(logtxt), "Pattern '%s' found in: %s" % (eb_regex.pattern, logtxt))
 
         # easyblock is found via get_easyblock_class
-        klass = get_easyblock_class('EB_CMake')
+        klass = get_easyblock_class('PETSc')
         self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
 
         # 'undo' import of easyblocks
-        del sys.modules['easybuild.easyblocks.cmake']
+        del sys.modules['easybuild.easyblocks.generic.bundle']
 
     def mk_eb_test_cmd(self, args):
         """Construct test command for 'eb' with given options."""
