@@ -3989,7 +3989,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             '--from-pr=22227',  # PR for Togl easyconfig
-            '--include-easyblocks-from-pr=3547,3634',  # PRs for Bundle and GROMACS easyblock
+            '--include-easyblocks-from-pr=3563,3634',  # PRs for ConfigureMake and GROMACS easyblock
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             '--extended-dry-run',
@@ -4003,26 +4003,26 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         self.assertFalse(stderr)
-        self.assertEqual(stdout, "== easyblock bundle.py included from PR #3547\n" +
+        self.assertEqual(stdout, "== easyblock configuremake.py included from PR #3563\n" +
                          "== easyblock gromacs.py included from PR #3634\n")
 
         # easyconfig from pr is found
-        ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr22227', 'x', 'XCrySDen',
-                                  'XCrySDen-1.6.2-foss-2024a.eb')
+        ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr22227', 't', 'Togl',
+                                  'Togl-2.0-GCCcore-13.3.0.eb')
         ec_regex = re.compile(r"Parsing easyconfig file %s" % ec_pattern, re.M)
         self.assertTrue(ec_regex.search(logtxt), "Pattern '%s' found in: %s" % (ec_regex.pattern, logtxt))
 
         # easyblock included from pr is found
-        eb_regex = re.compile(r"Successfully obtained Bundle class instance from easybuild.easyblocks.generic.bundle",
-                              re.M)
+        eb_regex = re.compile(
+            r"Derived full easyblock module path for ConfigureMake: easybuild.easyblocks.generic.configuremake", re.M)
         self.assertTrue(eb_regex.search(logtxt), "Pattern '%s' found in: %s" % (eb_regex.pattern, logtxt))
 
         # easyblock is found via get_easyblock_class
-        klass = get_easyblock_class('PETSc')
+        klass = get_easyblock_class('ConfigureMake')
         self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
 
         # 'undo' import of easyblocks
-        del sys.modules['easybuild.easyblocks.generic.bundle']
+        del sys.modules['easybuild.easyblocks.xcrysden']
 
     def mk_eb_test_cmd(self, args):
         """Construct test command for 'eb' with given options."""
