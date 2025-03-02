@@ -24,8 +24,6 @@
 ##
 """
 Dummy support for building and installing a Python package.
-
-@author: Kenneth Hoste (Ghent University)
 """
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM

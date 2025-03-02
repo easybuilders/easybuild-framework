@@ -24,8 +24,6 @@
 ##
 """
 Dummy easyblock for Makecp.
-
-@author: Miguel Dias Costa (National University of Singapore)
 """
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM

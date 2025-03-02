@@ -24,8 +24,6 @@
 ##
 """
 Dummy support for building and installing applications via a command and copy.
-
-@author: Kenneth Hoste (Ghent University)
 """
 from easybuild.framework.easyblock import EasyBlock
 

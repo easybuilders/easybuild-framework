@@ -24,8 +24,6 @@
 ##
 """
 Dummy easyblock for Perl
-
-@author: Kenneth Hoste (Ghent University)
 """
 from easybuild.framework.easyblock import EasyBlock
 

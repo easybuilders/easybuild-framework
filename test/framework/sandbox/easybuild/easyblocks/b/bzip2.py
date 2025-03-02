@@ -24,8 +24,6 @@
 ##
 """
 Dummy easyblock for bzip2
-
-@author: Kenneth Hoste (Ghent University)
 """
 from easybuild.framework.easyblock import EasyBlock
 

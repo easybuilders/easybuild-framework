@@ -24,8 +24,6 @@
 ##
 """
 Dummy easyblock for freetype
-
-@author: Kenneth Hoste (Ghent University)
 """
 from easybuild.framework.easyblock import EasyBlock
 

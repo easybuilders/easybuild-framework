@@ -24,8 +24,6 @@
 ##
 """
 Dummy support for building and installing applications from a Tarball.
-
-@author: Kenneth Hoste (Ghent University)
 """
 from easybuild.framework.easyblock import EasyBlock
 
