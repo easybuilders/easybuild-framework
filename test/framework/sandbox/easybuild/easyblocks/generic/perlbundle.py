@@ -23,20 +23,12 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Dummy easyblock for Makecp.
+Dummy easyblock for bundle of Perl modules.
 """
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 
 
 class PerlBundle(EasyBlock):
-    """Dummy support for bundle of modules."""
-
-    @staticmethod
-    def extra_options(extra_vars=None):
-        if extra_vars is None:
-            extra_vars = {}
-        extra_vars.update({
-            'components': [(), "List of components to install: tuples w/ name, version and easyblock to use", CUSTOM],
-        })
-        return EasyBlock.extra_options(extra_vars)
+    """Dummy support for bundle of Perl modules."""
+    pass
