@@ -2169,10 +2169,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp()
         args = [
             'toy-0.0.eb',
-            'gompi-2018b.eb',  # also pulls in GCC, OpenMPI (which pulls in hwloc)
+            'XCrySDen-1.6.2-foss-2024a.eb',
             'GCC-4.6.3.eb',
-            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
-            '--from-pr=6424',
+            # PR for XCrySDen/1.6.2-foss-2024a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
+            '--from-pr=22227',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % test_ecs_path,
@@ -2185,10 +2185,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
                 (test_ecs_path, 'toy/0.0'),  # not included in PR
-                (test_ecs_path, 'GCC/7.3.0-2.30'),  # not included in PR, available locally
-                (test_ecs_path, 'hwloc/1.11.8-GCC-7.3.0-2.30'),
-                (test_ecs_path, 'OpenMPI/3.1.1-GCC-7.3.0-2.30'),
-                ('.*%s' % os.path.dirname(tmpdir), 'gompi/2018b'),
+                ('.*%s' % os.path.dirname(tmpdir), 'XCrySDen/1.6.2-foss-2024a'),
+                ('.*%s' % os.path.dirname(tmpdir), 'Togl/2.0-GCCcore-13.3.0'),
                 (test_ecs_path, 'GCC/4.6.3'),  # not included in PR, available locally
             ]
             for path_prefix, module in modules:
