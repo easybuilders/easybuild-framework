@@ -477,36 +477,30 @@ class GithubTest(EnhancedTestCase):
         gh.fetch_files_from_pr.clear_cache()
         self.assertFalse(gh.fetch_files_from_pr._cache)
 
-        pr7159_filenames = [
-            'DOLFIN-2018.1.0.post1-foss-2018a-Python-3.6.4.eb',
-            'OpenFOAM-5.0-20180108-foss-2018a.eb',
-            'OpenFOAM-5.0-20180108-intel-2018a.eb',
-            'OpenFOAM-6-foss-2018b.eb',
-            'OpenFOAM-6-intel-2018a.eb',
-            'OpenFOAM-v1806-foss-2018b.eb',
-            'PETSc-3.9.3-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018b.eb',
-            'SCOTCH-6.0.6-intel-2018a.eb',
-            'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
+        pr22227_filenames = [
+            'bwidget-1.10.1-GCCcore-13.3.0.eb',
+            'quarto-1.5.57-x64.eb',
+            'Sabre-2013-09-28-GCC-13.3.0.eb',
+            'Togl-2.0-GCCcore-13.3.0.eb',
+            'XCrySDen-1.6.2-foss-2024a.eb',
         ]
         with self.mocked_stdout_stderr():
-            pr7159_files = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
-        self.assertEqual(sorted(pr7159_filenames), sorted(os.path.basename(f) for f in pr7159_files))
+            pr22227_files = gh.fetch_easyconfigs_from_pr(22227, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(sorted(pr22227_filenames), sorted(os.path.basename(f) for f in pr22227_files))
 
-        # check that cache has been populated for PR 7159
+        # check that cache has been populated for PR 22227
         self.assertEqual(len(gh.fetch_files_from_pr._cache.keys()), 1)
 
         # github_account value is None (results in using default 'easybuilders')
-        cache_key = (7159, None, 'easybuild-easyconfigs', self.test_prefix)
+        cache_key = (22227, None, 'easybuild-easyconfigs', self.test_prefix)
         self.assertIn(cache_key, gh.fetch_files_from_pr._cache.keys())
 
         cache_entry = gh.fetch_files_from_pr._cache[cache_key]
-        self.assertEqual(sorted([os.path.basename(f) for f in cache_entry]), sorted(pr7159_filenames))
+        self.assertEqual(sorted([os.path.basename(f) for f in cache_entry]), sorted(pr22227_filenames))
 
         # same query should return result from cache entry
-        res = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, pr7159_files)
+        res = gh.fetch_easyconfigs_from_pr(22227, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, pr22227_files)
 
         # inject entry in cache and check result of matching query
         pr_id = 12345
